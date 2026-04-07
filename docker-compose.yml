@@ -8,7 +8,7 @@
 services:
   api:
     build:
-      context: ./nomnomzbot-server
+      context: ./nomercybot-server
       dockerfile: Dockerfile
     container_name: nomnomzbot-api
     ports:
@@ -54,7 +54,7 @@ services:
 
   web:
     build:
-      context: ./nomnomzbot-app
+      context: ./nomercybot-app
       dockerfile: Dockerfile
       args:
         # EXPO_PUBLIC_API_URL is baked into the JS bundle — must be your public API domain
