@@ -1,6 +1,7 @@
 FROM node:22-alpine AS build
 WORKDIR /app
 COPY package.json yarn.lock ./
+COPY scripts/ ./scripts/
 RUN yarn install --frozen-lockfile
 COPY . .
 ARG EXPO_PUBLIC_API_URL=http://localhost:5080
