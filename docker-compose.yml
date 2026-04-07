@@ -122,9 +122,7 @@ services:
     image: cloudflare/cloudflared:latest
     container_name: nomnomzbot-tunnel
     restart: unless-stopped
-    command: tunnel --config /etc/cloudflared/config.yml run --token ${CLOUDFLARE_TUNNEL_TOKEN}
-    volumes:
-      - ./cloudflared/config.yml:/etc/cloudflared/config.yml:ro
+    command: tunnel run --token ${CLOUDFLARE_TUNNEL_TOKEN}
     depends_on:
       api:
         condition: service_healthy
