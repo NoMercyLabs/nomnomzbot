@@ -5,6 +5,9 @@ const { withNativewind } = require('nativewind/metro')
 const FLATLIST_STUB = path.resolve(__dirname, 'scripts/FlatListStub.web.js')
 const GESTURE_HANDLER_STUB = path.resolve(__dirname, 'scripts/gesture-handler-stub.web.js')
 const REANIMATED_STUB = path.resolve(__dirname, 'scripts/reanimated-web-stub.js')
+const NATIVEWIND_SHIM = path.resolve(__dirname, 'scripts/nativewind-shim.js')
+const NW_JSX_DEV_RUNTIME_STUB = path.resolve(__dirname, 'scripts/nativewind-jsx-dev-runtime.js')
+const NW_JSX_RUNTIME_STUB = path.resolve(__dirname, 'scripts/nativewind-jsx-runtime.js')
 
 const config = getDefaultConfig(__dirname)
 
@@ -29,6 +32,22 @@ const ESM_TO_CJS_PACKAGES = ['zustand']
 const PRETTY_FORMAT_SHIM = path.resolve(__dirname, 'scripts/pretty-format-shim.js')
 
 config.resolver.resolveRequest = (context, moduleName, platform) => {
+  // nativewind@5.0.0-preview.3 does not export createElement / jsx-runtime helpers.
+  // jsxImportSource:'nativewind' in babel.config.js can generate either:
+  //   import { createElement } from 'nativewind'
+  // or
+  //   import { jsxDEV } from 'nativewind/jsx-dev-runtime'
+  // Point all of them to local shims that preserve the $$css className-forwarding trick.
+  if (platform === 'web' && moduleName === 'nativewind') {
+    return { type: 'sourceFile', filePath: NATIVEWIND_SHIM }
+  }
+  if (platform === 'web' && moduleName === 'nativewind/jsx-dev-runtime') {
+    return { type: 'sourceFile', filePath: NW_JSX_DEV_RUNTIME_STUB }
+  }
+  if (platform === 'web' && moduleName === 'nativewind/jsx-runtime') {
+    return { type: 'sourceFile', filePath: NW_JSX_RUNTIME_STUB }
+  }
+
   // pretty-format → shim with correct default export
   if (moduleName === 'pretty-format') {
     return { type: 'sourceFile', filePath: PRETTY_FORMAT_SHIM }

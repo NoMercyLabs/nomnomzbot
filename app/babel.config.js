@@ -13,9 +13,13 @@ module.exports = function (api) {
   // Cache separately per platform so native builds still get the full preset.
   api.cache.invalidate(() => isWeb)
 
+  // jsxImportSource: "nativewind" must be set on BOTH platforms so that
+  // className props on React Native components are forwarded to the DOM on web.
+  // nativewind/babel (the import rewriter) is still skipped on web to avoid
+  // the react-native-css circular dependency crash.
   const presets = isWeb
-    ? ['babel-preset-expo']
-    : ['babel-preset-expo', 'nativewind/babel']
+    ? [['babel-preset-expo', { jsxImportSource: 'nativewind' }]]
+    : [['babel-preset-expo', { jsxImportSource: 'nativewind' }], 'nativewind/babel']
 
   return {
     presets,
