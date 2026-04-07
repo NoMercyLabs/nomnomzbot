@@ -20,7 +20,7 @@ services:
       - App__BaseUrl=${API_BASE_URL:-http://localhost:5080}
       - App__FrontendUrl=${FRONTEND_URL:-http://localhost:8081}
       - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=${POSTGRES_DB:-nomnomzbot};Username=${POSTGRES_USER:-nomnomzbot};Password=${POSTGRES_PASSWORD}
-      - ConnectionStrings__Redis=redis://:${REDIS_PASSWORD:-}@redis:6379
+      - ConnectionStrings__Redis=redis://redis:6379
       - Jwt__Secret=${JWT_SECRET}
       - Jwt__Issuer=${JWT_ISSUER:-nomnomzbot}
       - Jwt__Audience=${JWT_AUDIENCE:-nomnomzbot}
@@ -91,17 +91,10 @@ services:
 
   redis:
     image: redis:7-alpine
-    command: >
-      sh -c "redis-server
-      $([ -n \"$REDIS_PASSWORD\" ] && echo \"--requirepass $REDIS_PASSWORD\")"
-    environment:
-      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
     ports:
       - "${REDIS_PORT:-6379}:6379"
     healthcheck:
-      test: >
-        ["CMD-SHELL",
-        "redis-cli $([ -n \"$REDIS_PASSWORD\" ] && echo \"-a $REDIS_PASSWORD\") ping | grep PONG"]
+      test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 3s
       retries: 5
