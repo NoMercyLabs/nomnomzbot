@@ -9,6 +9,7 @@ import { Bot, CheckCircle2, Link2Off, Copy, ExternalLink } from 'lucide-react-na
 import { ErrorBoundary } from '@/components/feedback/ErrorBoundary'
 import { useNotificationStore } from '@/stores/useNotificationStore'
 import * as Clipboard from 'expo-clipboard'
+import { API_BASE_URL } from '@/lib/utils/apiUrl'
 
 interface BotStatus {
   connected: boolean
@@ -17,7 +18,7 @@ interface BotStatus {
   profileImageUrl: string | null
 }
 
-const BOT_OAUTH_URL = `${process.env.EXPO_PUBLIC_API_URL ?? 'https://bot-dev-api.nomercy.tv'}/api/v1/auth/twitch/bot`
+const BOT_OAUTH_URL = `${API_BASE_URL}/api/v1/auth/twitch/bot`
 
 export default function AdminBotScreen() {
   const addToast = useNotificationStore((s) => s.addToast)

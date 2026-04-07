@@ -40,6 +40,25 @@ public class ChannelBotController : BaseController
         _config = config;
     }
 
+    private string GetPublicBaseUrl()
+    {
+        string forwardedHost = Request.Headers["X-Forwarded-Host"].ToString();
+        string forwardedProto = Request.Headers["X-Forwarded-Proto"].ToString();
+
+        string? host = !string.IsNullOrWhiteSpace(forwardedHost)
+            ? forwardedHost.Split(',')[0].Trim()
+            : Request.Host.Value;
+
+        string? scheme = !string.IsNullOrWhiteSpace(forwardedProto)
+            ? forwardedProto.Split(',')[0].Trim()
+            : Request.Scheme;
+
+        if (!string.IsNullOrWhiteSpace(host) && !string.IsNullOrWhiteSpace(scheme))
+            return $"{scheme}://{host}";
+
+        return (_config["App:BaseUrl"] ?? "http://localhost:5080").TrimEnd('/');
+    }
+
     public record ScopeDto(
         string Scope,
         string Name,
@@ -122,7 +141,7 @@ public class ChannelBotController : BaseController
     [EnableRateLimiting("auth")]
     public async Task<IActionResult> StartChannelBotOAuth(string channelId, CancellationToken ct)
     {
-        string authUrl = await _authService.GetTwitchChannelBotOAuthUrl(channelId, cancellationToken: ct);
+        string authUrl = await _authService.GetTwitchChannelBotOAuthUrl(channelId, baseUrl: GetPublicBaseUrl(), cancellationToken: ct);
         return Redirect(authUrl);
     }
 

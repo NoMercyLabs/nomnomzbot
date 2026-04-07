@@ -143,7 +143,19 @@ public class SystemController : BaseController
     [EnableRateLimiting("auth")]
     public async Task<IActionResult> GetBotOAuthUrl(CancellationToken ct)
     {
-        string url = await _authService.GetTwitchBotOAuthUrl(cancellationToken: ct);
+        string forwardedHost = Request.Headers["X-Forwarded-Host"].ToString();
+        string forwardedProto = Request.Headers["X-Forwarded-Proto"].ToString();
+        string? host = !string.IsNullOrWhiteSpace(forwardedHost)
+            ? forwardedHost.Split(',')[0].Trim()
+            : Request.Host.Value;
+        string? scheme = !string.IsNullOrWhiteSpace(forwardedProto)
+            ? forwardedProto.Split(',')[0].Trim()
+            : Request.Scheme;
+        string publicBaseUrl = !string.IsNullOrWhiteSpace(host) && !string.IsNullOrWhiteSpace(scheme)
+            ? $"{scheme}://{host}"
+            : (_config["App:BaseUrl"] ?? "http://localhost:5080").TrimEnd('/');
+
+        string url = await _authService.GetTwitchBotOAuthUrl(baseUrl: publicBaseUrl, cancellationToken: ct);
         return Ok(new StatusResponseDto<object> { Data = new { oauthUrl = url } });
     }
 

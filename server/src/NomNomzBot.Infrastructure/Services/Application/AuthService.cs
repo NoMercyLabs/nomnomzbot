@@ -122,11 +122,12 @@ public sealed class AuthService : IAuthService
         _baseUrl = configuration["App:BaseUrl"] ?? "http://localhost:5080";
     }
 
-    public async Task<string> GetTwitchOAuthUrl(string? state = null, CancellationToken cancellationToken = default)
+    public async Task<string> GetTwitchOAuthUrl(string? state = null, string? baseUrl = null, CancellationToken cancellationToken = default)
     {
+        string publicBaseUrl = (string.IsNullOrWhiteSpace(baseUrl) ? _baseUrl : baseUrl).TrimEnd('/');
         string clientId = Uri.EscapeDataString(await GetEffectiveClientIdAsync(cancellationToken));
         string scopes = Uri.EscapeDataString(string.Join(" ", RequiredScopes));
-        string redirectUri = Uri.EscapeDataString($"{_baseUrl}/api/v1/auth/twitch/callback");
+        string redirectUri = Uri.EscapeDataString($"{publicBaseUrl}/api/v1/auth/twitch/callback");
         string stateParam = state is not null
             ? $"&state={Uri.EscapeDataString(state)}"
             : string.Empty;
@@ -319,11 +320,12 @@ public sealed class AuthService : IAuthService
 
     // ─── Bot account ─────────────────────────────────────────────────────────
 
-    public async Task<string> GetTwitchBotOAuthUrl(string? state = null, CancellationToken cancellationToken = default)
+    public async Task<string> GetTwitchBotOAuthUrl(string? state = null, string? baseUrl = null, CancellationToken cancellationToken = default)
     {
+        string publicBaseUrl = (string.IsNullOrWhiteSpace(baseUrl) ? _baseUrl : baseUrl).TrimEnd('/');
         string clientId = Uri.EscapeDataString(await GetEffectiveClientIdAsync(cancellationToken));
         string scopes = Uri.EscapeDataString(string.Join(" ", BotScopes));
-        string redirectUri = Uri.EscapeDataString($"{_baseUrl}/api/v1/auth/twitch/bot/callback");
+        string redirectUri = Uri.EscapeDataString($"{publicBaseUrl}/api/v1/auth/twitch/bot/callback");
         string stateParam = state is not null
             ? $"&state={Uri.EscapeDataString(state)}"
             : string.Empty;
@@ -471,11 +473,12 @@ public sealed class AuthService : IAuthService
 
     // ─── White-label per-channel bot ─────────────────────────────────────────
 
-    public async Task<string> GetTwitchChannelBotOAuthUrl(string channelId, string? state = null, CancellationToken cancellationToken = default)
+    public async Task<string> GetTwitchChannelBotOAuthUrl(string channelId, string? state = null, string? baseUrl = null, CancellationToken cancellationToken = default)
     {
+        string publicBaseUrl = (string.IsNullOrWhiteSpace(baseUrl) ? _baseUrl : baseUrl).TrimEnd('/');
         string clientId = Uri.EscapeDataString(await GetEffectiveClientIdAsync(cancellationToken));
         string scopes = Uri.EscapeDataString(string.Join(" ", BotScopes));
-        string redirectUri = Uri.EscapeDataString($"{_baseUrl}/api/v1/channels/callback/bot");
+        string redirectUri = Uri.EscapeDataString($"{publicBaseUrl}/api/v1/channels/callback/bot");
 
         // Embed channelId + optional mobile redirect in state
         var payload = new { channel_id = channelId, redirect_uri = state };

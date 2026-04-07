@@ -35,6 +35,25 @@ public class AuthController : BaseController
         _config = config;
     }
 
+    private string GetPublicBaseUrl()
+    {
+        string forwardedHost = Request.Headers["X-Forwarded-Host"].ToString();
+        string forwardedProto = Request.Headers["X-Forwarded-Proto"].ToString();
+
+        string? host = !string.IsNullOrWhiteSpace(forwardedHost)
+            ? forwardedHost.Split(',')[0].Trim()
+            : Request.Host.Value;
+
+        string? scheme = !string.IsNullOrWhiteSpace(forwardedProto)
+            ? forwardedProto.Split(',')[0].Trim()
+            : Request.Scheme;
+
+        if (!string.IsNullOrWhiteSpace(host) && !string.IsNullOrWhiteSpace(scheme))
+            return $"{scheme}://{host}";
+
+        return (_config["App:BaseUrl"] ?? "http://localhost:5080").TrimEnd('/');
+    }
+
     /// <summary>Get the currently authenticated user.</summary>
     [HttpGet("me")]
     [Authorize]
@@ -64,7 +83,7 @@ public class AuthController : BaseController
             state = Convert.ToBase64String(Encoding.UTF8.GetBytes(payload));
         }
 
-        string authUrl = await _authService.GetTwitchOAuthUrl(state, ct);
+        string authUrl = await _authService.GetTwitchOAuthUrl(state, GetPublicBaseUrl(), ct);
         return Redirect(authUrl);
     }
 
@@ -236,7 +255,7 @@ public class AuthController : BaseController
             state = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(payload));
         }
 
-        string authUrl = await _authService.GetTwitchBotOAuthUrl(state, ct);
+        string authUrl = await _authService.GetTwitchBotOAuthUrl(state, GetPublicBaseUrl(), ct);
         return Redirect(authUrl);
     }
 

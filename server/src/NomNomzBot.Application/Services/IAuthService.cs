@@ -9,7 +9,7 @@ namespace NoMercyBot.Application.Services;
 public interface IAuthService
 {
     /// <summary>Get the Twitch OAuth authorization URL.</summary>
-    Task<string> GetTwitchOAuthUrl(string? state = null, CancellationToken cancellationToken = default);
+    Task<string> GetTwitchOAuthUrl(string? state = null, string? baseUrl = null, CancellationToken cancellationToken = default);
 
     /// <summary>Handle the OAuth callback from Twitch and return auth tokens.</summary>
     Task<Result<AuthResultDto>> HandleTwitchCallbackAsync(
@@ -29,7 +29,7 @@ public interface IAuthService
     // ── Platform bot (NomNomzBot) — admin only, BroadcasterId=null ──────────
 
     /// <summary>Get the Twitch OAuth URL for the platform bot account (NomNomzBot).</summary>
-    Task<string> GetTwitchBotOAuthUrl(string? state = null, CancellationToken cancellationToken = default);
+    Task<string> GetTwitchBotOAuthUrl(string? state = null, string? baseUrl = null, CancellationToken cancellationToken = default);
 
     /// <summary>Handle the OAuth callback for the platform bot and store the token globally.</summary>
     Task<Result<BotStatusDto>> HandleTwitchBotCallbackAsync(
@@ -46,7 +46,7 @@ public interface IAuthService
     // ── White-label bot — per-channel, Pro tier, BroadcasterId=channelId ─────
 
     /// <summary>Get the Twitch OAuth URL for a channel's white-label bot.</summary>
-    Task<string> GetTwitchChannelBotOAuthUrl(string channelId, string? state = null, CancellationToken cancellationToken = default);
+    Task<string> GetTwitchChannelBotOAuthUrl(string channelId, string? state = null, string? baseUrl = null, CancellationToken cancellationToken = default);
 
     /// <summary>Handle the OAuth callback for a channel's white-label bot and store per-channel.</summary>
     Task<Result<BotStatusDto>> HandleTwitchChannelBotCallbackAsync(

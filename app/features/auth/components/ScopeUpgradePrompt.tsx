@@ -4,8 +4,7 @@ import { useAuthStore } from '@/stores/useAuthStore'
 import { makeRedirectUri } from 'expo-auth-session'
 import * as WebBrowser from 'expo-web-browser'
 import { Platform } from 'react-native'
-
-const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:7000'
+import { API_BASE_URL } from '@/lib/utils/apiUrl'
 
 export function ScopeUpgradePrompt() {
   const pendingScopeUpgrade = useAuthStore((s) => s.pendingScopeUpgrade)
@@ -18,13 +17,13 @@ export function ScopeUpgradePrompt() {
     const scopeParam = encodeURIComponent(pendingScopeUpgrade.join(' '))
 
     if (Platform.OS === 'web') {
-      const base = typeof window !== 'undefined' ? window.location.origin : API_URL
-      window.location.href = `${base}/auth/twitch?scopes=${scopeParam}`
+      const webCallback = typeof window !== 'undefined' ? `${window.location.origin}/callback` : ''
+      window.location.href = `${API_BASE_URL}/api/v1/auth/twitch?scopes=${scopeParam}&redirect_uri=${encodeURIComponent(webCallback)}`
       return
     }
 
     const redirectUri = makeRedirectUri({ scheme: 'nomercybot', path: 'callback' })
-    const authUrl = `${API_URL}/auth/twitch?scopes=${scopeParam}&redirect_uri=${encodeURIComponent(redirectUri)}`
+    const authUrl = `${API_BASE_URL}/api/v1/auth/twitch?scopes=${scopeParam}&redirect_uri=${encodeURIComponent(redirectUri)}`
     const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri)
     if (result.type === 'success') {
       dismissScopeUpgrade()

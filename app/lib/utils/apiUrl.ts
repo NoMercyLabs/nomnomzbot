@@ -3,6 +3,22 @@ import Constants from 'expo-constants'
 
 const ENV_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:5080'
 
+function getHostedWebApiUrl(): string | null {
+  if (Platform.OS !== 'web' || typeof window === 'undefined') return null
+
+  const { protocol, hostname } = window.location
+  const host = hostname.toLowerCase()
+
+  if (host === 'bot.nomercy.tv') return `${protocol}//bot-api.nomercy.tv`
+  if (host === 'bot-dev.nomercy.tv') return `${protocol}//bot-dev-api.nomercy.tv`
+  if (host === 'nomnomz.bot' || host === 'www.nomnomz.bot') return `${protocol}//api.nomnomz.bot`
+  if (host === 'bot-api.nomercy.tv' || host === 'bot-dev-api.nomercy.tv' || host === 'api.nomnomz.bot') {
+    return `${protocol}//${host}`
+  }
+
+  return null
+}
+
 /**
  * Extracts the port number from the configured API URL (default 5080).
  */
@@ -49,6 +65,11 @@ function getDevServerHost(): string | null {
  *   Returns EXPO_PUBLIC_API_URL as-is.
  */
 function resolveApiBaseUrl(): string {
+  const hostedWebApiUrl = getHostedWebApiUrl()
+  if (hostedWebApiUrl) {
+    return hostedWebApiUrl
+  }
+
   // Only rewrite localhost URLs — if a real hostname is configured, use it
   if (!/https?:\/\/localhost/.test(ENV_URL)) {
     return ENV_URL
