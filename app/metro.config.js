@@ -121,4 +121,20 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
   return context.resolveRequest(context, moduleName, platform)
 }
 
-module.exports = withNativewind(config, { input: './global.css', inlineVariables: false })
+module.exports = withNativewind(config, {
+  input: './global.css',
+  inlineVariables: false,
+  // Disable react-native-css's webResolver. That resolver intercepts every
+  // react-native-web component sub-path (View, Text, FlatList, Pressable…) and
+  // redirects them to react-native-css/components/*.js wrappers. Each wrapper does
+  // a top-level require('react-native') at module init time. While react-native-web
+  // itself is still initialising this creates a circular dep → Metro wraps the
+  // unfinished export in a lazy getter → getter fires before the module finishes →
+  // "Cannot read properties of undefined (reading 'default')".
+  //
+  // NativeWind 5 is CSS-first: Tailwind classes live in global.css and are applied
+  // as real HTML class attributes on web. The runtime className→inline-style
+  // polyfill (globalClassNamePolyfill) is the old NativeWind 4 approach and is not
+  // needed — and actively harmful — for the CSS-first build.
+  globalClassNamePolyfill: false,
+})
