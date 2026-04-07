@@ -5,3 +5,7 @@
 [submodule "nomercybot-app"]
 	path = nomercybot-app
 	url = git@github.com:NoMercyLabs/nomercybot-app.git
+
+[submodule "nomercybot-design"]
+	path = nomercybot-design
+	url = git@github.com:NoMercyLabs/nomercybot-design.git
