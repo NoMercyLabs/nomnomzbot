@@ -48,8 +48,3 @@ TestResults/
 
 # Local agent/tool directories
 .claude/
-nomercybot-app/
-nomercybot-server/
-nomnomzbot-app/
-nomnomzbot-server/
-nomercybot/

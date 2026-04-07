@@ -18,8 +18,8 @@ import crypto from 'crypto';
 
 const __filename = fileURLToPath(import.meta.url);
 const ROOT         = path.dirname(__filename);
-const BACKEND_DIR  = path.join(ROOT, 'nomnomzbot-server');
-const FRONTEND_DIR = path.join(ROOT, 'nomnomzbot-app');
+const BACKEND_DIR  = path.join(ROOT, 'server');
+const FRONTEND_DIR = path.join(ROOT, 'app');
 const APPSETTINGS_DEV = path.join(BACKEND_DIR, 'src', 'NomNomzBot.Api', 'appsettings.Development.json');
 const BACKEND_ENV  = path.join(BACKEND_DIR, '.env');
 const FRONTEND_ENV = path.join(FRONTEND_DIR, '.env.development');
@@ -544,7 +544,7 @@ async function stepTwitch(config) {
   nl();
   const skip = await confirm('Skip Twitch setup for now?', false);
   if (skip) {
-    console.log(dim('\n  Skipped. Set credentials manually in nomnomzbot-server/.env later.'));
+    console.log(dim('\n  Skipped. Set credentials manually in server/.env later.'));
     return { skipped: true };
   }
 
@@ -1007,7 +1007,7 @@ async function stepCloudflare(config) {
     `      shared tunnel at bot-dev-api.nomercy.tv that already works)`,
     `    • You already have a domain name pointing at your server`,
     '',
-    `  ${DIM}You can always add a token later by editing nomnomzbot-server/.env${RESET}`,
+    `  ${DIM}You can always add a token later by editing server/.env${RESET}`,
   ], CYAN);
 
   nl();
@@ -1065,7 +1065,7 @@ async function writeBackendDotEnv(config) {
   // ── Existing file: ask what to do ─────────────────────────────────────────
   if (exists) {
     nl();
-    console.log(`  ${WARN} ${bold('nomnomzbot-server/.env')} already exists from a previous setup.`);
+    console.log(`  ${WARN} ${bold('server/.env')} already exists from a previous setup.`);
     const choice = await ask(
       `  ${DIM}What would you like to do?${RESET}\n` +
       `    ${bold('m')} = Merge  (keep your existing secrets, update credentials only)\n` +
@@ -1095,7 +1095,7 @@ async function writeBackendDotEnv(config) {
         DISCORD_CLIENT_SECRET:           discord?.clientSecret   || undefined,
         CLOUDFLARE_TUNNEL_TOKEN:         cloudflare?.token       || undefined,
       });
-      console.log(`  ${OK} nomnomzbot-server/.env — credentials merged in (existing secrets preserved)`);
+      console.log(`  ${OK} server/.env — credentials merged in (existing secrets preserved)`);
       return;
     }
     // fall through → overwrite
@@ -1219,7 +1219,7 @@ async function writeBackendDotEnv(config) {
   fs.writeFileSync(BACKEND_ENV, lines.join('\n'));
 
   nl();
-  console.log(`  ${OK} nomnomzbot-server/.env — ${exists ? 'overwritten with fresh secrets' : 'created'}`);
+  console.log(`  ${OK} server/.env — ${exists ? 'overwritten with fresh secrets' : 'created'}`);
 }
 
 function writeAppsettingsDev(config) {
@@ -1245,23 +1245,23 @@ function writeAppsettingsDev(config) {
   }
 
   mergeJsonFile(APPSETTINGS_DEV, patch);
-  console.log(`  ${OK} nomnomzbot-server/src/NomNomzBot.Api/appsettings.Development.json — updated`);
+  console.log(`  ${OK} server/src/NomNomzBot.Api/appsettings.Development.json — updated`);
 }
 
 function writeFrontendEnv(config) {
   const base = (config?.twitch?.baseUrl || 'http://localhost:5080').replace(/\/+$/, '');
   if (!fs.existsSync(FRONTEND_ENV)) {
     fs.writeFileSync(FRONTEND_ENV, `EXPO_PUBLIC_API_URL=${base}\nEXPO_PUBLIC_PROJECT_ID=\n`);
-    console.log(`  ${OK} nomnomzbot-app/.env.development — created`);
+    console.log(`  ${OK} app/.env.development — created`);
     return;
   }
   let content = fs.readFileSync(FRONTEND_ENV, 'utf8');
   if (content.includes('bot-dev-api.nomercy.tv') || content.includes('api.nomnomz.bot')) {
     content = content.replace(/EXPO_PUBLIC_API_URL=.*/g, `EXPO_PUBLIC_API_URL=${base}`);
     fs.writeFileSync(FRONTEND_ENV, content);
-    console.log(`  ${OK} nomnomzbot-app/.env.development — API URL updated to ${base}`);
+    console.log(`  ${OK} app/.env.development — API URL updated to ${base}`);
   } else {
-    console.log(dim('  nomnomzbot-app/.env.development — already configured'));
+    console.log(dim('  app/.env.development — already configured'));
   }
 }
 
@@ -1290,9 +1290,9 @@ async function stepStartServices(pkgMgr) {
 
   if (!wantDocker) {
     console.log(dim('\n  Skipped. Run manually when ready:'));
-    console.log(dim('    cd nomnomzbot-server && docker compose up -d postgres redis adminer'));
+    console.log(dim('    cd server && docker compose up -d postgres redis adminer'));
   } else if (!fs.existsSync(path.join(BACKEND_DIR, 'docker-compose.yml'))) {
-    console.log(`\n  ${FAIL} ${red('docker-compose.yml not found.')} Is the nomnomzbot-server folder missing?`);
+    console.log(`\n  ${FAIL} ${red('docker-compose.yml not found.')} Is the server folder missing?`);
   } else {
     nl();
     const s = spin('Starting Docker services (this may take a minute the first time)...').start();
@@ -1303,7 +1303,7 @@ async function stepStartServices(pkgMgr) {
     } catch (err) {
       s.fail('Could not start Docker services');
       console.log(`  ${WARN} Error: ${dim(err.message)}`);
-      console.log(dim('  Try manually: cd nomnomzbot-server && docker compose up -d postgres redis adminer'));
+      console.log(dim('  Try manually: cd server && docker compose up -d postgres redis adminer'));
     }
 
     if (dockerStarted) {
@@ -1356,7 +1356,7 @@ async function stepStartServices(pkgMgr) {
     console.log(`\n  ${OK} API is starting in a new terminal window.`);
     console.log(`  ${DIM}Wait until you see "Now listening on: http://localhost:5080"${RESET}`);
   } else {
-    console.log(dim('  Run manually: cd nomnomzbot-server/src/NomNomzBot.Api && dotnet run'));
+    console.log(dim('  Run manually: cd server/src/NomNomzBot.Api && dotnet run'));
   }
 
   // Frontend
@@ -1377,7 +1377,7 @@ async function stepStartServices(pkgMgr) {
     console.log(`  ${DIM}It will open http://localhost:8081 in your browser automatically.${RESET}`);
   } else {
     const cmd = pkgMgr === 'yarn' ? 'yarn web' : 'npm run web';
-    console.log(dim(`  Run manually: cd nomnomzbot-app && ${cmd}`));
+    console.log(dim(`  Run manually: cd app && ${cmd}`));
   }
 
   return { dockerStarted, startedBackend: startBackend, startedFrontend: startFrontend };
