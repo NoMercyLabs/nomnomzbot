@@ -18,8 +18,8 @@ services:
       - ASPNETCORE_URLS=http://+:5000
       - ASPNETCORE_FORWARDEDHEADERS_ENABLED=true
       - App__DeploymentMode=${DEPLOYMENT_MODE:-self-hosted}
-      - App__BaseUrl=${API_BASE_URL:-http://localhost:5080}
-      - App__FrontendUrl=${FRONTEND_URL:-http://localhost:8081}
+      - App__BaseUrl=${API_BASE_URL:-https://bot-dev-api.nomercy.tv}
+      - App__FrontendUrl=${FRONTEND_URL:-https://bot-dev.nomercy.tv}
       - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=${POSTGRES_DB:-nomnomzbot};Username=${POSTGRES_USER:-nomnomzbot};Password=${POSTGRES_PASSWORD}
       - ConnectionStrings__Redis=redis:6379,abortConnect=false
       - Jwt__Secret=${JWT_SECRET}
@@ -59,7 +59,7 @@ services:
       dockerfile: Dockerfile
       args:
         # EXPO_PUBLIC_API_URL is baked into the JS bundle — must be your public API domain
-        EXPO_PUBLIC_API_URL: ${API_BASE_URL:-http://localhost:5080}
+        EXPO_PUBLIC_API_URL: ${API_BASE_URL:-https://bot-dev-api.nomercy.tv}
     container_name: nomnomzbot-web
     ports:
       - "${WEB_PORT:-8081}:80"
