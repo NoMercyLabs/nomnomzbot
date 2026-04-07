@@ -16,6 +16,7 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
       - ASPNETCORE_URLS=http://+:5000
+      - ASPNETCORE_FORWARDEDHEADERS_ENABLED=true
       - App__DeploymentMode=${DEPLOYMENT_MODE:-self-hosted}
       - App__BaseUrl=${API_BASE_URL:-http://localhost:5080}
       - App__FrontendUrl=${FRONTEND_URL:-http://localhost:8081}

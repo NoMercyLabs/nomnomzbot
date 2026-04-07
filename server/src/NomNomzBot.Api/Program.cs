@@ -285,7 +285,10 @@ try
         options.Theme = ScalarTheme.DeepSpace;
     });
 
-    app.UseHttpsRedirection();
+    if (!app.Environment.IsProduction())
+    {
+        app.UseHttpsRedirection();
+    }
     app.UseCors();
     app.UseRateLimiter();
     app.UseAuthentication();
