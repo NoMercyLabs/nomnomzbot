@@ -3,6 +3,7 @@ const { getDefaultConfig } = require('expo/metro-config')
 const { withNativewind } = require('nativewind/metro')
 
 const FLATLIST_STUB = path.resolve(__dirname, 'scripts/FlatListStub.web.js')
+const GESTURE_HANDLER_STUB = path.resolve(__dirname, 'scripts/gesture-handler-stub.web.js')
 
 const config = getDefaultConfig(__dirname)
 
@@ -30,6 +31,15 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
   // pretty-format → shim with correct default export
   if (moduleName === 'pretty-format') {
     return { type: 'sourceFile', filePath: PRETTY_FORMAT_SHIM }
+  }
+
+  // react-native-gesture-handler on web pulls in reanimated which triggers the broken
+  // FlatList getter at startup. Redirect to a minimal stub that only wraps View.
+  if (platform === 'web' && (
+    moduleName === 'react-native-gesture-handler' ||
+    moduleName.startsWith('react-native-gesture-handler/')
+  )) {
+    return { type: 'sourceFile', filePath: GESTURE_HANDLER_STUB }
   }
 
   // react-native-web 0.21.x has a broken FlatList getter (return D.default where D=undefined).
