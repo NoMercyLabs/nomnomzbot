@@ -75,11 +75,9 @@ Both scripts:
    docker compose up -d --build
    ```
 
-4. Register Twitch redirect URIs — computed from `API_BASE_URL` automatically:
+4. Register the single Twitch redirect URI — all streamer, platform-bot, and channel-bot OAuth flows now use the same callback endpoint:
    ```
    {API_BASE_URL}/api/v1/auth/twitch/callback
-   {API_BASE_URL}/api/v1/auth/twitch/bot/callback
-   {API_BASE_URL}/api/v1/channels/callback/bot
    ```
 
 ---

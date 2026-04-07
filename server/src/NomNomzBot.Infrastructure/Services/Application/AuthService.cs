@@ -325,7 +325,7 @@ public sealed class AuthService : IAuthService
         string publicBaseUrl = (string.IsNullOrWhiteSpace(baseUrl) ? _baseUrl : baseUrl).TrimEnd('/');
         string clientId = Uri.EscapeDataString(await GetEffectiveClientIdAsync(cancellationToken));
         string scopes = Uri.EscapeDataString(string.Join(" ", BotScopes));
-        string redirectUri = Uri.EscapeDataString($"{publicBaseUrl}/api/v1/auth/twitch/bot/callback");
+        string redirectUri = Uri.EscapeDataString($"{publicBaseUrl}/api/v1/auth/twitch/callback");
         string stateParam = state is not null
             ? $"&state={Uri.EscapeDataString(state)}"
             : string.Empty;
@@ -344,7 +344,7 @@ public sealed class AuthService : IAuthService
         CancellationToken cancellationToken = default
     )
     {
-        string redirectUri = $"{_baseUrl}/api/v1/auth/twitch/bot/callback";
+        string redirectUri = callback.RedirectUri ?? $"{_baseUrl}/api/v1/auth/twitch/callback";
         TokenResult? tokens = await _twitchAuth.ExchangeCodeAsync(
             callback.Code,
             redirectUri,
@@ -478,10 +478,10 @@ public sealed class AuthService : IAuthService
         string publicBaseUrl = (string.IsNullOrWhiteSpace(baseUrl) ? _baseUrl : baseUrl).TrimEnd('/');
         string clientId = Uri.EscapeDataString(await GetEffectiveClientIdAsync(cancellationToken));
         string scopes = Uri.EscapeDataString(string.Join(" ", BotScopes));
-        string redirectUri = Uri.EscapeDataString($"{publicBaseUrl}/api/v1/channels/callback/bot");
+        string redirectUri = Uri.EscapeDataString($"{publicBaseUrl}/api/v1/auth/twitch/callback");
 
-        // Embed channelId + optional mobile redirect in state
-        var payload = new { channel_id = channelId, redirect_uri = state };
+        // Embed the flow type + channelId so the single callback endpoint can route it.
+        var payload = new { flow = "channel_bot", channel_id = channelId, redirect_uri = state };
         string encodedState = Convert.ToBase64String(
             System.Text.Encoding.UTF8.GetBytes(System.Text.Json.JsonSerializer.Serialize(payload)));
 
@@ -500,9 +500,10 @@ public sealed class AuthService : IAuthService
         CancellationToken cancellationToken = default
     )
     {
+        string redirectUri = callback.RedirectUri ?? $"{_baseUrl}/api/v1/auth/twitch/callback";
         TokenResult? tokens = await _twitchAuth.ExchangeCodeAsync(
             callback.Code,
-            $"{_baseUrl}/api/v1/channels/callback/bot",
+            redirectUri,
             cancellationToken
         );
         if (tokens is null)

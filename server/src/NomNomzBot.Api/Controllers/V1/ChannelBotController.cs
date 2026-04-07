@@ -178,8 +178,11 @@ public class ChannelBotController : BaseController
         if (string.IsNullOrEmpty(channelId))
             return BadRequest("Missing channel_id in state.");
 
+        string callbackUri = $"{GetPublicBaseUrl()}/api/v1/channels/callback/bot";
         Result<BotStatusDto> result = await _authService.HandleTwitchChannelBotCallbackAsync(
-            channelId, new OAuthCallbackDto { Code = code }, ct);
+            channelId,
+            new OAuthCallbackDto { Code = code, RedirectUri = callbackUri },
+            ct);
 
         if (result.IsFailure)
         {
