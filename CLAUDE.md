@@ -384,7 +384,7 @@ cloudflared tunnel --url http://localhost:5080
 
 Then update `App__BaseUrl` in `appsettings.Development.json` and add the tunnel URL to your Twitch app's redirect URIs.
 
-A shared dev tunnel at `bot-dev-api.nomercy.tv` is pre-configured in `appsettings.Development.json`.
+A shared dev tunnel at `bot-dev-api.nomercy.tv` is pre-configured in `appsettings.Development.json`. This is the **active domain** — `api.nomnomz.bot` is the planned production domain and will replace it once fully configured.
 
 ---
 

@@ -337,6 +337,36 @@ function generateSecret(bytes = 32) {
   return crypto.randomBytes(bytes).toString('base64');
 }
 
+// ─── Security key generation ──────────────────────────────────────────────────
+function generateSecurityKeys() {
+  return {
+    jwtSecret:     crypto.randomBytes(64).toString('base64'),   // 64 bytes, base64
+    encryptionKey: crypto.randomBytes(32).toString('base64'),   // 32 bytes, AES-256
+    pgPassword:    crypto.randomBytes(32).toString('hex'),      // 64 hex chars, no special chars
+    redisPassword: crypto.randomBytes(32).toString('hex'),      // 64 hex chars
+  };
+}
+
+// Read existing security keys from a .env file so we can preserve them on re-run
+function readExistingSecrets(filePath) {
+  const pairs = {};
+  try {
+    for (const line of fs.readFileSync(filePath, 'utf8').split('\n')) {
+      const t = line.trim();
+      if (!t || t.startsWith('#')) continue;
+      const eq = t.indexOf('=');
+      if (eq === -1) continue;
+      pairs[t.slice(0, eq)] = t.slice(eq + 1);
+    }
+  } catch { /* file missing */ }
+  return {
+    jwtSecret:     pairs['JWT_SECRET']      || null,
+    encryptionKey: pairs['ENCRYPTION_KEY']  || null,
+    pgPassword:    pairs['POSTGRES_PASSWORD'] || null,
+    redisPassword: pairs['REDIS_PASSWORD']  || null,
+  };
+}
+
 // ─── Clipboard ────────────────────────────────────────────────────────────────
 async function copyToClipboard(text) {
   try {
@@ -524,13 +554,15 @@ async function stepTwitch(config) {
   console.log(`  The bot needs to know what URL it\'s running at so Twitch`);
   console.log(`  knows where to send login callbacks.`);
   nl();
-  console.log(`  ${bold('For most people:')} leave this as the default (localhost:5080).`);
+  console.log(`  ${bold('For most people:')} use the shared dev tunnel (already works with the pre-filled credentials):`);
   nl();
-  console.log(`  ${DIM}Only change this if you\'re using a Cloudflare tunnel or a server`);
-  console.log(`  with a real domain name. See the README for tunnel setup.${RESET}`);
+  indent(`${CYAN}https://bot-dev-api.nomercy.tv${RESET}`, 5);
+  nl();
+  console.log(`  ${DIM}Or use localhost:5080 if you have your own Cloudflare tunnel pointing there.`);
+  console.log(`  When api.nomnomz.bot is fully configured it will replace bot-dev-api.nomercy.tv.${RESET}`);
   nl();
 
-  let baseUrl = config.baseUrl || 'http://localhost:5080';
+  let baseUrl = config.baseUrl || 'https://bot-dev-api.nomercy.tv';
   const baseAnswer = (await ask(
     `  ${GREEN}Your API base URL${RESET} ${dim(`(default: ${baseUrl})`)} `,
   )).trim();
@@ -955,7 +987,66 @@ async function stepDiscord(config) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// STEP 6 — Generate config files
+// STEP 6 — Cloudflare Tunnel (optional)
+// ══════════════════════════════════════════════════════════════════════════════
+async function stepCloudflare(config) {
+  printBox([
+    bold('  Cloudflare Tunnel Token  ') + DIM + '(optional)' + RESET,
+    '',
+    `  A Cloudflare Tunnel lets your bot be reachable from the internet`,
+    `  with a real HTTPS URL — required for Twitch OAuth to work with`,
+    `  your own credentials (not the shared dev tunnel).`,
+    '',
+    `  ${bold('When do you need this?')}`,
+    `    • You created your own Twitch app with custom redirect URLs`,
+    `    • You want your bot accessible outside your home network`,
+    `    • You\'re running this on a server without a domain name yet`,
+    '',
+    `  ${bold('When can you skip this?')}`,
+    `    • You\'re using the pre-filled dev credentials (they use a`,
+    `      shared tunnel at bot-dev-api.nomercy.tv that already works)`,
+    `    • You already have a domain name pointing at your server`,
+    '',
+    `  ${DIM}You can always add a token later by editing nomnomzbot-server/.env${RESET}`,
+  ], CYAN);
+
+  nl();
+  const want = await confirm('Do you have a Cloudflare Tunnel token to set up?', false);
+  if (!want) {
+    console.log(dim('\n  Skipped. Add CLOUDFLARE_TUNNEL_TOKEN to your .env file later if needed.'));
+    return { enabled: false };
+  }
+
+  nl();
+  console.log(`  ${bold('How to get a Cloudflare Tunnel token:')}`);
+  nl();
+  step(1, `Go to: ${cyan(bold('https://one.dash.cloudflare.com/'))} → ${bold('Networks → Tunnels')}`);
+  step(2, `Click ${bold(cyan('"Create a tunnel"'))}, choose ${bold('"Cloudflared"')}`);
+  step(3, `Give it a name (e.g. ${cyan('"nomnomzbot-local"')}) and click ${bold('"Save tunnel"')}`);
+  step(4, `Copy the token shown in the ${bold('"Install and run a connector"')} section`);
+  note('It looks like: eyJhIjoiYWJ...(very long base64 string)');
+
+  const token = await getCredential({
+    label: 'Cloudflare Tunnel Token',
+    what: 'This lets your bot be reachable via a secure HTTPS tunnel.',
+    looksLike: 'eyJhIjoiYWJj...(long base64 string)',
+    validate: v => v.length >= 50,
+    existing: config.cloudflare?.token,
+    required: false,
+  });
+
+  if (!token) {
+    console.log(dim('\n  No token entered — Cloudflare skipped.'));
+    return { enabled: false };
+  }
+
+  nl();
+  console.log(`${OK} ${bold(green('Cloudflare Tunnel token saved!'))}`);
+  return { enabled: true, token };
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// STEP 7 — Generate config files
 // ══════════════════════════════════════════════════════════════════════════════
 async function stepGenerateConfigs(config) {
   console.log('Writing your credentials into the configuration files...');
@@ -963,73 +1054,177 @@ async function stepGenerateConfigs(config) {
 
   await writeBackendDotEnv(config);
   writeAppsettingsDev(config);
-  writeFrontendEnv();
+  writeFrontendEnv(config);
 }
 
 async function writeBackendDotEnv(config) {
-  const { twitch, botAccount, spotify, discord } = config;
+  const { twitch, botAccount, spotify, discord, cloudflare } = config;
+  const base = (twitch?.baseUrl || 'http://localhost:5080').replace(/\/+$/, '');
   const exists = fs.existsSync(BACKEND_ENV);
 
+  // ── Existing file: ask what to do ─────────────────────────────────────────
   if (exists) {
     nl();
     console.log(`  ${WARN} ${bold('nomnomzbot-server/.env')} already exists from a previous setup.`);
     const choice = await ask(
       `  ${DIM}What would you like to do?${RESET}\n` +
-      `    ${bold('m')} = Merge (keep existing values, update only what\'s new)\n` +
-      `    ${bold('o')} = Overwrite (replace the whole file — generates new secrets)\n` +
-      `    ${bold('s')} = Skip (leave the file as-is)\n` +
-      `\n  Your choice [m]: `
+      `    ${bold('m')} = Merge  (keep your existing secrets, update credentials only)\n` +
+      `    ${bold('o')} = Overwrite  (generate fresh secrets, replace everything)\n` +
+      `    ${bold('s')} = Skip  (leave the file exactly as-is)\n` +
+      `\n  Your choice ${dim('[m]')}: `
     );
     const c = choice.toLowerCase() || 'm';
 
-    if (c === 's') { console.log(dim('    Skipped.')); return; }
-
-    if (c === 'm') {
-      const base = twitch?.baseUrl || 'http://localhost:5080';
-      mergeEnvFile(BACKEND_ENV, {
-        API_BASE_URL:                    base,
-        TWITCH_CLIENT_ID:                twitch?.clientId,
-        TWITCH_CLIENT_SECRET:            twitch?.clientSecret,
-        TWITCH_BOT_USERNAME:             botAccount?.username,
-        TWITCH_BOT_REDIRECT_URI:         `${base}/api/v1/auth/twitch/bot/callback`,
-        TWITCH_CHANNEL_BOT_REDIRECT_URI: `${base}/api/v1/channels/callback/bot`,
-        SPOTIFY_CLIENT_ID:               spotify?.clientId,
-        SPOTIFY_CLIENT_SECRET:           spotify?.clientSecret,
-        DISCORD_CLIENT_ID:               discord?.clientId,
-        DISCORD_CLIENT_SECRET:           discord?.clientSecret,
-      });
-      console.log(`  ${OK} nomnomzbot-server/.env — credentials merged in`);
+    if (c === 's') {
+      console.log(dim('  Skipped — .env left unchanged.'));
       return;
     }
+
+    if (c === 'm') {
+      // Preserve existing secrets — only update user-provided credentials
+      mergeEnvFile(BACKEND_ENV, {
+        API_BASE_URL:                    base,
+        TWITCH_CLIENT_ID:                twitch?.clientId        || undefined,
+        TWITCH_CLIENT_SECRET:            twitch?.clientSecret    || undefined,
+        TWITCH_BOT_USERNAME:             botAccount?.username    || undefined,
+        TWITCH_BOT_REDIRECT_URI:         `${base}/api/v1/auth/twitch/bot/callback`,
+        TWITCH_CHANNEL_BOT_REDIRECT_URI: `${base}/api/v1/channels/callback/bot`,
+        SPOTIFY_CLIENT_ID:               spotify?.clientId       || undefined,
+        SPOTIFY_CLIENT_SECRET:           spotify?.clientSecret   || undefined,
+        DISCORD_CLIENT_ID:               discord?.clientId       || undefined,
+        DISCORD_CLIENT_SECRET:           discord?.clientSecret   || undefined,
+        CLOUDFLARE_TUNNEL_TOKEN:         cloudflare?.token       || undefined,
+      });
+      console.log(`  ${OK} nomnomzbot-server/.env — credentials merged in (existing secrets preserved)`);
+      return;
+    }
+    // fall through → overwrite
   }
 
-  const base = twitch?.baseUrl || 'http://localhost:5080';
-  writeEnvFile(BACKEND_ENV, {
-    POSTGRES_USER:                     'nomnomzbot',
-    POSTGRES_PASSWORD:                 'nomnomzbot_dev',
-    JWT_SECRET:                        generateSecret(32),
-    JWT_ISSUER:                        'nomnomzbot',
-    JWT_AUDIENCE:                      'nomnomzbot',
-    ENCRYPTION_KEY:                    generateSecret(32),
-    API_BASE_URL:                      base,
-    FRONTEND_URL:                      'http://localhost:8081',
-    TWITCH_CLIENT_ID:                  twitch?.clientId      || '',
-    TWITCH_CLIENT_SECRET:              twitch?.clientSecret  || '',
-    TWITCH_BOT_USERNAME:               botAccount?.username  || '',
-    TWITCH_BOT_REDIRECT_URI:           `${base}/api/v1/auth/twitch/bot/callback`,
-    TWITCH_CHANNEL_BOT_REDIRECT_URI:   `${base}/api/v1/channels/callback/bot`,
-    REDIS_CONNECTION_STRING:           'redis:6379',
-    SPOTIFY_CLIENT_ID:                 spotify?.clientId     || '',
-    SPOTIFY_CLIENT_SECRET:             spotify?.clientSecret || '',
-    DISCORD_CLIENT_ID:                 discord?.clientId     || '',
-    DISCORD_CLIENT_SECRET:             discord?.clientSecret || '',
-  });
-  console.log(`  ${OK} nomnomzbot-server/.env — ${exists ? 'overwritten' : 'created'}`);
+  // ── Generate fresh security keys ──────────────────────────────────────────
+  nl();
+  console.log(`${BOLD}${CYAN}  🔐 Generating security keys...${RESET}`);
+  nl();
+
+  const s1 = spin('Generating JWT Secret (64 bytes)...').start();
+  const jwtSecret = crypto.randomBytes(64).toString('base64');
+  await new Promise(r => setTimeout(r, 120)); // tiny pause so users can read it
+  s1.succeed('JWT Secret generated  (64 bytes, base64)');
+
+  const s2 = spin('Generating Encryption Key (32 bytes, AES-256)...').start();
+  const encryptionKey = crypto.randomBytes(32).toString('base64');
+  await new Promise(r => setTimeout(r, 120));
+  s2.succeed('Encryption Key generated  (32 bytes, AES-256)');
+
+  const s3 = spin('Generating PostgreSQL password...').start();
+  const pgPassword = crypto.randomBytes(32).toString('hex');
+  await new Promise(r => setTimeout(r, 120));
+  s3.succeed('PostgreSQL password generated');
+
+  const s4 = spin('Generating Redis password...').start();
+  const redisPassword = crypto.randomBytes(32).toString('hex');
+  await new Promise(r => setTimeout(r, 120));
+  s4.succeed('Redis password generated');
+
+  nl();
+  printBox([
+    `  ${OK} ${bold('All keys are cryptographically random and unique to this installation.')}`,
+    `  ${DIM}They\'ve been saved to your .env file. Never share them.${RESET}`,
+  ], GREEN);
+
+  // ── Write structured .env ─────────────────────────────────────────────────
+  const dbUrl = `Host=postgres;Port=5432;Database=nomnomzbot;Username=nomnomzbot;Password=${pgPassword}`;
+  const redisUrl = `redis://:${redisPassword}@redis:6379`;
+
+  const sections = [
+    {
+      comment: '─── Auto-generated security keys (DO NOT SHARE) ──────────────────────────────',
+      vars: {
+        JWT_SECRET:       jwtSecret,
+        ENCRYPTION_KEY:   encryptionKey,
+        POSTGRES_PASSWORD: pgPassword,
+        REDIS_PASSWORD:   redisPassword,
+      },
+    },
+    {
+      comment: '─── Twitch (required) ────────────────────────────────────────────────────────',
+      vars: {
+        TWITCH_CLIENT_ID:      twitch?.clientId      || '',
+        TWITCH_CLIENT_SECRET:  twitch?.clientSecret  || '',
+        TWITCH_BOT_USERNAME:   botAccount?.username  || '',
+        TWITCH_BOT_REDIRECT_URI:           `${base}/api/v1/auth/twitch/bot/callback`,
+        TWITCH_CHANNEL_BOT_REDIRECT_URI:   `${base}/api/v1/channels/callback/bot`,
+      },
+    },
+    {
+      comment: '─── Database (auto-configured) ───────────────────────────────────────────────',
+      vars: {
+        POSTGRES_USER: 'nomnomzbot',
+        POSTGRES_DB:   'nomnomzbot',
+        DATABASE_URL:  dbUrl,
+      },
+    },
+    {
+      comment: '─── Redis (auto-configured) ──────────────────────────────────────────────────',
+      vars: {
+        REDIS_URL: redisUrl,
+        REDIS_CONNECTION_STRING: `redis:6379`,  // used by Docker service name resolution
+      },
+    },
+    {
+      comment: '─── API URLs ─────────────────────────────────────────────────────────────────',
+      vars: {
+        API_BASE_URL:   base,
+        FRONTEND_URL:   'http://localhost:8081',
+        JWT_ISSUER:     'nomnomzbot',
+        JWT_AUDIENCE:   'nomnomzbot',
+      },
+    },
+    {
+      comment: '─── Optional integrations ────────────────────────────────────────────────────',
+      vars: {
+        SPOTIFY_CLIENT_ID:     spotify?.clientId      || '',
+        SPOTIFY_CLIENT_SECRET: spotify?.clientSecret  || '',
+        DISCORD_CLIENT_ID:     discord?.clientId      || '',
+        DISCORD_CLIENT_SECRET: discord?.clientSecret  || '',
+      },
+    },
+    {
+      comment: '─── Optional: Cloudflare Tunnel ──────────────────────────────────────────────',
+      vars: {
+        CLOUDFLARE_TUNNEL_TOKEN: cloudflare?.token || '',
+      },
+    },
+    {
+      comment: '─── Deployment ───────────────────────────────────────────────────────────────',
+      vars: {
+        DEPLOYMENT_MODE: 'self-hosted',
+      },
+    },
+  ];
+
+  const lines = [
+    '# NomNomzBot Environment Variables',
+    `# Generated by setup.mjs on ${new Date().toLocaleDateString()}`,
+    '# Do NOT commit this file to source control — it contains your secrets.',
+    '',
+  ];
+  for (const section of sections) {
+    lines.push(`# ${section.comment}`);
+    for (const [k, v] of Object.entries(section.vars)) {
+      lines.push(`${k}=${v}`);
+    }
+    lines.push('');
+  }
+  fs.writeFileSync(BACKEND_ENV, lines.join('\n'));
+
+  nl();
+  console.log(`  ${OK} nomnomzbot-server/.env — ${exists ? 'overwritten with fresh secrets' : 'created'}`);
 }
 
 function writeAppsettingsDev(config) {
   const { twitch, botAccount } = config;
-  const baseUrl = twitch?.baseUrl || 'http://localhost:5080';
+  const baseUrl = (twitch?.baseUrl || 'http://localhost:5080').replace(/\/+$/, '');
   const patch = {};
 
   if (twitch?.clientId || twitch?.clientSecret || botAccount?.username) {
@@ -1037,16 +1232,14 @@ function writeAppsettingsDev(config) {
     if (twitch?.clientId)      patch.Twitch.ClientId              = twitch.clientId;
     if (twitch?.clientSecret)  patch.Twitch.ClientSecret          = twitch.clientSecret;
     if (botAccount?.username)  patch.Twitch.BotUsername           = botAccount.username;
-    // Always write the redirect URIs based on the configured base URL
     patch.Twitch.RedirectUri           = `${baseUrl}/api/v1/auth/twitch/callback`;
     patch.Twitch.BotRedirectUri        = `${baseUrl}/api/v1/auth/twitch/bot/callback`;
     patch.Twitch.ChannelBotRedirectUri = `${baseUrl}/api/v1/channels/callback/bot`;
   }
 
-  // Write App.BaseUrl so the API knows its own address
   patch.App = { BaseUrl: baseUrl };
 
-  if (Object.keys(patch).length <= 1) { // only App
+  if (Object.keys(patch).length <= 1) {
     console.log(dim('  appsettings.Development.json — no credential changes needed'));
     return;
   }
@@ -1055,17 +1248,18 @@ function writeAppsettingsDev(config) {
   console.log(`  ${OK} nomnomzbot-server/src/NomNomzBot.Api/appsettings.Development.json — updated`);
 }
 
-function writeFrontendEnv() {
+function writeFrontendEnv(config) {
+  const base = (config?.twitch?.baseUrl || 'http://localhost:5080').replace(/\/+$/, '');
   if (!fs.existsSync(FRONTEND_ENV)) {
-    fs.writeFileSync(FRONTEND_ENV, 'EXPO_PUBLIC_API_URL=http://localhost:5080\nEXPO_PUBLIC_PROJECT_ID=\n');
+    fs.writeFileSync(FRONTEND_ENV, `EXPO_PUBLIC_API_URL=${base}\nEXPO_PUBLIC_PROJECT_ID=\n`);
     console.log(`  ${OK} nomnomzbot-app/.env.development — created`);
     return;
   }
   let content = fs.readFileSync(FRONTEND_ENV, 'utf8');
   if (content.includes('bot-dev-api.nomercy.tv') || content.includes('api.nomnomz.bot')) {
-    content = content.replace(/EXPO_PUBLIC_API_URL=.*/g, 'EXPO_PUBLIC_API_URL=http://localhost:5080');
+    content = content.replace(/EXPO_PUBLIC_API_URL=.*/g, `EXPO_PUBLIC_API_URL=${base}`);
     fs.writeFileSync(FRONTEND_ENV, content);
-    console.log(`  ${OK} nomnomzbot-app/.env.development — API URL updated to localhost`);
+    console.log(`  ${OK} nomnomzbot-app/.env.development — API URL updated to ${base}`);
   } else {
     console.log(dim('  nomnomzbot-app/.env.development — already configured'));
   }
@@ -1309,7 +1503,7 @@ async function main() {
     nl();
   }
 
-  const TOTAL = 8;
+  const TOTAL = 9;
   let pkgMgr  = state.config.pkgMgr || 'npm';
 
   // ── Step 1: Prerequisites ──────────────────────────────────────────────────
@@ -1366,36 +1560,46 @@ async function main() {
     console.log(dim(`  [Step 5/${TOTAL}: Discord — already done ✓]`));
   }
 
-  // ── Step 6: Generate configs ───────────────────────────────────────────────
+  // ── Step 6: Cloudflare Tunnel ──────────────────────────────────────────────
   if (!state.completedSteps.includes(6)) {
-    sectionBanner(6, TOTAL, 'Writing Configuration Files');
-    await stepGenerateConfigs(state.config);
-    nl();
-    console.log(`${OK} ${bold(green('All configuration files written.'))}`);
+    sectionBanner(6, TOTAL, 'Cloudflare Tunnel  (optional)');
+    state.config.cloudflare = await stepCloudflare(state.config);
     state.completedSteps.push(6);
     saveProgress(state);
   } else {
-    console.log(dim(`  [Step 6/${TOTAL}: Config files — already done ✓]`));
+    console.log(dim(`  [Step 6/${TOTAL}: Cloudflare — already done ✓]`));
   }
 
-  // ── Step 7: Start services ─────────────────────────────────────────────────
-  let services = state.config.services || {};
+  // ── Step 7: Generate configs ───────────────────────────────────────────────
   if (!state.completedSteps.includes(7)) {
-    sectionBanner(7, TOTAL, 'Starting Services');
-    services = await stepStartServices(pkgMgr);
-    state.config.services = services;
+    sectionBanner(7, TOTAL, 'Writing Configuration Files');
+    await stepGenerateConfigs(state.config);
+    nl();
+    console.log(`${OK} ${bold(green('All configuration files written.'))}`);
     state.completedSteps.push(7);
     saveProgress(state);
   } else {
-    console.log(dim(`  [Step 7/${TOTAL}: Start Services — already done ✓]`));
+    console.log(dim(`  [Step 7/${TOTAL}: Config files — already done ✓]`));
   }
 
-  // ── Step 8: First run guide ────────────────────────────────────────────────
+  // ── Step 8: Start services ─────────────────────────────────────────────────
+  let services = state.config.services || {};
   if (!state.completedSteps.includes(8)) {
-    sectionBanner(8, TOTAL, 'First Run Guide');
+    sectionBanner(8, TOTAL, 'Starting Services');
+    services = await stepStartServices(pkgMgr);
+    state.config.services = services;
+    state.completedSteps.push(8);
+    saveProgress(state);
+  } else {
+    console.log(dim(`  [Step 8/${TOTAL}: Start Services — already done ✓]`));
+  }
+
+  // ── Step 9: First run guide ────────────────────────────────────────────────
+  if (!state.completedSteps.includes(9)) {
+    sectionBanner(9, TOTAL, 'First Run Guide');
     await stepFirstRunGuide(services);
     state.config.setupComplete = true;
-    state.completedSteps.push(8);
+    state.completedSteps.push(9);
     saveProgress(state);
   }
 

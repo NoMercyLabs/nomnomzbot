@@ -60,6 +60,7 @@ For most people, self-hosted is what you want.
    https://bot.yourdomain.com/api/v1/auth/twitch/bot/callback
    https://bot.yourdomain.com/api/v1/channels/callback/bot
    ```
+   > **Active dev domain:** The shared dev credentials use `bot-dev-api.nomercy.tv` as the base URL. `api.nomnomz.bot` is the planned production domain — will replace this once fully configured.
 
 The API starts on `http://localhost:5080`. Caddy handles TLS and proxies requests.
 
