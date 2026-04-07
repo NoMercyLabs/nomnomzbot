@@ -20,7 +20,7 @@ For most people, self-hosted is what you want.
 
 1. Clone the monorepo:
    ```bash
-   git clone --recursive git@github.com:NoMercyLabs/nomnomzbot.git
+   git clone --recursive https://github.com/NoMercyLabs/nomnomzbot.git
    cd nomnomzbot/nomnomzbot-server
    ```
 

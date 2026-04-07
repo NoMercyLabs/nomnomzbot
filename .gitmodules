@@ -1,11 +1,11 @@
 [submodule "nomnomzbot-server"]
 	path = nomnomzbot-server
-	url = git@github.com:NoMercyLabs/nomnomzbot-server.git
+	url = https://github.com/NoMercyLabs/nomnomzbot-server.git
 
 [submodule "nomnomzbot-app"]
 	path = nomnomzbot-app
-	url = git@github.com:NoMercyLabs/nomnomzbot-app.git
+	url = https://github.com/NoMercyLabs/nomnomzbot-app.git
 
 [submodule "nomnomzbot-design"]
 	path = nomnomzbot-design
-	url = git@github.com:NoMercyLabs/nomnomzbot-design.git
+	url = https://github.com/NoMercyLabs/nomnomzbot-design.git

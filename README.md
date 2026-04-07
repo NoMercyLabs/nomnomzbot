@@ -8,7 +8,7 @@ Twitch bot management platform. Stream commands, channel point rewards, moderati
 ## Quick Start
 
 ```bash
-git clone --recursive git@github.com:NoMercyLabs/nomnomzbot.git
+git clone --recursive https://github.com/NoMercyLabs/nomnomzbot.git
 cd nomnomzbot
 node setup.mjs
 ```
