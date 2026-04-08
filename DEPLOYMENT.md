@@ -43,7 +43,7 @@ cd nomnomzbot
 Both scripts:
 1. Check for Docker, offer to install if missing
 2. Generate `JWT_SECRET`, `ENCRYPTION_KEY`, `POSTGRES_PASSWORD`, `REDIS_PASSWORD` via `openssl rand`
-3. Prompt for `TWITCH_CLIENT_ID`, `TWITCH_CLIENT_SECRET`, `API_BASE_URL`
+3. Prompt for `TWITCH_CLIENT_ID`, `TWITCH_CLIENT_SECRET`, `API_BASE_URL`, and `FRONTEND_URL` (with a smart default)
 4. Run `docker compose up -d --build`
 5. Wait for the health check and print your URLs + Twitch redirect URIs
 

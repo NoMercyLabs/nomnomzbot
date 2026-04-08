@@ -29,7 +29,7 @@ cd nomnomzbot
 The script:
 1. Installs Docker if missing (Linux/macOS only — Windows users get a download link)
 2. Generates all security keys automatically (`openssl rand`)
-3. Prompts for Twitch credentials and your API domain
+3. Prompts for Twitch credentials, your API domain, and your dashboard URL
 4. Runs `docker compose up -d --build`
 5. Waits for the health check and prints your URLs
 
@@ -45,7 +45,7 @@ cd nomnomzbot
 node setup.mjs
 ```
 
-The setup script checks all prerequisites, walks through Twitch app creation, and starts the dev environment.
+The setup script checks prerequisites, writes the needed config, installs frontend packages if needed, and starts the dev environment.
 
 ---
 

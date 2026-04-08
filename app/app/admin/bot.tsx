@@ -1,15 +1,15 @@
-import { View, Text, ScrollView, Pressable } from 'react-native'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { apiClient } from '@/lib/api/client'
-import { PageHeader } from '@/components/layout/PageHeader'
-import { Button } from '@/components/ui/Button'
-import { Badge } from '@/components/ui/Badge'
-import { Skeleton } from '@/components/ui/Skeleton'
-import { Bot, CheckCircle2, Link2Off, Copy, ExternalLink } from 'lucide-react-native'
-import { ErrorBoundary } from '@/components/feedback/ErrorBoundary'
-import { useNotificationStore } from '@/stores/useNotificationStore'
-import * as Clipboard from 'expo-clipboard'
-import { API_BASE_URL } from '@/lib/utils/apiUrl'
+import { View, Text, ScrollView, Pressable } from 'react-native';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { apiClient } from '@/lib/api/client';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { Button } from '@/components/ui/Button';
+import { Badge } from '@/components/ui/Badge';
+import { Skeleton } from '@/components/ui/Skeleton';
+import { Bot, CheckCircle2, Link2Off, Copy, ExternalLink } from 'lucide-react-native';
+import { ErrorBoundary } from '@/components/feedback/ErrorBoundary';
+import { useNotificationStore } from '@/stores/useNotificationStore';
+import * as Clipboard from 'expo-clipboard';
+import { API_BASE_URL } from '@/lib/utils/apiUrl';
 
 interface BotStatus {
   connected: boolean

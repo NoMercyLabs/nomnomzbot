@@ -278,6 +278,50 @@ function launchInTerminal(cmd, title) {
   }
 }
 
+function trimTrailingSlash(url) {
+  return (url || '').trim().replace(/\/+$/, '');
+}
+
+function deriveFrontendUrl(apiBaseUrl) {
+  const normalized = trimTrailingSlash(apiBaseUrl) || 'http://localhost:5080';
+
+  try {
+    const url = new URL(normalized);
+    const host = url.hostname.toLowerCase();
+
+    if (host === 'localhost' || host === '127.0.0.1') {
+      url.port = '8081';
+      return `${url.protocol}//${url.hostname}:${url.port}`;
+    }
+
+    if (host.startsWith('api.')) {
+      url.hostname = host.slice(4);
+      url.port = '';
+      return `${url.protocol}//${url.hostname}`;
+    }
+
+    if (host.includes('-api.')) {
+      url.hostname = host.replace('-api.', '.');
+      url.port = '';
+      return `${url.protocol}//${url.hostname}`;
+    }
+
+    return `${url.protocol}//${url.host}`;
+  } catch {
+    return normalized;
+  }
+}
+
+function setEnvVarInContent(content, key, value) {
+  const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const re = new RegExp(`^${escapedKey}=.*$`, 'm');
+  const next = re.test(content)
+    ? content.replace(re, `${key}=${value}`)
+    : `${content.trimEnd()}\n${key}=${value}\n`;
+
+  return next.endsWith('\n') ? next : `${next}\n`;
+}
+
 // ─── Config writers ────────────────────────────────────────────────────────────
 function readEnvPairs(filePath) {
   const out = {};
@@ -568,15 +612,12 @@ async function stepTwitch(config) {
   )).trim();
   if (baseAnswer) baseUrl = baseAnswer.replace(/\/+$/, ''); // strip trailing slash
 
-  // Compute the three redirect URIs from the base URL
-  const redirectUris = [
-    `${baseUrl}/api/v1/auth/twitch/callback`,
-    `${baseUrl}/api/v1/auth/twitch/bot/callback`,
-    `${baseUrl}/api/v1/channels/callback/bot`,
-  ];
+  // All Twitch OAuth flows now share the same callback URL.
+  const redirectUri = `${baseUrl}/api/v1/auth/twitch/callback`;
 
   nl();
   console.log(`${OK} Using base URL: ${cyan(bold(baseUrl))}`);
+  console.log(`${INFO} Register this callback URL in Twitch: ${cyan(redirectUri)}`);
 
   // ── Part 1: Open the Twitch Dev Console ───────────────────────────────────
   header('Part 1 of 3 — Sign in to the Twitch Developer Console', YELLOW);
@@ -614,59 +655,32 @@ async function stepTwitch(config) {
   ], CYAN);
 
   nl();
-  step(3, `${bold('OAuth Redirect URLs')} — you need to add ${bold('3 URLs')} here, one at a time.`);
+  step(3, `${bold('OAuth Redirect URL')} — you only need ${bold('1 URL')} now.`);
   nl();
-  console.log(`  ${DIM}The good news: we\'ll copy each URL to your clipboard for you!${RESET}`);
-  console.log(`  ${DIM}You just paste each one in and click "Add".${RESET}`);
+  console.log(`  ${DIM}Streamer login, bot login, and per-channel bot auth all use the same callback now.${RESET}`);
+  console.log(`  ${DIM}We\'ll copy it to your clipboard for you.${RESET}`);
   nl();
 
-  // Walk the user through each redirect URI, copying each one
-  const uriLabels = [
-    'Main OAuth callback (for streamer login)',
-    'Bot OAuth callback (for bot account login)',
-    'Channel bot callback (for per-channel bot auth)',
-  ];
+  const copied = await copyToClipboard(redirectUri);
 
-  for (let i = 0; i < redirectUris.length; i++) {
-    const uri = redirectUris[i];
-    const num = i + 1;
-
-    rule('·', DIM);
-    nl();
-    console.log(`  ${CYAN}${BOLD}Redirect URL ${num} of 3:${RESET}  ${DIM}${uriLabels[i]}${RESET}`);
-    nl();
-
-    // Copy to clipboard
-    const copied = await copyToClipboard(uri);
-
-    if (copied) {
-      console.log(`  ${OK} ${bold(green('Copied to your clipboard!'))}`);
-    } else {
-      console.log(`  ${WARN} ${yellow("Couldn\'t copy automatically.")} Please copy it manually:`);
-    }
-
-    // Always show the URL so they can verify / manually copy
-    nl();
-    printBox([`  ${uri}  `], CYAN);
-    nl();
-
-    if (i < redirectUris.length - 1) {
-      console.log(`  ${dim('In the Twitch form:')}`);
-      step(1, `${copied ? 'Paste' : 'Type'} the URL above into the ${bold('"OAuth Redirect URLs"')} field.`);
-      step(2, `Click ${bold('"Add"')} to save it before moving to the next URL.`);
-      await pressEnter(`\n  Press Enter when URL ${num} is added and you\'re ready for the next...`);
-    } else {
-      console.log(`  ${dim('In the Twitch form:')}`);
-      step(1, `${copied ? 'Paste' : 'Type'} the URL above into the field and click ${bold('"Add"')}.`);
-    }
+  if (copied) {
+    console.log(`  ${OK} ${bold(green('Copied to your clipboard!'))}`);
+  } else {
+    console.log(`  ${WARN} ${yellow("Couldn\'t copy automatically.")} Please copy it manually:`);
   }
 
   nl();
+  printBox([`  ${redirectUri}  `], CYAN);
+  nl();
+  console.log(`  ${dim('In the Twitch form:')}`);
+  step(4, `${copied ? 'Paste' : 'Type'} the URL above into the ${bold('"OAuth Redirect URLs"')} field.`);
+  step(5, `Click ${bold('"Add"')} if Twitch shows an add button, then continue with the form.`);
+  nl();
   rule('·', DIM);
   nl();
-  step(4, `Check the ${bold('"I\'m not a robot"')} box if it appears.`);
+  step(6, `Check the ${bold('"I\'m not a robot"')} box if it appears.`);
   nl();
-  step(5, `Click the ${bold(cyan('"Create"'))} button at the bottom.`);
+  step(7, `Click the ${bold(cyan('"Create"'))} button at the bottom.`);
 
   await pressEnter('\n  Press Enter once you have clicked "Create"...');
 
@@ -722,7 +736,7 @@ async function stepTwitch(config) {
 
   nl();
   console.log(`${OK} ${bold(green('Twitch credentials saved!'))}`);
-  return { clientId, clientSecret, baseUrl, redirectUris };
+  return { clientId, clientSecret, baseUrl, redirectUri };
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -814,6 +828,9 @@ async function stepSpotify(config) {
     return { enabled: false };
   }
 
+  const baseUrl = trimTrailingSlash(config?.twitch?.baseUrl || 'http://localhost:5080');
+  const spotifyRedirectUri = `${baseUrl}/api/v1/integrations/spotify/callback`;
+
   // ── Part 1: Create the Spotify app ────────────────────────────────────────
   header('Part 1 of 2 — Create a Spotify App', YELLOW);
 
@@ -838,7 +855,7 @@ async function stepSpotify(config) {
     `  ${bold('App description:')} "Twitch bot music integration" or similar`,
     `  ${bold('Redirect URI:')}    Click ${bold('"Add"')} and paste this exact URL:`,
     '',
-    `    ${green('→')}  http://localhost:5080/api/v1/auth/spotify/callback`,
+    `    ${green('→')}  ${spotifyRedirectUri}`,
     '',
     `  ${bold('APIs used:')}       Check ${bold('"Web API"')}`,
   ], CYAN);
@@ -910,6 +927,9 @@ async function stepDiscord(config) {
     return { enabled: false };
   }
 
+  const baseUrl = trimTrailingSlash(config?.twitch?.baseUrl || 'http://localhost:5080');
+  const discordRedirectUri = `${baseUrl}/api/v1/integrations/discord/callback`;
+
   // ── Part 1: Create Discord application ────────────────────────────────────
   header('Part 1 of 2 — Create a Discord Application', YELLOW);
 
@@ -934,7 +954,7 @@ async function stepDiscord(config) {
   nl();
 
   printBox([
-    `  ${green('→')}  http://localhost:5080/api/v1/auth/discord/callback`,
+    `  ${green('→')}  ${discordRedirectUri}`,
   ], CYAN);
 
   nl();
@@ -1087,8 +1107,6 @@ async function writeBackendDotEnv(config) {
         TWITCH_CLIENT_ID:                twitch?.clientId        || undefined,
         TWITCH_CLIENT_SECRET:            twitch?.clientSecret    || undefined,
         TWITCH_BOT_USERNAME:             botAccount?.username    || undefined,
-        TWITCH_BOT_REDIRECT_URI:         `${base}/api/v1/auth/twitch/bot/callback`,
-        TWITCH_CHANNEL_BOT_REDIRECT_URI: `${base}/api/v1/channels/callback/bot`,
         SPOTIFY_CLIENT_ID:               spotify?.clientId       || undefined,
         SPOTIFY_CLIENT_SECRET:           spotify?.clientSecret   || undefined,
         DISCORD_CLIENT_ID:               discord?.clientId       || undefined,
@@ -1152,8 +1170,6 @@ async function writeBackendDotEnv(config) {
         TWITCH_CLIENT_ID:      twitch?.clientId      || '',
         TWITCH_CLIENT_SECRET:  twitch?.clientSecret  || '',
         TWITCH_BOT_USERNAME:   botAccount?.username  || '',
-        TWITCH_BOT_REDIRECT_URI:           `${base}/api/v1/auth/twitch/bot/callback`,
-        TWITCH_CHANNEL_BOT_REDIRECT_URI:   `${base}/api/v1/channels/callback/bot`,
       },
     },
     {
@@ -1229,12 +1245,9 @@ function writeAppsettingsDev(config) {
 
   if (twitch?.clientId || twitch?.clientSecret || botAccount?.username) {
     patch.Twitch = {};
-    if (twitch?.clientId)      patch.Twitch.ClientId              = twitch.clientId;
-    if (twitch?.clientSecret)  patch.Twitch.ClientSecret          = twitch.clientSecret;
-    if (botAccount?.username)  patch.Twitch.BotUsername           = botAccount.username;
-    patch.Twitch.RedirectUri           = `${baseUrl}/api/v1/auth/twitch/callback`;
-    patch.Twitch.BotRedirectUri        = `${baseUrl}/api/v1/auth/twitch/bot/callback`;
-    patch.Twitch.ChannelBotRedirectUri = `${baseUrl}/api/v1/channels/callback/bot`;
+    if (twitch?.clientId)      patch.Twitch.ClientId     = twitch.clientId;
+    if (twitch?.clientSecret)  patch.Twitch.ClientSecret = twitch.clientSecret;
+    if (botAccount?.username)  patch.Twitch.BotUsername  = botAccount.username;
   }
 
   patch.App = { BaseUrl: baseUrl };
@@ -1249,20 +1262,23 @@ function writeAppsettingsDev(config) {
 }
 
 function writeFrontendEnv(config) {
-  const base = (config?.twitch?.baseUrl || 'http://localhost:5080').replace(/\/+$/, '');
-  if (!fs.existsSync(FRONTEND_ENV)) {
-    fs.writeFileSync(FRONTEND_ENV, `EXPO_PUBLIC_API_URL=${base}\nEXPO_PUBLIC_PROJECT_ID=\n`);
-    console.log(`  ${OK} app/.env.development — created`);
-    return;
+  const base = trimTrailingSlash(config?.twitch?.baseUrl || 'http://localhost:5080') || 'http://localhost:5080';
+
+  let content = '';
+  try {
+    if (fs.existsSync(FRONTEND_ENV))
+      content = fs.readFileSync(FRONTEND_ENV, 'utf8');
+  } catch {
+    content = '';
   }
-  let content = fs.readFileSync(FRONTEND_ENV, 'utf8');
-  if (content.includes('bot-dev-api.nomercy.tv') || content.includes('api.nomnomz.bot')) {
-    content = content.replace(/EXPO_PUBLIC_API_URL=.*/g, `EXPO_PUBLIC_API_URL=${base}`);
-    fs.writeFileSync(FRONTEND_ENV, content);
-    console.log(`  ${OK} app/.env.development — API URL updated to ${base}`);
-  } else {
-    console.log(dim('  app/.env.development — already configured'));
-  }
+
+  content = setEnvVarInContent(content, 'EXPO_PUBLIC_API_URL', base);
+
+  if (!/^EXPO_PUBLIC_PROJECT_ID=/m.test(content))
+    content = setEnvVarInContent(content, 'EXPO_PUBLIC_PROJECT_ID', '');
+
+  fs.writeFileSync(FRONTEND_ENV, content);
+  console.log(`  ${OK} app/.env.development — API URL set to ${base}`);
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -1368,6 +1384,27 @@ async function stepStartServices(pkgMgr) {
   console.log(`  ${INFO} The dashboard is a web app that opens in your browser.`);
   console.log(`  ${DIM}Make sure the API is running first before using the dashboard.${RESET}`);
   nl();
+
+  const installCmd = pkgMgr === 'yarn' ? 'yarn install' : 'npm install';
+  const nodeModulesPath = path.join(FRONTEND_DIR, 'node_modules');
+
+  if (!fs.existsSync(nodeModulesPath)) {
+    const installDeps = await confirm('Install frontend packages now? (first run only)', true);
+    if (installDeps) {
+      const s3 = spin(`Installing frontend packages with ${pkgMgr}...`).start();
+      try {
+        execSync(installCmd, { cwd: FRONTEND_DIR, stdio: 'ignore' });
+        s3.succeed('Frontend packages installed');
+      } catch (err) {
+        s3.fail('Could not install frontend packages automatically');
+        console.log(`  ${WARN} Error: ${dim(err.message)}`);
+        console.log(dim(`  Run manually: cd app && ${installCmd}`));
+      }
+    } else {
+      console.log(dim(`  Skipped package install. Run manually first: cd app && ${installCmd}`));
+    }
+    nl();
+  }
 
   const startFrontend = await confirm('Start the frontend dashboard now?', true);
   if (startFrontend) {

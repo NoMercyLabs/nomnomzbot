@@ -167,6 +167,31 @@ function Set-EnvVar {
     [System.IO.File]::WriteAllText((Resolve-Path $file).Path, $content)
 }
 
+function Get-FrontendUrlFromApiBaseUrl {
+    param([string]$apiBaseUrl)
+
+    try {
+        $uri = [Uri]($apiBaseUrl.TrimEnd('/'))
+        $hostName = $uri.Host.ToLowerInvariant()
+
+        if (@('localhost', '127.0.0.1') -contains $hostName) {
+            return "$($uri.Scheme)://$hostName:8081"
+        }
+
+        if ($hostName.StartsWith('api.')) {
+            return "$($uri.Scheme)://$($hostName.Substring(4))"
+        }
+
+        if ($hostName.Contains('-api.')) {
+            return "$($uri.Scheme)://$($hostName -replace '-api\.', '.')"
+        }
+
+        return "$($uri.Scheme)://$hostName"
+    } catch {
+        return $apiBaseUrl.TrimEnd('/')
+    }
+}
+
 # ══════════════════════════════════════════════════════════════════════════════
 # WELCOME
 # ══════════════════════════════════════════════════════════════════════════════
@@ -304,37 +329,38 @@ if ($API_BASE_URL -like "http://localhost*") {
 
 Write-Ok "API URL set to: $API_BASE_URL"
 
-# Compute redirect URIs
-$URI_LOGIN   = "$API_BASE_URL/api/v1/auth/twitch/callback"
-$URI_BOT     = "$API_BASE_URL/api/v1/auth/twitch/bot/callback"
-$URI_CHANNEL = "$API_BASE_URL/api/v1/channels/callback/bot"
+$defaultFrontendUrl = Get-FrontendUrlFromApiBaseUrl $API_BASE_URL
+$FRONTEND_URL = Ask-WithDefault "Your public dashboard URL" $defaultFrontendUrl
+$FRONTEND_URL = $FRONTEND_URL.TrimEnd("/")
+Write-Ok "Frontend URL set to: $FRONTEND_URL"
+
+# Twitch now uses a single callback URL for streamer, bot, and channel-bot flows.
+$TWITCH_CALLBACK_URI = "$API_BASE_URL/api/v1/auth/twitch/callback"
 
 # ══════════════════════════════════════════════════════════════════════════════
 # STEP 3 — Show redirect URIs
 # ══════════════════════════════════════════════════════════════════════════════
 
-Write-Header "Step 3 of 6 -- Twitch Redirect URIs"
+Write-Header "Step 3 of 6 -- Twitch Redirect URI"
 
-Write-Host "  You'll need to add these 3 URLs to your Twitch application in the next step."
-Write-Host "  Twitch uses them to send users back to your bot after they log in." -ForegroundColor DarkGray
+Write-Host "  You'll need to add this callback URL to your Twitch application in the next step."
+Write-Host "  Streamer login, bot login, and per-channel bot auth all use this same callback now." -ForegroundColor DarkGray
 Write-Blank
 
 Write-Box @(
-    "  Your Twitch Redirect URIs:",
+    "  Your Twitch Redirect URI:",
     "",
-    "  1. $URI_LOGIN",
-    "  2. $URI_BOT",
-    "  3. $URI_CHANNEL"
+    "  $TWITCH_CALLBACK_URI"
 )
 
 Write-Blank
-$clipText = "$URI_LOGIN`n$URI_BOT`n$URI_CHANNEL"
+$clipText = $TWITCH_CALLBACK_URI
 $copied = Copy-ToClipboard $clipText
 if ($copied) {
-    Write-Ok "All 3 URLs copied to your clipboard!"
-    Write-Dim "You can paste them into the Twitch form in the next step."
+    Write-Ok "The callback URL has been copied to your clipboard!"
+    Write-Dim "You can paste it into the Twitch form in the next step."
 } else {
-    Write-Warn "Couldn't copy automatically. Copy the URLs above manually."
+    Write-Warn "Couldn't copy automatically. Copy the URL above manually."
 }
 
 Press-Enter "  Keep these handy -- press Enter to open the Twitch setup..."
@@ -404,48 +430,27 @@ if (-not $skipTwitch) {
     )
 
     Write-Blank
-    Write-Step 3 "OAuth Redirect URLs -- add 3 URLs, one at a time."
+    Write-Step 3 "OAuth Redirect URL -- you only need 1 URL now."
     Write-Blank
 
-    $uriLabels = @("Main login callback", "Bot account callback", "Per-channel bot callback")
-    $allUris   = @($URI_LOGIN, $URI_BOT, $URI_CHANNEL)
-
-    for ($i = 0; $i -lt 3; $i++) {
-        $uri   = $allUris[$i]
-        $label = $uriLabels[$i]
-        $num   = $i + 1
-
-        Write-Rule "."
-        Write-Blank
-        Write-Host "  Redirect URL $num of 3:  " -ForegroundColor Cyan -NoNewline
-        Write-Host $label -ForegroundColor DarkGray
-        Write-Blank
-
-        $c = Copy-ToClipboard $uri
-        if ($c) {
-            Write-Ok "Copied to clipboard!"
-        } else {
-            Write-Warn "Couldn't copy automatically. Copy it manually:"
-        }
-
-        Write-Blank
-        Write-Box @("  $uri  ")
-        Write-Blank
-
-        if ($num -lt 3) {
-            Write-Step 1 "Paste the URL into the `"OAuth Redirect URLs`" field."
-            Write-Step 2 'Click "Add" to save it before moving to the next URL.'
-            Press-Enter "  Press Enter when URL $num is added..."
-        } else {
-            Write-Step 1 'Paste the URL into the field and click "Add".'
-        }
+    $c = Copy-ToClipboard $TWITCH_CALLBACK_URI
+    if ($c) {
+        Write-Ok "Copied to clipboard!"
+    } else {
+        Write-Warn "Couldn't copy automatically. Copy it manually:"
     }
+
+    Write-Blank
+    Write-Box @("  $TWITCH_CALLBACK_URI  ")
+    Write-Blank
+    Write-Step 4 "Paste the URL into the `"OAuth Redirect URLs`" field."
+    Write-Step 5 'Click "Add" if Twitch shows an add button, then continue.'
 
     Write-Rule "."
     Write-Blank
-    Write-Step 4 'Check the "I''m not a robot" box if it appears.'
+    Write-Step 6 'Check the "I''m not a robot" box if it appears.'
     Write-Blank
-    Write-Step 5 'Click the "Create" button at the bottom.'
+    Write-Step 7 'Click the "Create" button at the bottom.'
 
     Press-Enter '  Press Enter once you have clicked "Create"...'
 
@@ -586,7 +591,7 @@ if ($wantSpotify) {
     Write-Blank
     Write-Box @(
         "  App name:         Anything, e.g. `"NomNomzBot`"",
-        "  Redirect URI:     $API_BASE_URL/api/v1/auth/spotify/callback",
+        "  Redirect URI:     $API_BASE_URL/api/v1/integrations/spotify/callback",
         "  APIs used:        Check `"Web API`""
     )
     Write-Blank
@@ -639,7 +644,7 @@ if ($wantDiscord) {
     Write-Step 3 'In the left sidebar, click "OAuth2".'
     Write-Step 4 'Under "Redirects", add this URL:'
     Write-Blank
-    Write-Box @("  $API_BASE_URL/api/v1/auth/discord/callback")
+    Write-Box @("  $API_BASE_URL/api/v1/integrations/discord/callback")
     Write-Blank
     Write-Step 5 'Click "Save Changes".'
     Press-Enter "  Press Enter once you've saved your Discord app..."
@@ -787,7 +792,7 @@ TWITCH_BOT_USERNAME=$TWITCH_BOT_USERNAME
 
 # -- URLs ---------------------------------------------------------------------
 API_BASE_URL=$API_BASE_URL
-FRONTEND_URL=$($API_BASE_URL -replace 'api\.', '')
+FRONTEND_URL=$FRONTEND_URL
 
 # -- Deployment ---------------------------------------------------------------
 DEPLOYMENT_MODE=self-hosted
@@ -888,23 +893,21 @@ Write-Host ""
 Write-Rule "="
 Write-Blank
 
-$frontendUrl = $API_BASE_URL -replace 'api\.', ''
+$frontendUrl = $FRONTEND_URL
 Write-Host "  Web app:  $frontendUrl" -ForegroundColor White
 Write-Host "  API:      http://localhost:$API_PORT" -ForegroundColor White
 Write-Host "  API docs: http://localhost:$API_PORT/scalar" -ForegroundColor White
 Write-Host "  Health:   http://localhost:$API_PORT/health" -ForegroundColor White
 Write-Blank
 Write-Rule "-"
-Write-Host "  Register these 3 Redirect URIs in your Twitch Developer Console:" -ForegroundColor White
+Write-Host "  Register this Redirect URI in your Twitch Developer Console:" -ForegroundColor White
 Write-Host "  (dev.twitch.tv -> your app -> Manage)" -ForegroundColor DarkGray
 Write-Blank
-Write-Host "  $URI_LOGIN"   -ForegroundColor Cyan
-Write-Host "  $URI_BOT"     -ForegroundColor Cyan
-Write-Host "  $URI_CHANNEL" -ForegroundColor Cyan
+Write-Host "  $TWITCH_CALLBACK_URI" -ForegroundColor Cyan
 Write-Blank
 
-$finalCopy = Copy-ToClipboard "$URI_LOGIN`n$URI_BOT`n$URI_CHANNEL"
-if ($finalCopy) { Write-Ok "Redirect URIs copied to clipboard." }
+$finalCopy = Copy-ToClipboard $TWITCH_CALLBACK_URI
+if ($finalCopy) { Write-Ok "Redirect URI copied to clipboard." }
 
 Write-Rule "-"
 Write-Blank

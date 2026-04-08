@@ -202,6 +202,31 @@ set_env_var() {
   fi
 }
 
+derive_frontend_url() {
+  local api_url="${1%/}"
+  local scheme rest host
+
+  scheme="${api_url%%://*}"
+  if [[ "$scheme" == "$api_url" ]]; then
+    echo "$api_url"
+    return
+  fi
+
+  rest="${api_url#*://}"
+  host="${rest%%/*}"
+  host="${host%%:*}"
+
+  if [[ "$host" == "localhost" || "$host" == "127.0.0.1" ]]; then
+    echo "${scheme}://${host}:8081"
+  elif [[ "$host" == api.* ]]; then
+    echo "${scheme}://${host#api.}"
+  elif [[ "$host" == *-api.* ]]; then
+    echo "${scheme}://${host/-api./.}"
+  else
+    echo "${scheme}://${host}"
+  fi
+}
+
 DOCKER="docker"
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -336,40 +361,39 @@ fi
 
 info "API URL set to: ${CYAN}${API_BASE_URL}${R}"
 
-# Compute redirect URIs
-URI_LOGIN="${API_BASE_URL}/api/v1/auth/twitch/callback"
-URI_BOT="${API_BASE_URL}/api/v1/auth/twitch/bot/callback"
-URI_CHANNEL="${API_BASE_URL}/api/v1/channels/callback/bot"
+DEFAULT_FRONTEND_URL=$(derive_frontend_url "$API_BASE_URL")
+ask_with_default FRONTEND_URL "Your public dashboard URL" "$DEFAULT_FRONTEND_URL"
+FRONTEND_URL="${FRONTEND_URL%/}"
+
+nl
+info "Frontend URL set to: ${CYAN}${FRONTEND_URL}${R}"
+
+# Twitch now uses a single callback URL for streamer, bot, and channel-bot flows.
+TWITCH_CALLBACK_URI="${API_BASE_URL}/api/v1/auth/twitch/callback"
 
 # ══════════════════════════════════════════════════════════════════════════════
 # STEP 3 — Show redirect URIs + clipboard
 # ══════════════════════════════════════════════════════════════════════════════
 
-header "Step 3 of 6 — Twitch Redirect URIs"
+header "Step 3 of 6 — Twitch Redirect URI"
 
-echo -e "  You'll need to add these 3 URLs to your Twitch application in the next step."
-echo -e "  ${DIM}Twitch uses them to send users back to your bot after they log in.${R}"
+echo -e "  You'll need to add this callback URL to your Twitch application in the next step."
+echo -e "  ${DIM}Streamer login, bot login, and per-channel bot auth all use this same callback now.${R}"
 nl
 
 print_box \
-  "  ${BOLD}Your Twitch Redirect URIs:${R}" \
+  "  ${BOLD}Your Twitch Redirect URI:${R}" \
   "" \
-  "  1. ${CYAN}${URI_LOGIN}${R}" \
-  "  2. ${CYAN}${URI_BOT}${R}" \
-  "  3. ${CYAN}${URI_CHANNEL}${R}"
+  "  ${CYAN}${TWITCH_CALLBACK_URI}${R}"
 
 nl
 
-ALL_URIS="${URI_LOGIN}
-${URI_BOT}
-${URI_CHANNEL}"
-
-if copy_to_clipboard "$ALL_URIS" 2>/dev/null; then
-  info "${BOLD}${GREEN}All 3 URLs copied to your clipboard!${R}"
-  echo -e "  ${DIM}You can paste them into the Twitch form in the next step.${R}"
+if copy_to_clipboard "$TWITCH_CALLBACK_URI" 2>/dev/null; then
+  info "${BOLD}${GREEN}The callback URL has been copied to your clipboard!${R}"
+  echo -e "  ${DIM}You can paste it into the Twitch form in the next step.${R}"
 else
   warn "Couldn't copy automatically (no clipboard tool found)."
-  echo -e "  ${DIM}Copy the URLs above manually.${R}"
+  echo -e "  ${DIM}Copy the URL above manually.${R}"
 fi
 
 press_enter "  Keep these handy — press Enter to open the Twitch setup..."
@@ -437,47 +461,26 @@ if ! confirm "Skip Twitch setup for now? (you can add credentials later in .env)
     "  ${BOLD}Category:${R}  Select ${BOLD}\"Chat Bot\"${R} from the dropdown"
 
   nl
-  step 3 "${BOLD}OAuth Redirect URLs${R} — you need to add ${BOLD}3 URLs${R}, one at a time."
+  step 3 "${BOLD}OAuth Redirect URL${R} — you only need ${BOLD}1 URL${R} now."
   nl
 
-  # Walk through each URI
-  URI_LABELS=("Main login callback" "Bot account callback" "Per-channel bot callback")
-  ALL_URIS_ARR=("$URI_LOGIN" "$URI_BOT" "$URI_CHANNEL")
+  if copy_to_clipboard "$TWITCH_CALLBACK_URI" 2>/dev/null; then
+    info "${GREEN}${BOLD}Copied to clipboard!${R}"
+  else
+    warn "Couldn't copy automatically. Copy it manually:"
+  fi
 
-  for i in 0 1 2; do
-    uri="${ALL_URIS_ARR[$i]}"
-    label="${URI_LABELS[$i]}"
-    num=$(( i + 1 ))
-
-    rule "·"
-    nl
-    echo -e "  ${CYAN}${BOLD}Redirect URL ${num} of 3:${R}  ${DIM}${label}${R}"
-    nl
-
-    if copy_to_clipboard "$uri" 2>/dev/null; then
-      info "${GREEN}${BOLD}Copied to clipboard!${R}"
-    else
-      warn "Couldn't copy automatically. Copy it manually:"
-    fi
-
-    nl
-    print_box "  ${uri}  "
-    nl
-
-    if [[ $num -lt 3 ]]; then
-      step 1 "Paste the URL above into the ${BOLD}\"OAuth Redirect URLs\"${R} field."
-      step 2 "Click ${BOLD}\"Add\"${R} to save it before moving to the next URL."
-      press_enter "  Press Enter when URL ${num} is added and you're ready for the next..."
-    else
-      step 1 "Paste the URL above into the field and click ${BOLD}\"Add\"${R}."
-    fi
-  done
+  nl
+  print_box "  ${TWITCH_CALLBACK_URI}  "
+  nl
+  step 4 "Paste the URL above into the ${BOLD}\"OAuth Redirect URLs\"${R} field."
+  step 5 "Click ${BOLD}\"Add\"${R} if Twitch shows an add button, then continue."
 
   rule "·"
   nl
-  step 4 "Check the ${BOLD}\"I'm not a robot\"${R} box if it appears."
+  step 6 "Check the ${BOLD}\"I'm not a robot\"${R} box if it appears."
   nl
-  step 5 "Click the ${BOLD}${CYAN}\"Create\"${R} button at the bottom."
+  step 7 "Click the ${BOLD}${CYAN}\"Create\"${R} button at the bottom."
 
   press_enter "  Press Enter once you've clicked \"Create\"..."
 
@@ -613,7 +616,7 @@ if confirm "Set up Spotify integration?" 0; then
 
   print_box \
     "  ${BOLD}App name:${R}         Anything, e.g. ${CYAN}\"NomNomzBot\"${R}" \
-    "  ${BOLD}Redirect URI:${R}     ${CYAN}${API_BASE_URL}/api/v1/auth/spotify/callback${R}" \
+    "  ${BOLD}Redirect URI:${R}     ${CYAN}${API_BASE_URL}/api/v1/integrations/spotify/callback${R}" \
     "  ${BOLD}APIs used:${R}        Check ${BOLD}\"Web API\"${R}"
 
   nl
@@ -668,7 +671,7 @@ if confirm "Set up Discord integration?" 0; then
   step 3 "In the left sidebar, click ${BOLD}\"OAuth2\"${R}."
   step 4 "Under ${BOLD}\"Redirects\"${R}, add this URL:"
   nl
-  print_box "  ${CYAN}${API_BASE_URL}/api/v1/auth/discord/callback${R}"
+  print_box "  ${CYAN}${API_BASE_URL}/api/v1/integrations/discord/callback${R}"
   nl
   step 5 "Click ${BOLD}${CYAN}\"Save Changes\"${R}."
 
@@ -738,10 +741,10 @@ header "Step 6 of 6 — Generating Security Keys & Writing Configuration"
 echo -e "  Generating cryptographically random security keys..."
 nl
 
-JWT_SECRET=$(openssl rand -base64 64)
+JWT_SECRET=$(openssl rand -base64 64 | tr -d '\r\n')
 info "JWT Secret generated           ${DIM}(64 bytes, base64)${R}"
 
-ENCRYPTION_KEY=$(openssl rand -base64 32)
+ENCRYPTION_KEY=$(openssl rand -base64 32 | tr -d '\r\n')
 info "Encryption Key generated       ${DIM}(32 bytes, AES-256)${R}"
 
 POSTGRES_PASSWORD=$(openssl rand -hex 32)
@@ -816,7 +819,7 @@ TWITCH_BOT_USERNAME=${TWITCH_BOT_USERNAME}
 
 # ── URLs ──────────────────────────────────────────────────────────────────────
 API_BASE_URL=${API_BASE_URL}
-FRONTEND_URL=${API_BASE_URL/api./}
+FRONTEND_URL=${FRONTEND_URL}
 
 # ── Deployment ────────────────────────────────────────────────────────────────
 DEPLOYMENT_MODE=self-hosted
@@ -859,7 +862,10 @@ echo -e "  ${DIM}This takes about 5 minutes the first time (downloading Docker i
 echo -e "  ${DIM}Grab a coffee — we'll wait here.${R}"
 nl
 
-$DOCKER compose up -d --build
+if ! $DOCKER compose up -d --build; then
+  error "docker compose up failed. Check the output above."
+  exit 1
+fi
 
 nl
 info "Containers started. Waiting for the API to become healthy..."
@@ -898,23 +904,19 @@ echo "    ✓  NomNomzBot is running!"
 echo -e "${R}"
 rule "═"
 nl
-echo -e "  ${BOLD}Web app:${R}  ${CYAN}${API_BASE_URL/api./}${R}"
+echo -e "  ${BOLD}Web app:${R}  ${CYAN}${FRONTEND_URL}${R}"
 echo -e "  ${BOLD}API:${R}      ${CYAN}http://localhost:${API_PORT}${R}"
 echo -e "  ${BOLD}API docs:${R} ${CYAN}http://localhost:${API_PORT}/scalar${R}"
 echo -e "  ${BOLD}Health:${R}   ${CYAN}http://localhost:${API_PORT}/health${R}"
 nl
 rule "─"
-echo -e "  ${BOLD}Register these 3 Redirect URIs in your Twitch Developer Console:${R}"
+echo -e "  ${BOLD}Register this Redirect URI in your Twitch Developer Console:${R}"
 echo -e "  ${DIM}(dev.twitch.tv → your app → Manage)${R}"
 nl
-echo -e "  ${GREEN}${URI_LOGIN}${R}"
-echo -e "  ${GREEN}${URI_BOT}${R}"
-echo -e "  ${GREEN}${URI_CHANNEL}${R}"
+echo -e "  ${GREEN}${TWITCH_CALLBACK_URI}${R}"
 nl
-if copy_to_clipboard "${URI_LOGIN}
-${URI_BOT}
-${URI_CHANNEL}" 2>/dev/null; then
-  info "Redirect URIs copied to clipboard."
+if copy_to_clipboard "${TWITCH_CALLBACK_URI}" 2>/dev/null; then
+  info "Redirect URI copied to clipboard."
 fi
 rule "─"
 nl

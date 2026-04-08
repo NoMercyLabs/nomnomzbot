@@ -1,10 +1,10 @@
-import { View, Text, Pressable, Modal } from 'react-native'
-import { ShieldCheck, X } from 'lucide-react-native'
-import { useAuthStore } from '@/stores/useAuthStore'
-import { makeRedirectUri } from 'expo-auth-session'
-import * as WebBrowser from 'expo-web-browser'
-import { Platform } from 'react-native'
-import { API_BASE_URL } from '@/lib/utils/apiUrl'
+import { View, Text, Pressable, Modal } from 'react-native';
+import { ShieldCheck, X } from 'lucide-react-native';
+import { useAuthStore } from '@/stores/useAuthStore';
+import { makeRedirectUri } from 'expo-auth-session';
+import * as WebBrowser from 'expo-web-browser';
+import { Platform } from 'react-native';
+import { API_BASE_URL } from '@/lib/utils/apiUrl';
 
 export function ScopeUpgradePrompt() {
   const pendingScopeUpgrade = useAuthStore((s) => s.pendingScopeUpgrade)
