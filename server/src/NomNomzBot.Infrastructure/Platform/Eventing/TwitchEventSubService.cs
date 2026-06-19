@@ -22,6 +22,7 @@ using Microsoft.Extensions.Options;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Eventing;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Chat.ValueObjects;
 using NomNomzBot.Domain.Community.Events;
@@ -1488,8 +1489,8 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
         using IServiceScope scope = _scopeFactory.CreateScope();
         IApplicationDbContext db =
             scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
-        IEncryptionService encryption =
-            scope.ServiceProvider.GetRequiredService<IEncryptionService>();
+        ITokenProtector tokenProtector =
+            scope.ServiceProvider.GetRequiredService<ITokenProtector>();
 
         Service? service = await db
             .Services.Where(s =>
@@ -1503,7 +1504,11 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
 
         if (service?.AccessToken is null)
             return null;
-        return encryption.TryDecrypt(service.AccessToken);
+        return await tokenProtector.TryUnprotectAsync(
+            service.AccessToken,
+            new TokenProtectionContext("_platform", "twitch_bot", "access"),
+            ct
+        );
     }
 
     private async Task<string?> GetBroadcasterTokenAsync(string broadcasterId, CancellationToken ct)
@@ -1511,8 +1516,8 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
         using IServiceScope scope = _scopeFactory.CreateScope();
         IApplicationDbContext db =
             scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
-        IEncryptionService encryption =
-            scope.ServiceProvider.GetRequiredService<IEncryptionService>();
+        ITokenProtector tokenProtector =
+            scope.ServiceProvider.GetRequiredService<ITokenProtector>();
 
         Service? service = await db.Services.FirstOrDefaultAsync(
             s =>
@@ -1525,7 +1530,11 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
 
         if (service?.AccessToken is null)
             return null;
-        return encryption.TryDecrypt(service.AccessToken);
+        return await tokenProtector.TryUnprotectAsync(
+            service.AccessToken,
+            new TokenProtectionContext(broadcasterId, "twitch", "access"),
+            ct
+        );
     }
 
     // ─── JSON helpers ─────────────────────────────────────────────────────────────

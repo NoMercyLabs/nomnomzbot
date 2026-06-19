@@ -35,6 +35,7 @@
   </ItemGroup>
   <ItemGroup Label="DataProtection">
     <PackageVersion Include="Microsoft.AspNetCore.DataProtection" Version="10.0.8" />
+    <PackageVersion Include="System.Security.Cryptography.ProtectedData" Version="10.0.8" />
   </ItemGroup>
   <ItemGroup Label="JWT">
     <PackageVersion Include="System.IdentityModel.Tokens.Jwt" Version="8.18.0" />

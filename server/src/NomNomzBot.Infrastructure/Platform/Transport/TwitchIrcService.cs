@@ -19,6 +19,7 @@ using Microsoft.Extensions.Options;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Transport;
+using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Chat.ValueObjects;
 using NomNomzBot.Domain.Platform;
@@ -511,8 +512,8 @@ public sealed class TwitchIrcService : ITwitchChatService, IHostedService
         using IServiceScope scope = _scopeFactory.CreateScope();
         IApplicationDbContext db =
             scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
-        IEncryptionService encryption =
-            scope.ServiceProvider.GetRequiredService<IEncryptionService>();
+        ITokenProtector tokenProtector =
+            scope.ServiceProvider.GetRequiredService<ITokenProtector>();
 
         // Platform bot only — BroadcasterId must be null
         Service? service = await db
@@ -531,7 +532,11 @@ public sealed class TwitchIrcService : ITwitchChatService, IHostedService
             return null;
         }
 
-        string? decrypted = encryption.TryDecrypt(service.AccessToken);
+        string? decrypted = await tokenProtector.TryUnprotectAsync(
+            service.AccessToken,
+            new TokenProtectionContext("_platform", "twitch_bot", "access"),
+            ct
+        );
         if (decrypted is null)
         {
             _logger.LogWarning(

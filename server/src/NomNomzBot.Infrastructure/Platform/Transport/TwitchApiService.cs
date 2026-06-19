@@ -18,6 +18,7 @@ using Microsoft.Extensions.Options;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Transport;
+using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Domain.Platform.Entities;
 using NomNomzBot.Infrastructure.Platform;
 
@@ -33,7 +34,7 @@ namespace NomNomzBot.Infrastructure.Platform.Transport;
 public sealed class TwitchApiService : ITwitchApiService
 {
     private readonly IApplicationDbContext _db;
-    private readonly IEncryptionService _encryption;
+    private readonly ITokenProtector _tokenProtector;
     private readonly ITwitchAuthService _authService;
     private readonly HttpClient _http;
     private readonly TwitchOptions _options;
@@ -44,7 +45,7 @@ public sealed class TwitchApiService : ITwitchApiService
 
     public TwitchApiService(
         IApplicationDbContext db,
-        IEncryptionService encryption,
+        ITokenProtector tokenProtector,
         ITwitchAuthService authService,
         IHttpClientFactory httpClientFactory,
         IOptions<TwitchOptions> options,
@@ -53,7 +54,7 @@ public sealed class TwitchApiService : ITwitchApiService
     )
     {
         _db = db;
-        _encryption = encryption;
+        _tokenProtector = tokenProtector;
         _authService = authService;
         _http = httpClientFactory.CreateClient("twitch-helix");
         _options = options.Value;
@@ -993,7 +994,15 @@ public sealed class TwitchApiService : ITwitchApiService
         if (service?.AccessToken is null)
             return null;
 
-        string? token = _encryption.TryDecrypt(service.AccessToken);
+        string? token = await _tokenProtector.TryUnprotectAsync(
+            service.AccessToken,
+            new TokenProtectionContext(
+                service.BroadcasterId ?? "_platform",
+                service.Name,
+                "access"
+            ),
+            ct
+        );
         if (token is null)
             return null;
 
@@ -1022,7 +1031,11 @@ public sealed class TwitchApiService : ITwitchApiService
             return await GetBotTokenAsync(ct);
         }
 
-        string? token = _encryption.TryDecrypt(service.AccessToken);
+        string? token = await _tokenProtector.TryUnprotectAsync(
+            service.AccessToken,
+            new TokenProtectionContext(broadcasterId, service.Name, "access"),
+            ct
+        );
         if (token is null)
             return null;
 

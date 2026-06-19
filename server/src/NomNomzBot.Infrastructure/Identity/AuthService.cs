@@ -18,6 +18,7 @@ using Microsoft.Extensions.Options;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Transport;
+using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
@@ -40,7 +41,7 @@ public sealed class AuthService : IAuthService
     private readonly IApplicationDbContext _db;
     private readonly ITwitchAuthService _twitchAuth;
     private readonly IJwtTokenService _jwt;
-    private readonly IEncryptionService _encryption;
+    private readonly ITokenProtector _tokenProtector;
     private readonly HttpClient _http;
     private readonly TwitchOptions _options;
     private readonly TimeProvider _timeProvider;
@@ -114,7 +115,7 @@ public sealed class AuthService : IAuthService
         IApplicationDbContext db,
         ITwitchAuthService twitchAuth,
         IJwtTokenService jwt,
-        IEncryptionService encryption,
+        ITokenProtector tokenProtector,
         IHttpClientFactory httpClientFactory,
         IOptions<TwitchOptions> options,
         IConfiguration configuration,
@@ -125,7 +126,7 @@ public sealed class AuthService : IAuthService
         _db = db;
         _twitchAuth = twitchAuth;
         _jwt = jwt;
-        _encryption = encryption;
+        _tokenProtector = tokenProtector;
         _http = httpClientFactory.CreateClient("twitch-helix");
         _options = options.Value;
         _timeProvider = timeProvider;
@@ -247,8 +248,16 @@ public sealed class AuthService : IAuthService
             _db.Services.Add(service);
         }
 
-        service.AccessToken = _encryption.Encrypt(tokens.AccessToken);
-        service.RefreshToken = _encryption.Encrypt(tokens.RefreshToken);
+        service.AccessToken = await _tokenProtector.ProtectAsync(
+            tokens.AccessToken,
+            new TokenProtectionContext(twitchUser.Id, "twitch", "access"),
+            cancellationToken
+        );
+        service.RefreshToken = await _tokenProtector.ProtectAsync(
+            tokens.RefreshToken,
+            new TokenProtectionContext(twitchUser.Id, "twitch", "refresh"),
+            cancellationToken
+        );
         service.TokenExpiry = tokens.ExpiresAt;
         service.Scopes = tokens.Scopes;
         // Link to channel if it now exists
@@ -446,8 +455,16 @@ public sealed class AuthService : IAuthService
             _db.Services.Add(service);
         }
 
-        service.AccessToken = _encryption.Encrypt(tokens.AccessToken);
-        service.RefreshToken = _encryption.Encrypt(tokens.RefreshToken);
+        service.AccessToken = await _tokenProtector.ProtectAsync(
+            tokens.AccessToken,
+            new TokenProtectionContext("_platform", "twitch_bot", "access"),
+            cancellationToken
+        );
+        service.RefreshToken = await _tokenProtector.ProtectAsync(
+            tokens.RefreshToken,
+            new TokenProtectionContext("_platform", "twitch_bot", "refresh"),
+            cancellationToken
+        );
         service.TokenExpiry = tokens.ExpiresAt;
         service.Scopes = tokens.Scopes;
         service.UserId = botUser.Id;
@@ -479,7 +496,12 @@ public sealed class AuthService : IAuthService
 
         // If the token cannot be decrypted (e.g. encryption key changed), report disconnected
         // so the admin UI shows the re-auth button rather than hiding it.
-        if (_encryption.TryDecrypt(service.AccessToken) is null)
+        string? botAccess = await _tokenProtector.TryUnprotectAsync(
+            service.AccessToken,
+            new TokenProtectionContext("_platform", "twitch_bot", "access"),
+            cancellationToken
+        );
+        if (botAccess is null)
         {
             _logger.LogWarning(
                 "Platform bot token exists but cannot be decrypted — reporting as disconnected"
@@ -525,7 +547,11 @@ public sealed class AuthService : IAuthService
         {
             if (service.AccessToken is not null)
             {
-                string? decrypted = _encryption.TryDecrypt(service.AccessToken);
+                string? decrypted = await _tokenProtector.TryUnprotectAsync(
+                    service.AccessToken,
+                    new TokenProtectionContext("_platform", "twitch_bot", "access"),
+                    cancellationToken
+                );
                 if (decrypted is not null)
                     await _twitchAuth.RevokeTokenAsync(
                         service.UserId ?? "",
@@ -631,8 +657,16 @@ public sealed class AuthService : IAuthService
             _db.Services.Add(service);
         }
 
-        service.AccessToken = _encryption.Encrypt(tokens.AccessToken);
-        service.RefreshToken = _encryption.Encrypt(tokens.RefreshToken);
+        service.AccessToken = await _tokenProtector.ProtectAsync(
+            tokens.AccessToken,
+            new TokenProtectionContext(channelId, "twitch_bot", "access"),
+            cancellationToken
+        );
+        service.RefreshToken = await _tokenProtector.ProtectAsync(
+            tokens.RefreshToken,
+            new TokenProtectionContext(channelId, "twitch_bot", "refresh"),
+            cancellationToken
+        );
         service.TokenExpiry = tokens.ExpiresAt;
         service.Scopes = tokens.Scopes;
         service.UserId = botUser.Id;
@@ -667,7 +701,12 @@ public sealed class AuthService : IAuthService
         if (service is null)
             return Result.Success(new BotStatusDto(false, null, null, null));
 
-        if (_encryption.TryDecrypt(service.AccessToken) is null)
+        string? channelBotAccess = await _tokenProtector.TryUnprotectAsync(
+            service.AccessToken,
+            new TokenProtectionContext(channelId, "twitch_bot", "access"),
+            cancellationToken
+        );
+        if (channelBotAccess is null)
             return Result.Success(new BotStatusDto(false, null, null, null));
 
         if (service.UserId is not null)

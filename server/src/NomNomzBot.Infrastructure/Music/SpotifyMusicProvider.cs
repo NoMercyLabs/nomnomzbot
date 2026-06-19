@@ -16,6 +16,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Domain.Music.Interfaces;
 using NomNomzBot.Domain.Platform.Entities;
 
@@ -38,21 +39,21 @@ public sealed class SpotifyMusicProvider : IMusicProvider
     private const string ProviderName = "spotify";
 
     private readonly IApplicationDbContext _db;
-    private readonly IEncryptionService _encryption;
+    private readonly ITokenProtector _tokenProtector;
     private readonly HttpClient _http;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<SpotifyMusicProvider> _logger;
 
     public SpotifyMusicProvider(
         IApplicationDbContext db,
-        IEncryptionService encryption,
+        ITokenProtector tokenProtector,
         IHttpClientFactory httpClientFactory,
         TimeProvider timeProvider,
         ILogger<SpotifyMusicProvider> logger
     )
     {
         _db = db;
-        _encryption = encryption;
+        _tokenProtector = tokenProtector;
         _http = httpClientFactory.CreateClient("spotify");
         _timeProvider = timeProvider;
         _logger = logger;
@@ -231,7 +232,17 @@ public sealed class SpotifyMusicProvider : IMusicProvider
             return refreshed;
         }
 
-        return service.AccessToken is not null ? _encryption.TryDecrypt(service.AccessToken) : null;
+        return service.AccessToken is not null
+            ? await _tokenProtector.TryUnprotectAsync(
+                service.AccessToken,
+                new TokenProtectionContext(
+                    service.BroadcasterId ?? "_platform",
+                    ProviderName,
+                    "access"
+                ),
+                cancellationToken
+            )
+            : null;
     }
 
     private async Task<string?> RefreshTokenAsync(
@@ -242,16 +253,30 @@ public sealed class SpotifyMusicProvider : IMusicProvider
         if (service.RefreshToken is null)
             return null;
 
-        string? refreshToken = _encryption.TryDecrypt(service.RefreshToken);
+        string subjectId = service.BroadcasterId ?? "_platform";
+
+        string? refreshToken = await _tokenProtector.TryUnprotectAsync(
+            service.RefreshToken,
+            new TokenProtectionContext(subjectId, ProviderName, "refresh"),
+            cancellationToken
+        );
         if (refreshToken is null)
             return null;
 
         // Client credentials required for refresh (stored on the service)
         string? clientId = service.ClientId is not null
-            ? _encryption.TryDecrypt(service.ClientId)
+            ? await _tokenProtector.TryUnprotectAsync(
+                service.ClientId,
+                new TokenProtectionContext(subjectId, ProviderName, "client_id"),
+                cancellationToken
+            )
             : null;
         string? clientSecret = service.ClientSecret is not null
-            ? _encryption.TryDecrypt(service.ClientSecret)
+            ? await _tokenProtector.TryUnprotectAsync(
+                service.ClientSecret,
+                new TokenProtectionContext(subjectId, ProviderName, "client_secret"),
+                cancellationToken
+            )
             : null;
 
         if (clientId is null || clientSecret is null)
@@ -297,12 +322,20 @@ public sealed class SpotifyMusicProvider : IMusicProvider
             if (json is null)
                 return null;
 
-            service.AccessToken = _encryption.Encrypt(json.AccessToken);
+            service.AccessToken = await _tokenProtector.ProtectAsync(
+                json.AccessToken,
+                new TokenProtectionContext(subjectId, ProviderName, "access"),
+                cancellationToken
+            );
             service.TokenExpiry = _timeProvider.GetUtcNow().UtcDateTime.AddSeconds(json.ExpiresIn);
 
             // Refresh token may be rotated
             if (!string.IsNullOrEmpty(json.RefreshToken))
-                service.RefreshToken = _encryption.Encrypt(json.RefreshToken);
+                service.RefreshToken = await _tokenProtector.ProtectAsync(
+                    json.RefreshToken,
+                    new TokenProtectionContext(subjectId, ProviderName, "refresh"),
+                    cancellationToken
+                );
 
             await _db.SaveChangesAsync(cancellationToken);
 

@@ -22,6 +22,8 @@ using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.RateLimiting;
 using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Abstractions.Transport;
+using NomNomzBot.Application.Common.Interfaces.Crypto;
+using NomNomzBot.Application.Services;
 using NomNomzBot.Application.Tts.Services;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Music.Interfaces;
@@ -42,6 +44,7 @@ using NomNomzBot.Infrastructure.Platform.Persistence.Repositories;
 using NomNomzBot.Infrastructure.Platform.Pipeline;
 using NomNomzBot.Infrastructure.Platform.RateLimiting;
 using NomNomzBot.Infrastructure.Platform.Resilience;
+using NomNomzBot.Infrastructure.Platform.Security;
 using NomNomzBot.Infrastructure.Platform.Templating;
 using NomNomzBot.Infrastructure.Platform.Transport;
 using NomNomzBot.Infrastructure.Tts;
@@ -136,13 +139,13 @@ public static class DependencyInjection
         services.AddServicesByConvention(
             infrastructure,
             ServiceLifetime.Scoped,
-            typeof(IEncryptionService), // singleton crypto
             typeof(IJwtTokenService), // singleton crypto
             typeof(ICacheService), // deployment-variant: Redis vs in-memory (ambiguity)
             typeof(ITrustService), // singleton
             typeof(ITtsService), // singleton — stateful TTS queues
             typeof(ITwitchChatService), // singleton + hosted (shared TwitchIrcService instance)
-            typeof(ITwitchEventSubService) // singleton + hosted (shared TwitchEventSubService instance)
+            typeof(ITwitchEventSubService), // singleton + hosted (shared TwitchEventSubService instance)
+            typeof(ISubjectKeyService) // crypto envelope — wired explicitly below
         );
 
         // Repositories (scoped — concrete GenericRepository<T> subclasses, consumed by type).
@@ -161,11 +164,28 @@ public static class DependencyInjection
             typeof(ChannelRegistry)
         );
 
-        // Security — AES-256 encryption with a stable configured key (survives container restarts)
+        // Security — envelope encryption (gdpr-crypto spec). Field cipher = AES-256-GCM + AAD over a
+        // per-subject DEK; the DEK is wrapped by the deployment KEK held in an OS-native secure store
+        // (Windows DPAPI) or derived from Encryption:Key (deterministic CI/dev/headless fallback).
         services.Configure<EncryptionOptions>(
             configuration.GetSection(EncryptionOptions.SectionName)
         );
-        services.AddSingleton<IEncryptionService, EncryptionService>();
+
+        // Crypto primitives (stateless, singleton — in-box System.Security.Cryptography).
+        services.AddSingleton<IFieldCipher, AesGcmFieldCipher>();
+
+        // KEK-custody adapter (local_aes — OS-native secure store / deterministic config-key fallback).
+        // The kms_envelope (Azure Managed-HSM) branch is the SaaS profile variant and is wired there.
+        services.AddSingleton<IKeyVault, OsSecureStoreKeyVault>();
+
+        // DEK registry — in-process store backs the contract until the CryptoKey EF table + Guid
+        // BroadcasterId widening land (schema build-dependency); singleton so DEKs persist process-wide.
+        services.AddSingleton<ISubjectKeyStore, InMemorySubjectKeyStore>();
+
+        // DEK lifecycle + token-protection facade (singleton — stateless over the singleton store/vault).
+        services.AddSingleton<ISubjectKeyService, SubjectKeyService>();
+        services.AddSingleton<ITokenProtector, TokenProtector>();
+
         services.AddSingleton<IJwtTokenService, JwtTokenService>();
 
         // Caching — use Redis if configured, otherwise fall back to in-memory

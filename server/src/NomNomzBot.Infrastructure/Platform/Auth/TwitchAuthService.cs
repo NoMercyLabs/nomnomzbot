@@ -15,6 +15,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Domain.Platform.Entities;
 using NomNomzBot.Infrastructure.Platform;
 
@@ -28,7 +29,7 @@ namespace NomNomzBot.Infrastructure.Platform.Auth;
 public sealed class TwitchAuthService : ITwitchAuthService
 {
     private readonly IApplicationDbContext _db;
-    private readonly IEncryptionService _encryption;
+    private readonly ITokenProtector _tokenProtector;
     private readonly HttpClient _http;
     private readonly TwitchOptions _options;
     private readonly ILogger<TwitchAuthService> _logger;
@@ -39,7 +40,7 @@ public sealed class TwitchAuthService : ITwitchAuthService
 
     public TwitchAuthService(
         IApplicationDbContext db,
-        IEncryptionService encryption,
+        ITokenProtector tokenProtector,
         IHttpClientFactory httpClientFactory,
         IOptions<TwitchOptions> options,
         ILogger<TwitchAuthService> logger,
@@ -47,7 +48,7 @@ public sealed class TwitchAuthService : ITwitchAuthService
     )
     {
         _db = db;
-        _encryption = encryption;
+        _tokenProtector = tokenProtector;
         _http = httpClientFactory.CreateClient("twitch-auth");
         _options = options.Value;
         _logger = logger;
@@ -121,7 +122,11 @@ public sealed class TwitchAuthService : ITwitchAuthService
             return null;
         }
 
-        string? refreshToken = _encryption.TryDecrypt(service.RefreshToken);
+        string? refreshToken = await _tokenProtector.TryUnprotectAsync(
+            service.RefreshToken,
+            new TokenProtectionContext(broadcasterId, serviceName, "refresh"),
+            ct
+        );
         if (refreshToken is null)
         {
             _logger.LogWarning(
@@ -167,8 +172,16 @@ public sealed class TwitchAuthService : ITwitchAuthService
             json.Scope ?? []
         );
 
-        service.AccessToken = _encryption.Encrypt(result.AccessToken);
-        service.RefreshToken = _encryption.Encrypt(result.RefreshToken);
+        service.AccessToken = await _tokenProtector.ProtectAsync(
+            result.AccessToken,
+            new TokenProtectionContext(broadcasterId, serviceName, "access"),
+            ct
+        );
+        service.RefreshToken = await _tokenProtector.ProtectAsync(
+            result.RefreshToken,
+            new TokenProtectionContext(broadcasterId, serviceName, "refresh"),
+            ct
+        );
         service.TokenExpiry = result.ExpiresAt;
         service.Scopes = result.Scopes;
         await _db.SaveChangesAsync(ct);
@@ -241,7 +254,11 @@ public sealed class TwitchAuthService : ITwitchAuthService
 
         if (service.AccessToken is not null)
         {
-            string? accessToken = _encryption.TryDecrypt(service.AccessToken);
+            string? accessToken = await _tokenProtector.TryUnprotectAsync(
+                service.AccessToken,
+                new TokenProtectionContext(broadcasterId, serviceName, "access"),
+                ct
+            );
             if (accessToken is not null)
             {
                 FormUrlEncodedContent form = new(
