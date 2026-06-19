@@ -12,9 +12,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Domain.Platform.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
-using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Domain.Rewards.Entities;
 using NomNomzBot.Domain.Rewards.Events;
 
@@ -54,7 +54,8 @@ public sealed class RewardRedeemedHandler : IEventHandler<RewardRedeemedEvent>
             return;
 
         using IServiceScope scope = _scopeFactory.CreateScope();
-        IApplicationDbContext db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+        IApplicationDbContext db =
+            scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
 
         Dictionary<string, string> variables = new(StringComparer.OrdinalIgnoreCase)
         {

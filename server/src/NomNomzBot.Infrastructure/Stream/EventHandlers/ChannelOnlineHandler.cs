@@ -12,13 +12,13 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.Transport;
-using NomNomzBot.Domain.Platform.Entities;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Platform;
-using NomNomzBot.Domain.Stream.Events;
+using NomNomzBot.Domain.Platform.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
-using NomNomzBot.Application.Abstractions.Pipeline;
+using NomNomzBot.Domain.Stream.Events;
 
 namespace NomNomzBot.Infrastructure.Stream.EventHandlers;
 
@@ -58,7 +58,8 @@ public sealed class ChannelOnlineHandler : IEventHandler<ChannelOnlineEvent>
             return;
 
         using IServiceScope scope = _scopeFactory.CreateScope();
-        IApplicationDbContext db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+        IApplicationDbContext db =
+            scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
 
         Channel? channel = await db.Channels.FindAsync([broadcasterId], cancellationToken);
         if (channel is null)
@@ -75,8 +76,12 @@ public sealed class ChannelOnlineHandler : IEventHandler<ChannelOnlineEvent>
         string gameName = @event.GameName;
         if (string.IsNullOrEmpty(title))
         {
-            ITwitchApiService twitchApi = scope.ServiceProvider.GetRequiredService<ITwitchApiService>();
-            TwitchStreamInfo? streamInfo = await twitchApi.GetStreamInfoAsync(broadcasterId, cancellationToken);
+            ITwitchApiService twitchApi =
+                scope.ServiceProvider.GetRequiredService<ITwitchApiService>();
+            TwitchStreamInfo? streamInfo = await twitchApi.GetStreamInfoAsync(
+                broadcasterId,
+                cancellationToken
+            );
             if (streamInfo is not null)
             {
                 title = streamInfo.Title ?? string.Empty;

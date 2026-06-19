@@ -131,11 +131,7 @@ public class AutoModerationEngineTests
     public void Evaluate_LinkFilter_HttpsLink_TriggersAction()
     {
         AutoModerationEngine engine = Create();
-        AutoModSettings settings = new()
-        {
-            FilterLinks = true,
-            LinkAction = AutoModAction.Delete,
-        };
+        AutoModSettings settings = new() { FilterLinks = true, LinkAction = AutoModAction.Delete };
 
         AutoModResult result = Evaluate(engine, "check out https://evil.com/hack", settings);
 
@@ -148,11 +144,7 @@ public class AutoModerationEngineTests
     public void Evaluate_LinkFilter_WwwLink_TriggersAction()
     {
         AutoModerationEngine engine = Create();
-        AutoModSettings settings = new()
-        {
-            FilterLinks = true,
-            LinkAction = AutoModAction.Delete,
-        };
+        AutoModSettings settings = new() { FilterLinks = true, LinkAction = AutoModAction.Delete };
 
         AutoModResult result = Evaluate(engine, "visit www.example.com today", settings);
 

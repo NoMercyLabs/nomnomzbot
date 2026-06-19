@@ -35,7 +35,10 @@ public class FeaturesController : BaseController
     [ProducesResponseType<StatusResponseDto<List<FeatureStatusDto>>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetFeatures(string channelId, CancellationToken ct)
     {
-        Result<List<FeatureStatusDto>> result = await _featureService.GetFeaturesAsync(channelId, ct);
+        Result<List<FeatureStatusDto>> result = await _featureService.GetFeaturesAsync(
+            channelId,
+            ct
+        );
         return ResultResponse(result);
     }
 

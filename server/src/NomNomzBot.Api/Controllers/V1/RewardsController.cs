@@ -45,13 +45,12 @@ public class RewardsController : BaseController
         CancellationToken ct
     )
     {
-        PaginationParams pagination = new(
-            request.Page,
-            request.Take,
-            request.Sort,
-            request.Order
+        PaginationParams pagination = new(request.Page, request.Take, request.Sort, request.Order);
+        Result<PagedList<RewardListItem>> result = await _rewardService.ListAsync(
+            channelId,
+            pagination,
+            ct
         );
-        Result<PagedList<RewardListItem>> result = await _rewardService.ListAsync(channelId, pagination, ct);
         if (result.IsFailure)
             return ResultResponse(result);
         return GetPaginatedResponse(result.Value, request);
@@ -101,7 +100,12 @@ public class RewardsController : BaseController
         CancellationToken ct
     )
     {
-        Result<RewardDetail> result = await _rewardService.UpdateAsync(channelId, rewardId, request, ct);
+        Result<RewardDetail> result = await _rewardService.UpdateAsync(
+            channelId,
+            rewardId,
+            request,
+            ct
+        );
         if (result.IsFailure)
             return ResultResponse(result);
         return Ok(new StatusResponseDto<RewardDetail> { Data = result.Value });
@@ -116,7 +120,12 @@ public class RewardsController : BaseController
         CancellationToken ct
     )
     {
-        Result<RewardDetail> result = await _rewardService.UpdateAsync(channelId, rewardId, request, ct);
+        Result<RewardDetail> result = await _rewardService.UpdateAsync(
+            channelId,
+            rewardId,
+            request,
+            ct
+        );
         if (result.IsFailure)
             return ResultResponse(result);
         return Ok(new StatusResponseDto<RewardDetail> { Data = result.Value });
@@ -150,8 +159,8 @@ public class RewardsController : BaseController
     [ProducesResponseType<StatusResponseDto<List<LeaderboardEntryDto>>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetLeaderboard(string channelId, CancellationToken ct)
     {
-        var topChatters = await _db.ChatMessages
-            .Where(m => m.BroadcasterId == channelId)
+        var topChatters = await _db
+            .ChatMessages.Where(m => m.BroadcasterId == channelId)
             .GroupBy(m => m.UserId)
             .Select(g => new { UserId = g.Key, Count = g.Count() })
             .OrderByDescending(x => x.Count)
@@ -159,16 +168,18 @@ public class RewardsController : BaseController
             .ToListAsync(ct);
 
         var userIds = topChatters.Select(x => x.UserId).ToList();
-        var users = await _db.Users
-            .Where(u => userIds.Contains(u.Id))
+        var users = await _db
+            .Users.Where(u => userIds.Contains(u.Id))
             .ToDictionaryAsync(u => u.Id, u => u.DisplayName, ct);
 
         var entries = topChatters
-            .Select((x, i) =>
-            {
-                users.TryGetValue(x.UserId, out string? displayName);
-                return new LeaderboardEntryDto(i + 1, x.UserId, displayName ?? "", x.Count);
-            })
+            .Select(
+                (x, i) =>
+                {
+                    users.TryGetValue(x.UserId, out string? displayName);
+                    return new LeaderboardEntryDto(i + 1, x.UserId, displayName ?? "", x.Count);
+                }
+            )
             .ToList();
 
         return Ok(new StatusResponseDto<List<LeaderboardEntryDto>> { Data = entries });

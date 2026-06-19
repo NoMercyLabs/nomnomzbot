@@ -29,7 +29,11 @@ public class TenantResolutionMiddlewareTests
     {
         IChannelAccessService access = Substitute.For<IChannelAccessService>();
         access
-            .CanResolveTenantAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .CanResolveTenantAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
             .Returns(allow);
         return access;
     }
@@ -55,7 +59,13 @@ public class TenantResolutionMiddlewareTests
         await middleware.InvokeAsync(context, tenantService, access);
 
         tenantService.Received(1).SetTenant("chan-route-123");
-        await access.DidNotReceive().CanResolveTenantAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await access
+            .DidNotReceive()
+            .CanResolveTenantAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            );
     }
 
     [Fact]
@@ -223,7 +233,13 @@ public class TenantResolutionMiddlewareTests
         await middleware.InvokeAsync(context, tenantService, access);
 
         tenantService.Received(1).SetTenant("owner-123");
-        await access.DidNotReceive().CanResolveTenantAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await access
+            .DidNotReceive()
+            .CanResolveTenantAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            );
     }
 
     [Fact]

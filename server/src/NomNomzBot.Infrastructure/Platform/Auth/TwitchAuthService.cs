@@ -79,7 +79,9 @@ public sealed class TwitchAuthService : ITwitchAuthService
             return null;
         }
 
-        TwitchTokenResponse? json = await resp.Content.ReadFromJsonAsync<TwitchTokenResponse>(cancellationToken: ct);
+        TwitchTokenResponse? json = await resp.Content.ReadFromJsonAsync<TwitchTokenResponse>(
+            cancellationToken: ct
+        );
         if (json is null)
             return null;
 
@@ -149,7 +151,9 @@ public sealed class TwitchAuthService : ITwitchAuthService
             return null;
         }
 
-        TwitchTokenResponse? json = await resp.Content.ReadFromJsonAsync<TwitchTokenResponse>(cancellationToken: ct);
+        TwitchTokenResponse? json = await resp.Content.ReadFromJsonAsync<TwitchTokenResponse>(
+            cancellationToken: ct
+        );
         if (json is null)
             return null;
 

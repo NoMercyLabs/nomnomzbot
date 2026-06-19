@@ -52,7 +52,12 @@ public sealed class SongRequestAction : ICommandAction
         if (string.IsNullOrWhiteSpace(query))
             return ActionResult.Failure("song_request requires a non-empty 'query'");
 
-        IReadOnlyList<MusicTrack> results = await _music.SearchAsync(ctx.BroadcasterId, query, 1, ctx.CancellationToken);
+        IReadOnlyList<MusicTrack> results = await _music.SearchAsync(
+            ctx.BroadcasterId,
+            query,
+            1,
+            ctx.CancellationToken
+        );
         if (results.Count == 0)
         {
             await _chat.SendMessageAsync(

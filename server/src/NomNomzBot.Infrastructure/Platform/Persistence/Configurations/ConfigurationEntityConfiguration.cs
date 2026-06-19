@@ -16,7 +16,9 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Configurations;
 public class ConfigurationEntityConfiguration
     : IEntityTypeConfiguration<NomNomzBot.Domain.Platform.Entities.Configuration>
 {
-    public void Configure(EntityTypeBuilder<NomNomzBot.Domain.Platform.Entities.Configuration> builder)
+    public void Configure(
+        EntityTypeBuilder<NomNomzBot.Domain.Platform.Entities.Configuration> builder
+    )
     {
         builder.HasKey(e => e.Id);
 

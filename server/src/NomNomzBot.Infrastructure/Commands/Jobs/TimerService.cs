@@ -14,9 +14,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Platform.Interfaces;
-using NomNomzBot.Application.Abstractions.Templating;
 using Timer = NomNomzBot.Domain.Commands.Entities.Timer;
 
 namespace NomNomzBot.Infrastructure.Commands.Jobs;
@@ -88,7 +88,8 @@ public sealed class TimerService : BackgroundService
             return;
 
         using IServiceScope scope = _scopeFactory.CreateScope();
-        IApplicationDbContext db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+        IApplicationDbContext db =
+            scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
         IChatProvider chat = scope.ServiceProvider.GetRequiredService<IChatProvider>();
 
         DateTime now = DateTime.UtcNow;
@@ -122,7 +123,9 @@ public sealed class TimerService : BackgroundService
     )
     {
         // Check interval
-        DateTime nextFire = (timer.LastFiredAt ?? DateTime.MinValue).AddMinutes(timer.IntervalMinutes);
+        DateTime nextFire = (timer.LastFiredAt ?? DateTime.MinValue).AddMinutes(
+            timer.IntervalMinutes
+        );
         if (now < nextFire)
             return;
 

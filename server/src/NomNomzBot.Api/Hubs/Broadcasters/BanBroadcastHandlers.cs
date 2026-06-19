@@ -9,9 +9,9 @@
 // -----------------------------------------------------------------------------
 
 using NomNomzBot.Api.Hubs.Dtos;
+using NomNomzBot.Domain.Moderation.Events;
 using NomNomzBot.Domain.Platform;
 using NomNomzBot.Domain.Platform.Interfaces;
-using NomNomzBot.Domain.Moderation.Events;
 
 namespace NomNomzBot.Api.Hubs.Broadcasters;
 
@@ -29,13 +29,7 @@ public sealed class UserBannedBroadcastHandler : IEventHandler<UserBannedEvent>
 
         return _notifier.SendModActionAsync(
             @event.BroadcasterId,
-            new(
-                "ban",
-                @event.ModeratorUserId,
-                @event.TargetUserId,
-                @event.Reason,
-                null
-            ),
+            new("ban", @event.ModeratorUserId, @event.TargetUserId, @event.Reason, null),
             ct
         );
     }

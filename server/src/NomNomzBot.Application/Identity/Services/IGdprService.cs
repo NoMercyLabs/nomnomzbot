@@ -14,6 +14,9 @@ namespace NomNomzBot.Application.Identity.Services;
 
 public interface IGdprService
 {
-    Task<Result<string>> ExportUserDataAsync(string userId, CancellationToken cancellationToken = default);
+    Task<Result<string>> ExportUserDataAsync(
+        string userId,
+        CancellationToken cancellationToken = default
+    );
     Task<Result> DeleteUserDataAsync(string userId, CancellationToken cancellationToken = default);
 }

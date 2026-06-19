@@ -39,13 +39,12 @@ public class EventResponsesController : BaseController
         CancellationToken ct
     )
     {
-        PaginationParams pagination = new(
-            request.Page,
-            request.Take,
-            request.Sort,
-            request.Order
+        PaginationParams pagination = new(request.Page, request.Take, request.Sort, request.Order);
+        Result<PagedList<EventResponseListItem>> result = await _eventResponseService.ListAsync(
+            channelId,
+            pagination,
+            ct
         );
-        Result<PagedList<EventResponseListItem>> result = await _eventResponseService.ListAsync(channelId, pagination, ct);
         if (result.IsFailure)
             return ResultResponse(result);
         return GetPaginatedResponse(result.Value, request);
@@ -59,7 +58,11 @@ public class EventResponsesController : BaseController
         CancellationToken ct
     )
     {
-        Result<EventResponseDto> result = await _eventResponseService.GetByEventTypeAsync(channelId, eventType, ct);
+        Result<EventResponseDto> result = await _eventResponseService.GetByEventTypeAsync(
+            channelId,
+            eventType,
+            ct
+        );
         return ResultResponse(result);
     }
 
@@ -72,7 +75,12 @@ public class EventResponsesController : BaseController
         CancellationToken ct
     )
     {
-        Result<EventResponseDto> result = await _eventResponseService.UpsertAsync(channelId, eventType, request, ct);
+        Result<EventResponseDto> result = await _eventResponseService.UpsertAsync(
+            channelId,
+            eventType,
+            request,
+            ct
+        );
         if (result.IsFailure)
             return ResultResponse(result);
         return Ok(new StatusResponseDto<EventResponseDto> { Data = result.Value });

@@ -21,8 +21,8 @@ using NomNomzBot.Application.Abstractions.Transport;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
-using NomNomzBot.Domain.Platform.Entities;
 using NomNomzBot.Domain.Identity.Entities;
+using NomNomzBot.Domain.Platform.Entities;
 using NomNomzBot.Infrastructure.Platform;
 
 namespace NomNomzBot.Infrastructure.Identity;
@@ -130,9 +130,15 @@ public sealed class AuthService : IAuthService
         _baseUrl = configuration["App:BaseUrl"] ?? "http://localhost:5080";
     }
 
-    public async Task<string> GetTwitchOAuthUrl(string? state = null, string? baseUrl = null, CancellationToken cancellationToken = default)
+    public async Task<string> GetTwitchOAuthUrl(
+        string? state = null,
+        string? baseUrl = null,
+        CancellationToken cancellationToken = default
+    )
     {
-        string publicBaseUrl = (string.IsNullOrWhiteSpace(baseUrl) ? _baseUrl : baseUrl).TrimEnd('/');
+        string publicBaseUrl = (string.IsNullOrWhiteSpace(baseUrl) ? _baseUrl : baseUrl).TrimEnd(
+            '/'
+        );
         string clientId = Uri.EscapeDataString(await GetEffectiveClientIdAsync(cancellationToken));
         string scopes = Uri.EscapeDataString(string.Join(" ", RequiredScopes));
         string redirectUri = Uri.EscapeDataString($"{publicBaseUrl}/api/v1/auth/twitch/callback");
@@ -217,8 +223,12 @@ public sealed class AuthService : IAuthService
         string? broadcasterId = channelExists ? twitchUser.Id : null;
 
         Service? service = await _db.Services.FirstOrDefaultAsync(
-            s => (s.BroadcasterId == twitchUser.Id || (s.BroadcasterId == null && s.UserId == twitchUser.Id))
-                 && s.Name == "twitch",
+            s =>
+                (
+                    s.BroadcasterId == twitchUser.Id
+                    || (s.BroadcasterId == null && s.UserId == twitchUser.Id)
+                )
+                && s.Name == "twitch",
             cancellationToken
         );
 
@@ -328,9 +338,15 @@ public sealed class AuthService : IAuthService
 
     // ─── Bot account ─────────────────────────────────────────────────────────
 
-    public async Task<string> GetTwitchBotOAuthUrl(string? state = null, string? baseUrl = null, CancellationToken cancellationToken = default)
+    public async Task<string> GetTwitchBotOAuthUrl(
+        string? state = null,
+        string? baseUrl = null,
+        CancellationToken cancellationToken = default
+    )
     {
-        string publicBaseUrl = (string.IsNullOrWhiteSpace(baseUrl) ? _baseUrl : baseUrl).TrimEnd('/');
+        string publicBaseUrl = (string.IsNullOrWhiteSpace(baseUrl) ? _baseUrl : baseUrl).TrimEnd(
+            '/'
+        );
         string clientId = Uri.EscapeDataString(await GetEffectiveClientIdAsync(cancellationToken));
         string scopes = Uri.EscapeDataString(string.Join(" ", BotScopes));
         string redirectUri = Uri.EscapeDataString($"{publicBaseUrl}/api/v1/auth/twitch/callback");
@@ -359,14 +375,26 @@ public sealed class AuthService : IAuthService
             cancellationToken
         );
         if (tokens is null)
-            return Result.Failure<BotStatusDto>("Failed to exchange authorization code.", "TOKEN_EXCHANGE_FAILED");
+            return Result.Failure<BotStatusDto>(
+                "Failed to exchange authorization code.",
+                "TOKEN_EXCHANGE_FAILED"
+            );
 
-        TwitchUserInfo? botUser = await GetUserFromTokenAsync(tokens.AccessToken, cancellationToken);
+        TwitchUserInfo? botUser = await GetUserFromTokenAsync(
+            tokens.AccessToken,
+            cancellationToken
+        );
         if (botUser is null)
-            return Result.Failure<BotStatusDto>("Failed to fetch bot user info.", "USER_FETCH_FAILED");
+            return Result.Failure<BotStatusDto>(
+                "Failed to fetch bot user info.",
+                "USER_FETCH_FAILED"
+            );
 
         // Upsert the bot's User record so we can display login/displayName later
-        User? botUserRecord = await _db.Users.FirstOrDefaultAsync(u => u.Id == botUser.Id, cancellationToken);
+        User? botUserRecord = await _db.Users.FirstOrDefaultAsync(
+            u => u.Id == botUser.Id,
+            cancellationToken
+        );
         if (botUserRecord is null)
         {
             botUserRecord = new()
@@ -415,15 +443,22 @@ public sealed class AuthService : IAuthService
 
         _logger.LogInformation("Bot account {BotLogin} connected via Twitch OAuth", botUser.Login);
 
-        return Result.Success(new BotStatusDto(true, botUser.Login, botUser.DisplayName, botUser.ProfileImageUrl));
+        return Result.Success(
+            new BotStatusDto(true, botUser.Login, botUser.DisplayName, botUser.ProfileImageUrl)
+        );
     }
 
     public async Task<Result<BotStatusDto>> GetBotStatusAsync(
         CancellationToken cancellationToken = default
     )
     {
-        Service? service = await _db.Services
-            .Where(s => s.Name == "twitch_bot" && s.BroadcasterId == null && s.Enabled && s.AccessToken != null)
+        Service? service = await _db
+            .Services.Where(s =>
+                s.Name == "twitch_bot"
+                && s.BroadcasterId == null
+                && s.Enabled
+                && s.AccessToken != null
+            )
             .FirstOrDefaultAsync(cancellationToken);
 
         if (service is null)
@@ -433,7 +468,9 @@ public sealed class AuthService : IAuthService
         // so the admin UI shows the re-auth button rather than hiding it.
         if (_encryption.TryDecrypt(service.AccessToken) is null)
         {
-            _logger.LogWarning("Platform bot token exists but cannot be decrypted — reporting as disconnected");
+            _logger.LogWarning(
+                "Platform bot token exists but cannot be decrypted — reporting as disconnected"
+            );
             return Result.Success(new BotStatusDto(false, null, null, null));
         }
 
@@ -441,19 +478,32 @@ public sealed class AuthService : IAuthService
         if (service.UserId is not null)
         {
             User? botUser = await _db.Users.FirstOrDefaultAsync(
-                u => u.Id == service.UserId, cancellationToken);
+                u => u.Id == service.UserId,
+                cancellationToken
+            );
             if (botUser is not null)
-                return Result.Success(new BotStatusDto(true, botUser.Username, botUser.DisplayName, botUser.ProfileImageUrl));
+                return Result.Success(
+                    new BotStatusDto(
+                        true,
+                        botUser.Username,
+                        botUser.DisplayName,
+                        botUser.ProfileImageUrl
+                    )
+                );
         }
 
         // Fall back to the configured bot username so the UI always shows something
-        return Result.Success(new BotStatusDto(true, _options.BotUsername, _options.BotUsername, null));
+        return Result.Success(
+            new BotStatusDto(true, _options.BotUsername, _options.BotUsername, null)
+        );
     }
 
     public async Task<Result> DisconnectBotAsync(CancellationToken cancellationToken = default)
     {
-        Service? service = await _db.Services
-            .FirstOrDefaultAsync(s => s.Name == "twitch_bot" && s.BroadcasterId == null, cancellationToken);
+        Service? service = await _db.Services.FirstOrDefaultAsync(
+            s => s.Name == "twitch_bot" && s.BroadcasterId == null,
+            cancellationToken
+        );
 
         if (service is null)
             return Result.Success();
@@ -464,12 +514,19 @@ public sealed class AuthService : IAuthService
             {
                 string? decrypted = _encryption.TryDecrypt(service.AccessToken);
                 if (decrypted is not null)
-                    await _twitchAuth.RevokeTokenAsync(service.UserId ?? "", "twitch_bot", cancellationToken);
+                    await _twitchAuth.RevokeTokenAsync(
+                        service.UserId ?? "",
+                        "twitch_bot",
+                        cancellationToken
+                    );
             }
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            _logger.LogWarning(ex, "Failed to revoke bot token from Twitch — removing locally anyway");
+            _logger.LogWarning(
+                ex,
+                "Failed to revoke bot token from Twitch — removing locally anyway"
+            );
         }
 
         _db.Services.Remove(service);
@@ -481,17 +538,30 @@ public sealed class AuthService : IAuthService
 
     // ─── White-label per-channel bot ─────────────────────────────────────────
 
-    public async Task<string> GetTwitchChannelBotOAuthUrl(string channelId, string? state = null, string? baseUrl = null, CancellationToken cancellationToken = default)
+    public async Task<string> GetTwitchChannelBotOAuthUrl(
+        string channelId,
+        string? state = null,
+        string? baseUrl = null,
+        CancellationToken cancellationToken = default
+    )
     {
-        string publicBaseUrl = (string.IsNullOrWhiteSpace(baseUrl) ? _baseUrl : baseUrl).TrimEnd('/');
+        string publicBaseUrl = (string.IsNullOrWhiteSpace(baseUrl) ? _baseUrl : baseUrl).TrimEnd(
+            '/'
+        );
         string clientId = Uri.EscapeDataString(await GetEffectiveClientIdAsync(cancellationToken));
         string scopes = Uri.EscapeDataString(string.Join(" ", BotScopes));
         string redirectUri = Uri.EscapeDataString($"{publicBaseUrl}/api/v1/auth/twitch/callback");
 
         // Embed the flow type + channelId so the single callback endpoint can route it.
-        var payload = new { flow = "channel_bot", channel_id = channelId, redirect_uri = state };
+        var payload = new
+        {
+            flow = "channel_bot",
+            channel_id = channelId,
+            redirect_uri = state,
+        };
         string encodedState = Convert.ToBase64String(
-            System.Text.Encoding.UTF8.GetBytes(System.Text.Json.JsonSerializer.Serialize(payload)));
+            System.Text.Encoding.UTF8.GetBytes(System.Text.Json.JsonSerializer.Serialize(payload))
+        );
 
         return $"https://id.twitch.tv/oauth2/authorize"
             + $"?client_id={clientId}"
@@ -515,11 +585,20 @@ public sealed class AuthService : IAuthService
             cancellationToken
         );
         if (tokens is null)
-            return Result.Failure<BotStatusDto>("Failed to exchange authorization code.", "TOKEN_EXCHANGE_FAILED");
+            return Result.Failure<BotStatusDto>(
+                "Failed to exchange authorization code.",
+                "TOKEN_EXCHANGE_FAILED"
+            );
 
-        TwitchUserInfo? botUser = await GetUserFromTokenAsync(tokens.AccessToken, cancellationToken);
+        TwitchUserInfo? botUser = await GetUserFromTokenAsync(
+            tokens.AccessToken,
+            cancellationToken
+        );
         if (botUser is null)
-            return Result.Failure<BotStatusDto>("Failed to fetch bot user info.", "USER_FETCH_FAILED");
+            return Result.Failure<BotStatusDto>(
+                "Failed to fetch bot user info.",
+                "USER_FETCH_FAILED"
+            );
 
         // Store per-channel: Name="twitch_bot", BroadcasterId=channelId
         Service? service = await _db.Services.FirstOrDefaultAsync(
@@ -549,9 +628,13 @@ public sealed class AuthService : IAuthService
 
         _logger.LogInformation(
             "White-label bot {BotLogin} connected for channel {ChannelId}",
-            botUser.Login, channelId);
+            botUser.Login,
+            channelId
+        );
 
-        return Result.Success(new BotStatusDto(true, botUser.Login, botUser.DisplayName, botUser.ProfileImageUrl));
+        return Result.Success(
+            new BotStatusDto(true, botUser.Login, botUser.DisplayName, botUser.ProfileImageUrl)
+        );
     }
 
     public async Task<Result<BotStatusDto>> GetChannelBotStatusAsync(
@@ -559,8 +642,13 @@ public sealed class AuthService : IAuthService
         CancellationToken cancellationToken = default
     )
     {
-        Service? service = await _db.Services
-            .Where(s => s.Name == "twitch_bot" && s.BroadcasterId == channelId && s.Enabled && s.AccessToken != null)
+        Service? service = await _db
+            .Services.Where(s =>
+                s.Name == "twitch_bot"
+                && s.BroadcasterId == channelId
+                && s.Enabled
+                && s.AccessToken != null
+            )
             .FirstOrDefaultAsync(cancellationToken);
 
         if (service is null)
@@ -571,18 +659,33 @@ public sealed class AuthService : IAuthService
 
         if (service.UserId is not null)
         {
-            User? botUser = await _db.Users.FirstOrDefaultAsync(u => u.Id == service.UserId, cancellationToken);
+            User? botUser = await _db.Users.FirstOrDefaultAsync(
+                u => u.Id == service.UserId,
+                cancellationToken
+            );
             if (botUser is not null)
-                return Result.Success(new BotStatusDto(true, botUser.Username, botUser.DisplayName, botUser.ProfileImageUrl));
+                return Result.Success(
+                    new BotStatusDto(
+                        true,
+                        botUser.Username,
+                        botUser.DisplayName,
+                        botUser.ProfileImageUrl
+                    )
+                );
         }
 
         return Result.Success(new BotStatusDto(true, null, null, null));
     }
 
-    public async Task<Result> DisconnectChannelBotAsync(string channelId, CancellationToken cancellationToken = default)
+    public async Task<Result> DisconnectChannelBotAsync(
+        string channelId,
+        CancellationToken cancellationToken = default
+    )
     {
-        Service? service = await _db.Services
-            .FirstOrDefaultAsync(s => s.Name == "twitch_bot" && s.BroadcasterId == channelId, cancellationToken);
+        Service? service = await _db.Services.FirstOrDefaultAsync(
+            s => s.Name == "twitch_bot" && s.BroadcasterId == channelId,
+            cancellationToken
+        );
 
         if (service is null)
             return Result.Success();
@@ -601,8 +704,10 @@ public sealed class AuthService : IAuthService
     /// </summary>
     private async Task<string> GetEffectiveClientIdAsync(CancellationToken ct)
     {
-        Domain.Platform.Entities.Configuration? cfg = await _db.Configurations
-            .FirstOrDefaultAsync(c => c.BroadcasterId == null && c.Key == "twitch.client_id", ct);
+        Domain.Platform.Entities.Configuration? cfg = await _db.Configurations.FirstOrDefaultAsync(
+            c => c.BroadcasterId == null && c.Key == "twitch.client_id",
+            ct
+        );
         string? dbClientId = cfg?.SecureValue ?? cfg?.Value;
         return !string.IsNullOrWhiteSpace(dbClientId) ? dbClientId : _options.ClientId;
     }

@@ -9,9 +9,9 @@
 // -----------------------------------------------------------------------------
 
 using Microsoft.EntityFrameworkCore;
+using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Commands.Services;
-using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Domain.Commands.Entities;
 
@@ -32,7 +32,9 @@ public class EventResponseService : IEventResponseService
         CancellationToken cancellationToken = default
     )
     {
-        IQueryable<EventResponse> query = _db.EventResponses.Where(e => e.BroadcasterId == broadcasterId);
+        IQueryable<EventResponse> query = _db.EventResponses.Where(e =>
+            e.BroadcasterId == broadcasterId
+        );
         int total = await query.CountAsync(cancellationToken);
 
         List<EventResponseListItem> items = await query

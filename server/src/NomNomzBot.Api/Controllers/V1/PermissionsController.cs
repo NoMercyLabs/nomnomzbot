@@ -47,10 +47,7 @@ public class PermissionsController : BaseController
         DateTime CreatedAt
     );
 
-    public record GrantPermissionRequest(
-        string UserId,
-        string Permission
-    );
+    public record GrantPermissionRequest(string UserId, string Permission);
 
     // ── List permissions ─────────────────────────────────────────────────────
 
@@ -58,8 +55,8 @@ public class PermissionsController : BaseController
     [ProducesResponseType<StatusResponseDto<List<PermissionDto>>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> ListPermissions(string channelId, CancellationToken ct)
     {
-        var permissions = await _db.Permissions
-            .Where(p => p.BroadcasterId == channelId)
+        var permissions = await _db
+            .Permissions.Where(p => p.BroadcasterId == channelId)
             .OrderByDescending(p => p.CreatedAt)
             .ToListAsync(ct);
 
@@ -69,27 +66,29 @@ public class PermissionsController : BaseController
             .Distinct()
             .ToList();
 
-        var users = await _db.Users
-            .Where(u => userIds.Contains(u.Id))
+        var users = await _db
+            .Users.Where(u => userIds.Contains(u.Id))
             .ToDictionaryAsync(u => u.Id, ct);
 
-        var result = permissions.Select(p =>
-        {
-            string? subjectName = null;
-            if (p.SubjectType == "user" && users.TryGetValue(p.SubjectId, out var user))
-                subjectName = user.DisplayName;
+        var result = permissions
+            .Select(p =>
+            {
+                string? subjectName = null;
+                if (p.SubjectType == "user" && users.TryGetValue(p.SubjectId, out var user))
+                    subjectName = user.DisplayName;
 
-            return new PermissionDto(
-                p.Id,
-                p.SubjectType,
-                p.SubjectId,
-                subjectName,
-                p.ResourceType,
-                p.ResourceId,
-                p.PermissionValue,
-                p.CreatedAt
-            );
-        }).ToList();
+                return new PermissionDto(
+                    p.Id,
+                    p.SubjectType,
+                    p.SubjectId,
+                    subjectName,
+                    p.ResourceType,
+                    p.ResourceId,
+                    p.PermissionValue,
+                    p.CreatedAt
+                );
+            })
+            .ToList();
 
         return Ok(new StatusResponseDto<List<PermissionDto>> { Data = result });
     }

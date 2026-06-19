@@ -57,10 +57,10 @@ public sealed class AzureTtsProvider : ITtsProvider
         }
 
         string ssml = $"""
-                       <speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='en-US'>
-                         <voice name='{voiceId}'>{System.Security.SecurityElement.Escape(text)}</voice>
-                       </speak>
-                       """;
+            <speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='en-US'>
+              <voice name='{voiceId}'>{System.Security.SecurityElement.Escape(text)}</voice>
+            </speak>
+            """;
 
         string url = $"https://{_region}.tts.speech.microsoft.com/cognitiveservices/v1";
 
@@ -81,9 +81,9 @@ public sealed class AzureTtsProvider : ITtsProvider
             byte[] audioData = await response.Content.ReadAsByteArrayAsync(cancellationToken);
             int durationMs = (int)(audioData.Length / 16.0 * 1000.0 / 1024.0); // estimate
 
-            string hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(text + voiceId)))[
-                ..16
-            ];
+            string hash = Convert.ToHexString(
+                SHA256.HashData(Encoding.UTF8.GetBytes(text + voiceId))
+            )[..16];
 
             return new()
             {

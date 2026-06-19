@@ -14,10 +14,10 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
-using NomNomzBot.Domain.Platform.Entities;
 using NomNomzBot.Domain.Identity.Entities;
-using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Music.Interfaces;
+using NomNomzBot.Domain.Platform.Entities;
+using NomNomzBot.Domain.Platform.Interfaces;
 
 namespace NomNomzBot.Infrastructure.Music;
 
@@ -192,7 +192,8 @@ public sealed class TrustService : ITrustService
         try
         {
             using IServiceScope scope = _scopeFactory.CreateScope();
-            IApplicationDbContext db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+            IApplicationDbContext db =
+                scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
 
             Record? record = await db.Records.FirstOrDefaultAsync(
                 r =>
@@ -235,7 +236,8 @@ public sealed class TrustService : ITrustService
         try
         {
             using IServiceScope scope = _scopeFactory.CreateScope();
-            IApplicationDbContext db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+            IApplicationDbContext db =
+                scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
 
             User? user = await db.Users.FirstOrDefaultAsync(u => u.Id == userId, ct);
             if (user is not null)
@@ -266,7 +268,8 @@ public sealed class TrustService : ITrustService
         try
         {
             using IServiceScope scope = _scopeFactory.CreateScope();
-            IApplicationDbContext db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+            IApplicationDbContext db =
+                scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
 
             string data = JsonSerializer.Serialize(state);
 

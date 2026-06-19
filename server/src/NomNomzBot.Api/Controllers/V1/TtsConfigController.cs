@@ -47,7 +47,11 @@ public class TtsConfigController : BaseController
         CancellationToken ct
     )
     {
-        Result<TtsConfigDto> result = await _ttsConfigService.UpdateConfigAsync(channelId, request, ct);
+        Result<TtsConfigDto> result = await _ttsConfigService.UpdateConfigAsync(
+            channelId,
+            request,
+            ct
+        );
         if (result.IsFailure)
             return ResultResponse(result);
         return Ok(new StatusResponseDto<TtsConfigDto> { Data = result.Value });
@@ -69,7 +73,11 @@ public class TtsConfigController : BaseController
         CancellationToken ct
     )
     {
-        Result<TtsTestResultDto> result = await _ttsConfigService.TestVoiceAsync(channelId, request, ct);
+        Result<TtsTestResultDto> result = await _ttsConfigService.TestVoiceAsync(
+            channelId,
+            request,
+            ct
+        );
         if (result.IsFailure)
             return ResultResponse(result);
         return Ok(new StatusResponseDto<TtsTestResultDto> { Data = result.Value });

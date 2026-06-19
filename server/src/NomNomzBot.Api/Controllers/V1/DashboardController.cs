@@ -14,8 +14,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Persistence;
-using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Abstractions.Transport;
+using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Dashboard.Dtos;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
@@ -82,7 +82,10 @@ public class DashboardController : BaseController
             int viewerCount = 0;
             if (ctx.IsLive)
             {
-                TwitchStreamInfo? streamInfo = await _twitchApi.GetStreamInfoAsync(broadcasterId, ct);
+                TwitchStreamInfo? streamInfo = await _twitchApi.GetStreamInfoAsync(
+                    broadcasterId,
+                    ct
+                );
                 viewerCount = streamInfo?.ViewerCount ?? 0;
             }
 
@@ -129,8 +132,8 @@ public class DashboardController : BaseController
     [ProducesResponseType<StatusResponseDto<List<ActivityEventDto>>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetActivity(string broadcasterId, CancellationToken ct)
     {
-        var events = await _db.ChannelEvents
-            .Where(e => e.ChannelId == broadcasterId)
+        var events = await _db
+            .ChannelEvents.Where(e => e.ChannelId == broadcasterId)
             .OrderByDescending(e => e.CreatedAt)
             .Take(20)
             .ToListAsync(ct);
@@ -141,25 +144,20 @@ public class DashboardController : BaseController
             .Distinct()
             .ToList();
 
-        var users = await _db.Users
-            .Where(u => userIds.Contains(u.Id))
+        var users = await _db
+            .Users.Where(u => userIds.Contains(u.Id))
             .ToDictionaryAsync(u => u.Id, ct);
 
-        var result = events.Select(e =>
-        {
-            string? username = null;
-            if (e.UserId is not null && users.TryGetValue(e.UserId, out var user))
-                username = user.DisplayName;
+        var result = events
+            .Select(e =>
+            {
+                string? username = null;
+                if (e.UserId is not null && users.TryGetValue(e.UserId, out var user))
+                    username = user.DisplayName;
 
-            return new ActivityEventDto(
-                e.Id,
-                e.Type,
-                e.UserId,
-                username,
-                e.Data,
-                e.CreatedAt
-            );
-        }).ToList();
+                return new ActivityEventDto(e.Id, e.Type, e.UserId, username, e.Data, e.CreatedAt);
+            })
+            .ToList();
 
         return Ok(new StatusResponseDto<List<ActivityEventDto>> { Data = result });
     }

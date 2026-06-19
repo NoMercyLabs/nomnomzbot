@@ -13,9 +13,12 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace NomNomzBot.Infrastructure.Stream.Persistence;
 
-public class StreamConfiguration : IEntityTypeConfiguration<global::NomNomzBot.Domain.Stream.Entities.Stream>
+public class StreamConfiguration
+    : IEntityTypeConfiguration<global::NomNomzBot.Domain.Stream.Entities.Stream>
 {
-    public void Configure(EntityTypeBuilder<global::NomNomzBot.Domain.Stream.Entities.Stream> builder)
+    public void Configure(
+        EntityTypeBuilder<global::NomNomzBot.Domain.Stream.Entities.Stream> builder
+    )
     {
         builder.HasKey(e => e.Id);
 

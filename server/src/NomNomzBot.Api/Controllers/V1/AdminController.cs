@@ -92,15 +92,17 @@ public class AdminController : BaseController
 
     /// <summary>Returns service health list (for dashboard health panel).</summary>
     [HttpGet("health")]
-    [ProducesResponseType<StatusResponseDto<List<ServiceHealthResponseDto>>>(StatusCodes.Status200OK)]
+    [ProducesResponseType<StatusResponseDto<List<ServiceHealthResponseDto>>>(
+        StatusCodes.Status200OK
+    )]
     public async Task<IActionResult> GetHealth(CancellationToken ct)
     {
         Result<AdminSystemDto> result = await _adminService.GetSystemHealthAsync(ct);
         if (result.IsFailure)
             return ResultResponse(result);
 
-        List<ServiceHealthResponseDto> services = result.Value.Services
-            .Select(s => new ServiceHealthResponseDto(s.Name, s.Status))
+        List<ServiceHealthResponseDto> services = result
+            .Value.Services.Select(s => new ServiceHealthResponseDto(s.Name, s.Status))
             .ToList();
 
         return Ok(new StatusResponseDto<List<ServiceHealthResponseDto>> { Data = services });
@@ -111,8 +113,8 @@ public class AdminController : BaseController
     [ProducesResponseType<StatusResponseDto<List<PlatformEventDto>>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetEvents(CancellationToken ct)
     {
-        var events = await _db.ChannelEvents
-            .OrderByDescending(e => e.CreatedAt)
+        var events = await _db
+            .ChannelEvents.OrderByDescending(e => e.CreatedAt)
             .Take(20)
             .Select(e => new
             {
@@ -122,18 +124,19 @@ public class AdminController : BaseController
             })
             .ToListAsync(ct);
 
-        List<PlatformEventDto> dtos = events.Select(e =>
-        {
-            string message = e.Username is not null
-                ? $"{e.Username}: {e.Type}"
-                : e.Type;
+        List<PlatformEventDto> dtos = events
+            .Select(e =>
+            {
+                string message = e.Username is not null ? $"{e.Username}: {e.Type}" : e.Type;
 
-            string eventType = e.Type.Contains("sub") ? "success"
-                : e.Type.Contains("ban") || e.Type.Contains("timeout") ? "warning"
-                : "info";
+                string eventType =
+                    e.Type.Contains("sub") ? "success"
+                    : e.Type.Contains("ban") || e.Type.Contains("timeout") ? "warning"
+                    : "info";
 
-            return new PlatformEventDto(message, e.CreatedAt.ToString("HH:mm"), eventType);
-        }).ToList();
+                return new PlatformEventDto(message, e.CreatedAt.ToString("HH:mm"), eventType);
+            })
+            .ToList();
 
         return Ok(new StatusResponseDto<List<PlatformEventDto>> { Data = dtos });
     }

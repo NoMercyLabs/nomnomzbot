@@ -101,7 +101,8 @@ public class EventBusTests
         EventLogger eventLogger = new(NullLogger<EventLogger>.Instance);
         InfraEventBus bus = new(sp, NullLogger<InfraEventBus>.Instance, eventLogger);
 
-        Func<Task> act = async () => await bus.PublishAsync(new TestEvent { Payload = "nobody home" });
+        Func<Task> act = async () =>
+            await bus.PublishAsync(new TestEvent { Payload = "nobody home" });
 
         await act.Should().NotThrowAsync();
     }
@@ -118,7 +119,8 @@ public class EventBusTests
         EventLogger eventLogger = new(NullLogger<EventLogger>.Instance);
         InfraEventBus bus = new(sp, NullLogger<InfraEventBus>.Instance, eventLogger);
 
-        Func<Task> act = async () => await bus.PublishAsync(new TestEvent { Payload = "resilient" });
+        Func<Task> act = async () =>
+            await bus.PublishAsync(new TestEvent { Payload = "resilient" });
 
         await act.Should().NotThrowAsync();
         tracker.Received.Should().ContainSingle().Which.Should().Be("resilient");

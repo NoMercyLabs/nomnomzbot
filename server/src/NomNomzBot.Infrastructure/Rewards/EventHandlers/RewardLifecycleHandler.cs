@@ -45,7 +45,8 @@ public sealed class RewardLifecycleHandler
             return;
 
         using IServiceScope scope = _scopeFactory.CreateScope();
-        IApplicationDbContext db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+        IApplicationDbContext db =
+            scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
 
         Reward? existing = await db.Rewards.FirstOrDefaultAsync(
             r =>
@@ -85,7 +86,8 @@ public sealed class RewardLifecycleHandler
             return;
 
         using IServiceScope scope = _scopeFactory.CreateScope();
-        IApplicationDbContext db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+        IApplicationDbContext db =
+            scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
 
         Reward? reward = await db.Rewards.FirstOrDefaultAsync(
             r =>
@@ -109,7 +111,8 @@ public sealed class RewardLifecycleHandler
             return;
 
         using IServiceScope scope = _scopeFactory.CreateScope();
-        IApplicationDbContext db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+        IApplicationDbContext db =
+            scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
 
         Reward? reward = await db.Rewards.FirstOrDefaultAsync(
             r =>

@@ -18,5 +18,9 @@ namespace NomNomzBot.Application.Identity.Services;
 /// </summary>
 public interface IChannelAccessService
 {
-    Task<bool> CanResolveTenantAsync(string userId, string channelId, CancellationToken cancellationToken = default);
+    Task<bool> CanResolveTenantAsync(
+        string userId,
+        string channelId,
+        CancellationToken cancellationToken = default
+    );
 }

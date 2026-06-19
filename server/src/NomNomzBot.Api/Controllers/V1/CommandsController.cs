@@ -39,13 +39,12 @@ public class CommandsController : BaseController
         CancellationToken ct
     )
     {
-        PaginationParams pagination = new(
-            request.Page,
-            request.Take,
-            request.Sort,
-            request.Order
+        PaginationParams pagination = new(request.Page, request.Take, request.Sort, request.Order);
+        Result<PagedList<CommandListItem>> result = await _commandService.ListAsync(
+            channelId,
+            pagination,
+            ct
         );
-        Result<PagedList<CommandListItem>> result = await _commandService.ListAsync(channelId, pagination, ct);
         if (result.IsFailure)
             return ResultResponse(result);
         return GetPaginatedResponse(result.Value, request);
@@ -95,7 +94,12 @@ public class CommandsController : BaseController
         CancellationToken ct
     )
     {
-        Result<CommandDto> result = await _commandService.UpdateAsync(channelId, commandName, request, ct);
+        Result<CommandDto> result = await _commandService.UpdateAsync(
+            channelId,
+            commandName,
+            request,
+            ct
+        );
         if (result.IsFailure)
             return ResultResponse(result);
         return Ok(new StatusResponseDto<CommandDto> { Data = result.Value });

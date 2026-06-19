@@ -31,7 +31,8 @@ public sealed class ChannelAccessService : IChannelAccessService
     public async Task<bool> CanResolveTenantAsync(
         string userId,
         string channelId,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default
+    )
     {
         if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(channelId))
             return false;
@@ -41,12 +42,15 @@ public sealed class ChannelAccessService : IChannelAccessService
             return true;
 
         // Active moderator grant (soft-deleted grants are excluded by the global query filter).
-        if (await _db.ChannelModerators
-                .AnyAsync(m => m.ChannelId == channelId && m.UserId == userId, cancellationToken))
+        if (
+            await _db.ChannelModerators.AnyAsync(
+                m => m.ChannelId == channelId && m.UserId == userId,
+                cancellationToken
+            )
+        )
             return true;
 
         // Platform admin may act on any channel.
-        return await _db.Users
-            .AnyAsync(u => u.Id == userId && u.IsAdmin, cancellationToken);
+        return await _db.Users.AnyAsync(u => u.Id == userId && u.IsAdmin, cancellationToken);
     }
 }

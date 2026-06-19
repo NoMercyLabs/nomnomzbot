@@ -11,9 +11,9 @@
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
-using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Commands.Services;
+using NomNomzBot.Application.Common.Models;
 using PipelineEntity = NomNomzBot.Domain.Commands.Entities.Pipeline;
 
 namespace NomNomzBot.Infrastructure.Commands;
@@ -33,7 +33,9 @@ public class PipelineService : IPipelineService
         CancellationToken ct = default
     )
     {
-        IQueryable<PipelineEntity> query = _db.Pipelines.Where(p => p.BroadcasterId == broadcasterId);
+        IQueryable<PipelineEntity> query = _db.Pipelines.Where(p =>
+            p.BroadcasterId == broadcasterId
+        );
         int total = await query.CountAsync(ct);
 
         List<PipelineListItemDto> items = await query
@@ -51,7 +53,9 @@ public class PipelineService : IPipelineService
             ))
             .ToListAsync(ct);
 
-        return Result.Success(new PagedList<PipelineListItemDto>(items, total, pagination.Page, pagination.PageSize));
+        return Result.Success(
+            new PagedList<PipelineListItemDto>(items, total, pagination.Page, pagination.PageSize)
+        );
     }
 
     public async Task<Result<PipelineDto>> GetAsync(
@@ -83,9 +87,7 @@ public class PipelineService : IPipelineService
             Name = request.Name,
             Description = request.Description,
             IsEnabled = request.IsEnabled,
-            GraphJson = request.Graph is not null
-                ? JsonSerializer.Serialize(request.Graph)
-                : "{}",
+            GraphJson = request.Graph is not null ? JsonSerializer.Serialize(request.Graph) : "{}",
         };
 
         _db.Pipelines.Add(entity);
@@ -123,7 +125,11 @@ public class PipelineService : IPipelineService
         return Result.Success(ToDto(entity));
     }
 
-    public async Task<Result> DeleteAsync(string broadcasterId, int id, CancellationToken ct = default)
+    public async Task<Result> DeleteAsync(
+        string broadcasterId,
+        int id,
+        CancellationToken ct = default
+    )
     {
         PipelineEntity? entity = await _db.Pipelines.FirstOrDefaultAsync(
             p => p.BroadcasterId == broadcasterId && p.Id == id,

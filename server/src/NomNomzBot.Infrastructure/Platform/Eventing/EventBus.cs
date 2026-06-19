@@ -10,9 +10,9 @@
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Domain.Platform;
 using NomNomzBot.Domain.Platform.Interfaces;
-using NomNomzBot.Application.Abstractions.Pipeline;
 
 namespace NomNomzBot.Infrastructure.Platform.Eventing;
 
@@ -52,7 +52,9 @@ public sealed class EventBus : IEventBus
         // Scope lives for the full duration of handler execution so that scoped
         // services (DbContext, IPipelineEngine, IChatProvider, …) remain valid.
         await using AsyncServiceScope scope = _serviceProvider.CreateAsyncScope();
-        List<IEventHandler<TEvent>> handlers = scope.ServiceProvider.GetServices<IEventHandler<TEvent>>().ToList();
+        List<IEventHandler<TEvent>> handlers = scope
+            .ServiceProvider.GetServices<IEventHandler<TEvent>>()
+            .ToList();
 
         if (handlers.Count == 0)
         {
@@ -61,7 +63,9 @@ public sealed class EventBus : IEventBus
         }
 
         // Execute all handlers in parallel with failure isolation
-        IEnumerable<Task> tasks = handlers.Select(handler => ExecuteHandler(handler, @event, cancellationToken));
+        IEnumerable<Task> tasks = handlers.Select(handler =>
+            ExecuteHandler(handler, @event, cancellationToken)
+        );
         await Task.WhenAll(tasks);
     }
 
@@ -82,7 +86,9 @@ public sealed class EventBus : IEventBus
         _ = Task.Run(async () =>
         {
             await using AsyncServiceScope scope = _serviceProvider.CreateAsyncScope();
-            List<IEventHandler<TEvent>> handlers = scope.ServiceProvider.GetServices<IEventHandler<TEvent>>().ToList();
+            List<IEventHandler<TEvent>> handlers = scope
+                .ServiceProvider.GetServices<IEventHandler<TEvent>>()
+                .ToList();
 
             if (handlers.Count == 0)
                 return;

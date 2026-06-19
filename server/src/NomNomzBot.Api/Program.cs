@@ -59,11 +59,21 @@ try
     builder.Services.AddInfrastructure(builder.Configuration);
 
     // Controllers
-    builder.Services.AddControllers()
+    builder
+        .Services.AddControllers()
         .AddJsonOptions(o =>
         {
-            o.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
-            o.JsonSerializerOptions.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
+            o.JsonSerializerOptions.PropertyNamingPolicy = System
+                .Text
+                .Json
+                .JsonNamingPolicy
+                .CamelCase;
+            o.JsonSerializerOptions.DefaultIgnoreCondition = System
+                .Text
+                .Json
+                .Serialization
+                .JsonIgnoreCondition
+                .WhenWritingNull;
         });
 
     // API Versioning
@@ -188,12 +198,13 @@ try
             policy
                 .WithOrigins(
                     builder.Configuration.GetSection("Cors:Origins").Get<string[]>()
-                        ?? [
-                        "http://localhost:3000",
-                        "http://localhost:5173",
-                        "http://localhost:8081",
-                        "https://bot-dev.nomercy.tv"
-                    ]
+                        ??
+                        [
+                            "http://localhost:3000",
+                            "http://localhost:5173",
+                            "http://localhost:8081",
+                            "https://bot-dev.nomercy.tv",
+                        ]
                 )
                 .AllowAnyHeader()
                 .AllowAnyMethod()
@@ -360,40 +371,40 @@ try
 
     // Readiness probe — checks DB + Redis connectivity before declaring ready
     app.MapHealthChecks(
-        "/health/ready",
-        new()
-        {
-            Predicate = check => check.Tags.Contains("ready"),
-            ResponseWriter = async (context, report) =>
+            "/health/ready",
+            new()
             {
-                context.Response.ContentType = "application/json";
-                await context.Response.WriteAsJsonAsync(
-                    new
-                    {
-                        status = report.Status.ToString().ToLowerInvariant(),
-                        checks = report.Entries.Select(e => new
+                Predicate = check => check.Tags.Contains("ready"),
+                ResponseWriter = async (context, report) =>
+                {
+                    context.Response.ContentType = "application/json";
+                    await context.Response.WriteAsJsonAsync(
+                        new
                         {
-                            name = e.Key,
-                            status = e.Value.Status.ToString().ToLowerInvariant(),
-                            description = e.Value.Description,
-                            durationMs = (int)e.Value.Duration.TotalMilliseconds,
-                        }),
-                        totalDurationMs = (int)report.TotalDuration.TotalMilliseconds,
-                    }
-                );
-            },
-            ResultStatusCodes =
-            {
-                [HealthStatus.Healthy] = StatusCodes.Status200OK,
-                [HealthStatus.Degraded] = StatusCodes.Status200OK,
-                [HealthStatus.Unhealthy] = StatusCodes.Status503ServiceUnavailable,
-            },
-        }
-    ).ExcludeFromDescription();
+                            status = report.Status.ToString().ToLowerInvariant(),
+                            checks = report.Entries.Select(e => new
+                            {
+                                name = e.Key,
+                                status = e.Value.Status.ToString().ToLowerInvariant(),
+                                description = e.Value.Description,
+                                durationMs = (int)e.Value.Duration.TotalMilliseconds,
+                            }),
+                            totalDurationMs = (int)report.TotalDuration.TotalMilliseconds,
+                        }
+                    );
+                },
+                ResultStatusCodes =
+                {
+                    [HealthStatus.Healthy] = StatusCodes.Status200OK,
+                    [HealthStatus.Degraded] = StatusCodes.Status200OK,
+                    [HealthStatus.Unhealthy] = StatusCodes.Status503ServiceUnavailable,
+                },
+            }
+        )
+        .ExcludeFromDescription();
 
     // Suppress browser-generated favicon requests from producing 500 errors
-    app.MapGet("/favicon.ico", () => Results.NotFound())
-        .ExcludeFromDescription();
+    app.MapGet("/favicon.ico", () => Results.NotFound()).ExcludeFromDescription();
 
     app.Run();
 }

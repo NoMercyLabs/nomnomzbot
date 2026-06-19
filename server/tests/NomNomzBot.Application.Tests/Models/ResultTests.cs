@@ -156,7 +156,9 @@ public class ResultExtensionsTests
     [Fact]
     public void Bind_Success_BinderReturnsFailure_PropagatesFailure()
     {
-        Result<int> result = Result.Success("hello").Bind<string, int>(_ => Result.Failure<int>("no good"));
+        Result<int> result = Result
+            .Success("hello")
+            .Bind<string, int>(_ => Result.Failure<int>("no good"));
 
         result.IsSuccess.Should().BeFalse();
         result.ErrorMessage.Should().Be("no good");

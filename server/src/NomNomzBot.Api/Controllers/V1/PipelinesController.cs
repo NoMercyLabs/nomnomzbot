@@ -12,9 +12,9 @@ using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NomNomzBot.Api.Models;
-using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Commands.Services;
+using NomNomzBot.Application.Common.Models;
 
 namespace NomNomzBot.Api.Controllers.V1;
 
@@ -40,7 +40,11 @@ public class PipelinesController : BaseController
     )
     {
         PaginationParams pagination = new(request.Page, request.Take, request.Sort, request.Order);
-        Result<PagedList<PipelineListItemDto>> result = await _pipelineService.ListAsync(channelId, pagination, ct);
+        Result<PagedList<PipelineListItemDto>> result = await _pipelineService.ListAsync(
+            channelId,
+            pagination,
+            ct
+        );
         if (result.IsFailure)
             return ResultResponse(result);
         return GetPaginatedResponse(result.Value, request);

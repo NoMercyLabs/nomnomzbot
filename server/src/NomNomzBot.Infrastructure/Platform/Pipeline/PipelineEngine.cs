@@ -11,8 +11,8 @@
 using System.Collections.Concurrent;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
-using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Application.Abstractions.Pipeline;
+using NomNomzBot.Domain.Platform.Interfaces;
 
 namespace NomNomzBot.Infrastructure.Platform.Pipeline;
 
@@ -160,7 +160,10 @@ public sealed class PipelineEngine : IPipelineEngine
 
         // Register for cancellation via ChannelContext
         using CancellationTokenSource timeoutCts = new(ExecutionTimeout);
-        using CancellationTokenSource linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct, timeoutCts.Token);
+        using CancellationTokenSource linkedCts = CancellationTokenSource.CreateLinkedTokenSource(
+            ct,
+            timeoutCts.Token
+        );
         ChannelContext? channelCtx = _registry.Get(request.BroadcasterId);
         if (channelCtx is not null)
             channelCtx.ActivePipelines[execCtx.ExecutionId] = linkedCts;

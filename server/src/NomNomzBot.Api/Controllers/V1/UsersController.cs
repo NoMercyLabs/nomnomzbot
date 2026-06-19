@@ -44,13 +44,12 @@ public class UsersController : BaseController
         if (string.IsNullOrWhiteSpace(query))
             return BadRequestResponse("A search query is required.");
 
-        PaginationParams pagination = new(
-            request.Page,
-            request.Take,
-            request.Sort,
-            request.Order
+        PaginationParams pagination = new(request.Page, request.Take, request.Sort, request.Order);
+        Result<PagedList<UserSearchResult>> result = await _userService.SearchAsync(
+            query,
+            pagination,
+            ct
         );
-        Result<PagedList<UserSearchResult>> result = await _userService.SearchAsync(query, pagination, ct);
         if (result.IsFailure)
             return ResultResponse(result);
         return GetPaginatedResponse(result.Value, request);
@@ -87,11 +86,14 @@ public class UsersController : BaseController
     }
 
     [HttpGet("{userId}/channels")]
-    [ProducesResponseType<StatusResponseDto<List<NomNomzBot.Application.Identity.Dtos.UserChannelAppearanceDto>>>(StatusCodes.Status200OK)]
+    [ProducesResponseType<
+        StatusResponseDto<List<NomNomzBot.Application.Identity.Dtos.UserChannelAppearanceDto>>
+    >(
+        StatusCodes.Status200OK
+    )]
     public async Task<IActionResult> GetUserChannels(string userId, CancellationToken ct)
     {
-        string? callerId =
-            User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        string? callerId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
         bool isAdmin = User.IsInRole("admin");
         if (callerId != userId && !isAdmin)
             return UnauthorizedResponse("You may only view your own channel list.");
@@ -108,8 +110,7 @@ public class UsersController : BaseController
     [ProducesResponseType<StatusResponseDto<UserStatsDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetUserStats(string userId, CancellationToken ct)
     {
-        string? callerId =
-            User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        string? callerId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
         if (callerId != userId)
             return UnauthorizedResponse("You may only view your own stats.");
         Result<UserStatsDto> result = await _userService.GetStatsAsync(userId, ct);

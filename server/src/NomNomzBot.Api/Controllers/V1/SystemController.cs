@@ -49,10 +49,7 @@ public class SystemController : BaseController
 
     // ── DTOs ──────────────────────────────────────────────────────────────────
 
-    public record SystemStatusDto(
-        bool Ready,
-        SystemChecks Checks
-    );
+    public record SystemStatusDto(bool Ready, SystemChecks Checks);
 
     public record SystemChecks(
         CheckItem TwitchApp,
@@ -61,16 +58,9 @@ public class SystemController : BaseController
         CheckItem? Discord
     );
 
-    public record CheckItem(
-        bool Ok,
-        string Status,
-        string? Detail
-    );
+    public record CheckItem(bool Ok, string Status, string? Detail);
 
-    public record SaveCredentialRequest(
-        string ClientId,
-        string ClientSecret
-    );
+    public record SaveCredentialRequest(string ClientId, string ClientSecret);
 
     // ── System readiness ─────────────────────────────────────────────────────
 
@@ -82,9 +72,13 @@ public class SystemController : BaseController
     public async Task<IActionResult> GetStatus(CancellationToken ct)
     {
         // 1. Twitch app credentials (from DB first, then env/config fallback)
-        string? twitchClientId = await GetSystemConfig("twitch.client_id", ct) ?? _config["Twitch:ClientId"];
-        string? twitchClientSecret = await GetSystemConfig("twitch.client_secret", ct) ?? _config["Twitch:ClientSecret"];
-        bool hasTwitch = !string.IsNullOrWhiteSpace(twitchClientId) && !string.IsNullOrWhiteSpace(twitchClientSecret);
+        string? twitchClientId =
+            await GetSystemConfig("twitch.client_id", ct) ?? _config["Twitch:ClientId"];
+        string? twitchClientSecret =
+            await GetSystemConfig("twitch.client_secret", ct) ?? _config["Twitch:ClientSecret"];
+        bool hasTwitch =
+            !string.IsNullOrWhiteSpace(twitchClientId)
+            && !string.IsNullOrWhiteSpace(twitchClientSecret);
 
         // 2. Platform bot (Service with Name="twitch_bot" and BroadcasterId IS NULL)
         bool hasPlatformBot = await _db.Services.AnyAsync(
@@ -93,22 +87,28 @@ public class SystemController : BaseController
         );
 
         // 3. Spotify app credentials (DB → IConfiguration → raw env)
-        string? spotifyClientId = await GetSystemConfig("spotify.client_id", ct)
+        string? spotifyClientId =
+            await GetSystemConfig("spotify.client_id", ct)
             ?? _config["Spotify:ClientId"]
             ?? Environment.GetEnvironmentVariable("Spotify__ClientId");
-        string? spotifyClientSecret = await GetSystemConfig("spotify.client_secret", ct)
+        string? spotifyClientSecret =
+            await GetSystemConfig("spotify.client_secret", ct)
             ?? _config["Spotify:ClientSecret"]
             ?? Environment.GetEnvironmentVariable("Spotify__ClientSecret");
-        bool hasSpotify = !string.IsNullOrEmpty(spotifyClientId) && !string.IsNullOrEmpty(spotifyClientSecret);
+        bool hasSpotify =
+            !string.IsNullOrEmpty(spotifyClientId) && !string.IsNullOrEmpty(spotifyClientSecret);
 
         // 4. Discord app credentials (DB → IConfiguration → raw env)
-        string? discordClientId = await GetSystemConfig("discord.client_id", ct)
+        string? discordClientId =
+            await GetSystemConfig("discord.client_id", ct)
             ?? _config["Discord:ClientId"]
             ?? Environment.GetEnvironmentVariable("Discord__ClientId");
-        string? discordClientSecret = await GetSystemConfig("discord.client_secret", ct)
+        string? discordClientSecret =
+            await GetSystemConfig("discord.client_secret", ct)
             ?? _config["Discord:ClientSecret"]
             ?? Environment.GetEnvironmentVariable("Discord__ClientSecret");
-        bool hasDiscord = !string.IsNullOrEmpty(discordClientId) && !string.IsNullOrEmpty(discordClientSecret);
+        bool hasDiscord =
+            !string.IsNullOrEmpty(discordClientId) && !string.IsNullOrEmpty(discordClientSecret);
 
         // System is ready when Twitch app and platform bot are both configured
         bool ready = hasTwitch && hasPlatformBot;
@@ -117,7 +117,9 @@ public class SystemController : BaseController
             TwitchApp: new CheckItem(
                 hasTwitch,
                 hasTwitch ? "configured" : "missing",
-                hasTwitch ? "Client ID and secret are set" : "Set TWITCH_CLIENT_ID and TWITCH_CLIENT_SECRET in .env"
+                hasTwitch
+                    ? "Client ID and secret are set"
+                    : "Set TWITCH_CLIENT_ID and TWITCH_CLIENT_SECRET in .env"
             ),
             PlatformBot: new CheckItem(
                 hasPlatformBot,
@@ -127,19 +129,22 @@ public class SystemController : BaseController
             Spotify: new CheckItem(
                 hasSpotify,
                 hasSpotify ? "configured" : "not configured",
-                hasSpotify ? "Client ID and secret are set" : "Optional — configure to enable song requests"
+                hasSpotify
+                    ? "Client ID and secret are set"
+                    : "Optional — configure to enable song requests"
             ),
             Discord: new CheckItem(
                 hasDiscord,
                 hasDiscord ? "configured" : "not configured",
-                hasDiscord ? "Client ID and secret are set" : "Optional — configure to enable Discord integration"
+                hasDiscord
+                    ? "Client ID and secret are set"
+                    : "Optional — configure to enable Discord integration"
             )
         );
 
-        return Ok(new StatusResponseDto<SystemStatusDto>
-        {
-            Data = new SystemStatusDto(ready, checks),
-        });
+        return Ok(
+            new StatusResponseDto<SystemStatusDto> { Data = new SystemStatusDto(ready, checks) }
+        );
     }
 
     // ── Platform bot OAuth ───────────────────────────────────────────────────
@@ -158,11 +163,15 @@ public class SystemController : BaseController
         string? scheme = !string.IsNullOrWhiteSpace(forwardedProto)
             ? forwardedProto.Split(',')[0].Trim()
             : Request.Scheme;
-        string publicBaseUrl = !string.IsNullOrWhiteSpace(host) && !string.IsNullOrWhiteSpace(scheme)
-            ? $"{scheme}://{host}"
-            : (_config["App:BaseUrl"] ?? "http://localhost:5080").TrimEnd('/');
+        string publicBaseUrl =
+            !string.IsNullOrWhiteSpace(host) && !string.IsNullOrWhiteSpace(scheme)
+                ? $"{scheme}://{host}"
+                : (_config["App:BaseUrl"] ?? "http://localhost:5080").TrimEnd('/');
 
-        string url = await _authService.GetTwitchBotOAuthUrl(baseUrl: publicBaseUrl, cancellationToken: ct);
+        string url = await _authService.GetTwitchBotOAuthUrl(
+            baseUrl: publicBaseUrl,
+            cancellationToken: ct
+        );
         return Ok(new StatusResponseDto<object> { Data = new { oauthUrl = url } });
     }
 
@@ -186,7 +195,12 @@ public class SystemController : BaseController
     )
     {
         await UpsertSystemConfig("twitch.client_id", request.ClientId, ct);
-        await UpsertSystemConfig("twitch.client_secret", request.ClientSecret, secure: true, ct: ct);
+        await UpsertSystemConfig(
+            "twitch.client_secret",
+            request.ClientSecret,
+            secure: true,
+            ct: ct
+        );
         if (!string.IsNullOrWhiteSpace(request.BotUsername))
             await UpsertSystemConfig("twitch.bot_username", request.BotUsername, ct);
         await _db.SaveChangesAsync(ct);
@@ -209,7 +223,12 @@ public class SystemController : BaseController
     )
     {
         await UpsertSystemConfig("spotify.client_id", request.ClientId, ct);
-        await UpsertSystemConfig("spotify.client_secret", request.ClientSecret, secure: true, ct: ct);
+        await UpsertSystemConfig(
+            "spotify.client_secret",
+            request.ClientSecret,
+            secure: true,
+            ct: ct
+        );
         await _db.SaveChangesAsync(ct);
 
         return Ok(new StatusResponseDto<object> { Message = "Spotify credentials saved." });
@@ -224,7 +243,12 @@ public class SystemController : BaseController
     )
     {
         await UpsertSystemConfig("discord.client_id", request.ClientId, ct);
-        await UpsertSystemConfig("discord.client_secret", request.ClientSecret, secure: true, ct: ct);
+        await UpsertSystemConfig(
+            "discord.client_secret",
+            request.ClientSecret,
+            secure: true,
+            ct: ct
+        );
         await _db.SaveChangesAsync(ct);
 
         return Ok(new StatusResponseDto<object> { Message = "Discord credentials saved." });
@@ -234,23 +258,28 @@ public class SystemController : BaseController
 
     private async Task<string?> GetSystemConfig(string key, CancellationToken ct)
     {
-        ConfigEntity? cfg = await _db.Configurations
-            .FirstOrDefaultAsync(c => c.BroadcasterId == null && c.Key == key, ct);
+        ConfigEntity? cfg = await _db.Configurations.FirstOrDefaultAsync(
+            c => c.BroadcasterId == null && c.Key == key,
+            ct
+        );
         return cfg?.SecureValue ?? cfg?.Value;
     }
 
-    private async Task UpsertSystemConfig(string key, string value, CancellationToken ct, bool secure = false)
+    private async Task UpsertSystemConfig(
+        string key,
+        string value,
+        CancellationToken ct,
+        bool secure = false
+    )
     {
-        ConfigEntity? cfg = await _db.Configurations
-            .FirstOrDefaultAsync(c => c.BroadcasterId == null && c.Key == key, ct);
+        ConfigEntity? cfg = await _db.Configurations.FirstOrDefaultAsync(
+            c => c.BroadcasterId == null && c.Key == key,
+            ct
+        );
 
         if (cfg is null)
         {
-            cfg = new ConfigEntity
-            {
-                BroadcasterId = null,
-                Key = key,
-            };
+            cfg = new ConfigEntity { BroadcasterId = null, Key = key };
             _db.Configurations.Add(cfg);
         }
 

@@ -122,7 +122,11 @@ public interface ITwitchApiService
     );
 
     /// <summary>Get a page of followers for a channel. Returns items, next cursor, and total count.</summary>
-    Task<(IReadOnlyList<TwitchFollowerInfo> Items, string? NextCursor, int Total)> GetFollowersAsync(
+    Task<(
+        IReadOnlyList<TwitchFollowerInfo> Items,
+        string? NextCursor,
+        int Total
+    )> GetFollowersAsync(
         string broadcasterId,
         string? after = null,
         int pageSize = 100,
@@ -164,11 +168,7 @@ public record TwitchStreamInfo(
     DateTime? StartedAt = null
 );
 
-public record TwitchCategoryInfo(
-    string Id,
-    string Name,
-    string? BoxArtUrl
-);
+public record TwitchCategoryInfo(string Id, string Name, string? BoxArtUrl);
 
 public record TwitchBannedUser(
     string UserId,
@@ -178,17 +178,9 @@ public record TwitchBannedUser(
     DateTime? ExpiresAt
 );
 
-public record TwitchModeratorInfo(
-    string UserId,
-    string UserLogin,
-    string UserName
-);
+public record TwitchModeratorInfo(string UserId, string UserLogin, string UserName);
 
-public record TwitchVipInfo(
-    string UserId,
-    string UserLogin,
-    string UserName
-);
+public record TwitchVipInfo(string UserId, string UserLogin, string UserName);
 
 public record TwitchChannelInfo(
     string BroadcasterId,

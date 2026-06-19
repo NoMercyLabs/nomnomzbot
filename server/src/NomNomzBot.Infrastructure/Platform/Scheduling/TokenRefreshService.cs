@@ -39,7 +39,8 @@ public class TokenRefreshService : BackgroundService
             try
             {
                 using IServiceScope scope = _serviceProvider.CreateScope();
-                ITwitchAuthService authService = scope.ServiceProvider.GetRequiredService<ITwitchAuthService>();
+                ITwitchAuthService authService =
+                    scope.ServiceProvider.GetRequiredService<ITwitchAuthService>();
                 await authService.RefreshExpiringTokensAsync(stoppingToken);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)

@@ -67,6 +67,7 @@ public class Channel : SoftDeletableEntity
     public virtual User User { get; set; } = null!;
 
     public virtual ICollection<ChannelModerator> Moderators { get; set; } = [];
-    public virtual ICollection<global::NomNomzBot.Domain.Stream.Entities.Stream> Streams { get; set; } = [];
+    public virtual ICollection<global::NomNomzBot.Domain.Stream.Entities.Stream> Streams { get; set; } =
+    [];
     public virtual ICollection<ChannelEvent> Events { get; set; } = [];
 }

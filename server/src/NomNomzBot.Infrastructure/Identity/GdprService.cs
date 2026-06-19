@@ -15,8 +15,8 @@ using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Chat.Entities;
-using NomNomzBot.Domain.Platform.Entities;
 using NomNomzBot.Domain.Identity.Entities;
+using NomNomzBot.Domain.Platform.Entities;
 
 namespace NomNomzBot.Infrastructure.Identity;
 

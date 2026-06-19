@@ -66,7 +66,12 @@ public sealed class PermissionService : IPermissionService
         if (isModerator)
         {
             // Moderators can manage most features except broadcaster-only ones
-            string[] broadcasterOnly = new[] { "channel.delete", "channel.transfer", "bot.configure" };
+            string[] broadcasterOnly = new[]
+            {
+                "channel.delete",
+                "channel.transfer",
+                "bot.configure",
+            };
             return Result.Success(!broadcasterOnly.Contains(permission));
         }
 

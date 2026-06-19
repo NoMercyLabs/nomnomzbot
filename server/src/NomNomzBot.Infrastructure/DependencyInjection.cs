@@ -19,14 +19,14 @@ using NomNomzBot.Application.Abstractions.Caching;
 using NomNomzBot.Application.Abstractions.Content;
 using NomNomzBot.Application.Abstractions.Eventing;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.RateLimiting;
 using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Abstractions.Transport;
 using NomNomzBot.Application.Tts.Services;
 using NomNomzBot.Domain.Chat.Interfaces;
-using NomNomzBot.Domain.Platform.Interfaces;
-using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Domain.Music.Interfaces;
+using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Tts.Interfaces;
 using NomNomzBot.Infrastructure.BackgroundServices;
 using NomNomzBot.Infrastructure.Chat;
@@ -40,9 +40,9 @@ using NomNomzBot.Infrastructure.Platform.Eventing;
 using NomNomzBot.Infrastructure.Platform.Persistence;
 using NomNomzBot.Infrastructure.Platform.Persistence.Interceptors;
 using NomNomzBot.Infrastructure.Platform.Persistence.Repositories;
+using NomNomzBot.Infrastructure.Platform.Pipeline;
 using NomNomzBot.Infrastructure.Platform.RateLimiting;
 using NomNomzBot.Infrastructure.Platform.Resilience;
-using NomNomzBot.Infrastructure.Platform.Pipeline;
 using NomNomzBot.Infrastructure.Platform.Templating;
 using NomNomzBot.Infrastructure.Platform.Transport;
 using NomNomzBot.Infrastructure.Tts;
@@ -89,7 +89,10 @@ public static class DependencyInjection
                 // false positive here. Suppress it to keep startup logs clean.
                 options.ConfigureWarnings(w =>
                     w.Ignore(
-                        Microsoft.EntityFrameworkCore.Diagnostics.CoreEventId
+                        Microsoft
+                            .EntityFrameworkCore
+                            .Diagnostics
+                            .CoreEventId
                             .PossibleIncorrectRequiredNavigationWithQueryFilterInteractionWarning
                     )
                 );
@@ -110,7 +113,11 @@ public static class DependencyInjection
         Assembly infrastructure = typeof(DependencyInjection).Assembly;
 
         // Domain event handlers (scoped — per-event work, resolved by EventBus per scope).
-        services.AddOpenGenericHandlers(infrastructure, typeof(IEventHandler<>), ServiceLifetime.Scoped);
+        services.AddOpenGenericHandlers(
+            infrastructure,
+            typeof(IEventHandler<>),
+            ServiceLifetime.Scoped
+        );
 
         // Pipeline actions + conditions (transient — stateless strategies, multi-binding).
         services.AddImplementationsOf<ICommandAction>(infrastructure, ServiceLifetime.Transient);
@@ -130,17 +137,20 @@ public static class DependencyInjection
         services.AddServicesByConvention(
             infrastructure,
             ServiceLifetime.Scoped,
-            typeof(IEncryptionService),       // singleton crypto
-            typeof(IJwtTokenService),         // singleton crypto
-            typeof(ICacheService),            // deployment-variant: Redis vs in-memory (ambiguity)
-            typeof(ITrustService),            // singleton
-            typeof(ITtsService),              // singleton — stateful TTS queues
-            typeof(ITwitchChatService),       // singleton + hosted (shared TwitchIrcService instance)
-            typeof(ITwitchEventSubService)    // singleton + hosted (shared TwitchEventSubService instance)
+            typeof(IEncryptionService), // singleton crypto
+            typeof(IJwtTokenService), // singleton crypto
+            typeof(ICacheService), // deployment-variant: Redis vs in-memory (ambiguity)
+            typeof(ITrustService), // singleton
+            typeof(ITtsService), // singleton — stateful TTS queues
+            typeof(ITwitchChatService), // singleton + hosted (shared TwitchIrcService instance)
+            typeof(ITwitchEventSubService) // singleton + hosted (shared TwitchEventSubService instance)
         );
 
         // Repositories (scoped — concrete GenericRepository<T> subclasses, consumed by type).
-        services.AddRepositoriesByConvention<GenericRepository<object>>(infrastructure, ServiceLifetime.Scoped);
+        services.AddRepositoriesByConvention<GenericRepository<object>>(
+            infrastructure,
+            ServiceLifetime.Scoped
+        );
 
         // Hosted workers (singleton — long-lived BackgroundService/IHostedService). The three
         // singleton+hosted services below share one instance with their service interface, so
@@ -153,7 +163,9 @@ public static class DependencyInjection
         );
 
         // Security — AES-256 encryption with a stable configured key (survives container restarts)
-        services.Configure<EncryptionOptions>(configuration.GetSection(EncryptionOptions.SectionName));
+        services.Configure<EncryptionOptions>(
+            configuration.GetSection(EncryptionOptions.SectionName)
+        );
         services.AddSingleton<IEncryptionService, EncryptionService>();
         services.AddSingleton<IJwtTokenService, JwtTokenService>();
 
@@ -231,9 +243,13 @@ public static class DependencyInjection
 
         // ChannelRegistry (singleton + hosted service — one instance serves IChannelRegistry
         // AND the hosted lifecycle, so it is wired explicitly and excluded from the worker scan).
-        services.AddSingleton<NomNomzBot.Domain.Platform.Interfaces.IChannelRegistry, ChannelRegistry>();
+        services.AddSingleton<
+            NomNomzBot.Domain.Platform.Interfaces.IChannelRegistry,
+            ChannelRegistry
+        >();
         services.AddHostedService(sp =>
-            (ChannelRegistry)sp.GetRequiredService<NomNomzBot.Domain.Platform.Interfaces.IChannelRegistry>()
+            (ChannelRegistry)
+                sp.GetRequiredService<NomNomzBot.Domain.Platform.Interfaces.IChannelRegistry>()
         );
 
         // BotLifecycleService, TimerService, and TokenRefreshService are auto-registered as
@@ -246,13 +262,16 @@ public static class DependencyInjection
         // Twitch HTTP clients with resilience
         services.AddHttpClient("twitch-auth");
         services.AddHttpClient("twitch-helix").AddTwitchResilienceHandler();
-        services.AddHttpClient("twitch-eventsub")
-            .ConfigureHttpClient((sp, client) =>
-            {
-                TwitchOptions opts = sp.GetRequiredService<IOptions<TwitchOptions>>().Value;
-                if (!string.IsNullOrEmpty(opts.ClientId))
-                    client.DefaultRequestHeaders.Add("Client-Id", opts.ClientId);
-            });
+        services
+            .AddHttpClient("twitch-eventsub")
+            .ConfigureHttpClient(
+                (sp, client) =>
+                {
+                    TwitchOptions opts = sp.GetRequiredService<IOptions<TwitchOptions>>().Value;
+                    if (!string.IsNullOrEmpty(opts.ClientId))
+                        client.DefaultRequestHeaders.Add("Client-Id", opts.ClientId);
+                }
+            );
 
         // ITwitchAuthService → TwitchAuthService and ITwitchApiService → TwitchApiService are
         // scoped single-impl services discovered by AddServicesByConvention above.

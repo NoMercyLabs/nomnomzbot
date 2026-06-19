@@ -10,8 +10,8 @@
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using NomNomzBot.Domain.Platform.Entities;
 using NomNomzBot.Domain.Identity.Entities;
+using NomNomzBot.Domain.Platform.Entities;
 
 namespace NomNomzBot.Infrastructure.Identity.Persistence;
 

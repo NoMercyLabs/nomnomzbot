@@ -10,9 +10,9 @@
 
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
+using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Platform.Interfaces;
-using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Infrastructure.Platform.Pipeline;
 using NomNomzBot.Infrastructure.Platform.Pipeline.CoreActions;
 using NSubstitute;
@@ -37,14 +37,13 @@ public class InfraPipelineEngineTests
             new WaitAction(),
         };
 
-        ICommandCondition[] conditions = new ICommandCondition[] { new UserRoleCondition(), new RandomCondition() };
+        ICommandCondition[] conditions = new ICommandCondition[]
+        {
+            new UserRoleCondition(),
+            new RandomCondition(),
+        };
 
-        return new(
-            registry,
-            actions,
-            conditions,
-            NullLogger<PipelineEngine>.Instance
-        );
+        return new(registry, actions, conditions, NullLogger<PipelineEngine>.Instance);
     }
 
     private static PipelineRequest BuildRequest(
@@ -68,7 +67,9 @@ public class InfraPipelineEngineTests
     public async Task ExecuteAsync_EmptySteps_ReturnsCompleted()
     {
         PipelineEngine engine = CreateEngine();
-        PipelineExecutionResult result = await engine.ExecuteAsync(BuildRequest("""{"steps":[]}"""));
+        PipelineExecutionResult result = await engine.ExecuteAsync(
+            BuildRequest("""{"steps":[]}""")
+        );
 
         result.Outcome.Should().Be(PipelineOutcome.Completed);
     }
@@ -243,7 +244,10 @@ public class InfraPipelineEngineTests
         const string json = """{"steps":[{"action":{"type":"wait","milliseconds":5000}}]}""";
 
         // Start 5 long-running pipelines
-        List<CancellationTokenSource> ctsList = Enumerable.Range(0, 5).Select(_ => new CancellationTokenSource()).ToList();
+        List<CancellationTokenSource> ctsList = Enumerable
+            .Range(0, 5)
+            .Select(_ => new CancellationTokenSource())
+            .ToList();
         Task<PipelineExecutionResult>[] longTasks = ctsList
             .Select(cts => engine.ExecuteAsync(BuildRequest(json, "chan"), cts.Token))
             .ToArray();

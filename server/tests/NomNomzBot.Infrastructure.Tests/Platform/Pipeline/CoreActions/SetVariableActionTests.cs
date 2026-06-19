@@ -34,7 +34,9 @@ public class InfraSetVariableActionTests
     {
         SetVariableAction action = new();
         PipelineExecutionContext ctx = BuildCtx();
-        ActionDefinition def = MakeDef("""{"type":"set_variable","name":"greeting","value":"Hello"}""");
+        ActionDefinition def = MakeDef(
+            """{"type":"set_variable","name":"greeting","value":"Hello"}"""
+        );
 
         ActionResult result = await action.ExecuteAsync(ctx, def);
 

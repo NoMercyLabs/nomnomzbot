@@ -64,7 +64,8 @@ public sealed class SeedTestDbContext : DbContext, IApplicationDbContext
         Set<NomNomzBot.Domain.Platform.Entities.Record>();
     public DbSet<Permission> Permissions => Set<Permission>();
     public DbSet<ChannelFeature> ChannelFeatures => Set<ChannelFeature>();
-    public DbSet<ChannelBotAuthorization> ChannelBotAuthorizations => Set<ChannelBotAuthorization>();
+    public DbSet<ChannelBotAuthorization> ChannelBotAuthorizations =>
+        Set<ChannelBotAuthorization>();
     public DbSet<DiscordServerAuthorization> DiscordServerAuthorizations =>
         Set<DiscordServerAuthorization>();
     public DbSet<ChannelSubscription> ChannelSubscriptions => Set<ChannelSubscription>();

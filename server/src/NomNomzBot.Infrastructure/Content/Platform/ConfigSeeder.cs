@@ -30,7 +30,10 @@ public sealed class ConfigSeeder : ISeeder
 
     public int Order => 10;
 
-    private static readonly IReadOnlyDictionary<string, string> GlobalDefaults = new Dictionary<string, string>
+    private static readonly IReadOnlyDictionary<string, string> GlobalDefaults = new Dictionary<
+        string,
+        string
+    >
     {
         ["system:version"] = "1.0.0",
         ["system:tts:providers"] = "edge,azure,elevenlabs",

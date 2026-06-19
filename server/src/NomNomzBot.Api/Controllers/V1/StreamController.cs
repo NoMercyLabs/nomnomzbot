@@ -14,8 +14,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Persistence;
-using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Abstractions.Transport;
+using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Platform.Interfaces;
@@ -59,26 +59,17 @@ public class StreamController : BaseController
         DateTime? LastStreamedAt = null
     );
 
-    public record UpdateStreamRequest(
-        string? Title,
-        string? GameName,
-        List<string>? Tags
-    );
+    public record UpdateStreamRequest(string? Title, string? GameName, List<string>? Tags);
 
     public record UpdateTitleRequest(string Title);
+
     public record UpdateGameRequest(string GameName);
+
     public record UpdateTagsRequest(List<string> Tags);
 
-    public record StreamStatusDto(
-        bool IsLive,
-        int ViewerCount
-    );
+    public record StreamStatusDto(bool IsLive, int ViewerCount);
 
-    public record CategoryDto(
-        string Id,
-        string Name,
-        string? BoxArtUrl
-    );
+    public record CategoryDto(string Id, string Name, string? BoxArtUrl);
 
     // ── Get current stream info ──────────────────────────────────────────────
 
@@ -111,8 +102,8 @@ public class StreamController : BaseController
             DateTime? lastStreamedAt = null;
             if (!ctx.IsLive)
             {
-                lastStreamedAt = await _db.Streams
-                    .Where(s => s.ChannelId == channelId && s.EndedAt != null)
+                lastStreamedAt = await _db
+                    .Streams.Where(s => s.ChannelId == channelId && s.EndedAt != null)
                     .OrderByDescending(s => s.EndedAt)
                     .Select(s => (DateTime?)s.EndedAt!.Value.UtcDateTime)
                     .FirstOrDefaultAsync(ct);
@@ -141,11 +132,13 @@ public class StreamController : BaseController
 
         ChannelDto channel = result.Value;
 
-        DateTime? lastStreamedAtFallback = channel.IsLive ? null : await _db.Streams
-            .Where(s => s.ChannelId == channelId && s.EndedAt != null)
-            .OrderByDescending(s => s.EndedAt)
-            .Select(s => (DateTime?)s.EndedAt!.Value.UtcDateTime)
-            .FirstOrDefaultAsync(ct);
+        DateTime? lastStreamedAtFallback = channel.IsLive
+            ? null
+            : await _db
+                .Streams.Where(s => s.ChannelId == channelId && s.EndedAt != null)
+                .OrderByDescending(s => s.EndedAt)
+                .Select(s => (DateTime?)s.EndedAt!.Value.UtcDateTime)
+                .FirstOrDefaultAsync(ct);
 
         var fallback = new StreamInfoDto(
             twitchChannel?.Title ?? channel.Title,
@@ -180,10 +173,14 @@ public class StreamController : BaseController
         string? resolvedGameName = request.GameName;
         if (request.GameName is not null)
         {
-            IReadOnlyList<TwitchCategoryInfo> categories = await _twitchApi.SearchCategoriesAsync(request.GameName, ct);
-            TwitchCategoryInfo? match = categories.FirstOrDefault(c =>
-                string.Equals(c.Name, request.GameName, StringComparison.OrdinalIgnoreCase)
-            ) ?? categories.FirstOrDefault();
+            IReadOnlyList<TwitchCategoryInfo> categories = await _twitchApi.SearchCategoriesAsync(
+                request.GameName,
+                ct
+            );
+            TwitchCategoryInfo? match =
+                categories.FirstOrDefault(c =>
+                    string.Equals(c.Name, request.GameName, StringComparison.OrdinalIgnoreCase)
+                ) ?? categories.FirstOrDefault();
 
             if (match is not null)
             {
@@ -193,13 +190,7 @@ public class StreamController : BaseController
         }
 
         // Push changes to Twitch
-        await _twitchApi.UpdateChannelInfoAsync(
-            channelId,
-            request.Title,
-            gameId,
-            request.Tags,
-            ct
-        );
+        await _twitchApi.UpdateChannelInfoAsync(channelId, request.Title, gameId, request.Tags, ct);
 
         // Update in-memory context
         ChannelContext? ctx = _registry.Get(channelId);
@@ -235,20 +226,21 @@ public class StreamController : BaseController
 
         if (ctx is not null)
         {
-            return Ok(new StatusResponseDto<StreamStatusDto>
-            {
-                Data = new StreamStatusDto(ctx.IsLive, 0),
-            });
+            return Ok(
+                new StatusResponseDto<StreamStatusDto> { Data = new StreamStatusDto(ctx.IsLive, 0) }
+            );
         }
 
         Result<ChannelDto> result = await _channelService.GetAsync(channelId, ct);
         if (result.IsFailure)
             return ResultResponse(result);
 
-        return Ok(new StatusResponseDto<StreamStatusDto>
-        {
-            Data = new StreamStatusDto(result.Value.IsLive, result.Value.ViewerCount ?? 0),
-        });
+        return Ok(
+            new StatusResponseDto<StreamStatusDto>
+            {
+                Data = new StreamStatusDto(result.Value.IsLive, result.Value.ViewerCount ?? 0),
+            }
+        );
     }
 
     // ── PATCH sub-routes (used by StreamScreen) ──────────────────────────────
@@ -281,10 +273,14 @@ public class StreamController : BaseController
         string? gameId = null;
         string resolvedName = request.GameName;
 
-        IReadOnlyList<TwitchCategoryInfo> results = await _twitchApi.SearchCategoriesAsync(request.GameName, ct);
-        TwitchCategoryInfo? match = results.FirstOrDefault(c =>
-            string.Equals(c.Name, request.GameName, StringComparison.OrdinalIgnoreCase)
-        ) ?? results.FirstOrDefault();
+        IReadOnlyList<TwitchCategoryInfo> results = await _twitchApi.SearchCategoriesAsync(
+            request.GameName,
+            ct
+        );
+        TwitchCategoryInfo? match =
+            results.FirstOrDefault(c =>
+                string.Equals(c.Name, request.GameName, StringComparison.OrdinalIgnoreCase)
+            ) ?? results.FirstOrDefault();
 
         if (match is not null)
         {
@@ -325,7 +321,10 @@ public class StreamController : BaseController
         if (string.IsNullOrWhiteSpace(query))
             return Ok(new StatusResponseDto<List<CategoryDto>> { Data = [] });
 
-        IReadOnlyList<TwitchCategoryInfo> results = await _twitchApi.SearchCategoriesAsync(query, ct);
+        IReadOnlyList<TwitchCategoryInfo> results = await _twitchApi.SearchCategoriesAsync(
+            query,
+            ct
+        );
         List<CategoryDto> categories = results
             .Select(c => new CategoryDto(c.Id, c.Name, c.BoxArtUrl))
             .ToList();

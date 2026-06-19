@@ -217,8 +217,10 @@ public class ModerationController : BaseController
     [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetShieldMode(string channelId, CancellationToken ct)
     {
-        ConfigEntity? cfg = await _db.Configurations
-            .FirstOrDefaultAsync(c => c.BroadcasterId == channelId && c.Key == "shield.mode", ct);
+        ConfigEntity? cfg = await _db.Configurations.FirstOrDefaultAsync(
+            c => c.BroadcasterId == channelId && c.Key == "shield.mode",
+            ct
+        );
 
         bool enabled = cfg?.Value is not null && bool.TryParse(cfg.Value, out bool v) && v;
         return Ok(new StatusResponseDto<object> { Data = new { enabled } });
@@ -232,12 +234,19 @@ public class ModerationController : BaseController
         CancellationToken ct
     )
     {
-        ConfigEntity? cfg = await _db.Configurations
-            .FirstOrDefaultAsync(c => c.BroadcasterId == channelId && c.Key == "shield.mode", ct);
+        ConfigEntity? cfg = await _db.Configurations.FirstOrDefaultAsync(
+            c => c.BroadcasterId == channelId && c.Key == "shield.mode",
+            ct
+        );
 
         if (cfg is null)
         {
-            cfg = new ConfigEntity { BroadcasterId = channelId, Key = "shield.mode", Value = request.Enabled.ToString() };
+            cfg = new ConfigEntity
+            {
+                BroadcasterId = channelId,
+                Key = "shield.mode",
+                Value = request.Enabled.ToString(),
+            };
             _db.Configurations.Add(cfg);
         }
         else
@@ -257,8 +266,10 @@ public class ModerationController : BaseController
     [ProducesResponseType<StatusResponseDto<List<string>>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetBlockedTerms(string channelId, CancellationToken ct)
     {
-        ConfigEntity? cfg = await _db.Configurations
-            .FirstOrDefaultAsync(c => c.BroadcasterId == channelId && c.Key == "blocked-terms", ct);
+        ConfigEntity? cfg = await _db.Configurations.FirstOrDefaultAsync(
+            c => c.BroadcasterId == channelId && c.Key == "blocked-terms",
+            ct
+        );
 
         List<string> terms = cfg?.Value is not null
             ? JsonSerializer.Deserialize<List<string>>(cfg.Value) ?? []
@@ -275,8 +286,10 @@ public class ModerationController : BaseController
         CancellationToken ct
     )
     {
-        ConfigEntity? cfg = await _db.Configurations
-            .FirstOrDefaultAsync(c => c.BroadcasterId == channelId && c.Key == "blocked-terms", ct);
+        ConfigEntity? cfg = await _db.Configurations.FirstOrDefaultAsync(
+            c => c.BroadcasterId == channelId && c.Key == "blocked-terms",
+            ct
+        );
 
         List<string> terms = cfg?.Value is not null
             ? JsonSerializer.Deserialize<List<string>>(cfg.Value) ?? []
@@ -287,7 +300,12 @@ public class ModerationController : BaseController
 
         if (cfg is null)
         {
-            cfg = new ConfigEntity { BroadcasterId = channelId, Key = "blocked-terms", Value = JsonSerializer.Serialize(terms) };
+            cfg = new ConfigEntity
+            {
+                BroadcasterId = channelId,
+                Key = "blocked-terms",
+                Value = JsonSerializer.Serialize(terms),
+            };
             _db.Configurations.Add(cfg);
         }
         else
@@ -301,10 +319,16 @@ public class ModerationController : BaseController
 
     [HttpDelete("blocked-terms/{term}")]
     [ProducesResponseType<StatusResponseDto<List<string>>>(StatusCodes.Status200OK)]
-    public async Task<IActionResult> RemoveBlockedTerm(string channelId, string term, CancellationToken ct)
+    public async Task<IActionResult> RemoveBlockedTerm(
+        string channelId,
+        string term,
+        CancellationToken ct
+    )
     {
-        ConfigEntity? cfg = await _db.Configurations
-            .FirstOrDefaultAsync(c => c.BroadcasterId == channelId && c.Key == "blocked-terms", ct);
+        ConfigEntity? cfg = await _db.Configurations.FirstOrDefaultAsync(
+            c => c.BroadcasterId == channelId && c.Key == "blocked-terms",
+            ct
+        );
 
         if (cfg is null)
             return Ok(new StatusResponseDto<List<string>> { Data = [] });
@@ -326,20 +350,32 @@ public class ModerationController : BaseController
     {
         DateTime today = DateTime.UtcNow.Date;
 
-        var events = await _db.ChannelEvents
-            .Where(e => e.ChannelId == channelId && e.CreatedAt >= today)
+        var events = await _db
+            .ChannelEvents.Where(e => e.ChannelId == channelId && e.CreatedAt >= today)
             .Select(e => e.Type)
             .ToListAsync(ct);
 
         int bansToday = events.Count(t => t.Contains("ban", StringComparison.OrdinalIgnoreCase));
         int timeouts = events.Count(t => t.Contains("timeout", StringComparison.OrdinalIgnoreCase));
-        int deletedMessages = events.Count(t => t.Contains("delete", StringComparison.OrdinalIgnoreCase));
-        int automodActions = events.Count(t => t.Contains("automod", StringComparison.OrdinalIgnoreCase));
+        int deletedMessages = events.Count(t =>
+            t.Contains("delete", StringComparison.OrdinalIgnoreCase)
+        );
+        int automodActions = events.Count(t =>
+            t.Contains("automod", StringComparison.OrdinalIgnoreCase)
+        );
 
-        return Ok(new StatusResponseDto<object>
-        {
-            Data = new { bansToday, timeouts, deletedMessages, automodActions }
-        });
+        return Ok(
+            new StatusResponseDto<object>
+            {
+                Data = new
+                {
+                    bansToday,
+                    timeouts,
+                    deletedMessages,
+                    automodActions,
+                },
+            }
+        );
     }
 
     // ─── Actions ─────────────────────────────────────────────────────────────

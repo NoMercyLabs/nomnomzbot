@@ -131,7 +131,8 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
     private async Task LoadCommandsAsync(ChannelContext ctx, CancellationToken ct)
     {
         using IServiceScope scope = _scopeFactory.CreateScope();
-        IApplicationDbContext db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+        IApplicationDbContext db =
+            scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
 
         List<CachedCommand> commands = await db
             .Commands.Where(c =>

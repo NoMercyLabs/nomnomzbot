@@ -144,7 +144,8 @@ public class BaseControllerTests
     public void ResultResponseT_NotFound_Returns404()
     {
         TestController ctrl = CreateController();
-        ObjectResult? result = ctrl.TestResultResponse(Errors.NotFound<string>("User", "u1")) as ObjectResult;
+        ObjectResult? result =
+            ctrl.TestResultResponse(Errors.NotFound<string>("User", "u1")) as ObjectResult;
 
         result!.StatusCode.Should().Be(404);
     }
@@ -231,7 +232,8 @@ public class BaseControllerTests
     public void ResultResponse_TokenExpired_Returns401()
     {
         TestController ctrl = CreateController();
-        ObjectResult? result = ctrl.TestResultResponse(Errors.TokenExpired("Twitch")) as ObjectResult;
+        ObjectResult? result =
+            ctrl.TestResultResponse(Errors.TokenExpired("Twitch")) as ObjectResult;
 
         result!.StatusCode.Should().Be(401);
     }
@@ -240,7 +242,8 @@ public class BaseControllerTests
     public void ResultResponse_ChannelNotFound_Returns404()
     {
         TestController ctrl = CreateController();
-        ObjectResult? result = ctrl.TestResultResponse(Errors.ChannelNotFound("ch1")) as ObjectResult;
+        ObjectResult? result =
+            ctrl.TestResultResponse(Errors.ChannelNotFound("ch1")) as ObjectResult;
 
         result!.StatusCode.Should().Be(404);
     }

@@ -11,8 +11,8 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using NomNomzBot.Domain.Chat.ValueObjects;
-using NomNomzBot.Domain.Platform;
 using NomNomzBot.Domain.Identity.Entities;
+using NomNomzBot.Domain.Platform;
 
 namespace NomNomzBot.Domain.Chat.Entities;
 

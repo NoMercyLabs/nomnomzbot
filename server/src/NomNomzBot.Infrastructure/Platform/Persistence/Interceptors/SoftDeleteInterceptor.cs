@@ -52,7 +52,9 @@ public sealed class SoftDeleteInterceptor : SaveChangesInterceptor
     {
         DateTime utcNow = DateTime.UtcNow;
 
-        foreach (EntityEntry<SoftDeletableEntity> entry in context.ChangeTracker.Entries<SoftDeletableEntity>())
+        foreach (
+            EntityEntry<SoftDeletableEntity> entry in context.ChangeTracker.Entries<SoftDeletableEntity>()
+        )
         {
             if (entry.State != EntityState.Deleted)
             {

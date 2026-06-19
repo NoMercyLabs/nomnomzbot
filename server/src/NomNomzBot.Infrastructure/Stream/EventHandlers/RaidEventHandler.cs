@@ -10,8 +10,8 @@
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Application.Abstractions.Pipeline;
+using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Stream.Events;
 using NomNomzBot.Infrastructure.Platform.Eventing;
 

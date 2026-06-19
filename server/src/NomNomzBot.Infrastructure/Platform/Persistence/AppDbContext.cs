@@ -14,8 +14,8 @@ using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Domain.Chat.Entities;
 using NomNomzBot.Domain.Commands.Entities;
 using NomNomzBot.Domain.Discord.Entities;
-using NomNomzBot.Domain.Platform.Entities;
 using NomNomzBot.Domain.Identity.Entities;
+using NomNomzBot.Domain.Platform.Entities;
 using NomNomzBot.Domain.Rewards.Entities;
 using NomNomzBot.Domain.Tts.Entities;
 using NomNomzBot.Domain.Widgets.Entities;
@@ -42,7 +42,8 @@ public class AppDbContext : DbContext, IApplicationDbContext
     // Chat
     public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
     public DbSet<ChannelEvent> ChannelEvents => Set<ChannelEvent>();
-    public DbSet<global::NomNomzBot.Domain.Stream.Entities.Stream> Streams => Set<global::NomNomzBot.Domain.Stream.Entities.Stream>();
+    public DbSet<global::NomNomzBot.Domain.Stream.Entities.Stream> Streams =>
+        Set<global::NomNomzBot.Domain.Stream.Entities.Stream>();
 
     // Config & Storage
     public DbSet<NomNomzBot.Domain.Platform.Entities.Configuration> Configurations =>
@@ -83,7 +84,8 @@ public class AppDbContext : DbContext, IApplicationDbContext
     public DbSet<WatchStreak> WatchStreaks => Set<WatchStreak>();
 
     // Pipelines
-    public DbSet<Domain.Commands.Entities.Pipeline> Pipelines => Set<Domain.Commands.Entities.Pipeline>();
+    public DbSet<Domain.Commands.Entities.Pipeline> Pipelines =>
+        Set<Domain.Commands.Entities.Pipeline>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

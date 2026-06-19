@@ -89,8 +89,8 @@ public class ChatController : BaseController
     {
         limit = Math.Clamp(limit, 1, 200);
 
-        var messages = await _db.ChatMessages
-            .Where(m => m.BroadcasterId == channelId && m.DeletedAt == null)
+        var messages = await _db
+            .ChatMessages.Where(m => m.BroadcasterId == channelId && m.DeletedAt == null)
             .OrderByDescending(m => m.CreatedAt)
             .Take(limit)
             .Select(m => new ChatMessageDto(
@@ -125,14 +125,14 @@ public class ChatController : BaseController
     [ProducesResponseType<StatusResponseDto<ChatSettingsDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetSettings(string channelId, CancellationToken ct)
     {
-        ConfigEntity? config = await _db.Configurations
-            .FirstOrDefaultAsync(
-                c => c.BroadcasterId == channelId && c.Key == "chat.settings",
-                ct
-            );
+        ConfigEntity? config = await _db.Configurations.FirstOrDefaultAsync(
+            c => c.BroadcasterId == channelId && c.Key == "chat.settings",
+            ct
+        );
 
         ChatSettingsDto settings = config?.Value is not null
-            ? JsonSerializer.Deserialize<ChatSettingsDto>(config.Value, JsonOptions) ?? DefaultSettings
+            ? JsonSerializer.Deserialize<ChatSettingsDto>(config.Value, JsonOptions)
+                ?? DefaultSettings
             : DefaultSettings;
 
         return Ok(new StatusResponseDto<ChatSettingsDto> { Data = settings });
@@ -159,45 +159,69 @@ public class ChatController : BaseController
     )
     {
         // Load existing, apply partial override from patch body
-        ConfigEntity? config = await _db.Configurations
-            .FirstOrDefaultAsync(
-                c => c.BroadcasterId == channelId && c.Key == "chat.settings",
-                ct
-            );
+        ConfigEntity? config = await _db.Configurations.FirstOrDefaultAsync(
+            c => c.BroadcasterId == channelId && c.Key == "chat.settings",
+            ct
+        );
 
         ChatSettingsDto current = config?.Value is not null
-            ? JsonSerializer.Deserialize<ChatSettingsDto>(config.Value, JsonOptions) ?? DefaultSettings
+            ? JsonSerializer.Deserialize<ChatSettingsDto>(config.Value, JsonOptions)
+                ?? DefaultSettings
             : DefaultSettings;
 
-        bool slowMode = patch.TryGetProperty("slowMode", out var sm) ? sm.GetBoolean() : current.SlowMode;
-        int slowModeDelay = patch.TryGetProperty("slowModeDelay", out var smd) ? smd.GetInt32() : current.SlowModeDelay;
-        bool subscriberOnly = patch.TryGetProperty("subscriberOnly", out var so) ? so.GetBoolean() : current.SubscriberOnly;
-        bool emotesOnly = patch.TryGetProperty("emotesOnly", out var eo) ? eo.GetBoolean() : current.EmotesOnly;
-        bool followersOnly = patch.TryGetProperty("followersOnly", out var fo) ? fo.GetBoolean() : current.FollowersOnly;
-        int followersOnlyDuration = patch.TryGetProperty("followersOnlyDuration", out var fod) ? fod.GetInt32() : current.FollowersOnlyDuration;
+        bool slowMode = patch.TryGetProperty("slowMode", out var sm)
+            ? sm.GetBoolean()
+            : current.SlowMode;
+        int slowModeDelay = patch.TryGetProperty("slowModeDelay", out var smd)
+            ? smd.GetInt32()
+            : current.SlowModeDelay;
+        bool subscriberOnly = patch.TryGetProperty("subscriberOnly", out var so)
+            ? so.GetBoolean()
+            : current.SubscriberOnly;
+        bool emotesOnly = patch.TryGetProperty("emotesOnly", out var eo)
+            ? eo.GetBoolean()
+            : current.EmotesOnly;
+        bool followersOnly = patch.TryGetProperty("followersOnly", out var fo)
+            ? fo.GetBoolean()
+            : current.FollowersOnly;
+        int followersOnlyDuration = patch.TryGetProperty("followersOnlyDuration", out var fod)
+            ? fod.GetInt32()
+            : current.FollowersOnlyDuration;
 
-        var merged = new ChatSettingsDto(slowMode, slowModeDelay, subscriberOnly, emotesOnly, followersOnly, followersOnlyDuration);
+        var merged = new ChatSettingsDto(
+            slowMode,
+            slowModeDelay,
+            subscriberOnly,
+            emotesOnly,
+            followersOnly,
+            followersOnlyDuration
+        );
         return await SaveSettings(channelId, merged, ct);
     }
 
-    private async Task<IActionResult> SaveSettings(string channelId, ChatSettingsDto settings, CancellationToken ct)
+    private async Task<IActionResult> SaveSettings(
+        string channelId,
+        ChatSettingsDto settings,
+        CancellationToken ct
+    )
     {
-        ConfigEntity? config = await _db.Configurations
-            .FirstOrDefaultAsync(
-                c => c.BroadcasterId == channelId && c.Key == "chat.settings",
-                ct
-            );
+        ConfigEntity? config = await _db.Configurations.FirstOrDefaultAsync(
+            c => c.BroadcasterId == channelId && c.Key == "chat.settings",
+            ct
+        );
 
         string json = JsonSerializer.Serialize(settings, JsonOptions);
 
         if (config is null)
         {
-            _db.Configurations.Add(new ConfigEntity
-            {
-                BroadcasterId = channelId,
-                Key = "chat.settings",
-                Value = json,
-            });
+            _db.Configurations.Add(
+                new ConfigEntity
+                {
+                    BroadcasterId = channelId,
+                    Key = "chat.settings",
+                    Value = json,
+                }
+            );
         }
         else
         {

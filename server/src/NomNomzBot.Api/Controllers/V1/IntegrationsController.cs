@@ -57,7 +57,11 @@ public class IntegrationsController : BaseController
         ["twitch"] = ("Twitch", "Platform", "Primary Twitch account — always connected"),
         // custom_bot = white-label bot for this channel (Pro tier). Uses BroadcasterId=channelId.
         // The global platform bot (NomNomzBot) is managed in the admin panel, not here.
-        ["custom_bot"] = ("Custom Bot", "Platform", "White-label bot — messages appear from your own bot account instead of NomNomzBot"),
+        ["custom_bot"] = (
+            "Custom Bot",
+            "Platform",
+            "White-label bot — messages appear from your own bot account instead of NomNomzBot"
+        ),
         ["spotify"] = ("Spotify", "Music", "Now playing overlays and song request commands"),
         ["discord"] = ("Discord", "Social", "Cross-post alerts and notifications to Discord"),
         ["youtube"] = ("YouTube", "Video", "YouTube live stream management and stats"),
@@ -85,23 +89,28 @@ public class IntegrationsController : BaseController
             connectedServiceNames.Add("discord");
 
         // Twitch is always connected when the channel exists
-        var channel = await _db.Channels
-            .Where(c => c.Id == channelId)
+        var channel = await _db
+            .Channels.Where(c => c.Id == channelId)
             .Select(c => new { c.Id, c.Name })
             .FirstOrDefaultAsync(ct);
         bool twitchConnected = channel is not null;
 
         // White-label custom bot is per-channel (BroadcasterId=channelId, Name="twitch_bot")
-        var customBotService = await _db.Services
-            .Where(s => s.Name == "twitch_bot" && s.BroadcasterId == channelId && s.Enabled && s.AccessToken != null)
+        var customBotService = await _db
+            .Services.Where(s =>
+                s.Name == "twitch_bot"
+                && s.BroadcasterId == channelId
+                && s.Enabled
+                && s.AccessToken != null
+            )
             .Select(s => new { s.UserId })
             .FirstOrDefaultAsync(ct);
 
         string? customBotLogin = null;
         if (customBotService?.UserId is not null)
         {
-            customBotLogin = await _db.Users
-                .Where(u => u.Id == customBotService.UserId)
+            customBotLogin = await _db
+                .Users.Where(u => u.Id == customBotService.UserId)
                 .Select(u => u.Username)
                 .FirstOrDefaultAsync(ct);
         }
@@ -173,7 +182,9 @@ public class IntegrationsController : BaseController
         if (id == "custom_bot")
         {
             var botService = await _db.Services.FirstOrDefaultAsync(
-                s => s.Name == "twitch_bot" && s.BroadcasterId == channelId, ct);
+                s => s.Name == "twitch_bot" && s.BroadcasterId == channelId,
+                ct
+            );
             if (botService is not null)
             {
                 _db.Services.Remove(botService);

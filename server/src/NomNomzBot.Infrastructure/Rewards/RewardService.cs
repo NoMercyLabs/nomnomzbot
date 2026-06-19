@@ -11,8 +11,8 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
-using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Abstractions.Transport;
+using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Rewards.Dtos;
 using NomNomzBot.Application.Rewards.Services;
 using NomNomzBot.Domain.Rewards.Entities;
@@ -200,7 +200,10 @@ public class RewardService : IRewardService
             .Where(r => r.TwitchRewardId != null)
             .ToDictionary(r => r.TwitchRewardId!);
 
-        Dictionary<string, Reward> existingByTitle = existing.ToDictionary(r => r.Title, StringComparer.OrdinalIgnoreCase);
+        Dictionary<string, Reward> existingByTitle = existing.ToDictionary(
+            r => r.Title,
+            StringComparer.OrdinalIgnoreCase
+        );
 
         int syncedCount = 0;
         foreach (TwitchRewardInfo tr in twitchRewards)

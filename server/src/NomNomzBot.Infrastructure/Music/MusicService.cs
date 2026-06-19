@@ -159,7 +159,12 @@ public sealed class MusicService : IMusicService
             return false;
 
         // Look up track info for the queue display
-        IReadOnlyList<TrackInfo> track = await provider.SearchAsync(broadcasterId, trackUri, 1, cancellationToken);
+        IReadOnlyList<TrackInfo> track = await provider.SearchAsync(
+            broadcasterId,
+            trackUri,
+            1,
+            cancellationToken
+        );
         TrackInfo trackInfo =
             track.FirstOrDefault(t => t.TrackUri == trackUri)
             ?? new TrackInfo
@@ -217,7 +222,9 @@ public sealed class MusicService : IMusicService
     )
     {
         // Volume control is Spotify-specific; try Spotify provider first
-        SpotifyMusicProvider? spotifyProvider = _providers.OfType<SpotifyMusicProvider>().FirstOrDefault();
+        SpotifyMusicProvider? spotifyProvider = _providers
+            .OfType<SpotifyMusicProvider>()
+            .FirstOrDefault();
         if (spotifyProvider is null)
             return false;
 
@@ -295,14 +302,18 @@ public sealed class MusicService : IMusicService
         // Priority: Spotify > YouTube
         if (services.Contains("spotify"))
         {
-            SpotifyMusicProvider? spotify = _providers.OfType<SpotifyMusicProvider>().FirstOrDefault();
+            SpotifyMusicProvider? spotify = _providers
+                .OfType<SpotifyMusicProvider>()
+                .FirstOrDefault();
             if (spotify is not null)
                 return spotify;
         }
 
         if (services.Contains("youtube"))
         {
-            YouTubeMusicProvider? youtube = _providers.OfType<YouTubeMusicProvider>().FirstOrDefault();
+            YouTubeMusicProvider? youtube = _providers
+                .OfType<YouTubeMusicProvider>()
+                .FirstOrDefault();
             if (youtube is not null)
                 return youtube;
         }
@@ -330,7 +341,9 @@ public sealed class MusicService : IMusicService
     {
         lock (_queueLock)
         {
-            return _queues.TryGetValue(broadcasterId, out FairQueue<SongRequestEntry>? queue) ? queue.Dequeue() : null;
+            return _queues.TryGetValue(broadcasterId, out FairQueue<SongRequestEntry>? queue)
+                ? queue.Dequeue()
+                : null;
         }
     }
 }

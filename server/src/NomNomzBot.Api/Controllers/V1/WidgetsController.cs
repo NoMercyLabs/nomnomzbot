@@ -39,13 +39,12 @@ public class WidgetsController : BaseController
         CancellationToken ct
     )
     {
-        PaginationParams pagination = new(
-            request.Page,
-            request.Take,
-            request.Sort,
-            request.Order
+        PaginationParams pagination = new(request.Page, request.Take, request.Sort, request.Order);
+        Result<PagedList<WidgetDetail>> result = await _widgetService.ListAsync(
+            channelId,
+            pagination,
+            ct
         );
-        Result<PagedList<WidgetDetail>> result = await _widgetService.ListAsync(channelId, pagination, ct);
         if (result.IsFailure)
             return ResultResponse(result);
         return GetPaginatedResponse(result.Value, request);
@@ -95,7 +94,12 @@ public class WidgetsController : BaseController
         CancellationToken ct
     )
     {
-        Result<WidgetDetail> result = await _widgetService.UpdateAsync(channelId, widgetId, request, ct);
+        Result<WidgetDetail> result = await _widgetService.UpdateAsync(
+            channelId,
+            widgetId,
+            request,
+            ct
+        );
         if (result.IsFailure)
             return ResultResponse(result);
         return Ok(new StatusResponseDto<WidgetDetail> { Data = result.Value });

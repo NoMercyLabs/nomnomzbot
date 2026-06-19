@@ -36,18 +36,46 @@ public sealed class DefaultCommandsSeeder : ISeeder
 
     private static readonly IReadOnlyList<DefaultCommand> Defaults =
     [
-        new("!sr", """{"steps":[{"action":{"type":"music_request"}}]}""", "everyone", 5, "Request a song"),
-        new("!skip", """{"steps":[{"action":{"type":"music_skip"}}]}""", "moderator", 0, "Skip the current song"),
-        new("!queue", """{"steps":[{"action":{"type":"music_queue"}}]}""", "everyone", 10, "Show the song queue"),
-        new("!volume", """{"steps":[{"action":{"type":"music_volume"}}]}""", "moderator", 0, "Set the music volume"),
-        new("!song", """{"steps":[{"action":{"type":"music_current"}}]}""", "everyone", 5, "Show the current song"),
+        new(
+            "!sr",
+            """{"steps":[{"action":{"type":"music_request"}}]}""",
+            "everyone",
+            5,
+            "Request a song"
+        ),
+        new(
+            "!skip",
+            """{"steps":[{"action":{"type":"music_skip"}}]}""",
+            "moderator",
+            0,
+            "Skip the current song"
+        ),
+        new(
+            "!queue",
+            """{"steps":[{"action":{"type":"music_queue"}}]}""",
+            "everyone",
+            10,
+            "Show the song queue"
+        ),
+        new(
+            "!volume",
+            """{"steps":[{"action":{"type":"music_volume"}}]}""",
+            "moderator",
+            0,
+            "Set the music volume"
+        ),
+        new(
+            "!song",
+            """{"steps":[{"action":{"type":"music_current"}}]}""",
+            "everyone",
+            5,
+            "Show the current song"
+        ),
     ];
 
     public async Task SeedAsync(CancellationToken ct = default)
     {
-        List<string> channelIds = await _db
-            .Channels.Select(c => c.Id)
-            .ToListAsync(ct);
+        List<string> channelIds = await _db.Channels.Select(c => c.Id).ToListAsync(ct);
 
         if (channelIds.Count == 0)
             return;

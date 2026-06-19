@@ -138,9 +138,7 @@ public class AssemblyScanDiscoveryTests
             .GetTypes()
             .Where(t => t is { IsAbstract: false, IsInterface: false })
             .SelectMany(t => t.GetInterfaces())
-            .Where(i =>
-                i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IEventHandler<>)
-            )
+            .Where(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IEventHandler<>))
             .Distinct()
             .ToList();
 
@@ -166,8 +164,7 @@ public class AssemblyScanDiscoveryTests
     {
         // Includes the singleton+hosted trio (Irc/EventSub/ChannelRegistry) wired explicitly
         // AND the plain workers wired by the scan — TokenRefreshService must now be among them.
-        int expectedWorkers = CountConcreteAssignableTo(typeof(BackgroundService))
-            + 1; // ChannelRegistry implements IHostedService directly, not BackgroundService.
+        int expectedWorkers = CountConcreteAssignableTo(typeof(BackgroundService)) + 1; // ChannelRegistry implements IHostedService directly, not BackgroundService.
 
         using ServiceProvider provider = BuildProvider(validate: false);
         List<IHostedService> hosted = provider.GetServices<IHostedService>().ToList();

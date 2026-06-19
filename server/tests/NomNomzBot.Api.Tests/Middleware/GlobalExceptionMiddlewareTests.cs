@@ -30,11 +30,7 @@ public class GlobalExceptionMiddlewareTests
     {
         IHostEnvironment? env = Substitute.For<IHostEnvironment>();
         env.EnvironmentName.Returns(isDevelopment ? "Development" : "Production");
-        return new(
-            next,
-            NullLogger<GlobalExceptionMiddleware>.Instance,
-            env
-        );
+        return new(next, NullLogger<GlobalExceptionMiddleware>.Instance, env);
     }
 
     private static DefaultHttpContext CreateContext()
@@ -64,7 +60,9 @@ public class GlobalExceptionMiddlewareTests
     [Fact]
     public async Task InvokeAsync_UnhandledException_Returns500()
     {
-        GlobalExceptionMiddleware middleware = CreateMiddleware(_ => throw new InvalidOperationException("boom"));
+        GlobalExceptionMiddleware middleware = CreateMiddleware(_ =>
+            throw new InvalidOperationException("boom")
+        );
         DefaultHttpContext context = CreateContext();
 
         await middleware.InvokeAsync(context);
@@ -75,7 +73,9 @@ public class GlobalExceptionMiddlewareTests
     [Fact]
     public async Task InvokeAsync_UnhandledException_SetsJsonContentType()
     {
-        GlobalExceptionMiddleware middleware = CreateMiddleware(_ => throw new InvalidOperationException("boom"));
+        GlobalExceptionMiddleware middleware = CreateMiddleware(_ =>
+            throw new InvalidOperationException("boom")
+        );
         DefaultHttpContext context = CreateContext();
 
         await middleware.InvokeAsync(context);
@@ -124,7 +124,9 @@ public class GlobalExceptionMiddlewareTests
         using CancellationTokenSource cts = new();
         cts.Cancel();
 
-        GlobalExceptionMiddleware middleware = CreateMiddleware(_ => throw new OperationCanceledException("cancelled"));
+        GlobalExceptionMiddleware middleware = CreateMiddleware(_ =>
+            throw new OperationCanceledException("cancelled")
+        );
         DefaultHttpContext context = CreateContext();
         context.RequestAborted = cts.Token;
 
@@ -137,7 +139,10 @@ public class GlobalExceptionMiddlewareTests
     [Fact]
     public async Task InvokeAsync_ResponseBody_IsValidJson()
     {
-        GlobalExceptionMiddleware middleware = CreateMiddleware(_ => throw new("test"), isDevelopment: false);
+        GlobalExceptionMiddleware middleware = CreateMiddleware(
+            _ => throw new("test"),
+            isDevelopment: false
+        );
         DefaultHttpContext context = CreateContext();
 
         await middleware.InvokeAsync(context);

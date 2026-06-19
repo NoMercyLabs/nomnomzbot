@@ -12,10 +12,10 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
-using NomNomzBot.Domain.Platform.Entities;
-using NomNomzBot.Domain.Platform;
-using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Application.Abstractions.Pipeline;
+using NomNomzBot.Domain.Platform;
+using NomNomzBot.Domain.Platform.Entities;
+using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Rewards.Entities;
 using NomNomzBot.Domain.Rewards.Events;
 using NomNomzBot.Infrastructure.Platform.Eventing;
@@ -66,7 +66,8 @@ public sealed class WatchStreakHandler
         try
         {
             using IServiceScope scope = ScopeFactory.CreateScope();
-            IApplicationDbContext db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+            IApplicationDbContext db =
+                scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
 
             DateOnly today = DateOnly.FromDateTime(DateTime.UtcNow);
             string? broadcasterId = e.BroadcasterId;

@@ -31,10 +31,7 @@ public class AuthController : BaseController
     private readonly IAuthService _authService;
     private readonly IConfiguration _config;
 
-    public AuthController(
-        IUserService userService,
-        IAuthService authService,
-        IConfiguration config)
+    public AuthController(IUserService userService, IAuthService authService, IConfiguration config)
     {
         _userService = userService;
         _authService = authService;
@@ -78,7 +75,10 @@ public class AuthController : BaseController
     [HttpGet("twitch")]
     [AllowAnonymous]
     [EnableRateLimiting("auth")]
-    public async Task<IActionResult> StartTwitchOAuth([FromQuery] string? redirect_uri, CancellationToken ct)
+    public async Task<IActionResult> StartTwitchOAuth(
+        [FromQuery] string? redirect_uri,
+        CancellationToken ct
+    )
     {
         // Encode the flow + optional mobile redirect URI into the state parameter so
         // the single callback endpoint can route the result correctly.
@@ -101,7 +101,8 @@ public class AuthController : BaseController
     public async Task<IActionResult> HandleTwitchCallback(
         [FromQuery] string code,
         [FromQuery] string? state,
-        CancellationToken ct)
+        CancellationToken ct
+    )
     {
         string? mobileRedirectUri = null;
         string? channelId = null;
@@ -134,7 +135,8 @@ public class AuthController : BaseController
         {
             Result<BotStatusDto> botResult = await _authService.HandleTwitchBotCallbackAsync(
                 new OAuthCallbackDto { Code = code, RedirectUri = callbackUri },
-                ct);
+                ct
+            );
 
             if (botResult.IsFailure)
             {
@@ -148,7 +150,8 @@ public class AuthController : BaseController
                 return Redirect($"{mobileRedirectUri}?bot_connected=true");
 
             string botName = botResult.Value.DisplayName ?? botResult.Value.Login ?? "Bot";
-            string html = "<!DOCTYPE html><html><head><title>Bot Connected</title>"
+            string html =
+                "<!DOCTYPE html><html><head><title>Bot Connected</title>"
                 + "<style>"
                 + "body{background:#141125;color:#f4f5fa;font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}"
                 + ".card{background:#1A1530;border:1px solid #1e1a35;border-radius:16px;padding:48px;text-align:center;max-width:420px}"
@@ -158,7 +161,9 @@ public class AuthController : BaseController
                 + "<div class='card'>"
                 + "<div class='check'>&#10003;</div>"
                 + "<h1>Bot Connected</h1>"
-                + "<p><span class='name'>" + botName + "</span> has been authorized successfully.</p>"
+                + "<p><span class='name'>"
+                + botName
+                + "</span> has been authorized successfully.</p>"
                 + "<p style='margin-top:16px'>You can close this tab and return to the setup wizard.</p>"
                 + "</div></body></html>";
             return Content(html, "text/html");
@@ -169,10 +174,12 @@ public class AuthController : BaseController
             if (string.IsNullOrWhiteSpace(channelId))
                 return BadRequest("Missing channel_id in state.");
 
-            Result<BotStatusDto> channelBotResult = await _authService.HandleTwitchChannelBotCallbackAsync(
-                channelId,
-                new OAuthCallbackDto { Code = code, RedirectUri = callbackUri },
-                ct);
+            Result<BotStatusDto> channelBotResult =
+                await _authService.HandleTwitchChannelBotCallbackAsync(
+                    channelId,
+                    new OAuthCallbackDto { Code = code, RedirectUri = callbackUri },
+                    ct
+                );
 
             if (channelBotResult.IsFailure)
             {
@@ -190,15 +197,22 @@ public class AuthController : BaseController
         }
 
         Result<AuthResultDto> result = await _authService.HandleTwitchCallbackAsync(
-            new OAuthCallbackDto { Code = code, State = state, RedirectUri = callbackUri },
-            ct);
+            new OAuthCallbackDto
+            {
+                Code = code,
+                State = state,
+                RedirectUri = callbackUri,
+            },
+            ct
+        );
 
         if (result.IsFailure)
         {
             if (!string.IsNullOrWhiteSpace(mobileRedirectUri))
             {
                 return Redirect(
-                    $"{mobileRedirectUri}?error=auth_failed&error_description={Uri.EscapeDataString(result.ErrorMessage ?? "Authentication failed")}");
+                    $"{mobileRedirectUri}?error=auth_failed&error_description={Uri.EscapeDataString(result.ErrorMessage ?? "Authentication failed")}"
+                );
             }
 
             return ResultResponse(result);
@@ -218,16 +232,18 @@ public class AuthController : BaseController
             return Redirect(qs.ToString());
         }
 
-        return Ok(new StatusResponseDto<object>
-        {
-            Data = new
+        return Ok(
+            new StatusResponseDto<object>
             {
-                accessToken = auth.AccessToken,
-                refreshToken = auth.RefreshToken,
-                expiresIn,
-                user = auth.User,
-            },
-        });
+                Data = new
+                {
+                    accessToken = auth.AccessToken,
+                    refreshToken = auth.RefreshToken,
+                    expiresIn,
+                    user = auth.User,
+                },
+            }
+        );
     }
 
     /// <summary>
@@ -240,7 +256,8 @@ public class AuthController : BaseController
     [EnableRateLimiting("auth")]
     public async Task<IActionResult> ExchangeCode(
         [FromBody] OAuthCallbackDto body,
-        CancellationToken ct)
+        CancellationToken ct
+    )
     {
         Result<AuthResultDto> result = await _authService.HandleTwitchCallbackAsync(body, ct);
 
@@ -250,16 +267,18 @@ public class AuthController : BaseController
         AuthResultDto auth = result.Value;
         int expiresIn = (int)(auth.ExpiresAt - DateTime.UtcNow).TotalSeconds;
 
-        return Ok(new StatusResponseDto<object>
-        {
-            Data = new
+        return Ok(
+            new StatusResponseDto<object>
             {
-                accessToken = auth.AccessToken,
-                refreshToken = auth.RefreshToken,
-                expiresIn,
-                user = auth.User,
-            },
-        });
+                Data = new
+                {
+                    accessToken = auth.AccessToken,
+                    refreshToken = auth.RefreshToken,
+                    expiresIn,
+                    user = auth.User,
+                },
+            }
+        );
     }
 
     /// <summary>Refresh an expired access token.</summary>
@@ -268,9 +287,13 @@ public class AuthController : BaseController
     [EnableRateLimiting("auth")]
     public async Task<IActionResult> RefreshToken(
         [FromBody] RefreshTokenRequest request,
-        CancellationToken ct)
+        CancellationToken ct
+    )
     {
-        Result<AuthResultDto> result = await _authService.RefreshTokenAsync(request.RefreshToken, ct);
+        Result<AuthResultDto> result = await _authService.RefreshTokenAsync(
+            request.RefreshToken,
+            ct
+        );
 
         if (result.IsFailure)
             return ResultResponse(result);
@@ -278,16 +301,18 @@ public class AuthController : BaseController
         AuthResultDto auth = result.Value;
         int expiresIn = (int)(auth.ExpiresAt - DateTime.UtcNow).TotalSeconds;
 
-        return Ok(new StatusResponseDto<object>
-        {
-            Data = new
+        return Ok(
+            new StatusResponseDto<object>
             {
-                accessToken = auth.AccessToken,
-                refreshToken = auth.RefreshToken,
-                expiresIn,
-                user = auth.User,
-            },
-        });
+                Data = new
+                {
+                    accessToken = auth.AccessToken,
+                    refreshToken = auth.RefreshToken,
+                    expiresIn,
+                    user = auth.User,
+                },
+            }
+        );
     }
 
     /// <summary>Log out the current user, revoking their Twitch tokens.</summary>
@@ -313,7 +338,10 @@ public class AuthController : BaseController
     [HttpGet("twitch/bot")]
     [AllowAnonymous]
     [EnableRateLimiting("auth")]
-    public async Task<IActionResult> StartBotOAuth([FromQuery] string? redirect_uri, CancellationToken ct)
+    public async Task<IActionResult> StartBotOAuth(
+        [FromQuery] string? redirect_uri,
+        CancellationToken ct
+    )
     {
         var payload = System.Text.Json.JsonSerializer.Serialize(new { flow = "bot", redirect_uri });
         string state = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(payload));
@@ -332,7 +360,8 @@ public class AuthController : BaseController
     public async Task<IActionResult> HandleBotCallback(
         [FromQuery] string code,
         [FromQuery] string? state,
-        CancellationToken ct)
+        CancellationToken ct
+    )
     {
         string? mobileRedirectUri = null;
         if (!string.IsNullOrWhiteSpace(state))
@@ -349,7 +378,9 @@ public class AuthController : BaseController
 
         string callbackUri = $"{GetPublicBaseUrl()}/api/v1/auth/twitch/bot/callback";
         Result<BotStatusDto> result = await _authService.HandleTwitchBotCallbackAsync(
-            new OAuthCallbackDto { Code = code, RedirectUri = callbackUri }, ct);
+            new OAuthCallbackDto { Code = code, RedirectUri = callbackUri },
+            ct
+        );
 
         if (result.IsFailure)
         {
@@ -366,7 +397,8 @@ public class AuthController : BaseController
         // Web: show a success page — the user likely authorized in a different browser,
         // so redirecting to the app would show a login page (confusing).
         string botName = result.Value.DisplayName ?? result.Value.Login ?? "Bot";
-        string html = "<!DOCTYPE html><html><head><title>Bot Connected</title>"
+        string html =
+            "<!DOCTYPE html><html><head><title>Bot Connected</title>"
             + "<style>"
             + "body{background:#141125;color:#f4f5fa;font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}"
             + ".card{background:#1A1530;border:1px solid #1e1a35;border-radius:16px;padding:48px;text-align:center;max-width:420px}"
@@ -376,7 +408,9 @@ public class AuthController : BaseController
             + "<div class='card'>"
             + "<div class='check'>&#10003;</div>"
             + "<h1>Bot Connected</h1>"
-            + "<p><span class='name'>" + botName + "</span> has been authorized successfully.</p>"
+            + "<p><span class='name'>"
+            + botName
+            + "</span> has been authorized successfully.</p>"
             + "<p style='margin-top:16px'>You can close this tab and return to the setup wizard.</p>"
             + "</div></body></html>";
         return Content(html, "text/html");

@@ -67,10 +67,7 @@ public sealed class SqliteMigrationService
             cancellationToken
         );
         if (!channelExists)
-            return new(
-                false,
-                $"Channel {broadcasterId} not found. Complete onboarding first."
-            );
+            return new(false, $"Channel {broadcasterId} not found. Complete onboarding first.");
 
         MigrationCounts counts = new();
 

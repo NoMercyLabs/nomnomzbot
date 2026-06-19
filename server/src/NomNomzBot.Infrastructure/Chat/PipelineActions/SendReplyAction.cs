@@ -9,8 +9,8 @@
 // -----------------------------------------------------------------------------
 
 using NomNomzBot.Application.Abstractions.Pipeline;
-using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Application.Abstractions.Templating;
+using NomNomzBot.Domain.Chat.Interfaces;
 
 namespace NomNomzBot.Infrastructure.Chat.PipelineActions;
 

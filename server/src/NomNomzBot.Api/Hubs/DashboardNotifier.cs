@@ -71,14 +71,7 @@ public class DashboardNotifier : IDashboardNotifier
         _hub
             .Clients.Group($"channel-{broadcasterId}")
             .ChannelEvent(
-                new(
-                    method,
-                    broadcasterId,
-                    null,
-                    null,
-                    data,
-                    DateTimeOffset.UtcNow.ToString("O")
-                )
+                new(method, broadcasterId, null, null, data, DateTimeOffset.UtcNow.ToString("O"))
             );
 
     public Task SendChatMessageAsync(

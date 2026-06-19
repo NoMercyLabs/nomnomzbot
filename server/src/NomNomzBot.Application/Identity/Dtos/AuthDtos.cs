@@ -23,6 +23,7 @@ public sealed record OAuthCallbackDto
 {
     public required string Code { get; init; }
     public string? State { get; init; }
+
     /// <summary>
     /// Custom redirect URI used by the client (e.g. <c>nomercybot://callback</c> for mobile).
     /// When provided, Twitch token exchange uses this instead of the server's configured URI.

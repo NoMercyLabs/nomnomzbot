@@ -212,8 +212,8 @@ public class UserService : IUserService
     )
     {
         // Channels the user has sent messages in
-        var messageData = await _db.ChatMessages
-            .Where(m => m.UserId == userId)
+        var messageData = await _db
+            .ChatMessages.Where(m => m.UserId == userId)
             .GroupBy(m => m.BroadcasterId)
             .Select(g => new
             {
@@ -224,12 +224,13 @@ public class UserService : IUserService
             .ToListAsync(cancellationToken);
 
         // Channels where the user is a moderator
-        List<string> modChannelIds = await _db.ChannelModerators
-            .Where(cm => cm.UserId == userId)
+        List<string> modChannelIds = await _db
+            .ChannelModerators.Where(cm => cm.UserId == userId)
             .Select(cm => cm.ChannelId)
             .ToListAsync(cancellationToken);
 
-        List<string> allChannelIds = messageData.Select(c => c.ChannelId)
+        List<string> allChannelIds = messageData
+            .Select(c => c.ChannelId)
             .Union(modChannelIds)
             .Distinct()
             .ToList();
@@ -237,36 +238,38 @@ public class UserService : IUserService
         if (allChannelIds.Count == 0)
             return Result.Success(new List<UserChannelAppearanceDto>());
 
-        var channelNames = await _db.Channels
-            .Where(c => allChannelIds.Contains(c.Id))
+        var channelNames = await _db
+            .Channels.Where(c => allChannelIds.Contains(c.Id))
             .Select(c => new { c.Id, c.Name })
             .ToListAsync(cancellationToken);
 
-        var watchStreaks = await _db.WatchStreaks
-            .Where(w => w.UserId == userId && allChannelIds.Contains(w.BroadcasterId))
+        var watchStreaks = await _db
+            .WatchStreaks.Where(w => w.UserId == userId && allChannelIds.Contains(w.BroadcasterId))
             .Select(w => new { w.BroadcasterId, w.CurrentStreak })
             .ToListAsync(cancellationToken);
 
-        List<UserChannelAppearanceDto> result = channelNames.Select(ch =>
-        {
-            var msgs = messageData.FirstOrDefault(m => m.ChannelId == ch.Id);
-            var streak = watchStreaks.FirstOrDefault(w => w.BroadcasterId == ch.Id);
+        List<UserChannelAppearanceDto> result = channelNames
+            .Select(ch =>
+            {
+                var msgs = messageData.FirstOrDefault(m => m.ChannelId == ch.Id);
+                var streak = watchStreaks.FirstOrDefault(w => w.BroadcasterId == ch.Id);
 
-            string followDate = msgs is not null
-                ? msgs.FirstSeen.ToString("yyyy-MM-dd")
-                : "N/A";
+                string followDate = msgs is not null
+                    ? msgs.FirstSeen.ToString("yyyy-MM-dd")
+                    : "N/A";
 
-            string watchTime = streak is not null
-                ? $"{streak.CurrentStreak} day streak"
-                : "N/A";
+                string watchTime = streak is not null
+                    ? $"{streak.CurrentStreak} day streak"
+                    : "N/A";
 
-            return new UserChannelAppearanceDto(
-                ch.Name,
-                followDate,
-                msgs is not null ? msgs.MessageCount : 0,
-                watchTime
-            );
-        }).ToList();
+                return new UserChannelAppearanceDto(
+                    ch.Name,
+                    followDate,
+                    msgs is not null ? msgs.MessageCount : 0,
+                    watchTime
+                );
+            })
+            .ToList();
 
         return Result.Success(result);
     }

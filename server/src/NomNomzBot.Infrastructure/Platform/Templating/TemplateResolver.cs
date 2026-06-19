@@ -13,10 +13,10 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
-using NomNomzBot.Domain.Platform.Entities;
-using NomNomzBot.Domain.Identity.Entities;
-using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Application.Abstractions.Templating;
+using NomNomzBot.Domain.Identity.Entities;
+using NomNomzBot.Domain.Platform.Entities;
+using NomNomzBot.Domain.Platform.Interfaces;
 
 namespace NomNomzBot.Infrastructure.Platform.Templating;
 
@@ -118,7 +118,9 @@ public sealed partial class TemplateResolver : ITemplateResolver
         CancellationToken ct
     )
     {
-        ChannelContext? channelCtx = broadcasterId is not null ? _registry.Get(broadcasterId) : null;
+        ChannelContext? channelCtx = broadcasterId is not null
+            ? _registry.Get(broadcasterId)
+            : null;
         DateTimeOffset now = DateTimeOffset.UtcNow;
 
         // ── Time variables (no DB needed) ──────────────────────────────────
@@ -269,7 +271,8 @@ public sealed partial class TemplateResolver : ITemplateResolver
         try
         {
             using IServiceScope scope = _scopeFactory.CreateScope();
-            IApplicationDbContext db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+            IApplicationDbContext db =
+                scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
 
             User? user = await db.Users.FirstOrDefaultAsync(u => u.Id == userId, ct);
             if (user is null)
@@ -306,7 +309,8 @@ public sealed partial class TemplateResolver : ITemplateResolver
         try
         {
             using IServiceScope scope = _scopeFactory.CreateScope();
-            IApplicationDbContext db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+            IApplicationDbContext db =
+                scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
 
             User? target = await db.Users.FirstOrDefaultAsync(
                 u => u.Username == targetName.ToLowerInvariant(),
@@ -331,7 +335,8 @@ public sealed partial class TemplateResolver : ITemplateResolver
         try
         {
             using IServiceScope scope = _scopeFactory.CreateScope();
-            IApplicationDbContext db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+            IApplicationDbContext db =
+                scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
 
             Service? service = await db
                 .Services.Where(s => s.Name == "twitch_bot" && s.Enabled)

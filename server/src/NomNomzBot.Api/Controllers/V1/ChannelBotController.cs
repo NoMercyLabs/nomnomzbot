@@ -40,7 +40,11 @@ public class ChannelBotController : BaseController
     private readonly IApplicationDbContext _db;
     private readonly IConfiguration _config;
 
-    public ChannelBotController(IAuthService authService, IApplicationDbContext db, IConfiguration config)
+    public ChannelBotController(
+        IAuthService authService,
+        IApplicationDbContext db,
+        IConfiguration config
+    )
     {
         _authService = authService;
         _db = db;
@@ -75,34 +79,126 @@ public class ChannelBotController : BaseController
         bool Required
     );
 
-    public record ScopesResponseDto(
-        List<ScopeDto> Permissions,
-        int GrantedCount,
-        int TotalCount
-    );
+    public record ScopesResponseDto(List<ScopeDto> Permissions, int GrantedCount, int TotalCount);
 
-    private static readonly (string Scope, string Name, string Description, string Category, bool Required)[] KnownScopes =
+    private static readonly (
+        string Scope,
+        string Name,
+        string Description,
+        string Category,
+        bool Required
+    )[] KnownScopes =
     [
-        ("user:read:email",                 "Read Email",              "Access your verified email address",                           "Account",     true),
-        ("user:read:chat",                  "Read Chat (user)",        "Read chat messages as you",                                    "Chat",        true),
-        ("chat:read",                       "Read Chat",               "Read live stream chat and rooms",                              "Chat",        true),
-        ("chat:edit",                       "Send Chat Messages",      "Send live stream chat and rooms messages",                     "Chat",        true),
-        ("channel:read:subscriptions",      "Read Subscriptions",      "View your channel's subscription events",                     "Channel",     true),
-        ("bits:read",                       "Read Bits",               "View Bits information for your channel",                       "Channel",     true),
-        ("channel:manage:redemptions",      "Manage Redemptions",      "Manage channel point redemption statuses",                     "Rewards",     true),
-        ("channel:read:redemptions",        "Read Redemptions",        "View channel point custom reward redemptions",                 "Rewards",     true),
-        ("moderator:read:chatters",         "Read Chatters",           "View the list of chatters in your channel",                   "Moderation",  true),
-        ("moderator:manage:banned_users",   "Manage Bans",             "Ban and unban users in your channel",                         "Moderation",  true),
-        ("moderator:manage:chat_messages",  "Delete Messages",         "Delete chat messages in your channel",                        "Moderation",  true),
-        ("moderator:manage:chat_settings",  "Manage Chat Settings",    "Update chat settings such as slow mode and subscriber-only",  "Moderation",  true),
-        ("moderator:read:followers",        "Read Followers",          "Read information about followers in your channel",             "Channel",     true),
-        ("channel:moderate",                "Channel Moderate",        "Perform moderation actions in your channel",                  "Moderation",  true),
-        ("channel:manage:broadcast",        "Manage Broadcast",        "Update your channel's title, game, and other settings",       "Stream",      true),
-        ("channel:read:polls",              "Read Polls",              "View information about polls in your channel",                 "Polls",       true),
-        ("channel:manage:polls",            "Manage Polls",            "Create and end polls in your channel",                        "Polls",       true),
-        ("channel:read:predictions",        "Read Predictions",        "View information about predictions in your channel",           "Predictions", true),
-        ("channel:manage:predictions",      "Manage Predictions",      "Create and end predictions in your channel",                  "Predictions", true),
-        ("channel:read:vips",               "Read VIPs",               "View your channel's VIP list",                                "Channel",     true),
+        ("user:read:email", "Read Email", "Access your verified email address", "Account", true),
+        ("user:read:chat", "Read Chat (user)", "Read chat messages as you", "Chat", true),
+        ("chat:read", "Read Chat", "Read live stream chat and rooms", "Chat", true),
+        (
+            "chat:edit",
+            "Send Chat Messages",
+            "Send live stream chat and rooms messages",
+            "Chat",
+            true
+        ),
+        (
+            "channel:read:subscriptions",
+            "Read Subscriptions",
+            "View your channel's subscription events",
+            "Channel",
+            true
+        ),
+        ("bits:read", "Read Bits", "View Bits information for your channel", "Channel", true),
+        (
+            "channel:manage:redemptions",
+            "Manage Redemptions",
+            "Manage channel point redemption statuses",
+            "Rewards",
+            true
+        ),
+        (
+            "channel:read:redemptions",
+            "Read Redemptions",
+            "View channel point custom reward redemptions",
+            "Rewards",
+            true
+        ),
+        (
+            "moderator:read:chatters",
+            "Read Chatters",
+            "View the list of chatters in your channel",
+            "Moderation",
+            true
+        ),
+        (
+            "moderator:manage:banned_users",
+            "Manage Bans",
+            "Ban and unban users in your channel",
+            "Moderation",
+            true
+        ),
+        (
+            "moderator:manage:chat_messages",
+            "Delete Messages",
+            "Delete chat messages in your channel",
+            "Moderation",
+            true
+        ),
+        (
+            "moderator:manage:chat_settings",
+            "Manage Chat Settings",
+            "Update chat settings such as slow mode and subscriber-only",
+            "Moderation",
+            true
+        ),
+        (
+            "moderator:read:followers",
+            "Read Followers",
+            "Read information about followers in your channel",
+            "Channel",
+            true
+        ),
+        (
+            "channel:moderate",
+            "Channel Moderate",
+            "Perform moderation actions in your channel",
+            "Moderation",
+            true
+        ),
+        (
+            "channel:manage:broadcast",
+            "Manage Broadcast",
+            "Update your channel's title, game, and other settings",
+            "Stream",
+            true
+        ),
+        (
+            "channel:read:polls",
+            "Read Polls",
+            "View information about polls in your channel",
+            "Polls",
+            true
+        ),
+        (
+            "channel:manage:polls",
+            "Manage Polls",
+            "Create and end polls in your channel",
+            "Polls",
+            true
+        ),
+        (
+            "channel:read:predictions",
+            "Read Predictions",
+            "View information about predictions in your channel",
+            "Predictions",
+            true
+        ),
+        (
+            "channel:manage:predictions",
+            "Manage Predictions",
+            "Create and end predictions in your channel",
+            "Predictions",
+            true
+        ),
+        ("channel:read:vips", "Read VIPs", "View your channel's VIP list", "Channel", true),
     ];
 
     /// <summary>Returns OAuth scopes status for the broadcaster token on this channel.</summary>
@@ -111,13 +207,13 @@ public class ChannelBotController : BaseController
     [ProducesResponseType<StatusResponseDto<ScopesResponseDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetScopes(string channelId, CancellationToken ct)
     {
-        var service = await _db.Services
-            .FirstOrDefaultAsync(
-                s => s.Name == "twitch" && s.BroadcasterId == channelId,
-                ct
-            );
+        var service = await _db.Services.FirstOrDefaultAsync(
+            s => s.Name == "twitch" && s.BroadcasterId == channelId,
+            ct
+        );
 
-        var grantedScopes = service?.Scopes?.ToHashSet(StringComparer.OrdinalIgnoreCase)
+        var grantedScopes =
+            service?.Scopes?.ToHashSet(StringComparer.OrdinalIgnoreCase)
             ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         var permissions = KnownScopes
@@ -133,10 +229,12 @@ public class ChannelBotController : BaseController
 
         int grantedCount = permissions.Count(p => p.Granted);
 
-        return Ok(new StatusResponseDto<ScopesResponseDto>
-        {
-            Data = new ScopesResponseDto(permissions, grantedCount, permissions.Count),
-        });
+        return Ok(
+            new StatusResponseDto<ScopesResponseDto>
+            {
+                Data = new ScopesResponseDto(permissions, grantedCount, permissions.Count),
+            }
+        );
     }
 
     /// <summary>
@@ -148,7 +246,11 @@ public class ChannelBotController : BaseController
     [EnableRateLimiting("auth")]
     public async Task<IActionResult> StartChannelBotOAuth(string channelId, CancellationToken ct)
     {
-        string authUrl = await _authService.GetTwitchChannelBotOAuthUrl(channelId, baseUrl: GetPublicBaseUrl(), cancellationToken: ct);
+        string authUrl = await _authService.GetTwitchChannelBotOAuthUrl(
+            channelId,
+            baseUrl: GetPublicBaseUrl(),
+            cancellationToken: ct
+        );
         return Redirect(authUrl);
     }
 
@@ -163,7 +265,8 @@ public class ChannelBotController : BaseController
     public async Task<IActionResult> HandleChannelBotCallback(
         [FromQuery] string code,
         [FromQuery] string? state,
-        CancellationToken ct)
+        CancellationToken ct
+    )
     {
         string? channelId = null;
         string? mobileRedirectUri = null;
@@ -189,7 +292,8 @@ public class ChannelBotController : BaseController
         Result<BotStatusDto> result = await _authService.HandleTwitchChannelBotCallbackAsync(
             channelId,
             new OAuthCallbackDto { Code = code, RedirectUri = callbackUri },
-            ct);
+            ct
+        );
 
         if (result.IsFailure)
         {

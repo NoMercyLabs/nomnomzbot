@@ -51,7 +51,11 @@ public class MusicController : BaseController
         CancellationToken ct
     )
     {
-        Result<MusicConfigDto> result = await _configService.UpdateConfigAsync(channelId, request, ct);
+        Result<MusicConfigDto> result = await _configService.UpdateConfigAsync(
+            channelId,
+            request,
+            ct
+        );
         if (result.IsFailure)
             return ResultResponse(result);
         return Ok(new StatusResponseDto<MusicConfigDto> { Data = result.Value });

@@ -139,7 +139,9 @@ public sealed class TtsService : ITtsService
         // ElevenLabs: UUIDs (8-4-4-4-12 format)
         if (Guid.TryParse(voiceId, out _))
         {
-            ElevenLabsTtsProvider? elevenlabs = _providers.OfType<ElevenLabsTtsProvider>().FirstOrDefault();
+            ElevenLabsTtsProvider? elevenlabs = _providers
+                .OfType<ElevenLabsTtsProvider>()
+                .FirstOrDefault();
             if (elevenlabs is not null)
                 return elevenlabs;
         }

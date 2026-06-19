@@ -17,8 +17,8 @@ using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Transport;
 using NomNomzBot.Domain.Chat.Events;
-using NomNomzBot.Domain.Platform.Entities;
 using NomNomzBot.Domain.Platform;
+using NomNomzBot.Domain.Platform.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
 
 namespace NomNomzBot.Infrastructure.Moderation.EventHandlers;
@@ -219,7 +219,8 @@ public sealed partial class AutoModerationHandler : IEventHandler<ChatMessageRec
         try
         {
             using IServiceScope scope = _scopeFactory.CreateScope();
-            ITwitchApiService twitchApi = scope.ServiceProvider.GetRequiredService<ITwitchApiService>();
+            ITwitchApiService twitchApi =
+                scope.ServiceProvider.GetRequiredService<ITwitchApiService>();
 
             switch (rule.Action.ToLowerInvariant())
             {
@@ -293,7 +294,8 @@ public sealed partial class AutoModerationHandler : IEventHandler<ChatMessageRec
         try
         {
             using IServiceScope scope = _scopeFactory.CreateScope();
-            IApplicationDbContext db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+            IApplicationDbContext db =
+                scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
 
             List<Record> records = await db
                 .Records.Where(r =>
@@ -352,7 +354,8 @@ public sealed partial class AutoModerationHandler : IEventHandler<ChatMessageRec
                     : (int?)null,
             Reason = root.TryGetProperty("Reason", out JsonElement r) ? r.GetString() : null,
             Settings =
-                root.TryGetProperty("Settings", out JsonElement s) && s.ValueKind == JsonValueKind.Object
+                root.TryGetProperty("Settings", out JsonElement s)
+                && s.ValueKind == JsonValueKind.Object
                     ? s.EnumerateObject().ToDictionary(p => p.Name, p => (object)p.Value.Clone())
                     : new(),
             ExemptRoles =

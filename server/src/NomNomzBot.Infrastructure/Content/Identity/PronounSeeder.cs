@@ -30,20 +30,60 @@ public sealed class PronounSeeder : ISeeder
 
     private static readonly IReadOnlyList<Pronoun> Pronouns =
     [
-        new() { Name = "they/them", Subject = "they", Object = "them", Singular = false },
-        new() { Name = "she/her", Subject = "she", Object = "her", Singular = true },
-        new() { Name = "he/him", Subject = "he", Object = "him", Singular = true },
-        new() { Name = "she/they", Subject = "she", Object = "them", Singular = false },
-        new() { Name = "he/they", Subject = "he", Object = "them", Singular = false },
-        new() { Name = "any/all", Subject = "any", Object = "all", Singular = false },
-        new() { Name = "other/ask", Subject = "other", Object = "ask", Singular = false },
+        new()
+        {
+            Name = "they/them",
+            Subject = "they",
+            Object = "them",
+            Singular = false,
+        },
+        new()
+        {
+            Name = "she/her",
+            Subject = "she",
+            Object = "her",
+            Singular = true,
+        },
+        new()
+        {
+            Name = "he/him",
+            Subject = "he",
+            Object = "him",
+            Singular = true,
+        },
+        new()
+        {
+            Name = "she/they",
+            Subject = "she",
+            Object = "them",
+            Singular = false,
+        },
+        new()
+        {
+            Name = "he/they",
+            Subject = "he",
+            Object = "them",
+            Singular = false,
+        },
+        new()
+        {
+            Name = "any/all",
+            Subject = "any",
+            Object = "all",
+            Singular = false,
+        },
+        new()
+        {
+            Name = "other/ask",
+            Subject = "other",
+            Object = "ask",
+            Singular = false,
+        },
     ];
 
     public async Task SeedAsync(CancellationToken ct = default)
     {
-        List<string> existingNames = await _db
-            .Pronouns.Select(p => p.Name)
-            .ToListAsync(ct);
+        List<string> existingNames = await _db.Pronouns.Select(p => p.Name).ToListAsync(ct);
         HashSet<string> present = existingNames.ToHashSet(StringComparer.Ordinal);
 
         foreach (Pronoun pronoun in Pronouns)

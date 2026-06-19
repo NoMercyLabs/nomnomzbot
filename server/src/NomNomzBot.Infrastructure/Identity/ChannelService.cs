@@ -114,9 +114,11 @@ public class ChannelService : IChannelService
         // or present in the caller-supplied list (e.g. from the Twitch moderation API).
         IQueryable<Channel> query = _db
             .Channels.Include(c => c.User)
-            .Where(c => c.Id == userId
+            .Where(c =>
+                c.Id == userId
                 || c.Moderators.Any(m => m.UserId == userId)
-                || (additionalChannelIds != null && additionalChannelIds.Contains(c.Id)));
+                || (additionalChannelIds != null && additionalChannelIds.Contains(c.Id))
+            );
 
         int total = await query.CountAsync(cancellationToken);
 

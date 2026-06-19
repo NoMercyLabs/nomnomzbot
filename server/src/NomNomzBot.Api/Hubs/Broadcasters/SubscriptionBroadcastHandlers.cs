@@ -10,8 +10,8 @@
 
 using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Domain.Platform;
-using NomNomzBot.Domain.Rewards.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
+using NomNomzBot.Domain.Rewards.Events;
 
 namespace NomNomzBot.Api.Hubs.Broadcasters;
 

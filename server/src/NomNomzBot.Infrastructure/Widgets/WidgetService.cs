@@ -70,8 +70,8 @@ public class WidgetService : IWidgetService
         CancellationToken cancellationToken = default
     )
     {
-        Widget? widget = await _db.Widgets
-            .Include(w => w.Channel)
+        Widget? widget = await _db
+            .Widgets.Include(w => w.Channel)
             .FirstOrDefaultAsync(
                 w => w.Id == widgetId && w.BroadcasterId == broadcasterId,
                 cancellationToken
@@ -120,8 +120,8 @@ public class WidgetService : IWidgetService
         CancellationToken cancellationToken = default
     )
     {
-        IQueryable<Widget> query = _db.Widgets
-            .Include(w => w.Channel)
+        IQueryable<Widget> query = _db
+            .Widgets.Include(w => w.Channel)
             .Where(w => w.BroadcasterId == broadcasterId);
 
         int total = await query.CountAsync(cancellationToken);
@@ -136,7 +136,9 @@ public class WidgetService : IWidgetService
             .Select(w => ToDetail(w, w.Channel.OverlayToken, _overlayBaseUrl))
             .ToList();
 
-        return Result.Success(new PagedList<WidgetDetail>(items, total, pagination.Page, pagination.PageSize));
+        return Result.Success(
+            new PagedList<WidgetDetail>(items, total, pagination.Page, pagination.PageSize)
+        );
     }
 
     public async Task<Result<WidgetDetail>> GetAsync(
@@ -145,8 +147,8 @@ public class WidgetService : IWidgetService
         CancellationToken cancellationToken = default
     )
     {
-        Widget? widget = await _db.Widgets
-            .Include(w => w.Channel)
+        Widget? widget = await _db
+            .Widgets.Include(w => w.Channel)
             .FirstOrDefaultAsync(
                 w => w.Id == widgetId && w.BroadcasterId == broadcasterId,
                 cancellationToken

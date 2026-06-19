@@ -21,11 +21,11 @@ using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Transport;
 using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Chat.ValueObjects;
-using NomNomzBot.Domain.Platform.Entities;
 using NomNomzBot.Domain.Platform;
+using NomNomzBot.Domain.Platform.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
-using NomNomzBot.Domain.Stream.Events;
 using NomNomzBot.Domain.Rewards.Events;
+using NomNomzBot.Domain.Stream.Events;
 using NomNomzBot.Infrastructure.Platform;
 
 namespace NomNomzBot.Infrastructure.Platform.Transport;
@@ -222,7 +222,9 @@ public sealed class TwitchIrcService : ITwitchChatService, IHostedService
                 sb.Append(Encoding.UTF8.GetString(buffer, 0, result.Count));
             } while (!result.EndOfMessage);
 
-            foreach (string line in sb.ToString().Split('\n', StringSplitOptions.RemoveEmptyEntries))
+            foreach (
+                string line in sb.ToString().Split('\n', StringSplitOptions.RemoveEmptyEntries)
+            )
                 await HandleIrcLineAsync(line.TrimEnd('\r'), ct);
         }
 
@@ -243,7 +245,8 @@ public sealed class TwitchIrcService : ITwitchChatService, IHostedService
             return;
         }
 
-        (Dictionary<string, string> tags, _, string command, List<string> parameters) = ParseIrcLine(line);
+        (Dictionary<string, string> tags, _, string command, List<string> parameters) =
+            ParseIrcLine(line);
 
         switch (command)
         {
@@ -325,14 +328,7 @@ public sealed class TwitchIrcService : ITwitchChatService, IHostedService
                 UserDisplayName = displayName ?? login ?? string.Empty,
                 UserLogin = login ?? string.Empty,
                 Message = messageText,
-                Fragments =
-                [
-                    new()
-                    {
-                        Type = "text",
-                        Text = messageText,
-                    },
-                ],
+                Fragments = [new() { Type = "text", Text = messageText }],
                 IsSubscriber = subRaw == "1" || badgeDict.ContainsKey("subscriber"),
                 IsVip = vipRaw == "1" || badgeDict.ContainsKey("vip"),
                 IsModerator = modRaw == "1" || badgeDict.ContainsKey("moderator"),
@@ -509,12 +505,19 @@ public sealed class TwitchIrcService : ITwitchChatService, IHostedService
     private async Task<string?> GetBotTokenAsync(CancellationToken ct)
     {
         using IServiceScope scope = _scopeFactory.CreateScope();
-        IApplicationDbContext db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
-        IEncryptionService encryption = scope.ServiceProvider.GetRequiredService<IEncryptionService>();
+        IApplicationDbContext db =
+            scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+        IEncryptionService encryption =
+            scope.ServiceProvider.GetRequiredService<IEncryptionService>();
 
         // Platform bot only — BroadcasterId must be null
         Service? service = await db
-            .Services.Where(s => s.Name == "twitch_bot" && s.BroadcasterId == null && s.Enabled && s.AccessToken != null)
+            .Services.Where(s =>
+                s.Name == "twitch_bot"
+                && s.BroadcasterId == null
+                && s.Enabled
+                && s.AccessToken != null
+            )
             .OrderByDescending(s => s.TokenExpiry)
             .FirstOrDefaultAsync(ct);
 
@@ -527,7 +530,9 @@ public sealed class TwitchIrcService : ITwitchChatService, IHostedService
         string? decrypted = encryption.TryDecrypt(service.AccessToken);
         if (decrypted is null)
         {
-            _logger.LogWarning("IRC: Platform bot token could not be decrypted — will retry in 60 s");
+            _logger.LogWarning(
+                "IRC: Platform bot token could not be decrypted — will retry in 60 s"
+            );
             return null;
         }
 

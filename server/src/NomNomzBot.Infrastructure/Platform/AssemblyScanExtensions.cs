@@ -139,7 +139,12 @@ public static class AssemblyScanExtensions
     {
         foreach (Type repository in ConcreteTypes(assembly))
         {
-            if (DerivesFromOpenGeneric(repository, typeof(TRepositoryBase).GetGenericTypeDefinition()))
+            if (
+                DerivesFromOpenGeneric(
+                    repository,
+                    typeof(TRepositoryBase).GetGenericTypeDefinition()
+                )
+            )
             {
                 services.Add(new ServiceDescriptor(repository, repository, lifetime));
             }
@@ -175,7 +180,11 @@ public static class AssemblyScanExtensions
     // ── Reflection primitives ────────────────────────────────────────────────
 
     private static IEnumerable<Type> ConcreteTypes(Assembly assembly) =>
-        assembly.GetTypes().Where(t => t is { IsAbstract: false, IsInterface: false, IsGenericTypeDefinition: false });
+        assembly
+            .GetTypes()
+            .Where(t =>
+                t is { IsAbstract: false, IsInterface: false, IsGenericTypeDefinition: false }
+            );
 
     private static IEnumerable<Type> ConcreteTypesAssignableTo(Assembly assembly, Type marker) =>
         ConcreteTypes(assembly).Where(marker.IsAssignableFrom);

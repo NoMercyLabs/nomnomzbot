@@ -122,7 +122,9 @@ public class TtsConfigService : ITtsConfigService
         }
 
         // Fallback: enumerate directly from providers
-        IReadOnlyList<TtsVoiceInfo> providerVoices = await _ttsService.GetAvailableVoicesAsync(cancellationToken);
+        IReadOnlyList<TtsVoiceInfo> providerVoices = await _ttsService.GetAvailableVoicesAsync(
+            cancellationToken
+        );
         IReadOnlyList<TtsVoiceDto> dtos = providerVoices
             .Select(v => new TtsVoiceDto(
                 v.Id,
@@ -174,7 +176,8 @@ public class TtsConfigService : ITtsConfigService
         if (entry?.Value is null)
             return ToDto(new());
 
-        TtsConfigData data = JsonSerializer.Deserialize<TtsConfigData>(entry.Value) ?? new TtsConfigData();
+        TtsConfigData data =
+            JsonSerializer.Deserialize<TtsConfigData>(entry.Value) ?? new TtsConfigData();
         return ToDto(data);
     }
 

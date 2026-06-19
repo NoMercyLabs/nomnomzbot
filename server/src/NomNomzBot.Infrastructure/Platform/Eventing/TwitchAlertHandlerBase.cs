@@ -13,9 +13,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
-using NomNomzBot.Domain.Platform.Entities;
-using NomNomzBot.Domain.Platform;
 using NomNomzBot.Application.Abstractions.Pipeline;
+using NomNomzBot.Domain.Platform;
+using NomNomzBot.Domain.Platform.Entities;
 
 namespace NomNomzBot.Infrastructure.Platform.Eventing;
 
@@ -56,7 +56,8 @@ public abstract class TwitchAlertHandlerBase<TEvent>
             return;
 
         using IServiceScope scope = ScopeFactory.CreateScope();
-        IApplicationDbContext db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+        IApplicationDbContext db =
+            scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
 
         await LogChannelEventAsync(db, @event, broadcasterId, ct);
 

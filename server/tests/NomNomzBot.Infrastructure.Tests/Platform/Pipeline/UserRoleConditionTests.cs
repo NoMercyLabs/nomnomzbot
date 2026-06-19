@@ -43,7 +43,9 @@ public class UserRoleConditionTests
     {
         UserRoleCondition condition = new();
         PipelineExecutionContext ctx = BuildCtx(userRole);
-        ConditionDefinition def = MakeCond($$$"""{"type":"user_role","min_role":"{{{minRole}}}"}""");
+        ConditionDefinition def = MakeCond(
+            $$$"""{"type":"user_role","min_role":"{{{minRole}}}"}"""
+        );
 
         bool result = condition.Evaluate(ctx, def);
         result.Should().Be(expected);
@@ -63,7 +65,9 @@ public class UserRoleConditionTests
     {
         UserRoleCondition condition = new();
         PipelineExecutionContext ctx = BuildCtx(userRole);
-        ConditionDefinition def = MakeCond($$$"""{"type":"user_role","min_role":"{{{minRole}}}"}""");
+        ConditionDefinition def = MakeCond(
+            $$$"""{"type":"user_role","min_role":"{{{minRole}}}"}"""
+        );
 
         bool result = condition.Evaluate(ctx, def);
         result.Should().Be(expected);
@@ -79,7 +83,9 @@ public class UserRoleConditionTests
     {
         UserRoleCondition condition = new();
         PipelineExecutionContext ctx = BuildCtx(userRole);
-        ConditionDefinition def = MakeCond($$$"""{"type":"user_role","min_role":"{{{minRole}}}"}""");
+        ConditionDefinition def = MakeCond(
+            $$$"""{"type":"user_role","min_role":"{{{minRole}}}"}"""
+        );
 
         bool result = condition.Evaluate(ctx, def);
         result.Should().Be(expected);

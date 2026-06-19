@@ -39,13 +39,12 @@ public class TimersController : BaseController
         CancellationToken ct
     )
     {
-        PaginationParams pagination = new(
-            request.Page,
-            request.Take,
-            request.Sort,
-            request.Order
+        PaginationParams pagination = new(request.Page, request.Take, request.Sort, request.Order);
+        Result<PagedList<TimerListItem>> result = await _timerService.ListAsync(
+            channelId,
+            pagination,
+            ct
         );
-        Result<PagedList<TimerListItem>> result = await _timerService.ListAsync(channelId, pagination, ct);
         if (result.IsFailure)
             return ResultResponse(result);
         return GetPaginatedResponse(result.Value, request);

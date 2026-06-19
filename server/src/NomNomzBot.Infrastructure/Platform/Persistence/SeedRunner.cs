@@ -50,7 +50,10 @@ public sealed class SeedRunner
             return;
         }
 
-        _logger.LogInformation("Seeding content: {Count} seeder(s) in one transaction...", ordered.Count);
+        _logger.LogInformation(
+            "Seeding content: {Count} seeder(s) in one transaction...",
+            ordered.Count
+        );
 
         await _unitOfWork.BeginTransactionAsync(ct);
         try

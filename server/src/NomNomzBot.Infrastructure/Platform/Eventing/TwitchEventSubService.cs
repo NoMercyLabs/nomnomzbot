@@ -20,17 +20,17 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NomNomzBot.Application.Abstractions.Auth;
-using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Eventing;
+using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Chat.ValueObjects;
-using NomNomzBot.Domain.Platform.Entities;
-using NomNomzBot.Domain.Platform;
 using NomNomzBot.Domain.Community.Events;
+using NomNomzBot.Domain.Moderation.Events;
+using NomNomzBot.Domain.Platform;
+using NomNomzBot.Domain.Platform.Entities;
+using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Rewards.Events;
 using NomNomzBot.Domain.Stream.Events;
-using NomNomzBot.Domain.Platform.Interfaces;
-using NomNomzBot.Domain.Moderation.Events;
 using NomNomzBot.Infrastructure.Platform;
 
 namespace NomNomzBot.Infrastructure.Platform.Eventing;
@@ -154,9 +154,7 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
         if (_sessionId is null)
         {
             // Queue for when the bot session is ready
-            _pendingSubscriptions
-                .GetOrAdd(broadcasterId, _ => new())
-                .Add(eventType);
+            _pendingSubscriptions.GetOrAdd(broadcasterId, _ => new()).Add(eventType);
 
             _logger.LogDebug(
                 "EventSub: Queued subscription {EventType} for {BroadcasterId} (no session yet)",
@@ -249,7 +247,13 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
                     broadcasterId
                 );
 
-                connectUrl = await ReceiveBroadcasterLoopAsync(ws, broadcasterId, session, token, ct);
+                connectUrl = await ReceiveBroadcasterLoopAsync(
+                    ws,
+                    broadcasterId,
+                    session,
+                    token,
+                    ct
+                );
                 delay = TimeSpan.FromSeconds(1);
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
@@ -266,7 +270,8 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
                 );
             }
 
-            if (ct.IsCancellationRequested) break;
+            if (ct.IsCancellationRequested)
+                break;
             await Task.Delay(delay, ct);
             delay = TimeSpan.FromSeconds(Math.Min((int)delay.TotalSeconds * 2, 64));
             connectUrl = DefaultWsUrl;
@@ -286,18 +291,24 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
         while (!ct.IsCancellationRequested && ws.State == WebSocketState.Open)
         {
             WebSocketReceiveResult result = await ws.ReceiveAsync(buffer, ct);
-            if (result.MessageType == WebSocketMessageType.Close) break;
+            if (result.MessageType == WebSocketMessageType.Close)
+                break;
 
             string json = Encoding.UTF8.GetString(buffer, 0, result.Count);
-            EventSubEnvelope? envelope = JsonSerializer.Deserialize<EventSubEnvelope>(json, JsonOptions);
-            if (envelope?.Metadata is null) continue;
+            EventSubEnvelope? envelope = JsonSerializer.Deserialize<EventSubEnvelope>(
+                json,
+                JsonOptions
+            );
+            if (envelope?.Metadata is null)
+                continue;
 
             switch (envelope.Metadata.MessageType)
             {
                 case "session_welcome":
                 {
                     string? sessionId = envelope.Payload?.Session?.Id;
-                    if (sessionId is null) break;
+                    if (sessionId is null)
+                        break;
 
                     session.SessionId = sessionId;
                     _logger.LogInformation(
@@ -310,7 +321,11 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
                     foreach (string eventType in session.PendingSubscriptions.ToArray())
                     {
                         await CreateSubscriptionWithTokenAsync(
-                            broadcasterId, eventType, sessionId, token, ct
+                            broadcasterId,
+                            eventType,
+                            sessionId,
+                            token,
+                            ct
                         );
                     }
                     break;
@@ -390,9 +405,9 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
             return;
         }
 
-        HelixDataResponse<EventSubSubscription>? result = await resp.Content.ReadFromJsonAsync<HelixDataResponse<EventSubSubscription>>(
-            cancellationToken: ct
-        );
+        HelixDataResponse<EventSubSubscription>? result = await resp.Content.ReadFromJsonAsync<
+            HelixDataResponse<EventSubSubscription>
+        >(cancellationToken: ct);
         EventSubSubscription? sub = result?.Data?.FirstOrDefault();
         if (sub is not null)
         {
@@ -765,7 +780,8 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
 
             case "channel.channel_points_custom_reward_redemption.add":
                 JsonElement? reward =
-                    envelope.Payload?.Event?.TryGetProperty("reward", out JsonElement rewardProp) == true
+                    envelope.Payload?.Event?.TryGetProperty("reward", out JsonElement rewardProp)
+                    == true
                         ? rewardProp
                         : (JsonElement?)null;
 
@@ -791,7 +807,10 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
             case "stream.online":
                 string streamTitle = eventData?.GetProp("title") ?? string.Empty;
                 string gameName = eventData?.GetProp("category_name") ?? string.Empty;
-                DateTimeOffset.TryParse(eventData?.GetProp("started_at"), out DateTimeOffset startedAt);
+                DateTimeOffset.TryParse(
+                    eventData?.GetProp("started_at"),
+                    out DateTimeOffset startedAt
+                );
 
                 await _eventBus.PublishAsync(
                     new ChannelOnlineEvent
@@ -828,7 +847,8 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
                         TwitchRewardId = eventData?.GetProp("id") ?? string.Empty,
                         Title = eventData?.GetProp("title") ?? string.Empty,
                         Cost =
-                            envelope.Payload?.Event?.TryGetProperty("cost", out JsonElement cp) == true
+                            envelope.Payload?.Event?.TryGetProperty("cost", out JsonElement cp)
+                            == true
                                 ? cp.GetInt32()
                                 : 0,
                         IsEnabled = eventData?.GetProp("is_enabled") != "false",
@@ -845,7 +865,8 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
                         TwitchRewardId = eventData?.GetProp("id") ?? string.Empty,
                         Title = eventData?.GetProp("title") ?? string.Empty,
                         Cost =
-                            envelope.Payload?.Event?.TryGetProperty("cost", out JsonElement cup) == true
+                            envelope.Payload?.Event?.TryGetProperty("cost", out JsonElement cup)
+                            == true
                                 ? cup.GetInt32()
                                 : 0,
                         IsEnabled = eventData?.GetProp("is_enabled") != "false",
@@ -895,7 +916,10 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
                 int.TryParse(eventData?.GetProp("level"), out int htLevel);
                 int.TryParse(eventData?.GetProp("total"), out int htTotal);
                 int.TryParse(eventData?.GetProp("goal"), out int htGoal);
-                DateTimeOffset.TryParse(eventData?.GetProp("expires_at"), out DateTimeOffset htExpires);
+                DateTimeOffset.TryParse(
+                    eventData?.GetProp("expires_at"),
+                    out DateTimeOffset htExpires
+                );
                 await _eventBus.PublishAsync(
                     new HypeTrainBeganEvent
                     {
@@ -1374,10 +1398,7 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
             transport = new { method = "websocket", session_id = sessionId },
         };
 
-        HttpRequestMessage request = new(
-            HttpMethod.Post,
-            $"{HelixBase}/eventsub/subscriptions"
-        );
+        HttpRequestMessage request = new(HttpMethod.Post, $"{HelixBase}/eventsub/subscriptions");
         request.Headers.Add("Authorization", $"Bearer {token}");
         request.Content = JsonContent.Create(body);
 
@@ -1395,9 +1416,9 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
             return;
         }
 
-        HelixDataResponse<EventSubSubscription>? result = await resp.Content.ReadFromJsonAsync<HelixDataResponse<EventSubSubscription>>(
-            cancellationToken: ct
-        );
+        HelixDataResponse<EventSubSubscription>? result = await resp.Content.ReadFromJsonAsync<
+            HelixDataResponse<EventSubSubscription>
+        >(cancellationToken: ct);
         EventSubSubscription? sub = result?.Data?.FirstOrDefault();
 
         if (sub is not null)
@@ -1458,11 +1479,18 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
     private async Task<string?> GetBotTokenAsync(CancellationToken ct)
     {
         using IServiceScope scope = _scopeFactory.CreateScope();
-        IApplicationDbContext db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
-        IEncryptionService encryption = scope.ServiceProvider.GetRequiredService<IEncryptionService>();
+        IApplicationDbContext db =
+            scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+        IEncryptionService encryption =
+            scope.ServiceProvider.GetRequiredService<IEncryptionService>();
 
         Service? service = await db
-            .Services.Where(s => s.Name == "twitch_bot" && s.BroadcasterId == null && s.Enabled && s.AccessToken != null)
+            .Services.Where(s =>
+                s.Name == "twitch_bot"
+                && s.BroadcasterId == null
+                && s.Enabled
+                && s.AccessToken != null
+            )
             .OrderByDescending(s => s.TokenExpiry)
             .FirstOrDefaultAsync(ct);
 
@@ -1474,11 +1502,14 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
     private async Task<string?> GetBroadcasterTokenAsync(string broadcasterId, CancellationToken ct)
     {
         using IServiceScope scope = _scopeFactory.CreateScope();
-        IApplicationDbContext db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
-        IEncryptionService encryption = scope.ServiceProvider.GetRequiredService<IEncryptionService>();
+        IApplicationDbContext db =
+            scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+        IEncryptionService encryption =
+            scope.ServiceProvider.GetRequiredService<IEncryptionService>();
 
         Service? service = await db.Services.FirstOrDefaultAsync(
-            s => s.BroadcasterId == broadcasterId
+            s =>
+                s.BroadcasterId == broadcasterId
                 && s.Name == "twitch"
                 && s.Enabled
                 && s.AccessToken != null,

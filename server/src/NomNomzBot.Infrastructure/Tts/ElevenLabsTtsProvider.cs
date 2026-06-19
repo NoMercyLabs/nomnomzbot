@@ -79,9 +79,9 @@ public sealed class ElevenLabsTtsProvider : ITtsProvider
 
             byte[] audioData = await response.Content.ReadAsByteArrayAsync(cancellationToken);
             int durationMs = (int)(audioData.Length / 16.0 * 1000.0 / 1024.0);
-            string hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(text + voiceId)))[
-                ..16
-            ];
+            string hash = Convert.ToHexString(
+                SHA256.HashData(Encoding.UTF8.GetBytes(text + voiceId))
+            )[..16];
 
             return new()
             {
@@ -115,9 +115,10 @@ public sealed class ElevenLabsTtsProvider : ITtsProvider
             if (!response.IsSuccessStatusCode)
                 return [];
 
-            ElevenLabsVoicesResponse? data = await response.Content.ReadFromJsonAsync<ElevenLabsVoicesResponse>(
-                cancellationToken: cancellationToken
-            );
+            ElevenLabsVoicesResponse? data =
+                await response.Content.ReadFromJsonAsync<ElevenLabsVoicesResponse>(
+                    cancellationToken: cancellationToken
+                );
 
             return data?.Voices?.Select(v => new TtsVoiceInfo
                     {

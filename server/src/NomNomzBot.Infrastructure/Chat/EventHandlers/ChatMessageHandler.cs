@@ -9,12 +9,12 @@
 // -----------------------------------------------------------------------------
 
 using Microsoft.Extensions.Logging;
+using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.RateLimiting;
+using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Platform.Interfaces;
-using NomNomzBot.Application.Abstractions.Pipeline;
-using NomNomzBot.Application.Abstractions.Templating;
 
 namespace NomNomzBot.Infrastructure.Chat.EventHandlers;
 

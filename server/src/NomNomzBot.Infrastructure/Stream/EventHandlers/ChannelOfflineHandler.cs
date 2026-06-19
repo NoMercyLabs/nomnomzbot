@@ -12,12 +12,12 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
-using NomNomzBot.Domain.Platform.Entities;
+using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Platform;
-using NomNomzBot.Domain.Stream.Events;
+using NomNomzBot.Domain.Platform.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
-using NomNomzBot.Application.Abstractions.Pipeline;
+using NomNomzBot.Domain.Stream.Events;
 
 namespace NomNomzBot.Infrastructure.Stream.EventHandlers;
 
@@ -56,7 +56,8 @@ public sealed class ChannelOfflineHandler : IEventHandler<ChannelOfflineEvent>
             return;
 
         using IServiceScope scope = _scopeFactory.CreateScope();
-        IApplicationDbContext db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+        IApplicationDbContext db =
+            scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
 
         Channel? channel = await db.Channels.FindAsync([broadcasterId], cancellationToken);
         if (channel is null)
@@ -79,10 +80,8 @@ public sealed class ChannelOfflineHandler : IEventHandler<ChannelOfflineEvent>
         // Finalize the Stream record with EndedAt
         if (channelCtx?.CurrentStreamId is not null)
         {
-            global::NomNomzBot.Domain.Stream.Entities.Stream? streamRecord = await db.Streams.FindAsync(
-                [channelCtx.CurrentStreamId],
-                cancellationToken
-            );
+            global::NomNomzBot.Domain.Stream.Entities.Stream? streamRecord =
+                await db.Streams.FindAsync([channelCtx.CurrentStreamId], cancellationToken);
             if (streamRecord is not null)
                 streamRecord.EndedAt = endedAt;
         }

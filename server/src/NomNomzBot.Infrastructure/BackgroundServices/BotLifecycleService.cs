@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Eventing;
+using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Transport;
 using NomNomzBot.Domain.Identity.Entities;
 
@@ -83,9 +83,12 @@ public sealed class BotLifecycleService : BackgroundService
     private async Task SyncChannelsAsync(CancellationToken ct)
     {
         using IServiceScope scope = _serviceProvider.CreateScope();
-        IApplicationDbContext db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
-        ITwitchChatService chatService = scope.ServiceProvider.GetRequiredService<ITwitchChatService>();
-        ITwitchEventSubService eventSub = scope.ServiceProvider.GetRequiredService<ITwitchEventSubService>();
+        IApplicationDbContext db =
+            scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+        ITwitchChatService chatService =
+            scope.ServiceProvider.GetRequiredService<ITwitchChatService>();
+        ITwitchEventSubService eventSub =
+            scope.ServiceProvider.GetRequiredService<ITwitchEventSubService>();
 
         // Get all currently enabled channels
         var activeChannels = await db

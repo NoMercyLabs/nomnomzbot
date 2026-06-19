@@ -31,23 +31,111 @@ public sealed class TtsVoiceSeeder : ISeeder
 
     private static readonly IReadOnlyList<TtsVoice> Voices =
     [
-        new() { Id = "en-US-AriaNeural", Name = "AriaNeural", DisplayName = "Aria (US)", Locale = "en-US", Gender = "Female", Provider = "edge", IsDefault = true },
-        new() { Id = "en-US-GuyNeural", Name = "GuyNeural", DisplayName = "Guy (US)", Locale = "en-US", Gender = "Male", Provider = "edge", IsDefault = false },
-        new() { Id = "en-GB-SoniaNeural", Name = "SoniaNeural", DisplayName = "Sonia (GB)", Locale = "en-GB", Gender = "Female", Provider = "edge", IsDefault = false },
-        new() { Id = "en-AU-NatashaNeural", Name = "NatashaNeural", DisplayName = "Natasha (AU)", Locale = "en-AU", Gender = "Female", Provider = "edge", IsDefault = false },
-        new() { Id = "de-DE-KatjaNeural", Name = "KatjaNeural", DisplayName = "Katja (DE)", Locale = "de-DE", Gender = "Female", Provider = "edge", IsDefault = false },
-        new() { Id = "fr-FR-DeniseNeural", Name = "DeniseNeural", DisplayName = "Denise (FR)", Locale = "fr-FR", Gender = "Female", Provider = "edge", IsDefault = false },
-        new() { Id = "es-ES-ElviraNeural", Name = "ElviraNeural", DisplayName = "Elvira (ES)", Locale = "es-ES", Gender = "Female", Provider = "edge", IsDefault = false },
-        new() { Id = "ja-JP-NanamiNeural", Name = "NanamiNeural", DisplayName = "Nanami (JP)", Locale = "ja-JP", Gender = "Female", Provider = "edge", IsDefault = false },
-        new() { Id = "ko-KR-SunHiNeural", Name = "SunHiNeural", DisplayName = "Sun-Hi (KR)", Locale = "ko-KR", Gender = "Female", Provider = "edge", IsDefault = false },
-        new() { Id = "pt-BR-FranciscaNeural", Name = "FranciscaNeural", DisplayName = "Francisca (BR)", Locale = "pt-BR", Gender = "Female", Provider = "edge", IsDefault = false },
+        new()
+        {
+            Id = "en-US-AriaNeural",
+            Name = "AriaNeural",
+            DisplayName = "Aria (US)",
+            Locale = "en-US",
+            Gender = "Female",
+            Provider = "edge",
+            IsDefault = true,
+        },
+        new()
+        {
+            Id = "en-US-GuyNeural",
+            Name = "GuyNeural",
+            DisplayName = "Guy (US)",
+            Locale = "en-US",
+            Gender = "Male",
+            Provider = "edge",
+            IsDefault = false,
+        },
+        new()
+        {
+            Id = "en-GB-SoniaNeural",
+            Name = "SoniaNeural",
+            DisplayName = "Sonia (GB)",
+            Locale = "en-GB",
+            Gender = "Female",
+            Provider = "edge",
+            IsDefault = false,
+        },
+        new()
+        {
+            Id = "en-AU-NatashaNeural",
+            Name = "NatashaNeural",
+            DisplayName = "Natasha (AU)",
+            Locale = "en-AU",
+            Gender = "Female",
+            Provider = "edge",
+            IsDefault = false,
+        },
+        new()
+        {
+            Id = "de-DE-KatjaNeural",
+            Name = "KatjaNeural",
+            DisplayName = "Katja (DE)",
+            Locale = "de-DE",
+            Gender = "Female",
+            Provider = "edge",
+            IsDefault = false,
+        },
+        new()
+        {
+            Id = "fr-FR-DeniseNeural",
+            Name = "DeniseNeural",
+            DisplayName = "Denise (FR)",
+            Locale = "fr-FR",
+            Gender = "Female",
+            Provider = "edge",
+            IsDefault = false,
+        },
+        new()
+        {
+            Id = "es-ES-ElviraNeural",
+            Name = "ElviraNeural",
+            DisplayName = "Elvira (ES)",
+            Locale = "es-ES",
+            Gender = "Female",
+            Provider = "edge",
+            IsDefault = false,
+        },
+        new()
+        {
+            Id = "ja-JP-NanamiNeural",
+            Name = "NanamiNeural",
+            DisplayName = "Nanami (JP)",
+            Locale = "ja-JP",
+            Gender = "Female",
+            Provider = "edge",
+            IsDefault = false,
+        },
+        new()
+        {
+            Id = "ko-KR-SunHiNeural",
+            Name = "SunHiNeural",
+            DisplayName = "Sun-Hi (KR)",
+            Locale = "ko-KR",
+            Gender = "Female",
+            Provider = "edge",
+            IsDefault = false,
+        },
+        new()
+        {
+            Id = "pt-BR-FranciscaNeural",
+            Name = "FranciscaNeural",
+            DisplayName = "Francisca (BR)",
+            Locale = "pt-BR",
+            Gender = "Female",
+            Provider = "edge",
+            IsDefault = false,
+        },
     ];
 
     public async Task SeedAsync(CancellationToken ct = default)
     {
-        List<string> existingIds = await _db
-            .TtsVoices.Select(v => v.Id)
-            .ToListAsync(ct);
+        List<string> existingIds = await _db.TtsVoices.Select(v => v.Id).ToListAsync(ct);
         HashSet<string> present = existingIds.ToHashSet(StringComparer.Ordinal);
 
         foreach (TtsVoice voice in Voices)

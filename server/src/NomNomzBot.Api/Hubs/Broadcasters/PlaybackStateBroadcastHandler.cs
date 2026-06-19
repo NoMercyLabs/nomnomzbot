@@ -9,8 +9,8 @@
 // -----------------------------------------------------------------------------
 
 using NomNomzBot.Api.Hubs.Dtos;
-using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Music.Events;
+using NomNomzBot.Domain.Platform.Interfaces;
 
 namespace NomNomzBot.Api.Hubs.Broadcasters;
 

@@ -36,7 +36,8 @@ public class IntegrationOAuthController : BaseController
         IApplicationDbContext db,
         IConfiguration config,
         IHttpClientFactory httpClientFactory,
-        ILogger<IntegrationOAuthController> logger)
+        ILogger<IntegrationOAuthController> logger
+    )
     {
         _db = db;
         _config = config;
@@ -59,7 +60,9 @@ public class IntegrationOAuthController : BaseController
     {
         string? clientId = await GetConfigValueAsync(null, "spotify.client_id", ct);
         if (string.IsNullOrEmpty(clientId))
-            return BadRequestResponse("Spotify client ID is not configured. Add a Configuration row with Key='spotify.client_id'.");
+            return BadRequestResponse(
+                "Spotify client ID is not configured. Add a Configuration row with Key='spotify.client_id'."
+            );
 
         string baseUrl = _config["App:BaseUrl"] ?? $"{Request.Scheme}://{Request.Host}";
         string redirectUri = $"{baseUrl}/api/v1/integrations/spotify/callback";
@@ -67,7 +70,8 @@ public class IntegrationOAuthController : BaseController
         var statePayload = JsonSerializer.Serialize(new { channel_id = channelId });
         string state = Convert.ToBase64String(Encoding.UTF8.GetBytes(statePayload));
 
-        string authUrl = "https://accounts.spotify.com/authorize"
+        string authUrl =
+            "https://accounts.spotify.com/authorize"
             + $"?client_id={Uri.EscapeDataString(clientId)}"
             + $"&response_type=code"
             + $"&redirect_uri={Uri.EscapeDataString(redirectUri)}"
@@ -86,7 +90,8 @@ public class IntegrationOAuthController : BaseController
     public async Task<IActionResult> HandleSpotifyCallback(
         [FromQuery] string code,
         [FromQuery] string? state,
-        CancellationToken ct)
+        CancellationToken ct
+    )
     {
         string? channelId = ExtractChannelIdFromState(state);
         if (string.IsNullOrEmpty(channelId))
@@ -104,21 +109,32 @@ public class IntegrationOAuthController : BaseController
         // Exchange code for token
         using var client = _httpClientFactory.CreateClient();
 
-        var tokenRequest = new FormUrlEncodedContent(new Dictionary<string, string>
-        {
-            ["grant_type"] = "authorization_code",
-            ["code"] = code,
-            ["redirect_uri"] = redirectUri,
-        });
+        var tokenRequest = new FormUrlEncodedContent(
+            new Dictionary<string, string>
+            {
+                ["grant_type"] = "authorization_code",
+                ["code"] = code,
+                ["redirect_uri"] = redirectUri,
+            }
+        );
 
         // Spotify uses Basic auth with client_id:client_secret
-        string credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{clientId}:{clientSecret}"));
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", credentials);
+        string credentials = Convert.ToBase64String(
+            Encoding.UTF8.GetBytes($"{clientId}:{clientSecret}")
+        );
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "Basic",
+            credentials
+        );
 
         HttpResponseMessage response;
         try
         {
-            response = await client.PostAsync("https://accounts.spotify.com/api/token", tokenRequest, ct);
+            response = await client.PostAsync(
+                "https://accounts.spotify.com/api/token",
+                tokenRequest,
+                ct
+            );
         }
         catch (Exception ex)
         {
@@ -129,7 +145,11 @@ public class IntegrationOAuthController : BaseController
         if (!response.IsSuccessStatusCode)
         {
             string errorBody = await response.Content.ReadAsStringAsync(ct);
-            _logger.LogError("Spotify token exchange failed: {Status} {Body}", response.StatusCode, errorBody);
+            _logger.LogError(
+                "Spotify token exchange failed: {Status} {Body}",
+                response.StatusCode,
+                errorBody
+            );
             return InternalServerErrorResponse("Spotify token exchange failed.");
         }
 
@@ -137,12 +157,18 @@ public class IntegrationOAuthController : BaseController
         JsonElement root = tokenDoc.RootElement;
 
         string? accessToken = root.GetProperty("access_token").GetString();
-        string? refreshToken = root.TryGetProperty("refresh_token", out var rtProp) ? rtProp.GetString() : null;
-        int expiresIn = root.TryGetProperty("expires_in", out var expProp) ? expProp.GetInt32() : 3600;
+        string? refreshToken = root.TryGetProperty("refresh_token", out var rtProp)
+            ? rtProp.GetString()
+            : null;
+        int expiresIn = root.TryGetProperty("expires_in", out var expProp)
+            ? expProp.GetInt32()
+            : 3600;
 
         // Upsert Service record
         var service = await _db.Services.FirstOrDefaultAsync(
-            s => s.Name == "spotify" && s.BroadcasterId == channelId, ct);
+            s => s.Name == "spotify" && s.BroadcasterId == channelId,
+            ct
+        );
 
         if (service is null)
         {
@@ -165,7 +191,10 @@ public class IntegrationOAuthController : BaseController
 
         _logger.LogInformation("Spotify OAuth completed for channel {ChannelId}", channelId);
 
-        string frontendUrl = _config["App:FrontendUrl"] ?? _config["App:BaseUrl"] ?? $"{Request.Scheme}://{Request.Host}";
+        string frontendUrl =
+            _config["App:FrontendUrl"]
+            ?? _config["App:BaseUrl"]
+            ?? $"{Request.Scheme}://{Request.Host}";
         return Redirect($"{frontendUrl}/(dashboard)/integrations?spotify_connected=true");
     }
 
@@ -183,7 +212,9 @@ public class IntegrationOAuthController : BaseController
     {
         string? clientId = await GetConfigValueAsync(null, "discord.client_id", ct);
         if (string.IsNullOrEmpty(clientId))
-            return BadRequestResponse("Discord client ID is not configured. Add a Configuration row with Key='discord.client_id'.");
+            return BadRequestResponse(
+                "Discord client ID is not configured. Add a Configuration row with Key='discord.client_id'."
+            );
 
         string baseUrl = _config["App:BaseUrl"] ?? $"{Request.Scheme}://{Request.Host}";
         string redirectUri = $"{baseUrl}/api/v1/integrations/discord/callback";
@@ -191,7 +222,8 @@ public class IntegrationOAuthController : BaseController
         var statePayload = JsonSerializer.Serialize(new { channel_id = channelId });
         string state = Convert.ToBase64String(Encoding.UTF8.GetBytes(statePayload));
 
-        string authUrl = "https://discord.com/api/oauth2/authorize"
+        string authUrl =
+            "https://discord.com/api/oauth2/authorize"
             + $"?client_id={Uri.EscapeDataString(clientId)}"
             + $"&response_type=code"
             + $"&redirect_uri={Uri.EscapeDataString(redirectUri)}"
@@ -210,7 +242,8 @@ public class IntegrationOAuthController : BaseController
     public async Task<IActionResult> HandleDiscordCallback(
         [FromQuery] string code,
         [FromQuery] string? state,
-        CancellationToken ct)
+        CancellationToken ct
+    )
     {
         string? channelId = ExtractChannelIdFromState(state);
         if (string.IsNullOrEmpty(channelId))
@@ -227,19 +260,25 @@ public class IntegrationOAuthController : BaseController
 
         using var client = _httpClientFactory.CreateClient();
 
-        var tokenRequest = new FormUrlEncodedContent(new Dictionary<string, string>
-        {
-            ["grant_type"] = "authorization_code",
-            ["code"] = code,
-            ["redirect_uri"] = redirectUri,
-            ["client_id"] = clientId,
-            ["client_secret"] = clientSecret,
-        });
+        var tokenRequest = new FormUrlEncodedContent(
+            new Dictionary<string, string>
+            {
+                ["grant_type"] = "authorization_code",
+                ["code"] = code,
+                ["redirect_uri"] = redirectUri,
+                ["client_id"] = clientId,
+                ["client_secret"] = clientSecret,
+            }
+        );
 
         HttpResponseMessage response;
         try
         {
-            response = await client.PostAsync("https://discord.com/api/oauth2/token", tokenRequest, ct);
+            response = await client.PostAsync(
+                "https://discord.com/api/oauth2/token",
+                tokenRequest,
+                ct
+            );
         }
         catch (Exception ex)
         {
@@ -250,7 +289,11 @@ public class IntegrationOAuthController : BaseController
         if (!response.IsSuccessStatusCode)
         {
             string errorBody = await response.Content.ReadAsStringAsync(ct);
-            _logger.LogError("Discord token exchange failed: {Status} {Body}", response.StatusCode, errorBody);
+            _logger.LogError(
+                "Discord token exchange failed: {Status} {Body}",
+                response.StatusCode,
+                errorBody
+            );
             return InternalServerErrorResponse("Discord token exchange failed.");
         }
 
@@ -258,16 +301,28 @@ public class IntegrationOAuthController : BaseController
         JsonElement root = tokenDoc.RootElement;
 
         string? accessToken = root.GetProperty("access_token").GetString();
-        string? refreshToken = root.TryGetProperty("refresh_token", out var rtProp) ? rtProp.GetString() : null;
-        int expiresIn = root.TryGetProperty("expires_in", out var expProp) ? expProp.GetInt32() : 604800;
-        string? guildId = root.TryGetProperty("guild", out var guildProp)
-            && guildProp.TryGetProperty("id", out var guildIdProp) ? guildIdProp.GetString() : null;
-        string? guildName = root.TryGetProperty("guild", out var guildProp2)
-            && guildProp2.TryGetProperty("name", out var guildNameProp) ? guildNameProp.GetString() : null;
+        string? refreshToken = root.TryGetProperty("refresh_token", out var rtProp)
+            ? rtProp.GetString()
+            : null;
+        int expiresIn = root.TryGetProperty("expires_in", out var expProp)
+            ? expProp.GetInt32()
+            : 604800;
+        string? guildId =
+            root.TryGetProperty("guild", out var guildProp)
+            && guildProp.TryGetProperty("id", out var guildIdProp)
+                ? guildIdProp.GetString()
+                : null;
+        string? guildName =
+            root.TryGetProperty("guild", out var guildProp2)
+            && guildProp2.TryGetProperty("name", out var guildNameProp)
+                ? guildNameProp.GetString()
+                : null;
 
         // Store in Service table
         var service = await _db.Services.FirstOrDefaultAsync(
-            s => s.Name == "discord" && s.BroadcasterId == channelId, ct);
+            s => s.Name == "discord" && s.BroadcasterId == channelId,
+            ct
+        );
 
         if (service is null)
         {
@@ -290,7 +345,9 @@ public class IntegrationOAuthController : BaseController
         if (!string.IsNullOrEmpty(guildId))
         {
             var discordAuth = await _db.DiscordServerAuthorizations.FirstOrDefaultAsync(
-                d => d.BroadcasterId == channelId && d.GuildId == guildId, ct);
+                d => d.BroadcasterId == channelId && d.GuildId == guildId,
+                ct
+            );
 
             if (discordAuth is null)
             {
@@ -314,9 +371,16 @@ public class IntegrationOAuthController : BaseController
 
         await _db.SaveChangesAsync(ct);
 
-        _logger.LogInformation("Discord OAuth completed for channel {ChannelId}, guild {GuildId}", channelId, guildId);
+        _logger.LogInformation(
+            "Discord OAuth completed for channel {ChannelId}, guild {GuildId}",
+            channelId,
+            guildId
+        );
 
-        string frontendUrl = _config["App:FrontendUrl"] ?? _config["App:BaseUrl"] ?? $"{Request.Scheme}://{Request.Host}";
+        string frontendUrl =
+            _config["App:FrontendUrl"]
+            ?? _config["App:BaseUrl"]
+            ?? $"{Request.Scheme}://{Request.Host}";
         return Redirect($"{frontendUrl}/(dashboard)/integrations?discord_connected=true");
     }
 
@@ -334,7 +398,9 @@ public class IntegrationOAuthController : BaseController
     {
         string? clientId = await GetConfigValueAsync(null, "youtube.client_id", ct);
         if (string.IsNullOrEmpty(clientId))
-            return BadRequestResponse("YouTube client ID is not configured. Add a Configuration row with Key='youtube.client_id'.");
+            return BadRequestResponse(
+                "YouTube client ID is not configured. Add a Configuration row with Key='youtube.client_id'."
+            );
 
         string baseUrl = _config["App:BaseUrl"] ?? $"{Request.Scheme}://{Request.Host}";
         string redirectUri = $"{baseUrl}/api/v1/integrations/youtube/callback";
@@ -342,7 +408,8 @@ public class IntegrationOAuthController : BaseController
         var statePayload = JsonSerializer.Serialize(new { channel_id = channelId });
         string state = Convert.ToBase64String(Encoding.UTF8.GetBytes(statePayload));
 
-        string authUrl = "https://accounts.google.com/o/oauth2/v2/auth"
+        string authUrl =
+            "https://accounts.google.com/o/oauth2/v2/auth"
             + $"?client_id={Uri.EscapeDataString(clientId)}"
             + $"&response_type=code"
             + $"&redirect_uri={Uri.EscapeDataString(redirectUri)}"
@@ -363,7 +430,8 @@ public class IntegrationOAuthController : BaseController
     public async Task<IActionResult> HandleYouTubeCallback(
         [FromQuery] string code,
         [FromQuery] string? state,
-        CancellationToken ct)
+        CancellationToken ct
+    )
     {
         string? channelId = ExtractChannelIdFromState(state);
         if (string.IsNullOrEmpty(channelId))
@@ -380,19 +448,25 @@ public class IntegrationOAuthController : BaseController
 
         using var client = _httpClientFactory.CreateClient();
 
-        var tokenRequest = new FormUrlEncodedContent(new Dictionary<string, string>
-        {
-            ["grant_type"] = "authorization_code",
-            ["code"] = code,
-            ["redirect_uri"] = redirectUri,
-            ["client_id"] = clientId,
-            ["client_secret"] = clientSecret,
-        });
+        var tokenRequest = new FormUrlEncodedContent(
+            new Dictionary<string, string>
+            {
+                ["grant_type"] = "authorization_code",
+                ["code"] = code,
+                ["redirect_uri"] = redirectUri,
+                ["client_id"] = clientId,
+                ["client_secret"] = clientSecret,
+            }
+        );
 
         HttpResponseMessage response;
         try
         {
-            response = await client.PostAsync("https://oauth2.googleapis.com/token", tokenRequest, ct);
+            response = await client.PostAsync(
+                "https://oauth2.googleapis.com/token",
+                tokenRequest,
+                ct
+            );
         }
         catch (Exception ex)
         {
@@ -403,7 +477,11 @@ public class IntegrationOAuthController : BaseController
         if (!response.IsSuccessStatusCode)
         {
             string errorBody = await response.Content.ReadAsStringAsync(ct);
-            _logger.LogError("YouTube token exchange failed: {Status} {Body}", response.StatusCode, errorBody);
+            _logger.LogError(
+                "YouTube token exchange failed: {Status} {Body}",
+                response.StatusCode,
+                errorBody
+            );
             return InternalServerErrorResponse("YouTube token exchange failed.");
         }
 
@@ -411,12 +489,18 @@ public class IntegrationOAuthController : BaseController
         JsonElement root = tokenDoc.RootElement;
 
         string? accessToken = root.GetProperty("access_token").GetString();
-        string? refreshToken = root.TryGetProperty("refresh_token", out var rtProp) ? rtProp.GetString() : null;
-        int expiresIn = root.TryGetProperty("expires_in", out var expProp) ? expProp.GetInt32() : 3600;
+        string? refreshToken = root.TryGetProperty("refresh_token", out var rtProp)
+            ? rtProp.GetString()
+            : null;
+        int expiresIn = root.TryGetProperty("expires_in", out var expProp)
+            ? expProp.GetInt32()
+            : 3600;
 
         // Upsert Service record
         var service = await _db.Services.FirstOrDefaultAsync(
-            s => s.Name == "youtube" && s.BroadcasterId == channelId, ct);
+            s => s.Name == "youtube" && s.BroadcasterId == channelId,
+            ct
+        );
 
         if (service is null)
         {
@@ -439,21 +523,29 @@ public class IntegrationOAuthController : BaseController
 
         _logger.LogInformation("YouTube OAuth completed for channel {ChannelId}", channelId);
 
-        string frontendUrl = _config["App:FrontendUrl"] ?? _config["App:BaseUrl"] ?? $"{Request.Scheme}://{Request.Host}";
+        string frontendUrl =
+            _config["App:FrontendUrl"]
+            ?? _config["App:BaseUrl"]
+            ?? $"{Request.Scheme}://{Request.Host}";
         return Redirect($"{frontendUrl}/(dashboard)/integrations?youtube_connected=true");
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     /// <summary>Read a plain-text Configuration value from the database.</summary>
-    private async Task<string?> GetConfigValueAsync(string? broadcasterId, string key, CancellationToken ct)
+    private async Task<string?> GetConfigValueAsync(
+        string? broadcasterId,
+        string key,
+        CancellationToken ct
+    )
     {
-        string? dbValue = await _db.Configurations
-            .Where(c => c.BroadcasterId == broadcasterId && c.Key == key)
+        string? dbValue = await _db
+            .Configurations.Where(c => c.BroadcasterId == broadcasterId && c.Key == key)
             .Select(c => c.Value)
             .FirstOrDefaultAsync(ct);
 
-        if (!string.IsNullOrEmpty(dbValue)) return dbValue;
+        if (!string.IsNullOrEmpty(dbValue))
+            return dbValue;
 
         // Fallback to env: "spotify.client_id" → "Spotify:ClientId"
         return _config[ToPascalConfigKey(key)]
@@ -461,14 +553,19 @@ public class IntegrationOAuthController : BaseController
     }
 
     /// <summary>Read a secure (encrypted) Configuration value from the database.</summary>
-    private async Task<string?> GetConfigSecureValueAsync(string? broadcasterId, string key, CancellationToken ct)
+    private async Task<string?> GetConfigSecureValueAsync(
+        string? broadcasterId,
+        string key,
+        CancellationToken ct
+    )
     {
-        string? dbValue = await _db.Configurations
-            .Where(c => c.BroadcasterId == broadcasterId && c.Key == key)
+        string? dbValue = await _db
+            .Configurations.Where(c => c.BroadcasterId == broadcasterId && c.Key == key)
             .Select(c => c.SecureValue)
             .FirstOrDefaultAsync(ct);
 
-        if (!string.IsNullOrEmpty(dbValue)) return dbValue;
+        if (!string.IsNullOrEmpty(dbValue))
+            return dbValue;
 
         return _config[ToPascalConfigKey(key)]
             ?? Environment.GetEnvironmentVariable(ToPascalEnvKey(key));
@@ -488,8 +585,9 @@ public class IntegrationOAuthController : BaseController
 
     private static string ToPascalCase(string segment)
     {
-        return string.Concat(segment.Split('_').Select(w =>
-            w.Length > 0 ? char.ToUpper(w[0]) + w[1..] : w));
+        return string.Concat(
+            segment.Split('_').Select(w => w.Length > 0 ? char.ToUpper(w[0]) + w[1..] : w)
+        );
     }
 
     /// <summary>Extract channel_id from a Base64-encoded JSON state parameter.</summary>

@@ -16,8 +16,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Persistence;
-using NomNomzBot.Domain.Platform.Entities;
 using NomNomzBot.Domain.Music.Interfaces;
+using NomNomzBot.Domain.Platform.Entities;
 
 namespace NomNomzBot.Infrastructure.Music;
 
@@ -124,9 +124,10 @@ public sealed class SpotifyMusicProvider : IMusicProvider
         if (!response.IsSuccessStatusCode)
             return null;
 
-        SpotifyCurrentlyPlaying? json = await response.Content.ReadFromJsonAsync<SpotifyCurrentlyPlaying>(
-            cancellationToken: cancellationToken
-        );
+        SpotifyCurrentlyPlaying? json =
+            await response.Content.ReadFromJsonAsync<SpotifyCurrentlyPlaying>(
+                cancellationToken: cancellationToken
+            );
         if (json?.Item is null)
             return null;
 
@@ -149,13 +150,19 @@ public sealed class SpotifyMusicProvider : IMusicProvider
         string url =
             $"{SpotifyApiBase}/search?q={Uri.EscapeDataString(query)}&type=track&limit={limit}";
 
-        HttpResponseMessage? response = await SendAsync(HttpMethod.Get, url, token, cancellationToken);
+        HttpResponseMessage? response = await SendAsync(
+            HttpMethod.Get,
+            url,
+            token,
+            cancellationToken
+        );
         if (response is null || !response.IsSuccessStatusCode)
             return [];
 
-        SpotifySearchResponse? json = await response.Content.ReadFromJsonAsync<SpotifySearchResponse>(
-            cancellationToken: cancellationToken
-        );
+        SpotifySearchResponse? json =
+            await response.Content.ReadFromJsonAsync<SpotifySearchResponse>(
+                cancellationToken: cancellationToken
+            );
         if (json?.Tracks?.Items is null)
             return [];
 
@@ -265,7 +272,11 @@ public sealed class SpotifyMusicProvider : IMusicProvider
 
         try
         {
-            HttpResponseMessage response = await _http.PostAsync(SpotifyTokenEndpoint, form, cancellationToken);
+            HttpResponseMessage response = await _http.PostAsync(
+                SpotifyTokenEndpoint,
+                form,
+                cancellationToken
+            );
             if (!response.IsSuccessStatusCode)
             {
                 _logger.LogWarning(
@@ -276,9 +287,10 @@ public sealed class SpotifyMusicProvider : IMusicProvider
                 return null;
             }
 
-            SpotifyTokenResponse? json = await response.Content.ReadFromJsonAsync<SpotifyTokenResponse>(
-                cancellationToken: cancellationToken
-            );
+            SpotifyTokenResponse? json =
+                await response.Content.ReadFromJsonAsync<SpotifyTokenResponse>(
+                    cancellationToken: cancellationToken
+                );
             if (json is null)
                 return null;
 
@@ -318,10 +330,7 @@ public sealed class SpotifyMusicProvider : IMusicProvider
     )
     {
         HttpRequestMessage request = new(method, url);
-        request.Headers.Authorization = new(
-            "Bearer",
-            token
-        );
+        request.Headers.Authorization = new("Bearer", token);
 
         try
         {
@@ -338,8 +347,7 @@ public sealed class SpotifyMusicProvider : IMusicProvider
                     await Task.Delay(TimeSpan.FromSeconds(retryAfter), cancellationToken);
                     // Retry once after backoff
                     request = new(method, url);
-                    request.Headers.Authorization =
-                        new("Bearer", token);
+                    request.Headers.Authorization = new("Bearer", token);
                     return await _http.SendAsync(request, cancellationToken);
                 }
             }
@@ -362,10 +370,7 @@ public sealed class SpotifyMusicProvider : IMusicProvider
     )
     {
         HttpRequestMessage request = new(method, url);
-        request.Headers.Authorization = new(
-            "Bearer",
-            token
-        );
+        request.Headers.Authorization = new("Bearer", token);
 
         if (body is not null)
             request.Content = JsonContent.Create(body);

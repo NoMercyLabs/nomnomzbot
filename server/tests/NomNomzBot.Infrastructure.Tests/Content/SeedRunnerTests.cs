@@ -41,10 +41,11 @@ public sealed class SeedRunnerTests
     // path (Begin/Save/Commit) run unchanged instead of throwing.
     private static SeedTestDbContext NewContext(string databaseName)
     {
-        DbContextOptions<SeedTestDbContext> options = new DbContextOptionsBuilder<SeedTestDbContext>()
-            .UseInMemoryDatabase(databaseName)
-            .ConfigureWarnings(w => w.Ignore(InMemoryEventId.TransactionIgnoredWarning))
-            .Options;
+        DbContextOptions<SeedTestDbContext> options =
+            new DbContextOptionsBuilder<SeedTestDbContext>()
+                .UseInMemoryDatabase(databaseName)
+                .ConfigureWarnings(w => w.Ignore(InMemoryEventId.TransactionIgnoredWarning))
+                .Options;
         return new SeedTestDbContext(options);
     }
 
@@ -79,14 +80,12 @@ public sealed class SeedRunnerTests
         seederTypes
             .Select(t => t.Name)
             .Should()
-            .Contain(
-                [
-                    nameof(TtsVoiceSeeder),
-                    nameof(PronounSeeder),
-                    nameof(ConfigSeeder),
-                    nameof(DefaultCommandsSeeder),
-                ]
-            );
+            .Contain([
+                nameof(TtsVoiceSeeder),
+                nameof(PronounSeeder),
+                nameof(ConfigSeeder),
+                nameof(DefaultCommandsSeeder),
+            ]);
     }
 
     // ── Ordering (§5.1 contract) ─────────────────────────────────────────────
@@ -106,8 +105,11 @@ public sealed class SeedRunnerTests
         ];
 
         using SeedTestDbContext context = NewContext(Guid.NewGuid().ToString());
-        SeedRunner runner =
-            new(outOfOrder, new TestUnitOfWork(context), NullLogger<SeedRunner>.Instance);
+        SeedRunner runner = new(
+            outOfOrder,
+            new TestUnitOfWork(context),
+            NullLogger<SeedRunner>.Instance
+        );
 
         await runner.SeedAsync();
 
@@ -204,7 +206,9 @@ public sealed class SeedRunnerTests
                 .Be(5);
             // Shape: every seeded default is a pipeline command with a non-empty pipeline body.
             (
-                await context.Commands.Where(c => c.Type == "pipeline" && c.PipelineJson != null).CountAsync()
+                await context
+                    .Commands.Where(c => c.Type == "pipeline" && c.PipelineJson != null)
+                    .CountAsync()
             )
                 .Should()
                 .Be(10);
@@ -248,12 +252,11 @@ public sealed class SeedRunnerTests
     {
         using SeedTestDbContext context = NewContext(Guid.NewGuid().ToString());
         TestUnitOfWork uow = new(context);
-        SeedRunner runner =
-            new(
-                [new RecordingSeeder(10, []), new RecordingSeeder(20, [])],
-                uow,
-                NullLogger<SeedRunner>.Instance
-            );
+        SeedRunner runner = new(
+            [new RecordingSeeder(10, []), new RecordingSeeder(20, [])],
+            uow,
+            NullLogger<SeedRunner>.Instance
+        );
 
         await runner.SeedAsync();
 
@@ -266,12 +269,11 @@ public sealed class SeedRunnerTests
     {
         using SeedTestDbContext context = NewContext(Guid.NewGuid().ToString());
         TestUnitOfWork uow = new(context);
-        SeedRunner runner =
-            new(
-                [new RecordingSeeder(10, []), new ThrowingSeeder(20)],
-                uow,
-                NullLogger<SeedRunner>.Instance
-            );
+        SeedRunner runner = new(
+            [new RecordingSeeder(10, []), new ThrowingSeeder(20)],
+            uow,
+            NullLogger<SeedRunner>.Instance
+        );
 
         Func<Task> act = () => runner.SeedAsync();
 

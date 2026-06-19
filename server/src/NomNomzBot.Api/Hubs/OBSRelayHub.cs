@@ -44,9 +44,7 @@ public class OBSRelayHub : Hub<IOBSRelayClient>
         {
             await Groups.RemoveFromGroupAsync(Context.ConnectionId, $"obs-{broadcasterId}");
             // Implicitly fire OBSDisconnected event
-            await Clients
-                .Group($"obs-{broadcasterId}")
-                .OBSCommand(new("", "disconnected", null));
+            await Clients.Group($"obs-{broadcasterId}").OBSCommand(new("", "disconnected", null));
         }
         await base.OnDisconnectedAsync(exception);
     }
