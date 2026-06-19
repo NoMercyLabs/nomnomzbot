@@ -545,6 +545,7 @@ After completion, lands on the dashboard home. Wizard navigation/route specifics
 
 - No `Co-Authored-By` in commits — ever
 - Conventional commit messages preferred (`feat:`, `fix:`, `chore:`, etc.)
-- Main branch: `main`
+- Main branch: `master` (never `main`)
+- Remotes: `origin` = `NoMercyLabs/nomnomzbot` (canonical, push here); `fork` = personal `StoneyEagle/nomnomzbot`
 - Feature branches: `feat/description` or `fix/description`
 - All code lives in this monorepo (`server/` backend, `app/` KMP + Compose frontend, `web/` public pages)
