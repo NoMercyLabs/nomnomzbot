@@ -16,9 +16,9 @@ a visual pipeline engine, and integrations (Spotify, Discord, YouTube, TTS).
 
 | Layer | Technology |
 |-------|-----------|
-| Runtime | .NET 10, C# 13 |
+| Runtime | .NET 10, C# 14 |
 | Framework | ASP.NET Core (Asp.Versioning) |
-| ORM | EF Core 9 + Npgsql → PostgreSQL 16 |
+| ORM | EF Core 10 + Npgsql → PostgreSQL 16 |
 | Cache / pub-sub | Redis 7 |
 | Real-time | ASP.NET SignalR (WebSocket) |
 | Auth | JWT + Twitch OAuth (Authorization Code) |
@@ -31,21 +31,18 @@ a visual pipeline engine, and integrations (Spotify, Discord, YouTube, TTS).
 Requires the **.NET 10 SDK** and **Docker** (for Postgres + Redis).
 
 ```bash
-# 1. Start infrastructure
+# 1. Start infrastructure (Postgres + Redis + Adminer) — compose lives in server/
+cd server
 docker compose up -d postgres redis adminer
 
-# 2. Run the API (auto-migrates, auto-seeds on first start)
-cd server/src/NomNomzBot.Api
+# 2. Run the API (auto-migrates, auto-seeds on first start) — from server/
+cd src/NomNomzBot.Api
 dotnet run
 ```
 
 Put your Twitch credentials (`Twitch:ClientId`, `Twitch:ClientSecret`, `Twitch:BotUsername`)
 in `server/src/NomNomzBot.Api/appsettings.Development.json`. Everything else falls back to
 `appsettings.json` defaults.
-
-**Guided setup:** `yarn setup` (or `npm run setup`) runs `setup.mjs`, which checks
-prerequisites, writes `server/.env` + the Twitch credentials, starts Docker infra, and
-launches the API.
 
 ### Key URLs
 
@@ -60,10 +57,11 @@ launches the API.
 
 ## Configuration
 
-- **Local dev:** `server/src/NomNomzBot.Api/appsettings.json` (defaults) +
+- **Local dev (`dotnet run`):** `server/src/NomNomzBot.Api/appsettings.json` (defaults) +
   `appsettings.Development.json` (your secrets).
-- **Docker / deploy:** `.env` at the repo root (see `.env.example`). Config keys map to env
-  vars with `__`, e.g. `Twitch:ClientId` → `TWITCH_CLIENT_ID`.
+- **Docker / deploy:** `server/.env` (copy from `server/.env.example`). Config keys map to env
+  vars with `__`, e.g. `Twitch:ClientId` → `TWITCH_CLIENT_ID`; `docker-compose.yml` also maps the
+  friendly `API_BASE_URL` onto `App__BaseUrl`.
 - Twitch OAuth redirect URIs are computed at runtime from `App:BaseUrl` — register only
   `{App:BaseUrl}/api/v1/auth/twitch/callback` in the Twitch Developer Console.
 
@@ -76,7 +74,6 @@ dotnet test
 
 ## Docs
 
-- [Deployment Guide](DEPLOYMENT.md)
 - [Security Architecture](SECURITY_ARCHITECTURE.md)
 
 ## License

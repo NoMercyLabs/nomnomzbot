@@ -436,9 +436,9 @@ supplied/persisted by the app is **to be specified in the frontend spec phase**.
 
 ### Adding a New API Endpoint
 
-1. Define interface in `NomNomzBot.Application/Common/Interfaces/`
-2. Implement in `NomNomzBot.Infrastructure/Services/`
-3. Register in `InfrastructureServiceExtensions.cs`
+1. Define the service interface in `NomNomzBot.Application/<Module>/Services/`
+2. Implement it in `NomNomzBot.Infrastructure/<Module>/`
+3. Register it in `NomNomzBot.Infrastructure/DependencyInjection.cs`
 4. Create controller in `NomNomzBot.Api/Controllers/` with `[ApiVersion("1.0")]` and `[Route("api/v{version:apiVersion}/...")]`
 5. Return `StatusResponseDto<T>` or `PaginatedResponse<T>`
 
@@ -469,10 +469,10 @@ Until then, the only fixed rules are:
 
 ### Adding a New Pipeline Action
 
-1. Create class in `NomNomzBot.Infrastructure/Pipeline/Actions/` implementing `ICommandAction`
+1. Create the action implementing `ICommandAction` in `NomNomzBot.Infrastructure/Platform/Pipeline/CoreActions/` (core) or `NomNomzBot.Infrastructure/<Module>/PipelineActions/` (side-effecting)
 2. Set `Type` property to a unique snake_case string
-3. Register in `InfrastructureServiceExtensions`
-4. Add DTO to `NomNomzBot.Application/Contracts/Pipeline/`
+3. Register in `NomNomzBot.Infrastructure/DependencyInjection.cs`
+4. Add the contract/DTO to `NomNomzBot.Application/Abstractions/Pipeline/`
 5. Surface the action in the dashboard's pipeline builder (KMP + Compose). Exact UI placement is **to be specified in the frontend spec phase**.
 
 ---
