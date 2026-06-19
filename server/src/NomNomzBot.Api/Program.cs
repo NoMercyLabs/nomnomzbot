@@ -32,6 +32,17 @@ try
 {
     WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
+    // Fail fast on a broken DI graph: validate that every registered service can be
+    // constructed (ValidateOnBuild) and that no singleton captures a scoped dependency
+    // (ValidateScopes) — the reliability guard behind the §4 auto-discovery scan.
+    builder.Host.UseDefaultServiceProvider(
+        (_, options) =>
+        {
+            options.ValidateOnBuild = true;
+            options.ValidateScopes = true;
+        }
+    );
+
     // Serilog
     builder.Host.UseSerilog(
         (ctx, lc) =>

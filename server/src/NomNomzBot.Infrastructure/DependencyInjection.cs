@@ -21,14 +21,7 @@ using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.RateLimiting;
 using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Abstractions.Transport;
-using NomNomzBot.Application.Commands.Services;
-using NomNomzBot.Application.Identity.Services;
-using NomNomzBot.Application.Moderation.Services;
-using NomNomzBot.Application.Music.Services;
-using NomNomzBot.Application.Platform.Services;
-using NomNomzBot.Application.Rewards.Services;
 using NomNomzBot.Application.Tts.Services;
-using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Application.Abstractions.Pipeline;
@@ -36,11 +29,7 @@ using NomNomzBot.Domain.Music.Interfaces;
 using NomNomzBot.Domain.Tts.Interfaces;
 using NomNomzBot.Infrastructure.BackgroundServices;
 using NomNomzBot.Infrastructure.Chat;
-using NomNomzBot.Infrastructure.Commands;
 using NomNomzBot.Infrastructure.Commands.Jobs;
-using NomNomzBot.Infrastructure.Commands.Persistence;
-using NomNomzBot.Infrastructure.Identity;
-using NomNomzBot.Infrastructure.Identity.Persistence;
 using NomNomzBot.Infrastructure.Moderation;
 using NomNomzBot.Infrastructure.Music;
 using NomNomzBot.Infrastructure.Persistence;
@@ -53,20 +42,10 @@ using NomNomzBot.Infrastructure.Platform.Persistence.Interceptors;
 using NomNomzBot.Infrastructure.Platform.Persistence.Repositories;
 using NomNomzBot.Infrastructure.Platform.RateLimiting;
 using NomNomzBot.Infrastructure.Platform.Resilience;
-using NomNomzBot.Infrastructure.Platform.Scheduling;
+using NomNomzBot.Infrastructure.Platform.Pipeline;
 using NomNomzBot.Infrastructure.Platform.Templating;
 using NomNomzBot.Infrastructure.Platform.Transport;
-using NomNomzBot.Infrastructure.Chat.PipelineActions;
-using NomNomzBot.Infrastructure.Moderation.PipelineActions;
-using NomNomzBot.Infrastructure.Music.PipelineActions;
-using NomNomzBot.Infrastructure.Platform.Pipeline;
-using NomNomzBot.Infrastructure.Platform.Pipeline.CoreActions;
-using NomNomzBot.Infrastructure.Stream.PipelineActions;
-using NomNomzBot.Infrastructure.Rewards;
-using NomNomzBot.Infrastructure.Rewards.Persistence;
 using NomNomzBot.Infrastructure.Tts;
-using NomNomzBot.Infrastructure.Widgets;
-using NomNomzBot.Infrastructure.Widgets.Persistence;
 
 namespace NomNomzBot.Infrastructure;
 
@@ -125,8 +104,49 @@ public static class DependencyInjection
         services.AddSingleton<EventLogger>();
         services.AddSingleton<NomNomzBot.Domain.Platform.Interfaces.IEventBus, EventBus>();
 
-        // Auto-register IEventHandler<T> implementations from Infrastructure assembly
-        RegisterEventHandlers(services, typeof(DependencyInjection).Assembly);
+        // ── Auto-discovery (D5, backend-structure §4) ────────────────────────
+        // One hand-rolled reflection scan binds every pluggable marker by convention.
+        // Drop a file → it is live next boot; no marker is added to a DI list by hand.
+        Assembly infrastructure = typeof(DependencyInjection).Assembly;
+
+        // Domain event handlers (scoped — per-event work, resolved by EventBus per scope).
+        services.AddOpenGenericHandlers(infrastructure, typeof(IEventHandler<>), ServiceLifetime.Scoped);
+
+        // Pipeline actions + conditions (transient — stateless strategies, multi-binding).
+        services.AddImplementationsOf<ICommandAction>(infrastructure, ServiceLifetime.Transient);
+        services.AddImplementationsOf<ICommandCondition>(infrastructure, ServiceLifetime.Transient);
+
+        // Music providers (scoped — multi-binding consumed as IEnumerable<IMusicProvider>).
+        services.AddImplementationsOf<IMusicProvider>(infrastructure, ServiceLifetime.Scoped);
+
+        // Service impls bound by their I<X>Service interface (scoped). Singletons,
+        // deployment-variant, and special-construction interfaces stay explicit below
+        // and are excluded so the scan never picks a wrong binding. Ambiguity (two
+        // impls of one interface) throws at build time — the DeploymentProfile case.
+        services.AddServicesByConvention(
+            infrastructure,
+            ServiceLifetime.Scoped,
+            typeof(IEncryptionService),       // singleton crypto
+            typeof(IJwtTokenService),         // singleton crypto
+            typeof(ICacheService),            // deployment-variant: Redis vs in-memory (ambiguity)
+            typeof(ITrustService),            // singleton
+            typeof(ITtsService),              // singleton — stateful TTS queues
+            typeof(ITwitchChatService),       // singleton + hosted (shared TwitchIrcService instance)
+            typeof(ITwitchEventSubService)    // singleton + hosted (shared TwitchEventSubService instance)
+        );
+
+        // Repositories (scoped — concrete GenericRepository<T> subclasses, consumed by type).
+        services.AddRepositoriesByConvention<GenericRepository<object>>(infrastructure, ServiceLifetime.Scoped);
+
+        // Hosted workers (singleton — long-lived BackgroundService/IHostedService). The three
+        // singleton+hosted services below share one instance with their service interface, so
+        // they are wired explicitly and excluded here. This auto-wires TokenRefreshService.
+        services.AddHostedWorkers(
+            infrastructure,
+            typeof(TwitchIrcService),
+            typeof(TwitchEventSubService),
+            typeof(ChannelRegistry)
+        );
 
         // Security — AES-256 encryption with a stable configured key (survives container restarts)
         services.Configure<EncryptionOptions>(configuration.GetSection(EncryptionOptions.SectionName));
@@ -152,82 +172,37 @@ public static class DependencyInjection
             services.AddSingleton<ICacheService, MemoryCacheService>();
         }
 
-        // General services
+        // Singleton services (stateful / crypto / engine primitives) — kept explicit:
+        // these are NOT per-request scoped, so the convention scan excludes their interfaces.
         services.AddSingleton<IDateTimeProvider, DateTimeProvider>();
         services.AddSingleton<ICooldownManager, CooldownManager>();
         services.AddSingleton<ITemplateEngine, TemplateEngine>();
         services.AddSingleton<ITemplateResolver, TemplateResolver>();
         services.AddSingleton<ITrustService, TrustService>();
 
-        // Pipeline actions (transient — stateless)
-        services.AddTransient<ICommandAction, SendMessageAction>();
-        services.AddTransient<ICommandAction, SendReplyAction>();
-        services.AddTransient<ICommandAction, TimeoutAction>();
-        services.AddTransient<ICommandAction, BanAction>();
-        services.AddTransient<ICommandAction, WaitAction>();
-        services.AddTransient<ICommandAction, SetVariableAction>();
-        services.AddTransient<ICommandAction, StopAction>();
-        services.AddTransient<ICommandAction, DeleteMessageAction>();
-        services.AddTransient<ICommandAction, ShoutoutAction>();
-        services.AddTransient<ICommandAction, SongRequestAction>();
-        services.AddTransient<ICommandAction, SongSkipAction>();
-        services.AddTransient<ICommandAction, SongCurrentAction>();
-        services.AddTransient<ICommandAction, SongQueueAction>();
-        services.AddTransient<ICommandAction, SongVolumeAction>();
-
-        // Pipeline conditions (transient — stateless)
-        services.AddTransient<ICommandCondition, UserRoleCondition>();
-        services.AddTransient<ICommandCondition, RandomCondition>();
-
-        // PipelineEngine (scoped — consumes scoped services like IChatProvider, IApplicationDbContext)
+        // PipelineEngine (scoped — IPipelineEngine is not an I<X>Service, registered explicitly)
         services.AddScoped<IPipelineEngine, PipelineEngine>();
 
-        // Identity / tenant
+        // Identity / tenant — HttpContext accessor + UnitOfWork are framework/infra, kept explicit.
+        // The I<X>Service impls (ICurrentTenantService, IChannelAccessService, ICurrentUserService,
+        // IAdminService, ICommandService, IChannelService, IRewardService, IWidgetService,
+        // IUserService, IModerationService, IAuthService, IPermissionService, ITimerManagementService,
+        // IMusicConfigService, ITtsConfigService, IEventResponseService, IPipelineService,
+        // IFeatureService, IGdprService) are now discovered by AddServicesByConvention above.
         services.AddHttpContextAccessor();
-        services.AddScoped<ICurrentTenantService, CurrentTenantService>();
-        services.AddScoped<IChannelAccessService, ChannelAccessService>();
-        services.AddScoped<ICurrentUserService, CurrentUserService>();
+        services.AddScoped<IUnitOfWork, UnitOfWork>();
 
-        // Startup readiness checker and database migrator
+        // Startup helpers consumed by concrete type (not pluggable markers) — kept explicit.
         services.AddTransient<StartupReadinessChecker>();
         services.AddScoped<IDatabaseMigrator, DatabaseMigrator>();
         services.AddScoped<DataSeeder>();
-
-        // Repositories
-        services.AddScoped<ChannelRepository>();
-        services.AddScoped<CommandRepository>();
-        services.AddScoped<RewardRepository>();
-        services.AddScoped<UserRepository>();
-        services.AddScoped<WidgetRepository>();
-
-        // UnitOfWork
-        services.AddScoped<IUnitOfWork, UnitOfWork>();
-
-        // Application services
-        services.AddScoped<IAdminService, AdminService>();
-        services.AddScoped<ICommandService, CommandService>();
-        services.AddScoped<IChannelService, ChannelService>();
-        services.AddScoped<IRewardService, RewardService>();
-        services.AddScoped<IWidgetService, WidgetService>();
-        services.AddScoped<IUserService, UserService>();
-        services.AddScoped<IModerationService, ModerationService>();
-        services.AddScoped<IAuthService, AuthService>();
-        services.AddScoped<IPermissionService, PermissionService>();
-        services.AddScoped<ITimerManagementService, TimerManagementService>();
-        services.AddScoped<IMusicConfigService, MusicConfigService>();
-        services.AddScoped<ITtsConfigService, TtsConfigService>();
-        services.AddScoped<IEventResponseService, EventResponseService>();
-        services.AddScoped<IPipelineService, PipelineService>();
-        services.AddScoped<IFeatureService, FeatureService>();
-
-        // GDPR + migration (scoped — use DbContext)
-        services.AddScoped<IGdprService, GdprService>();
         services.AddScoped<SqliteMigrationService>();
 
-        // Auto-moderation (scoped — uses ICooldownManager which is singleton, fine)
+        // Auto-moderation engine consumed by concrete type — kept explicit.
         services.AddScoped<AutoModerationEngine>();
 
-        // Music providers + service (singleton — maintain per-channel queues)
+        // TTS providers (singleton, multi-binding) — special construction with config args,
+        // kept explicit. ITtsService is singleton (stateful queues), also kept explicit.
         services.AddHttpClient("edge-tts");
         services.AddSingleton<ITtsProvider, EdgeTtsProvider>();
         services.AddHttpClient("azure-tts");
@@ -245,25 +220,20 @@ public static class DependencyInjection
         ));
         services.AddSingleton<ITtsService, TtsService>();
 
-        // Spotify HTTP clients with resilience
+        // Spotify HTTP clients with resilience (Music providers themselves are scanned by
+        // IMusicProvider above; IMusicService is scanned by AddServicesByConvention).
         services.AddHttpClient("spotify").AddSpotifyResilienceHandler();
         services.AddHttpClient("spotify-auth");
 
-        // Music providers
-        services.AddScoped<SpotifyMusicProvider>();
-        services.AddScoped<YouTubeMusicProvider>();
-        services.AddScoped<IMusicService, MusicService>();
-
-        // ChannelRegistry (singleton + hosted service)
+        // ChannelRegistry (singleton + hosted service — one instance serves IChannelRegistry
+        // AND the hosted lifecycle, so it is wired explicitly and excluded from the worker scan).
         services.AddSingleton<NomNomzBot.Domain.Platform.Interfaces.IChannelRegistry, ChannelRegistry>();
         services.AddHostedService(sp =>
             (ChannelRegistry)sp.GetRequiredService<NomNomzBot.Domain.Platform.Interfaces.IChannelRegistry>()
         );
 
-        // Background lifecycle services
-        services.AddHostedService<BotLifecycleService>();
-        services.AddHostedService<TimerService>();
-        services.AddHostedService<DefaultCommandSeederService>();
+        // BotLifecycleService, TimerService, DefaultCommandSeederService, and TokenRefreshService
+        // are auto-registered as hosted services by AddHostedWorkers above.
 
         // Twitch options
         services.Configure<TwitchOptions>(configuration.GetSection(TwitchOptions.SectionName));
@@ -279,13 +249,11 @@ public static class DependencyInjection
                     client.DefaultRequestHeaders.Add("Client-Id", opts.ClientId);
             });
 
-        // Twitch auth service (scoped — uses IApplicationDbContext)
-        services.AddScoped<ITwitchAuthService, TwitchAuthService>();
+        // ITwitchAuthService → TwitchAuthService and ITwitchApiService → TwitchApiService are
+        // scoped single-impl services discovered by AddServicesByConvention above.
 
-        // Twitch API service (scoped — uses IApplicationDbContext for tokens)
-        services.AddScoped<ITwitchApiService, TwitchApiService>();
-
-        // Chat provider (Helix-first, used by pipeline actions and background services)
+        // Chat provider (Helix-first, used by pipeline actions and background services).
+        // IChatProvider is not an I<X>Service, so it is registered explicitly.
         services.AddScoped<IChatProvider, HelixChatProvider>();
 
         // Twitch IRC chat service (singleton + hosted service — persistent WebSocket connection)
@@ -304,55 +272,14 @@ public static class DependencyInjection
     }
 
     /// <summary>
-    /// Registers additional IEventHandler implementations from external assemblies.
-    /// Call this from Application or other layers to register their handlers.
+    /// Discovers <see cref="IEventHandler{TEvent}"/> implementations in <paramref name="assembly"/>
+    /// (e.g. the Api layer's hub broadcasters) and registers them scoped, via the same
+    /// assembly-scan convention used for the Infrastructure handlers (backend-structure §4).
     /// </summary>
     public static IServiceCollection AddEventHandlersFromAssembly(
         this IServiceCollection services,
         Assembly assembly
-    )
-    {
-        RegisterEventHandlers(services, assembly);
-        return services;
-    }
-
-    /// <summary>
-    /// Scans assemblies for IEventHandler implementations and registers them as transient.
-    /// </summary>
-    private static void RegisterEventHandlers(
-        IServiceCollection services,
-        params Assembly[] assemblies
-    )
-    {
-        Type handlerInterfaceType = typeof(IEventHandler<>);
-
-        foreach (Assembly assembly in assemblies)
-        {
-            IEnumerable<Type> handlerTypes = assembly
-                .GetTypes()
-                .Where(t => t is { IsAbstract: false, IsInterface: false })
-                .Where(t =>
-                    t.GetInterfaces()
-                        .Any(i =>
-                            i.IsGenericType && i.GetGenericTypeDefinition() == handlerInterfaceType
-                        )
-                );
-
-            foreach (Type handlerType in handlerTypes)
-            {
-                IEnumerable<Type> handlerInterfaces = handlerType
-                    .GetInterfaces()
-                    .Where(i =>
-                        i.IsGenericType && i.GetGenericTypeDefinition() == handlerInterfaceType
-                    );
-
-                foreach (Type @interface in handlerInterfaces)
-                {
-                    services.AddTransient(@interface, handlerType);
-                }
-            }
-        }
-    }
+    ) => services.AddOpenGenericHandlers(assembly, typeof(IEventHandler<>), ServiceLifetime.Scoped);
 }
 
 /// <summary>

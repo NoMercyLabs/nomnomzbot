@@ -17,6 +17,10 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddApplication(this IServiceCollection services)
     {
+        // Auto-discovery (D5, backend-structure §4): the Application layer holds only
+        // contracts (service interfaces, DTOs, abstractions) and validators — every concrete
+        // pluggable artifact (services, handlers, pipeline actions) lives in Infrastructure and
+        // is scanned by AddInfrastructure. The single assembly scan here is the validator scan.
         services.AddValidatorsFromAssembly(typeof(DependencyInjection).Assembly);
 
         return services;
