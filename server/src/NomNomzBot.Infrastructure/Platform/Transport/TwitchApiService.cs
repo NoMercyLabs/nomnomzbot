@@ -38,6 +38,7 @@ public sealed class TwitchApiService : ITwitchApiService
     private readonly HttpClient _http;
     private readonly TwitchOptions _options;
     private readonly ILogger<TwitchApiService> _logger;
+    private readonly TimeProvider _timeProvider;
 
     private const string HelixBase = "https://api.twitch.tv/helix";
 
@@ -47,7 +48,8 @@ public sealed class TwitchApiService : ITwitchApiService
         ITwitchAuthService authService,
         IHttpClientFactory httpClientFactory,
         IOptions<TwitchOptions> options,
-        ILogger<TwitchApiService> logger
+        ILogger<TwitchApiService> logger,
+        TimeProvider timeProvider
     )
     {
         _db = db;
@@ -56,6 +58,7 @@ public sealed class TwitchApiService : ITwitchApiService
         _http = httpClientFactory.CreateClient("twitch-helix");
         _options = options.Value;
         _logger = logger;
+        _timeProvider = timeProvider;
     }
 
     // ─── Public API ──────────────────────────────────────────────────────────────
@@ -935,7 +938,7 @@ public sealed class TwitchApiService : ITwitchApiService
                 )
                 {
                     TimeSpan delay =
-                        DateTimeOffset.FromUnixTimeSeconds(resetEpoch) - DateTimeOffset.UtcNow;
+                        DateTimeOffset.FromUnixTimeSeconds(resetEpoch) - _timeProvider.GetUtcNow();
                     if (delay > TimeSpan.Zero)
                     {
                         _logger.LogWarning("Helix rate limited, waiting {Delay:g}", delay);

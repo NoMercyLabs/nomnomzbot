@@ -31,5 +31,7 @@ public class DeletionAuditLog
 
     public DateTime CompletedAt { get; set; }
 
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    // Stamped by the writing service via the injected TimeProvider (single clock,
+    // platform-conventions §3.11) — entities do not self-stamp time.
+    public DateTime CreatedAt { get; set; }
 }

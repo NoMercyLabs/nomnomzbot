@@ -36,7 +36,7 @@ public class JwtTokenServiceTests
             )
             .Build();
 
-        return new(config);
+        return new(config, TimeProvider.System);
     }
 
     // ─── GenerateToken ────────────────────────────────────────────────────────

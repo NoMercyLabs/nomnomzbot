@@ -30,11 +30,17 @@ namespace NomNomzBot.Infrastructure.Identity;
 public sealed class GdprService : IGdprService
 {
     private readonly IApplicationDbContext _db;
+    private readonly TimeProvider _timeProvider;
     private readonly ILogger<GdprService> _logger;
 
-    public GdprService(IApplicationDbContext db, ILogger<GdprService> logger)
+    public GdprService(
+        IApplicationDbContext db,
+        TimeProvider timeProvider,
+        ILogger<GdprService> logger
+    )
     {
         _db = db;
+        _timeProvider = timeProvider;
         _logger = logger;
     }
 
@@ -93,7 +99,7 @@ public sealed class GdprService : IGdprService
 
         var export = new
         {
-            ExportedAt = DateTime.UtcNow,
+            ExportedAt = _timeProvider.GetUtcNow().UtcDateTime,
             ExportedForUserId = userId,
             Profile = new
             {
@@ -178,7 +184,8 @@ public sealed class GdprService : IGdprService
                 RequestedBy = userId,
                 TablesAffected = ["ChatMessages", "Records", "Services", "Users"],
                 RowsDeleted = messages.Count + records.Count + services.Count,
-                CompletedAt = DateTime.UtcNow,
+                CreatedAt = _timeProvider.GetUtcNow().UtcDateTime,
+                CompletedAt = _timeProvider.GetUtcNow().UtcDateTime,
             }
         );
 

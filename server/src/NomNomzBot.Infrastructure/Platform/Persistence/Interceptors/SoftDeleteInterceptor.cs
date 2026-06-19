@@ -18,8 +18,10 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Interceptors;
 /// <summary>
 /// Intercepts Remove() calls on SoftDeletableEntity instances and converts them
 /// to soft deletes by setting DeletedAt instead of physically deleting the row.
+/// Reads the current time from the injected TimeProvider (the single clock,
+/// platform-conventions §3.11) so the soft-delete stamp is fakeable.
 /// </summary>
-public sealed class SoftDeleteInterceptor : SaveChangesInterceptor
+public sealed class SoftDeleteInterceptor(TimeProvider timeProvider) : SaveChangesInterceptor
 {
     public override ValueTask<InterceptionResult<int>> SavingChangesAsync(
         DbContextEventData eventData,
@@ -48,9 +50,9 @@ public sealed class SoftDeleteInterceptor : SaveChangesInterceptor
         return base.SavingChanges(eventData, result);
     }
 
-    private static void ConvertDeleteToSoftDelete(DbContext context)
+    private void ConvertDeleteToSoftDelete(DbContext context)
     {
-        DateTime utcNow = DateTime.UtcNow;
+        DateTime utcNow = timeProvider.GetUtcNow().UtcDateTime;
 
         foreach (
             EntityEntry<SoftDeletableEntity> entry in context.ChangeTracker.Entries<SoftDeletableEntity>()

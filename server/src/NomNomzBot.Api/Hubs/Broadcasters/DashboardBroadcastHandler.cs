@@ -22,10 +22,12 @@ namespace NomNomzBot.Api.Hubs.Broadcasters;
 public sealed class ChatMessageBroadcastHandler : IEventHandler<ChatMessageReceivedEvent>
 {
     private readonly IDashboardNotifier _notifier;
+    private readonly TimeProvider _timeProvider;
 
-    public ChatMessageBroadcastHandler(IDashboardNotifier notifier)
+    public ChatMessageBroadcastHandler(IDashboardNotifier notifier, TimeProvider timeProvider)
     {
         _notifier = notifier;
+        _timeProvider = timeProvider;
     }
 
     public async Task HandleAsync(ChatMessageReceivedEvent evt, CancellationToken ct = default)
@@ -59,7 +61,7 @@ public sealed class ChatMessageBroadcastHandler : IEventHandler<ChatMessageRecei
             ReplyToMessageId: evt.ReplyParentMessageId,
             ReplyParentMessageBody: evt.ReplyParentMessageBody,
             ReplyParentUserName: evt.ReplyParentUserName,
-            Timestamp: DateTimeOffset.UtcNow.ToString("O")
+            Timestamp: _timeProvider.GetUtcNow().ToString("O")
         );
 
         await _notifier.SendChatMessageAsync(evt.BroadcasterId, dto, ct);

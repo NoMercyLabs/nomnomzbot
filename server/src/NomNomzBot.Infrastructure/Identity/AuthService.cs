@@ -43,6 +43,7 @@ public sealed class AuthService : IAuthService
     private readonly IEncryptionService _encryption;
     private readonly HttpClient _http;
     private readonly TwitchOptions _options;
+    private readonly TimeProvider _timeProvider;
     private readonly ILogger<AuthService> _logger;
     private readonly string _baseUrl;
 
@@ -117,6 +118,7 @@ public sealed class AuthService : IAuthService
         IHttpClientFactory httpClientFactory,
         IOptions<TwitchOptions> options,
         IConfiguration configuration,
+        TimeProvider timeProvider,
         ILogger<AuthService> logger
     )
     {
@@ -126,6 +128,7 @@ public sealed class AuthService : IAuthService
         _encryption = encryption;
         _http = httpClientFactory.CreateClient("twitch-helix");
         _options = options.Value;
+        _timeProvider = timeProvider;
         _logger = logger;
         _baseUrl = configuration["App:BaseUrl"] ?? "http://localhost:5080";
     }
@@ -272,7 +275,12 @@ public sealed class AuthService : IAuthService
         _logger.LogInformation("User {UserId} authenticated via Twitch OAuth", twitchUser.Id);
 
         return Result.Success(
-            new AuthResultDto(platformJwt, refreshJwt, DateTime.UtcNow.AddHours(1), userDto)
+            new AuthResultDto(
+                platformJwt,
+                refreshJwt,
+                _timeProvider.GetUtcNow().UtcDateTime.AddHours(1),
+                userDto
+            )
         );
     }
 
@@ -314,7 +322,12 @@ public sealed class AuthService : IAuthService
         );
 
         return Result.Success(
-            new AuthResultDto(newJwt, newRefresh, DateTime.UtcNow.AddHours(1), userDto)
+            new AuthResultDto(
+                newJwt,
+                newRefresh,
+                _timeProvider.GetUtcNow().UtcDateTime.AddHours(1),
+                userDto
+            )
         );
     }
 

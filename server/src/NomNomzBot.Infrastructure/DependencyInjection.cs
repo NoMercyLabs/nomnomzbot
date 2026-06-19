@@ -13,7 +13,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
-using NomNomzBot.Application.Abstractions;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Caching;
 using NomNomzBot.Application.Abstractions.Content;
@@ -188,9 +187,13 @@ public static class DependencyInjection
             services.AddSingleton<ICacheService, MemoryCacheService>();
         }
 
+        // The single clock (platform-conventions §3.11): every service / handler /
+        // BackgroundService that reads the current time injects TimeProvider and calls
+        // GetUtcNow(). TimeProvider.System is the real clock; tests inject FakeTimeProvider.
+        services.AddSingleton(TimeProvider.System);
+
         // Singleton services (stateful / crypto / engine primitives) — kept explicit:
         // these are NOT per-request scoped, so the convention scan excludes their interfaces.
-        services.AddSingleton<IDateTimeProvider, DateTimeProvider>();
         services.AddSingleton<ICooldownManager, CooldownManager>();
         services.AddSingleton<ITemplateEngine, TemplateEngine>();
         services.AddSingleton<ITemplateResolver, TemplateResolver>();

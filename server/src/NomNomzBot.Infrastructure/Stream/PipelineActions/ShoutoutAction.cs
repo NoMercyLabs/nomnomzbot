@@ -33,6 +33,7 @@ public sealed class ShoutoutAction : ICommandAction
 
     private readonly ITwitchApiService _twitchApi;
     private readonly IChannelRegistry _registry;
+    private readonly TimeProvider _timeProvider;
     private readonly ILogger<ShoutoutAction> _logger;
 
     public string ActionType => "shoutout";
@@ -40,11 +41,13 @@ public sealed class ShoutoutAction : ICommandAction
     public ShoutoutAction(
         ITwitchApiService twitchApi,
         IChannelRegistry registry,
+        TimeProvider timeProvider,
         ILogger<ShoutoutAction> logger
     )
     {
         _twitchApi = twitchApi;
         _registry = registry;
+        _timeProvider = timeProvider;
         _logger = logger;
     }
 
@@ -74,7 +77,7 @@ public sealed class ShoutoutAction : ICommandAction
         ChannelContext? channelCtx = _registry.Get(ctx.BroadcasterId);
         if (channelCtx is not null)
         {
-            DateTimeOffset now = DateTimeOffset.UtcNow;
+            DateTimeOffset now = _timeProvider.GetUtcNow();
 
             // Global cooldown
             if (
@@ -112,7 +115,7 @@ public sealed class ShoutoutAction : ICommandAction
 
         if (success && channelCtx is not null)
         {
-            DateTimeOffset now = DateTimeOffset.UtcNow;
+            DateTimeOffset now = _timeProvider.GetUtcNow();
             channelCtx.LastGlobalShoutout = now;
             channelCtx.LastShoutoutPerUser[rawUserId] = now;
         }

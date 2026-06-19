@@ -31,10 +31,12 @@ public sealed class EdgeTtsProvider : ITtsProvider
         "wss://speech.platform.bing.com/consumer/speech/synthesize/realtimetts/edge/v1?TrustedClientToken=6A5AA1D4EAFF4E9FB37E23D68491D6F4&ConnectionId=";
     private const string TrustedToken = "6A5AA1D4EAFF4E9FB37E23D68491D6F4";
 
+    private readonly TimeProvider _timeProvider;
     private readonly ILogger<EdgeTtsProvider> _logger;
 
-    public EdgeTtsProvider(ILogger<EdgeTtsProvider> logger)
+    public EdgeTtsProvider(TimeProvider timeProvider, ILogger<EdgeTtsProvider> logger)
     {
+        _timeProvider = timeProvider;
         _logger = logger;
     }
 
@@ -317,11 +319,13 @@ public sealed class EdgeTtsProvider : ITtsProvider
 
     // ─── Helpers ─────────────────────────────────────────────────────────────
 
-    private static string BuildConfigMessage(string connectionId)
+    private string BuildConfigMessage(string connectionId)
     {
-        string timestamp = DateTime.UtcNow.ToString(
-            "ddd MMM dd yyyy HH:mm:ss 'GMT+0000 (Coordinated Universal Time)'"
-        );
+        string timestamp = _timeProvider
+            .GetUtcNow()
+            .UtcDateTime.ToString(
+                "ddd MMM dd yyyy HH:mm:ss 'GMT+0000 (Coordinated Universal Time)'"
+            );
         return $"X-Timestamp:{timestamp}\r\nContent-Type:application/json; charset=utf-8\r\nPath:speech.config\r\n\r\n"
             + JsonSerializer.Serialize(
                 new
@@ -345,11 +349,13 @@ public sealed class EdgeTtsProvider : ITtsProvider
             );
     }
 
-    private static string BuildSynthesisMessage(string requestId, string ssml)
+    private string BuildSynthesisMessage(string requestId, string ssml)
     {
-        string timestamp = DateTime.UtcNow.ToString(
-            "ddd MMM dd yyyy HH:mm:ss 'GMT+0000 (Coordinated Universal Time)'"
-        );
+        string timestamp = _timeProvider
+            .GetUtcNow()
+            .UtcDateTime.ToString(
+                "ddd MMM dd yyyy HH:mm:ss 'GMT+0000 (Coordinated Universal Time)'"
+            );
         return $"X-RequestId:{requestId}\r\nContent-Type:application/ssml+xml\r\nX-Timestamp:{timestamp}\r\nPath:ssml\r\n\r\n{ssml}";
     }
 

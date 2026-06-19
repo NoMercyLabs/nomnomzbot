@@ -40,18 +40,21 @@ public sealed class SpotifyMusicProvider : IMusicProvider
     private readonly IApplicationDbContext _db;
     private readonly IEncryptionService _encryption;
     private readonly HttpClient _http;
+    private readonly TimeProvider _timeProvider;
     private readonly ILogger<SpotifyMusicProvider> _logger;
 
     public SpotifyMusicProvider(
         IApplicationDbContext db,
         IEncryptionService encryption,
         IHttpClientFactory httpClientFactory,
+        TimeProvider timeProvider,
         ILogger<SpotifyMusicProvider> logger
     )
     {
         _db = db;
         _encryption = encryption;
         _http = httpClientFactory.CreateClient("spotify");
+        _timeProvider = timeProvider;
         _logger = logger;
     }
 
@@ -219,7 +222,7 @@ public sealed class SpotifyMusicProvider : IMusicProvider
         // Refresh if expiring within 5 minutes
         if (
             service.TokenExpiry.HasValue
-            && service.TokenExpiry.Value <= DateTime.UtcNow.AddMinutes(5)
+            && service.TokenExpiry.Value <= _timeProvider.GetUtcNow().UtcDateTime.AddMinutes(5)
         )
         {
             string? refreshed = await RefreshTokenAsync(service, cancellationToken);
@@ -295,7 +298,7 @@ public sealed class SpotifyMusicProvider : IMusicProvider
                 return null;
 
             service.AccessToken = _encryption.Encrypt(json.AccessToken);
-            service.TokenExpiry = DateTime.UtcNow.AddSeconds(json.ExpiresIn);
+            service.TokenExpiry = _timeProvider.GetUtcNow().UtcDateTime.AddSeconds(json.ExpiresIn);
 
             // Refresh token may be rotated
             if (!string.IsNullOrEmpty(json.RefreshToken))

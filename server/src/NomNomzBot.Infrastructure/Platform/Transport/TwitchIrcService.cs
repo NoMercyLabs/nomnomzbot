@@ -49,6 +49,7 @@ public sealed class TwitchIrcService : ITwitchChatService, IHostedService
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IEventBus _eventBus;
     private readonly TwitchOptions _options;
+    private readonly TimeProvider _timeProvider;
     private readonly ILogger<TwitchIrcService> _logger;
 
     private ClientWebSocket? _ws;
@@ -63,19 +64,22 @@ public sealed class TwitchIrcService : ITwitchChatService, IHostedService
     // Send-side rate limiting
     private readonly SemaphoreSlim _sendLock = new(1, 1);
     private int _tokenCount = RateLimitBurst;
-    private DateTime _windowStart = DateTime.UtcNow;
+    private DateTime _windowStart;
 
     public TwitchIrcService(
         IServiceScopeFactory scopeFactory,
         IEventBus eventBus,
         IOptions<TwitchOptions> options,
+        TimeProvider timeProvider,
         ILogger<TwitchIrcService> logger
     )
     {
         _scopeFactory = scopeFactory;
         _eventBus = eventBus;
         _options = options.Value;
+        _timeProvider = timeProvider;
         _logger = logger;
+        _windowStart = _timeProvider.GetUtcNow().UtcDateTime;
     }
 
     // ─── IHostedService ───────────────────────────────────────────────────────────
@@ -457,7 +461,7 @@ public sealed class TwitchIrcService : ITwitchChatService, IHostedService
         await _sendLock.WaitAsync(ct);
         try
         {
-            DateTime now = DateTime.UtcNow;
+            DateTime now = _timeProvider.GetUtcNow().UtcDateTime;
             if ((now - _windowStart).TotalMilliseconds >= RateLimitWindowMs)
             {
                 _tokenCount = RateLimitBurst;
@@ -472,7 +476,7 @@ public sealed class TwitchIrcService : ITwitchChatService, IHostedService
                     _logger.LogDebug("IRC rate limit reached, pausing {WaitMs}ms", waitMs);
                     await Task.Delay(waitMs, ct);
                     _tokenCount = RateLimitBurst;
-                    _windowStart = DateTime.UtcNow;
+                    _windowStart = _timeProvider.GetUtcNow().UtcDateTime;
                 }
             }
 

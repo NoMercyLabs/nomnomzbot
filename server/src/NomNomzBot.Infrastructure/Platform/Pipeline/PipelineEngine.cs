@@ -44,6 +44,7 @@ public sealed class PipelineEngine : IPipelineEngine
     private readonly IEnumerable<ICommandAction> _actions;
     private readonly IEnumerable<ICommandCondition> _conditions;
     private readonly ILogger<PipelineEngine> _logger;
+    private readonly TimeProvider _timeProvider;
 
     // Per-channel active count (separate from the CancellationTokenSources in ChannelContext)
     private readonly ConcurrentDictionary<string, int> _activeCount = new();
@@ -52,13 +53,15 @@ public sealed class PipelineEngine : IPipelineEngine
         IChannelRegistry registry,
         IEnumerable<ICommandAction> actions,
         IEnumerable<ICommandCondition> conditions,
-        ILogger<PipelineEngine> logger
+        ILogger<PipelineEngine> logger,
+        TimeProvider timeProvider
     )
     {
         _registry = registry;
         _actions = actions;
         _conditions = conditions;
         _logger = logger;
+        _timeProvider = timeProvider;
     }
 
     public int GetActiveCountForChannel(string broadcasterId) =>
@@ -92,7 +95,7 @@ public sealed class PipelineEngine : IPipelineEngine
         CancellationToken ct = default
     )
     {
-        DateTimeOffset startedAt = DateTimeOffset.UtcNow;
+        DateTimeOffset startedAt = _timeProvider.GetUtcNow();
 
         // Concurrency gate
         int current = _activeCount.AddOrUpdate(request.BroadcasterId, 1, (_, v) => v + 1);
@@ -125,7 +128,7 @@ public sealed class PipelineEngine : IPipelineEngine
             {
                 ExecutionId = Guid.NewGuid().ToString("N")[..12],
                 Outcome = PipelineOutcome.Failed,
-                Duration = DateTimeOffset.UtcNow - startedAt,
+                Duration = _timeProvider.GetUtcNow() - startedAt,
                 ErrorMessage = $"Invalid pipeline JSON: {ex.Message}",
             };
         }
@@ -137,7 +140,7 @@ public sealed class PipelineEngine : IPipelineEngine
             {
                 ExecutionId = Guid.NewGuid().ToString("N")[..12],
                 Outcome = PipelineOutcome.Completed,
-                Duration = DateTimeOffset.UtcNow - startedAt,
+                Duration = _timeProvider.GetUtcNow() - startedAt,
             };
         }
 
@@ -183,7 +186,7 @@ public sealed class PipelineEngine : IPipelineEngine
             {
                 ExecutionId = execCtx.ExecutionId,
                 Outcome = PipelineOutcome.TimedOut,
-                Duration = DateTimeOffset.UtcNow - startedAt,
+                Duration = _timeProvider.GetUtcNow() - startedAt,
                 StepsExecuted = execCtx.CurrentStepIndex,
                 Total = definition.Steps.Count,
                 StepLogs = execCtx.StepLogs,
@@ -195,7 +198,7 @@ public sealed class PipelineEngine : IPipelineEngine
             {
                 ExecutionId = execCtx.ExecutionId,
                 Outcome = PipelineOutcome.Cancelled,
-                Duration = DateTimeOffset.UtcNow - startedAt,
+                Duration = _timeProvider.GetUtcNow() - startedAt,
                 StepsExecuted = execCtx.CurrentStepIndex,
                 Total = definition.Steps.Count,
                 StepLogs = execCtx.StepLogs,
@@ -226,7 +229,7 @@ public sealed class PipelineEngine : IPipelineEngine
             ctx.CurrentStepIndex = i;
 
             PipelineStepDefinition step = definition.Steps[i];
-            DateTimeOffset stepStart = DateTimeOffset.UtcNow;
+            DateTimeOffset stepStart = _timeProvider.GetUtcNow();
 
             // Evaluate condition (skip step if condition false)
             if (step.Condition is not null && !EvaluateCondition(ctx, step.Condition))
@@ -238,7 +241,7 @@ public sealed class PipelineEngine : IPipelineEngine
                         StepIndex = i,
                         ActionType = step.Action.Type,
                         Succeeded = true,
-                        Duration = DateTimeOffset.UtcNow - stepStart,
+                        Duration = _timeProvider.GetUtcNow() - stepStart,
                         Output = "Condition not met — step skipped",
                     }
                 );
@@ -269,7 +272,7 @@ public sealed class PipelineEngine : IPipelineEngine
                         StepIndex = i,
                         ActionType = step.Action.Type,
                         Succeeded = false,
-                        Duration = DateTimeOffset.UtcNow - stepStart,
+                        Duration = _timeProvider.GetUtcNow() - stepStart,
                         ErrorMessage = ex.Message,
                     }
                 );
@@ -284,7 +287,7 @@ public sealed class PipelineEngine : IPipelineEngine
                     StepIndex = i,
                     ActionType = step.Action.Type,
                     Succeeded = actionResult.Succeeded,
-                    Duration = DateTimeOffset.UtcNow - stepStart,
+                    Duration = _timeProvider.GetUtcNow() - stepStart,
                     Output = actionResult.Output,
                     ErrorMessage = actionResult.ErrorMessage,
                 }
@@ -302,7 +305,7 @@ public sealed class PipelineEngine : IPipelineEngine
         {
             ExecutionId = ctx.ExecutionId,
             Outcome = PipelineOutcome.Completed,
-            Duration = DateTimeOffset.UtcNow - startedAt,
+            Duration = _timeProvider.GetUtcNow() - startedAt,
             StepsExecuted = executed,
             StepsSkipped = skipped,
             Total = definition.Steps.Count,

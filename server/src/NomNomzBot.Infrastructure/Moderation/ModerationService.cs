@@ -259,7 +259,7 @@ public class ModerationService : IModerationService
             ruleData.IsEnabled = request.IsEnabled.Value;
 
         record.Data = JsonSerializer.Serialize(ruleData);
-        record.UpdatedAt = DateTime.UtcNow;
+        // UpdatedAt stamped by AuditableEntityInterceptor on save.
 
         await _db.SaveChangesAsync(cancellationToken);
 
@@ -559,7 +559,7 @@ public class ModerationService : IModerationService
             if (existing is not null)
             {
                 existing.Data = JsonSerializer.Serialize(ruleData);
-                existing.UpdatedAt = DateTime.UtcNow;
+                // UpdatedAt stamped by AuditableEntityInterceptor on save.
             }
             else
             {

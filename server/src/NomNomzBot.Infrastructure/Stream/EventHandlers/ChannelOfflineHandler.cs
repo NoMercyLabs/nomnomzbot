@@ -31,18 +31,21 @@ public sealed class ChannelOfflineHandler : IEventHandler<ChannelOfflineEvent>
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IPipelineEngine _pipeline;
     private readonly IChannelRegistry _registry;
+    private readonly TimeProvider _timeProvider;
     private readonly ILogger<ChannelOfflineHandler> _logger;
 
     public ChannelOfflineHandler(
         IServiceScopeFactory scopeFactory,
         IPipelineEngine pipeline,
         IChannelRegistry registry,
+        TimeProvider timeProvider,
         ILogger<ChannelOfflineHandler> logger
     )
     {
         _scopeFactory = scopeFactory;
         _pipeline = pipeline;
         _registry = registry;
+        _timeProvider = timeProvider;
         _logger = logger;
     }
 
@@ -71,7 +74,7 @@ public sealed class ChannelOfflineHandler : IEventHandler<ChannelOfflineEvent>
 
         // Compute actual stream duration from ChannelContext before resetting state
         ChannelContext? channelCtx = _registry.Get(broadcasterId);
-        DateTimeOffset endedAt = DateTimeOffset.UtcNow;
+        DateTimeOffset endedAt = _timeProvider.GetUtcNow();
         TimeSpan streamDuration =
             channelCtx?.WentLiveAt.HasValue == true
                 ? endedAt - channelCtx.WentLiveAt.Value

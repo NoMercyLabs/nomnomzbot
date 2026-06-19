@@ -39,6 +39,7 @@ public sealed class TimerService : BackgroundService
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IChannelRegistry _registry;
     private readonly ITemplateResolver _templateResolver;
+    private readonly TimeProvider _timeProvider;
     private readonly ILogger<TimerService> _logger;
 
     // Per-timer in-memory state: tracks message count at last fire for activity gating
@@ -49,12 +50,14 @@ public sealed class TimerService : BackgroundService
         IServiceScopeFactory scopeFactory,
         IChannelRegistry registry,
         ITemplateResolver templateResolver,
+        TimeProvider timeProvider,
         ILogger<TimerService> logger
     )
     {
         _scopeFactory = scopeFactory;
         _registry = registry;
         _templateResolver = templateResolver;
+        _timeProvider = timeProvider;
         _logger = logger;
     }
 
@@ -92,7 +95,7 @@ public sealed class TimerService : BackgroundService
             scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
         IChatProvider chat = scope.ServiceProvider.GetRequiredService<IChatProvider>();
 
-        DateTime now = DateTime.UtcNow;
+        DateTime now = _timeProvider.GetUtcNow().UtcDateTime;
         List<string> broadcasterIds = liveChannels.Select(c => c.BroadcasterId).ToList();
 
         List<Timer> timers = await db

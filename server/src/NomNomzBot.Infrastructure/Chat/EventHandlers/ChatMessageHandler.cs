@@ -35,6 +35,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
     private readonly IChatProvider _chat;
     private readonly IPipelineEngine _pipeline;
     private readonly ITemplateResolver _templateResolver;
+    private readonly TimeProvider _timeProvider;
     private readonly ILogger<ChatMessageHandler> _logger;
 
     public ChatMessageHandler(
@@ -43,6 +44,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
         IChatProvider chat,
         IPipelineEngine pipeline,
         ITemplateResolver templateResolver,
+        TimeProvider timeProvider,
         ILogger<ChatMessageHandler> logger
     )
     {
@@ -51,6 +53,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
         _chat = chat;
         _pipeline = pipeline;
         _templateResolver = templateResolver;
+        _timeProvider = timeProvider;
         _logger = logger;
     }
 
@@ -83,7 +86,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
         if (ctx is null)
             return; // channel not registered
 
-        ctx.LastActivityAt = DateTimeOffset.UtcNow;
+        ctx.LastActivityAt = _timeProvider.GetUtcNow();
         ctx.SessionChatters.TryAdd(@event.UserId, @event.UserDisplayName);
 
         // Look up command in in-memory cache (O(1), no DB hit)

@@ -61,6 +61,7 @@ public sealed class TrustService : ITrustService
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IChannelRegistry _registry;
     private readonly ILogger<TrustService> _logger;
+    private readonly TimeProvider _timeProvider;
 
     // In-memory state cache: key = "broadcasterId:userId"
     private readonly ConcurrentDictionary<string, TrustState> _stateCache = new();
@@ -68,12 +69,14 @@ public sealed class TrustService : ITrustService
     public TrustService(
         IServiceScopeFactory scopeFactory,
         IChannelRegistry registry,
-        ILogger<TrustService> logger
+        ILogger<TrustService> logger,
+        TimeProvider timeProvider
     )
     {
         _scopeFactory = scopeFactory;
         _registry = registry;
         _logger = logger;
+        _timeProvider = timeProvider;
     }
 
     public async Task<double> GetScoreAsync(
@@ -97,7 +100,7 @@ public sealed class TrustService : ITrustService
 
         state.ViolationCount++;
         state.ContentScore = state.ContentScore * (1 - ViolationPenalty);
-        state.LastViolationAt = DateTime.UtcNow;
+        state.LastViolationAt = _timeProvider.GetUtcNow().UtcDateTime;
         state.LastViolationType = violationType;
 
         await SaveStateAsync(broadcasterId, userId, state, ct);
@@ -131,11 +134,13 @@ public sealed class TrustService : ITrustService
 
     private double ComputeScore(TrustState state)
     {
+        DateTime now = _timeProvider.GetUtcNow().UtcDateTime;
+
         // requestScore: decays as the user has queued more items
         double requestScore = Math.Exp(-LambdaRequest * state.RequestCount);
 
         // accountScore: grows with Twitch account age
-        double accountAgeDays = (DateTime.UtcNow - state.AccountCreatedAt).TotalDays;
+        double accountAgeDays = (now - state.AccountCreatedAt).TotalDays;
         double accountScore = 1.0 - Math.Exp(-LambdaAccount * accountAgeDays);
 
         // contentScore: stored directly (maintained by violations/boosts)
@@ -143,7 +148,7 @@ public sealed class TrustService : ITrustService
 
         // popularityScore: grows with follow age
         double followAgeDays = state.FollowedAt.HasValue
-            ? (DateTime.UtcNow - state.FollowedAt.Value).TotalDays
+            ? (now - state.FollowedAt.Value).TotalDays
             : 0;
         double popularityScore = 1.0 - Math.Exp(-LambdaPopularity * followAgeDays);
 
@@ -168,7 +173,7 @@ public sealed class TrustService : ITrustService
 
         if (
             _stateCache.TryGetValue(cacheKey, out TrustState? cached)
-            && DateTime.UtcNow - cached.CachedAt < TimeSpan.FromMinutes(10)
+            && _timeProvider.GetUtcNow().UtcDateTime - cached.CachedAt < TimeSpan.FromMinutes(10)
         )
         {
             return cached;
@@ -178,7 +183,7 @@ public sealed class TrustService : ITrustService
             await LoadFromDbAsync(broadcasterId, userId, ct)
             ?? await BuildInitialStateAsync(broadcasterId, userId, ct);
 
-        state.CachedAt = DateTime.UtcNow;
+        state.CachedAt = _timeProvider.GetUtcNow().UtcDateTime;
         _stateCache[cacheKey] = state;
         return state;
     }
@@ -230,7 +235,7 @@ public sealed class TrustService : ITrustService
     )
     {
         // Try to seed from User entity for account age
-        DateTime accountCreated = DateTime.UtcNow.AddDays(-1); // default: 1-day-old account
+        DateTime accountCreated = _timeProvider.GetUtcNow().UtcDateTime.AddDays(-1); // default: 1-day-old account
         DateTime? followedAt = null;
 
         try
@@ -279,7 +284,7 @@ public sealed class TrustService : ITrustService
                 if (record is not null)
                 {
                     record.Data = data;
-                    record.UpdatedAt = DateTime.UtcNow;
+                    // UpdatedAt is stamped by AuditableEntityInterceptor on save.
                     await db.SaveChangesAsync(ct);
                     return;
                 }
@@ -297,7 +302,7 @@ public sealed class TrustService : ITrustService
             state.RecordId = newRecord.Id;
 
             string cacheKey = $"{broadcasterId}:{userId}";
-            state.CachedAt = DateTime.UtcNow;
+            state.CachedAt = _timeProvider.GetUtcNow().UtcDateTime;
             _stateCache[cacheKey] = state;
         }
         catch (Exception ex)
@@ -311,7 +316,10 @@ public sealed class TrustService : ITrustService
     private sealed class TrustState
     {
         public int? RecordId { get; set; }
-        public DateTime AccountCreatedAt { get; set; } = DateTime.UtcNow;
+
+        // Set explicitly by BuildInitialStateAsync (from the injected TimeProvider) or
+        // restored from the persisted JSON — never self-stamped here.
+        public DateTime AccountCreatedAt { get; set; }
         public DateTime? FollowedAt { get; set; }
         public double ContentScore { get; set; } = 0.8;
         public int RequestCount { get; set; }

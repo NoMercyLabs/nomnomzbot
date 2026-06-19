@@ -26,11 +26,13 @@ public class UsersController : BaseController
 {
     private readonly IUserService _userService;
     private readonly IGdprService _gdpr;
+    private readonly TimeProvider _timeProvider;
 
-    public UsersController(IUserService userService, IGdprService gdpr)
+    public UsersController(IUserService userService, IGdprService gdpr, TimeProvider timeProvider)
     {
         _userService = userService;
         _gdpr = gdpr;
+        _timeProvider = timeProvider;
     }
 
     [HttpGet]
@@ -138,7 +140,7 @@ public class UsersController : BaseController
         return File(
             bytes,
             "application/json",
-            $"user-data-export-{userId}-{DateTime.UtcNow:yyyyMMdd}.json"
+            $"user-data-export-{userId}-{_timeProvider.GetUtcNow().UtcDateTime:yyyyMMdd}.json"
         );
     }
 

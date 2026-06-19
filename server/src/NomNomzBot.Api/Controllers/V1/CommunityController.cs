@@ -29,11 +29,17 @@ public class CommunityController : BaseController
 {
     private readonly IApplicationDbContext _db;
     private readonly ITwitchApiService _twitchApi;
+    private readonly TimeProvider _timeProvider;
 
-    public CommunityController(IApplicationDbContext db, ITwitchApiService twitchApi)
+    public CommunityController(
+        IApplicationDbContext db,
+        ITwitchApiService twitchApi,
+        TimeProvider timeProvider
+    )
     {
         _db = db;
         _twitchApi = twitchApi;
+        _timeProvider = timeProvider;
     }
 
     // ── DTOs ──────────────────────────────────────────────────────────────────
@@ -225,8 +231,10 @@ public class CommunityController : BaseController
                         0,
                         "vip",
                         false,
-                        stats?.FirstSeen ?? user?.CreatedAt ?? DateTime.UtcNow,
-                        stats?.LastSeen ?? user?.CreatedAt ?? DateTime.UtcNow
+                        stats?.FirstSeen
+                            ?? user?.CreatedAt
+                            ?? _timeProvider.GetUtcNow().UtcDateTime,
+                        stats?.LastSeen ?? user?.CreatedAt ?? _timeProvider.GetUtcNow().UtcDateTime
                     );
                 })
                 .ToList();
@@ -336,8 +344,8 @@ public class CommunityController : BaseController
                     0,
                     trustLevel,
                     isBanned,
-                    stats?.FirstSeen ?? user?.CreatedAt ?? DateTime.UtcNow,
-                    stats?.LastSeen ?? user?.CreatedAt ?? DateTime.UtcNow
+                    stats?.FirstSeen ?? user?.CreatedAt ?? _timeProvider.GetUtcNow().UtcDateTime,
+                    stats?.LastSeen ?? user?.CreatedAt ?? _timeProvider.GetUtcNow().UtcDateTime
                 );
             })
             .ToList();
@@ -600,7 +608,7 @@ public class CommunityController : BaseController
             user?.ProfileImageUrl,
             request.Reason,
             moderatorId,
-            DateTime.UtcNow
+            _timeProvider.GetUtcNow().UtcDateTime
         );
 
         var existing = await _db.Configurations.FirstOrDefaultAsync(

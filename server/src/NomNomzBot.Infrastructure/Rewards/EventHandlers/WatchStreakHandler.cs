@@ -33,12 +33,18 @@ public sealed class WatchStreakHandler
 {
     protected override string EventTypeKey => "watch_streak";
 
+    private readonly TimeProvider _timeProvider;
+
     public WatchStreakHandler(
         IServiceScopeFactory s,
         IPipelineEngine p,
+        TimeProvider timeProvider,
         ILogger<WatchStreakHandler> l
     )
-        : base(s, p, l) { }
+        : base(s, p, l)
+    {
+        _timeProvider = timeProvider;
+    }
 
     protected override string? GetUserId(WatchStreakReceivedEvent e) => e.UserId;
 
@@ -69,7 +75,7 @@ public sealed class WatchStreakHandler
             IApplicationDbContext db =
                 scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
 
-            DateOnly today = DateOnly.FromDateTime(DateTime.UtcNow);
+            DateOnly today = DateOnly.FromDateTime(_timeProvider.GetUtcNow().UtcDateTime);
             string? broadcasterId = e.BroadcasterId;
             if (string.IsNullOrEmpty(broadcasterId))
                 return;

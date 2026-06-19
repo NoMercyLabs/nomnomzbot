@@ -32,6 +32,7 @@ public sealed class TwitchAuthService : ITwitchAuthService
     private readonly HttpClient _http;
     private readonly TwitchOptions _options;
     private readonly ILogger<TwitchAuthService> _logger;
+    private readonly TimeProvider _timeProvider;
 
     private const string TokenEndpoint = "https://id.twitch.tv/oauth2/token";
     private const string RevokeEndpoint = "https://id.twitch.tv/oauth2/revoke";
@@ -41,7 +42,8 @@ public sealed class TwitchAuthService : ITwitchAuthService
         IEncryptionService encryption,
         IHttpClientFactory httpClientFactory,
         IOptions<TwitchOptions> options,
-        ILogger<TwitchAuthService> logger
+        ILogger<TwitchAuthService> logger,
+        TimeProvider timeProvider
     )
     {
         _db = db;
@@ -49,6 +51,7 @@ public sealed class TwitchAuthService : ITwitchAuthService
         _http = httpClientFactory.CreateClient("twitch-auth");
         _options = options.Value;
         _logger = logger;
+        _timeProvider = timeProvider;
     }
 
     /// <summary>
@@ -88,7 +91,7 @@ public sealed class TwitchAuthService : ITwitchAuthService
         return new(
             json.AccessToken,
             json.RefreshToken,
-            DateTime.UtcNow.AddSeconds(json.ExpiresIn),
+            _timeProvider.GetUtcNow().UtcDateTime.AddSeconds(json.ExpiresIn),
             json.Scope ?? []
         );
     }
@@ -160,7 +163,7 @@ public sealed class TwitchAuthService : ITwitchAuthService
         TokenResult result = new(
             json.AccessToken,
             json.RefreshToken,
-            DateTime.UtcNow.AddSeconds(json.ExpiresIn),
+            _timeProvider.GetUtcNow().UtcDateTime.AddSeconds(json.ExpiresIn),
             json.Scope ?? []
         );
 
@@ -186,7 +189,7 @@ public sealed class TwitchAuthService : ITwitchAuthService
     /// </summary>
     public async Task RefreshExpiringTokensAsync(CancellationToken ct = default)
     {
-        DateTime threshold = DateTime.UtcNow.AddMinutes(30);
+        DateTime threshold = _timeProvider.GetUtcNow().UtcDateTime.AddMinutes(30);
 
         var expiring = await _db
             .Services.Where(s =>

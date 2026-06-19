@@ -59,6 +59,7 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
     private readonly TwitchOptions _options;
     private readonly HttpClient _http;
     private readonly ILogger<TwitchEventSubService> _logger;
+    private readonly TimeProvider _timeProvider;
 
     private ClientWebSocket? _ws;
     private CancellationTokenSource? _cts;
@@ -94,7 +95,8 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
         IEventBus eventBus,
         IOptions<TwitchOptions> options,
         IHttpClientFactory httpClientFactory,
-        ILogger<TwitchEventSubService> logger
+        ILogger<TwitchEventSubService> logger,
+        TimeProvider timeProvider
     )
     {
         _scopeFactory = scopeFactory;
@@ -102,6 +104,7 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
         _options = options.Value;
         _http = httpClientFactory.CreateClient("twitch-eventsub");
         _logger = logger;
+        _timeProvider = timeProvider;
     }
 
     // ─── IHostedService ───────────────────────────────────────────────────────────
@@ -636,7 +639,7 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
                             out DateTimeOffset fa
                         )
                             ? fa
-                            : DateTimeOffset.UtcNow,
+                            : _timeProvider.GetUtcNow(),
                     },
                     ct
                 );
@@ -820,7 +823,7 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
                             eventData?.GetProp("broadcaster_user_name") ?? broadcasterId,
                         StreamTitle = streamTitle,
                         GameName = gameName,
-                        StartedAt = startedAt == default ? DateTimeOffset.UtcNow : startedAt,
+                        StartedAt = startedAt == default ? _timeProvider.GetUtcNow() : startedAt,
                     },
                     ct
                 );
@@ -929,7 +932,9 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
                         Total = htTotal,
                         Goal = htGoal,
                         ExpiresAt =
-                            htExpires == default ? DateTimeOffset.UtcNow.AddMinutes(5) : htExpires,
+                            htExpires == default
+                                ? _timeProvider.GetUtcNow().AddMinutes(5)
+                                : htExpires,
                     },
                     ct
                 );
@@ -993,7 +998,8 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
                 Title = ev.GetProp("title") ?? string.Empty,
                 Choices = choices,
                 DurationSeconds = duration,
-                EndsAt = endsAt == default ? DateTimeOffset.UtcNow.AddSeconds(duration) : endsAt,
+                EndsAt =
+                    endsAt == default ? _timeProvider.GetUtcNow().AddSeconds(duration) : endsAt,
             },
             ct
         );
@@ -1062,7 +1068,8 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
                 Title = ev.GetProp("title") ?? string.Empty,
                 Outcomes = outcomes,
                 WindowSeconds = window,
-                LocksAt = locksAt == default ? DateTimeOffset.UtcNow.AddSeconds(window) : locksAt,
+                LocksAt =
+                    locksAt == default ? _timeProvider.GetUtcNow().AddSeconds(window) : locksAt,
             },
             ct
         );

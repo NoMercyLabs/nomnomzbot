@@ -17,6 +17,12 @@ namespace NomNomzBot.Domain.Platform;
 public abstract class DomainEventBase : IDomainEvent
 {
     public string EventId { get; init; } = Guid.NewGuid().ToString();
-    public DateTimeOffset Timestamp { get; init; } = DateTimeOffset.UtcNow;
+
+    // The single tolerated construction-time default for the clock (platform-conventions
+    // §3.11): domain events are plain records built with `new` and have no DI seam, so the
+    // initializer reads TimeProvider.System — the composition-root clock — rather than a bare
+    // DateTimeOffset.UtcNow. Publishers needing determinism (and all tests) override Timestamp
+    // from their injected TimeProvider.
+    public DateTimeOffset Timestamp { get; init; } = TimeProvider.System.GetUtcNow();
     public string? BroadcasterId { get; init; }
 }

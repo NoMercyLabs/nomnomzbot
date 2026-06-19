@@ -31,18 +31,21 @@ public class IntegrationOAuthController : BaseController
     private readonly IConfiguration _config;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<IntegrationOAuthController> _logger;
+    private readonly TimeProvider _timeProvider;
 
     public IntegrationOAuthController(
         IApplicationDbContext db,
         IConfiguration config,
         IHttpClientFactory httpClientFactory,
-        ILogger<IntegrationOAuthController> logger
+        ILogger<IntegrationOAuthController> logger,
+        TimeProvider timeProvider
     )
     {
         _db = db;
         _config = config;
         _httpClientFactory = httpClientFactory;
         _logger = logger;
+        _timeProvider = timeProvider;
     }
 
     // ── Spotify ──────────────────────────────────────────────────────────────
@@ -183,7 +186,7 @@ public class IntegrationOAuthController : BaseController
 
         service.AccessToken = accessToken;
         service.RefreshToken = refreshToken;
-        service.TokenExpiry = DateTime.UtcNow.AddSeconds(expiresIn);
+        service.TokenExpiry = _timeProvider.GetUtcNow().UtcDateTime.AddSeconds(expiresIn);
         service.Scopes = SpotifyScopes.Split(' ');
         service.Enabled = true;
 
@@ -337,7 +340,7 @@ public class IntegrationOAuthController : BaseController
 
         service.AccessToken = accessToken;
         service.RefreshToken = refreshToken;
-        service.TokenExpiry = DateTime.UtcNow.AddSeconds(expiresIn);
+        service.TokenExpiry = _timeProvider.GetUtcNow().UtcDateTime.AddSeconds(expiresIn);
         service.Scopes = DiscordScopes.Split(' ');
         service.Enabled = true;
 
@@ -357,7 +360,7 @@ public class IntegrationOAuthController : BaseController
                     GuildId = guildId,
                     GuildName = guildName ?? "Unknown",
                     Status = "active",
-                    ApprovedAt = DateTime.UtcNow,
+                    ApprovedAt = _timeProvider.GetUtcNow().UtcDateTime,
                 };
                 _db.DiscordServerAuthorizations.Add(discordAuth);
             }
@@ -365,7 +368,7 @@ public class IntegrationOAuthController : BaseController
             {
                 discordAuth.GuildName = guildName ?? discordAuth.GuildName;
                 discordAuth.Status = "active";
-                discordAuth.ApprovedAt = DateTime.UtcNow;
+                discordAuth.ApprovedAt = _timeProvider.GetUtcNow().UtcDateTime;
             }
         }
 
@@ -515,7 +518,7 @@ public class IntegrationOAuthController : BaseController
 
         service.AccessToken = accessToken;
         service.RefreshToken = refreshToken;
-        service.TokenExpiry = DateTime.UtcNow.AddSeconds(expiresIn);
+        service.TokenExpiry = _timeProvider.GetUtcNow().UtcDateTime.AddSeconds(expiresIn);
         service.Scopes = YouTubeScopes.Split(' ');
         service.Enabled = true;
 

@@ -69,8 +69,10 @@ public class ChannelContext
     /// <summary>Commands successfully executed since the bot joined this session.</summary>
     public long CommandsUsed { get; set; }
 
-    public DateTimeOffset LoadedAt { get; init; } = DateTimeOffset.UtcNow;
-    public DateTimeOffset LastActivityAt { get; set; } = DateTimeOffset.UtcNow;
+    // Stamped by ChannelRegistry via the injected TimeProvider (single clock,
+    // platform-conventions §3.11) — this context object does not self-stamp time.
+    public DateTimeOffset LoadedAt { get; init; }
+    public DateTimeOffset LastActivityAt { get; set; }
 
     // Lock for compound operations
     private readonly object _lock = new();

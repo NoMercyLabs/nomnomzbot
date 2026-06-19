@@ -19,7 +19,7 @@ public class AutoModerationEngineTests
 {
     private static AutoModerationEngine Create()
     {
-        CooldownManager cooldowns = new();
+        CooldownManager cooldowns = new(TimeProvider.System);
         NullLogger<AutoModerationEngine> logger = NullLogger<AutoModerationEngine>.Instance;
         return new(cooldowns, logger);
     }

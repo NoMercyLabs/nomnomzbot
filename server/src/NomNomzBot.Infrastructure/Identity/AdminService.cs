@@ -21,10 +21,12 @@ namespace NomNomzBot.Infrastructure.Identity;
 public sealed class AdminService : IAdminService
 {
     private readonly IApplicationDbContext _db;
+    private readonly TimeProvider _timeProvider;
 
-    public AdminService(IApplicationDbContext db)
+    public AdminService(IApplicationDbContext db, TimeProvider timeProvider)
     {
         _db = db;
+        _timeProvider = timeProvider;
     }
 
     public async Task<Result<AdminStatsDto>> GetStatsAsync(CancellationToken ct = default)
@@ -33,12 +35,14 @@ public sealed class AdminService : IAdminService
         int activeChannels = await _db.Channels.CountAsync(c => c.IsLive, ct);
         int totalUsers = await _db.Users.CountAsync(ct);
 
-        DateTime today = DateTime.UtcNow.Date;
+        DateTime today = _timeProvider.GetUtcNow().UtcDateTime.Date;
         int eventsToday = await _db.ChannelEvents.CountAsync(e => e.CreatedAt >= today, ct);
 
         Process process = Process.GetCurrentProcess();
         long uptimeSeconds = (long)
-            (DateTime.UtcNow - process.StartTime.ToUniversalTime()).TotalSeconds;
+            (
+                _timeProvider.GetUtcNow().UtcDateTime - process.StartTime.ToUniversalTime()
+            ).TotalSeconds;
 
         AdminStatsDto dto = new(
             totalChannels,
@@ -117,7 +121,9 @@ public sealed class AdminService : IAdminService
         Process process = Process.GetCurrentProcess();
         long memoryMb = process.WorkingSet64 / (1024 * 1024);
         long uptimeSeconds = (long)
-            (DateTime.UtcNow - process.StartTime.ToUniversalTime()).TotalSeconds;
+            (
+                _timeProvider.GetUtcNow().UtcDateTime - process.StartTime.ToUniversalTime()
+            ).TotalSeconds;
 
         string version = Assembly.GetEntryAssembly()?.GetName().Version?.ToString() ?? "0.0.0";
 

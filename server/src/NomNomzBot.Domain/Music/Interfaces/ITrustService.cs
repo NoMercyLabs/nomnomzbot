@@ -54,5 +54,8 @@ public sealed class TrustScore
     public required double AccountScore { get; init; }
     public required double ContentScore { get; init; }
     public required double PopularityScore { get; init; }
-    public DateTime ComputedAt { get; init; } = DateTime.UtcNow;
+
+    // Stamped by TrustService via the injected TimeProvider (single clock,
+    // platform-conventions §3.11) — this value object does not self-stamp time.
+    public DateTime ComputedAt { get; init; }
 }

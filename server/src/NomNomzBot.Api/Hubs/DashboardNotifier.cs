@@ -59,8 +59,16 @@ public interface IDashboardNotifier
 public class DashboardNotifier : IDashboardNotifier
 {
     private readonly IHubContext<DashboardHub, IDashboardClient> _hub;
+    private readonly TimeProvider _timeProvider;
 
-    public DashboardNotifier(IHubContext<DashboardHub, IDashboardClient> hub) => _hub = hub;
+    public DashboardNotifier(
+        IHubContext<DashboardHub, IDashboardClient> hub,
+        TimeProvider timeProvider
+    )
+    {
+        _hub = hub;
+        _timeProvider = timeProvider;
+    }
 
     public Task NotifyChannelAsync(
         string broadcasterId,
@@ -71,7 +79,14 @@ public class DashboardNotifier : IDashboardNotifier
         _hub
             .Clients.Group($"channel-{broadcasterId}")
             .ChannelEvent(
-                new(method, broadcasterId, null, null, data, DateTimeOffset.UtcNow.ToString("O"))
+                new(
+                    method,
+                    broadcasterId,
+                    null,
+                    null,
+                    data,
+                    _timeProvider.GetUtcNow().ToString("O")
+                )
             );
 
     public Task SendChatMessageAsync(

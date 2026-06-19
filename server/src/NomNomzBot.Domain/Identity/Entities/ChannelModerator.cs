@@ -25,7 +25,9 @@ public class ChannelModerator : SoftDeletableEntity, ITenantScoped
     [MaxLength(20)]
     public string Role { get; set; } = "moderator";
 
-    public DateTime GrantedAt { get; set; } = DateTime.UtcNow;
+    // Stamped by the granting service via the injected TimeProvider (single clock,
+    // platform-conventions §3.11) — entities do not self-stamp time.
+    public DateTime GrantedAt { get; set; }
 
     [MaxLength(50)]
     public string? GrantedBy { get; set; }

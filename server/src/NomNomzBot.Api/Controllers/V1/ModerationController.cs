@@ -30,11 +30,17 @@ public class ModerationController : BaseController
 {
     private readonly IModerationService _moderationService;
     private readonly IApplicationDbContext _db;
+    private readonly TimeProvider _timeProvider;
 
-    public ModerationController(IModerationService moderationService, IApplicationDbContext db)
+    public ModerationController(
+        IModerationService moderationService,
+        IApplicationDbContext db,
+        TimeProvider timeProvider
+    )
     {
         _moderationService = moderationService;
         _db = db;
+        _timeProvider = timeProvider;
     }
 
     // ─── Rules ───────────────────────────────────────────────────────────────
@@ -348,7 +354,7 @@ public class ModerationController : BaseController
     [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetStats(string channelId, CancellationToken ct)
     {
-        DateTime today = DateTime.UtcNow.Date;
+        DateTime today = _timeProvider.GetUtcNow().UtcDateTime.Date;
 
         var events = await _db
             .ChannelEvents.Where(e => e.ChannelId == channelId && e.CreatedAt >= today)

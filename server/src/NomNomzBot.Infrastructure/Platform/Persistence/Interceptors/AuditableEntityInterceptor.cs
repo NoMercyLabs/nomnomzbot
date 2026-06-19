@@ -17,9 +17,10 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Interceptors;
 
 /// <summary>
 /// Automatically sets CreatedAt and UpdatedAt timestamps on BaseEntity instances
-/// before saving changes to the database.
+/// before saving changes to the database. Reads the current time from the injected
+/// TimeProvider (the single clock, platform-conventions §3.11) so stamping is fakeable.
 /// </summary>
-public sealed class AuditableEntityInterceptor : SaveChangesInterceptor
+public sealed class AuditableEntityInterceptor(TimeProvider timeProvider) : SaveChangesInterceptor
 {
     public override ValueTask<InterceptionResult<int>> SavingChangesAsync(
         DbContextEventData eventData,
@@ -48,9 +49,9 @@ public sealed class AuditableEntityInterceptor : SaveChangesInterceptor
         return base.SavingChanges(eventData, result);
     }
 
-    private static void UpdateAuditFields(DbContext context)
+    private void UpdateAuditFields(DbContext context)
     {
-        DateTime utcNow = DateTime.UtcNow;
+        DateTime utcNow = timeProvider.GetUtcNow().UtcDateTime;
 
         foreach (EntityEntry<BaseEntity> entry in context.ChangeTracker.Entries<BaseEntity>())
         {

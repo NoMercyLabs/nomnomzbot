@@ -41,16 +41,19 @@ public sealed partial class TemplateResolver : ITemplateResolver
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IChannelRegistry _registry;
     private readonly ILogger<TemplateResolver> _logger;
+    private readonly TimeProvider _timeProvider;
 
     public TemplateResolver(
         IServiceScopeFactory scopeFactory,
         IChannelRegistry registry,
-        ILogger<TemplateResolver> logger
+        ILogger<TemplateResolver> logger,
+        TimeProvider timeProvider
     )
     {
         _scopeFactory = scopeFactory;
         _registry = registry;
         _logger = logger;
+        _timeProvider = timeProvider;
     }
 
     /// <summary>Simple synchronous resolve using only provided variables.</summary>
@@ -121,7 +124,7 @@ public sealed partial class TemplateResolver : ITemplateResolver
         ChannelContext? channelCtx = broadcasterId is not null
             ? _registry.Get(broadcasterId)
             : null;
-        DateTimeOffset now = DateTimeOffset.UtcNow;
+        DateTimeOffset now = _timeProvider.GetUtcNow();
 
         // ── Time variables (no DB needed) ──────────────────────────────────
         if (NeedsAny(needed, "time", "time.utc", "date"))
@@ -280,7 +283,7 @@ public sealed partial class TemplateResolver : ITemplateResolver
 
             if (!vars.ContainsKey("user.accountAge"))
             {
-                TimeSpan age = DateTime.UtcNow - user.CreatedAt;
+                TimeSpan age = _timeProvider.GetUtcNow().UtcDateTime - user.CreatedAt;
                 vars["user.accountAge"] = FormatAge(age);
             }
 

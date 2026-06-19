@@ -12,6 +12,8 @@ namespace NomNomzBot.Domain.Platform;
 
 public abstract class BaseEntity
 {
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    // Entities do NOT self-stamp time: AuditableEntityInterceptor owns CreatedAt/UpdatedAt
+    // stamping via the injected TimeProvider (the single clock, platform-conventions §3.11).
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
 }

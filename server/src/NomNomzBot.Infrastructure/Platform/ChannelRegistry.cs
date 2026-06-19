@@ -27,6 +27,7 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
     private readonly ConcurrentDictionary<string, ChannelContext> _channels = new();
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<ChannelRegistry> _logger;
+    private readonly TimeProvider _timeProvider;
     private Timer? _evictionTimer;
 
     // Eviction: remove channels that are offline AND have had no activity for 2 hours
@@ -34,10 +35,15 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
     private static readonly TimeSpan EvictionThreshold = TimeSpan.FromHours(2);
     private static readonly TimeSpan EvictionInterval = TimeSpan.FromMinutes(15);
 
-    public ChannelRegistry(IServiceScopeFactory scopeFactory, ILogger<ChannelRegistry> logger)
+    public ChannelRegistry(
+        IServiceScopeFactory scopeFactory,
+        ILogger<ChannelRegistry> logger,
+        TimeProvider timeProvider
+    )
     {
         _scopeFactory = scopeFactory;
         _logger = logger;
+        _timeProvider = timeProvider;
     }
 
     // -------------------------------------------------------------------------
@@ -68,13 +74,21 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
         CancellationToken ct = default
     )
     {
+        DateTimeOffset now = _timeProvider.GetUtcNow();
+
         if (_channels.TryGetValue(broadcasterId, out ChannelContext? existing))
         {
-            existing.LastActivityAt = DateTimeOffset.UtcNow;
+            existing.LastActivityAt = now;
             return existing;
         }
 
-        ChannelContext ctx = new() { BroadcasterId = broadcasterId, ChannelName = channelName };
+        ChannelContext ctx = new()
+        {
+            BroadcasterId = broadcasterId,
+            ChannelName = channelName,
+            LoadedAt = now,
+            LastActivityAt = now,
+        };
 
         // Load commands from DB
         await LoadCommandsAsync(ctx, ct);
@@ -168,7 +182,7 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
 
     private void RunEviction(object? state)
     {
-        DateTimeOffset threshold = DateTimeOffset.UtcNow - EvictionThreshold;
+        DateTimeOffset threshold = _timeProvider.GetUtcNow() - EvictionThreshold;
         List<ChannelContext> candidates = _channels
             .Values.Where(c => !c.IsLive && c.LastActivityAt < threshold)
             .ToList();

@@ -42,14 +42,17 @@ public sealed partial class AutoModerationHandler : IEventHandler<ChatMessageRec
     private readonly ConcurrentDictionary<string, CachedRules> _ruleCache = new();
 
     private readonly IServiceScopeFactory _scopeFactory;
+    private readonly TimeProvider _timeProvider;
     private readonly ILogger<AutoModerationHandler> _logger;
 
     public AutoModerationHandler(
         IServiceScopeFactory scopeFactory,
+        TimeProvider timeProvider,
         ILogger<AutoModerationHandler> logger
     )
     {
         _scopeFactory = scopeFactory;
+        _timeProvider = timeProvider;
         _logger = logger;
     }
 
@@ -271,7 +274,7 @@ public sealed partial class AutoModerationHandler : IEventHandler<ChatMessageRec
         CancellationToken ct
     )
     {
-        DateTimeOffset now = DateTimeOffset.UtcNow;
+        DateTimeOffset now = _timeProvider.GetUtcNow();
 
         if (
             _ruleCache.TryGetValue(broadcasterId, out CachedRules? cached)

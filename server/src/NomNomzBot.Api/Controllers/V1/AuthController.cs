@@ -30,12 +30,19 @@ public class AuthController : BaseController
     private readonly IUserService _userService;
     private readonly IAuthService _authService;
     private readonly IConfiguration _config;
+    private readonly TimeProvider _timeProvider;
 
-    public AuthController(IUserService userService, IAuthService authService, IConfiguration config)
+    public AuthController(
+        IUserService userService,
+        IAuthService authService,
+        IConfiguration config,
+        TimeProvider timeProvider
+    )
     {
         _userService = userService;
         _authService = authService;
         _config = config;
+        _timeProvider = timeProvider;
     }
 
     private string GetPublicBaseUrl()
@@ -219,7 +226,7 @@ public class AuthController : BaseController
         }
 
         AuthResultDto auth = result.Value;
-        int expiresIn = (int)(auth.ExpiresAt - DateTime.UtcNow).TotalSeconds;
+        int expiresIn = (int)(auth.ExpiresAt - _timeProvider.GetUtcNow().UtcDateTime).TotalSeconds;
 
         if (!string.IsNullOrWhiteSpace(mobileRedirectUri))
         {
@@ -265,7 +272,7 @@ public class AuthController : BaseController
             return ResultResponse(result);
 
         AuthResultDto auth = result.Value;
-        int expiresIn = (int)(auth.ExpiresAt - DateTime.UtcNow).TotalSeconds;
+        int expiresIn = (int)(auth.ExpiresAt - _timeProvider.GetUtcNow().UtcDateTime).TotalSeconds;
 
         return Ok(
             new StatusResponseDto<object>
@@ -299,7 +306,7 @@ public class AuthController : BaseController
             return ResultResponse(result);
 
         AuthResultDto auth = result.Value;
-        int expiresIn = (int)(auth.ExpiresAt - DateTime.UtcNow).TotalSeconds;
+        int expiresIn = (int)(auth.ExpiresAt - _timeProvider.GetUtcNow().UtcDateTime).TotalSeconds;
 
         return Ok(
             new StatusResponseDto<object>

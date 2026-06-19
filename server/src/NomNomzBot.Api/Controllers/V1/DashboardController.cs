@@ -33,18 +33,21 @@ public class DashboardController : BaseController
     private readonly IChannelService _channelService;
     private readonly IApplicationDbContext _db;
     private readonly ITwitchApiService _twitchApi;
+    private readonly TimeProvider _timeProvider;
 
     public DashboardController(
         IChannelRegistry registry,
         IChannelService channelService,
         IApplicationDbContext db,
-        ITwitchApiService twitchApi
+        ITwitchApiService twitchApi,
+        TimeProvider timeProvider
     )
     {
         _registry = registry;
         _channelService = channelService;
         _db = db;
         _twitchApi = twitchApi;
+        _timeProvider = timeProvider;
     }
 
     // ── DTOs ──────────────────────────────────────────────────────────────────
@@ -75,7 +78,7 @@ public class DashboardController : BaseController
         {
             long? uptime =
                 ctx.IsLive && ctx.WentLiveAt.HasValue
-                    ? (long)(DateTimeOffset.UtcNow - ctx.WentLiveAt.Value).TotalSeconds
+                    ? (long)(_timeProvider.GetUtcNow() - ctx.WentLiveAt.Value).TotalSeconds
                     : null;
 
             // Get live viewer count from Twitch stream info

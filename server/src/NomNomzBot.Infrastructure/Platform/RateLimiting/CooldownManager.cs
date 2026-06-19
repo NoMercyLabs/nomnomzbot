@@ -18,22 +18,22 @@ namespace NomNomzBot.Infrastructure.Platform.RateLimiting;
 /// Tracks cooldowns for commands per-channel and optionally per-user.
 /// Thread-safe for concurrent access from multiple event handlers.
 /// </summary>
-public sealed class CooldownManager : ICooldownManager
+public sealed class CooldownManager(TimeProvider timeProvider) : ICooldownManager
 {
     // Key format: "{broadcasterId}:{commandName}" for global cooldowns
     //             "{broadcasterId}:{commandName}:{userId}" for per-user cooldowns
-    private readonly ConcurrentDictionary<string, DateTime> _cooldowns = new();
+    private readonly ConcurrentDictionary<string, DateTimeOffset> _cooldowns = new();
 
     public bool IsOnCooldown(string channelId, string commandName, string? userId = null)
     {
         string key = BuildKey(channelId, commandName, userId);
 
-        if (!_cooldowns.TryGetValue(key, out DateTime expiresAt))
+        if (!_cooldowns.TryGetValue(key, out DateTimeOffset expiresAt))
         {
             return false;
         }
 
-        if (DateTime.UtcNow >= expiresAt)
+        if (timeProvider.GetUtcNow() >= expiresAt)
         {
             // Cooldown expired, clean up
             _cooldowns.TryRemove(key, out _);
@@ -51,12 +51,12 @@ public sealed class CooldownManager : ICooldownManager
     {
         string key = BuildKey(channelId, commandName, userId);
 
-        if (!_cooldowns.TryGetValue(key, out DateTime expiresAt))
+        if (!_cooldowns.TryGetValue(key, out DateTimeOffset expiresAt))
         {
             return null;
         }
 
-        TimeSpan remaining = expiresAt - DateTime.UtcNow;
+        TimeSpan remaining = expiresAt - timeProvider.GetUtcNow();
         if (remaining <= TimeSpan.Zero)
         {
             _cooldowns.TryRemove(key, out _);
@@ -74,7 +74,7 @@ public sealed class CooldownManager : ICooldownManager
     )
     {
         string key = BuildKey(channelId, commandName, userId);
-        DateTime expiresAt = DateTime.UtcNow.Add(duration);
+        DateTimeOffset expiresAt = timeProvider.GetUtcNow().Add(duration);
         _cooldowns[key] = expiresAt;
     }
 

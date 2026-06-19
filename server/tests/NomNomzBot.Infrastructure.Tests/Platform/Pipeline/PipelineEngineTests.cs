@@ -43,7 +43,13 @@ public class InfraPipelineEngineTests
             new RandomCondition(),
         };
 
-        return new(registry, actions, conditions, NullLogger<PipelineEngine>.Instance);
+        return new(
+            registry,
+            actions,
+            conditions,
+            NullLogger<PipelineEngine>.Instance,
+            TimeProvider.System
+        );
     }
 
     private static PipelineRequest BuildRequest(

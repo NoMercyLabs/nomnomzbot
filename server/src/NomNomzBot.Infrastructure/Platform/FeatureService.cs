@@ -20,10 +20,12 @@ namespace NomNomzBot.Infrastructure.Platform;
 public class FeatureService : IFeatureService
 {
     private readonly IApplicationDbContext _db;
+    private readonly TimeProvider _timeProvider;
 
-    public FeatureService(IApplicationDbContext db)
+    public FeatureService(IApplicationDbContext db, TimeProvider timeProvider)
     {
         _db = db;
+        _timeProvider = timeProvider;
     }
 
     public async Task<Result<List<FeatureStatusDto>>> GetFeaturesAsync(
@@ -62,14 +64,14 @@ public class FeatureService : IFeatureService
                 BroadcasterId = channelId,
                 FeatureKey = featureKey,
                 IsEnabled = true,
-                EnabledAt = DateTime.UtcNow,
+                EnabledAt = _timeProvider.GetUtcNow().UtcDateTime,
             };
             _db.ChannelFeatures.Add(feature);
         }
         else
         {
             feature.IsEnabled = !feature.IsEnabled;
-            feature.EnabledAt = feature.IsEnabled ? DateTime.UtcNow : null;
+            feature.EnabledAt = feature.IsEnabled ? _timeProvider.GetUtcNow().UtcDateTime : null;
         }
 
         await _db.SaveChangesAsync(cancellationToken);

@@ -20,10 +20,12 @@ namespace NomNomzBot.Infrastructure.Identity;
 public class ChannelService : IChannelService
 {
     private readonly IApplicationDbContext _db;
+    private readonly TimeProvider _timeProvider;
 
-    public ChannelService(IApplicationDbContext db)
+    public ChannelService(IApplicationDbContext db, TimeProvider timeProvider)
     {
         _db = db;
+        _timeProvider = timeProvider;
     }
 
     public async Task<Result> JoinAsync(
@@ -40,7 +42,7 @@ public class ChannelService : IChannelService
             return Errors.ChannelNotFound(broadcasterId);
 
         channel.Enabled = true;
-        channel.BotJoinedAt = DateTime.UtcNow;
+        channel.BotJoinedAt = _timeProvider.GetUtcNow().UtcDateTime;
 
         await _db.SaveChangesAsync(cancellationToken);
         return Result.Success();
@@ -180,7 +182,7 @@ public class ChannelService : IChannelService
         if (existing is not null)
         {
             existing.IsOnboarded = true;
-            existing.BotJoinedAt ??= DateTime.UtcNow;
+            existing.BotJoinedAt ??= _timeProvider.GetUtcNow().UtcDateTime;
             await _db.SaveChangesAsync(cancellationToken);
             return Result.Success(ToDto(existing));
         }
@@ -202,7 +204,7 @@ public class ChannelService : IChannelService
             Name = user.Username,
             IsOnboarded = true,
             Enabled = true,
-            BotJoinedAt = DateTime.UtcNow,
+            BotJoinedAt = _timeProvider.GetUtcNow().UtcDateTime,
             User = user,
         };
 

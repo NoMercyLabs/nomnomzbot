@@ -33,13 +33,15 @@ public class ChannelsController : BaseController
     private readonly ITwitchApiService _twitchApi;
     private readonly IRewardService _rewardService;
     private readonly ILogger<ChannelsController> _logger;
+    private readonly TimeProvider _timeProvider;
 
     public ChannelsController(
         IChannelService channelService,
         IApplicationDbContext db,
         ITwitchApiService twitchApi,
         IRewardService rewardService,
-        ILogger<ChannelsController> logger
+        ILogger<ChannelsController> logger,
+        TimeProvider timeProvider
     )
     {
         _channelService = channelService;
@@ -47,6 +49,7 @@ public class ChannelsController : BaseController
         _twitchApi = twitchApi;
         _rewardService = rewardService;
         _logger = logger;
+        _timeProvider = timeProvider;
     }
 
     [HttpGet]
@@ -243,7 +246,7 @@ public class ChannelsController : BaseController
                                     displayName = ban.UserName ?? ban.UserLogin,
                                     reason = ban.Reason,
                                     bannedBy = "",
-                                    bannedAt = DateTime.UtcNow.ToString("o"),
+                                    bannedAt = _timeProvider.GetUtcNow().UtcDateTime.ToString("o"),
                                 }
                             ),
                         }
@@ -445,6 +448,7 @@ public class ChannelsController : BaseController
                         {
                             ChannelId = channelId,
                             UserId = mod.UserId,
+                            GrantedAt = _timeProvider.GetUtcNow().UtcDateTime,
                         }
                     );
                 }

@@ -27,9 +27,11 @@ public sealed class JwtTokenService : IJwtTokenService
     private readonly byte[] _key;
     private readonly TimeSpan _expiration;
     private readonly TimeSpan _refreshExpiration;
+    private readonly TimeProvider _timeProvider;
 
-    public JwtTokenService(IConfiguration configuration)
+    public JwtTokenService(IConfiguration configuration, TimeProvider timeProvider)
     {
+        _timeProvider = timeProvider;
         IConfigurationSection jwtSection = configuration.GetSection("Jwt");
         _issuer = jwtSection["Issuer"] ?? "nomercybot";
         _audience = jwtSection["Audience"] ?? "nomercybot";
@@ -55,7 +57,7 @@ public sealed class JwtTokenService : IJwtTokenService
             new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
             new(
                 JwtRegisteredClaimNames.Iat,
-                DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString(),
+                _timeProvider.GetUtcNow().ToUnixTimeSeconds().ToString(),
                 ClaimValueTypes.Integer64
             ),
         };
@@ -75,7 +77,7 @@ public sealed class JwtTokenService : IJwtTokenService
             issuer: _issuer,
             audience: _audience,
             claims: claims,
-            expires: DateTime.UtcNow.Add(_expiration),
+            expires: _timeProvider.GetUtcNow().UtcDateTime.Add(_expiration),
             signingCredentials: credentials
         );
 
@@ -91,7 +93,7 @@ public sealed class JwtTokenService : IJwtTokenService
             new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
             new(
                 JwtRegisteredClaimNames.Iat,
-                DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString(),
+                _timeProvider.GetUtcNow().ToUnixTimeSeconds().ToString(),
                 ClaimValueTypes.Integer64
             ),
             new(ClaimTypes.Role, "refresh"),
@@ -104,7 +106,7 @@ public sealed class JwtTokenService : IJwtTokenService
             issuer: _issuer,
             audience: _audience,
             claims: claims,
-            expires: DateTime.UtcNow.Add(_refreshExpiration),
+            expires: _timeProvider.GetUtcNow().UtcDateTime.Add(_refreshExpiration),
             signingCredentials: credentials
         );
 
