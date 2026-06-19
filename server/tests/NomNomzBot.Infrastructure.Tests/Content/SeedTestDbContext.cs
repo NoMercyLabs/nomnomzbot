@@ -1,0 +1,118 @@
+// -----------------------------------------------------------------------------
+//  Copyright (c) NoMercy Labs.
+//
+//  This file is part of NomNomzBot, free software licensed under the GNU Affero
+//  General Public License v3.0 or later. You may redistribute and/or modify it
+//  under those terms. Distributed WITHOUT ANY WARRANTY. See LICENSE for details.
+//
+//  SPDX-License-Identifier: AGPL-3.0-or-later
+// -----------------------------------------------------------------------------
+
+using Microsoft.EntityFrameworkCore;
+using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Domain.Chat.Entities;
+using NomNomzBot.Domain.Commands.Entities;
+using NomNomzBot.Domain.Discord.Entities;
+using NomNomzBot.Domain.Identity.Entities;
+using NomNomzBot.Domain.Platform.Entities;
+using NomNomzBot.Domain.Rewards.Entities;
+using NomNomzBot.Domain.Tts.Entities;
+using NomNomzBot.Domain.Widgets.Entities;
+using NomNomzBot.Infrastructure.Commands.Persistence;
+using NomNomzBot.Infrastructure.Identity.Persistence;
+using NomNomzBot.Infrastructure.Platform.Persistence.Configurations;
+using NomNomzBot.Infrastructure.Tts.Persistence;
+
+namespace NomNomzBot.Infrastructure.Tests.Content;
+
+/// <summary>
+/// A focused <see cref="IApplicationDbContext"/> for the seed tests. The production
+/// <see cref="NomNomzBot.Infrastructure.Platform.Persistence.AppDbContext"/> is hard-bound to
+/// Npgsql's <c>jsonb</c> mapper for complex-typed columns (e.g. <c>ChatMessage.Badges</c>), which
+/// neither the InMemory nor the SQLite provider can materialize — so it cannot be hosted on a
+/// test provider. This context maps ONLY the five entities the seeders touch, applying their REAL
+/// EF configurations (relational-only annotations like <c>jsonb</c>/<c>HasDefaultValueSql</c> are
+/// no-ops on InMemory; <c>List&lt;string&gt;</c> and string columns map natively), and ignores
+/// every other entity so EF never reaches an unmappable jsonb-of-complex-type column. The seeders
+/// thus run against the real schema for the rows they write, on a real EF provider.
+/// </summary>
+public sealed class SeedTestDbContext : DbContext, IApplicationDbContext
+{
+    public SeedTestDbContext(DbContextOptions<SeedTestDbContext> options)
+        : base(options) { }
+
+    // ── Entities the seeders touch ───────────────────────────────────────────
+    public DbSet<TtsVoice> TtsVoices => Set<TtsVoice>();
+    public DbSet<Pronoun> Pronouns => Set<Pronoun>();
+    public DbSet<Configuration> Configurations => Set<Configuration>();
+    public DbSet<Channel> Channels => Set<Channel>();
+    public DbSet<Command> Commands => Set<Command>();
+
+    // ── Remaining IApplicationDbContext surface (not mapped — Ignored below) ──
+    public DbSet<User> Users => Set<User>();
+    public DbSet<ChannelModerator> ChannelModerators => Set<ChannelModerator>();
+    public DbSet<Service> Services => Set<Service>();
+    public DbSet<Reward> Rewards => Set<Reward>();
+    public DbSet<Widget> Widgets => Set<Widget>();
+    public DbSet<EventSubscription> EventSubscriptions => Set<EventSubscription>();
+    public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
+    public DbSet<ChannelEvent> ChannelEvents => Set<ChannelEvent>();
+    public DbSet<global::NomNomzBot.Domain.Stream.Entities.Stream> Streams =>
+        Set<global::NomNomzBot.Domain.Stream.Entities.Stream>();
+    public DbSet<Storage> Storages => Set<Storage>();
+    public DbSet<NomNomzBot.Domain.Platform.Entities.Record> Records =>
+        Set<NomNomzBot.Domain.Platform.Entities.Record>();
+    public DbSet<Permission> Permissions => Set<Permission>();
+    public DbSet<ChannelFeature> ChannelFeatures => Set<ChannelFeature>();
+    public DbSet<ChannelBotAuthorization> ChannelBotAuthorizations => Set<ChannelBotAuthorization>();
+    public DbSet<DiscordServerAuthorization> DiscordServerAuthorizations =>
+        Set<DiscordServerAuthorization>();
+    public DbSet<ChannelSubscription> ChannelSubscriptions => Set<ChannelSubscription>();
+    public DbSet<UserTtsVoice> UserTtsVoices => Set<UserTtsVoice>();
+    public DbSet<TtsUsageRecord> TtsUsageRecords => Set<TtsUsageRecord>();
+    public DbSet<TtsCacheEntry> TtsCacheEntries => Set<TtsCacheEntry>();
+    public DbSet<DeletionAuditLog> DeletionAuditLogs => Set<DeletionAuditLog>();
+    public DbSet<NomNomzBot.Domain.Commands.Entities.Timer> Timers =>
+        Set<NomNomzBot.Domain.Commands.Entities.Timer>();
+    public DbSet<EventResponse> EventResponses => Set<EventResponse>();
+    public DbSet<WatchStreak> WatchStreaks => Set<WatchStreak>();
+    public DbSet<Pipeline> Pipelines => Set<Pipeline>();
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        // Only the five entities under test are mapped, with their real configurations.
+        modelBuilder.ApplyConfiguration(new TtsVoiceConfiguration());
+        modelBuilder.ApplyConfiguration(new PronounConfiguration());
+        modelBuilder.ApplyConfiguration(new ConfigurationEntityConfiguration());
+        modelBuilder.ApplyConfiguration(new ChannelConfiguration());
+        modelBuilder.ApplyConfiguration(new CommandConfiguration());
+
+        // Every entity NOT under test is ignored — EF would otherwise auto-discover them from
+        // the DbSet<T> properties (an IApplicationDbContext requirement) and try to map their
+        // jsonb-of-complex-type columns, which no test provider supports.
+        modelBuilder.Ignore<User>();
+        modelBuilder.Ignore<ChannelModerator>();
+        modelBuilder.Ignore<Service>();
+        modelBuilder.Ignore<Reward>();
+        modelBuilder.Ignore<Widget>();
+        modelBuilder.Ignore<EventSubscription>();
+        modelBuilder.Ignore<ChatMessage>();
+        modelBuilder.Ignore<ChannelEvent>();
+        modelBuilder.Ignore<global::NomNomzBot.Domain.Stream.Entities.Stream>();
+        modelBuilder.Ignore<Storage>();
+        modelBuilder.Ignore<NomNomzBot.Domain.Platform.Entities.Record>();
+        modelBuilder.Ignore<Permission>();
+        modelBuilder.Ignore<ChannelFeature>();
+        modelBuilder.Ignore<ChannelBotAuthorization>();
+        modelBuilder.Ignore<DiscordServerAuthorization>();
+        modelBuilder.Ignore<ChannelSubscription>();
+        modelBuilder.Ignore<UserTtsVoice>();
+        modelBuilder.Ignore<TtsUsageRecord>();
+        modelBuilder.Ignore<TtsCacheEntry>();
+        modelBuilder.Ignore<DeletionAuditLog>();
+        modelBuilder.Ignore<NomNomzBot.Domain.Commands.Entities.Timer>();
+        modelBuilder.Ignore<EventResponse>();
+        modelBuilder.Ignore<WatchStreak>();
+        modelBuilder.Ignore<Pipeline>();
+    }
+}

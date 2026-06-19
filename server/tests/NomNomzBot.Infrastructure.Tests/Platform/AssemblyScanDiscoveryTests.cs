@@ -15,6 +15,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application;
+using NomNomzBot.Application.Abstractions.Content;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Domain.Music.Interfaces;
 using NomNomzBot.Domain.Platform.Interfaces;
@@ -109,6 +110,23 @@ public class AssemblyScanDiscoveryTests
 
         providers.Should().HaveCount(expected);
         providers.Select(p => p.GetType()).Should().OnlyHaveUniqueItems();
+    }
+
+    [Fact]
+    public void Scan_discovers_every_ISeeder_in_the_assembly()
+    {
+        // The §5 content seeders self-register through the same §4 marker scan. The expected
+        // count is reflection-computed, so adding a seeder keeps this honest; if the scan stops
+        // finding one (e.g. the AddImplementationsOf<ISeeder> line is dropped), this fails.
+        int expected = CountConcreteAssignableTo(typeof(ISeeder));
+        expected.Should().BeGreaterThanOrEqualTo(4, "the four content seeders must be discovered");
+
+        using ServiceProvider provider = BuildProvider(validate: false);
+        using IServiceScope scope = provider.CreateScope();
+        List<ISeeder> seeders = scope.ServiceProvider.GetServices<ISeeder>().ToList();
+
+        seeders.Should().HaveCount(expected);
+        seeders.Select(s => s.GetType()).Should().OnlyHaveUniqueItems();
     }
 
     [Fact]

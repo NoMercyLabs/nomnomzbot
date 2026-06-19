@@ -21,8 +21,8 @@ using NomNomzBot.Api.Hubs;
 using NomNomzBot.Api.Middleware;
 using NomNomzBot.Application;
 using NomNomzBot.Infrastructure;
-using NomNomzBot.Infrastructure.Persistence;
 using NomNomzBot.Infrastructure.Platform;
+using NomNomzBot.Infrastructure.Platform.Persistence;
 using Scalar.AspNetCore;
 using Serilog;
 
@@ -277,17 +277,17 @@ try
         throw;
     }
 
-    // Seed reference data
+    // Seed content — all ISeeder content packs, ordered, in one transaction (idempotent)
     try
     {
-        Log.Information("Seeding reference data...");
+        Log.Information("Seeding content...");
         await using AsyncServiceScope seedScope = app.Services.CreateAsyncScope();
-        DataSeeder seeder = seedScope.ServiceProvider.GetRequiredService<DataSeeder>();
-        await seeder.SeedAsync(CancellationToken.None);
+        SeedRunner seedRunner = seedScope.ServiceProvider.GetRequiredService<SeedRunner>();
+        await seedRunner.SeedAsync(CancellationToken.None);
     }
     catch (Exception ex)
     {
-        Log.Fatal(ex, "Data seeding failed");
+        Log.Fatal(ex, "Content seeding failed");
         throw;
     }
 

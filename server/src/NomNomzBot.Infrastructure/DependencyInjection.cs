@@ -16,6 +16,7 @@ using Microsoft.Extensions.Options;
 using NomNomzBot.Application.Abstractions;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Caching;
+using NomNomzBot.Application.Abstractions.Content;
 using NomNomzBot.Application.Abstractions.Eventing;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.RateLimiting;
@@ -32,7 +33,6 @@ using NomNomzBot.Infrastructure.Chat;
 using NomNomzBot.Infrastructure.Commands.Jobs;
 using NomNomzBot.Infrastructure.Moderation;
 using NomNomzBot.Infrastructure.Music;
-using NomNomzBot.Infrastructure.Persistence;
 using NomNomzBot.Infrastructure.Platform;
 using NomNomzBot.Infrastructure.Platform.Auth;
 using NomNomzBot.Infrastructure.Platform.Caching;
@@ -119,6 +119,10 @@ public static class DependencyInjection
         // Music providers (scoped — multi-binding consumed as IEnumerable<IMusicProvider>).
         services.AddImplementationsOf<IMusicProvider>(infrastructure, ServiceLifetime.Scoped);
 
+        // Content seeders (scoped — multi-binding consumed as IEnumerable<ISeeder> by the
+        // SeedRunner, which orders them by ISeeder.Order and runs them in one transaction).
+        services.AddImplementationsOf<ISeeder>(infrastructure, ServiceLifetime.Scoped);
+
         // Service impls bound by their I<X>Service interface (scoped). Singletons,
         // deployment-variant, and special-construction interfaces stay explicit below
         // and are excluded so the scan never picks a wrong binding. Ambiguity (two
@@ -195,7 +199,7 @@ public static class DependencyInjection
         // Startup helpers consumed by concrete type (not pluggable markers) — kept explicit.
         services.AddTransient<StartupReadinessChecker>();
         services.AddScoped<IDatabaseMigrator, DatabaseMigrator>();
-        services.AddScoped<DataSeeder>();
+        services.AddScoped<SeedRunner>();
         services.AddScoped<SqliteMigrationService>();
 
         // Auto-moderation engine consumed by concrete type — kept explicit.
@@ -232,8 +236,9 @@ public static class DependencyInjection
             (ChannelRegistry)sp.GetRequiredService<NomNomzBot.Domain.Platform.Interfaces.IChannelRegistry>()
         );
 
-        // BotLifecycleService, TimerService, DefaultCommandSeederService, and TokenRefreshService
-        // are auto-registered as hosted services by AddHostedWorkers above.
+        // BotLifecycleService, TimerService, and TokenRefreshService are auto-registered as
+        // hosted services by AddHostedWorkers above. Content seeding is no longer a hosted
+        // service — it runs once at startup via SeedRunner (backend-structure §5.1).
 
         // Twitch options
         services.Configure<TwitchOptions>(configuration.GetSection(TwitchOptions.SectionName));
