@@ -1,0 +1,106 @@
+// -----------------------------------------------------------------------------
+//  Copyright (c) NoMercy Labs.
+//
+//  This file is part of NomNomzBot, free software licensed under the GNU Affero
+//  General Public License v3.0 or later. You may redistribute and/or modify it
+//  under those terms. Distributed WITHOUT ANY WARRANTY. See LICENSE for details.
+//
+//  SPDX-License-Identifier: AGPL-3.0-or-later
+// -----------------------------------------------------------------------------
+
+namespace NomNomzBot.Application.Music.Services;
+
+/// <summary>
+/// Abstraction over music playback services (Spotify, YouTube, etc.).
+/// Manages search, playback control, and the request queue per channel.
+/// </summary>
+public interface IMusicService
+{
+    /// <summary>Search for tracks by query string.</summary>
+    Task<IReadOnlyList<MusicTrack>> SearchAsync(
+        string broadcasterId,
+        string query,
+        int maxResults = 5,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>Start or resume playback.</summary>
+    Task<bool> PlayAsync(string broadcasterId, CancellationToken cancellationToken = default);
+
+    /// <summary>Pause playback.</summary>
+    Task<bool> PauseAsync(string broadcasterId, CancellationToken cancellationToken = default);
+
+    /// <summary>Skip to the next track in the queue.</summary>
+    Task<bool> SkipAsync(string broadcasterId, CancellationToken cancellationToken = default);
+
+    /// <summary>Get the current playback queue for a channel.</summary>
+    Task<MusicQueue> GetQueueAsync(
+        string broadcasterId,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>Add a track to the playback queue.</summary>
+    Task<bool> AddToQueueAsync(
+        string broadcasterId,
+        string trackUri,
+        string? requestedBy = null,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>Set the playback volume (0-100).</summary>
+    Task<bool> SetVolumeAsync(
+        string broadcasterId,
+        int volume,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>Get the currently playing track, if any.</summary>
+    Task<NowPlaying?> GetNowPlayingAsync(
+        string broadcasterId,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>Remove a specific item from the queue by its zero-based position.</summary>
+    Task<bool> RemoveFromQueueAsync(
+        string broadcasterId,
+        int position,
+        CancellationToken cancellationToken = default
+    );
+}
+
+/// <summary>A music track from a search result.</summary>
+public sealed record MusicTrack(
+    string Uri,
+    string Name,
+    string Artist,
+    string? Album,
+    string? ImageUrl,
+    int DurationMs,
+    string Provider
+);
+
+/// <summary>Current playback state for a channel.</summary>
+public sealed record NowPlaying(
+    string? TrackName,
+    string? Artist,
+    string? Album,
+    string? ImageUrl,
+    int DurationMs,
+    int ProgressMs,
+    bool IsPlaying,
+    int Volume,
+    string? RequestedBy,
+    string Provider
+);
+
+/// <summary>The full playback queue including the current track.</summary>
+public sealed record MusicQueue(NowPlaying? CurrentTrack, IReadOnlyList<MusicQueueItem> Queue);
+
+/// <summary>An item in the music playback queue.</summary>
+public sealed record MusicQueueItem(
+    string TrackName,
+    string Artist,
+    string? ImageUrl,
+    int DurationMs,
+    string? RequestedBy
+);

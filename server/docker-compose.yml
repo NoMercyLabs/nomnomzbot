@@ -1,0 +1,132 @@
+# -----------------------------------------------------------------------------
+#  Copyright (c) NoMercy Labs.
+#
+#  This file is part of NomNomzBot, free software licensed under the GNU Affero
+#  General Public License v3.0 or later. You may redistribute and/or modify it
+#  under those terms. Distributed WITHOUT ANY WARRANTY. See LICENSE for details.
+#
+#  SPDX-License-Identifier: AGPL-3.0-or-later
+# -----------------------------------------------------------------------------
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nomnomzbot-api
+    ports:
+      - "${API_HTTP_PORT:-5080}:5000"
+      - "${API_HTTPS_PORT:-5081}:5001"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:5000
+      - App__DeploymentMode=${DEPLOYMENT_MODE:-self-hosted}
+      - ConnectionStrings__DefaultConnection=${DATABASE_URL:-Host=postgres;Port=5432;Database=nomnomzbot;Username=nomnomzbot;Password=nomnomzbot_dev}
+      - Jwt__Secret=${JWT_SECRET}
+      - Jwt__Issuer=${JWT_ISSUER:-nomnomzbot}
+      - Jwt__Audience=${JWT_AUDIENCE:-nomnomzbot}
+      - Encryption__Key=${ENCRYPTION_KEY}
+      - App__BaseUrl=${API_BASE_URL:-http://localhost:5080}
+      - Twitch__ClientId=${TWITCH_CLIENT_ID}
+      - Twitch__ClientSecret=${TWITCH_CLIENT_SECRET}
+      - Twitch__BotUsername=${TWITCH_BOT_USERNAME}
+      - Spotify__ClientId=${SPOTIFY_CLIENT_ID:-}
+      - Spotify__ClientSecret=${SPOTIFY_CLIENT_SECRET:-}
+      - Discord__ClientId=${DISCORD_CLIENT_ID:-}
+      - Discord__ClientSecret=${DISCORD_CLIENT_SECRET:-}
+      - YouTube__ClientId=${YOUTUBE_CLIENT_ID:-}
+      - YouTube__ClientSecret=${YOUTUBE_CLIENT_SECRET:-}
+      - Azure__Tts__ApiKey=${AZURE_TTS_API_KEY:-}
+      - Azure__Tts__Region=${AZURE_TTS_REGION:-westeurope}
+      - ElevenLabs__ApiKey=${ELEVENLABS_API_KEY:-}
+      - ConnectionStrings__Redis=${REDIS_URL:-redis://redis:6379}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5000/health/live || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+    networks:
+      - nomnomzbot
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: nomnomzbot
+      POSTGRES_USER: ${POSTGRES_USER:-nomnomzbot}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-nomnomzbot_dev}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-nomnomzbot} -d nomnomzbot"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - nomnomzbot
+
+  redis:
+    image: redis:7-alpine
+    command: >
+      sh -c "redis-server
+      $([ -n \"$REDIS_PASSWORD\" ] && echo \"--requirepass $REDIS_PASSWORD\")"
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: >
+        ["CMD-SHELL",
+        "redis-cli $([ -n \"$REDIS_PASSWORD\" ] && echo \"-a $REDIS_PASSWORD\") ping | grep PONG"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
+    networks:
+      - nomnomzbot
+
+  adminer:
+    image: adminer:latest
+    ports:
+      - "${ADMINER_PORT:-8082}:8080"
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres
+      ADMINER_DESIGN: dracula
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - nomnomzbot
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: nomnomzbot-tunnel
+    restart: unless-stopped
+    command: tunnel run
+    environment:
+      - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - nomnomzbot
+
+volumes:
+  postgres_data:
+
+networks:
+  nomnomzbot:
+    driver: bridge

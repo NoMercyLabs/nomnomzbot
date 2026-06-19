@@ -1,0 +1,14 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/NomNomzBot.Domain/NomNomzBot.Domain.csproj" />
+    <Project Path="src/NomNomzBot.Application/NomNomzBot.Application.csproj" />
+    <Project Path="src/NomNomzBot.Infrastructure/NomNomzBot.Infrastructure.csproj" />
+    <Project Path="src/NomNomzBot.Api/NomNomzBot.Api.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/NomNomzBot.Domain.Tests/NomNomzBot.Domain.Tests.csproj" />
+    <Project Path="tests/NomNomzBot.Application.Tests/NomNomzBot.Application.Tests.csproj" />
+    <Project Path="tests/NomNomzBot.Infrastructure.Tests/NomNomzBot.Infrastructure.Tests.csproj" />
+    <Project Path="tests/NomNomzBot.Api.Tests/NomNomzBot.Api.Tests.csproj" />
+  </Folder>
+</Solution>

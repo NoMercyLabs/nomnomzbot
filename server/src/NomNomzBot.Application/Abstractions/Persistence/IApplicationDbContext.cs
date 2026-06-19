@@ -1,0 +1,56 @@
+// -----------------------------------------------------------------------------
+//  Copyright (c) NoMercy Labs.
+//
+//  This file is part of NomNomzBot, free software licensed under the GNU Affero
+//  General Public License v3.0 or later. You may redistribute and/or modify it
+//  under those terms. Distributed WITHOUT ANY WARRANTY. See LICENSE for details.
+//
+//  SPDX-License-Identifier: AGPL-3.0-or-later
+// -----------------------------------------------------------------------------
+
+using Microsoft.EntityFrameworkCore;
+using NomNomzBot.Domain.Chat.Entities;
+using NomNomzBot.Domain.Commands.Entities;
+using NomNomzBot.Domain.Discord.Entities;
+using NomNomzBot.Domain.Platform.Entities;
+using NomNomzBot.Domain.Identity.Entities;
+using NomNomzBot.Domain.Rewards.Entities;
+using NomNomzBot.Domain.Tts.Entities;
+using NomNomzBot.Domain.Widgets.Entities;
+
+namespace NomNomzBot.Application.Abstractions.Persistence;
+
+public interface IApplicationDbContext
+{
+    DbSet<User> Users { get; }
+    DbSet<Channel> Channels { get; }
+    DbSet<ChannelModerator> ChannelModerators { get; }
+    DbSet<Service> Services { get; }
+    DbSet<Command> Commands { get; }
+    DbSet<Reward> Rewards { get; }
+    DbSet<Widget> Widgets { get; }
+    DbSet<EventSubscription> EventSubscriptions { get; }
+    DbSet<ChatMessage> ChatMessages { get; }
+    DbSet<ChannelEvent> ChannelEvents { get; }
+    DbSet<NomNomzBot.Domain.Stream.Entities.Stream> Streams { get; }
+    DbSet<NomNomzBot.Domain.Platform.Entities.Configuration> Configurations { get; }
+    DbSet<Storage> Storages { get; }
+    DbSet<Record> Records { get; }
+    DbSet<Permission> Permissions { get; }
+    DbSet<ChannelFeature> ChannelFeatures { get; }
+    DbSet<ChannelBotAuthorization> ChannelBotAuthorizations { get; }
+    DbSet<DiscordServerAuthorization> DiscordServerAuthorizations { get; }
+    DbSet<ChannelSubscription> ChannelSubscriptions { get; }
+    DbSet<TtsVoice> TtsVoices { get; }
+    DbSet<UserTtsVoice> UserTtsVoices { get; }
+    DbSet<TtsUsageRecord> TtsUsageRecords { get; }
+    DbSet<TtsCacheEntry> TtsCacheEntries { get; }
+    DbSet<Pronoun> Pronouns { get; }
+    DbSet<DeletionAuditLog> DeletionAuditLogs { get; }
+    DbSet<NomNomzBot.Domain.Commands.Entities.Timer> Timers { get; }
+    DbSet<EventResponse> EventResponses { get; }
+    DbSet<WatchStreak> WatchStreaks { get; }
+    DbSet<NomNomzBot.Domain.Commands.Entities.Pipeline> Pipelines { get; }
+
+    Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
+}

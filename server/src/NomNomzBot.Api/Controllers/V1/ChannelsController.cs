@@ -1,0 +1,420 @@
+// -----------------------------------------------------------------------------
+//  Copyright (c) NoMercy Labs.
+//
+//  This file is part of NomNomzBot, free software licensed under the GNU Affero
+//  General Public License v3.0 or later. You may redistribute and/or modify it
+//  under those terms. Distributed WITHOUT ANY WARRANTY. See LICENSE for details.
+//
+//  SPDX-License-Identifier: AGPL-3.0-or-later
+// -----------------------------------------------------------------------------
+
+using Asp.Versioning;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using NomNomzBot.Api.Models;
+using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Abstractions.Transport;
+using NomNomzBot.Application.Identity.Dtos;
+using NomNomzBot.Application.Identity.Services;
+using NomNomzBot.Application.Rewards.Services;
+
+namespace NomNomzBot.Api.Controllers.V1;
+
+[ApiVersion("1.0")]
+[Route("api/v{version:apiVersion}/channels")]
+[Authorize]
+[Tags("Channels")]
+public class ChannelsController : BaseController
+{
+    private readonly IChannelService _channelService;
+    private readonly IApplicationDbContext _db;
+    private readonly ITwitchApiService _twitchApi;
+    private readonly IRewardService _rewardService;
+    private readonly ILogger<ChannelsController> _logger;
+
+    public ChannelsController(
+        IChannelService channelService,
+        IApplicationDbContext db,
+        ITwitchApiService twitchApi,
+        IRewardService rewardService,
+        ILogger<ChannelsController> logger)
+    {
+        _channelService = channelService;
+        _db = db;
+        _twitchApi = twitchApi;
+        _rewardService = rewardService;
+        _logger = logger;
+    }
+
+    [HttpGet]
+    [ProducesResponseType<PaginatedResponse<ChannelDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> ListChannels(
+        [FromQuery] PageRequestDto request,
+        CancellationToken ct
+    )
+    {
+        string? userId =
+            User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+            ?? User.FindFirst("sub")?.Value;
+
+        if (string.IsNullOrEmpty(userId))
+            return UnauthenticatedResponse();
+
+        PaginationParams pagination = new(
+            request.Page,
+            request.Take,
+            request.Sort,
+            request.Order
+        );
+
+        // Fetch channels the user moderates on Twitch so they appear even if not yet
+        // synced to the ChannelModerators table.
+        IReadOnlyList<string> moderatedIds = [];
+        try
+        {
+            var moderated = await _twitchApi.GetModeratedChannelsAsync(userId, ct);
+            moderatedIds = moderated.Select(m => m.BroadcasterId).ToList();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to fetch moderated channels from Twitch for user {UserId}", userId);
+        }
+
+        Result<PagedList<ChannelSummaryDto>> result = await _channelService.GetChannelsAsync(userId, pagination, moderatedIds, ct);
+        if (result.IsFailure)
+            return ResultResponse(result);
+        return GetPaginatedResponse(result.Value, request);
+    }
+
+    /// <summary>Get all Twitch channels the current user moderates (from Twitch API, not just DB).</summary>
+    [HttpGet("moderated")]
+    [ProducesResponseType<StatusResponseDto<List<ModeratedChannelDto>>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetModeratedChannels(CancellationToken ct)
+    {
+        string? userId =
+            User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+            ?? User.FindFirst("sub")?.Value;
+
+        if (string.IsNullOrEmpty(userId))
+            return UnauthenticatedResponse();
+
+        IReadOnlyList<TwitchModeratedChannel> moderated = await _twitchApi.GetModeratedChannelsAsync(userId, ct);
+
+        // Find which ones are already onboarded in our DB
+        var allIds = moderated.Select(m => m.BroadcasterId).ToList();
+        var onboardedIds = await _db.Channels
+            .Where(c => allIds.Contains(c.Id) && c.IsOnboarded)
+            .Select(c => c.Id)
+            .ToHashSetAsync(ct);
+
+        var dtos = moderated.Select(m => new ModeratedChannelDto(
+            m.BroadcasterId,
+            m.BroadcasterLogin,
+            m.BroadcasterName,
+            onboardedIds.Contains(m.BroadcasterId)
+        )).ToList();
+
+        return Ok(new StatusResponseDto<List<ModeratedChannelDto>> { Data = dtos });
+    }
+
+    public record ModeratedChannelDto(
+        string Id,
+        string Login,
+        string DisplayName,
+        bool IsOnboarded
+    );
+
+    [HttpGet("{channelId}")]
+    [ProducesResponseType<StatusResponseDto<ChannelDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetChannel(string channelId, CancellationToken ct)
+    {
+        Result<ChannelDto> result = await _channelService.GetAsync(channelId, ct);
+        return ResultResponse(result);
+    }
+
+    [HttpPost]
+    [ProducesResponseType<StatusResponseDto<ChannelDto>>(StatusCodes.Status201Created)]
+    public async Task<IActionResult> OnboardChannel(
+        [FromBody] CreateChannelRequest request,
+        CancellationToken ct
+    )
+    {
+        Result<ChannelDto> result = await _channelService.OnboardAsync(request.BroadcasterId, request, ct);
+        if (result.IsFailure)
+            return ResultResponse(result);
+
+        // Link any pre-existing broadcaster token (stored with BroadcasterId=null during login)
+        var unlinkedToken = await _db.Services
+            .FirstOrDefaultAsync(s => s.Name == "twitch" && s.BroadcasterId == null && s.UserId == request.BroadcasterId, ct);
+        if (unlinkedToken is not null)
+        {
+            unlinkedToken.BroadcasterId = result.Value.Id;
+            await _db.SaveChangesAsync(ct);
+        }
+
+        string channelId = result.Value.Id;
+
+        // Auto-mod the platform bot in the new channel
+        var botService = await _db.Services
+            .FirstOrDefaultAsync(s => s.Name == "twitch_bot" && s.BroadcasterId == null && s.UserId != null, ct);
+        if (botService?.UserId is not null)
+        {
+            await _twitchApi.AddModeratorAsync(channelId, botService.UserId, ct);
+        }
+
+        // ── Full Twitch data sync on onboarding ─────────────────────────────
+        // Each step is independent — one failure must not block the rest.
+        try
+        {
+            var channelInfo = await _twitchApi.GetChannelInfoAsync(channelId, ct);
+            if (channelInfo is not null)
+            {
+                var channel = await _db.Channels.FindAsync([channelId], ct);
+                if (channel is not null)
+                {
+                    channel.Title = channelInfo.Title;
+                    channel.GameName = channelInfo.GameName;
+                    channel.GameId = channelInfo.GameId;
+                    channel.Tags = channelInfo.Tags;
+                    channel.Language = channelInfo.Language;
+                    await _db.SaveChangesAsync(ct);
+                    _logger.LogInformation("Synced channel info for {ChannelId}: {Title} / {Game}", channelId, channelInfo.Title, channelInfo.GameName);
+                }
+            }
+        }
+        catch (Exception ex) { _logger.LogWarning(ex, "Failed to sync channel info for {ChannelId}", channelId); }
+
+        try
+        {
+            await _rewardService.SyncWithTwitchAsync(channelId, ct);
+        }
+        catch (Exception ex) { _logger.LogWarning(ex, "Failed to sync rewards for {ChannelId}", channelId); }
+
+        try
+        {
+            var bannedUsers = await _twitchApi.GetBannedUsersAsync(channelId, ct);
+            foreach (var ban in bannedUsers)
+            {
+                bool exists = await _db.Configurations.AnyAsync(
+                    c => c.BroadcasterId == channelId && c.Key == $"ban:{ban.UserId}", ct);
+                if (!exists)
+                {
+                    _db.Configurations.Add(new NomNomzBot.Domain.Platform.Entities.Configuration
+                    {
+                        BroadcasterId = channelId,
+                        Key = $"ban:{ban.UserId}",
+                        Value = System.Text.Json.JsonSerializer.Serialize(new
+                        {
+                            userId = ban.UserId,
+                            username = ban.UserLogin,
+                            displayName = ban.UserName ?? ban.UserLogin,
+                            reason = ban.Reason,
+                            bannedBy = "",
+                            bannedAt = DateTime.UtcNow.ToString("o"),
+                        }),
+                    });
+                }
+            }
+            if (bannedUsers.Count > 0)
+                await _db.SaveChangesAsync(ct);
+            _logger.LogInformation("Synced {Count} banned users for {ChannelId}", bannedUsers.Count, channelId);
+        }
+        catch (Exception ex) { _logger.LogWarning(ex, "Failed to sync banned users for {ChannelId}", channelId); }
+
+        // ── Seed default commands for the new channel ─────────────────────────
+        try
+        {
+            var defaultCommands = new (string Name, string PipelineJson, string Permission, int CooldownSeconds, string Description)[]
+            {
+                ("!sr",     """{"steps":[{"action":{"type":"music_request"}}]}""",  "everyone",   5,  "Request a song"),
+                ("!skip",   """{"steps":[{"action":{"type":"music_skip"}}]}""",     "moderator",  0,  "Skip the current song"),
+                ("!queue",  """{"steps":[{"action":{"type":"music_queue"}}]}""",    "everyone",   10, "Show the song queue"),
+                ("!volume", """{"steps":[{"action":{"type":"music_volume"}}]}""",   "moderator",  0,  "Set the music volume"),
+                ("!song",   """{"steps":[{"action":{"type":"music_current"}}]}""",  "everyone",   5,  "Show the current song"),
+            };
+
+            foreach (var def in defaultCommands)
+            {
+                bool exists = await _db.Commands.AnyAsync(
+                    c => c.BroadcasterId == channelId && c.Name == def.Name, ct);
+
+                if (!exists)
+                {
+                    _db.Commands.Add(new NomNomzBot.Domain.Commands.Entities.Command
+                    {
+                        BroadcasterId = channelId,
+                        Name = def.Name,
+                        Type = "pipeline",
+                        PipelineJson = def.PipelineJson,
+                        Permission = def.Permission,
+                        CooldownSeconds = def.CooldownSeconds,
+                        Description = def.Description,
+                        IsEnabled = true,
+                    });
+                }
+            }
+
+            await _db.SaveChangesAsync(ct);
+            _logger.LogInformation("Seeded default commands for {ChannelId}", channelId);
+        }
+        catch (Exception ex) { _logger.LogWarning(ex, "Failed to seed default commands for {ChannelId}", channelId); }
+
+        // ── Seed default event responses for the new channel ────────────────
+        try
+        {
+            var defaultEventResponses = new (string EventType, string Message)[]
+            {
+                ("channel.follow",              "Welcome {user}! Thanks for the follow!"),
+                ("channel.subscribe",            "{user} just subscribed! Thank you for the support!"),
+                ("channel.subscription.gift",    "{user} gifted {amount} sub(s)! How generous!"),
+                ("channel.subscription.message", "{user} resubscribed for {months} months! {message}"),
+                ("channel.cheer",                "{user} cheered {amount} bits! Thank you!"),
+                ("channel.raid",                 "{user} is raiding with {viewers} viewers! Welcome raiders!"),
+            };
+
+            foreach (var def in defaultEventResponses)
+            {
+                bool exists = await _db.EventResponses.AnyAsync(
+                    er => er.BroadcasterId == channelId && er.EventType == def.EventType, ct);
+
+                if (!exists)
+                {
+                    _db.EventResponses.Add(new NomNomzBot.Domain.Commands.Entities.EventResponse
+                    {
+                        BroadcasterId = channelId,
+                        EventType = def.EventType,
+                        IsEnabled = true,
+                        ResponseType = "chat_message",
+                        Message = def.Message,
+                    });
+                }
+            }
+
+            await _db.SaveChangesAsync(ct);
+            _logger.LogInformation("Seeded default event responses for {ChannelId}", channelId);
+        }
+        catch (Exception ex) { _logger.LogWarning(ex, "Failed to seed default event responses for {ChannelId}", channelId); }
+
+        try
+        {
+            var mods = await _twitchApi.GetModeratorsAsync(channelId, ct);
+            var vips = await _twitchApi.GetVipsAsync(channelId, ct);
+
+            var allUserIds = mods.Select(m => m.UserId).Concat(vips.Select(v => v.UserId)).Distinct().ToList();
+            var existingUserIds = await _db.Users
+                .Where(u => allUserIds.Contains(u.Id))
+                .Select(u => u.Id)
+                .ToListAsync(ct);
+
+            foreach (var mod in mods.Where(m => !existingUserIds.Contains(m.UserId)))
+            {
+                _db.Users.Add(new NomNomzBot.Domain.Identity.Entities.User
+                {
+                    Id = mod.UserId,
+                    Username = mod.UserLogin,
+                    DisplayName = mod.UserName ?? mod.UserLogin,
+                });
+            }
+            foreach (var vip in vips.Where(v => !existingUserIds.Contains(v.UserId)))
+            {
+                _db.Users.Add(new NomNomzBot.Domain.Identity.Entities.User
+                {
+                    Id = vip.UserId,
+                    Username = vip.UserLogin,
+                    DisplayName = vip.UserName ?? vip.UserLogin,
+                });
+            }
+
+            // Store mod/VIP status in channel moderators table
+            foreach (var mod in mods)
+            {
+                bool modExists = await _db.ChannelModerators.AnyAsync(
+                    cm => cm.ChannelId == channelId && cm.UserId == mod.UserId, ct);
+                if (!modExists)
+                {
+                    _db.ChannelModerators.Add(new NomNomzBot.Domain.Identity.Entities.ChannelModerator
+                    {
+                        ChannelId = channelId,
+                        UserId = mod.UserId,
+                    });
+                }
+            }
+
+            await _db.SaveChangesAsync(ct);
+            _logger.LogInformation("Synced {ModCount} mods and {VipCount} VIPs for {ChannelId}", mods.Count, vips.Count, channelId);
+        }
+        catch (Exception ex) { _logger.LogWarning(ex, "Failed to sync mods/VIPs for {ChannelId}", channelId); }
+
+        return CreatedAtAction(
+            nameof(GetChannel),
+            new { channelId = result.Value.Id },
+            new StatusResponseDto<ChannelDto>
+            {
+                Data = result.Value,
+                Message = "Channel onboarded successfully.",
+            }
+        );
+    }
+
+    [HttpPut("{channelId}")]
+    [ProducesResponseType<StatusResponseDto<ChannelDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> UpdateChannelSettings(
+        string channelId,
+        [FromBody] UpdateChannelSettingsDto request,
+        CancellationToken ct
+    )
+    {
+        Result<ChannelDto> result = await _channelService.UpdateSettingsAsync(channelId, request, ct);
+        if (result.IsFailure)
+            return ResultResponse(result);
+        return Ok(new StatusResponseDto<ChannelDto> { Data = result.Value });
+    }
+
+    [HttpPost("{channelId}/join")]
+    [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> JoinChannel(string channelId, CancellationToken ct)
+    {
+        Result result = await _channelService.JoinAsync(channelId, ct);
+        if (result.IsFailure)
+            return ResultResponse(result);
+        return Ok(new StatusResponseDto<object> { Message = "Bot joined channel." });
+    }
+
+    [HttpPost("{channelId}/leave")]
+    [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> LeaveChannel(string channelId, CancellationToken ct)
+    {
+        Result result = await _channelService.LeaveAsync(channelId, ct);
+        if (result.IsFailure)
+            return ResultResponse(result);
+        return Ok(new StatusResponseDto<object> { Message = "Bot left channel." });
+    }
+
+    [HttpDelete("{channelId}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> DeleteChannel(string channelId, CancellationToken ct)
+    {
+        Result result = await _channelService.DeleteAsync(channelId, ct);
+        if (result.IsFailure)
+            return ResultResponse(result);
+        return NoContent();
+    }
+
+    /// <summary>Reset all channel bot configuration to defaults (clears Configuration entries).</summary>
+    [HttpPost("{channelId}/reset")]
+    [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> ResetChannel(string channelId, CancellationToken ct)
+    {
+        // Delete all Configuration entries for this channel (settings, TTS, shield, blocked terms, etc.)
+        List<NomNomzBot.Domain.Platform.Entities.Configuration> configs = await _db.Configurations
+            .Where(c => c.BroadcasterId == channelId)
+            .ToListAsync(ct);
+
+        _db.Configurations.RemoveRange(configs);
+        await _db.SaveChangesAsync(ct);
+
+        return Ok(new StatusResponseDto<object> { Message = "Channel configuration reset to defaults." });
+    }
+}

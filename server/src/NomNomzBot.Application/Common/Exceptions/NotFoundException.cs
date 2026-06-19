@@ -1,0 +1,34 @@
+// -----------------------------------------------------------------------------
+//  Copyright (c) NoMercy Labs.
+//
+//  This file is part of NomNomzBot, free software licensed under the GNU Affero
+//  General Public License v3.0 or later. You may redistribute and/or modify it
+//  under those terms. Distributed WITHOUT ANY WARRANTY. See LICENSE for details.
+//
+//  SPDX-License-Identifier: AGPL-3.0-or-later
+// -----------------------------------------------------------------------------
+
+namespace NomNomzBot.Application.Common.Exceptions;
+
+/// <summary>
+/// Thrown when a requested entity cannot be found.
+/// </summary>
+public sealed class NotFoundException : Exception
+{
+    public string EntityName { get; }
+    public object Key { get; }
+
+    public NotFoundException(string entityName, object key)
+        : base($"Entity \"{entityName}\" ({key}) was not found.")
+    {
+        EntityName = entityName;
+        Key = key;
+    }
+
+    public NotFoundException(string message)
+        : base(message)
+    {
+        EntityName = string.Empty;
+        Key = string.Empty;
+    }
+}
