@@ -1,0 +1,23 @@
+# Line endings: normalize all text files to LF in the repository AND on
+# checkout, on every platform. This prevents the "LF will be replaced by CRLF"
+# warning regardless of each contributor's core.autocrlf setting.
+* text=auto eol=lf
+
+# Common binary assets — never line-ending-normalized (prevents corruption).
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.ico   binary
+*.webp  binary
+*.woff  binary
+*.woff2 binary
+*.ttf   binary
+*.eot   binary
+*.otf   binary
+*.pdf   binary
+*.zip   binary
+*.gz    binary
+*.dll   binary
+*.exe   binary
+*.snk   binary
