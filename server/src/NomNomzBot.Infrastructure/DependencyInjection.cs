@@ -421,6 +421,10 @@ public static class DependencyInjection
             ITwitchWhispersApi,
             Platform.Transport.Helix.SubClients.TwitchWhispersApi
         >();
+        services.AddScoped<
+            ITwitchGuestStarApi,
+            Platform.Transport.Helix.SubClients.TwitchGuestStarApi
+        >();
 
         services
             .AddHttpClient("twitch-eventsub")

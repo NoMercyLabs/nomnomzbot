@@ -90,6 +90,12 @@ public static class TwitchScopes
     public const string ChannelManageRaids = "channel:manage:raids";
     public const string ChannelManageSchedule = "channel:manage:schedule";
 
+    // ── Guest Star ──
+    public const string ChannelReadGuestStar = "channel:read:guest_star";
+    public const string ChannelManageGuestStar = "channel:manage:guest_star";
+    public const string ModeratorReadGuestStar = "moderator:read:guest_star";
+    public const string ModeratorManageGuestStar = "moderator:manage:guest_star";
+
     // ── Streams ──
     public const string ChannelReadStreamKey = "channel:read:stream_key";
 
