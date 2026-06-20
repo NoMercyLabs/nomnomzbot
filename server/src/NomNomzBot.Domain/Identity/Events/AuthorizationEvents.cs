@@ -77,3 +77,13 @@ public sealed class AuthorizationDeniedEvent : DomainEventBase
     public required int CallerLevel { get; init; }
     public required string Gate { get; init; }
 }
+
+/// <summary>A Plane-C platform-IAM access was evaluated (also persisted to IamAuditLog). SaaS-only.</summary>
+public sealed class IamAccessEvaluatedEvent : DomainEventBase
+{
+    public required Guid PrincipalId { get; init; }
+    public required string Permission { get; init; }
+    public required Guid? TargetBroadcasterId { get; init; }
+    public required bool BreakGlass { get; init; }
+    public required IamOutcome Outcome { get; init; }
+}
