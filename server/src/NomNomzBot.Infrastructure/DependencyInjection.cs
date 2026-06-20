@@ -457,6 +457,14 @@ public static class DependencyInjection
         // Per-topic create facts (condition/version/token-owner) — pure, singleton.
         services.AddSingleton<IEventSubConditionBuilder, EventSubConditionBuilder>();
 
+        // Typed fan-out (§3.7): one IEventSubEventTranslator per subscription type, auto-discovered (drop a file
+        // → it is live next boot, no DI list to edit), indexed by the singleton registry the dispatcher resolves.
+        services.AddImplementationsOf<IEventSubEventTranslator>(
+            infrastructure,
+            ServiceLifetime.Singleton
+        );
+        services.AddSingleton<IEventSubTranslatorRegistry, EventSubTranslatorRegistry>();
+
         // The notification dispatcher is the single dedupe + journal + fan-out path both transports call.
         // Scoped: journals via the scoped IEventJournal (DbContext + IUnitOfWork).
         services.AddScoped<INotificationDispatcher, NotificationDispatcher>();

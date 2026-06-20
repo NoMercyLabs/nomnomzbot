@@ -25,7 +25,8 @@ public interface INotificationDispatcher
     /// <list type="number">
     ///   <item>Journal via <c>IEventJournal.AppendAsync</c> — the append is idempotent on the message-id-derived
     ///   <c>EventId</c> (UUIDv5), so a redelivery returns the existing row and consumes no new position.</item>
-    ///   <item>Map to the matching per-topic generic envelope and publish on <c>IEventBus</c>.</item>
+    ///   <item>Fan out to the strongly-typed per-topic domain event(s) via the matching
+    ///   <see cref="IEventSubEventTranslator"/> (§3.7), published on <c>IEventBus</c> — new path only.</item>
     ///   <item>Emit <c>EventSubNotificationJournaledEvent</c> (with <c>WasDuplicate</c>).</item>
     /// </list>
     /// Returns the journaled event id + position (or the duplicate signal).

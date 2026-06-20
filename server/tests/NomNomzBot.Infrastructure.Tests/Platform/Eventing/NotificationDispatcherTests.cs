@@ -14,6 +14,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.EventStore;
+using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.DTOs.Twitch.EventSub;
 using NomNomzBot.Domain.Twitch.Events;
 using NomNomzBot.Infrastructure.EventStore;
@@ -73,6 +74,7 @@ public sealed class NotificationDispatcherTests
         NotificationDispatcher dispatcher = new(
             NewJournal(db),
             bus,
+            new EventSubTranslatorRegistry([]),
             Clock,
             NullLogger<NotificationDispatcher>.Instance
         );
@@ -129,6 +131,7 @@ public sealed class NotificationDispatcherTests
         NotificationDispatcher dispatcher = new(
             NewJournal(db),
             bus,
+            new EventSubTranslatorRegistry([]),
             Clock,
             NullLogger<NotificationDispatcher>.Instance
         );
@@ -177,6 +180,7 @@ public sealed class NotificationDispatcherTests
         NotificationDispatcher dispatcher = new(
             NewJournal(db),
             bus,
+            new EventSubTranslatorRegistry([]),
             Clock,
             NullLogger<NotificationDispatcher>.Instance
         );
@@ -191,5 +195,49 @@ public sealed class NotificationDispatcherTests
         a.Value.StreamPosition.Should().Be(1);
         b.Value.StreamPosition.Should().Be(2, "distinct messages advance the tenant stream");
         a.Value.EventId.Should().NotBe(b.Value.EventId);
+    }
+
+    [Fact]
+    public async Task Dispatch_NewNotification_FansOutToTranslator_ButNotOnRedelivery()
+    {
+        using SqliteTestDatabase database = SqliteTestDatabase.Open();
+        Guid tenant = Guid.NewGuid();
+        CapturingEventBus bus = new();
+        RecordingTranslator translator = new("channel.follow");
+
+        await using EventStoreTestDbContext db = database.NewContext();
+        NotificationDispatcher dispatcher = new(
+            NewJournal(db),
+            bus,
+            new EventSubTranslatorRegistry([translator]),
+            Clock,
+            NullLogger<NotificationDispatcher>.Instance
+        );
+
+        await dispatcher.DispatchAsync(Notification(tenant, "follow-msg"));
+        translator
+            .Calls.Should()
+            .Be(1, "the genuinely-new notification fans out to its registered translator");
+
+        // The redelivery is deduped (same message-id ⇒ same EventId) and must NOT fan out a second time.
+        await dispatcher.DispatchAsync(Notification(tenant, "follow-msg"));
+        translator.Calls.Should().Be(1, "a duplicate already fanned out on its first delivery");
+    }
+
+    /// <summary>A translator that records how often it was invoked, for the fan-out routing test.</summary>
+    private sealed class RecordingTranslator(string subscriptionType) : IEventSubEventTranslator
+    {
+        public int Calls { get; private set; }
+
+        public string SubscriptionType => subscriptionType;
+
+        public Task TranslateAsync(
+            EventSubNotification notification,
+            CancellationToken ct = default
+        )
+        {
+            Calls++;
+            return Task.CompletedTask;
+        }
     }
 }

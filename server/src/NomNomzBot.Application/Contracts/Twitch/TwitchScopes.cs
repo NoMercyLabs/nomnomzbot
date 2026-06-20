@@ -44,6 +44,7 @@ public static class TwitchScopes
 
     // ── Chat ──
     public const string ModeratorReadChatters = "moderator:read:chatters";
+    public const string UserReadChat = "user:read:chat";
     public const string UserReadEmotes = "user:read:emotes";
     public const string ModeratorManageChatSettings = "moderator:manage:chat_settings";
     public const string ModeratorManageAnnouncements = "moderator:manage:announcements";
@@ -65,6 +66,7 @@ public static class TwitchScopes
 
     // ── Moderation ──
     public const string ModerationRead = "moderation:read";
+    public const string ChannelModerate = "channel:moderate";
     public const string ModeratorManageBannedUsers = "moderator:manage:banned_users";
     public const string ModeratorReadBlockedTerms = "moderator:read:blocked_terms";
     public const string ModeratorManageBlockedTerms = "moderator:manage:blocked_terms";
@@ -79,6 +81,7 @@ public static class TwitchScopes
     public const string ModeratorReadUnbanRequests = "moderator:read:unban_requests";
     public const string ModeratorManageUnbanRequests = "moderator:manage:unban_requests";
     public const string ModeratorManageWarnings = "moderator:manage:warnings";
+    public const string ModeratorReadSuspiciousUsers = "moderator:read:suspicious_users";
     public const string ModeratorManageSuspiciousUsers = "moderator:manage:suspicious_users";
     public const string UserReadModeratedChannels = "user:read:moderated_channels";
 

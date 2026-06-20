@@ -32,10 +32,10 @@ namespace NomNomzBot.Infrastructure.Platform.Eventing;
 /// <see cref="INotificationDispatcher"/>. It is the single instance behind <see cref="ITwitchEventSubService"/>
 /// and <see cref="NomNomzBot.Application.Contracts.Platform.IEventSource"/>.
 /// <para>
-/// This is the GENERIC dispatch: it resolves the tenant (Twitch id ⇒ Guid), persists the raw payload, and
-/// fans out the journaled signal. The 74 strongly-typed per-event handlers are deferred to the fan-out
-/// subsystem. As a singleton it crosses to scoped services (DbContext, resolver, dispatcher) through
-/// <see cref="IServiceScopeFactory"/>.
+/// It resolves the tenant (Twitch id ⇒ Guid), persists the raw payload, and fans out via
+/// <see cref="INotificationDispatcher"/> — which journals the raw event and publishes the strongly-typed
+/// per-topic domain event(s) through the §3.7 translator registry. As a singleton it crosses to scoped services
+/// (DbContext, resolver, dispatcher) through <see cref="IServiceScopeFactory"/>.
 /// </para>
 /// </summary>
 public sealed class TwitchEventSubHostedService

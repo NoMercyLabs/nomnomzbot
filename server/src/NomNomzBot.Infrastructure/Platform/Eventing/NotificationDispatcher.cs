@@ -19,32 +19,39 @@ using NomNomzBot.Domain.Twitch.Events;
 namespace NomNomzBot.Infrastructure.Platform.Eventing;
 
 /// <summary>
-/// Turns one raw EventSub notification into a journaled, deduped, fanned-out fact (twitch-eventsub §3.4). This
-/// is the GENERIC dispatch: it routes by <c>subscription_type</c> and persists the raw event payload so no
-/// event is lost — the strongly-typed per-topic parsing/handlers (the 74-event fan-out) are deferred to the
-/// fan-out subsystem, which reads the journal / subscribes to the journaled event emitted here.
+/// Turns one raw EventSub notification into a journaled, deduped, fanned-out fact (twitch-eventsub §3.4). It
+/// routes by <c>subscription_type</c>, persists the raw event payload (so no event is ever lost — even before
+/// its translator exists), then fans out to the strongly-typed per-topic domain event(s) via the matching
+/// <see cref="IEventSubEventTranslator"/> resolved from <see cref="IEventSubTranslatorRegistry"/> (§3.7). The
+/// typed publish rides the same <see cref="IEventBus"/>, so the journaling decorator records the derived domain
+/// event(s) too (the raw <c>eventsub</c> row is the replay source; the derived <c>domain</c> rows feed live
+/// handlers and projections — both by design).
 /// <para>
 /// Dedupe is the journal's <c>Unique(EventId)</c>: the message-id derives the <c>EventId</c> via UUIDv5
 /// (<see cref="EventSubMessageId"/>), so a redelivery resolves to the already-stored row and consumes no new
-/// stream position. The pre-check makes the duplicate observable (<c>WasDuplicate</c>) without a second append.
+/// stream position. The pre-check makes the duplicate observable (<c>WasDuplicate</c>) without a second append,
+/// and the typed fan-out runs on the genuinely-new path only (a redelivery already fanned out the first time).
 /// </para>
 /// </summary>
 public sealed class NotificationDispatcher : INotificationDispatcher
 {
     private readonly IEventJournal _journal;
     private readonly IEventBus _eventBus;
+    private readonly IEventSubTranslatorRegistry _translators;
     private readonly TimeProvider _clock;
     private readonly ILogger<NotificationDispatcher> _logger;
 
     public NotificationDispatcher(
         IEventJournal journal,
         IEventBus eventBus,
+        IEventSubTranslatorRegistry translators,
         TimeProvider clock,
         ILogger<NotificationDispatcher> logger
     )
     {
         _journal = journal;
         _eventBus = eventBus;
+        _translators = translators;
         _clock = clock;
         _logger = logger;
     }
@@ -98,6 +105,7 @@ public sealed class NotificationDispatcher : INotificationDispatcher
         // We reached the append because the pre-check found no existing row, so this is the genuinely-new
         // path. (A concurrent redelivery is still safe: the journal's Unique(EventId) collapses it to one row;
         // the next delivery's pre-check then observes it as the duplicate.)
+        await FanOutTypedAsync(notification, ct);
         await PublishJournaledAsync(notification, appended.Value, wasDuplicate: false, ct);
 
         return Result.Success(
@@ -107,6 +115,35 @@ public sealed class NotificationDispatcher : INotificationDispatcher
                 WasDuplicate: false
             )
         );
+    }
+
+    /// <summary>
+    /// Resolves the translator for the notification's subscription type and lets it publish the typed domain
+    /// event(s). Unknown types (no translator yet) are a no-op — the raw event is already journaled. A translator
+    /// fault is isolated and logged: a single malformed payload never fails the dispatch or the journal append.
+    /// </summary>
+    private async Task FanOutTypedAsync(EventSubNotification notification, CancellationToken ct)
+    {
+        if (
+            !_translators.TryGet(
+                notification.SubscriptionType,
+                out IEventSubEventTranslator? translator
+            )
+        )
+            return;
+
+        try
+        {
+            await translator.TranslateAsync(notification, ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "EventSub typed fan-out failed for {Type}",
+                notification.SubscriptionType
+            );
+        }
     }
 
     private Task PublishJournaledAsync(
