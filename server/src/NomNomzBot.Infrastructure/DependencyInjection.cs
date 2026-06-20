@@ -361,6 +361,20 @@ public static class DependencyInjection
             ITwitchChannelsApi,
             Platform.Transport.Helix.SubClients.TwitchChannelsApi
         >();
+        services.AddScoped<ITwitchUsersApi, Platform.Transport.Helix.SubClients.TwitchUsersApi>();
+        services.AddScoped<
+            ITwitchChannelPointsApi,
+            Platform.Transport.Helix.SubClients.TwitchChannelPointsApi
+        >();
+        services.AddScoped<
+            ITwitchStreamsApi,
+            Platform.Transport.Helix.SubClients.TwitchStreamsApi
+        >();
+        services.AddScoped<
+            ITwitchSubscriptionsApi,
+            Platform.Transport.Helix.SubClients.TwitchSubscriptionsApi
+        >();
+        services.AddScoped<ITwitchSearchApi, Platform.Transport.Helix.SubClients.TwitchSearchApi>();
 
         services
             .AddHttpClient("twitch-eventsub")
