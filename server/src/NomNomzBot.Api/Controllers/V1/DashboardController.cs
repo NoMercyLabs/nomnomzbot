@@ -14,8 +14,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Persistence;
-using NomNomzBot.Application.Abstractions.Transport;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Dashboard.Dtos;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
@@ -33,24 +33,24 @@ public class DashboardController : BaseController
     private readonly IChannelRegistry _registry;
     private readonly IChannelService _channelService;
     private readonly IApplicationDbContext _db;
-    private readonly ITwitchApiService _twitchApi;
-    private readonly ITwitchIdentityResolver _identityResolver;
+    private readonly ITwitchChannelsApi _channels;
+    private readonly ITwitchStreamsApi _streams;
     private readonly TimeProvider _timeProvider;
 
     public DashboardController(
         IChannelRegistry registry,
         IChannelService channelService,
         IApplicationDbContext db,
-        ITwitchApiService twitchApi,
-        ITwitchIdentityResolver identityResolver,
+        ITwitchChannelsApi channels,
+        ITwitchStreamsApi streams,
         TimeProvider timeProvider
     )
     {
         _registry = registry;
         _channelService = channelService;
         _db = db;
-        _twitchApi = twitchApi;
-        _identityResolver = identityResolver;
+        _channels = channels;
+        _streams = streams;
         _timeProvider = timeProvider;
     }
 
@@ -76,13 +76,10 @@ public class DashboardController : BaseController
         if (!Guid.TryParse(broadcasterId, out Guid tenantId))
             return BadRequestResponse("Invalid channel id.");
 
-        // Helix calls take the Twitch channel string id, resolved from the tenant Guid.
-        string? twitchChannelId = await _identityResolver.GetTwitchChannelIdAsync(tenantId, ct);
-
-        // Fetch real follower count from Twitch API (fire-and-forget safe — returns 0 on failure)
-        int followerCount = twitchChannelId is null
-            ? 0
-            : await _twitchApi.GetFollowerCountAsync(twitchChannelId, ct);
+        // The sub-clients resolve the tenant Guid → Twitch id internally; a failure (no token / missing
+        // scope / offline) degrades gracefully to 0 rather than failing the whole stats snapshot.
+        Result<int> followerResult = await _channels.GetChannelFollowerCountAsync(tenantId, ct);
+        int followerCount = followerResult.IsSuccess ? followerResult.Value : 0;
 
         ChannelContext? ctx = _registry.Get(tenantId);
 
@@ -93,15 +90,13 @@ public class DashboardController : BaseController
                     ? (long)(_timeProvider.GetUtcNow() - ctx.WentLiveAt.Value).TotalSeconds
                     : null;
 
-            // Get live viewer count from Twitch stream info
+            // Get live viewer count from Twitch stream info (offline ⇒ not_found ⇒ 0).
             int viewerCount = 0;
-            if (ctx.IsLive && twitchChannelId is not null)
+            if (ctx.IsLive)
             {
-                TwitchStreamInfo? streamInfo = await _twitchApi.GetStreamInfoAsync(
-                    twitchChannelId,
-                    ct
-                );
-                viewerCount = streamInfo?.ViewerCount ?? 0;
+                Result<TwitchStream> streamResult = await _streams.GetStreamAsync(tenantId, ct);
+                if (streamResult.IsSuccess)
+                    viewerCount = streamResult.Value.ViewerCount;
             }
 
             DashboardStatsDto stats = new()

@@ -14,8 +14,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Persistence;
-using NomNomzBot.Application.Abstractions.Transport;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Rewards.Services;
@@ -32,7 +32,9 @@ public class ChannelsController : BaseController
 {
     private readonly IChannelService _channelService;
     private readonly IApplicationDbContext _db;
-    private readonly ITwitchApiService _twitchApi;
+    private readonly ITwitchChannelsApi _channels;
+    private readonly ITwitchModeratorsApi _moderators;
+    private readonly ITwitchModerationApi _moderation;
     private readonly IRewardService _rewardService;
     private readonly ILogger<ChannelsController> _logger;
     private readonly TimeProvider _timeProvider;
@@ -40,7 +42,9 @@ public class ChannelsController : BaseController
     public ChannelsController(
         IChannelService channelService,
         IApplicationDbContext db,
-        ITwitchApiService twitchApi,
+        ITwitchChannelsApi channels,
+        ITwitchModeratorsApi moderators,
+        ITwitchModerationApi moderation,
         IRewardService rewardService,
         ILogger<ChannelsController> logger,
         TimeProvider timeProvider
@@ -48,7 +52,9 @@ public class ChannelsController : BaseController
     {
         _channelService = channelService;
         _db = db;
-        _twitchApi = twitchApi;
+        _channels = channels;
+        _moderators = moderators;
+        _moderation = moderation;
         _rewardService = rewardService;
         _logger = logger;
         _timeProvider = timeProvider;
@@ -70,22 +76,20 @@ public class ChannelsController : BaseController
 
         PaginationParams pagination = new(request.Page, request.Take, request.Sort, request.Order);
 
-        // Fetch channels the user moderates on Twitch so they appear even if not yet
-        // synced to the ChannelModerators table.
+        // Fetch channels the user moderates on Twitch so they appear even if not yet synced to the
+        // ChannelModerators table. The JWT subject is the internal User.Id Guid; the sub-client resolves it
+        // to the Twitch user id internally (a failure degrades to the DB-only list).
         IReadOnlyList<string> moderatedIds = [];
-        try
+        if (Guid.TryParse(userId, out Guid moderatorUserId))
         {
-            IReadOnlyList<TwitchModeratedChannel> moderated =
-                await _twitchApi.GetModeratedChannelsAsync(userId, ct);
-            moderatedIds = moderated.Select(m => m.BroadcasterId).ToList();
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(
-                ex,
-                "Failed to fetch moderated channels from Twitch for user {UserId}",
-                userId
-            );
+            Result<TwitchPage<TwitchModeratedChannel>> moderated =
+                await _moderators.GetModeratedChannelsAsync(
+                    moderatorUserId,
+                    new TwitchPageRequest(),
+                    ct
+                );
+            if (moderated.IsSuccess)
+                moderatedIds = [.. moderated.Value.Items.Select(m => m.BroadcasterId)];
         }
 
         Result<PagedList<ChannelSummaryDto>> result = await _channelService.GetChannelsAsync(
@@ -108,11 +112,18 @@ public class ChannelsController : BaseController
             User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
             ?? User.FindFirst("sub")?.Value;
 
-        if (string.IsNullOrEmpty(userId))
+        if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out Guid moderatorUserId))
             return UnauthenticatedResponse();
 
-        IReadOnlyList<TwitchModeratedChannel> moderated =
-            await _twitchApi.GetModeratedChannelsAsync(userId, ct);
+        Result<TwitchPage<TwitchModeratedChannel>> moderatedResult =
+            await _moderators.GetModeratedChannelsAsync(
+                moderatorUserId,
+                new TwitchPageRequest(),
+                ct
+            );
+        IReadOnlyList<TwitchModeratedChannel> moderated = moderatedResult.IsSuccess
+            ? moderatedResult.Value.Items
+            : [];
 
         // Find which ones are already onboarded in our DB. moderated ids are Twitch channel
         // string ids — match on Channel.TwitchChannelId, not the internal Guid key.
@@ -169,7 +180,6 @@ public class ChannelsController : BaseController
         string channelId = result.Value.Id;
         if (!Guid.TryParse(channelId, out Guid tenantId))
             return InternalServerErrorResponse("Onboarded channel returned an invalid id.");
-        string twitchChannelId = request.BroadcasterId;
 
         // Link any pre-existing broadcaster token (stored with BroadcasterId=null during login)
         Service? unlinkedToken = await _db.Services.FirstOrDefaultAsync(
@@ -189,27 +199,26 @@ public class ChannelsController : BaseController
         );
         if (botService?.UserId is not null)
         {
-            await _twitchApi.AddModeratorAsync(twitchChannelId, botService.UserId, ct);
+            await _moderators.AddModeratorAsync(tenantId, botService.UserId, ct);
         }
 
         // ── Full Twitch data sync on onboarding ─────────────────────────────
         // Each step is independent — one failure must not block the rest.
         try
         {
-            TwitchChannelInfo? channelInfo = await _twitchApi.GetChannelInfoAsync(
-                twitchChannelId,
-                ct
-            );
-            if (channelInfo is not null)
+            Result<TwitchChannelInformation> channelInfoResult =
+                await _channels.GetChannelInformationAsync(tenantId, ct);
+            if (channelInfoResult.IsSuccess)
             {
+                TwitchChannelInformation channelInfo = channelInfoResult.Value;
                 Channel? channel = await _db.Channels.FindAsync([tenantId], ct);
                 if (channel is not null)
                 {
                     channel.Title = channelInfo.Title;
                     channel.GameName = channelInfo.GameName;
                     channel.GameId = channelInfo.GameId;
-                    channel.Tags = channelInfo.Tags;
-                    channel.Language = channelInfo.Language;
+                    channel.Tags = [.. channelInfo.Tags];
+                    channel.Language = channelInfo.BroadcasterLanguage;
                     await _db.SaveChangesAsync(ct);
                     _logger.LogInformation(
                         "Synced channel info for {ChannelId}: {Title} / {Game}",
@@ -236,10 +245,11 @@ public class ChannelsController : BaseController
 
         try
         {
-            IReadOnlyList<TwitchBannedUser> bannedUsers = await _twitchApi.GetBannedUsersAsync(
-                twitchChannelId,
-                ct
-            );
+            Result<TwitchPage<TwitchBannedUser>> bannedResult =
+                await _moderation.GetBannedUsersAsync(tenantId, new TwitchPageRequest(), ct);
+            IReadOnlyList<TwitchBannedUser> bannedUsers = bannedResult.IsSuccess
+                ? bannedResult.Value.Items
+                : [];
             foreach (TwitchBannedUser ban in bannedUsers)
             {
                 bool exists = await _db.Configurations.AnyAsync(
@@ -431,11 +441,20 @@ public class ChannelsController : BaseController
 
         try
         {
-            IReadOnlyList<TwitchModeratorInfo> mods = await _twitchApi.GetModeratorsAsync(
-                twitchChannelId,
+            Result<TwitchPage<TwitchModerator>> modsResult = await _moderators.GetModeratorsAsync(
+                tenantId,
+                new TwitchPageRequest(),
                 ct
             );
-            IReadOnlyList<TwitchVipInfo> vips = await _twitchApi.GetVipsAsync(twitchChannelId, ct);
+            IReadOnlyList<TwitchModerator> mods = modsResult.IsSuccess
+                ? modsResult.Value.Items
+                : [];
+            Result<TwitchPage<TwitchVip>> vipsResult = await _moderators.GetVipsAsync(
+                tenantId,
+                new TwitchPageRequest(),
+                ct
+            );
+            IReadOnlyList<TwitchVip> vips = vipsResult.IsSuccess ? vipsResult.Value.Items : [];
 
             // mod/vip .UserId are Twitch user string ids; Users key on TwitchUserId, the FK target
             // (ChannelModerator.UserId) is the internal User.Id Guid.
@@ -449,9 +468,7 @@ public class ChannelsController : BaseController
                 .ToListAsync(ct);
 
             foreach (
-                TwitchModeratorInfo? mod in mods.Where(m =>
-                    !existingTwitchUserIds.Contains(m.UserId)
-                )
+                TwitchModerator? mod in mods.Where(m => !existingTwitchUserIds.Contains(m.UserId))
             )
             {
                 _db.Users.Add(
@@ -464,7 +481,7 @@ public class ChannelsController : BaseController
                 );
             }
             foreach (
-                TwitchVipInfo? vip in vips.Where(v =>
+                TwitchVip? vip in vips.Where(v =>
                     !existingTwitchUserIds.Contains(v.UserId) && mods.All(m => m.UserId != v.UserId)
                 )
             )
@@ -487,7 +504,7 @@ public class ChannelsController : BaseController
                 .ToDictionaryAsync(u => u.TwitchUserId, u => u.Id, ct);
 
             // Store mod/VIP status in channel moderators table
-            foreach (TwitchModeratorInfo mod in mods)
+            foreach (TwitchModerator mod in mods)
             {
                 if (!userIdMap.TryGetValue(mod.UserId, out Guid modUserId))
                     continue;

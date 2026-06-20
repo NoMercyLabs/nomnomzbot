@@ -14,8 +14,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Persistence;
-using NomNomzBot.Application.Abstractions.Transport;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Platform.Interfaces;
@@ -30,22 +30,25 @@ public class StreamController : BaseController
 {
     private readonly IChannelService _channelService;
     private readonly IChannelRegistry _registry;
-    private readonly ITwitchApiService _twitchApi;
-    private readonly ITwitchIdentityResolver _identityResolver;
+    private readonly ITwitchChannelsApi _channels;
+    private readonly ITwitchStreamsApi _streams;
+    private readonly ITwitchSearchApi _search;
     private readonly IApplicationDbContext _db;
 
     public StreamController(
         IChannelService channelService,
         IChannelRegistry registry,
-        ITwitchApiService twitchApi,
-        ITwitchIdentityResolver identityResolver,
+        ITwitchChannelsApi channels,
+        ITwitchStreamsApi streams,
+        ITwitchSearchApi search,
         IApplicationDbContext db
     )
     {
         _channelService = channelService;
         _registry = registry;
-        _twitchApi = twitchApi;
-        _identityResolver = identityResolver;
+        _channels = channels;
+        _streams = streams;
+        _search = search;
         _db = db;
     }
 
@@ -83,34 +86,32 @@ public class StreamController : BaseController
         if (!Guid.TryParse(channelId, out Guid tenantId))
             return BadRequestResponse("Invalid channel id.");
 
-        // Helix calls take the Twitch channel string id, resolved from the tenant Guid.
-        string? twitchChannelId = await _identityResolver.GetTwitchChannelIdAsync(tenantId, ct);
-
         ChannelContext? ctx = _registry.Get(tenantId);
 
         if (ctx is not null)
         {
-            // Enrich with live viewer count and channel info (tags, language)
+            // Enrich with live viewer count and channel info (tags, language). The sub-clients resolve the
+            // tenant Guid → Twitch id internally; offline / missing-scope degrades to the unenriched values.
             int viewerCount = 0;
             List<string> tags = [];
             string? language = null;
 
-            if (ctx.IsLive && twitchChannelId is not null)
+            if (ctx.IsLive)
             {
-                TwitchStreamInfo? streamInfo = await _twitchApi.GetStreamInfoAsync(
-                    twitchChannelId,
-                    ct
-                );
-                viewerCount = streamInfo?.ViewerCount ?? 0;
+                Result<TwitchStream> streamResult = await _streams.GetStreamAsync(tenantId, ct);
+                if (streamResult.IsSuccess)
+                    viewerCount = streamResult.Value.ViewerCount;
             }
 
-            TwitchChannelInfo? channelInfo = twitchChannelId is null
-                ? null
-                : await _twitchApi.GetChannelInfoAsync(twitchChannelId, ct);
+            Result<TwitchChannelInformation> channelResult =
+                await _channels.GetChannelInformationAsync(tenantId, ct);
+            TwitchChannelInformation? channelInfo = channelResult.IsSuccess
+                ? channelResult.Value
+                : null;
             if (channelInfo is not null)
             {
-                tags = channelInfo.Tags;
-                language = channelInfo.Language;
+                tags = [.. channelInfo.Tags];
+                language = channelInfo.BroadcasterLanguage;
             }
 
             DateTime? lastStreamedAt = null;
@@ -137,10 +138,12 @@ public class StreamController : BaseController
             return Ok(new StatusResponseDto<StreamInfoDto> { Data = info });
         }
 
-        // Channel not in registry — fetch real info from Twitch API
-        TwitchChannelInfo? twitchChannel = twitchChannelId is null
-            ? null
-            : await _twitchApi.GetChannelInfoAsync(twitchChannelId, ct);
+        // Channel not in registry — fetch real info from Twitch.
+        Result<TwitchChannelInformation> twitchChannelResult =
+            await _channels.GetChannelInformationAsync(tenantId, ct);
+        TwitchChannelInformation? twitchChannel = twitchChannelResult.IsSuccess
+            ? twitchChannelResult.Value
+            : null;
 
         Result<ChannelDto> result = await _channelService.GetAsync(channelId, ct);
         if (result.IsFailure)
@@ -159,11 +162,11 @@ public class StreamController : BaseController
         StreamInfoDto fallback = new StreamInfoDto(
             twitchChannel?.Title ?? channel.Title,
             twitchChannel?.GameName ?? channel.GameName,
-            twitchChannel?.Tags ?? [],
+            twitchChannel is not null ? [.. twitchChannel.Tags] : [],
             channel.IsLive,
             channel.ViewerCount ?? 0,
             null,
-            twitchChannel?.Language ?? channel.Language,
+            twitchChannel?.BroadcasterLanguage ?? channel.Language,
             lastStreamedAtFallback
         );
 
@@ -183,24 +186,24 @@ public class StreamController : BaseController
         if (!Guid.TryParse(channelId, out Guid tenantId))
             return BadRequestResponse("Invalid channel id.");
 
-        string? twitchChannelId = await _identityResolver.GetTwitchChannelIdAsync(tenantId, ct);
-        if (twitchChannelId is null)
-            return NotFoundResponse("Channel not found.");
-
         Result<ChannelDto> result = await _channelService.GetAsync(channelId, ct);
         if (result.IsFailure)
             return ResultResponse(result);
 
-        // Resolve game name → game ID via Twitch search
+        // Resolve game name → game ID via Twitch search.
         string? gameId = null;
         string? resolvedGameName = request.GameName;
         if (request.GameName is not null)
         {
-            IReadOnlyList<TwitchCategoryInfo> categories = await _twitchApi.SearchCategoriesAsync(
+            Result<TwitchPage<TwitchSearchCategory>> search = await _search.SearchCategoriesAsync(
                 request.GameName,
+                new TwitchPageRequest(),
                 ct
             );
-            TwitchCategoryInfo? match =
+            IReadOnlyList<TwitchSearchCategory> categories = search.IsSuccess
+                ? search.Value.Items
+                : [];
+            TwitchSearchCategory? match =
                 categories.FirstOrDefault(c =>
                     string.Equals(c.Name, request.GameName, StringComparison.OrdinalIgnoreCase)
                 ) ?? categories.FirstOrDefault();
@@ -212,14 +215,18 @@ public class StreamController : BaseController
             }
         }
 
-        // Push changes to Twitch
-        await _twitchApi.UpdateChannelInfoAsync(
-            twitchChannelId,
-            request.Title,
-            gameId,
-            request.Tags,
+        // Push changes to Twitch; surface a Helix failure (e.g. missing scope) rather than swallowing it.
+        Result update = await _channels.ModifyChannelInformationAsync(
+            tenantId,
+            new ModifyChannelInformationRequest(
+                Title: request.Title,
+                GameId: gameId,
+                Tags: request.Tags
+            ),
             ct
         );
+        if (update.IsFailure)
+            return TwitchResultResponse(update);
 
         // Update in-memory context
         ChannelContext? ctx = _registry.Get(tenantId);
@@ -288,11 +295,13 @@ public class StreamController : BaseController
         if (!Guid.TryParse(channelId, out Guid tenantId))
             return BadRequestResponse("Invalid channel id.");
 
-        string? twitchChannelId = await _identityResolver.GetTwitchChannelIdAsync(tenantId, ct);
-        if (twitchChannelId is null)
-            return NotFoundResponse("Channel not found.");
-
-        await _twitchApi.UpdateChannelInfoAsync(twitchChannelId, request.Title, null, null, ct);
+        Result update = await _channels.ModifyChannelInformationAsync(
+            tenantId,
+            new ModifyChannelInformationRequest(Title: request.Title),
+            ct
+        );
+        if (update.IsFailure)
+            return TwitchResultResponse(update);
 
         ChannelContext? ctx = _registry.Get(tenantId);
         if (ctx is not null)
@@ -312,18 +321,16 @@ public class StreamController : BaseController
         if (!Guid.TryParse(channelId, out Guid tenantId))
             return BadRequestResponse("Invalid channel id.");
 
-        string? twitchChannelId = await _identityResolver.GetTwitchChannelIdAsync(tenantId, ct);
-        if (twitchChannelId is null)
-            return NotFoundResponse("Channel not found.");
-
         string? gameId = null;
         string resolvedName = request.GameName;
 
-        IReadOnlyList<TwitchCategoryInfo> results = await _twitchApi.SearchCategoriesAsync(
+        Result<TwitchPage<TwitchSearchCategory>> search = await _search.SearchCategoriesAsync(
             request.GameName,
+            new TwitchPageRequest(),
             ct
         );
-        TwitchCategoryInfo? match =
+        IReadOnlyList<TwitchSearchCategory> results = search.IsSuccess ? search.Value.Items : [];
+        TwitchSearchCategory? match =
             results.FirstOrDefault(c =>
                 string.Equals(c.Name, request.GameName, StringComparison.OrdinalIgnoreCase)
             ) ?? results.FirstOrDefault();
@@ -334,7 +341,13 @@ public class StreamController : BaseController
             resolvedName = match.Name;
         }
 
-        await _twitchApi.UpdateChannelInfoAsync(twitchChannelId, null, gameId, null, ct);
+        Result update = await _channels.ModifyChannelInformationAsync(
+            tenantId,
+            new ModifyChannelInformationRequest(GameId: gameId),
+            ct
+        );
+        if (update.IsFailure)
+            return TwitchResultResponse(update);
 
         ChannelContext? ctx = _registry.Get(tenantId);
         if (ctx is not null)
@@ -354,11 +367,14 @@ public class StreamController : BaseController
         if (!Guid.TryParse(channelId, out Guid tenantId))
             return BadRequestResponse("Invalid channel id.");
 
-        string? twitchChannelId = await _identityResolver.GetTwitchChannelIdAsync(tenantId, ct);
-        if (twitchChannelId is null)
-            return NotFoundResponse("Channel not found.");
+        Result update = await _channels.ModifyChannelInformationAsync(
+            tenantId,
+            new ModifyChannelInformationRequest(Tags: request.Tags),
+            ct
+        );
+        if (update.IsFailure)
+            return TwitchResultResponse(update);
 
-        await _twitchApi.UpdateChannelInfoAsync(twitchChannelId, null, null, request.Tags, ct);
         return await GetStreamInfo(channelId, ct);
     }
 
@@ -374,13 +390,14 @@ public class StreamController : BaseController
         if (string.IsNullOrWhiteSpace(query))
             return Ok(new StatusResponseDto<List<CategoryDto>> { Data = [] });
 
-        IReadOnlyList<TwitchCategoryInfo> results = await _twitchApi.SearchCategoriesAsync(
+        Result<TwitchPage<TwitchSearchCategory>> search = await _search.SearchCategoriesAsync(
             query,
+            new TwitchPageRequest(),
             ct
         );
-        List<CategoryDto> categories = results
-            .Select(c => new CategoryDto(c.Id, c.Name, c.BoxArtUrl))
-            .ToList();
+        List<CategoryDto> categories = search.IsSuccess
+            ? [.. search.Value.Items.Select(c => new CategoryDto(c.Id, c.Name, c.BoxArtUrl))]
+            : [];
 
         return Ok(new StatusResponseDto<List<CategoryDto>> { Data = categories });
     }

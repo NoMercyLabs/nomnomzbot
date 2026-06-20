@@ -11,6 +11,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using NomNomzBot.Api.Models;
+using NomNomzBot.Application.Contracts.Twitch;
 
 namespace NomNomzBot.Api.Controllers;
 
@@ -157,4 +158,43 @@ public abstract class BaseController : ControllerBase
             }
         );
     }
+
+    /// <summary>
+    /// Translates a Helix <see cref="NomNomzBot.Application.Common.Models.Result"/>'s
+    /// <see cref="TwitchErrorCodes"/> to problem-details status codes (twitch-helix.md §3):
+    /// <c>missing_scope</c>→403, <c>unauthorized</c>→401, <c>no_token</c>→409, <c>not_found</c>→404,
+    /// <c>rate_limited</c>→429, <c>twitch_error</c>/<c>transport</c>→502. Use for endpoints that call the
+    /// Twitch sub-clients directly (a separate code space from the app-level <see cref="ResultResponse(NomNomzBot.Application.Common.Models.Result)"/>).
+    /// </summary>
+    protected IActionResult TwitchResultResponse(
+        NomNomzBot.Application.Common.Models.Result result
+    ) =>
+        result.IsSuccess
+            ? Ok(new StatusResponseDto<object> { Status = "ok" })
+            : MapTwitchError(result.ErrorCode, result.ErrorMessage);
+
+    protected IActionResult TwitchResultResponse<T>(
+        NomNomzBot.Application.Common.Models.Result<T> result
+    ) =>
+        result.IsSuccess
+            ? Ok(new StatusResponseDto<T> { Data = result.Value })
+            : MapTwitchError(result.ErrorCode, result.ErrorMessage);
+
+    private IActionResult MapTwitchError(string? code, string? message) =>
+        code switch
+        {
+            TwitchErrorCodes.MissingScope => UnauthorizedResponse(message),
+            TwitchErrorCodes.Unauthorized => UnauthenticatedResponse(message),
+            TwitchErrorCodes.NoToken => ConflictResponse(message),
+            TwitchErrorCodes.NotFound => NotFoundResponse(message),
+            TwitchErrorCodes.RateLimited => TooManyRequestsResponse(message),
+            _ => StatusCode(
+                StatusCodes.Status502BadGateway,
+                new StatusResponseDto<object>
+                {
+                    Status = "error",
+                    Message = message ?? "Twitch request failed.",
+                }
+            ),
+        };
 }

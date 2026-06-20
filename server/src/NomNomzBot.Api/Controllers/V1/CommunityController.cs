@@ -16,7 +16,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Persistence;
-using NomNomzBot.Application.Abstractions.Transport;
+using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Domain.Identity.Entities;
 using ConfigEntity = NomNomzBot.Domain.Platform.Entities.Configuration;
 
@@ -29,20 +30,26 @@ namespace NomNomzBot.Api.Controllers.V1;
 public class CommunityController : BaseController
 {
     private readonly IApplicationDbContext _db;
-    private readonly ITwitchApiService _twitchApi;
-    private readonly ITwitchIdentityResolver _identityResolver;
+    private readonly ITwitchChannelsApi _channels;
+    private readonly ITwitchModeratorsApi _moderators;
+    private readonly ITwitchSubscriptionsApi _subscriptions;
+    private readonly ITwitchModerationApi _moderation;
     private readonly TimeProvider _timeProvider;
 
     public CommunityController(
         IApplicationDbContext db,
-        ITwitchApiService twitchApi,
-        ITwitchIdentityResolver identityResolver,
+        ITwitchChannelsApi channels,
+        ITwitchModeratorsApi moderators,
+        ITwitchSubscriptionsApi subscriptions,
+        ITwitchModerationApi moderation,
         TimeProvider timeProvider
     )
     {
         _db = db;
-        _twitchApi = twitchApi;
-        _identityResolver = identityResolver;
+        _channels = channels;
+        _moderators = moderators;
+        _subscriptions = subscriptions;
+        _moderation = moderation;
         _timeProvider = timeProvider;
     }
 
@@ -134,19 +141,21 @@ public class CommunityController : BaseController
         if (!Guid.TryParse(channelId, out Guid broadcasterId))
             return BadRequestResponse("Invalid channel id.");
 
-        // Helix list calls take the Twitch channel string id, resolved from the tenant Guid.
-        string? twitchChannelId = await _identityResolver.GetTwitchChannelIdAsync(
-            broadcasterId,
-            ct
-        );
-
-        // Followers tab: cursor-based pagination directly from Twitch API
+        // Followers tab: cursor-based pagination directly from Twitch (the sub-client resolves the tenant
+        // Guid → Twitch id internally; a missing token / scope degrades to an empty page).
         if (string.Equals(role, "follower", StringComparison.OrdinalIgnoreCase))
         {
-            (IReadOnlyList<TwitchFollowerInfo> followers, string? nextCursor, int total) =
-                twitchChannelId is null
-                    ? (Array.Empty<TwitchFollowerInfo>(), null, 0)
-                    : await _twitchApi.GetFollowersAsync(twitchChannelId, cursor, request.Take, ct);
+            Result<TwitchPage<TwitchChannelFollower>> followerPage =
+                await _channels.GetChannelFollowersAsync(
+                    broadcasterId,
+                    new TwitchPageRequest(After: cursor, PageSize: request.Take),
+                    ct
+                );
+            IReadOnlyList<TwitchChannelFollower> followers = followerPage.IsSuccess
+                ? followerPage.Value.Items
+                : [];
+            string? nextCursor = followerPage.IsSuccess ? followerPage.Value.NextCursor : null;
+            int total = followerPage.IsSuccess ? followerPage.Value.Total : 0;
 
             // Follower ids are Twitch user string ids — join on User.TwitchUserId.
             List<string> followerIds = followers.Select(f => f.UserId).ToList();
@@ -185,8 +194,8 @@ public class CommunityController : BaseController
                         0,
                         "viewer",
                         false,
-                        f.FollowedAt,
-                        stats?.LastSeen ?? f.FollowedAt
+                        f.FollowedAt.UtcDateTime,
+                        stats?.LastSeen ?? f.FollowedAt.UtcDateTime
                     );
                 })
                 .ToList();
@@ -207,12 +216,15 @@ public class CommunityController : BaseController
         // VIP tab: fetch from Twitch API, paginate in-memory
         if (string.Equals(role, "vip", StringComparison.OrdinalIgnoreCase))
         {
-            IReadOnlyList<TwitchVipInfo> vips = twitchChannelId is null
-                ? (IReadOnlyList<TwitchVipInfo>)Array.Empty<TwitchVipInfo>()
-                : await _twitchApi.GetVipsAsync(twitchChannelId, ct);
+            Result<TwitchPage<TwitchVip>> vipPage = await _moderators.GetVipsAsync(
+                broadcasterId,
+                new TwitchPageRequest(),
+                ct
+            );
+            IReadOnlyList<TwitchVip> vips = vipPage.IsSuccess ? vipPage.Value.Items : [];
             int vipTotal = vips.Count;
 
-            List<TwitchVipInfo> pagedVips = vips.Skip(skip).Take(request.Take + 1).ToList();
+            List<TwitchVip> pagedVips = vips.Skip(skip).Take(request.Take + 1).ToList();
 
             // VIP ids are Twitch user string ids — join on User.TwitchUserId.
             List<string> vipIds = pagedVips.Select(v => v.UserId).ToList();
@@ -398,34 +410,27 @@ public class CommunityController : BaseController
         if (!Guid.TryParse(channelId, out Guid broadcasterId))
             return BadRequestResponse("Invalid channel id.");
 
-        // Helix calls take the Twitch channel string id, resolved from the tenant Guid.
-        string? twitchChannelId = await _identityResolver.GetTwitchChannelIdAsync(
+        // Followers, subscribers, and VIP count from Twitch (authoritative). Each sub-client resolves the
+        // tenant Guid internally and returns a Result; a failure (no token / missing scope) leaves the value
+        // at 0 — surfaced for the user through the scope-diagnostics endpoint rather than thrown here.
+        Result<int> followerResult = await _channels.GetChannelFollowerCountAsync(
             broadcasterId,
             ct
         );
+        int followers = followerResult.IsSuccess ? followerResult.Value : 0;
 
-        // Followers and subscribers: Twitch API (authoritative).
-        int followers = 0,
-            subscribers = 0,
-            vipCount = 0;
-        if (twitchChannelId is not null)
-        {
-            try
-            {
-                followers = await _twitchApi.GetFollowerCountAsync(twitchChannelId, ct);
-            }
-            catch { }
-            try
-            {
-                subscribers = await _twitchApi.GetSubscriberCountAsync(twitchChannelId, ct);
-            }
-            catch { }
-            try
-            {
-                vipCount = (await _twitchApi.GetVipsAsync(twitchChannelId, ct)).Count;
-            }
-            catch { }
-        }
+        Result<int> subscriberResult = await _subscriptions.GetSubscriberCountAsync(
+            broadcasterId,
+            ct
+        );
+        int subscribers = subscriberResult.IsSuccess ? subscriberResult.Value : 0;
+
+        Result<TwitchPage<TwitchVip>> vipResult = await _moderators.GetVipsAsync(
+            broadcasterId,
+            new TwitchPageRequest(),
+            ct
+        );
+        int vipCount = vipResult.IsSuccess ? vipResult.Value.Items.Count : 0;
 
         // Moderators: use the DB as the primary source because the community list
         // already reads from this table and it reflects onboarding sync.
@@ -644,17 +649,11 @@ public class CommunityController : BaseController
         if (!Guid.TryParse(channelId, out Guid broadcasterId))
             return BadRequestResponse("Invalid channel id.");
 
-        string? twitchChannelId = await _identityResolver.GetTwitchChannelIdAsync(
-            broadcasterId,
-            ct
-        );
-        if (twitchChannelId is null)
-            return NotFoundResponse("Channel not found.");
-
         string moderatorId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "";
 
-        // userId is the Twitch user string id (as exposed by the list DTOs).
-        await _twitchApi.BanUserAsync(twitchChannelId, userId, request.Reason, ct);
+        // userId is the Twitch user string id (as exposed by the list DTOs). The sub-client resolves the
+        // tenant Guid internally; the local ban record below is written regardless (best-effort enforcement).
+        await _moderation.BanUserAsync(broadcasterId, userId, request.Reason, ct);
 
         User? user = await _db.Users.FirstOrDefaultAsync(u => u.TwitchUserId == userId, ct);
 
@@ -709,14 +708,7 @@ public class CommunityController : BaseController
         if (!Guid.TryParse(channelId, out Guid broadcasterId))
             return BadRequestResponse("Invalid channel id.");
 
-        string? twitchChannelId = await _identityResolver.GetTwitchChannelIdAsync(
-            broadcasterId,
-            ct
-        );
-        if (twitchChannelId is null)
-            return NotFoundResponse("Channel not found.");
-
-        await _twitchApi.UnbanUserAsync(twitchChannelId, userId, ct);
+        await _moderation.UnbanUserAsync(broadcasterId, userId, ct);
 
         ConfigEntity? config = await _db.Configurations.FirstOrDefaultAsync(
             c => c.BroadcasterId == broadcasterId && c.Key == $"ban:{userId}",
