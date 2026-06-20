@@ -1,0 +1,284 @@
+// -----------------------------------------------------------------------------
+//  Copyright (c) NoMercy Labs.
+//
+//  This file is part of NomNomzBot, free software licensed under the GNU Affero
+//  General Public License v3.0 or later. You may redistribute and/or modify it
+//  under those terms. Distributed WITHOUT ANY WARRANTY. See LICENSE for details.
+//
+//  SPDX-License-Identifier: AGPL-3.0-or-later
+// -----------------------------------------------------------------------------
+
+using Microsoft.EntityFrameworkCore;
+using NomNomzBot.Application.Abstractions.Content;
+using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Domain.Identity.Entities;
+using NomNomzBot.Domain.Identity.Enums;
+
+namespace NomNomzBot.Infrastructure.Content.Identity;
+
+/// <summary>
+/// Seeds the global <c>ActionDefinitions</c> catalogue (roles-permissions §7.1, schema B.3) — the gateable
+/// action keys with their default/floor levels, danger tier, and permit-grantability. Without these Gate 2
+/// fails closed (403) on every gated route. GLOBAL reference data, no FK dependencies (Order 5). Idempotent:
+/// upserts by the natural key <see cref="ActionDefinition.ActionKey"/>, so a re-run adds nothing.
+/// <para>
+/// Convention: management-plane rows have <c>DefaultLevel = FloorLevel</c>, <c>Tier = Low</c>, and
+/// <c>Grant = true</c> unless the helper overload says otherwise; community-plane rows are
+/// <c>Default = Floor = Everyone(0)</c>, <c>Low</c>, grantable. The one row where default ≠ floor
+/// (<c>permit:issue</c>) is added explicitly. These rows are the source for the per-spec §5 controller gates.
+/// </para>
+/// </summary>
+public sealed class ActionDefinitionSeeder : ISeeder
+{
+    private const int Everyone = 0;
+    private const int Mod = 10;
+    private const int SuperMod = 20;
+    private const int Editor = 30;
+    private const int Broadcaster = 40;
+
+    private readonly IApplicationDbContext _db;
+
+    public ActionDefinitionSeeder(IApplicationDbContext db) => _db = db;
+
+    public int Order => 5;
+
+    public async Task SeedAsync(CancellationToken ct = default)
+    {
+        HashSet<string> present = (
+            await _db.ActionDefinitions.Select(a => a.ActionKey).ToListAsync(ct)
+        ).ToHashSet(StringComparer.Ordinal);
+
+        foreach (ActionSeed seed in Catalogue)
+        {
+            if (present.Contains(seed.Key))
+                continue;
+
+            _db.ActionDefinitions.Add(
+                new ActionDefinition
+                {
+                    ActionKey = seed.Key,
+                    Plane = seed.Plane,
+                    DefaultLevel = seed.DefaultLevel,
+                    FloorLevel = seed.FloorLevel,
+                    FloorTier = seed.Tier,
+                    IsGrantableViaPermit = seed.Grant,
+                }
+            );
+        }
+    }
+
+    private static readonly IReadOnlyList<ActionSeed> Catalogue = Build();
+
+    private static List<ActionSeed> Build()
+    {
+        List<ActionSeed> s = [];
+
+        // ── Management plane (Default = Floor, Tier = Low, Grant = true unless noted) ──
+        void M(string key, int level, DangerTier tier = DangerTier.Low, bool grant = true) =>
+            s.Add(new ActionSeed(key, level, level, tier, grant, AuthPlane.Management));
+
+        // Commands / pipelines / responses / timers
+        M("commands:read", Mod);
+        M("commands:write", Editor);
+        M("commands:builtin:read", Mod);
+        M("commands:builtin:write", Editor);
+        M("pipelines:read", Mod);
+        M("pipelines:write", Editor);
+        M("pipelines:validate", Mod);
+        M("eventresponses:read", Mod);
+        M("eventresponses:write", Editor);
+        M("timers:read", Mod);
+        M("timers:write", Editor);
+
+        // Roles & permits & code
+        M("roles:read", Mod);
+        M("roles:manage", Broadcaster, DangerTier.Critical, grant: false);
+        s.Add(
+            new ActionSeed(
+                "permit:issue",
+                Broadcaster,
+                Editor,
+                DangerTier.Low,
+                true,
+                AuthPlane.Management
+            )
+        );
+        M("code:script:author", Broadcaster, DangerTier.Critical);
+
+        // Discord (not permit-grantable)
+        M("discord:connection:read", Mod, grant: false);
+        M("discord:connection:write", SuperMod, grant: false);
+        M("discord:config:read", Mod, grant: false);
+        M("discord:config:write", SuperMod, grant: false);
+        M("discord:role:read", Mod, grant: false);
+        M("discord:role:write", SuperMod, grant: false);
+        M("discord:optin:write", SuperMod, grant: false);
+        M("discord:dispatch:read", Mod, grant: false);
+
+        // Moderation
+        M("moderation:read", Mod);
+        M("moderation:queue:read", Mod);
+        M("moderation:queue:resolve", Mod);
+        M("moderation:action:read", Mod);
+        M("moderation:timeout", Mod);
+        M("moderation:ban", Mod);
+        M("moderation:unban", Mod);
+        M("moderation:delete_message", Mod);
+        M("moderation:warn", Mod);
+        M("moderation:note:write", Mod);
+        M("moderation:automod:read", Mod);
+        M("moderation:automod:write", SuperMod);
+        M("moderation:filter:read", Mod);
+        M("moderation:filter:write", SuperMod);
+        M("moderation:nuke", SuperMod, DangerTier.Critical, grant: false);
+        M("moderation:nuke:read", SuperMod);
+        M("moderation:sharedban:read", SuperMod);
+        M("moderation:sharedban:write", SuperMod, DangerTier.Critical, grant: false);
+        M("moderation:report:read", Mod);
+        M("moderation:report:triage", SuperMod);
+        M("moderation:evidence:build", Mod);
+        M("moderation:usercontext:read", Mod);
+        M("moderation:chat:settings:read", Mod);
+        M("moderation:chat:settings:write", Mod);
+        M("moderation:shieldmode:read", Mod);
+        M("moderation:shieldmode:write", SuperMod);
+        M("moderation:announce", Mod);
+        M("moderation:chatcolor:write", Editor);
+        M("moderation:vip:write", Broadcaster);
+        M("moderation:moderator:write", Broadcaster, DangerTier.Critical, grant: false);
+        M("moderation:unbanrequest:read", Mod);
+        M("moderation:unbanrequest:resolve", SuperMod);
+        M("moderation:blocklist:write", SuperMod);
+        M("moderation:suspicioususer:write", SuperMod);
+
+        // TTS
+        M("tts:config:read", Mod);
+        M("tts:config:write", Editor);
+        M("tts:voice:read", Mod);
+        M("tts:voice:test", Mod);
+        M("tts:uservoice:write", Mod);
+        M("tts:queue:review", Mod);
+
+        // EventSub / diagnostics / event store
+        M("eventsub:read", Mod);
+        M("eventsub:subscribe", Editor);
+        M("eventsub:unsubscribe", Editor);
+        M("twitch:diagnostics:read", Mod);
+        M("eventstore:journal:read", Broadcaster);
+        M("eventstore:projection:read", Mod);
+        M("eventstore:projection:rebuild", Broadcaster);
+        M("eventstore:replay:write", Broadcaster);
+        M("eventstore:replay:republish", Broadcaster);
+
+        // Music
+        M("music:config:write", Editor);
+        M("music:queue:moderate", Mod);
+        M("music:token:read", Editor);
+        M("music:token:rotate", Broadcaster, DangerTier.Critical, grant: false);
+        M("music:remote:control", Mod);
+        M("music:library:write", Editor);
+
+        // Stream / channel / live-ops
+        M("stream:preset:write", Editor);
+        M("stream:schedule:write", Editor);
+        M("channel:title:write", Editor);
+        M("channel:game:write", Editor);
+        M("channel:tags:write", Editor);
+        M("channel:ccl:write", Editor);
+        M("channel:language:write", Editor);
+        M("channel:brandedcontent:write", Editor);
+        M("channel:extensions:write", Editor);
+        M("chat:whisper:send", Editor);
+        M("liveops:poll:read", Mod);
+        M("liveops:poll:manage", Editor);
+        M("liveops:prediction:read", Mod);
+        M("liveops:prediction:manage", Editor);
+        M("liveops:raid:start", Editor);
+        M("liveops:ads:read", Mod);
+        M("liveops:ads:run", Editor);
+        M("liveops:schedule:read", Mod);
+        M("liveops:schedule:write", Editor);
+        M("liveops:marker:create", Mod);
+        M("liveops:clip:create", Mod);
+
+        // Webhooks / widgets / integrations / dashboard / community / setup / analytics
+        M("webhooks:inbound:read", Mod);
+        M("webhooks:inbound:write", Editor);
+        M("webhooks:outbound:read", Mod);
+        M("webhooks:outbound:write", Editor);
+        M("widget:read", Mod);
+        M("widget:write", Editor);
+        M("integration:read", Mod);
+        M("integration:write", Editor);
+        M("community:read", Mod);
+        M("dashboard:read", Mod);
+        M("setup:write", Broadcaster, grant: false);
+        M("analytics:read", Mod);
+        M("analytics:viewer:read", Mod);
+
+        // Economy (management)
+        M("economy:config:read", Mod);
+        M("economy:config:write", Editor);
+        M("economy:catalog:create", Editor);
+        M("economy:catalog:update", Editor);
+        M("economy:catalog:delete", Editor);
+        M("economy:catalog:refund", SuperMod);
+        M("economy:catalog:purchases:read", Mod);
+        M("economy:account:freeze", Mod);
+        M("economy:account:adjust", Mod);
+        M("economy:ledger:read", Mod);
+        M("economy:leaderboards:config:read", Mod);
+        M("economy:leaderboards:config:write", Editor);
+        M("economy:leaderboards:config:delete", Editor);
+
+        // Rewards
+        M("reward:read", Mod);
+        M("reward:manage", Broadcaster);
+        M("reward:sync", Broadcaster);
+        M("reward:redemption:read", Mod);
+        M("reward:redemption:fulfill", Mod);
+        M("reward:redemption:refund", Mod);
+
+        // ── Community plane (Default = Floor = Everyone(0), Tier = Low, Grant = true) ──
+        void C(string key) =>
+            s.Add(
+                new ActionSeed(key, Everyone, Everyone, DangerTier.Low, true, AuthPlane.Community)
+            );
+
+        C("music:request:submit");
+        C("moderation:report:file");
+        C("economy:catalog:read");
+        C("economy:catalog:purchase");
+        C("economy:games:read");
+        C("economy:games:play");
+        C("economy:games:history:read");
+        C("economy:jars:read");
+        C("economy:jars:create");
+        C("economy:jars:membership:accept");
+        C("economy:jars:membership:revoke");
+        C("economy:jars:invite");
+        C("economy:jars:contribute");
+        C("economy:jars:withdraw");
+        C("economy:jars:history:read");
+        C("economy:leaderboards:read");
+        C("economy:leaderboards:opt-in");
+        C("economy:leaderboards:opt-out");
+        C("economy:account:read");
+        C("economy:consent:read");
+        C("economy:consent:write");
+        C("economy:consent:revoke");
+        C("economy:transfer:write");
+        C("economy:earning");
+
+        return s;
+    }
+
+    private readonly record struct ActionSeed(
+        string Key,
+        int DefaultLevel,
+        int FloorLevel,
+        DangerTier Tier,
+        bool Grant,
+        AuthPlane Plane
+    );
+}
