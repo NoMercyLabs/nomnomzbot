@@ -171,7 +171,7 @@ public static class DependencyInjection
             typeof(ITrustService), // singleton
             typeof(ITtsService), // singleton — stateful TTS queues
             typeof(ITwitchChatService), // singleton + hosted (shared TwitchIrcService instance)
-            typeof(ITwitchEventSubService), // singleton + hosted (shared TwitchEventSubService instance)
+            typeof(ITwitchEventSubService), // singleton + hosted (shared TwitchEventSubHostedService instance)
             typeof(ISubjectKeyService) // crypto envelope — wired explicitly below
         );
 
@@ -187,7 +187,7 @@ public static class DependencyInjection
         services.AddHostedWorkers(
             infrastructure,
             typeof(TwitchIrcService),
-            typeof(TwitchEventSubService),
+            typeof(TwitchEventSubHostedService),
             typeof(ChannelRegistry)
         );
 
@@ -380,12 +380,31 @@ public static class DependencyInjection
         services.AddSingleton<ITwitchChatService>(sp => sp.GetRequiredService<TwitchIrcService>());
         services.AddHostedService(sp => sp.GetRequiredService<TwitchIrcService>());
 
-        // Twitch EventSub service (singleton + hosted service — persistent WebSocket connection)
-        services.AddSingleton<TwitchEventSubService>();
+        // ── Twitch EventSub (twitch-eventsub §7) ─────────────────────────────
+        // Per-topic create facts (condition/version/token-owner) — pure, singleton.
+        services.AddSingleton<IEventSubConditionBuilder, EventSubConditionBuilder>();
+
+        // The notification dispatcher is the single dedupe + journal + fan-out path both transports call.
+        // Scoped: journals via the scoped IEventJournal (DbContext + IUnitOfWork).
+        services.AddScoped<INotificationDispatcher, NotificationDispatcher>();
+
+        // Transport is profile-selected (scaling-qos §6). Self-host/lite → WebSocket (ClientWebSocket).
+        // The SaaS conduit+webhook transport and its EventSubWebhookController / IWebhookSignatureVerifier are
+        // DEFERRED — they depend on the SaaS deployment-profile axis + conduit provisioner that do not exist
+        // yet (the seam IEventSubTransport admits the second impl additively, no rewrite). Self-host is the
+        // only profile today, so the WebSocket transport is wired unconditionally.
+        services.AddSingleton<IWebSocketChannelFactory, ClientWebSocketChannelFactory>();
+        services.AddSingleton<IEventSubTransport, WebSocketEventSubTransport>();
+
+        // The lifecycle host: one instance behind ITwitchEventSubService + IEventSource + IHostedService.
+        services.AddSingleton<TwitchEventSubHostedService>();
         services.AddSingleton<ITwitchEventSubService>(sp =>
-            sp.GetRequiredService<TwitchEventSubService>()
+            sp.GetRequiredService<TwitchEventSubHostedService>()
         );
-        services.AddHostedService(sp => sp.GetRequiredService<TwitchEventSubService>());
+        services.AddSingleton<NomNomzBot.Application.Contracts.Platform.IEventSource>(sp =>
+            sp.GetRequiredService<TwitchEventSubHostedService>()
+        );
+        services.AddHostedService(sp => sp.GetRequiredService<TwitchEventSubHostedService>());
 
         // ── Event store (event-store §7) ─────────────────────────────────────
         // Journal, allocator, subscriber, projection runner all touch the DbContext / IUnitOfWork (scoped).

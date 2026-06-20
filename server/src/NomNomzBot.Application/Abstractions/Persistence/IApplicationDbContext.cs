@@ -31,7 +31,10 @@ public interface IApplicationDbContext
     DbSet<Command> Commands { get; }
     DbSet<Reward> Rewards { get; }
     DbSet<Widget> Widgets { get; }
-    DbSet<EventSubscription> EventSubscriptions { get; }
+    DbSet<EventSubSubscription> EventSubSubscriptions { get; }
+    DbSet<EventSubConduit> EventSubConduits { get; }
+    DbSet<EventSubConduitShard> EventSubConduitShards { get; }
+    DbSet<IdempotencyKey> IdempotencyKeys { get; }
     DbSet<ChatMessage> ChatMessages { get; }
     DbSet<ChannelEvent> ChannelEvents { get; }
     DbSet<NomNomzBot.Domain.Stream.Entities.Stream> Streams { get; }

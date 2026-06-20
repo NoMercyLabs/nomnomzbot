@@ -55,7 +55,10 @@ internal sealed class EventStoreTestDbContext : DbContext, IApplicationDbContext
         modelBuilder.Ignore<NomNomzBot.Domain.Commands.Entities.Command>();
         modelBuilder.Ignore<NomNomzBot.Domain.Rewards.Entities.Reward>();
         modelBuilder.Ignore<NomNomzBot.Domain.Widgets.Entities.Widget>();
-        modelBuilder.Ignore<NomNomzBot.Domain.Platform.Entities.EventSubscription>();
+        modelBuilder.Ignore<NomNomzBot.Domain.Platform.Entities.EventSubSubscription>();
+        modelBuilder.Ignore<NomNomzBot.Domain.Platform.Entities.EventSubConduit>();
+        modelBuilder.Ignore<NomNomzBot.Domain.Platform.Entities.EventSubConduitShard>();
+        modelBuilder.Ignore<NomNomzBot.Domain.Platform.Entities.IdempotencyKey>();
         modelBuilder.Ignore<NomNomzBot.Domain.Chat.Entities.ChatMessage>();
         modelBuilder.Ignore<NomNomzBot.Domain.Identity.Entities.ChannelEvent>();
         modelBuilder.Ignore<NomNomzBot.Domain.Stream.Entities.Stream>();
@@ -100,7 +103,13 @@ internal sealed class EventStoreTestDbContext : DbContext, IApplicationDbContext
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Widgets.Entities.Widget> Widgets =>
         throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Platform.Entities.EventSubscription> EventSubscriptions =>
+    public DbSet<NomNomzBot.Domain.Platform.Entities.EventSubSubscription> EventSubSubscriptions =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Platform.Entities.EventSubConduit> EventSubConduits =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Platform.Entities.EventSubConduitShard> EventSubConduitShards =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Platform.Entities.IdempotencyKey> IdempotencyKeys =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Chat.Entities.ChatMessage> ChatMessages =>
         throw new NotSupportedException();

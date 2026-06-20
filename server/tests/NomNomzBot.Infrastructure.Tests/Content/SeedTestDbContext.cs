@@ -54,7 +54,10 @@ public sealed class SeedTestDbContext : DbContext, IApplicationDbContext
     public DbSet<Service> Services => Set<Service>();
     public DbSet<Reward> Rewards => Set<Reward>();
     public DbSet<Widget> Widgets => Set<Widget>();
-    public DbSet<EventSubscription> EventSubscriptions => Set<EventSubscription>();
+    public DbSet<EventSubSubscription> EventSubSubscriptions => Set<EventSubSubscription>();
+    public DbSet<EventSubConduit> EventSubConduits => Set<EventSubConduit>();
+    public DbSet<EventSubConduitShard> EventSubConduitShards => Set<EventSubConduitShard>();
+    public DbSet<IdempotencyKey> IdempotencyKeys => Set<IdempotencyKey>();
     public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
     public DbSet<ChannelEvent> ChannelEvents => Set<ChannelEvent>();
     public DbSet<global::NomNomzBot.Domain.Stream.Entities.Stream> Streams =>
@@ -110,7 +113,10 @@ public sealed class SeedTestDbContext : DbContext, IApplicationDbContext
         modelBuilder.Ignore<Service>();
         modelBuilder.Ignore<Reward>();
         modelBuilder.Ignore<Widget>();
-        modelBuilder.Ignore<EventSubscription>();
+        modelBuilder.Ignore<EventSubSubscription>();
+        modelBuilder.Ignore<EventSubConduit>();
+        modelBuilder.Ignore<EventSubConduitShard>();
+        modelBuilder.Ignore<IdempotencyKey>();
         modelBuilder.Ignore<ChatMessage>();
         modelBuilder.Ignore<ChannelEvent>();
         modelBuilder.Ignore<global::NomNomzBot.Domain.Stream.Entities.Stream>();

@@ -327,7 +327,13 @@ public sealed class IdentityRekeyBehaviorTests
             throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.Widgets.Entities.Widget> Widgets =>
             throw new NotSupportedException();
-        public DbSet<NomNomzBot.Domain.Platform.Entities.EventSubscription> EventSubscriptions =>
+        public DbSet<NomNomzBot.Domain.Platform.Entities.EventSubSubscription> EventSubSubscriptions =>
+            throw new NotSupportedException();
+        public DbSet<NomNomzBot.Domain.Platform.Entities.EventSubConduit> EventSubConduits =>
+            throw new NotSupportedException();
+        public DbSet<NomNomzBot.Domain.Platform.Entities.EventSubConduitShard> EventSubConduitShards =>
+            throw new NotSupportedException();
+        public DbSet<NomNomzBot.Domain.Platform.Entities.IdempotencyKey> IdempotencyKeys =>
             throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.Chat.Entities.ChatMessage> ChatMessages =>
             throw new NotSupportedException();

@@ -1544,32 +1544,126 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.ToTable("DeletionAuditLogs");
                 });
 
-            modelBuilder.Entity("NomNomzBot.Domain.Platform.Entities.EventSubscription", b =>
+            modelBuilder.Entity("NomNomzBot.Domain.Platform.Entities.EventSubConduit", b =>
                 {
-                    b.Property<string>("Id")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<Guid>("BroadcasterId")
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.PrimitiveCollection<string>("Condition")
+                    b.Property<string>("ConduitId")
                         .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("jsonb")
-                        .HasDefaultValueSql("'[]'::jsonb");
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("Description")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
+                    b.Property<DateTime?>("LastReconciledAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Provider")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<int>("ShardCount")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ConduitId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_EventSubConduit_ConduitId");
+
+                    b.ToTable("EventSubConduits");
+                });
+
+            modelBuilder.Entity("NomNomzBot.Domain.Platform.Entities.EventSubConduitShard", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("AssignedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CallbackUrl")
+                        .HasMaxLength(2048)
+                        .HasColumnType("character varying(2048)");
+
+                    b.Property<Guid>("ConduitId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("SessionId")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<string>("ShardId")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<string>("Transport")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ConduitId", "ShardId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_EventSubConduitShard_ConduitId_ShardId");
+
+                    b.ToTable("EventSubConduitShards");
+                });
+
+            modelBuilder.Entity("NomNomzBot.Domain.Platform.Entities.EventSubSubscription", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BroadcasterId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Condition")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("ConduitId")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<int?>("Cost")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<bool>("Enabled")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(true);
+                        .HasColumnType("boolean");
 
                     b.Property<string>("EventType")
                         .IsRequired()
@@ -1579,22 +1673,34 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.Property<DateTime?>("ExpiresAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<Dictionary<string, string>>("Metadata")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("jsonb")
-                        .HasDefaultValueSql("'{}'::jsonb");
+                    b.Property<string>("LastError")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
 
                     b.Property<string>("Provider")
                         .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
 
                     b.Property<string>("SessionId")
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)");
 
-                    b.Property<string>("SubscriptionId")
+                    b.Property<string>("ShardId")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("Transport")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("TwitchSubscriptionId")
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)");
 
@@ -1602,14 +1708,63 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Version")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("BroadcasterId");
+                    b.HasIndex("TwitchSubscriptionId")
+                        .HasDatabaseName("IX_EventSubSubscription_TwitchSubscriptionId");
 
-                    b.ToTable("EventSubscriptions");
+                    b.HasIndex("BroadcasterId", "Provider", "EventType", "Version")
+                        .IsUnique()
+                        .HasDatabaseName("UX_EventSubSubscription_Broadcaster_Provider_Type_Version");
+
+                    b.ToTable("EventSubSubscriptions");
+                });
+
+            modelBuilder.Entity("NomNomzBot.Domain.Platform.Entities.IdempotencyKey", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<Guid?>("BroadcasterId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Key")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<string>("ResultHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("Scope")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ExpiresAt")
+                        .HasDatabaseName("IX_IdempotencyKey_ExpiresAt");
+
+                    b.HasIndex("Scope", "Key", "BroadcasterId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_IdempotencyKey_Scope_Key_Broadcaster");
+
+                    b.ToTable("IdempotencyKeys");
                 });
 
             modelBuilder.Entity("NomNomzBot.Domain.Platform.Entities.Record", b =>
@@ -2440,7 +2595,18 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.Navigation("Channel");
                 });
 
-            modelBuilder.Entity("NomNomzBot.Domain.Platform.Entities.EventSubscription", b =>
+            modelBuilder.Entity("NomNomzBot.Domain.Platform.Entities.EventSubConduitShard", b =>
+                {
+                    b.HasOne("NomNomzBot.Domain.Platform.Entities.EventSubConduit", "Conduit")
+                        .WithMany("Shards")
+                        .HasForeignKey("ConduitId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Conduit");
+                });
+
+            modelBuilder.Entity("NomNomzBot.Domain.Platform.Entities.EventSubSubscription", b =>
                 {
                     b.HasOne("NomNomzBot.Domain.Identity.Entities.Channel", "Channel")
                         .WithMany()
@@ -2548,6 +2714,11 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
             modelBuilder.Entity("NomNomzBot.Domain.Integrations.Entities.IntegrationConnection", b =>
                 {
                     b.Navigation("Tokens");
+                });
+
+            modelBuilder.Entity("NomNomzBot.Domain.Platform.Entities.EventSubConduit", b =>
+                {
+                    b.Navigation("Shards");
                 });
 #pragma warning restore 612, 618
         }

@@ -12,9 +12,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using NomNomzBot.Application.Abstractions.Eventing;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Transport;
+using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Domain.Identity.Entities;
 
 namespace NomNomzBot.Infrastructure.BackgroundServices;
@@ -114,11 +114,8 @@ public sealed class BotLifecycleService : BackgroundService
             {
                 await chatService.JoinChannelAsync(channel.Name, ct);
 
-                // Subscribe to EventSub events for this channel
-                foreach (string eventType in ChannelEventTypes)
-                {
-                    await eventSub.SubscribeAsync(channel.Id, eventType, ct);
-                }
+                // Declaratively reconcile this channel's EventSub subscription set to the desired topics.
+                await eventSub.EnsureSubscribedAsync(channel.Id, ChannelEventTypes, ct);
 
                 lock (_channelLock)
                     _joinedChannels.Add(channel.Id);

@@ -160,6 +160,87 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
             );
 
             migrationBuilder.CreateTable(
+                name: "EventSubConduits",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    Provider = table.Column<string>(
+                        type: "character varying(20)",
+                        maxLength: 20,
+                        nullable: false
+                    ),
+                    ConduitId = table.Column<string>(
+                        type: "character varying(255)",
+                        maxLength: 255,
+                        nullable: false
+                    ),
+                    ShardCount = table.Column<int>(type: "integer", nullable: false),
+                    Status = table.Column<string>(
+                        type: "character varying(20)",
+                        maxLength: 20,
+                        nullable: false
+                    ),
+                    LastReconciledAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: true
+                    ),
+                    CreatedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                    UpdatedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_EventSubConduits", x => x.Id);
+                }
+            );
+
+            migrationBuilder.CreateTable(
+                name: "IdempotencyKeys",
+                columns: table => new
+                {
+                    Id = table
+                        .Column<long>(type: "bigint", nullable: false)
+                        .Annotation(
+                            "Npgsql:ValueGenerationStrategy",
+                            NpgsqlValueGenerationStrategy.IdentityByDefaultColumn
+                        ),
+                    Scope = table.Column<string>(
+                        type: "character varying(100)",
+                        maxLength: 100,
+                        nullable: false
+                    ),
+                    Key = table.Column<string>(
+                        type: "character varying(255)",
+                        maxLength: 255,
+                        nullable: false
+                    ),
+                    BroadcasterId = table.Column<Guid>(type: "uuid", nullable: true),
+                    ResultHash = table.Column<string>(
+                        type: "character varying(64)",
+                        maxLength: 64,
+                        nullable: true
+                    ),
+                    ExpiresAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                    CreatedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_IdempotencyKeys", x => x.Id);
+                }
+            );
+
+            migrationBuilder.CreateTable(
                 name: "ProjectionCheckpoints",
                 columns: table => new
                 {
@@ -424,6 +505,63 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_UserTtsVoices", x => x.Id);
+                }
+            );
+
+            migrationBuilder.CreateTable(
+                name: "EventSubConduitShards",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    ConduitId = table.Column<Guid>(type: "uuid", nullable: false),
+                    ShardId = table.Column<string>(
+                        type: "character varying(255)",
+                        maxLength: 255,
+                        nullable: false
+                    ),
+                    Transport = table.Column<string>(
+                        type: "character varying(20)",
+                        maxLength: 20,
+                        nullable: false
+                    ),
+                    CallbackUrl = table.Column<string>(
+                        type: "character varying(2048)",
+                        maxLength: 2048,
+                        nullable: true
+                    ),
+                    SessionId = table.Column<string>(
+                        type: "character varying(255)",
+                        maxLength: 255,
+                        nullable: true
+                    ),
+                    Status = table.Column<string>(
+                        type: "character varying(40)",
+                        maxLength: 40,
+                        nullable: false
+                    ),
+                    AssignedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: true
+                    ),
+                    CreatedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                    UpdatedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_EventSubConduitShards", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_EventSubConduitShards_EventSubConduits_ConduitId",
+                        column: x => x.ConduitId,
+                        principalTable: "EventSubConduits",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade
+                    );
                 }
             );
 
@@ -1284,18 +1422,14 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
             );
 
             migrationBuilder.CreateTable(
-                name: "EventSubscriptions",
+                name: "EventSubSubscriptions",
                 columns: table => new
                 {
-                    Id = table.Column<string>(
-                        type: "character varying(50)",
-                        maxLength: 50,
-                        nullable: false
-                    ),
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
                     BroadcasterId = table.Column<Guid>(type: "uuid", nullable: false),
                     Provider = table.Column<string>(
-                        type: "character varying(50)",
-                        maxLength: 50,
+                        type: "character varying(20)",
+                        maxLength: 20,
                         nullable: false
                     ),
                     EventType = table.Column<string>(
@@ -1303,22 +1437,18 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         maxLength: 100,
                         nullable: false
                     ),
-                    Description = table.Column<string>(
-                        type: "character varying(500)",
-                        maxLength: 500,
-                        nullable: true
-                    ),
-                    Enabled = table.Column<bool>(
-                        type: "boolean",
-                        nullable: false,
-                        defaultValue: true
-                    ),
                     Version = table.Column<string>(
-                        type: "character varying(50)",
-                        maxLength: 50,
-                        nullable: true
+                        type: "character varying(20)",
+                        maxLength: 20,
+                        nullable: false
                     ),
-                    SubscriptionId = table.Column<string>(
+                    Condition = table.Column<string>(type: "text", nullable: false),
+                    Transport = table.Column<string>(
+                        type: "character varying(20)",
+                        maxLength: 20,
+                        nullable: false
+                    ),
+                    TwitchSubscriptionId = table.Column<string>(
                         type: "character varying(255)",
                         maxLength: 255,
                         nullable: true
@@ -1328,19 +1458,31 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         maxLength: 255,
                         nullable: true
                     ),
+                    ConduitId = table.Column<string>(
+                        type: "character varying(255)",
+                        maxLength: 255,
+                        nullable: true
+                    ),
+                    ShardId = table.Column<string>(
+                        type: "character varying(255)",
+                        maxLength: 255,
+                        nullable: true
+                    ),
+                    Status = table.Column<string>(
+                        type: "character varying(20)",
+                        maxLength: 20,
+                        nullable: false
+                    ),
+                    Enabled = table.Column<bool>(type: "boolean", nullable: false),
+                    Cost = table.Column<int>(type: "integer", nullable: true),
+                    LastError = table.Column<string>(
+                        type: "character varying(1000)",
+                        maxLength: 1000,
+                        nullable: true
+                    ),
                     ExpiresAt = table.Column<DateTime>(
                         type: "timestamp with time zone",
                         nullable: true
-                    ),
-                    Metadata = table.Column<Dictionary<string, string>>(
-                        type: "jsonb",
-                        nullable: false,
-                        defaultValueSql: "'{}'::jsonb"
-                    ),
-                    Condition = table.Column<string>(
-                        type: "jsonb",
-                        nullable: false,
-                        defaultValueSql: "'[]'::jsonb"
                     ),
                     CreatedAt = table.Column<DateTime>(
                         type: "timestamp with time zone",
@@ -1350,12 +1492,16 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         type: "timestamp with time zone",
                         nullable: false
                     ),
+                    DeletedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: true
+                    ),
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_EventSubscriptions", x => x.Id);
+                    table.PrimaryKey("PK_EventSubSubscriptions", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_EventSubscriptions_Channels_BroadcasterId",
+                        name: "FK_EventSubSubscriptions_Channels_BroadcasterId",
                         column: x => x.BroadcasterId,
                         principalTable: "Channels",
                         principalColumn: "Id",
@@ -2457,9 +2603,43 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
             );
 
             migrationBuilder.CreateIndex(
-                name: "IX_EventSubscriptions_BroadcasterId",
-                table: "EventSubscriptions",
-                column: "BroadcasterId"
+                name: "UX_EventSubConduit_ConduitId",
+                table: "EventSubConduits",
+                column: "ConduitId",
+                unique: true
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "UX_EventSubConduitShard_ConduitId_ShardId",
+                table: "EventSubConduitShards",
+                columns: new[] { "ConduitId", "ShardId" },
+                unique: true
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_EventSubSubscription_TwitchSubscriptionId",
+                table: "EventSubSubscriptions",
+                column: "TwitchSubscriptionId"
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "UX_EventSubSubscription_Broadcaster_Provider_Type_Version",
+                table: "EventSubSubscriptions",
+                columns: new[] { "BroadcasterId", "Provider", "EventType", "Version" },
+                unique: true
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_IdempotencyKey_ExpiresAt",
+                table: "IdempotencyKeys",
+                column: "ExpiresAt"
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "UX_IdempotencyKey_Scope_Key_Broadcaster",
+                table: "IdempotencyKeys",
+                columns: new[] { "Scope", "Key", "BroadcasterId" },
+                unique: true
             );
 
             migrationBuilder.CreateIndex(
@@ -2691,7 +2871,11 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
 
             migrationBuilder.DropTable(name: "EventResponses");
 
-            migrationBuilder.DropTable(name: "EventSubscriptions");
+            migrationBuilder.DropTable(name: "EventSubConduitShards");
+
+            migrationBuilder.DropTable(name: "EventSubSubscriptions");
+
+            migrationBuilder.DropTable(name: "IdempotencyKeys");
 
             migrationBuilder.DropTable(name: "IntegrationTokens");
 
@@ -2732,6 +2916,8 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
             migrationBuilder.DropTable(name: "BotAccounts");
 
             migrationBuilder.DropTable(name: "Streams");
+
+            migrationBuilder.DropTable(name: "EventSubConduits");
 
             migrationBuilder.DropTable(name: "IntegrationConnections");
 

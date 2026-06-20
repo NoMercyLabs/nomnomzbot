@@ -128,7 +128,10 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
         b.Ignore<NomNomzBot.Domain.Commands.Entities.Command>();
         b.Ignore<NomNomzBot.Domain.Rewards.Entities.Reward>();
         b.Ignore<NomNomzBot.Domain.Widgets.Entities.Widget>();
-        b.Ignore<NomNomzBot.Domain.Platform.Entities.EventSubscription>();
+        b.Ignore<NomNomzBot.Domain.Platform.Entities.EventSubSubscription>();
+        b.Ignore<NomNomzBot.Domain.Platform.Entities.EventSubConduit>();
+        b.Ignore<NomNomzBot.Domain.Platform.Entities.EventSubConduitShard>();
+        b.Ignore<NomNomzBot.Domain.Platform.Entities.IdempotencyKey>();
         b.Ignore<NomNomzBot.Domain.Chat.Entities.ChatMessage>();
         b.Ignore<NomNomzBot.Domain.Identity.Entities.ChannelEvent>();
         b.Ignore<NomNomzBot.Domain.Stream.Entities.Stream>();
@@ -168,7 +171,13 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Widgets.Entities.Widget> Widgets =>
         throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Platform.Entities.EventSubscription> EventSubscriptions =>
+    public DbSet<NomNomzBot.Domain.Platform.Entities.EventSubSubscription> EventSubSubscriptions =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Platform.Entities.EventSubConduit> EventSubConduits =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Platform.Entities.EventSubConduitShard> EventSubConduitShards =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Platform.Entities.IdempotencyKey> IdempotencyKeys =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Chat.Entities.ChatMessage> ChatMessages =>
         throw new NotSupportedException();

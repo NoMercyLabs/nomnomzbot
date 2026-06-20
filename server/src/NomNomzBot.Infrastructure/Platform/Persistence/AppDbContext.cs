@@ -53,7 +53,13 @@ public class AppDbContext : DbContext, IApplicationDbContext
     public DbSet<Command> Commands => Set<Command>();
     public DbSet<Reward> Rewards => Set<Reward>();
     public DbSet<Widget> Widgets => Set<Widget>();
-    public DbSet<EventSubscription> EventSubscriptions => Set<EventSubscription>();
+
+    // EventSub — per-tenant subscription registry (F.7), app-global conduit + shards (F.8/F.9),
+    // and the scoped idempotency markers the notification dispatcher dedupes on (O.4).
+    public DbSet<EventSubSubscription> EventSubSubscriptions => Set<EventSubSubscription>();
+    public DbSet<EventSubConduit> EventSubConduits => Set<EventSubConduit>();
+    public DbSet<EventSubConduitShard> EventSubConduitShards => Set<EventSubConduitShard>();
+    public DbSet<IdempotencyKey> IdempotencyKeys => Set<IdempotencyKey>();
 
     // Chat
     public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
