@@ -36,10 +36,13 @@ public class UserService : IUserService
         if (!_currentUser.IsAuthenticated || _currentUser.UserId is null)
             return Errors.NotAuthenticated().ToTyped<CurrentUserDto>();
 
+        if (!Guid.TryParse(_currentUser.UserId, out Guid currentUserId))
+            return Errors.NotFound<CurrentUserDto>("User", _currentUser.UserId);
+
         CurrentUserDto? user = await _db
-            .Users.Where(u => u.Id == _currentUser.UserId)
+            .Users.Where(u => u.Id == currentUserId)
             .Select(u => new CurrentUserDto(
-                u.Id,
+                u.Id.ToString(),
                 u.Username,
                 u.DisplayName,
                 u.ProfileImageUrl,
@@ -62,8 +65,9 @@ public class UserService : IUserService
         CancellationToken cancellationToken = default
     )
     {
+        // platformUserId is the external Twitch user id (the id seen in chat), not the internal key.
         User? user = await _db.Users.FirstOrDefaultAsync(
-            u => u.Id == platformUserId,
+            u => u.TwitchUserId == platformUserId,
             cancellationToken
         );
 
@@ -71,7 +75,7 @@ public class UserService : IUserService
         {
             user = new()
             {
-                Id = platformUserId,
+                TwitchUserId = platformUserId,
                 Username = username,
                 DisplayName = displayName,
                 Enabled = true,
@@ -97,9 +101,12 @@ public class UserService : IUserService
         CancellationToken cancellationToken = default
     )
     {
+        if (!Guid.TryParse(userId, out Guid userGuid))
+            return Errors.NotFound<UserProfileDto>("User", userId);
+
         User? user = await _db
             .Users.Include(u => u.Pronoun)
-            .FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
+            .FirstOrDefaultAsync(u => u.Id == userGuid, cancellationToken);
 
         if (user is null)
             return Errors.NotFound<UserProfileDto>("User", userId);
@@ -128,7 +135,12 @@ public class UserService : IUserService
             .OrderBy(u => u.Username)
             .Skip((pagination.Page - 1) * pagination.PageSize)
             .Take(pagination.PageSize)
-            .Select(u => new UserSearchResult(u.Id, u.Username, u.DisplayName, u.ProfileImageUrl))
+            .Select(u => new UserSearchResult(
+                u.Id.ToString(),
+                u.Username,
+                u.DisplayName,
+                u.ProfileImageUrl
+            ))
             .ToListAsync(cancellationToken);
 
         return Result.Success(
@@ -141,7 +153,10 @@ public class UserService : IUserService
         CancellationToken cancellationToken = default
     )
     {
-        User? user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
+        if (!Guid.TryParse(userId, out Guid userGuid))
+            return Errors.NotFound<UserDto>("User", userId);
+
+        User? user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userGuid, cancellationToken);
 
         if (user is null)
             return Errors.NotFound<UserDto>("User", userId);
@@ -154,9 +169,12 @@ public class UserService : IUserService
         CancellationToken cancellationToken = default
     )
     {
+        if (!Guid.TryParse(userId, out Guid userGuid))
+            return Errors.NotFound<UserProfileDto>("User", userId);
+
         User? user = await _db
             .Users.Include(u => u.Pronoun)
-            .FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
+            .FirstOrDefaultAsync(u => u.Id == userGuid, cancellationToken);
 
         if (user is null)
             return Errors.NotFound<UserProfileDto>("User", userId);
@@ -169,7 +187,10 @@ public class UserService : IUserService
         CancellationToken cancellationToken = default
     )
     {
-        User? user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
+        if (!Guid.TryParse(userId, out Guid userGuid))
+            return Errors.NotFound<UserStatsDto>("User", userId);
+
+        User? user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userGuid, cancellationToken);
 
         if (user is null)
             return Errors.NotFound<UserStatsDto>("User", userId);
@@ -185,11 +206,14 @@ public class UserService : IUserService
         );
 
         int moderatorChannels = await _db.ChannelModerators.CountAsync(
-            m => m.UserId == userId,
+            m => m.UserId == userGuid,
             cancellationToken
         );
 
-        bool ownsChannel = await _db.Channels.AnyAsync(c => c.Id == userId, cancellationToken);
+        bool ownsChannel = await _db.Channels.AnyAsync(
+            c => c.OwnerUserId == userGuid,
+            cancellationToken
+        );
 
         int channelsCount = moderatorChannels + (ownsChannel ? 1 : 0);
 
@@ -211,6 +235,8 @@ public class UserService : IUserService
         CancellationToken cancellationToken = default
     )
     {
+        Guid.TryParse(userId, out Guid userGuid);
+
         // Channels the user has sent messages in
         var messageData = await _db
             .ChatMessages.Where(m => m.UserId == userId)
@@ -224,12 +250,12 @@ public class UserService : IUserService
             .ToListAsync(cancellationToken);
 
         // Channels where the user is a moderator
-        List<string> modChannelIds = await _db
-            .ChannelModerators.Where(cm => cm.UserId == userId)
+        List<Guid> modChannelIds = await _db
+            .ChannelModerators.Where(cm => cm.UserId == userGuid)
             .Select(cm => cm.ChannelId)
             .ToListAsync(cancellationToken);
 
-        List<string> allChannelIds = messageData
+        List<Guid> allChannelIds = messageData
             .Select(c => c.ChannelId)
             .Union(modChannelIds)
             .Distinct()
@@ -288,7 +314,7 @@ public class UserService : IUserService
             .Skip((pagination.Page - 1) * pagination.PageSize)
             .Take(pagination.PageSize)
             .Select(u => new AdminUserDto(
-                u.Id,
+                u.Id.ToString(),
                 u.DisplayName,
                 u.Username,
                 null,
@@ -305,11 +331,19 @@ public class UserService : IUserService
     }
 
     private static UserDto ToDto(User u) =>
-        new(u.Id, u.Username, u.DisplayName, u.ProfileImageUrl, null, u.CreatedAt, u.UpdatedAt);
+        new(
+            u.Id.ToString(),
+            u.Username,
+            u.DisplayName,
+            u.ProfileImageUrl,
+            null,
+            u.CreatedAt,
+            u.UpdatedAt
+        );
 
     private static UserProfileDto ToProfileDto(User u) =>
         new(
-            u.Id,
+            u.Id.ToString(),
             u.Username,
             u.DisplayName,
             u.ProfileImageUrl,

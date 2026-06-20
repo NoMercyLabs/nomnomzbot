@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 using NomNomzBot.Api.Hubs.Clients;
 using NomNomzBot.Api.Hubs.Dtos;
+using NomNomzBot.Application.Identity.Services;
 
 namespace NomNomzBot.Api.Hubs;
 
@@ -21,8 +22,13 @@ public class OBSRelayHub : Hub<IOBSRelayClient>
 {
     private static readonly ConcurrentDictionary<string, string> _connectionBroadcaster = new();
     private readonly ILogger<OBSRelayHub> _logger;
+    private readonly IChannelAccessService _access;
 
-    public OBSRelayHub(ILogger<OBSRelayHub> logger) => _logger = logger;
+    public OBSRelayHub(ILogger<OBSRelayHub> logger, IChannelAccessService access)
+    {
+        _logger = logger;
+        _access = access;
+    }
 
     public override async Task OnConnectedAsync()
     {
@@ -32,9 +38,17 @@ public class OBSRelayHub : Hub<IOBSRelayClient>
             Context.Abort();
             return;
         }
-        _connectionBroadcaster[Context.ConnectionId] = userId;
-        await Groups.AddToGroupAsync(Context.ConnectionId, $"obs-{userId}");
-        _logger.LogDebug("OBSRelay connected for {UserId}", userId);
+
+        Guid broadcasterId = await _access.ResolveOwnChannelAsync(userId);
+        if (broadcasterId == Guid.Empty)
+        {
+            Context.Abort();
+            return;
+        }
+
+        _connectionBroadcaster[Context.ConnectionId] = broadcasterId.ToString();
+        await Groups.AddToGroupAsync(Context.ConnectionId, $"obs-{broadcasterId}");
+        _logger.LogDebug("OBSRelay connected for {BroadcasterId}", broadcasterId);
         await base.OnConnectedAsync();
     }
 

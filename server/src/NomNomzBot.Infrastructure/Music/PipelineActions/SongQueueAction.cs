@@ -45,7 +45,10 @@ public sealed class SongQueueAction : ICommandAction
     )
     {
         int max = action.GetInt("max", 5);
-        MusicQueue queue = await _music.GetQueueAsync(ctx.BroadcasterId, ctx.CancellationToken);
+        MusicQueue queue = await _music.GetQueueAsync(
+            ctx.BroadcasterId.ToString(),
+            ctx.CancellationToken
+        );
 
         if (queue.Queue.Count == 0)
         {

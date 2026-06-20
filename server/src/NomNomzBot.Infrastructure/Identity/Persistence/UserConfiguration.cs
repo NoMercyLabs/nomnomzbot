@@ -20,7 +20,11 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
     {
         builder.HasKey(e => e.Id);
 
-        builder.Property(e => e.Id).IsRequired().HasMaxLength(50);
+        builder.Property(e => e.Id).IsRequired();
+
+        builder.Property(e => e.TwitchUserId).HasMaxLength(50);
+
+        builder.HasIndex(e => e.TwitchUserId).IsUnique().HasDatabaseName("IX_User_TwitchUserId");
 
         builder.Property(e => e.Username).IsRequired().HasMaxLength(255);
 
@@ -53,11 +57,11 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
             .HasForeignKey("PronounId")
             .OnDelete(DeleteBehavior.SetNull);
 
-        // Inverse of Channel.User (one-to-one defined on Channel side)
+        // Inverse of Channel.User (one-to-one; the channel's OwnerUserId FK targets this user).
         builder
             .HasOne(e => e.Channel)
             .WithOne(c => c.User)
-            .HasForeignKey<Channel>(c => c.Id)
+            .HasForeignKey<Channel>(c => c.OwnerUserId)
             .OnDelete(DeleteBehavior.Cascade);
     }
 }

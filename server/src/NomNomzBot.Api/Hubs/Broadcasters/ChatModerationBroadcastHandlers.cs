@@ -23,11 +23,11 @@ public sealed class ChatClearedBroadcastHandler : IEventHandler<ChatClearedEvent
 
     public Task HandleAsync(ChatClearedEvent @event, CancellationToken ct = default)
     {
-        if (string.IsNullOrEmpty(@event.BroadcasterId))
+        if (@event.BroadcasterId == Guid.Empty)
             return Task.CompletedTask;
 
         return _notifier.NotifyChannelAsync(
-            @event.BroadcasterId,
+            @event.BroadcasterId.ToString(),
             "chat_cleared",
             new ChatClearedDto(@event.ClearedByUserId),
             ct
@@ -44,11 +44,11 @@ public sealed class ChatMessageDeletedBroadcastHandler : IEventHandler<ChatMessa
 
     public Task HandleAsync(ChatMessageDeletedEvent @event, CancellationToken ct = default)
     {
-        if (string.IsNullOrEmpty(@event.BroadcasterId))
+        if (@event.BroadcasterId == Guid.Empty)
             return Task.CompletedTask;
 
         return _notifier.NotifyChannelAsync(
-            @event.BroadcasterId,
+            @event.BroadcasterId.ToString(),
             "message_deleted",
             new MessageDeletedDto(@event.MessageId, @event.DeletedByUserId, @event.TargetUserId),
             ct

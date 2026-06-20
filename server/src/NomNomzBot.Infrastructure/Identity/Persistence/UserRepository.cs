@@ -21,7 +21,9 @@ public class UserRepository : GenericRepository<User>
         : base(db) { }
 
     public Task<User?> GetByIdAsync(string userId, CancellationToken ct = default) =>
-        Set.Include(u => u.Pronoun).FirstOrDefaultAsync(u => u.Id == userId, ct);
+        Guid.TryParse(userId, out Guid id)
+            ? Set.Include(u => u.Pronoun).FirstOrDefaultAsync(u => u.Id == id, ct)
+            : Task.FromResult<User?>(null);
 
     public Task<User?> GetByUsernameAsync(string username, CancellationToken ct = default) =>
         Set.FirstOrDefaultAsync(u => u.Username == username, ct);

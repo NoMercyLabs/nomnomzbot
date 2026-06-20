@@ -55,11 +55,15 @@ public class PermissionsController : BaseController
     [ProducesResponseType<StatusResponseDto<List<PermissionDto>>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> ListPermissions(string channelId, CancellationToken ct)
     {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
+
         var permissions = await _db
-            .Permissions.Where(p => p.BroadcasterId == channelId)
+            .Permissions.Where(p => p.BroadcasterId == broadcasterId)
             .OrderByDescending(p => p.CreatedAt)
             .ToListAsync(ct);
 
+        // Permission.SubjectId holds the Twitch user string id — join on User.TwitchUserId.
         var userIds = permissions
             .Where(p => p.SubjectType == "user")
             .Select(p => p.SubjectId)
@@ -67,8 +71,8 @@ public class PermissionsController : BaseController
             .ToList();
 
         var users = await _db
-            .Users.Where(u => userIds.Contains(u.Id))
-            .ToDictionaryAsync(u => u.Id, ct);
+            .Users.Where(u => userIds.Contains(u.TwitchUserId))
+            .ToDictionaryAsync(u => u.TwitchUserId, ct);
 
         var result = permissions
             .Select(p =>

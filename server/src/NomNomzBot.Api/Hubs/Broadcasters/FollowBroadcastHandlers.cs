@@ -23,11 +23,11 @@ public sealed class FollowBroadcastHandler : IEventHandler<FollowEvent>
 
     public Task HandleAsync(FollowEvent @event, CancellationToken ct = default)
     {
-        if (string.IsNullOrEmpty(@event.BroadcasterId))
+        if (@event.BroadcasterId == Guid.Empty)
             return Task.CompletedTask;
 
         return _notifier.NotifyChannelAsync(
-            @event.BroadcasterId,
+            @event.BroadcasterId.ToString(),
             "follow",
             new FollowAlertDto(
                 @event.UserId,
@@ -49,11 +49,11 @@ public sealed class NewFollowerBroadcastHandler : IEventHandler<NewFollowerEvent
 
     public Task HandleAsync(NewFollowerEvent @event, CancellationToken ct = default)
     {
-        if (string.IsNullOrEmpty(@event.BroadcasterId))
+        if (@event.BroadcasterId == Guid.Empty)
             return Task.CompletedTask;
 
         return _notifier.NotifyChannelAsync(
-            @event.BroadcasterId,
+            @event.BroadcasterId.ToString(),
             "follow",
             new FollowAlertDto(@event.UserId, @event.UserDisplayName, @event.UserLogin, null),
             ct

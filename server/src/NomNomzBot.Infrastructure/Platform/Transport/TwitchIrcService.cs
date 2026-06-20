@@ -270,16 +270,22 @@ public sealed class TwitchIrcService : ITwitchChatService, IHostedService
             case "CLEARMSG":
                 tags.TryGetValue("target-msg-id", out string? targetMsgId);
                 tags.TryGetValue("login", out string? deletedUserLogin);
-                await _eventBus.PublishAsync(
-                    new ChatMessageDeletedEvent
-                    {
-                        BroadcasterId = parameters.Count > 0 ? parameters[0].TrimStart('#') : null,
-                        MessageId = targetMsgId ?? string.Empty,
-                        DeletedByUserId = string.Empty, // IRC does not expose the moderator's ID
-                        TargetUserId = deletedUserLogin ?? string.Empty,
-                    },
-                    ct
-                );
+                string? clearMsgChannel =
+                    parameters.Count > 0 ? parameters[0].TrimStart('#') : null;
+                Guid clearMsgTenant = clearMsgChannel is null
+                    ? Guid.Empty
+                    : await ResolveTenantAsync(clearMsgChannel, ct);
+                if (clearMsgTenant != Guid.Empty)
+                    await _eventBus.PublishAsync(
+                        new ChatMessageDeletedEvent
+                        {
+                            BroadcasterId = clearMsgTenant,
+                            MessageId = targetMsgId ?? string.Empty,
+                            DeletedByUserId = string.Empty, // IRC does not expose the moderator's ID
+                            TargetUserId = deletedUserLogin ?? string.Empty,
+                        },
+                        ct
+                    );
                 break;
 
             case "RECONNECT":
@@ -305,6 +311,12 @@ public sealed class TwitchIrcService : ITwitchChatService, IHostedService
         string channel = parameters[0].TrimStart('#');
         string messageText = parameters[1];
 
+        // Resolve the channel login name to the internal tenant Guid (+ its Twitch string id) before
+        // publishing the tenant-scoped event. Unknown channel = not managed here, skip.
+        (Guid tenantId, string twitchChannelId) = await ResolveChannelAsync(channel, ct);
+        if (tenantId == Guid.Empty)
+            return;
+
         tags.TryGetValue("user-id", out string? userId);
         tags.TryGetValue("display-name", out string? displayName);
         tags.TryGetValue("login", out string? login);
@@ -327,7 +339,8 @@ public sealed class TwitchIrcService : ITwitchChatService, IHostedService
         await _eventBus.PublishAsync(
             new ChatMessageReceivedEvent
             {
-                BroadcasterId = channel,
+                BroadcasterId = tenantId,
+                TwitchBroadcasterId = twitchChannelId,
                 MessageId = messageId ?? string.Empty,
                 UserId = userId ?? string.Empty,
                 UserDisplayName = displayName ?? login ?? string.Empty,
@@ -360,6 +373,13 @@ public sealed class TwitchIrcService : ITwitchChatService, IHostedService
 
         string channel = parameters.Count > 0 ? parameters[0].TrimStart('#') : string.Empty;
 
+        // Resolve the channel login name to the internal tenant Guid before publishing.
+        Guid channelTenant = string.IsNullOrEmpty(channel)
+            ? Guid.Empty
+            : await ResolveTenantAsync(channel, ct);
+        if (channelTenant == Guid.Empty)
+            return;
+
         switch (msgId)
         {
             case "sub":
@@ -367,7 +387,7 @@ public sealed class TwitchIrcService : ITwitchChatService, IHostedService
                 await _eventBus.PublishAsync(
                     new NewSubscriptionEvent
                     {
-                        BroadcasterId = channel,
+                        BroadcasterId = channelTenant,
                         UserId = userId ?? string.Empty,
                         UserDisplayName = displayName ?? login ?? string.Empty,
                         Tier = tier ?? "1000",
@@ -385,7 +405,7 @@ public sealed class TwitchIrcService : ITwitchChatService, IHostedService
                 await _eventBus.PublishAsync(
                     new GiftSubscriptionEvent
                     {
-                        BroadcasterId = channel,
+                        BroadcasterId = channelTenant,
                         GifterUserId = userId ?? string.Empty,
                         GifterDisplayName = displayName ?? login ?? string.Empty,
                         Tier = tier ?? "1000",
@@ -404,7 +424,7 @@ public sealed class TwitchIrcService : ITwitchChatService, IHostedService
                 await _eventBus.PublishAsync(
                     new RaidEvent
                     {
-                        BroadcasterId = channel,
+                        BroadcasterId = channelTenant,
                         FromUserId = userId ?? string.Empty,
                         FromDisplayName = displayName ?? login ?? string.Empty,
                         FromLogin = login ?? string.Empty,
@@ -424,7 +444,7 @@ public sealed class TwitchIrcService : ITwitchChatService, IHostedService
                 await _eventBus.PublishAsync(
                     new WatchStreakReceivedEvent
                     {
-                        BroadcasterId = channel,
+                        BroadcasterId = channelTenant,
                         UserId = userId ?? string.Empty,
                         UserLogin = login ?? string.Empty,
                         UserDisplayName = displayName ?? login ?? string.Empty,
@@ -497,6 +517,41 @@ public sealed class TwitchIrcService : ITwitchChatService, IHostedService
 
         byte[] bytes = Encoding.UTF8.GetBytes(line + "\r\n");
         await _ws.SendAsync(bytes, WebSocketMessageType.Text, true, ct);
+    }
+
+    // ─── Identity resolution (the invariant boundary) ────────────────────────────
+
+    /// <summary>
+    /// Resolves an IRC channel login name to the owning tenant Guid. <see cref="Guid.Empty"/> when the
+    /// channel is not managed by this instance (skip the event).
+    /// </summary>
+    private async Task<Guid> ResolveTenantAsync(string channelName, CancellationToken ct)
+    {
+        using IServiceScope scope = _scopeFactory.CreateScope();
+        ITwitchIdentityResolver resolver =
+            scope.ServiceProvider.GetRequiredService<ITwitchIdentityResolver>();
+        Guid? tenantId = await resolver.GetBroadcasterIdByNameAsync(channelName, ct);
+        return tenantId ?? Guid.Empty;
+    }
+
+    /// <summary>
+    /// Resolves an IRC channel login name to (tenant Guid, Twitch channel string id). The Twitch id is
+    /// carried on the chat event for the Helix send/reply boundary. Returns Guid.Empty when unknown.
+    /// </summary>
+    private async Task<(Guid TenantId, string TwitchChannelId)> ResolveChannelAsync(
+        string channelName,
+        CancellationToken ct
+    )
+    {
+        using IServiceScope scope = _scopeFactory.CreateScope();
+        ITwitchIdentityResolver resolver =
+            scope.ServiceProvider.GetRequiredService<ITwitchIdentityResolver>();
+        Guid? tenantId = await resolver.GetBroadcasterIdByNameAsync(channelName, ct);
+        if (tenantId is null)
+            return (Guid.Empty, string.Empty);
+        string twitchId =
+            await resolver.GetTwitchChannelIdAsync(tenantId.Value, ct) ?? string.Empty;
+        return (tenantId.Value, twitchId);
     }
 
     // ─── Token access ─────────────────────────────────────────────────────────────

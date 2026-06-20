@@ -17,9 +17,7 @@ namespace NomNomzBot.Domain.Platform.Entities;
 public class ChannelFeature : BaseEntity, ITenantScoped
 {
     public int Id { get; set; }
-
-    [MaxLength(50)]
-    public string BroadcasterId { get; set; } = null!;
+    public Guid BroadcasterId { get; set; }
 
     [MaxLength(50)]
     public string FeatureKey { get; set; } = null!;

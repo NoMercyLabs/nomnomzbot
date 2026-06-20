@@ -41,7 +41,7 @@ public sealed class RewardLifecycleHandler
 
     public async Task HandleAsync(RewardCreatedEvent @event, CancellationToken ct = default)
     {
-        if (string.IsNullOrEmpty(@event.BroadcasterId))
+        if (@event.BroadcasterId == Guid.Empty)
             return;
 
         using IServiceScope scope = _scopeFactory.CreateScope();
@@ -82,7 +82,7 @@ public sealed class RewardLifecycleHandler
 
     public async Task HandleAsync(RewardUpdatedEvent @event, CancellationToken ct = default)
     {
-        if (string.IsNullOrEmpty(@event.BroadcasterId))
+        if (@event.BroadcasterId == Guid.Empty)
             return;
 
         using IServiceScope scope = _scopeFactory.CreateScope();
@@ -107,7 +107,7 @@ public sealed class RewardLifecycleHandler
 
     public async Task HandleAsync(RewardRemovedEvent @event, CancellationToken ct = default)
     {
-        if (string.IsNullOrEmpty(@event.BroadcasterId))
+        if (@event.BroadcasterId == Guid.Empty)
             return;
 
         using IServiceScope scope = _scopeFactory.CreateScope();

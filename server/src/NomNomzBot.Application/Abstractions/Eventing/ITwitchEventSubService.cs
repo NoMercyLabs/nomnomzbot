@@ -12,10 +12,12 @@ namespace NomNomzBot.Application.Abstractions.Eventing;
 
 public interface ITwitchEventSubService
 {
-    Task SubscribeAsync(string broadcasterId, string eventType, CancellationToken ct = default);
+    // broadcasterId is the tenant (channel) Guid; the service resolves it to the Twitch string id
+    // for the EventSub condition + token lookup (the invariant: Twitch receives the string id).
+    Task SubscribeAsync(Guid broadcasterId, string eventType, CancellationToken ct = default);
     Task UnsubscribeAsync(string subscriptionId, CancellationToken ct = default);
     Task<IReadOnlyList<string>> GetActiveSubscriptionsAsync(
-        string broadcasterId,
+        Guid broadcasterId,
         CancellationToken ct = default
     );
 }

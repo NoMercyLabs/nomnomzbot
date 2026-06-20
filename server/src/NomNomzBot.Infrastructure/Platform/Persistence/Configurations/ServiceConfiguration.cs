@@ -24,8 +24,6 @@ public class ServiceConfiguration : IEntityTypeConfiguration<Service>
 
         builder.Property(e => e.Enabled).HasDefaultValue(true);
 
-        builder.Property(e => e.BroadcasterId).HasMaxLength(50);
-
         builder.Property(e => e.ClientId).HasMaxLength(512);
 
         builder.Property(e => e.ClientSecret).HasMaxLength(512);

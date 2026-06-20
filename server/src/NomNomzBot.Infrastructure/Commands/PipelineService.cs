@@ -33,9 +33,13 @@ public class PipelineService : IPipelineService
         CancellationToken ct = default
     )
     {
-        IQueryable<PipelineEntity> query = _db.Pipelines.Where(p =>
-            p.BroadcasterId == broadcasterId
-        );
+        if (!Guid.TryParse(broadcasterId, out Guid broadcaster))
+            return Result.Failure<PagedList<PipelineListItemDto>>(
+                $"Invalid channel ID '{broadcasterId}'.",
+                "VALIDATION_FAILED"
+            );
+
+        IQueryable<PipelineEntity> query = _db.Pipelines.Where(p => p.BroadcasterId == broadcaster);
         int total = await query.CountAsync(ct);
 
         List<PipelineListItemDto> items = await query
@@ -64,8 +68,14 @@ public class PipelineService : IPipelineService
         CancellationToken ct = default
     )
     {
+        if (!Guid.TryParse(broadcasterId, out Guid broadcaster))
+            return Result.Failure<PipelineDto>(
+                $"Invalid channel ID '{broadcasterId}'.",
+                "VALIDATION_FAILED"
+            );
+
         PipelineEntity? entity = await _db.Pipelines.FirstOrDefaultAsync(
-            p => p.BroadcasterId == broadcasterId && p.Id == id,
+            p => p.BroadcasterId == broadcaster && p.Id == id,
             ct
         );
 
@@ -81,9 +91,15 @@ public class PipelineService : IPipelineService
         CancellationToken ct = default
     )
     {
+        if (!Guid.TryParse(broadcasterId, out Guid broadcaster))
+            return Result.Failure<PipelineDto>(
+                $"Invalid channel ID '{broadcasterId}'.",
+                "VALIDATION_FAILED"
+            );
+
         PipelineEntity entity = new()
         {
-            BroadcasterId = broadcasterId,
+            BroadcasterId = broadcaster,
             Name = request.Name,
             Description = request.Description,
             IsEnabled = request.IsEnabled,
@@ -103,8 +119,14 @@ public class PipelineService : IPipelineService
         CancellationToken ct = default
     )
     {
+        if (!Guid.TryParse(broadcasterId, out Guid broadcaster))
+            return Result.Failure<PipelineDto>(
+                $"Invalid channel ID '{broadcasterId}'.",
+                "VALIDATION_FAILED"
+            );
+
         PipelineEntity? entity = await _db.Pipelines.FirstOrDefaultAsync(
-            p => p.BroadcasterId == broadcasterId && p.Id == id,
+            p => p.BroadcasterId == broadcaster && p.Id == id,
             ct
         );
 
@@ -131,8 +153,11 @@ public class PipelineService : IPipelineService
         CancellationToken ct = default
     )
     {
+        if (!Guid.TryParse(broadcasterId, out Guid broadcaster))
+            return Result.Failure($"Invalid channel ID '{broadcasterId}'.", "VALIDATION_FAILED");
+
         PipelineEntity? entity = await _db.Pipelines.FirstOrDefaultAsync(
-            p => p.BroadcasterId == broadcasterId && p.Id == id,
+            p => p.BroadcasterId == broadcaster && p.Id == id,
             ct
         );
 
@@ -148,7 +173,7 @@ public class PipelineService : IPipelineService
     private static PipelineDto ToDto(PipelineEntity p) =>
         new(
             p.Id,
-            p.BroadcasterId,
+            p.BroadcasterId.ToString(),
             p.Name,
             p.Description,
             p.IsEnabled,

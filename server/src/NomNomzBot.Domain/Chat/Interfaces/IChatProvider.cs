@@ -12,24 +12,27 @@ namespace NomNomzBot.Domain.Chat.Interfaces;
 
 /// <summary>
 /// Abstraction for sending chat messages and performing moderation actions.
+/// <c>broadcasterId</c> is the tenant (channel) <see cref="Guid"/>; the implementation resolves it to the
+/// Twitch channel string id before any Helix/IRC call (the invariant: Twitch never receives a Guid).
+/// <c>userId</c> targets are Twitch user string ids (they arrive from Twitch events / template vars).
 /// </summary>
 public interface IChatProvider
 {
     Task SendMessageAsync(
-        string broadcasterId,
+        Guid broadcasterId,
         string message,
         CancellationToken cancellationToken = default
     );
 
     Task SendReplyAsync(
-        string broadcasterId,
+        Guid broadcasterId,
         string replyToMessageId,
         string message,
         CancellationToken cancellationToken = default
     );
 
     Task TimeoutUserAsync(
-        string broadcasterId,
+        Guid broadcasterId,
         string userId,
         int durationSeconds,
         string? reason = null,
@@ -37,20 +40,20 @@ public interface IChatProvider
     );
 
     Task BanUserAsync(
-        string broadcasterId,
+        Guid broadcasterId,
         string userId,
         string? reason = null,
         CancellationToken cancellationToken = default
     );
 
     Task UnbanUserAsync(
-        string broadcasterId,
+        Guid broadcasterId,
         string userId,
         CancellationToken cancellationToken = default
     );
 
     Task DeleteMessageAsync(
-        string broadcasterId,
+        Guid broadcasterId,
         string messageId,
         CancellationToken cancellationToken = default
     );

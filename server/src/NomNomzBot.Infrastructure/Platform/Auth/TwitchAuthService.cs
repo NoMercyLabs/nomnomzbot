@@ -101,8 +101,13 @@ public sealed class TwitchAuthService : ITwitchAuthService
     /// Refresh the token for a specific broadcaster / service combination.
     /// Persists updated tokens back to the Service entity.
     /// </summary>
+    // Canonical SubjectId for the crypto AAD: the tenant Guid as a string, or the platform sentinel
+    // for the shared-bot row (Service.BroadcasterId null). Keeps every ciphertext bound to one subject.
+    private static string SubjectId(Guid? broadcasterId) =>
+        broadcasterId?.ToString() ?? "_platform";
+
     public async Task<TokenResult?> RefreshTokenAsync(
-        string broadcasterId,
+        Guid? broadcasterId,
         string serviceName,
         CancellationToken ct = default
     )
@@ -122,9 +127,10 @@ public sealed class TwitchAuthService : ITwitchAuthService
             return null;
         }
 
+        string subjectId = SubjectId(broadcasterId);
         string? refreshToken = await _tokenProtector.TryUnprotectAsync(
             service.RefreshToken,
-            new TokenProtectionContext(broadcasterId, serviceName, "refresh"),
+            new TokenProtectionContext(subjectId, serviceName, "refresh"),
             ct
         );
         if (refreshToken is null)
@@ -174,12 +180,12 @@ public sealed class TwitchAuthService : ITwitchAuthService
 
         service.AccessToken = await _tokenProtector.ProtectAsync(
             result.AccessToken,
-            new TokenProtectionContext(broadcasterId, serviceName, "access"),
+            new TokenProtectionContext(subjectId, serviceName, "access"),
             ct
         );
         service.RefreshToken = await _tokenProtector.ProtectAsync(
             result.RefreshToken,
-            new TokenProtectionContext(broadcasterId, serviceName, "refresh"),
+            new TokenProtectionContext(subjectId, serviceName, "refresh"),
             ct
         );
         service.TokenExpiry = result.ExpiresAt;
@@ -221,7 +227,7 @@ public sealed class TwitchAuthService : ITwitchAuthService
         {
             try
             {
-                await RefreshTokenAsync(entry.BroadcasterId!, entry.Name, ct);
+                await RefreshTokenAsync(entry.BroadcasterId, entry.Name, ct);
             }
             catch (Exception ex)
             {
@@ -239,7 +245,7 @@ public sealed class TwitchAuthService : ITwitchAuthService
     /// Revoke the token for a broadcaster / service and clear the stored values.
     /// </summary>
     public async Task RevokeTokenAsync(
-        string broadcasterId,
+        Guid? broadcasterId,
         string serviceName,
         CancellationToken ct = default
     )
@@ -256,7 +262,7 @@ public sealed class TwitchAuthService : ITwitchAuthService
         {
             string? accessToken = await _tokenProtector.TryUnprotectAsync(
                 service.AccessToken,
-                new TokenProtectionContext(broadcasterId, serviceName, "access"),
+                new TokenProtectionContext(SubjectId(broadcasterId), serviceName, "access"),
                 ct
             );
             if (accessToken is not null)

@@ -36,6 +36,7 @@ public sealed class TwitchApiService : ITwitchApiService
     private readonly IApplicationDbContext _db;
     private readonly ITokenProtector _tokenProtector;
     private readonly ITwitchAuthService _authService;
+    private readonly ITwitchIdentityResolver _identityResolver;
     private readonly HttpClient _http;
     private readonly TwitchOptions _options;
     private readonly ILogger<TwitchApiService> _logger;
@@ -47,6 +48,7 @@ public sealed class TwitchApiService : ITwitchApiService
         IApplicationDbContext db,
         ITokenProtector tokenProtector,
         ITwitchAuthService authService,
+        ITwitchIdentityResolver identityResolver,
         IHttpClientFactory httpClientFactory,
         IOptions<TwitchOptions> options,
         ILogger<TwitchApiService> logger,
@@ -56,6 +58,7 @@ public sealed class TwitchApiService : ITwitchApiService
         _db = db;
         _tokenProtector = tokenProtector;
         _authService = authService;
+        _identityResolver = identityResolver;
         _http = httpClientFactory.CreateClient("twitch-helix");
         _options = options.Value;
         _logger = logger;
@@ -69,8 +72,9 @@ public sealed class TwitchApiService : ITwitchApiService
         CancellationToken ct = default
     )
     {
-        (string Token, string? BroadcasterId, string ServiceName)? tokenInfo =
-            await GetBotTokenAsync(ct);
+        (string Token, Guid? BroadcasterId, string ServiceName)? tokenInfo = await GetBotTokenAsync(
+            ct
+        );
         if (tokenInfo is null)
             return null;
 
@@ -106,8 +110,9 @@ public sealed class TwitchApiService : ITwitchApiService
         CancellationToken ct = default
     )
     {
-        (string Token, string? BroadcasterId, string ServiceName)? tokenInfo =
-            await GetBotTokenAsync(ct);
+        (string Token, Guid? BroadcasterId, string ServiceName)? tokenInfo = await GetBotTokenAsync(
+            ct
+        );
         if (tokenInfo is null)
             return null;
 
@@ -168,7 +173,7 @@ public sealed class TwitchApiService : ITwitchApiService
         CancellationToken ct = default
     )
     {
-        (string Token, string? BroadcasterId, string ServiceName)? tokenInfo =
+        (string Token, Guid? BroadcasterId, string ServiceName)? tokenInfo =
             await GetModeratorTokenAsync(broadcasterId, ct);
         if (tokenInfo is null)
         {
@@ -203,8 +208,9 @@ public sealed class TwitchApiService : ITwitchApiService
         CancellationToken ct = default
     )
     {
-        (string Token, string? BroadcasterId, string ServiceName)? tokenInfo =
-            await GetBotTokenAsync(ct);
+        (string Token, Guid? BroadcasterId, string ServiceName)? tokenInfo = await GetBotTokenAsync(
+            ct
+        );
         if (tokenInfo is null)
         {
             _logger.LogWarning(
@@ -262,7 +268,7 @@ public sealed class TwitchApiService : ITwitchApiService
         CancellationToken ct = default
     )
     {
-        (string Token, string? BroadcasterId, string ServiceName)? tokenInfo =
+        (string Token, Guid? BroadcasterId, string ServiceName)? tokenInfo =
             await GetModeratorTokenAsync(broadcasterId, ct);
         if (tokenInfo is null)
             return false;
@@ -290,7 +296,7 @@ public sealed class TwitchApiService : ITwitchApiService
         CancellationToken ct = default
     )
     {
-        (string Token, string? BroadcasterId, string ServiceName)? token =
+        (string Token, Guid? BroadcasterId, string ServiceName)? token =
             await GetModeratorTokenAsync(broadcasterId, ct);
         if (token is null)
         {
@@ -322,7 +328,7 @@ public sealed class TwitchApiService : ITwitchApiService
         CancellationToken ct = default
     )
     {
-        (string Token, string? BroadcasterId, string ServiceName)? tokenInfo =
+        (string Token, Guid? BroadcasterId, string ServiceName)? tokenInfo =
             await GetModeratorTokenAsync(broadcasterId, ct);
         if (tokenInfo is null)
             return [];
@@ -374,7 +380,7 @@ public sealed class TwitchApiService : ITwitchApiService
         CancellationToken ct = default
     )
     {
-        (string Token, string? BroadcasterId, string ServiceName)? tokenInfo =
+        (string Token, Guid? BroadcasterId, string ServiceName)? tokenInfo =
             await GetModeratorTokenAsync(broadcasterId, ct);
         if (tokenInfo is null)
             return false;
@@ -403,7 +409,7 @@ public sealed class TwitchApiService : ITwitchApiService
         CancellationToken ct = default
     )
     {
-        (string Token, string? BroadcasterId, string ServiceName)? tokenInfo =
+        (string Token, Guid? BroadcasterId, string ServiceName)? tokenInfo =
             await GetModeratorTokenAsync(broadcasterId, ct);
         if (tokenInfo is null)
         {
@@ -452,8 +458,9 @@ public sealed class TwitchApiService : ITwitchApiService
         CancellationToken ct = default
     )
     {
-        (string Token, string? BroadcasterId, string ServiceName)? tokenInfo =
-            await GetBotTokenAsync(ct);
+        (string Token, Guid? BroadcasterId, string ServiceName)? tokenInfo = await GetBotTokenAsync(
+            ct
+        );
         if (tokenInfo is null)
             return [];
 
@@ -484,7 +491,7 @@ public sealed class TwitchApiService : ITwitchApiService
         CancellationToken ct = default
     )
     {
-        (string Token, string? BroadcasterId, string ServiceName)? tokenInfo =
+        (string Token, Guid? BroadcasterId, string ServiceName)? tokenInfo =
             await GetModeratorTokenAsync(broadcasterId, ct);
         if (tokenInfo is null)
             return false;
@@ -506,7 +513,7 @@ public sealed class TwitchApiService : ITwitchApiService
         CancellationToken ct = default
     )
     {
-        (string Token, string? BroadcasterId, string ServiceName)? tokenInfo =
+        (string Token, Guid? BroadcasterId, string ServiceName)? tokenInfo =
             await GetModeratorTokenAsync(broadcasterId, ct);
         if (tokenInfo is null)
             return 0;
@@ -542,7 +549,7 @@ public sealed class TwitchApiService : ITwitchApiService
         CancellationToken ct = default
     )
     {
-        (string Token, string? BroadcasterId, string ServiceName)? tokenInfo =
+        (string Token, Guid? BroadcasterId, string ServiceName)? tokenInfo =
             await GetModeratorTokenAsync(broadcasterId, ct);
         if (tokenInfo is null)
             return 0;
@@ -578,7 +585,7 @@ public sealed class TwitchApiService : ITwitchApiService
         CancellationToken ct = default
     )
     {
-        (string Token, string? BroadcasterId, string ServiceName)? tokenInfo =
+        (string Token, Guid? BroadcasterId, string ServiceName)? tokenInfo =
             await GetModeratorTokenAsync(broadcasterId, ct);
         if (tokenInfo is null)
             return [];
@@ -623,7 +630,7 @@ public sealed class TwitchApiService : ITwitchApiService
         CancellationToken ct = default
     )
     {
-        (string Token, string? BroadcasterId, string ServiceName)? tokenInfo =
+        (string Token, Guid? BroadcasterId, string ServiceName)? tokenInfo =
             await GetModeratorTokenAsync(broadcasterId, ct);
         if (tokenInfo is null)
             return [];
@@ -662,7 +669,7 @@ public sealed class TwitchApiService : ITwitchApiService
         CancellationToken ct = default
     )
     {
-        (string Token, string? BroadcasterId, string ServiceName)? tokenInfo =
+        (string Token, Guid? BroadcasterId, string ServiceName)? tokenInfo =
             await GetModeratorTokenAsync(broadcasterId, ct);
         if (tokenInfo is null)
             return [];
@@ -701,8 +708,9 @@ public sealed class TwitchApiService : ITwitchApiService
         CancellationToken ct = default
     )
     {
-        (string Token, string? BroadcasterId, string ServiceName)? tokenInfo =
-            await GetBotTokenAsync(ct);
+        (string Token, Guid? BroadcasterId, string ServiceName)? tokenInfo = await GetBotTokenAsync(
+            ct
+        );
         if (tokenInfo is null)
             return null;
 
@@ -753,7 +761,7 @@ public sealed class TwitchApiService : ITwitchApiService
         CancellationToken ct = default
     )
     {
-        (string Token, string? BroadcasterId, string ServiceName)? tokenInfo =
+        (string Token, Guid? BroadcasterId, string ServiceName)? tokenInfo =
             await GetModeratorTokenAsync(broadcasterId, ct);
         if (tokenInfo is null)
             return ([], null, 0);
@@ -797,7 +805,7 @@ public sealed class TwitchApiService : ITwitchApiService
         CancellationToken ct = default
     )
     {
-        (string Token, string? BroadcasterId, string ServiceName)? tokenInfo =
+        (string Token, Guid? BroadcasterId, string ServiceName)? tokenInfo =
             await GetModeratorTokenAsync(userId, ct);
         if (tokenInfo is null)
             return [];
@@ -859,7 +867,7 @@ public sealed class TwitchApiService : ITwitchApiService
         CancellationToken ct
     )
     {
-        (string Token, string? BroadcasterId, string ServiceName)? tokenInfo =
+        (string Token, Guid? BroadcasterId, string ServiceName)? tokenInfo =
             await GetModeratorTokenAsync(broadcasterId, ct);
         if (tokenInfo is null)
         {
@@ -904,7 +912,7 @@ public sealed class TwitchApiService : ITwitchApiService
     private async Task<HttpResponseMessage?> SendHelixAsync(
         HttpMethod method,
         string url,
-        (string Token, string? BroadcasterId, string ServiceName) tokenInfo,
+        (string Token, Guid? BroadcasterId, string ServiceName) tokenInfo,
         object? body,
         CancellationToken ct
     )
@@ -982,7 +990,7 @@ public sealed class TwitchApiService : ITwitchApiService
     }
 
     /// <summary>Get bot account token (Name="twitch_bot", no BroadcasterId).</summary>
-    private async Task<(string Token, string? BroadcasterId, string ServiceName)?> GetBotTokenAsync(
+    private async Task<(string Token, Guid? BroadcasterId, string ServiceName)?> GetBotTokenAsync(
         CancellationToken ct
     )
     {
@@ -994,13 +1002,11 @@ public sealed class TwitchApiService : ITwitchApiService
         if (service?.AccessToken is null)
             return null;
 
+        // SubjectId is the tenant Guid string, or the platform sentinel for the shared bot row.
+        string subjectId = service.BroadcasterId?.ToString() ?? "_platform";
         string? token = await _tokenProtector.TryUnprotectAsync(
             service.AccessToken,
-            new TokenProtectionContext(
-                service.BroadcasterId ?? "_platform",
-                service.Name,
-                "access"
-            ),
+            new TokenProtectionContext(subjectId, service.Name, "access"),
             ct
         );
         if (token is null)
@@ -1009,16 +1015,27 @@ public sealed class TwitchApiService : ITwitchApiService
         return (token, service.BroadcasterId, service.Name);
     }
 
-    /// <summary>Get moderator/broadcaster token for a specific channel (Name="twitch").</summary>
+    /// <summary>
+    /// Get moderator/broadcaster token for a specific channel (Name="twitch").
+    /// <paramref name="twitchBroadcasterId"/> is the Twitch STRING id; it is resolved to the tenant
+    /// Guid to look up the per-tenant Service token row.
+    /// </summary>
     private async Task<(
         string Token,
-        string? BroadcasterId,
+        Guid? BroadcasterId,
         string ServiceName
-    )?> GetModeratorTokenAsync(string broadcasterId, CancellationToken ct)
+    )?> GetModeratorTokenAsync(string twitchBroadcasterId, CancellationToken ct)
     {
+        Guid? tenantId = await _identityResolver.GetBroadcasterIdAsync(twitchBroadcasterId, ct);
+        if (tenantId is null)
+        {
+            // Unknown channel — fall back to the shared bot token.
+            return await GetBotTokenAsync(ct);
+        }
+
         Service? service = await _db.Services.FirstOrDefaultAsync(
             s =>
-                s.BroadcasterId == broadcasterId
+                s.BroadcasterId == tenantId
                 && s.Name == "twitch"
                 && s.Enabled
                 && s.AccessToken != null,
@@ -1033,13 +1050,13 @@ public sealed class TwitchApiService : ITwitchApiService
 
         string? token = await _tokenProtector.TryUnprotectAsync(
             service.AccessToken,
-            new TokenProtectionContext(broadcasterId, service.Name, "access"),
+            new TokenProtectionContext(tenantId.Value.ToString(), service.Name, "access"),
             ct
         );
         if (token is null)
             return null;
 
-        return (token, broadcasterId, service.Name);
+        return (token, tenantId, service.Name);
     }
 
     // ─── Helix response models ────────────────────────────────────────────────────

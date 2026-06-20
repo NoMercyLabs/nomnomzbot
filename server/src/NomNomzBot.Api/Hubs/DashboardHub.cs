@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 using NomNomzBot.Api.Hubs.Clients;
 using NomNomzBot.Api.Hubs.Dtos;
+using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Platform.Interfaces;
 
@@ -25,13 +26,22 @@ public class DashboardHub : Hub<IDashboardClient>
     private readonly IChannelRegistry _registry;
     private readonly ILogger<DashboardHub> _logger;
     private readonly IChatProvider _chat;
+    private readonly IChannelAccessService _access;
 
-    public DashboardHub(IChannelRegistry registry, ILogger<DashboardHub> logger, IChatProvider chat)
+    public DashboardHub(
+        IChannelRegistry registry,
+        ILogger<DashboardHub> logger,
+        IChatProvider chat,
+        IChannelAccessService access
+    )
     {
         _registry = registry;
         _logger = logger;
         _chat = chat;
+        _access = access;
     }
+
+    private string? CallerId => Context.UserIdentifier ?? Context.User?.FindFirst("sub")?.Value;
 
     public override async Task OnConnectedAsync()
     {
@@ -48,7 +58,16 @@ public class DashboardHub : Hub<IDashboardClient>
 
     public async Task<JoinChannelResponse> JoinChannel(string broadcasterId)
     {
-        ChannelContext? ctx = _registry.Get(broadcasterId);
+        string? userId = CallerId;
+        if (userId == null)
+            return new(false, "Not authenticated", null);
+
+        if (!await _access.CanResolveTenantAsync(userId, broadcasterId))
+            return new(false, "Access denied", null);
+
+        ChannelContext? ctx = Guid.TryParse(broadcasterId, out Guid tenantId)
+            ? _registry.Get(tenantId)
+            : null;
         await Groups.AddToGroupAsync(Context.ConnectionId, $"channel-{broadcasterId}");
         _connectionChannel[Context.ConnectionId] = broadcasterId;
         _logger.LogDebug("Connection {C} joined channel {B}", Context.ConnectionId, broadcasterId);
@@ -78,9 +97,12 @@ public class DashboardHub : Hub<IDashboardClient>
         if (string.IsNullOrWhiteSpace(message) || message.Length > 500)
             return new(false, "Message too long or empty", null);
 
+        if (!Guid.TryParse(broadcasterId, out Guid tenantId))
+            return new(false, "Invalid channel", null);
+
         try
         {
-            await _chat.SendMessageAsync(broadcasterId, message);
+            await _chat.SendMessageAsync(tenantId, message);
             return new(true, null, null);
         }
         catch (Exception ex)

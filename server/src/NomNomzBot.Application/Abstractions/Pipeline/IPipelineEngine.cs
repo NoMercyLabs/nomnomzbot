@@ -16,13 +16,14 @@ public interface IPipelineEngine
         PipelineRequest request,
         CancellationToken ct = default
     );
-    Task CancelAllForChannelAsync(string broadcasterId);
-    int GetActiveCountForChannel(string broadcasterId);
+    Task CancelAllForChannelAsync(Guid broadcasterId);
+    int GetActiveCountForChannel(Guid broadcasterId);
 }
 
 public class PipelineRequest
 {
-    public required string BroadcasterId { get; init; }
+    /// <summary>The tenant (channel) Guid this pipeline runs for (schema §1.1, internal key).</summary>
+    public required Guid BroadcasterId { get; init; }
     public required string PipelineJson { get; init; }
     public required string TriggeredByUserId { get; init; }
     public required string TriggeredByDisplayName { get; init; }

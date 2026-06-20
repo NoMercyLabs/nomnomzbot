@@ -69,7 +69,7 @@ public sealed class AdminService : IAdminService
             from sub in subs.OrderByDescending(s => s.CreatedAt).Take(1).DefaultIfEmpty()
             orderby c.CreatedAt descending
             select new AdminChannelDto(
-                c.Id,
+                c.Id.ToString(),
                 c.User.DisplayName,
                 c.Name,
                 c.IsLive,
@@ -100,12 +100,12 @@ public sealed class AdminService : IAdminService
             .Skip((pagination.Page - 1) * pagination.PageSize)
             .Take(pagination.PageSize)
             .Select(u => new AdminUserDto(
-                u.Id,
+                u.Id.ToString(),
                 u.DisplayName,
                 u.Username,
                 null,
                 u.IsAdmin ? "admin" : "user",
-                _db.Channels.Count(c => c.Id == u.Id),
+                _db.Channels.Count(c => c.OwnerUserId == u.Id),
                 u.CreatedAt,
                 u.UpdatedAt
             ))

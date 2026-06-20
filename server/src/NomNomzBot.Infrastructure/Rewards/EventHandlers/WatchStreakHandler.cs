@@ -76,8 +76,8 @@ public sealed class WatchStreakHandler
                 scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
 
             DateOnly today = DateOnly.FromDateTime(_timeProvider.GetUtcNow().UtcDateTime);
-            string? broadcasterId = e.BroadcasterId;
-            if (string.IsNullOrEmpty(broadcasterId))
+            Guid broadcasterId = e.BroadcasterId;
+            if (broadcasterId == Guid.Empty)
                 return;
 
             WatchStreak? existing = await db.WatchStreaks.FirstOrDefaultAsync(

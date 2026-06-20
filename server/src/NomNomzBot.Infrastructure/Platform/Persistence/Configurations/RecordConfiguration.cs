@@ -20,7 +20,7 @@ public class RecordConfiguration : IEntityTypeConfiguration<Record>
     {
         builder.HasKey(e => e.Id);
 
-        builder.Property(e => e.BroadcasterId).IsRequired().HasMaxLength(50);
+        builder.Property(e => e.BroadcasterId).IsRequired();
 
         builder.Property(e => e.RecordType).IsRequired().HasMaxLength(50);
 
@@ -34,16 +34,11 @@ public class RecordConfiguration : IEntityTypeConfiguration<Record>
             .HasForeignKey(e => e.BroadcasterId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        builder
-            .HasOne(e => e.User)
-            .WithMany()
-            .HasForeignKey(e => e.UserId)
-            .OnDelete(DeleteBehavior.Cascade);
+        // UserId is the Twitch user id (indexed attribute), not an FK to Users.Id.
+        builder.HasIndex(e => e.UserId).HasDatabaseName("IX_Record_UserId");
 
         builder
             .HasIndex(e => new { e.BroadcasterId, e.RecordType })
             .HasDatabaseName("IX_Record_BroadcasterId_RecordType");
-
-        builder.HasQueryFilter(e => e.DeletedAt == null);
     }
 }

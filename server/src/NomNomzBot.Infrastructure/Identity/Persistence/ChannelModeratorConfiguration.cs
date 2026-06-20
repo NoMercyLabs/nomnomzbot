@@ -20,15 +20,15 @@ public class ChannelModeratorConfiguration : IEntityTypeConfiguration<ChannelMod
     {
         builder.HasKey(e => new { e.ChannelId, e.UserId });
 
-        builder.Property(e => e.ChannelId).IsRequired().HasMaxLength(50);
+        builder.Property(e => e.ChannelId).IsRequired();
 
-        builder.Property(e => e.UserId).IsRequired().HasMaxLength(50);
+        builder.Property(e => e.UserId).IsRequired();
 
         builder.Property(e => e.Role).IsRequired().HasMaxLength(20).HasDefaultValue("moderator");
 
         builder.Property(e => e.GrantedAt).IsRequired();
 
-        builder.Property(e => e.GrantedBy).HasMaxLength(50);
+        builder.Property(e => e.GrantedByUserId);
 
         builder
             .HasOne(e => e.Channel)
@@ -41,7 +41,5 @@ public class ChannelModeratorConfiguration : IEntityTypeConfiguration<ChannelMod
             .WithMany()
             .HasForeignKey(e => e.UserId)
             .OnDelete(DeleteBehavior.Cascade);
-
-        builder.HasQueryFilter(e => e.DeletedAt == null);
     }
 }

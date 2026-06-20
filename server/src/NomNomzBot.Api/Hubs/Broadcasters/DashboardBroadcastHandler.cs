@@ -41,7 +41,7 @@ public sealed class ChatMessageBroadcastHandler : IEventHandler<ChatMessageRecei
 
         DashboardChatMessageDto dto = new(
             Id: evt.MessageId,
-            ChannelId: evt.BroadcasterId,
+            ChannelId: evt.BroadcasterId.ToString(),
             UserId: evt.UserId,
             DisplayName: evt.UserDisplayName,
             Username: evt.UserLogin,
@@ -64,7 +64,7 @@ public sealed class ChatMessageBroadcastHandler : IEventHandler<ChatMessageRecei
             Timestamp: _timeProvider.GetUtcNow().ToString("O")
         );
 
-        await _notifier.SendChatMessageAsync(evt.BroadcasterId, dto, ct);
+        await _notifier.SendChatMessageAsync(evt.BroadcasterId.ToString(), dto, ct);
     }
 
     private static ChatFragmentDto MapFragment(ChatMessageFragment f) =>

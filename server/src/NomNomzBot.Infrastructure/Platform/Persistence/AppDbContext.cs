@@ -10,6 +10,7 @@
 
 using System.Reflection;
 using Microsoft.EntityFrameworkCore;
+using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Domain.Chat.Entities;
 using NomNomzBot.Domain.Commands.Entities;
@@ -19,13 +20,26 @@ using NomNomzBot.Domain.Platform.Entities;
 using NomNomzBot.Domain.Rewards.Entities;
 using NomNomzBot.Domain.Tts.Entities;
 using NomNomzBot.Domain.Widgets.Entities;
+using NomNomzBot.Infrastructure.Platform.Persistence.Extensions;
 
 namespace NomNomzBot.Infrastructure.Platform.Persistence;
 
 public class AppDbContext : DbContext, IApplicationDbContext
 {
+    private readonly ICurrentTenantService? _currentTenant;
+
     public AppDbContext(DbContextOptions<AppDbContext> options)
         : base(options) { }
+
+    public AppDbContext(DbContextOptions<AppDbContext> options, ICurrentTenantService currentTenant)
+        : base(options)
+    {
+        _currentTenant = currentTenant;
+    }
+
+    // Read by the named tenant query filter at query time (schema §1.2). Null tenant ⇒ no tenant
+    // predicate (background / cross-tenant reads see all rows; soft-delete still applies).
+    private Guid? CurrentBroadcasterId => _currentTenant?.BroadcasterId;
 
     // Core
     public DbSet<User> Users => Set<User>();
@@ -93,5 +107,10 @@ public class AppDbContext : DbContext, IApplicationDbContext
 
         // Apply all IEntityTypeConfiguration<T> from this assembly
         modelBuilder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());
+
+        // Composing tenant + soft-delete global query filters (schema §1.2). Applied after the
+        // per-entity configurations so it is the single authoritative filter per entity; the
+        // configurations themselves no longer call HasQueryFilter.
+        modelBuilder.ApplyTenantAndSoftDeleteFilters(() => CurrentBroadcasterId);
     }
 }

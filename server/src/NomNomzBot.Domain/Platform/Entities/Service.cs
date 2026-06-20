@@ -23,8 +23,9 @@ public class Service : BaseEntity
 
     public bool Enabled { get; set; } = true;
 
-    [MaxLength(50)]
-    public string? BroadcasterId { get; set; }
+    // Tenant key (FK→Channels.Id), null for the platform/shared-bot row.
+    // string→Guid? per schema §1.1. NOT a Twitch id — the Twitch user id stays in UserId.
+    public Guid? BroadcasterId { get; set; }
 
     [MaxLength(512)]
     public string? ClientId { get; set; }

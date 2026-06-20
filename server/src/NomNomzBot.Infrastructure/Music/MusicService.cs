@@ -291,11 +291,13 @@ public sealed class MusicService : IMusicService
         CancellationToken cancellationToken
     )
     {
+        // Service.BroadcasterId is the tenant Guid; the service receives it as a string.
+        if (!Guid.TryParse(broadcasterId, out Guid tenantId))
+            return null;
+
         // Look up which services are connected for this broadcaster
         List<string> services = await _db
-            .Services.Where(s =>
-                s.BroadcasterId == broadcasterId && s.Enabled && s.AccessToken != null
-            )
+            .Services.Where(s => s.BroadcasterId == tenantId && s.Enabled && s.AccessToken != null)
             .Select(s => s.Name)
             .ToListAsync(cancellationToken);
 

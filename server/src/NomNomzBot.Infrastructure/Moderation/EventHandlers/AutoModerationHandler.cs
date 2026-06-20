@@ -38,8 +38,8 @@ public sealed partial class AutoModerationHandler : IEventHandler<ChatMessageRec
 {
     private static readonly TimeSpan RuleCacheExpiry = TimeSpan.FromMinutes(5);
 
-    // Per-channel rule cache: key = broadcasterId
-    private readonly ConcurrentDictionary<string, CachedRules> _ruleCache = new();
+    // Per-channel rule cache: key = broadcaster tenant Guid
+    private readonly ConcurrentDictionary<Guid, CachedRules> _ruleCache = new();
 
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly TimeProvider _timeProvider;
@@ -65,8 +65,8 @@ public sealed partial class AutoModerationHandler : IEventHandler<ChatMessageRec
         if (@event.IsModerator || @event.IsBroadcaster)
             return;
 
-        string broadcasterId = @event.BroadcasterId;
-        if (string.IsNullOrEmpty(broadcasterId) || string.IsNullOrEmpty(@event.Message))
+        Guid broadcasterId = @event.BroadcasterId;
+        if (broadcasterId == Guid.Empty || string.IsNullOrEmpty(@event.Message))
             return;
 
         IReadOnlyList<AutoModRule> rules = await GetRulesAsync(broadcasterId, cancellationToken);
@@ -103,9 +103,11 @@ public sealed partial class AutoModerationHandler : IEventHandler<ChatMessageRec
                 message
             );
 
+            // Twitch moderation actions take the Twitch channel string id (carried on the event),
+            // not the tenant Guid. @event.UserId is already the Twitch user id.
             await ApplyActionAsync(
                 rule,
-                broadcasterId,
+                @event.TwitchBroadcasterId,
                 @event.UserId,
                 @event.MessageId,
                 cancellationToken
@@ -270,7 +272,7 @@ public sealed partial class AutoModerationHandler : IEventHandler<ChatMessageRec
     // ─── Rule loading (cached) ────────────────────────────────────────────────
 
     private async Task<IReadOnlyList<AutoModRule>> GetRulesAsync(
-        string broadcasterId,
+        Guid broadcasterId,
         CancellationToken ct
     )
     {
@@ -290,7 +292,7 @@ public sealed partial class AutoModerationHandler : IEventHandler<ChatMessageRec
     }
 
     private async Task<IReadOnlyList<AutoModRule>> LoadRulesFromDbAsync(
-        string broadcasterId,
+        Guid broadcasterId,
         CancellationToken ct
     )
     {

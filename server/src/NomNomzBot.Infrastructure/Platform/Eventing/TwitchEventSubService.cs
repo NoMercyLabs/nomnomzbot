@@ -22,6 +22,7 @@ using Microsoft.Extensions.Options;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Eventing;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Abstractions.Transport;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Chat.ValueObjects;
@@ -144,6 +145,28 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
     // ─── ITwitchEventSubService ───────────────────────────────────────────────────
 
     public async Task SubscribeAsync(
+        Guid broadcasterId,
+        string eventType,
+        CancellationToken ct = default
+    )
+    {
+        // Resolve the tenant Guid to the Twitch string id — the value Twitch's EventSub condition,
+        // token lookup, and internal subscription dictionaries all key by (the invariant, outbound).
+        string? twitchBroadcasterId = await ResolveTwitchChannelIdAsync(broadcasterId, ct);
+        if (twitchBroadcasterId is null)
+        {
+            _logger.LogWarning(
+                "EventSub: cannot subscribe {EventType} — no Twitch channel id for tenant {BroadcasterId}",
+                eventType,
+                broadcasterId
+            );
+            return;
+        }
+
+        await SubscribeInternalAsync(twitchBroadcasterId, eventType, ct);
+    }
+
+    private async Task SubscribeInternalAsync(
         string broadcasterId,
         string eventType,
         CancellationToken ct = default
@@ -455,15 +478,41 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
     }
 
     public async Task<IReadOnlyList<string>> GetActiveSubscriptionsAsync(
-        string broadcasterId,
+        Guid broadcasterId,
         CancellationToken ct = default
     )
     {
-        await Task.CompletedTask;
+        // The active-subscription dict keys by the Twitch string id; resolve the tenant Guid to it.
+        string? twitchBroadcasterId = await ResolveTwitchChannelIdAsync(broadcasterId, ct);
+        if (twitchBroadcasterId is null)
+            return [];
+
         return _activeSubscriptions
-            .Where(kvp => kvp.Value.BroadcasterId == broadcasterId)
+            .Where(kvp => kvp.Value.BroadcasterId == twitchBroadcasterId)
             .Select(kvp => kvp.Key)
             .ToList();
+    }
+
+    // ─── Identity resolution (the invariant boundary) ─────────────────────────────
+
+    private async Task<string?> ResolveTwitchChannelIdAsync(
+        Guid broadcasterId,
+        CancellationToken ct
+    )
+    {
+        using IServiceScope scope = _scopeFactory.CreateScope();
+        ITwitchIdentityResolver resolver =
+            scope.ServiceProvider.GetRequiredService<ITwitchIdentityResolver>();
+        return await resolver.GetTwitchChannelIdAsync(broadcasterId, ct);
+    }
+
+    private async Task<Guid> ResolveTenantAsync(string twitchBroadcasterId, CancellationToken ct)
+    {
+        using IServiceScope scope = _scopeFactory.CreateScope();
+        ITwitchIdentityResolver resolver =
+            scope.ServiceProvider.GetRequiredService<ITwitchIdentityResolver>();
+        Guid? tenantId = await resolver.GetBroadcasterIdAsync(twitchBroadcasterId, ct);
+        return tenantId ?? Guid.Empty;
     }
 
     // ─── Connection loop ──────────────────────────────────────────────────────────
@@ -614,10 +663,23 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
     {
         string? subscriptionType = envelope.Payload?.Subscription?.Type;
         JsonElement? eventData = envelope.Payload?.Event;
-        string broadcasterId =
+        string twitchBroadcasterId =
             eventData?.GetProp("broadcaster_user_id")
             ?? eventData?.GetProp("to_broadcaster_user_id")
             ?? string.Empty;
+
+        // Resolve the inbound Twitch broadcaster string id to the internal tenant Guid before
+        // publishing any tenant-scoped event (the invariant, inbound direction).
+        Guid broadcasterId = await ResolveTenantAsync(twitchBroadcasterId, ct);
+        if (broadcasterId == Guid.Empty)
+        {
+            _logger.LogDebug(
+                "EventSub notification {Type} for unknown Twitch channel {TwitchBroadcasterId} — skipping",
+                subscriptionType,
+                twitchBroadcasterId
+            );
+            return;
+        }
 
         _logger.LogDebug(
             "EventSub notification: {Type} for {BroadcasterId}",
@@ -761,7 +823,7 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
                     {
                         BroadcasterId = broadcasterId,
                         BroadcasterDisplayName =
-                            eventData?.GetProp("broadcaster_user_name") ?? broadcasterId,
+                            eventData?.GetProp("broadcaster_user_name") ?? twitchBroadcasterId,
                         NewTitle = eventData?.GetProp("title") ?? string.Empty,
                         NewGameName = eventData?.GetProp("category_name") ?? string.Empty,
                     },
@@ -821,7 +883,7 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
                     {
                         BroadcasterId = broadcasterId,
                         BroadcasterDisplayName =
-                            eventData?.GetProp("broadcaster_user_name") ?? broadcasterId,
+                            eventData?.GetProp("broadcaster_user_name") ?? twitchBroadcasterId,
                         StreamTitle = streamTitle,
                         GameName = gameName,
                         StartedAt = startedAt == default ? _timeProvider.GetUtcNow() : startedAt,
@@ -836,7 +898,7 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
                     {
                         BroadcasterId = broadcasterId,
                         BroadcasterDisplayName =
-                            eventData?.GetProp("broadcaster_user_name") ?? broadcasterId,
+                            eventData?.GetProp("broadcaster_user_name") ?? twitchBroadcasterId,
                         StreamDuration = TimeSpan.Zero, // Duration requires tracking stream start externally
                     },
                     ct
@@ -958,7 +1020,12 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
 
             case "channel.chat.message":
                 if (eventData.HasValue)
-                    await HandleChatMessageAsync(eventData.Value, broadcasterId, ct);
+                    await HandleChatMessageAsync(
+                        eventData.Value,
+                        broadcasterId,
+                        twitchBroadcasterId,
+                        ct
+                    );
                 break;
 
             case "channel.chat.message_delete":
@@ -983,7 +1050,7 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
 
     private async Task HandlePollBeginAsync(
         JsonElement ev,
-        string broadcasterId,
+        Guid broadcasterId,
         CancellationToken ct
     )
     {
@@ -1006,11 +1073,7 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
         );
     }
 
-    private async Task HandlePollEndAsync(
-        JsonElement ev,
-        string broadcasterId,
-        CancellationToken ct
-    )
+    private async Task HandlePollEndAsync(JsonElement ev, Guid broadcasterId, CancellationToken ct)
     {
         IReadOnlyList<PollChoice> choices = ParsePollChoices(ev);
         await _eventBus.PublishAsync(
@@ -1053,7 +1116,7 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
 
     private async Task HandlePredictionBeginAsync(
         JsonElement ev,
-        string broadcasterId,
+        Guid broadcasterId,
         CancellationToken ct
     )
     {
@@ -1078,7 +1141,7 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
 
     private async Task HandlePredictionLockAsync(
         JsonElement ev,
-        string broadcasterId,
+        Guid broadcasterId,
         CancellationToken ct
     )
     {
@@ -1097,7 +1160,7 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
 
     private async Task HandlePredictionEndAsync(
         JsonElement ev,
-        string broadcasterId,
+        Guid broadcasterId,
         CancellationToken ct
     )
     {
@@ -1146,7 +1209,8 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
 
     private async Task HandleChatMessageAsync(
         JsonElement eventData,
-        string broadcasterId,
+        Guid broadcasterId,
+        string twitchBroadcasterId,
         CancellationToken ct
     )
     {
@@ -1226,6 +1290,7 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
             {
                 MessageId = messageId,
                 BroadcasterId = broadcasterId,
+                TwitchBroadcasterId = twitchBroadcasterId,
                 UserId = userId,
                 UserLogin = userLogin,
                 UserDisplayName = userDisplayName,
@@ -1511,17 +1576,30 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
         );
     }
 
-    private async Task<string?> GetBroadcasterTokenAsync(string broadcasterId, CancellationToken ct)
+    /// <summary>
+    /// <paramref name="twitchBroadcasterId"/> is the Twitch string id (the internal session/condition key);
+    /// it is resolved to the tenant Guid to look up the per-tenant Service token row + bind the AAD subject.
+    /// </summary>
+    private async Task<string?> GetBroadcasterTokenAsync(
+        string twitchBroadcasterId,
+        CancellationToken ct
+    )
     {
         using IServiceScope scope = _scopeFactory.CreateScope();
         IApplicationDbContext db =
             scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
         ITokenProtector tokenProtector =
             scope.ServiceProvider.GetRequiredService<ITokenProtector>();
+        ITwitchIdentityResolver resolver =
+            scope.ServiceProvider.GetRequiredService<ITwitchIdentityResolver>();
+
+        Guid? tenantId = await resolver.GetBroadcasterIdAsync(twitchBroadcasterId, ct);
+        if (tenantId is null)
+            return null;
 
         Service? service = await db.Services.FirstOrDefaultAsync(
             s =>
-                s.BroadcasterId == broadcasterId
+                s.BroadcasterId == tenantId
                 && s.Name == "twitch"
                 && s.Enabled
                 && s.AccessToken != null,
@@ -1532,7 +1610,7 @@ public sealed class TwitchEventSubService : ITwitchEventSubService, IHostedServi
             return null;
         return await tokenProtector.TryUnprotectAsync(
             service.AccessToken,
-            new TokenProtectionContext(broadcasterId, "twitch", "access"),
+            new TokenProtectionContext(tenantId.Value.ToString(), "twitch", "access"),
             ct
         );
     }

@@ -53,7 +53,7 @@ public sealed class SongRequestAction : ICommandAction
             return ActionResult.Failure("song_request requires a non-empty 'query'");
 
         IReadOnlyList<MusicTrack> results = await _music.SearchAsync(
-            ctx.BroadcasterId,
+            ctx.BroadcasterId.ToString(),
             query,
             1,
             ctx.CancellationToken
@@ -70,7 +70,7 @@ public sealed class SongRequestAction : ICommandAction
 
         MusicTrack track = results[0];
         bool added = await _music.AddToQueueAsync(
-            ctx.BroadcasterId,
+            ctx.BroadcasterId.ToString(),
             track.Uri,
             ctx.TriggeredByDisplayName,
             ctx.CancellationToken

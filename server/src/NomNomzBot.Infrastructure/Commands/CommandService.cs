@@ -32,10 +32,16 @@ public class CommandService : ICommandService
         CancellationToken cancellationToken = default
     )
     {
+        if (!Guid.TryParse(broadcasterId, out Guid broadcaster))
+            return Result.Failure<CommandDto>(
+                $"Invalid channel ID '{broadcasterId}'.",
+                "VALIDATION_FAILED"
+            );
+
         string normalizedName = request.Name.ToLowerInvariant();
 
         bool exists = await _db.Commands.AnyAsync(
-            c => c.BroadcasterId == broadcasterId && c.Name == normalizedName,
+            c => c.BroadcasterId == broadcaster && c.Name == normalizedName,
             cancellationToken
         );
 
@@ -44,7 +50,7 @@ public class CommandService : ICommandService
 
         Command command = new()
         {
-            BroadcasterId = broadcasterId,
+            BroadcasterId = broadcaster,
             Name = normalizedName,
             Type = request.Type,
             Permission = request.Permission,
@@ -70,8 +76,14 @@ public class CommandService : ICommandService
         CancellationToken cancellationToken = default
     )
     {
+        if (!Guid.TryParse(broadcasterId, out Guid broadcaster))
+            return Result.Failure<CommandDto>(
+                $"Invalid channel ID '{broadcasterId}'.",
+                "VALIDATION_FAILED"
+            );
+
         Command? command = await _db.Commands.FirstOrDefaultAsync(
-            c => c.BroadcasterId == broadcasterId && c.Name == commandName,
+            c => c.BroadcasterId == broadcaster && c.Name == commandName,
             cancellationToken
         );
 
@@ -108,8 +120,11 @@ public class CommandService : ICommandService
         CancellationToken cancellationToken = default
     )
     {
+        if (!Guid.TryParse(broadcasterId, out Guid broadcaster))
+            return Result.Failure($"Invalid channel ID '{broadcasterId}'.", "VALIDATION_FAILED");
+
         Command? command = await _db.Commands.FirstOrDefaultAsync(
-            c => c.BroadcasterId == broadcasterId && c.Name == commandName,
+            c => c.BroadcasterId == broadcaster && c.Name == commandName,
             cancellationToken
         );
 
@@ -128,8 +143,14 @@ public class CommandService : ICommandService
         CancellationToken cancellationToken = default
     )
     {
+        if (!Guid.TryParse(broadcasterId, out Guid broadcaster))
+            return Result.Failure<CommandDto>(
+                $"Invalid channel ID '{broadcasterId}'.",
+                "VALIDATION_FAILED"
+            );
+
         Command? command = await _db.Commands.FirstOrDefaultAsync(
-            c => c.BroadcasterId == broadcasterId && c.Name == commandName,
+            c => c.BroadcasterId == broadcaster && c.Name == commandName,
             cancellationToken
         );
 
@@ -145,7 +166,13 @@ public class CommandService : ICommandService
         CancellationToken cancellationToken = default
     )
     {
-        IQueryable<Command> query = _db.Commands.Where(c => c.BroadcasterId == broadcasterId);
+        if (!Guid.TryParse(broadcasterId, out Guid broadcaster))
+            return Result.Failure<PagedList<CommandListItem>>(
+                $"Invalid channel ID '{broadcasterId}'.",
+                "VALIDATION_FAILED"
+            );
+
+        IQueryable<Command> query = _db.Commands.Where(c => c.BroadcasterId == broadcaster);
         int total = await query.CountAsync(cancellationToken);
 
         List<CommandListItem> items = await query
@@ -179,8 +206,14 @@ public class CommandService : ICommandService
         CancellationToken cancellationToken = default
     )
     {
+        if (!Guid.TryParse(broadcasterId, out Guid broadcaster))
+            return Result.Failure<string>(
+                $"Invalid channel ID '{broadcasterId}'.",
+                "VALIDATION_FAILED"
+            );
+
         Command? command = await _db.Commands.FirstOrDefaultAsync(
-            c => c.BroadcasterId == broadcasterId && c.Name == commandName && c.IsEnabled,
+            c => c.BroadcasterId == broadcaster && c.Name == commandName && c.IsEnabled,
             cancellationToken
         );
 

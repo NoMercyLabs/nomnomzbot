@@ -100,6 +100,9 @@ public class IntegrationOAuthController : BaseController
         if (string.IsNullOrEmpty(channelId))
             return BadRequestResponse("Missing channel_id in OAuth state.");
 
+        if (!Guid.TryParse(channelId, out Guid tenantId))
+            return BadRequestResponse("Invalid channel_id in OAuth state.");
+
         string? clientId = await GetConfigValueAsync(null, "spotify.client_id", ct);
         string? clientSecret = await GetConfigSecureValueAsync(null, "spotify.client_secret", ct);
 
@@ -169,7 +172,7 @@ public class IntegrationOAuthController : BaseController
 
         // Upsert Service record
         var service = await _db.Services.FirstOrDefaultAsync(
-            s => s.Name == "spotify" && s.BroadcasterId == channelId,
+            s => s.Name == "spotify" && s.BroadcasterId == tenantId,
             ct
         );
 
@@ -178,7 +181,7 @@ public class IntegrationOAuthController : BaseController
             service = new Service
             {
                 Name = "spotify",
-                BroadcasterId = channelId,
+                BroadcasterId = tenantId,
                 Enabled = true,
             };
             _db.Services.Add(service);
@@ -252,6 +255,9 @@ public class IntegrationOAuthController : BaseController
         if (string.IsNullOrEmpty(channelId))
             return BadRequestResponse("Missing channel_id in OAuth state.");
 
+        if (!Guid.TryParse(channelId, out Guid tenantId))
+            return BadRequestResponse("Invalid channel_id in OAuth state.");
+
         string? clientId = await GetConfigValueAsync(null, "discord.client_id", ct);
         string? clientSecret = await GetConfigSecureValueAsync(null, "discord.client_secret", ct);
 
@@ -323,7 +329,7 @@ public class IntegrationOAuthController : BaseController
 
         // Store in Service table
         var service = await _db.Services.FirstOrDefaultAsync(
-            s => s.Name == "discord" && s.BroadcasterId == channelId,
+            s => s.Name == "discord" && s.BroadcasterId == tenantId,
             ct
         );
 
@@ -332,7 +338,7 @@ public class IntegrationOAuthController : BaseController
             service = new Service
             {
                 Name = "discord",
-                BroadcasterId = channelId,
+                BroadcasterId = tenantId,
                 Enabled = true,
             };
             _db.Services.Add(service);
@@ -348,7 +354,7 @@ public class IntegrationOAuthController : BaseController
         if (!string.IsNullOrEmpty(guildId))
         {
             var discordAuth = await _db.DiscordServerAuthorizations.FirstOrDefaultAsync(
-                d => d.BroadcasterId == channelId && d.GuildId == guildId,
+                d => d.BroadcasterId == tenantId && d.GuildId == guildId,
                 ct
             );
 
@@ -356,7 +362,7 @@ public class IntegrationOAuthController : BaseController
             {
                 discordAuth = new DiscordServerAuthorization
                 {
-                    BroadcasterId = channelId,
+                    BroadcasterId = tenantId,
                     GuildId = guildId,
                     GuildName = guildName ?? "Unknown",
                     Status = "active",
@@ -440,6 +446,9 @@ public class IntegrationOAuthController : BaseController
         if (string.IsNullOrEmpty(channelId))
             return BadRequestResponse("Missing channel_id in OAuth state.");
 
+        if (!Guid.TryParse(channelId, out Guid tenantId))
+            return BadRequestResponse("Invalid channel_id in OAuth state.");
+
         string? clientId = await GetConfigValueAsync(null, "youtube.client_id", ct);
         string? clientSecret = await GetConfigSecureValueAsync(null, "youtube.client_secret", ct);
 
@@ -501,7 +510,7 @@ public class IntegrationOAuthController : BaseController
 
         // Upsert Service record
         var service = await _db.Services.FirstOrDefaultAsync(
-            s => s.Name == "youtube" && s.BroadcasterId == channelId,
+            s => s.Name == "youtube" && s.BroadcasterId == tenantId,
             ct
         );
 
@@ -510,7 +519,7 @@ public class IntegrationOAuthController : BaseController
             service = new Service
             {
                 Name = "youtube",
-                BroadcasterId = channelId,
+                BroadcasterId = tenantId,
                 Enabled = true,
             };
             _db.Services.Add(service);
@@ -542,8 +551,10 @@ public class IntegrationOAuthController : BaseController
         CancellationToken ct
     )
     {
+        Guid? tenantId = Guid.TryParse(broadcasterId, out Guid g) ? g : null;
+
         string? dbValue = await _db
-            .Configurations.Where(c => c.BroadcasterId == broadcasterId && c.Key == key)
+            .Configurations.Where(c => c.BroadcasterId == tenantId && c.Key == key)
             .Select(c => c.Value)
             .FirstOrDefaultAsync(ct);
 
@@ -562,8 +573,10 @@ public class IntegrationOAuthController : BaseController
         CancellationToken ct
     )
     {
+        Guid? tenantId = Guid.TryParse(broadcasterId, out Guid g) ? g : null;
+
         string? dbValue = await _db
-            .Configurations.Where(c => c.BroadcasterId == broadcasterId && c.Key == key)
+            .Configurations.Where(c => c.BroadcasterId == tenantId && c.Key == key)
             .Select(c => c.SecureValue)
             .FirstOrDefaultAsync(ct);
 

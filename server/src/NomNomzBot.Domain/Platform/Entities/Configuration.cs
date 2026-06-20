@@ -18,8 +18,8 @@ public class Configuration : BaseEntity
 {
     public int Id { get; set; }
 
-    [MaxLength(50)]
-    public string? BroadcasterId { get; set; }
+    // FK→Channels.Id (tenant), null = global config. string→Guid? per schema §1.1.
+    public Guid? BroadcasterId { get; set; }
 
     [MaxLength(255)]
     public string Key { get; set; } = null!;

@@ -46,8 +46,9 @@ public sealed class PipelineEngine : IPipelineEngine
     private readonly ILogger<PipelineEngine> _logger;
     private readonly TimeProvider _timeProvider;
 
-    // Per-channel active count (separate from the CancellationTokenSources in ChannelContext)
-    private readonly ConcurrentDictionary<string, int> _activeCount = new();
+    // Per-channel active count (separate from the CancellationTokenSources in ChannelContext).
+    // Keyed by the tenant (channel) Guid.
+    private readonly ConcurrentDictionary<Guid, int> _activeCount = new();
 
     public PipelineEngine(
         IChannelRegistry registry,
@@ -64,10 +65,10 @@ public sealed class PipelineEngine : IPipelineEngine
         _timeProvider = timeProvider;
     }
 
-    public int GetActiveCountForChannel(string broadcasterId) =>
+    public int GetActiveCountForChannel(Guid broadcasterId) =>
         _activeCount.GetValueOrDefault(broadcasterId, 0);
 
-    public async Task CancelAllForChannelAsync(string broadcasterId)
+    public async Task CancelAllForChannelAsync(Guid broadcasterId)
     {
         ChannelContext? ctx = _registry.Get(broadcasterId);
         if (ctx is null)

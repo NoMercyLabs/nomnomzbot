@@ -32,7 +32,13 @@ public class TimerManagementService : ITimerManagementService
         CancellationToken cancellationToken = default
     )
     {
-        IQueryable<DomainTimer> query = _db.Timers.Where(t => t.BroadcasterId == broadcasterId);
+        if (!Guid.TryParse(broadcasterId, out Guid broadcaster))
+            return Result.Failure<PagedList<TimerListItem>>(
+                $"Invalid channel ID '{broadcasterId}'.",
+                "VALIDATION_FAILED"
+            );
+
+        IQueryable<DomainTimer> query = _db.Timers.Where(t => t.BroadcasterId == broadcaster);
         int total = await query.CountAsync(cancellationToken);
 
         List<TimerListItem> items = await query
@@ -61,8 +67,14 @@ public class TimerManagementService : ITimerManagementService
         CancellationToken cancellationToken = default
     )
     {
+        if (!Guid.TryParse(broadcasterId, out Guid broadcaster))
+            return Result.Failure<TimerDto>(
+                $"Invalid channel ID '{broadcasterId}'.",
+                "VALIDATION_FAILED"
+            );
+
         DomainTimer? timer = await _db.Timers.FirstOrDefaultAsync(
-            t => t.BroadcasterId == broadcasterId && t.Id == id,
+            t => t.BroadcasterId == broadcaster && t.Id == id,
             cancellationToken
         );
 
@@ -78,8 +90,14 @@ public class TimerManagementService : ITimerManagementService
         CancellationToken cancellationToken = default
     )
     {
+        if (!Guid.TryParse(broadcasterId, out Guid broadcaster))
+            return Result.Failure<TimerDto>(
+                $"Invalid channel ID '{broadcasterId}'.",
+                "VALIDATION_FAILED"
+            );
+
         bool exists = await _db.Timers.AnyAsync(
-            t => t.BroadcasterId == broadcasterId && t.Name == request.Name,
+            t => t.BroadcasterId == broadcaster && t.Name == request.Name,
             cancellationToken
         );
 
@@ -88,7 +106,7 @@ public class TimerManagementService : ITimerManagementService
 
         DomainTimer timer = new()
         {
-            BroadcasterId = broadcasterId,
+            BroadcasterId = broadcaster,
             Name = request.Name,
             Messages = request.Messages,
             IntervalMinutes = request.IntervalMinutes,
@@ -109,8 +127,14 @@ public class TimerManagementService : ITimerManagementService
         CancellationToken cancellationToken = default
     )
     {
+        if (!Guid.TryParse(broadcasterId, out Guid broadcaster))
+            return Result.Failure<TimerDto>(
+                $"Invalid channel ID '{broadcasterId}'.",
+                "VALIDATION_FAILED"
+            );
+
         DomainTimer? timer = await _db.Timers.FirstOrDefaultAsync(
-            t => t.BroadcasterId == broadcasterId && t.Id == id,
+            t => t.BroadcasterId == broadcaster && t.Id == id,
             cancellationToken
         );
 
@@ -139,8 +163,11 @@ public class TimerManagementService : ITimerManagementService
         CancellationToken cancellationToken = default
     )
     {
+        if (!Guid.TryParse(broadcasterId, out Guid broadcaster))
+            return Result.Failure($"Invalid channel ID '{broadcasterId}'.", "VALIDATION_FAILED");
+
         DomainTimer? timer = await _db.Timers.FirstOrDefaultAsync(
-            t => t.BroadcasterId == broadcasterId && t.Id == id,
+            t => t.BroadcasterId == broadcaster && t.Id == id,
             cancellationToken
         );
 
@@ -159,8 +186,14 @@ public class TimerManagementService : ITimerManagementService
         CancellationToken cancellationToken = default
     )
     {
+        if (!Guid.TryParse(broadcasterId, out Guid broadcaster))
+            return Result.Failure<TimerDto>(
+                $"Invalid channel ID '{broadcasterId}'.",
+                "VALIDATION_FAILED"
+            );
+
         DomainTimer? timer = await _db.Timers.FirstOrDefaultAsync(
-            t => t.BroadcasterId == broadcasterId && t.Id == id,
+            t => t.BroadcasterId == broadcaster && t.Id == id,
             cancellationToken
         );
 

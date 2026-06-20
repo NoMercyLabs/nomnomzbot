@@ -96,7 +96,7 @@ public sealed class TimerService : BackgroundService
         IChatProvider chat = scope.ServiceProvider.GetRequiredService<IChatProvider>();
 
         DateTime now = _timeProvider.GetUtcNow().UtcDateTime;
-        List<string> broadcasterIds = liveChannels.Select(c => c.BroadcasterId).ToList();
+        List<Guid> broadcasterIds = liveChannels.Select(c => c.BroadcasterId).ToList();
 
         List<Timer> timers = await db
             .Timers.Where(t =>
@@ -159,7 +159,7 @@ public sealed class TimerService : BackgroundService
         // Pick next message (round-robin)
         string messageTemplate = timer.Messages[timer.NextMessageIndex % timer.Messages.Count];
 
-        // Resolve template variables
+        // Resolve template variables (template resolution is keyed by the tenant Guid)
         string message = await _templateResolver.ResolveAsync(
             messageTemplate,
             new Dictionary<string, string>(),
@@ -170,8 +170,8 @@ public sealed class TimerService : BackgroundService
         if (string.IsNullOrWhiteSpace(message))
             return;
 
-        // Send to chat
-        await chat.SendMessageAsync(timer.BroadcasterId, message, cancellationToken: ct);
+        // IChatProvider takes the tenant Guid and resolves it to the Twitch channel string id internally.
+        await chat.SendMessageAsync(channelCtx.BroadcasterId, message, cancellationToken: ct);
 
         // Persist state: LastFiredAt + NextMessageIndex
         timer.LastFiredAt = now;

@@ -23,11 +23,11 @@ public sealed class RaidBroadcastHandler : IEventHandler<RaidEvent>
 
     public Task HandleAsync(RaidEvent @event, CancellationToken ct = default)
     {
-        if (string.IsNullOrEmpty(@event.BroadcasterId))
+        if (@event.BroadcasterId == Guid.Empty)
             return Task.CompletedTask;
 
         return _notifier.NotifyChannelAsync(
-            @event.BroadcasterId,
+            @event.BroadcasterId.ToString(),
             "raid",
             new RaidAlertDto(
                 @event.FromUserId,

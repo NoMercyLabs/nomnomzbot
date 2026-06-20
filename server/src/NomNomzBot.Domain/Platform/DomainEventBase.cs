@@ -24,5 +24,8 @@ public abstract class DomainEventBase : IDomainEvent
     // DateTimeOffset.UtcNow. Publishers needing determinism (and all tests) override Timestamp
     // from their injected TimeProvider.
     public DateTimeOffset Timestamp { get; init; } = TimeProvider.System.GetUtcNow();
-    public string? BroadcasterId { get; init; }
+
+    // The tenant (channel) this event relates to. Guid.Empty is the platform-level sentinel
+    // (platform-conventions §2.0) — NOT null. Tenant-scoped events set this to the owning channel id.
+    public Guid BroadcasterId { get; init; }
 }

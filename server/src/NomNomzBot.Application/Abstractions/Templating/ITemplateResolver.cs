@@ -23,7 +23,7 @@ public interface ITemplateResolver
     Task<string> ResolveAsync(
         string template,
         IDictionary<string, string> seedVariables,
-        string? broadcasterId,
+        Guid? broadcasterId,
         CancellationToken cancellationToken = default
     );
 

@@ -26,7 +26,7 @@ public sealed class ChannelOnlineBroadcastHandler : IEventHandler<ChannelOnlineE
 
     public Task HandleAsync(ChannelOnlineEvent @event, CancellationToken ct = default)
     {
-        if (string.IsNullOrEmpty(@event.BroadcasterId))
+        if (@event.BroadcasterId == Guid.Empty)
             return Task.CompletedTask;
 
         StreamStatusDto dto = new(
@@ -37,7 +37,7 @@ public sealed class ChannelOnlineBroadcastHandler : IEventHandler<ChannelOnlineE
             StartedAt: @event.StartedAt.ToString("O")
         );
 
-        return _notifier.SendStreamStatusAsync(@event.BroadcasterId, dto, ct);
+        return _notifier.SendStreamStatusAsync(@event.BroadcasterId.ToString(), dto, ct);
     }
 }
 
@@ -52,7 +52,7 @@ public sealed class ChannelOfflineBroadcastHandler : IEventHandler<ChannelOfflin
 
     public Task HandleAsync(ChannelOfflineEvent @event, CancellationToken ct = default)
     {
-        if (string.IsNullOrEmpty(@event.BroadcasterId))
+        if (@event.BroadcasterId == Guid.Empty)
             return Task.CompletedTask;
 
         StreamStatusDto dto = new(
@@ -63,6 +63,6 @@ public sealed class ChannelOfflineBroadcastHandler : IEventHandler<ChannelOfflin
             StartedAt: null
         );
 
-        return _notifier.SendStreamStatusAsync(@event.BroadcasterId, dto, ct);
+        return _notifier.SendStreamStatusAsync(@event.BroadcasterId.ToString(), dto, ct);
     }
 }

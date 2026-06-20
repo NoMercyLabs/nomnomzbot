@@ -53,8 +53,8 @@ public sealed class ChannelOnlineHandler : IEventHandler<ChannelOnlineEvent>
         CancellationToken cancellationToken = default
     )
     {
-        string? broadcasterId = @event.BroadcasterId;
-        if (string.IsNullOrEmpty(broadcasterId))
+        Guid broadcasterId = @event.BroadcasterId;
+        if (broadcasterId == Guid.Empty)
             return;
 
         using IServiceScope scope = _scopeFactory.CreateScope();
@@ -76,16 +76,25 @@ public sealed class ChannelOnlineHandler : IEventHandler<ChannelOnlineEvent>
         string gameName = @event.GameName;
         if (string.IsNullOrEmpty(title))
         {
-            ITwitchApiService twitchApi =
-                scope.ServiceProvider.GetRequiredService<ITwitchApiService>();
-            TwitchStreamInfo? streamInfo = await twitchApi.GetStreamInfoAsync(
+            ITwitchIdentityResolver resolver =
+                scope.ServiceProvider.GetRequiredService<ITwitchIdentityResolver>();
+            string? twitchChannelId = await resolver.GetTwitchChannelIdAsync(
                 broadcasterId,
                 cancellationToken
             );
-            if (streamInfo is not null)
+            if (twitchChannelId is not null)
             {
-                title = streamInfo.Title ?? string.Empty;
-                gameName = streamInfo.GameName ?? string.Empty;
+                ITwitchApiService twitchApi =
+                    scope.ServiceProvider.GetRequiredService<ITwitchApiService>();
+                TwitchStreamInfo? streamInfo = await twitchApi.GetStreamInfoAsync(
+                    twitchChannelId,
+                    cancellationToken
+                );
+                if (streamInfo is not null)
+                {
+                    title = streamInfo.Title ?? string.Empty;
+                    gameName = streamInfo.GameName ?? string.Empty;
+                }
             }
         }
 
@@ -145,7 +154,7 @@ public sealed class ChannelOnlineHandler : IEventHandler<ChannelOnlineEvent>
 
     private async Task ExecuteEventResponseAsync(
         IApplicationDbContext db,
-        string broadcasterId,
+        Guid broadcasterId,
         string eventType,
         Dictionary<string, string> variables,
         CancellationToken ct
@@ -166,7 +175,7 @@ public sealed class ChannelOnlineHandler : IEventHandler<ChannelOnlineEvent>
                 {
                     BroadcasterId = broadcasterId,
                     PipelineJson = config.Data,
-                    TriggeredByUserId = broadcasterId,
+                    TriggeredByUserId = broadcasterId.ToString(),
                     TriggeredByDisplayName = string.Empty,
                     RawMessage = string.Empty,
                     InitialVariables = variables,

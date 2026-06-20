@@ -45,7 +45,10 @@ public sealed class SongCurrentAction : ICommandAction
         ActionDefinition action
     )
     {
-        NowPlaying? now = await _music.GetNowPlayingAsync(ctx.BroadcasterId, ctx.CancellationToken);
+        NowPlaying? now = await _music.GetNowPlayingAsync(
+            ctx.BroadcasterId.ToString(),
+            ctx.CancellationToken
+        );
         if (now is null || string.IsNullOrWhiteSpace(now.TrackName))
         {
             await _chat.SendMessageAsync(

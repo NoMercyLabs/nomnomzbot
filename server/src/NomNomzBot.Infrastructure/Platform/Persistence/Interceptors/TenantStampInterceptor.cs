@@ -58,21 +58,18 @@ public sealed class TenantStampInterceptor : SaveChangesInterceptor
 
     private void StampTenant(DbContext context)
     {
-        string? broadcasterId = _currentTenantService.BroadcasterId;
+        Guid? broadcasterId = _currentTenantService.BroadcasterId;
 
-        if (string.IsNullOrEmpty(broadcasterId))
+        if (broadcasterId is null || broadcasterId.Value == Guid.Empty)
         {
             return;
         }
 
         foreach (EntityEntry<ITenantScoped> entry in context.ChangeTracker.Entries<ITenantScoped>())
         {
-            if (
-                entry.State == EntityState.Added
-                && string.IsNullOrEmpty(entry.Entity.BroadcasterId)
-            )
+            if (entry.State == EntityState.Added && entry.Entity.BroadcasterId == Guid.Empty)
             {
-                entry.Entity.BroadcasterId = broadcasterId;
+                entry.Entity.BroadcasterId = broadcasterId.Value;
             }
         }
     }

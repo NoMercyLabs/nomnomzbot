@@ -16,15 +16,15 @@ namespace NomNomzBot.Domain.Identity.Entities;
 
 public class ChannelBotAuthorization : BaseEntity
 {
-    public int Id { get; set; }
+    // Surrogate UUIDv7 PK (schema E.4) — was int, re-keyed to Guid.
+    public Guid Id { get; set; } = Guid.CreateVersion7();
 
-    [MaxLength(50)]
-    public string BroadcasterId { get; set; } = null!;
+    // Tenant key (FK→Channels.Id) — string→Guid per schema §1.1.
+    public Guid BroadcasterId { get; set; }
 
     public DateTime AuthorizedAt { get; set; }
 
-    [MaxLength(50)]
-    public string? AuthorizedBy { get; set; }
+    public Guid? AuthorizedByUserId { get; set; }
 
     public bool IsActive { get; set; } = true;
 

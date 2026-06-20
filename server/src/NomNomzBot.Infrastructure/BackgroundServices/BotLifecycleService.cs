@@ -30,8 +30,8 @@ public sealed class BotLifecycleService : BackgroundService
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<BotLifecycleService> _logger;
 
-    // Channel state tracked locally to detect joins/leaves
-    private readonly HashSet<string> _joinedChannels = [];
+    // Channel state tracked locally to detect joins/leaves (keyed by the tenant channel Guid)
+    private readonly HashSet<Guid> _joinedChannels = [];
     private readonly Lock _channelLock = new();
 
     // EventSub event types to subscribe to per channel
@@ -96,10 +96,10 @@ public sealed class BotLifecycleService : BackgroundService
             .Select(c => new { c.Id, c.Name })
             .ToListAsync(ct);
 
-        HashSet<string> activeIds = activeChannels.Select(c => c.Id).ToHashSet();
+        HashSet<Guid> activeIds = activeChannels.Select(c => c.Id).ToHashSet();
 
-        HashSet<string> toJoin;
-        HashSet<string> toLeave;
+        HashSet<Guid> toJoin;
+        HashSet<Guid> toLeave;
 
         lock (_channelLock)
         {
@@ -139,7 +139,7 @@ public sealed class BotLifecycleService : BackgroundService
         }
 
         // Leave channels that are no longer active
-        foreach (string channelId in toLeave)
+        foreach (Guid channelId in toLeave)
         {
             try
             {

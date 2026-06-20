@@ -51,8 +51,8 @@ public abstract class TwitchAlertHandlerBase<TEvent>
 
     protected async Task HandleCoreAsync(TEvent @event, CancellationToken ct)
     {
-        string? broadcasterId = @event.BroadcasterId;
-        if (string.IsNullOrEmpty(broadcasterId))
+        Guid broadcasterId = @event.BroadcasterId;
+        if (broadcasterId == Guid.Empty)
             return;
 
         using IServiceScope scope = ScopeFactory.CreateScope();
@@ -86,7 +86,8 @@ public abstract class TwitchAlertHandlerBase<TEvent>
                 {
                     BroadcasterId = broadcasterId,
                     PipelineJson = config.Data,
-                    TriggeredByUserId = GetUserId(@event) ?? broadcasterId,
+                    // TriggeredByUserId is a Twitch string id (or empty for channel-scoped events with no user).
+                    TriggeredByUserId = GetUserId(@event) ?? string.Empty,
                     TriggeredByDisplayName = GetUserDisplayName(@event) ?? string.Empty,
                     RawMessage = string.Empty,
                     InitialVariables = variables,
@@ -108,19 +109,30 @@ public abstract class TwitchAlertHandlerBase<TEvent>
     private async Task LogChannelEventAsync(
         IApplicationDbContext db,
         TEvent @event,
-        string broadcasterId,
+        Guid broadcasterId,
         CancellationToken ct
     )
     {
         try
         {
             Dictionary<string, string> variables = BuildVariables(@event);
+
+            // GetUserId returns the Twitch string id; ChannelEvent.UserId is the internal Users.Id Guid FK,
+            // so resolve it (null when the event has no user or the user is not yet persisted).
+            string? twitchUserId = GetUserId(@event);
+            Guid? userId = twitchUserId is null
+                ? null
+                : await db
+                    .Users.Where(u => u.TwitchUserId == twitchUserId)
+                    .Select(u => (Guid?)u.Id)
+                    .FirstOrDefaultAsync(ct);
+
             db.ChannelEvents.Add(
                 new()
                 {
                     Id = Ulid.NewUlid().ToString(),
                     ChannelId = broadcasterId,
-                    UserId = GetUserId(@event),
+                    UserId = userId,
                     Type = EventTypeKey,
                     Data = JsonSerializer.Serialize(variables),
                 }

@@ -111,11 +111,12 @@ public class ChannelsController : BaseController
         IReadOnlyList<TwitchModeratedChannel> moderated =
             await _twitchApi.GetModeratedChannelsAsync(userId, ct);
 
-        // Find which ones are already onboarded in our DB
+        // Find which ones are already onboarded in our DB. moderated ids are Twitch channel
+        // string ids — match on Channel.TwitchChannelId, not the internal Guid key.
         var allIds = moderated.Select(m => m.BroadcasterId).ToList();
         var onboardedIds = await _db
-            .Channels.Where(c => allIds.Contains(c.Id) && c.IsOnboarded)
-            .Select(c => c.Id)
+            .Channels.Where(c => allIds.Contains(c.TwitchChannelId) && c.IsOnboarded)
+            .Select(c => c.TwitchChannelId)
             .ToHashSetAsync(ct);
 
         var dtos = moderated
@@ -160,6 +161,13 @@ public class ChannelsController : BaseController
         if (result.IsFailure)
             return ResultResponse(result);
 
+        // result.Value.Id is the tenant (channel) Guid as a string; request.BroadcasterId is the
+        // Twitch broadcaster string id. Service calls take the tenant string; Helix takes the Twitch id.
+        string channelId = result.Value.Id;
+        if (!Guid.TryParse(channelId, out Guid tenantId))
+            return InternalServerErrorResponse("Onboarded channel returned an invalid id.");
+        string twitchChannelId = request.BroadcasterId;
+
         // Link any pre-existing broadcaster token (stored with BroadcasterId=null during login)
         var unlinkedToken = await _db.Services.FirstOrDefaultAsync(
             s => s.Name == "twitch" && s.BroadcasterId == null && s.UserId == request.BroadcasterId,
@@ -167,11 +175,9 @@ public class ChannelsController : BaseController
         );
         if (unlinkedToken is not null)
         {
-            unlinkedToken.BroadcasterId = result.Value.Id;
+            unlinkedToken.BroadcasterId = tenantId;
             await _db.SaveChangesAsync(ct);
         }
-
-        string channelId = result.Value.Id;
 
         // Auto-mod the platform bot in the new channel
         var botService = await _db.Services.FirstOrDefaultAsync(
@@ -180,17 +186,17 @@ public class ChannelsController : BaseController
         );
         if (botService?.UserId is not null)
         {
-            await _twitchApi.AddModeratorAsync(channelId, botService.UserId, ct);
+            await _twitchApi.AddModeratorAsync(twitchChannelId, botService.UserId, ct);
         }
 
         // ── Full Twitch data sync on onboarding ─────────────────────────────
         // Each step is independent — one failure must not block the rest.
         try
         {
-            var channelInfo = await _twitchApi.GetChannelInfoAsync(channelId, ct);
+            var channelInfo = await _twitchApi.GetChannelInfoAsync(twitchChannelId, ct);
             if (channelInfo is not null)
             {
-                var channel = await _db.Channels.FindAsync([channelId], ct);
+                var channel = await _db.Channels.FindAsync([tenantId], ct);
                 if (channel is not null)
                 {
                     channel.Title = channelInfo.Title;
@@ -224,11 +230,11 @@ public class ChannelsController : BaseController
 
         try
         {
-            var bannedUsers = await _twitchApi.GetBannedUsersAsync(channelId, ct);
+            var bannedUsers = await _twitchApi.GetBannedUsersAsync(twitchChannelId, ct);
             foreach (var ban in bannedUsers)
             {
                 bool exists = await _db.Configurations.AnyAsync(
-                    c => c.BroadcasterId == channelId && c.Key == $"ban:{ban.UserId}",
+                    c => c.BroadcasterId == tenantId && c.Key == $"ban:{ban.UserId}",
                     ct
                 );
                 if (!exists)
@@ -236,7 +242,7 @@ public class ChannelsController : BaseController
                     _db.Configurations.Add(
                         new NomNomzBot.Domain.Platform.Entities.Configuration
                         {
-                            BroadcasterId = channelId,
+                            BroadcasterId = tenantId,
                             Key = $"ban:{ban.UserId}",
                             Value = System.Text.Json.JsonSerializer.Serialize(
                                 new
@@ -317,7 +323,7 @@ public class ChannelsController : BaseController
             foreach (var def in defaultCommands)
             {
                 bool exists = await _db.Commands.AnyAsync(
-                    c => c.BroadcasterId == channelId && c.Name == def.Name,
+                    c => c.BroadcasterId == tenantId && c.Name == def.Name,
                     ct
                 );
 
@@ -326,7 +332,7 @@ public class ChannelsController : BaseController
                     _db.Commands.Add(
                         new NomNomzBot.Domain.Commands.Entities.Command
                         {
-                            BroadcasterId = channelId,
+                            BroadcasterId = tenantId,
                             Name = def.Name,
                             Type = "pipeline",
                             PipelineJson = def.PipelineJson,
@@ -366,7 +372,7 @@ public class ChannelsController : BaseController
             foreach (var def in defaultEventResponses)
             {
                 bool exists = await _db.EventResponses.AnyAsync(
-                    er => er.BroadcasterId == channelId && er.EventType == def.EventType,
+                    er => er.BroadcasterId == tenantId && er.EventType == def.EventType,
                     ct
                 );
 
@@ -375,7 +381,7 @@ public class ChannelsController : BaseController
                     _db.EventResponses.Add(
                         new NomNomzBot.Domain.Commands.Entities.EventResponse
                         {
-                            BroadcasterId = channelId,
+                            BroadcasterId = tenantId,
                             EventType = def.EventType,
                             IsEnabled = true,
                             ResponseType = "chat_message",
@@ -399,46 +405,62 @@ public class ChannelsController : BaseController
 
         try
         {
-            var mods = await _twitchApi.GetModeratorsAsync(channelId, ct);
-            var vips = await _twitchApi.GetVipsAsync(channelId, ct);
+            var mods = await _twitchApi.GetModeratorsAsync(twitchChannelId, ct);
+            var vips = await _twitchApi.GetVipsAsync(twitchChannelId, ct);
 
-            var allUserIds = mods.Select(m => m.UserId)
+            // mod/vip .UserId are Twitch user string ids; Users key on TwitchUserId, the FK target
+            // (ChannelModerator.UserId) is the internal User.Id Guid.
+            var allTwitchUserIds = mods.Select(m => m.UserId)
                 .Concat(vips.Select(v => v.UserId))
                 .Distinct()
                 .ToList();
-            var existingUserIds = await _db
-                .Users.Where(u => allUserIds.Contains(u.Id))
-                .Select(u => u.Id)
+            var existingTwitchUserIds = await _db
+                .Users.Where(u => allTwitchUserIds.Contains(u.TwitchUserId))
+                .Select(u => u.TwitchUserId)
                 .ToListAsync(ct);
 
-            foreach (var mod in mods.Where(m => !existingUserIds.Contains(m.UserId)))
+            foreach (var mod in mods.Where(m => !existingTwitchUserIds.Contains(m.UserId)))
             {
                 _db.Users.Add(
                     new NomNomzBot.Domain.Identity.Entities.User
                     {
-                        Id = mod.UserId,
+                        TwitchUserId = mod.UserId,
                         Username = mod.UserLogin,
                         DisplayName = mod.UserName ?? mod.UserLogin,
                     }
                 );
             }
-            foreach (var vip in vips.Where(v => !existingUserIds.Contains(v.UserId)))
+            foreach (
+                var vip in vips.Where(v =>
+                    !existingTwitchUserIds.Contains(v.UserId) && mods.All(m => m.UserId != v.UserId)
+                )
+            )
             {
                 _db.Users.Add(
                     new NomNomzBot.Domain.Identity.Entities.User
                     {
-                        Id = vip.UserId,
+                        TwitchUserId = vip.UserId,
                         Username = vip.UserLogin,
                         DisplayName = vip.UserName ?? vip.UserLogin,
                     }
                 );
             }
 
+            await _db.SaveChangesAsync(ct);
+
+            // Resolve Twitch user ids → internal User.Id Guids for the moderator FK.
+            var userIdMap = await _db
+                .Users.Where(u => allTwitchUserIds.Contains(u.TwitchUserId))
+                .ToDictionaryAsync(u => u.TwitchUserId, u => u.Id, ct);
+
             // Store mod/VIP status in channel moderators table
             foreach (var mod in mods)
             {
+                if (!userIdMap.TryGetValue(mod.UserId, out Guid modUserId))
+                    continue;
+
                 bool modExists = await _db.ChannelModerators.AnyAsync(
-                    cm => cm.ChannelId == channelId && cm.UserId == mod.UserId,
+                    cm => cm.ChannelId == tenantId && cm.UserId == modUserId,
                     ct
                 );
                 if (!modExists)
@@ -446,8 +468,8 @@ public class ChannelsController : BaseController
                     _db.ChannelModerators.Add(
                         new NomNomzBot.Domain.Identity.Entities.ChannelModerator
                         {
-                            ChannelId = channelId,
-                            UserId = mod.UserId,
+                            ChannelId = tenantId,
+                            UserId = modUserId,
                             GrantedAt = _timeProvider.GetUtcNow().UtcDateTime,
                         }
                     );
@@ -531,9 +553,11 @@ public class ChannelsController : BaseController
     [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> ResetChannel(string channelId, CancellationToken ct)
     {
+        Guid? broadcasterId = Guid.TryParse(channelId, out Guid g) ? g : null;
+
         // Delete all Configuration entries for this channel (settings, TTS, shield, blocked terms, etc.)
         List<NomNomzBot.Domain.Platform.Entities.Configuration> configs = await _db
-            .Configurations.Where(c => c.BroadcasterId == channelId)
+            .Configurations.Where(c => c.BroadcasterId == broadcasterId)
             .ToListAsync(ct);
 
         _db.Configurations.RemoveRange(configs);

@@ -49,8 +49,8 @@ public sealed class RewardRedeemedHandler : IEventHandler<RewardRedeemedEvent>
         CancellationToken cancellationToken = default
     )
     {
-        string? broadcasterId = @event.BroadcasterId;
-        if (string.IsNullOrEmpty(broadcasterId))
+        Guid broadcasterId = @event.BroadcasterId;
+        if (broadcasterId == Guid.Empty)
             return;
 
         using IServiceScope scope = _scopeFactory.CreateScope();
@@ -124,7 +124,7 @@ public sealed class RewardRedeemedHandler : IEventHandler<RewardRedeemedEvent>
     }
 
     private async Task ExecutePipelineAsync(
-        string broadcasterId,
+        Guid broadcasterId,
         string pipelineJson,
         string userId,
         string displayName,

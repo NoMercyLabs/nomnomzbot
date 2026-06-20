@@ -33,8 +33,11 @@ public class FeatureService : IFeatureService
         CancellationToken cancellationToken = default
     )
     {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return Result.Success(new List<FeatureStatusDto>());
+
         List<FeatureStatusDto> features = await _db
-            .ChannelFeatures.Where(f => f.BroadcasterId == channelId)
+            .ChannelFeatures.Where(f => f.BroadcasterId == broadcasterId)
             .Select(f => new FeatureStatusDto(
                 f.FeatureKey,
                 f.IsEnabled,
@@ -52,8 +55,14 @@ public class FeatureService : IFeatureService
         CancellationToken cancellationToken = default
     )
     {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return Result.Failure<FeatureStatusDto>(
+                $"Invalid channel id '{channelId}'.",
+                "INVALID_CHANNEL_ID"
+            );
+
         ChannelFeature? feature = await _db.ChannelFeatures.FirstOrDefaultAsync(
-            f => f.BroadcasterId == channelId && f.FeatureKey == featureKey,
+            f => f.BroadcasterId == broadcasterId && f.FeatureKey == featureKey,
             cancellationToken
         );
 
@@ -61,7 +70,7 @@ public class FeatureService : IFeatureService
         {
             feature = new()
             {
-                BroadcasterId = channelId,
+                BroadcasterId = broadcasterId,
                 FeatureKey = featureKey,
                 IsEnabled = true,
                 EnabledAt = _timeProvider.GetUtcNow().UtcDateTime,

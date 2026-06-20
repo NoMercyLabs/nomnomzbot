@@ -18,7 +18,9 @@ namespace NomNomzBot.Application.Abstractions.Pipeline;
 public sealed class PipelineExecutionContext
 {
     public string ExecutionId { get; } = Guid.NewGuid().ToString("N")[..12];
-    public required string BroadcasterId { get; init; }
+
+    /// <summary>The tenant (channel) Guid this execution belongs to (schema §1.1, internal key).</summary>
+    public required Guid BroadcasterId { get; init; }
     public required string TriggeredByUserId { get; init; }
     public required string TriggeredByDisplayName { get; init; }
     public required string MessageId { get; init; }

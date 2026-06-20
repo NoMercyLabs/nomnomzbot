@@ -23,11 +23,11 @@ public sealed class PermissionChangedBroadcastHandler : IEventHandler<Permission
 
     public Task HandleAsync(PermissionChangedEvent @event, CancellationToken ct = default)
     {
-        if (string.IsNullOrEmpty(@event.BroadcasterId))
+        if (@event.BroadcasterId == Guid.Empty)
             return Task.CompletedTask;
 
         return _notifier.SendPermissionChangedAsync(
-            @event.BroadcasterId,
+            @event.BroadcasterId.ToString(),
             new(
                 @event.SubjectType,
                 @event.SubjectId,

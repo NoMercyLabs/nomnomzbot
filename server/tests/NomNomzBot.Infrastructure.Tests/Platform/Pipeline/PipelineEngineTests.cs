@@ -21,14 +21,16 @@ namespace NomNomzBot.Infrastructure.Tests.Platform.Pipeline;
 
 public class InfraPipelineEngineTests
 {
+    private static readonly Guid TestChannel = Guid.Parse("0192a000-0000-7000-8000-0000000000c1");
+
     private static PipelineEngine CreateEngine(IChatProvider? chat = null)
     {
         chat ??= Substitute.For<IChatProvider>();
-        chat.SendMessageAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+        chat.SendMessageAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(Task.CompletedTask);
 
         IChannelRegistry? registry = Substitute.For<IChannelRegistry>();
-        registry.Get(Arg.Any<string>()).Returns((ChannelContext?)null);
+        registry.Get(Arg.Any<Guid>()).Returns((ChannelContext?)null);
 
         ICommandAction[] actions = new ICommandAction[]
         {
@@ -54,12 +56,12 @@ public class InfraPipelineEngineTests
 
     private static PipelineRequest BuildRequest(
         string json,
-        string broadcaster = "chan",
+        Guid? broadcaster = null,
         string user = "user1"
     ) =>
         new()
         {
-            BroadcasterId = broadcaster,
+            BroadcasterId = broadcaster ?? TestChannel,
             TriggeredByUserId = user,
             TriggeredByDisplayName = "TestUser",
             PipelineJson = json,
@@ -193,7 +195,7 @@ public class InfraPipelineEngineTests
             """;
         PipelineRequest request = new()
         {
-            BroadcasterId = "chan",
+            BroadcasterId = TestChannel,
             TriggeredByUserId = "mod1",
             TriggeredByDisplayName = "Mod1",
             PipelineJson = json,
@@ -229,7 +231,7 @@ public class InfraPipelineEngineTests
     public void GetActiveCountForChannel_NoActivePipelines_ReturnsZero()
     {
         PipelineEngine engine = CreateEngine();
-        engine.GetActiveCountForChannel("chan").Should().Be(0);
+        engine.GetActiveCountForChannel(TestChannel).Should().Be(0);
     }
 
     [Fact]
@@ -240,7 +242,7 @@ public class InfraPipelineEngineTests
 
         await engine.ExecuteAsync(BuildRequest(json));
 
-        engine.GetActiveCountForChannel("chan").Should().Be(0);
+        engine.GetActiveCountForChannel(TestChannel).Should().Be(0);
     }
 
     [Fact]
@@ -255,13 +257,15 @@ public class InfraPipelineEngineTests
             .Select(_ => new CancellationTokenSource())
             .ToList();
         Task<PipelineExecutionResult>[] longTasks = ctsList
-            .Select(cts => engine.ExecuteAsync(BuildRequest(json, "chan"), cts.Token))
+            .Select(cts => engine.ExecuteAsync(BuildRequest(json, TestChannel), cts.Token))
             .ToArray();
 
         await Task.Delay(100); // Let them register
 
         // 6th should fail
-        PipelineExecutionResult overflow = await engine.ExecuteAsync(BuildRequest(json, "chan"));
+        PipelineExecutionResult overflow = await engine.ExecuteAsync(
+            BuildRequest(json, TestChannel)
+        );
 
         overflow.Outcome.Should().Be(PipelineOutcome.Failed);
         overflow.ErrorMessage.Should().NotBeNullOrEmpty();

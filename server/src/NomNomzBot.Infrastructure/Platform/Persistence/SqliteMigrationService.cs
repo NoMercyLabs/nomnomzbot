@@ -61,12 +61,13 @@ public sealed class SqliteMigrationService
         if (!File.Exists(sqliteFilePath))
             return new(false, $"SQLite file not found: {sqliteFilePath}");
 
-        // Ensure the target channel exists
-        bool channelExists = await _db.Channels.AnyAsync(
-            c => c.Id == broadcasterId,
-            cancellationToken
-        );
-        if (!channelExists)
+        // broadcasterId is the legacy Twitch channel id; resolve it to the tenant (channel) Guid that
+        // every BroadcasterId FK now keys on.
+        Guid channelGuid = await _db
+            .Channels.Where(c => c.TwitchChannelId == broadcasterId)
+            .Select(c => c.Id)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (channelGuid == Guid.Empty)
             return new(false, $"Channel {broadcasterId} not found. Complete onboarding first.");
 
         MigrationCounts counts = new();
@@ -77,13 +78,14 @@ public sealed class SqliteMigrationService
 
         // Migration steps are independent — failures are logged but don't abort others
         counts.Users = await MigrateUsersAsync(conn, cancellationToken);
-        counts.Commands = await MigrateCommandsAsync(conn, broadcasterId, cancellationToken);
-        counts.ChatMessages = await MigrateChatMessagesAsync(
+        counts.Commands = await MigrateCommandsAsync(conn, channelGuid, cancellationToken);
+        counts.ChatMessages = await MigrateChatMessagesAsync(conn, channelGuid, cancellationToken);
+        counts.Records = await MigrateRecordsAsync(
             conn,
+            channelGuid,
             broadcasterId,
             cancellationToken
         );
-        counts.Records = await MigrateRecordsAsync(conn, broadcasterId, cancellationToken);
 
         _logger.LogInformation(
             "Migration complete for {BroadcasterId}: {Users} users, {Commands} commands, "
@@ -110,18 +112,20 @@ public sealed class SqliteMigrationService
         await using SqliteDataReader reader = await cmd.ExecuteReaderAsync(ct);
         while (await reader.ReadAsync(ct))
         {
-            string id = reader.GetString(0);
+            // Legacy Id is the Twitch user id (string). It becomes TwitchUserId; the new PK is a fresh Guid.
+            string twitchUserId = reader.GetString(0);
             string username = reader.GetString(1);
             string displayName = reader.GetString(2);
             string? profileUrl = reader.IsDBNull(3) ? null : reader.GetString(3);
 
-            User? existing = await _db.Users.FirstOrDefaultAsync(u => u.Id == id, ct);
-            if (existing is null)
+            bool exists = await _db.Users.AnyAsync(u => u.TwitchUserId == twitchUserId, ct);
+            if (!exists)
             {
                 _db.Users.Add(
                     new()
                     {
-                        Id = id,
+                        Id = Guid.CreateVersion7(),
+                        TwitchUserId = twitchUserId,
                         Username = username,
                         DisplayName = displayName,
                         ProfileImageUrl = profileUrl,
@@ -142,7 +146,7 @@ public sealed class SqliteMigrationService
 
     private async Task<int> MigrateCommandsAsync(
         SqliteConnection conn,
-        string broadcasterId,
+        Guid broadcasterId,
         CancellationToken ct
     )
     {
@@ -193,7 +197,7 @@ public sealed class SqliteMigrationService
 
     private async Task<int> MigrateChatMessagesAsync(
         SqliteConnection conn,
-        string broadcasterId,
+        Guid broadcasterId,
         CancellationToken ct
     )
     {
@@ -272,7 +276,8 @@ public sealed class SqliteMigrationService
 
     private async Task<int> MigrateRecordsAsync(
         SqliteConnection conn,
-        string broadcasterId,
+        Guid broadcasterId,
+        string legacyBroadcasterId,
         CancellationToken ct
     )
     {
@@ -293,7 +298,8 @@ public sealed class SqliteMigrationService
         {
             string recordType = reader.GetString(0);
             string data = reader.GetString(1);
-            string userId = reader.IsDBNull(2) ? broadcasterId : reader.GetString(2);
+            // Record.UserId stays the Twitch user string id; fall back to the legacy channel Twitch id.
+            string userId = reader.IsDBNull(2) ? legacyBroadcasterId : reader.GetString(2);
 
             _db.Records.Add(
                 new()

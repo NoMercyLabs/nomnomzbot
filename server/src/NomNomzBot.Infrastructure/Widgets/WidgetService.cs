@@ -36,8 +36,11 @@ public class WidgetService : IWidgetService
         CancellationToken cancellationToken = default
     )
     {
+        if (!Guid.TryParse(broadcasterId, out Guid broadcasterGuid))
+            return Errors.ChannelNotFound<WidgetDetail>(broadcasterId);
+
         Channel? channel = await _db.Channels.FirstOrDefaultAsync(
-            c => c.Id == broadcasterId,
+            c => c.Id == broadcasterGuid,
             cancellationToken
         );
 
@@ -47,7 +50,7 @@ public class WidgetService : IWidgetService
         Widget widget = new()
         {
             Id = Guid.NewGuid().ToString(),
-            BroadcasterId = broadcasterId,
+            BroadcasterId = broadcasterGuid,
             Name = request.Name,
             Framework = request.Type,
             IsEnabled = true,
@@ -70,10 +73,13 @@ public class WidgetService : IWidgetService
         CancellationToken cancellationToken = default
     )
     {
+        if (!Guid.TryParse(broadcasterId, out Guid broadcasterGuid))
+            return Errors.NotFound<WidgetDetail>("Widget", widgetId);
+
         Widget? widget = await _db
             .Widgets.Include(w => w.Channel)
             .FirstOrDefaultAsync(
-                w => w.Id == widgetId && w.BroadcasterId == broadcasterId,
+                w => w.Id == widgetId && w.BroadcasterId == broadcasterGuid,
                 cancellationToken
             );
 
@@ -100,8 +106,11 @@ public class WidgetService : IWidgetService
         CancellationToken cancellationToken = default
     )
     {
+        if (!Guid.TryParse(broadcasterId, out Guid broadcasterGuid))
+            return Result.Failure($"Widget '{widgetId}' was not found.", "NOT_FOUND");
+
         Widget? widget = await _db.Widgets.FirstOrDefaultAsync(
-            w => w.Id == widgetId && w.BroadcasterId == broadcasterId,
+            w => w.Id == widgetId && w.BroadcasterId == broadcasterGuid,
             cancellationToken
         );
 
@@ -120,9 +129,14 @@ public class WidgetService : IWidgetService
         CancellationToken cancellationToken = default
     )
     {
+        if (!Guid.TryParse(broadcasterId, out Guid broadcasterGuid))
+            return Result.Success(
+                new PagedList<WidgetDetail>([], 0, pagination.Page, pagination.PageSize)
+            );
+
         IQueryable<Widget> query = _db
             .Widgets.Include(w => w.Channel)
-            .Where(w => w.BroadcasterId == broadcasterId);
+            .Where(w => w.BroadcasterId == broadcasterGuid);
 
         int total = await query.CountAsync(cancellationToken);
 
@@ -147,10 +161,13 @@ public class WidgetService : IWidgetService
         CancellationToken cancellationToken = default
     )
     {
+        if (!Guid.TryParse(broadcasterId, out Guid broadcasterGuid))
+            return Errors.NotFound<WidgetDetail>("Widget", widgetId);
+
         Widget? widget = await _db
             .Widgets.Include(w => w.Channel)
             .FirstOrDefaultAsync(
-                w => w.Id == widgetId && w.BroadcasterId == broadcasterId,
+                w => w.Id == widgetId && w.BroadcasterId == broadcasterGuid,
                 cancellationToken
             );
 

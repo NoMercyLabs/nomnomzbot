@@ -21,6 +21,6 @@ public interface IDomainEvent
     /// <summary>When this event occurred (UTC).</summary>
     DateTimeOffset Timestamp { get; }
 
-    /// <summary>The broadcaster channel this event relates to, or null for platform-level events.</summary>
-    string? BroadcasterId { get; }
+    /// <summary>The broadcaster channel (tenant) this event relates to, or <see cref="Guid.Empty"/> for platform-level events.</summary>
+    Guid BroadcasterId { get; }
 }

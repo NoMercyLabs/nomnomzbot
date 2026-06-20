@@ -20,7 +20,7 @@ public class RewardConfiguration : IEntityTypeConfiguration<Reward>
     {
         builder.HasKey(e => e.Id);
 
-        builder.Property(e => e.BroadcasterId).IsRequired().HasMaxLength(50);
+        builder.Property(e => e.BroadcasterId).IsRequired();
 
         builder.Property(e => e.Title).IsRequired().HasMaxLength(255);
 
@@ -53,7 +53,5 @@ public class RewardConfiguration : IEntityTypeConfiguration<Reward>
             .WithMany()
             .HasForeignKey(e => e.BroadcasterId)
             .OnDelete(DeleteBehavior.Cascade);
-
-        builder.HasQueryFilter(e => e.DeletedAt == null);
     }
 }

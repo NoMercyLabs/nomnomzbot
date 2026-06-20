@@ -53,9 +53,12 @@ public sealed class GdprService : IGdprService
         CancellationToken cancellationToken = default
     )
     {
+        if (!Guid.TryParse(userId, out Guid userGuid))
+            return Result.Failure<string>($"User '{userId}' was not found.", "NOT_FOUND");
+
         User? user = await _db
             .Users.Include(u => u.Pronoun)
-            .FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
+            .FirstOrDefaultAsync(u => u.Id == userGuid, cancellationToken);
 
         if (user is null)
             return Result.Failure<string>($"User '{userId}' was not found.", "NOT_FOUND");
@@ -86,8 +89,11 @@ public sealed class GdprService : IGdprService
             })
             .ToListAsync(cancellationToken);
 
+        // Service.UserId stores the external Twitch user id (not the internal key), so a user's
+        // connected integrations are matched by their TwitchUserId.
+        string twitchUserId = user.TwitchUserId;
         var services = await _db
-            .Services.Where(s => s.UserId == userId || s.BroadcasterId == userId)
+            .Services.Where(s => s.UserId == twitchUserId)
             .Select(s => new
             {
                 s.Name,
@@ -140,7 +146,10 @@ public sealed class GdprService : IGdprService
         CancellationToken cancellationToken = default
     )
     {
-        User? user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
+        if (!Guid.TryParse(userId, out Guid userGuid))
+            return Result.Failure($"User '{userId}' was not found.", "NOT_FOUND");
+
+        User? user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userGuid, cancellationToken);
 
         if (user is null)
             return Result.Failure($"User '{userId}' was not found.", "NOT_FOUND");
@@ -157,9 +166,11 @@ public sealed class GdprService : IGdprService
             .ToListAsync(cancellationToken);
         _db.Records.RemoveRange(records);
 
-        // Hard delete: service tokens (revoke and remove)
+        // Hard delete: service tokens (revoke and remove).
+        // Service.UserId stores the external Twitch user id, so match by the user's TwitchUserId.
+        string twitchUserId = user.TwitchUserId;
         List<Service> services = await _db
-            .Services.Where(s => s.UserId == userId)
+            .Services.Where(s => s.UserId == twitchUserId)
             .ToListAsync(cancellationToken);
         _db.Services.RemoveRange(services);
 

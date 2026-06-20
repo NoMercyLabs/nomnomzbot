@@ -24,11 +24,11 @@ public sealed class CheerBroadcastHandler : IEventHandler<CheerEvent>
 
     public Task HandleAsync(CheerEvent @event, CancellationToken ct = default)
     {
-        if (string.IsNullOrEmpty(@event.BroadcasterId))
+        if (@event.BroadcasterId == Guid.Empty)
             return Task.CompletedTask;
 
         return _notifier.NotifyChannelAsync(
-            @event.BroadcasterId,
+            @event.BroadcasterId.ToString(),
             "cheer",
             new CheerAlertDto(
                 @event.IsAnonymous ? null : @event.UserId,

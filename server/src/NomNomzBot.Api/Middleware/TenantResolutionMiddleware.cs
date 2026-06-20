@@ -48,10 +48,17 @@ public class TenantResolutionMiddleware
 
         if (!string.IsNullOrEmpty(requestedChannelId))
         {
+            // The requested channel id is the tenant Guid (route/header/query).
+            if (!Guid.TryParse(requestedChannelId, out Guid requestedChannelGuid))
+            {
+                context.Response.StatusCode = StatusCodes.Status400BadRequest;
+                return;
+            }
+
             if (string.IsNullOrEmpty(userId))
             {
                 // Anonymous request → public-endpoint channel selector (public data only).
-                tenantService.SetTenant(requestedChannelId);
+                tenantService.SetTenant(requestedChannelGuid);
             }
             else if (
                 await channelAccess.CanResolveTenantAsync(
@@ -61,7 +68,7 @@ public class TenantResolutionMiddleware
                 )
             )
             {
-                tenantService.SetTenant(requestedChannelId);
+                tenantService.SetTenant(requestedChannelGuid);
             }
             else
             {
@@ -73,8 +80,17 @@ public class TenantResolutionMiddleware
         }
         else if (!string.IsNullOrEmpty(userId))
         {
-            // No explicit channel → default to the authenticated caller's own channel.
-            tenantService.SetTenant(userId);
+            // No explicit channel → default to the authenticated caller's OWN channel (IDOR fix:
+            // resolve Channels.Id where OwnerUserId == userId — NEVER set the tenant to the user id).
+            Guid ownChannel = await channelAccess.ResolveOwnChannelAsync(
+                userId,
+                context.RequestAborted
+            );
+            if (ownChannel != Guid.Empty)
+            {
+                tenantService.SetTenant(ownChannel);
+            }
+            // No owned channel (fresh / not-onboarded account): leave tenant unset.
         }
 
         await _next(context);

@@ -28,16 +28,19 @@ public class ModerationService : IModerationService
 
     private readonly IApplicationDbContext _db;
     private readonly ITwitchApiService _twitchApi;
+    private readonly ITwitchIdentityResolver _identityResolver;
     private readonly ILogger<ModerationService> _logger;
 
     public ModerationService(
         IApplicationDbContext db,
         ITwitchApiService twitchApi,
+        ITwitchIdentityResolver identityResolver,
         ILogger<ModerationService> logger
     )
     {
         _db = db;
         _twitchApi = twitchApi;
+        _identityResolver = identityResolver;
         _logger = logger;
     }
 
@@ -49,8 +52,11 @@ public class ModerationService : IModerationService
         CancellationToken cancellationToken = default
     )
     {
+        if (!Guid.TryParse(broadcasterId, out Guid tenantId))
+            return Errors.ChannelNotFound<ModerationActionResult>(broadcasterId);
+
         Result<ModerationActionResult> result = await RecordActionAsync(
-            broadcasterId,
+            tenantId,
             "timeout",
             targetUserId,
             reason,
@@ -60,19 +66,26 @@ public class ModerationService : IModerationService
 
         if (result.IsSuccess)
         {
-            bool ok = await _twitchApi.TimeoutUserAsync(
-                broadcasterId,
-                targetUserId,
-                durationSeconds,
-                reason,
+            string? twitchChannelId = await _identityResolver.GetTwitchChannelIdAsync(
+                tenantId,
                 cancellationToken
             );
-            if (!ok)
-                _logger.LogWarning(
-                    "Twitch API timeout failed for {UserId} in {Channel}",
+            if (twitchChannelId is not null)
+            {
+                bool ok = await _twitchApi.TimeoutUserAsync(
+                    twitchChannelId,
                     targetUserId,
-                    broadcasterId
+                    durationSeconds,
+                    reason,
+                    cancellationToken
                 );
+                if (!ok)
+                    _logger.LogWarning(
+                        "Twitch API timeout failed for {UserId} in {Channel}",
+                        targetUserId,
+                        tenantId
+                    );
+            }
         }
 
         return result;
@@ -85,8 +98,11 @@ public class ModerationService : IModerationService
         CancellationToken cancellationToken = default
     )
     {
+        if (!Guid.TryParse(broadcasterId, out Guid tenantId))
+            return Errors.ChannelNotFound<ModerationActionResult>(broadcasterId);
+
         Result<ModerationActionResult> result = await RecordActionAsync(
-            broadcasterId,
+            tenantId,
             "ban",
             targetUserId,
             reason,
@@ -96,18 +112,25 @@ public class ModerationService : IModerationService
 
         if (result.IsSuccess)
         {
-            bool ok = await _twitchApi.BanUserAsync(
-                broadcasterId,
-                targetUserId,
-                reason,
+            string? twitchChannelId = await _identityResolver.GetTwitchChannelIdAsync(
+                tenantId,
                 cancellationToken
             );
-            if (!ok)
-                _logger.LogWarning(
-                    "Twitch API ban failed for {UserId} in {Channel}",
+            if (twitchChannelId is not null)
+            {
+                bool ok = await _twitchApi.BanUserAsync(
+                    twitchChannelId,
                     targetUserId,
-                    broadcasterId
+                    reason,
+                    cancellationToken
                 );
+                if (!ok)
+                    _logger.LogWarning(
+                        "Twitch API ban failed for {UserId} in {Channel}",
+                        targetUserId,
+                        tenantId
+                    );
+            }
         }
 
         return result;
@@ -119,8 +142,11 @@ public class ModerationService : IModerationService
         CancellationToken cancellationToken = default
     )
     {
+        if (!Guid.TryParse(broadcasterId, out Guid tenantId))
+            return Errors.ChannelNotFound<ModerationActionResult>(broadcasterId);
+
         Result<ModerationActionResult> result = await RecordActionAsync(
-            broadcasterId,
+            tenantId,
             "unban",
             targetUserId,
             null,
@@ -130,17 +156,24 @@ public class ModerationService : IModerationService
 
         if (result.IsSuccess)
         {
-            bool ok = await _twitchApi.UnbanUserAsync(
-                broadcasterId,
-                targetUserId,
+            string? twitchChannelId = await _identityResolver.GetTwitchChannelIdAsync(
+                tenantId,
                 cancellationToken
             );
-            if (!ok)
-                _logger.LogWarning(
-                    "Twitch API unban failed for {UserId} in {Channel}",
+            if (twitchChannelId is not null)
+            {
+                bool ok = await _twitchApi.UnbanUserAsync(
+                    twitchChannelId,
                     targetUserId,
-                    broadcasterId
+                    cancellationToken
                 );
+                if (!ok)
+                    _logger.LogWarning(
+                        "Twitch API unban failed for {UserId} in {Channel}",
+                        targetUserId,
+                        tenantId
+                    );
+            }
         }
 
         return result;
@@ -152,10 +185,10 @@ public class ModerationService : IModerationService
         CancellationToken cancellationToken = default
     )
     {
-        bool channelExists = await _db.Channels.AnyAsync(
-            c => c.Id == broadcasterId,
-            cancellationToken
-        );
+        if (!Guid.TryParse(broadcasterId, out Guid tenantId))
+            return Errors.ChannelNotFound<ModerationRuleDetail>(broadcasterId);
+
+        bool channelExists = await _db.Channels.AnyAsync(c => c.Id == tenantId, cancellationToken);
         if (!channelExists)
             return Errors.ChannelNotFound<ModerationRuleDetail>(broadcasterId);
 
@@ -173,7 +206,7 @@ public class ModerationService : IModerationService
 
         Record record = new()
         {
-            BroadcasterId = broadcasterId,
+            BroadcasterId = tenantId,
             RecordType = RuleRecordType,
             Data = JsonSerializer.Serialize(ruleData),
             UserId = broadcasterId, // system record — use broadcaster as owner
@@ -205,11 +238,11 @@ public class ModerationService : IModerationService
         CancellationToken cancellationToken = default
     )
     {
+        if (!Guid.TryParse(broadcasterId, out Guid tenantId))
+            return Result.Failure($"Moderation rule '{ruleId}' was not found.", "NOT_FOUND");
+
         Record? record = await _db.Records.FirstOrDefaultAsync(
-            r =>
-                r.Id == ruleId
-                && r.BroadcasterId == broadcasterId
-                && r.RecordType == RuleRecordType,
+            r => r.Id == ruleId && r.BroadcasterId == tenantId && r.RecordType == RuleRecordType,
             cancellationToken
         );
 
@@ -229,11 +262,11 @@ public class ModerationService : IModerationService
         CancellationToken cancellationToken = default
     )
     {
+        if (!Guid.TryParse(broadcasterId, out Guid tenantId))
+            return Errors.NotFound<ModerationRuleDetail>("Moderation rule", ruleId.ToString());
+
         Record? record = await _db.Records.FirstOrDefaultAsync(
-            r =>
-                r.Id == ruleId
-                && r.BroadcasterId == broadcasterId
-                && r.RecordType == RuleRecordType,
+            r => r.Id == ruleId && r.BroadcasterId == tenantId && r.RecordType == RuleRecordType,
             cancellationToken
         );
 
@@ -286,8 +319,11 @@ public class ModerationService : IModerationService
         CancellationToken cancellationToken = default
     )
     {
+        if (!Guid.TryParse(broadcasterId, out Guid tenantId))
+            return Errors.ChannelNotFound<PagedList<ModerationRuleListItem>>(broadcasterId);
+
         IQueryable<Record> query = _db.Records.Where(r =>
-            r.BroadcasterId == broadcasterId && r.RecordType == RuleRecordType
+            r.BroadcasterId == tenantId && r.RecordType == RuleRecordType
         );
 
         int total = await query.CountAsync(cancellationToken);
@@ -332,9 +368,12 @@ public class ModerationService : IModerationService
         CancellationToken cancellationToken = default
     )
     {
-        IQueryable<Record> query = _db
-            .Records.Include(r => r.User)
-            .Where(r => r.BroadcasterId == broadcasterId && r.RecordType == ActionRecordType);
+        if (!Guid.TryParse(broadcasterId, out Guid tenantId))
+            return Errors.ChannelNotFound<PagedList<ModerationActionLog>>(broadcasterId);
+
+        IQueryable<Record> query = _db.Records.Where(r =>
+            r.BroadcasterId == tenantId && r.RecordType == ActionRecordType
+        );
 
         int total = await query.CountAsync(cancellationToken);
 
@@ -343,6 +382,12 @@ public class ModerationService : IModerationService
             .Skip((pagination.Page - 1) * pagination.PageSize)
             .Take(pagination.PageSize)
             .ToListAsync(cancellationToken);
+
+        // The actor's Twitch user id (Record.UserId) is resolved to a display name via Users.TwitchUserId.
+        Dictionary<string, string> usernamesByTwitchId = await ResolveUsernamesAsync(
+            records.Select(r => r.UserId),
+            cancellationToken
+        );
 
         List<ModerationActionLog> items = records
             .Select(r =>
@@ -354,7 +399,7 @@ public class ModerationService : IModerationService
                     r.Id.ToString(),
                     data.Action,
                     r.UserId,
-                    r.User?.Username ?? r.UserId,
+                    usernamesByTwitchId.GetValueOrDefault(r.UserId, r.UserId),
                     data.TargetUserId,
                     data.TargetUsername,
                     data.Reason,
@@ -372,7 +417,7 @@ public class ModerationService : IModerationService
     // ─── Helpers ─────────────────────────────────────────────────────────────
 
     private async Task<Result<ModerationActionResult>> RecordActionAsync(
-        string broadcasterId,
+        Guid tenantId,
         string action,
         string targetUserId,
         string? reason,
@@ -380,15 +425,13 @@ public class ModerationService : IModerationService
         CancellationToken cancellationToken
     )
     {
-        bool channelExists = await _db.Channels.AnyAsync(
-            c => c.Id == broadcasterId,
-            cancellationToken
-        );
+        bool channelExists = await _db.Channels.AnyAsync(c => c.Id == tenantId, cancellationToken);
         if (!channelExists)
-            return Errors.ChannelNotFound<ModerationActionResult>(broadcasterId);
+            return Errors.ChannelNotFound<ModerationActionResult>(tenantId.ToString());
 
+        // targetUserId is the Twitch user id passed to Helix — resolve the username via TwitchUserId.
         User? targetUser = await _db.Users.FirstOrDefaultAsync(
-            u => u.Id == targetUserId,
+            u => u.TwitchUserId == targetUserId,
             cancellationToken
         );
 
@@ -403,10 +446,10 @@ public class ModerationService : IModerationService
 
         Record record = new()
         {
-            BroadcasterId = broadcasterId,
+            BroadcasterId = tenantId,
             RecordType = ActionRecordType,
             Data = JsonSerializer.Serialize(actionData),
-            UserId = broadcasterId,
+            UserId = tenantId.ToString(),
         };
 
         _db.Records.Add(record);
@@ -420,9 +463,12 @@ public class ModerationService : IModerationService
         CancellationToken cancellationToken = default
     )
     {
+        if (!Guid.TryParse(broadcasterId, out Guid tenantId))
+            return Errors.ChannelNotFound<AutomodConfigDto>(broadcasterId);
+
         List<Record> rules = await _db
             .Records.Where(r =>
-                r.BroadcasterId == broadcasterId
+                r.BroadcasterId == tenantId
                 && r.RecordType == RuleRecordType
                 && (
                     r.Data.Contains("\"link_filter\"")
@@ -501,10 +547,10 @@ public class ModerationService : IModerationService
         CancellationToken cancellationToken = default
     )
     {
-        bool channelExists = await _db.Channels.AnyAsync(
-            c => c.Id == broadcasterId,
-            cancellationToken
-        );
+        if (!Guid.TryParse(broadcasterId, out Guid tenantId))
+            return Errors.ChannelNotFound<AutomodConfigDto>(broadcasterId);
+
+        bool channelExists = await _db.Channels.AnyAsync(c => c.Id == tenantId, cancellationToken);
         if (!channelExists)
             return Errors.ChannelNotFound<AutomodConfigDto>(broadcasterId);
 
@@ -537,7 +583,7 @@ public class ModerationService : IModerationService
             string typeJson = $"\"{type}\"";
             Record? existing = await _db
                 .Records.Where(r =>
-                    r.BroadcasterId == broadcasterId
+                    r.BroadcasterId == tenantId
                     && r.RecordType == RuleRecordType
                     && r.Data.Contains(typeJson)
                 )
@@ -566,7 +612,7 @@ public class ModerationService : IModerationService
                 _db.Records.Add(
                     new()
                     {
-                        BroadcasterId = broadcasterId,
+                        BroadcasterId = tenantId,
                         RecordType = RuleRecordType,
                         Data = JsonSerializer.Serialize(ruleData),
                         UserId = broadcasterId,
@@ -585,15 +631,23 @@ public class ModerationService : IModerationService
         CancellationToken cancellationToken = default
     )
     {
+        if (!Guid.TryParse(broadcasterId, out Guid tenantId))
+            return Errors.ChannelNotFound<List<BannedUserDto>>(broadcasterId);
+
         List<Record> actions = await _db
-            .Records.Include(r => r.User)
-            .Where(r =>
-                r.BroadcasterId == broadcasterId
+            .Records.Where(r =>
+                r.BroadcasterId == tenantId
                 && r.RecordType == ActionRecordType
                 && (r.Data.Contains("\"ban\"") || r.Data.Contains("\"unban\""))
             )
             .OrderByDescending(r => r.CreatedAt)
             .ToListAsync(cancellationToken);
+
+        // The moderator's Twitch user id (Record.UserId) → display name via Users.TwitchUserId.
+        Dictionary<string, string> moderatorNames = await ResolveUsernamesAsync(
+            actions.Select(r => r.UserId),
+            cancellationToken
+        );
 
         // Build the latest action per target user
         Dictionary<
@@ -618,13 +672,31 @@ public class ModerationService : IModerationService
                 e.data.TargetUserId!,
                 e.data.TargetUsername ?? e.data.TargetUserId!,
                 e.data.Reason,
-                e.record.User?.Username ?? e.record.UserId,
+                moderatorNames.GetValueOrDefault(e.record.UserId, e.record.UserId),
                 e.record.CreatedAt
             ))
             .OrderByDescending(b => b.BannedAt)
             .ToList();
 
         return Result.Success(banned);
+    }
+
+    /// <summary>
+    /// Resolves a set of Twitch user ids to display names via <c>Users.TwitchUserId</c> (the actor ids on
+    /// moderation records are Twitch ids, not internal Guids). Missing ids simply fall back to the raw id.
+    /// </summary>
+    private async Task<Dictionary<string, string>> ResolveUsernamesAsync(
+        IEnumerable<string> twitchUserIds,
+        CancellationToken cancellationToken
+    )
+    {
+        List<string> ids = twitchUserIds.Where(id => !string.IsNullOrEmpty(id)).Distinct().ToList();
+        if (ids.Count == 0)
+            return new();
+
+        return await _db
+            .Users.Where(u => ids.Contains(u.TwitchUserId))
+            .ToDictionaryAsync(u => u.TwitchUserId, u => u.Username, cancellationToken);
     }
 
     // ─── Private data shapes stored in Record.Data ───────────────────────────

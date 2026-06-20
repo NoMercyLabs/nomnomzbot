@@ -12,5 +12,5 @@ namespace NomNomzBot.Domain.Platform;
 
 public interface ITenantScoped
 {
-    string BroadcasterId { get; set; }
+    Guid BroadcasterId { get; set; }
 }

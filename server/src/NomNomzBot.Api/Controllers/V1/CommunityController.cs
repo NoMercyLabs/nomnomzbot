@@ -29,16 +29,19 @@ public class CommunityController : BaseController
 {
     private readonly IApplicationDbContext _db;
     private readonly ITwitchApiService _twitchApi;
+    private readonly ITwitchIdentityResolver _identityResolver;
     private readonly TimeProvider _timeProvider;
 
     public CommunityController(
         IApplicationDbContext db,
         ITwitchApiService twitchApi,
+        ITwitchIdentityResolver identityResolver,
         TimeProvider timeProvider
     )
     {
         _db = db;
         _twitchApi = twitchApi;
+        _identityResolver = identityResolver;
         _timeProvider = timeProvider;
     }
 
@@ -127,21 +130,33 @@ public class CommunityController : BaseController
         CancellationToken ct
     )
     {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
+
+        // Helix list calls take the Twitch channel string id, resolved from the tenant Guid.
+        string? twitchChannelId = await _identityResolver.GetTwitchChannelIdAsync(
+            broadcasterId,
+            ct
+        );
+
         // Followers tab: cursor-based pagination directly from Twitch API
         if (string.Equals(role, "follower", StringComparison.OrdinalIgnoreCase))
         {
             (IReadOnlyList<TwitchFollowerInfo> followers, string? nextCursor, int total) =
-                await _twitchApi.GetFollowersAsync(channelId, cursor, request.Take, ct);
+                twitchChannelId is null
+                    ? (Array.Empty<TwitchFollowerInfo>(), null, 0)
+                    : await _twitchApi.GetFollowersAsync(twitchChannelId, cursor, request.Take, ct);
 
+            // Follower ids are Twitch user string ids — join on User.TwitchUserId.
             var followerIds = followers.Select(f => f.UserId).ToList();
 
             var users = await _db
-                .Users.Where(u => followerIds.Contains(u.Id))
-                .ToDictionaryAsync(u => u.Id, ct);
+                .Users.Where(u => followerIds.Contains(u.TwitchUserId))
+                .ToDictionaryAsync(u => u.TwitchUserId, ct);
 
             var chatStats = await _db
                 .ChatMessages.Where(m =>
-                    m.BroadcasterId == channelId && followerIds.Contains(m.UserId)
+                    m.BroadcasterId == broadcasterId && followerIds.Contains(m.UserId)
                 )
                 .GroupBy(m => m.UserId)
                 .Select(g => new
@@ -191,18 +206,24 @@ public class CommunityController : BaseController
         // VIP tab: fetch from Twitch API, paginate in-memory
         if (string.Equals(role, "vip", StringComparison.OrdinalIgnoreCase))
         {
-            var vips = await _twitchApi.GetVipsAsync(channelId, ct);
+            var vips = twitchChannelId is null
+                ? (IReadOnlyList<TwitchVipInfo>)Array.Empty<TwitchVipInfo>()
+                : await _twitchApi.GetVipsAsync(twitchChannelId, ct);
             int vipTotal = vips.Count;
 
             var pagedVips = vips.Skip(skip).Take(request.Take + 1).ToList();
+
+            // VIP ids are Twitch user string ids — join on User.TwitchUserId.
             var vipIds = pagedVips.Select(v => v.UserId).ToList();
 
             var vipUsers = await _db
-                .Users.Where(u => vipIds.Contains(u.Id))
-                .ToDictionaryAsync(u => u.Id, ct);
+                .Users.Where(u => vipIds.Contains(u.TwitchUserId))
+                .ToDictionaryAsync(u => u.TwitchUserId, ct);
 
             var vipChatStats = await _db
-                .ChatMessages.Where(m => m.BroadcasterId == channelId && vipIds.Contains(m.UserId))
+                .ChatMessages.Where(m =>
+                    m.BroadcasterId == broadcasterId && vipIds.Contains(m.UserId)
+                )
                 .GroupBy(m => m.UserId)
                 .Select(g => new
                 {
@@ -250,27 +271,29 @@ public class CommunityController : BaseController
             );
         }
 
+        // Candidate ids live in Twitch-user-id space (ChatMessage.UserId is the Twitch id; moderator
+        // ids are projected from the moderator's User.TwitchUserId).
         List<string> candidateUserIds;
 
         if (string.Equals(role, "moderator", StringComparison.OrdinalIgnoreCase))
         {
             candidateUserIds = await _db
-                .ChannelModerators.Where(cm => cm.ChannelId == channelId)
-                .Select(cm => cm.UserId)
+                .ChannelModerators.Where(cm => cm.ChannelId == broadcasterId)
+                .Select(cm => cm.User.TwitchUserId)
                 .ToListAsync(ct);
         }
         else
         {
             // No role filter (all users): chatters + mods
             var chattedIds = await _db
-                .ChatMessages.Where(m => m.BroadcasterId == channelId)
+                .ChatMessages.Where(m => m.BroadcasterId == broadcasterId)
                 .Select(m => m.UserId)
                 .Distinct()
                 .ToListAsync(ct);
 
             var modIds = await _db
-                .ChannelModerators.Where(cm => cm.ChannelId == channelId)
-                .Select(cm => cm.UserId)
+                .ChannelModerators.Where(cm => cm.ChannelId == broadcasterId)
+                .Select(cm => cm.User.TwitchUserId)
                 .ToListAsync(ct);
 
             candidateUserIds = chattedIds.Union(modIds).Distinct().ToList();
@@ -281,7 +304,7 @@ public class CommunityController : BaseController
         // Chat stats for message counts / first/last seen
         var chatStats2 = await _db
             .ChatMessages.Where(m =>
-                m.BroadcasterId == channelId && candidateUserIds.Contains(m.UserId)
+                m.BroadcasterId == broadcasterId && candidateUserIds.Contains(m.UserId)
             )
             .GroupBy(m => m.UserId)
             .Select(g => new
@@ -301,22 +324,24 @@ public class CommunityController : BaseController
             .ToList();
 
         var users2 = await _db
-            .Users.Where(u => pagedIds.Contains(u.Id))
-            .ToDictionaryAsync(u => u.Id, ct);
+            .Users.Where(u => pagedIds.Contains(u.TwitchUserId))
+            .ToDictionaryAsync(u => u.TwitchUserId, ct);
 
         var moderatorIds = await _db
             .ChannelModerators.Where(cm =>
-                cm.ChannelId == channelId && pagedIds.Contains(cm.UserId)
+                cm.ChannelId == broadcasterId && pagedIds.Contains(cm.User.TwitchUserId)
             )
-            .Select(cm => cm.UserId)
+            .Select(cm => cm.User.TwitchUserId)
             .ToHashSetAsync(ct);
 
         var trustConfigs = await _db
-            .Configurations.Where(c => c.BroadcasterId == channelId && c.Key.StartsWith("trust:"))
+            .Configurations.Where(c =>
+                c.BroadcasterId == broadcasterId && c.Key.StartsWith("trust:")
+            )
             .ToDictionaryAsync(c => c.Key, c => c.Value ?? "viewer", ct);
 
         var bannedIds = await _db
-            .Configurations.Where(c => c.BroadcasterId == channelId && c.Key.StartsWith("ban:"))
+            .Configurations.Where(c => c.BroadcasterId == broadcasterId && c.Key.StartsWith("ban:"))
             .Select(c => c.Key.Substring(4))
             .ToHashSetAsync(ct);
 
@@ -369,30 +394,42 @@ public class CommunityController : BaseController
     [ProducesResponseType<StatusResponseDto<CommunityStatsDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetStats(string channelId, CancellationToken ct)
     {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
+
+        // Helix calls take the Twitch channel string id, resolved from the tenant Guid.
+        string? twitchChannelId = await _identityResolver.GetTwitchChannelIdAsync(
+            broadcasterId,
+            ct
+        );
+
         // Followers and subscribers: Twitch API (authoritative).
         int followers = 0,
             subscribers = 0,
             vipCount = 0;
-        try
+        if (twitchChannelId is not null)
         {
-            followers = await _twitchApi.GetFollowerCountAsync(channelId, ct);
+            try
+            {
+                followers = await _twitchApi.GetFollowerCountAsync(twitchChannelId, ct);
+            }
+            catch { }
+            try
+            {
+                subscribers = await _twitchApi.GetSubscriberCountAsync(twitchChannelId, ct);
+            }
+            catch { }
+            try
+            {
+                vipCount = (await _twitchApi.GetVipsAsync(twitchChannelId, ct)).Count;
+            }
+            catch { }
         }
-        catch { }
-        try
-        {
-            subscribers = await _twitchApi.GetSubscriberCountAsync(channelId, ct);
-        }
-        catch { }
-        try
-        {
-            vipCount = (await _twitchApi.GetVipsAsync(channelId, ct)).Count;
-        }
-        catch { }
 
         // Moderators: use the DB as the primary source because the community list
         // already reads from this table and it reflects onboarding sync.
         int moderatorCount = await _db.ChannelModerators.CountAsync(
-            cm => cm.ChannelId == channelId,
+            cm => cm.ChannelId == broadcasterId,
             ct
         );
 
@@ -416,8 +453,10 @@ public class CommunityController : BaseController
     {
         int skip = (request.Page - 1) * request.Take;
 
+        Guid? broadcasterId = Guid.TryParse(channelId, out Guid g) ? g : null;
+
         var banConfigs = await _db
-            .Configurations.Where(c => c.BroadcasterId == channelId && c.Key.StartsWith("ban:"))
+            .Configurations.Where(c => c.BroadcasterId == broadcasterId && c.Key.StartsWith("ban:"))
             .OrderByDescending(c => c.CreatedAt)
             .Skip(skip)
             .Take(request.Take + 1)
@@ -465,12 +504,16 @@ public class CommunityController : BaseController
         CancellationToken ct
     )
     {
-        var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId, ct);
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
+
+        // userId is the Twitch user string id (as exposed by the list DTOs).
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.TwitchUserId == userId, ct);
         if (user is null)
             return NotFoundResponse("User not found.");
 
         var messageStats = await _db
-            .ChatMessages.Where(m => m.BroadcasterId == channelId && m.UserId == userId)
+            .ChatMessages.Where(m => m.BroadcasterId == broadcasterId && m.UserId == userId)
             .GroupBy(m => 1)
             .Select(g => new
             {
@@ -481,7 +524,7 @@ public class CommunityController : BaseController
             .FirstOrDefaultAsync(ct);
 
         var recentMessages = await _db
-            .ChatMessages.Where(m => m.BroadcasterId == channelId && m.UserId == userId)
+            .ChatMessages.Where(m => m.BroadcasterId == broadcasterId && m.UserId == userId)
             .OrderByDescending(m => m.CreatedAt)
             .Take(10)
             .Select(m => new ActivityDto(
@@ -492,19 +535,19 @@ public class CommunityController : BaseController
             .ToListAsync(ct);
 
         bool isModerator = await _db.ChannelModerators.AnyAsync(
-            cm => cm.ChannelId == channelId && cm.UserId == userId,
+            cm => cm.ChannelId == broadcasterId && cm.User.TwitchUserId == userId,
             ct
         );
 
         var trustConfig = await _db.Configurations.FirstOrDefaultAsync(
-            c => c.BroadcasterId == channelId && c.Key == $"trust:{userId}",
+            c => c.BroadcasterId == broadcasterId && c.Key == $"trust:{userId}",
             ct
         );
 
         string trustLevel = trustConfig?.Value ?? (isModerator ? "moderator" : "viewer");
 
         var banConfig = await _db.Configurations.FirstOrDefaultAsync(
-            c => c.BroadcasterId == channelId && c.Key == $"ban:{userId}",
+            c => c.BroadcasterId == broadcasterId && c.Key == $"ban:{userId}",
             ct
         );
 
@@ -529,7 +572,7 @@ public class CommunityController : BaseController
         }
 
         var detail = new UserDetailDto(
-            user.Id,
+            user.TwitchUserId,
             user.Username,
             user.DisplayName,
             user.ProfileImageUrl,
@@ -558,8 +601,10 @@ public class CommunityController : BaseController
         CancellationToken ct
     )
     {
+        Guid? broadcasterId = Guid.TryParse(channelId, out Guid g) ? g : null;
+
         var config = await _db.Configurations.FirstOrDefaultAsync(
-            c => c.BroadcasterId == channelId && c.Key == $"trust:{userId}",
+            c => c.BroadcasterId == broadcasterId && c.Key == $"trust:{userId}",
             ct
         );
 
@@ -568,7 +613,7 @@ public class CommunityController : BaseController
             _db.Configurations.Add(
                 new ConfigEntity
                 {
-                    BroadcasterId = channelId,
+                    BroadcasterId = broadcasterId,
                     Key = $"trust:{userId}",
                     Value = request.Level,
                 }
@@ -595,11 +640,22 @@ public class CommunityController : BaseController
         CancellationToken ct
     )
     {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
+
+        string? twitchChannelId = await _identityResolver.GetTwitchChannelIdAsync(
+            broadcasterId,
+            ct
+        );
+        if (twitchChannelId is null)
+            return NotFoundResponse("Channel not found.");
+
         string moderatorId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "";
 
-        await _twitchApi.BanUserAsync(channelId, userId, request.Reason, ct);
+        // userId is the Twitch user string id (as exposed by the list DTOs).
+        await _twitchApi.BanUserAsync(twitchChannelId, userId, request.Reason, ct);
 
-        var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId, ct);
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.TwitchUserId == userId, ct);
 
         var entry = new BanEntry(
             userId,
@@ -612,7 +668,7 @@ public class CommunityController : BaseController
         );
 
         var existing = await _db.Configurations.FirstOrDefaultAsync(
-            c => c.BroadcasterId == channelId && c.Key == $"ban:{userId}",
+            c => c.BroadcasterId == broadcasterId && c.Key == $"ban:{userId}",
             ct
         );
 
@@ -623,7 +679,7 @@ public class CommunityController : BaseController
             _db.Configurations.Add(
                 new ConfigEntity
                 {
-                    BroadcasterId = channelId,
+                    BroadcasterId = broadcasterId,
                     Key = $"ban:{userId}",
                     Value = json,
                 }
@@ -649,10 +705,20 @@ public class CommunityController : BaseController
         CancellationToken ct
     )
     {
-        await _twitchApi.UnbanUserAsync(channelId, userId, ct);
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
+
+        string? twitchChannelId = await _identityResolver.GetTwitchChannelIdAsync(
+            broadcasterId,
+            ct
+        );
+        if (twitchChannelId is null)
+            return NotFoundResponse("Channel not found.");
+
+        await _twitchApi.UnbanUserAsync(twitchChannelId, userId, ct);
 
         var config = await _db.Configurations.FirstOrDefaultAsync(
-            c => c.BroadcasterId == channelId && c.Key == $"ban:{userId}",
+            c => c.BroadcasterId == broadcasterId && c.Key == $"ban:{userId}",
             ct
         );
 

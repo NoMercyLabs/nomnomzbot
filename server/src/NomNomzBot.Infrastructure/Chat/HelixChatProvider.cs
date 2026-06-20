@@ -30,6 +30,7 @@ namespace NomNomzBot.Infrastructure.Chat;
 public sealed class HelixChatProvider : IChatProvider
 {
     private readonly ITwitchApiService _api;
+    private readonly ITwitchIdentityResolver _identityResolver;
     private readonly IApplicationDbContext _db;
     private readonly TwitchOptions _options;
     private readonly ILogger<HelixChatProvider> _logger;
@@ -39,23 +40,32 @@ public sealed class HelixChatProvider : IChatProvider
 
     public HelixChatProvider(
         ITwitchApiService api,
+        ITwitchIdentityResolver identityResolver,
         IApplicationDbContext db,
         IOptions<TwitchOptions> options,
         ILogger<HelixChatProvider> logger
     )
     {
         _api = api;
+        _identityResolver = identityResolver;
         _db = db;
         _options = options.Value;
         _logger = logger;
     }
 
     public async Task SendMessageAsync(
-        string broadcasterId,
+        Guid broadcasterId,
         string message,
         CancellationToken cancellationToken = default
     )
     {
+        string? twitchBroadcasterId = await ResolveTwitchChannelIdAsync(
+            broadcasterId,
+            cancellationToken
+        );
+        if (twitchBroadcasterId is null)
+            return;
+
         string? botUserId = await GetBotUserIdAsync(cancellationToken);
         if (botUserId is null)
         {
@@ -66,16 +76,29 @@ public sealed class HelixChatProvider : IChatProvider
             return;
         }
 
-        await _api.SendChatMessageAsync(broadcasterId, botUserId, message, null, cancellationToken);
+        await _api.SendChatMessageAsync(
+            twitchBroadcasterId,
+            botUserId,
+            message,
+            null,
+            cancellationToken
+        );
     }
 
     public async Task SendReplyAsync(
-        string broadcasterId,
+        Guid broadcasterId,
         string replyToMessageId,
         string message,
         CancellationToken cancellationToken = default
     )
     {
+        string? twitchBroadcasterId = await ResolveTwitchChannelIdAsync(
+            broadcasterId,
+            cancellationToken
+        );
+        if (twitchBroadcasterId is null)
+            return;
+
         string? botUserId = await GetBotUserIdAsync(cancellationToken);
         if (botUserId is null)
         {
@@ -87,7 +110,7 @@ public sealed class HelixChatProvider : IChatProvider
         }
 
         await _api.SendChatMessageAsync(
-            broadcasterId,
+            twitchBroadcasterId,
             botUserId,
             message,
             replyToMessageId,
@@ -96,15 +119,22 @@ public sealed class HelixChatProvider : IChatProvider
     }
 
     public async Task TimeoutUserAsync(
-        string broadcasterId,
+        Guid broadcasterId,
         string userId,
         int durationSeconds,
         string? reason = null,
         CancellationToken cancellationToken = default
     )
     {
-        await _api.TimeoutUserAsync(
+        string? twitchBroadcasterId = await ResolveTwitchChannelIdAsync(
             broadcasterId,
+            cancellationToken
+        );
+        if (twitchBroadcasterId is null)
+            return;
+
+        await _api.TimeoutUserAsync(
+            twitchBroadcasterId,
             userId,
             durationSeconds,
             reason,
@@ -113,34 +143,76 @@ public sealed class HelixChatProvider : IChatProvider
     }
 
     public async Task BanUserAsync(
-        string broadcasterId,
+        Guid broadcasterId,
         string userId,
         string? reason = null,
         CancellationToken cancellationToken = default
     )
     {
-        await _api.BanUserAsync(broadcasterId, userId, reason, cancellationToken);
+        string? twitchBroadcasterId = await ResolveTwitchChannelIdAsync(
+            broadcasterId,
+            cancellationToken
+        );
+        if (twitchBroadcasterId is null)
+            return;
+
+        await _api.BanUserAsync(twitchBroadcasterId, userId, reason, cancellationToken);
     }
 
     public async Task UnbanUserAsync(
-        string broadcasterId,
+        Guid broadcasterId,
         string userId,
         CancellationToken cancellationToken = default
     )
     {
-        await _api.UnbanUserAsync(broadcasterId, userId, cancellationToken);
+        string? twitchBroadcasterId = await ResolveTwitchChannelIdAsync(
+            broadcasterId,
+            cancellationToken
+        );
+        if (twitchBroadcasterId is null)
+            return;
+
+        await _api.UnbanUserAsync(twitchBroadcasterId, userId, cancellationToken);
     }
 
     public async Task DeleteMessageAsync(
-        string broadcasterId,
+        Guid broadcasterId,
         string messageId,
         CancellationToken cancellationToken = default
     )
     {
-        await _api.DeleteChatMessageAsync(broadcasterId, messageId, cancellationToken);
+        string? twitchBroadcasterId = await ResolveTwitchChannelIdAsync(
+            broadcasterId,
+            cancellationToken
+        );
+        if (twitchBroadcasterId is null)
+            return;
+
+        await _api.DeleteChatMessageAsync(twitchBroadcasterId, messageId, cancellationToken);
     }
 
     // ─── Helpers ─────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Resolves the tenant Guid to the Twitch channel string id. Logs and returns null when the channel
+    /// is unknown — the caller skips the Twitch call rather than sending a Guid (the invariant).
+    /// </summary>
+    private async Task<string?> ResolveTwitchChannelIdAsync(
+        Guid broadcasterId,
+        CancellationToken ct
+    )
+    {
+        string? twitchChannelId = await _identityResolver.GetTwitchChannelIdAsync(
+            broadcasterId,
+            ct
+        );
+        if (twitchChannelId is null)
+            _logger.LogWarning(
+                "HelixChatProvider: no Twitch channel id for tenant {BroadcasterId}, skipping",
+                broadcasterId
+            );
+        return twitchChannelId;
+    }
 
     private async Task<string?> GetBotUserIdAsync(CancellationToken ct)
     {

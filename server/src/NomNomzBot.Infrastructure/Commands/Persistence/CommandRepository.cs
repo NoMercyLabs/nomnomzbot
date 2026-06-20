@@ -21,7 +21,7 @@ public class CommandRepository : GenericRepository<Command>
         : base(db) { }
 
     public Task<List<Command>> GetByBroadcasterIdAsync(
-        string broadcasterId,
+        Guid broadcasterId,
         bool? enabled = null,
         CancellationToken ct = default
     )
@@ -33,26 +33,26 @@ public class CommandRepository : GenericRepository<Command>
     }
 
     public Task<Command?> GetByNameAsync(
-        string broadcasterId,
+        Guid broadcasterId,
         string name,
         CancellationToken ct = default
     ) => Set.FirstOrDefaultAsync(c => c.BroadcasterId == broadcasterId && c.Name == name, ct);
 
     public Task<bool> ExistsByNameAsync(
-        string broadcasterId,
+        Guid broadcasterId,
         string name,
         CancellationToken ct = default
     ) => Set.AnyAsync(c => c.BroadcasterId == broadcasterId && c.Name == name, ct);
 
     public Task<List<Command>> SearchAsync(
-        string broadcasterId,
+        Guid broadcasterId,
         string search,
         CancellationToken ct = default
     ) =>
         Set.Where(c => c.BroadcasterId == broadcasterId && c.Name.Contains(search)).ToListAsync(ct);
 
     public Task<int> GetPagedCountAsync(
-        string broadcasterId,
+        Guid broadcasterId,
         string? search,
         CancellationToken ct = default
     )
@@ -64,7 +64,7 @@ public class CommandRepository : GenericRepository<Command>
     }
 
     public Task<List<Command>> GetPagedAsync(
-        string broadcasterId,
+        Guid broadcasterId,
         int page,
         int take,
         string? search,

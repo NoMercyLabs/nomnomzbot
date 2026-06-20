@@ -20,7 +20,7 @@ public class UserRoleConditionTests
     {
         PipelineExecutionContext ctx = new()
         {
-            BroadcasterId = "chan",
+            BroadcasterId = Guid.Parse("0192a000-0000-7000-8000-0000000000c1"),
             TriggeredByUserId = "user",
             TriggeredByDisplayName = "User",
             MessageId = "msg",
@@ -119,7 +119,7 @@ public class UserRoleConditionTests
         UserRoleCondition condition = new();
         PipelineExecutionContext ctx = new()
         {
-            BroadcasterId = "chan",
+            BroadcasterId = Guid.Parse("0192a000-0000-7000-8000-0000000000c1"),
             TriggeredByUserId = "user",
             TriggeredByDisplayName = "User",
             MessageId = "msg",

@@ -182,12 +182,30 @@ public sealed class SeedRunnerTests
     public async Task DefaultCommandsSeeder_upserts_per_channel_and_is_idempotent()
     {
         string db = Guid.NewGuid().ToString();
+        Guid alphaId = Guid.Parse("0192a000-0000-7000-8000-000000000100");
+        Guid bravoId = Guid.Parse("0192a000-0000-7000-8000-000000000200");
 
         // Two channels exist (created by onboarding, not by a seeder).
         await using (SeedTestDbContext context = NewContext(db))
         {
-            context.Channels.Add(new() { Id = "100", Name = "alpha" });
-            context.Channels.Add(new() { Id = "200", Name = "bravo" });
+            context.Channels.Add(
+                new()
+                {
+                    Id = alphaId,
+                    OwnerUserId = Guid.Parse("0192a000-0000-7000-8000-0000000001a0"),
+                    TwitchChannelId = "100",
+                    Name = "alpha",
+                }
+            );
+            context.Channels.Add(
+                new()
+                {
+                    Id = bravoId,
+                    OwnerUserId = Guid.Parse("0192a000-0000-7000-8000-0000000002b0"),
+                    TwitchChannelId = "200",
+                    Name = "bravo",
+                }
+            );
             await context.SaveChangesAsync();
         }
 
@@ -201,7 +219,7 @@ public sealed class SeedRunnerTests
         await using (SeedTestDbContext context = NewContext(db))
         {
             (await context.Commands.CountAsync()).Should().Be(10, "5 defaults × 2 channels");
-            (await context.Commands.Where(c => c.BroadcasterId == "100").CountAsync())
+            (await context.Commands.Where(c => c.BroadcasterId == alphaId).CountAsync())
                 .Should()
                 .Be(5);
             // Shape: every seeded default is a pipeline command with a non-empty pipeline body.

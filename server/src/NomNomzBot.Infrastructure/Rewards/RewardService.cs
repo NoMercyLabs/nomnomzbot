@@ -23,16 +23,19 @@ public class RewardService : IRewardService
 {
     private readonly IApplicationDbContext _db;
     private readonly ITwitchApiService _twitchApi;
+    private readonly ITwitchIdentityResolver _identityResolver;
     private readonly ILogger<RewardService> _logger;
 
     public RewardService(
         IApplicationDbContext db,
         ITwitchApiService twitchApi,
+        ITwitchIdentityResolver identityResolver,
         ILogger<RewardService> logger
     )
     {
         _db = db;
         _twitchApi = twitchApi;
+        _identityResolver = identityResolver;
         _logger = logger;
     }
 
@@ -42,7 +45,13 @@ public class RewardService : IRewardService
         CancellationToken cancellationToken = default
     )
     {
-        bool channel = await _db.Channels.AnyAsync(c => c.Id == broadcasterId, cancellationToken);
+        if (!Guid.TryParse(broadcasterId, out Guid broadcaster))
+            return Result.Failure<RewardDetail>(
+                $"Invalid channel ID '{broadcasterId}'.",
+                "VALIDATION_FAILED"
+            );
+
+        bool channel = await _db.Channels.AnyAsync(c => c.Id == broadcaster, cancellationToken);
 
         if (!channel)
             return Errors.ChannelNotFound<RewardDetail>(broadcasterId);
@@ -50,7 +59,7 @@ public class RewardService : IRewardService
         Reward reward = new()
         {
             Id = Guid.NewGuid(),
-            BroadcasterId = broadcasterId,
+            BroadcasterId = broadcaster,
             Title = request.Title,
             IsEnabled = true,
         };
@@ -68,6 +77,12 @@ public class RewardService : IRewardService
         CancellationToken cancellationToken = default
     )
     {
+        if (!Guid.TryParse(broadcasterId, out Guid broadcaster))
+            return Result.Failure<RewardDetail>(
+                $"Invalid channel ID '{broadcasterId}'.",
+                "VALIDATION_FAILED"
+            );
+
         if (!Guid.TryParse(rewardId, out Guid guid))
             return Result.Failure<RewardDetail>(
                 $"Invalid reward ID '{rewardId}'.",
@@ -75,7 +90,7 @@ public class RewardService : IRewardService
             );
 
         Reward? reward = await _db.Rewards.FirstOrDefaultAsync(
-            r => r.Id == guid && r.BroadcasterId == broadcasterId,
+            r => r.Id == guid && r.BroadcasterId == broadcaster,
             cancellationToken
         );
 
@@ -98,11 +113,14 @@ public class RewardService : IRewardService
         CancellationToken cancellationToken = default
     )
     {
+        if (!Guid.TryParse(broadcasterId, out Guid broadcaster))
+            return Result.Failure($"Invalid channel ID '{broadcasterId}'.", "VALIDATION_FAILED");
+
         if (!Guid.TryParse(rewardId, out Guid guid))
             return Result.Failure($"Invalid reward ID '{rewardId}'.", "VALIDATION_FAILED");
 
         Reward? reward = await _db.Rewards.FirstOrDefaultAsync(
-            r => r.Id == guid && r.BroadcasterId == broadcasterId,
+            r => r.Id == guid && r.BroadcasterId == broadcaster,
             cancellationToken
         );
 
@@ -121,7 +139,13 @@ public class RewardService : IRewardService
         CancellationToken cancellationToken = default
     )
     {
-        IQueryable<Reward> query = _db.Rewards.Where(r => r.BroadcasterId == broadcasterId);
+        if (!Guid.TryParse(broadcasterId, out Guid broadcaster))
+            return Result.Failure<PagedList<RewardListItem>>(
+                $"Invalid channel ID '{broadcasterId}'.",
+                "VALIDATION_FAILED"
+            );
+
+        IQueryable<Reward> query = _db.Rewards.Where(r => r.BroadcasterId == broadcaster);
         int total = await query.CountAsync(cancellationToken);
 
         List<RewardListItem> items = await query
@@ -150,6 +174,12 @@ public class RewardService : IRewardService
         CancellationToken cancellationToken = default
     )
     {
+        if (!Guid.TryParse(broadcasterId, out Guid broadcaster))
+            return Result.Failure<RewardDetail>(
+                $"Invalid channel ID '{broadcasterId}'.",
+                "VALIDATION_FAILED"
+            );
+
         if (!Guid.TryParse(rewardId, out Guid guid))
             return Result.Failure<RewardDetail>(
                 $"Invalid reward ID '{rewardId}'.",
@@ -157,7 +187,7 @@ public class RewardService : IRewardService
             );
 
         Reward? reward = await _db.Rewards.FirstOrDefaultAsync(
-            r => r.Id == guid && r.BroadcasterId == broadcasterId,
+            r => r.Id == guid && r.BroadcasterId == broadcaster,
             cancellationToken
         );
 
@@ -172,15 +202,26 @@ public class RewardService : IRewardService
         CancellationToken cancellationToken = default
     )
     {
+        if (!Guid.TryParse(broadcasterId, out Guid broadcaster))
+            return Result.Failure($"Invalid channel ID '{broadcasterId}'.", "VALIDATION_FAILED");
+
         bool channelExists = await _db.Channels.AnyAsync(
-            c => c.Id == broadcasterId,
+            c => c.Id == broadcaster,
             cancellationToken
         );
         if (!channelExists)
             return Errors.ChannelNotFound(broadcasterId);
 
+        // Resolve the tenant Guid to the Twitch channel string id — Helix never receives a Guid.
+        string? twitchChannelId = await _identityResolver.GetTwitchChannelIdAsync(
+            broadcaster,
+            cancellationToken
+        );
+        if (twitchChannelId is null)
+            return Errors.ChannelNotFound(broadcasterId);
+
         IReadOnlyList<TwitchRewardInfo> twitchRewards = await _twitchApi.GetCustomRewardsAsync(
-            broadcasterId,
+            twitchChannelId,
             cancellationToken
         );
         if (twitchRewards.Count == 0)
@@ -193,7 +234,7 @@ public class RewardService : IRewardService
         }
 
         List<Reward> existing = await _db
-            .Rewards.Where(r => r.BroadcasterId == broadcasterId)
+            .Rewards.Where(r => r.BroadcasterId == broadcaster)
             .ToListAsync(cancellationToken);
 
         Dictionary<string, Reward> existingByTwitchId = existing
@@ -233,7 +274,7 @@ public class RewardService : IRewardService
                     new()
                     {
                         Id = Guid.NewGuid(),
-                        BroadcasterId = broadcasterId,
+                        BroadcasterId = broadcaster,
                         Title = tr.Title,
                         TwitchRewardId = tr.Id,
                         Cost = tr.Cost,

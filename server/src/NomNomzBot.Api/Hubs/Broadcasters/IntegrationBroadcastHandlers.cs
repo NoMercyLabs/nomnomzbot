@@ -24,11 +24,11 @@ public sealed class IntegrationConnectedBroadcastHandler : IEventHandler<Integra
 
     public Task HandleAsync(IntegrationConnectedEvent @event, CancellationToken ct = default)
     {
-        if (string.IsNullOrEmpty(@event.BroadcasterId))
+        if (@event.BroadcasterId == Guid.Empty)
             return Task.CompletedTask;
 
         return _notifier.NotifyChannelAsync(
-            @event.BroadcasterId,
+            @event.BroadcasterId.ToString(),
             "integration_connected",
             new IntegrationEventDto(@event.IntegrationName),
             ct
@@ -47,11 +47,11 @@ public sealed class IntegrationDisconnectedBroadcastHandler
 
     public Task HandleAsync(IntegrationDisconnectedEvent @event, CancellationToken ct = default)
     {
-        if (string.IsNullOrEmpty(@event.BroadcasterId))
+        if (@event.BroadcasterId == Guid.Empty)
             return Task.CompletedTask;
 
         return _notifier.SendAlertAsync(
-            @event.BroadcasterId,
+            @event.BroadcasterId.ToString(),
             new(
                 "integration_disconnected",
                 $"{@event.IntegrationName} disconnected",

@@ -202,9 +202,13 @@ public sealed class SpotifyMusicProvider : IMusicProvider
         CancellationToken cancellationToken
     )
     {
+        // Service.BroadcasterId is the tenant Guid (null = platform row); the provider receives it as a string.
+        if (!Guid.TryParse(broadcasterId, out Guid tenantId))
+            return null;
+
         Service? service = await _db.Services.FirstOrDefaultAsync(
             s =>
-                s.BroadcasterId == broadcasterId
+                s.BroadcasterId == tenantId
                 && s.Name == ProviderName
                 && s.Enabled
                 && s.AccessToken != null,
@@ -236,7 +240,7 @@ public sealed class SpotifyMusicProvider : IMusicProvider
             ? await _tokenProtector.TryUnprotectAsync(
                 service.AccessToken,
                 new TokenProtectionContext(
-                    service.BroadcasterId ?? "_platform",
+                    service.BroadcasterId?.ToString() ?? "_platform",
                     ProviderName,
                     "access"
                 ),
@@ -253,7 +257,7 @@ public sealed class SpotifyMusicProvider : IMusicProvider
         if (service.RefreshToken is null)
             return null;
 
-        string subjectId = service.BroadcasterId ?? "_platform";
+        string subjectId = service.BroadcasterId?.ToString() ?? "_platform";
 
         string? refreshToken = await _tokenProtector.TryUnprotectAsync(
             service.RefreshToken,

@@ -32,8 +32,14 @@ public class EventResponseService : IEventResponseService
         CancellationToken cancellationToken = default
     )
     {
+        if (!Guid.TryParse(broadcasterId, out Guid broadcaster))
+            return Result.Failure<PagedList<EventResponseListItem>>(
+                $"Invalid channel ID '{broadcasterId}'.",
+                "VALIDATION_FAILED"
+            );
+
         IQueryable<EventResponse> query = _db.EventResponses.Where(e =>
-            e.BroadcasterId == broadcasterId
+            e.BroadcasterId == broadcaster
         );
         int total = await query.CountAsync(cancellationToken);
 
@@ -61,8 +67,14 @@ public class EventResponseService : IEventResponseService
         CancellationToken cancellationToken = default
     )
     {
+        if (!Guid.TryParse(broadcasterId, out Guid broadcaster))
+            return Result.Failure<EventResponseDto>(
+                $"Invalid channel ID '{broadcasterId}'.",
+                "VALIDATION_FAILED"
+            );
+
         EventResponse? entity = await _db.EventResponses.FirstOrDefaultAsync(
-            e => e.BroadcasterId == broadcasterId && e.EventType == eventType,
+            e => e.BroadcasterId == broadcaster && e.EventType == eventType,
             cancellationToken
         );
 
@@ -79,8 +91,14 @@ public class EventResponseService : IEventResponseService
         CancellationToken cancellationToken = default
     )
     {
+        if (!Guid.TryParse(broadcasterId, out Guid broadcaster))
+            return Result.Failure<EventResponseDto>(
+                $"Invalid channel ID '{broadcasterId}'.",
+                "VALIDATION_FAILED"
+            );
+
         EventResponse? entity = await _db.EventResponses.FirstOrDefaultAsync(
-            e => e.BroadcasterId == broadcasterId && e.EventType == eventType,
+            e => e.BroadcasterId == broadcaster && e.EventType == eventType,
             cancellationToken
         );
 
@@ -88,7 +106,7 @@ public class EventResponseService : IEventResponseService
         {
             entity = new()
             {
-                BroadcasterId = broadcasterId,
+                BroadcasterId = broadcaster,
                 EventType = eventType,
                 ResponseType = request.ResponseType ?? "chat_message",
                 IsEnabled = request.IsEnabled ?? true,
@@ -123,8 +141,11 @@ public class EventResponseService : IEventResponseService
         CancellationToken cancellationToken = default
     )
     {
+        if (!Guid.TryParse(broadcasterId, out Guid broadcaster))
+            return Result.Failure($"Invalid channel ID '{broadcasterId}'.", "VALIDATION_FAILED");
+
         EventResponse? entity = await _db.EventResponses.FirstOrDefaultAsync(
-            e => e.BroadcasterId == broadcasterId && e.EventType == eventType,
+            e => e.BroadcasterId == broadcaster && e.EventType == eventType,
             cancellationToken
         );
 

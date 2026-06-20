@@ -23,4 +23,12 @@ public interface IChannelAccessService
         string channelId,
         CancellationToken cancellationToken = default
     );
+
+    /// <summary>
+    /// The caller's own tenant: <c>Channels.Id</c> where <c>OwnerUserId == userId</c> and not
+    /// soft-deleted. <see cref="Guid.Empty"/> when the user owns no channel (fresh account /
+    /// not-yet-onboarded → middleware leaves the tenant unset). This is the IDOR fix: the default
+    /// tenant is the caller's CHANNEL, never their user id.
+    /// </summary>
+    Task<Guid> ResolveOwnChannelAsync(string userId, CancellationToken cancellationToken = default);
 }

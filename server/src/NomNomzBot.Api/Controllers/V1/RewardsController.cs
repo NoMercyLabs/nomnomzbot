@@ -159,18 +159,22 @@ public class RewardsController : BaseController
     [ProducesResponseType<StatusResponseDto<List<LeaderboardEntryDto>>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetLeaderboard(string channelId, CancellationToken ct)
     {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
+
         var topChatters = await _db
-            .ChatMessages.Where(m => m.BroadcasterId == channelId)
+            .ChatMessages.Where(m => m.BroadcasterId == broadcasterId)
             .GroupBy(m => m.UserId)
             .Select(g => new { UserId = g.Key, Count = g.Count() })
             .OrderByDescending(x => x.Count)
             .Take(50)
             .ToListAsync(ct);
 
+        // ChatMessage.UserId holds the Twitch user string id — join on User.TwitchUserId.
         var userIds = topChatters.Select(x => x.UserId).ToList();
         var users = await _db
-            .Users.Where(u => userIds.Contains(u.Id))
-            .ToDictionaryAsync(u => u.Id, u => u.DisplayName, ct);
+            .Users.Where(u => userIds.Contains(u.TwitchUserId))
+            .ToDictionaryAsync(u => u.TwitchUserId, u => u.DisplayName, ct);
 
         var entries = topChatters
             .Select(

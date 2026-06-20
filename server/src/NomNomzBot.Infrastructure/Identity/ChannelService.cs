@@ -33,8 +33,11 @@ public class ChannelService : IChannelService
         CancellationToken cancellationToken = default
     )
     {
+        if (!Guid.TryParse(broadcasterId, out Guid broadcasterGuid))
+            return Errors.ChannelNotFound(broadcasterId);
+
         Channel? channel = await _db.Channels.FirstOrDefaultAsync(
-            c => c.Id == broadcasterId,
+            c => c.Id == broadcasterGuid,
             cancellationToken
         );
 
@@ -53,8 +56,11 @@ public class ChannelService : IChannelService
         CancellationToken cancellationToken = default
     )
     {
+        if (!Guid.TryParse(broadcasterId, out Guid broadcasterGuid))
+            return Errors.ChannelNotFound(broadcasterId);
+
         Channel? channel = await _db.Channels.FirstOrDefaultAsync(
-            c => c.Id == broadcasterId,
+            c => c.Id == broadcasterGuid,
             cancellationToken
         );
 
@@ -72,9 +78,12 @@ public class ChannelService : IChannelService
         CancellationToken cancellationToken = default
     )
     {
+        if (!Guid.TryParse(broadcasterId, out Guid broadcasterGuid))
+            return Errors.ChannelNotFound<ChannelDto>(broadcasterId);
+
         Channel? channel = await _db
             .Channels.Include(c => c.User)
-            .FirstOrDefaultAsync(c => c.Id == broadcasterId, cancellationToken);
+            .FirstOrDefaultAsync(c => c.Id == broadcasterGuid, cancellationToken);
 
         if (channel is null)
             return Errors.ChannelNotFound<ChannelDto>(broadcasterId);
@@ -91,7 +100,7 @@ public class ChannelService : IChannelService
             .Where(c => c.Enabled && c.IsOnboarded)
             .OrderBy(c => c.Name)
             .Select(c => new ChannelSummaryDto(
-                c.Id,
+                c.Id.ToString(),
                 c.Name,
                 c.User.DisplayName,
                 c.User.ProfileImageUrl,
@@ -112,14 +121,20 @@ public class ChannelService : IChannelService
         CancellationToken cancellationToken = default
     )
     {
-        // Return channels where the user is the broadcaster, a DB-tracked moderator,
-        // or present in the caller-supplied list (e.g. from the Twitch moderation API).
+        // userId is the internal user Guid in string form. additionalChannelIds are external Twitch
+        // channel ids (from the Twitch moderation API) and resolve against Channels.TwitchChannelId.
+        Guid.TryParse(userId, out Guid userGuid);
+
+        IReadOnlyList<string> extraTwitchChannelIds = additionalChannelIds ?? [];
+
+        // Return channels where the user is the broadcaster (owner), a DB-tracked moderator,
+        // or present in the caller-supplied Twitch-id list.
         IQueryable<Channel> query = _db
             .Channels.Include(c => c.User)
             .Where(c =>
-                c.Id == userId
-                || c.Moderators.Any(m => m.UserId == userId)
-                || (additionalChannelIds != null && additionalChannelIds.Contains(c.Id))
+                c.OwnerUserId == userGuid
+                || c.Moderators.Any(m => m.UserId == userGuid)
+                || extraTwitchChannelIds.Contains(c.TwitchChannelId)
             );
 
         int total = await query.CountAsync(cancellationToken);
@@ -129,12 +144,12 @@ public class ChannelService : IChannelService
             .Skip((pagination.Page - 1) * pagination.PageSize)
             .Take(pagination.PageSize)
             .Select(c => new ChannelSummaryDto(
-                c.Id,
+                c.Id.ToString(),
                 c.Name,
                 c.User.DisplayName,
                 c.User.ProfileImageUrl,
                 c.IsLive,
-                c.Id == userId ? "broadcaster" : "moderator",
+                c.OwnerUserId == userGuid ? "broadcaster" : "moderator",
                 null,
                 c.OverlayToken
             ))
@@ -151,9 +166,12 @@ public class ChannelService : IChannelService
         CancellationToken cancellationToken = default
     )
     {
+        if (!Guid.TryParse(broadcasterId, out Guid broadcasterGuid))
+            return Errors.ChannelNotFound<ChannelDto>(broadcasterId);
+
         Channel? channel = await _db
             .Channels.Include(c => c.User)
-            .FirstOrDefaultAsync(c => c.Id == broadcasterId, cancellationToken);
+            .FirstOrDefaultAsync(c => c.Id == broadcasterGuid, cancellationToken);
 
         if (channel is null)
             return Errors.ChannelNotFound<ChannelDto>(broadcasterId);
@@ -175,9 +193,17 @@ public class ChannelService : IChannelService
         CancellationToken cancellationToken = default
     )
     {
+        // broadcasterId identifies the owning user (internal User Guid in string form). The channel's
+        // own surrogate id is generated on creation; its Twitch id comes from the owner's TwitchUserId.
+        if (!Guid.TryParse(broadcasterId, out Guid ownerGuid))
+            return Result.Failure<ChannelDto>(
+                "User not found. Cannot onboard channel.",
+                "NOT_FOUND"
+            );
+
         Channel? existing = await _db
             .Channels.Include(c => c.User)
-            .FirstOrDefaultAsync(c => c.Id == broadcasterId, cancellationToken);
+            .FirstOrDefaultAsync(c => c.OwnerUserId == ownerGuid, cancellationToken);
 
         if (existing is not null)
         {
@@ -188,10 +214,7 @@ public class ChannelService : IChannelService
         }
 
         // Check if user exists
-        User? user = await _db.Users.FirstOrDefaultAsync(
-            u => u.Id == broadcasterId,
-            cancellationToken
-        );
+        User? user = await _db.Users.FirstOrDefaultAsync(u => u.Id == ownerGuid, cancellationToken);
         if (user is null)
             return Result.Failure<ChannelDto>(
                 "User not found. Cannot onboard channel.",
@@ -200,7 +223,8 @@ public class ChannelService : IChannelService
 
         Channel channel = new()
         {
-            Id = broadcasterId,
+            OwnerUserId = user.Id,
+            TwitchChannelId = user.TwitchUserId,
             Name = user.Username,
             IsOnboarded = true,
             Enabled = true,
@@ -219,8 +243,11 @@ public class ChannelService : IChannelService
         CancellationToken cancellationToken = default
     )
     {
+        if (!Guid.TryParse(broadcasterId, out Guid broadcasterGuid))
+            return Errors.ChannelNotFound(broadcasterId);
+
         Channel? channel = await _db.Channels.FirstOrDefaultAsync(
-            c => c.Id == broadcasterId,
+            c => c.Id == broadcasterGuid,
             cancellationToken
         );
 
@@ -241,13 +268,13 @@ public class ChannelService : IChannelService
         return await _db
             .Channels.Include(c => c.User)
             .Where(c => c.OverlayToken == token)
-            .Select(c => new ChannelOverlayInfo(c.Id, c.User.DisplayName))
+            .Select(c => new ChannelOverlayInfo(c.Id.ToString(), c.User.DisplayName))
             .FirstOrDefaultAsync(cancellationToken);
     }
 
     private static ChannelDto ToDto(Channel c) =>
         new(
-            c.Id,
+            c.Id.ToString(),
             c.Name,
             c.User?.DisplayName ?? c.Name,
             c.User?.ProfileImageUrl,

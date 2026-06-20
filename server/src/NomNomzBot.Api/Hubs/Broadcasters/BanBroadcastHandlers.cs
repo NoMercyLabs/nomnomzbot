@@ -24,11 +24,11 @@ public sealed class UserBannedBroadcastHandler : IEventHandler<UserBannedEvent>
 
     public Task HandleAsync(UserBannedEvent @event, CancellationToken ct = default)
     {
-        if (string.IsNullOrEmpty(@event.BroadcasterId))
+        if (@event.BroadcasterId == Guid.Empty)
             return Task.CompletedTask;
 
         return _notifier.SendModActionAsync(
-            @event.BroadcasterId,
+            @event.BroadcasterId.ToString(),
             new("ban", @event.ModeratorUserId, @event.TargetUserId, @event.Reason, null),
             ct
         );
@@ -44,11 +44,11 @@ public sealed class UserTimedOutBroadcastHandler : IEventHandler<UserTimedOutEve
 
     public Task HandleAsync(UserTimedOutEvent @event, CancellationToken ct = default)
     {
-        if (string.IsNullOrEmpty(@event.BroadcasterId))
+        if (@event.BroadcasterId == Guid.Empty)
             return Task.CompletedTask;
 
         return _notifier.SendModActionAsync(
-            @event.BroadcasterId,
+            @event.BroadcasterId.ToString(),
             new(
                 "timeout",
                 @event.ModeratorUserId,
@@ -70,11 +70,11 @@ public sealed class UserUnbannedBroadcastHandler : IEventHandler<UserUnbannedEve
 
     public Task HandleAsync(UserUnbannedEvent @event, CancellationToken ct = default)
     {
-        if (string.IsNullOrEmpty(@event.BroadcasterId))
+        if (@event.BroadcasterId == Guid.Empty)
             return Task.CompletedTask;
 
         return _notifier.SendModActionAsync(
-            @event.BroadcasterId,
+            @event.BroadcasterId.ToString(),
             new("unban", @event.ModeratorUserId, @event.TargetUserId, null, null),
             ct
         );

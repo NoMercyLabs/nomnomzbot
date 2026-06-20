@@ -24,11 +24,11 @@ public sealed class NewSubscriptionBroadcastHandler : IEventHandler<NewSubscript
 
     public Task HandleAsync(NewSubscriptionEvent @event, CancellationToken ct = default)
     {
-        if (string.IsNullOrEmpty(@event.BroadcasterId))
+        if (@event.BroadcasterId == Guid.Empty)
             return Task.CompletedTask;
 
         return _notifier.NotifyChannelAsync(
-            @event.BroadcasterId,
+            @event.BroadcasterId.ToString(),
             "subscription",
             new SubscriptionAlertDto(@event.UserId, @event.UserDisplayName, @event.Tier),
             ct
@@ -45,11 +45,11 @@ public sealed class ResubscriptionBroadcastHandler : IEventHandler<Resubscriptio
 
     public Task HandleAsync(ResubscriptionEvent @event, CancellationToken ct = default)
     {
-        if (string.IsNullOrEmpty(@event.BroadcasterId))
+        if (@event.BroadcasterId == Guid.Empty)
             return Task.CompletedTask;
 
         return _notifier.NotifyChannelAsync(
-            @event.BroadcasterId,
+            @event.BroadcasterId.ToString(),
             "resub",
             new ResubAlertDto(
                 @event.UserId,
@@ -73,11 +73,11 @@ public sealed class GiftSubscriptionBroadcastHandler : IEventHandler<GiftSubscri
 
     public Task HandleAsync(GiftSubscriptionEvent @event, CancellationToken ct = default)
     {
-        if (string.IsNullOrEmpty(@event.BroadcasterId))
+        if (@event.BroadcasterId == Guid.Empty)
             return Task.CompletedTask;
 
         return _notifier.NotifyChannelAsync(
-            @event.BroadcasterId,
+            @event.BroadcasterId.ToString(),
             "gift_sub",
             new GiftSubAlertDto(
                 @event.IsAnonymous ? null : @event.GifterUserId,

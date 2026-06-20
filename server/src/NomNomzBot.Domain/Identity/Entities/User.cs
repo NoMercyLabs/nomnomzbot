@@ -16,8 +16,14 @@ namespace NomNomzBot.Domain.Identity.Entities;
 
 public class User : BaseEntity
 {
+    // Surrogate UUIDv7 PK (schema §1.1) — generated app-side via Guid.CreateVersion7(),
+    // never DB-default, never Guid.NewGuid(). The internal FK target; never sent to Twitch.
+    public Guid Id { get; set; } = Guid.CreateVersion7();
+
+    // External Twitch user id — a first-class indexed attribute (schema A.1), NOT the key.
+    // This is what every Helix/IRC/EventSub call uses; the Guid never reaches Twitch.
     [MaxLength(50)]
-    public string Id { get; set; } = null!;
+    public string TwitchUserId { get; set; } = null!;
 
     [MaxLength(255)]
     public string Username { get; set; } = null!;

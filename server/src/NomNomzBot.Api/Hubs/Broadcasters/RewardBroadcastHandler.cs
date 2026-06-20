@@ -23,11 +23,11 @@ public sealed class RewardRedeemedBroadcastHandler : IEventHandler<RewardRedeeme
 
     public Task HandleAsync(RewardRedeemedEvent @event, CancellationToken ct = default)
     {
-        if (string.IsNullOrEmpty(@event.BroadcasterId))
+        if (@event.BroadcasterId == Guid.Empty)
             return Task.CompletedTask;
 
         RewardRedeemedDto dto = new(
-            BroadcasterId: @event.BroadcasterId,
+            BroadcasterId: @event.BroadcasterId.ToString(),
             RewardId: @event.RewardId,
             RewardTitle: @event.RewardTitle,
             RedemptionId: @event.RedemptionId,
@@ -38,6 +38,6 @@ public sealed class RewardRedeemedBroadcastHandler : IEventHandler<RewardRedeeme
             Timestamp: @event.Timestamp.ToString("O")
         );
 
-        return _notifier.SendRewardRedeemedAsync(@event.BroadcasterId, dto, ct);
+        return _notifier.SendRewardRedeemedAsync(@event.BroadcasterId.ToString(), dto, ct);
     }
 }

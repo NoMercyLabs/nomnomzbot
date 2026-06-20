@@ -22,7 +22,7 @@ public class EventSubscriptionConfiguration : IEntityTypeConfiguration<EventSubs
 
         builder.Property(e => e.Id).IsRequired().HasMaxLength(50);
 
-        builder.Property(e => e.BroadcasterId).IsRequired().HasMaxLength(50);
+        builder.Property(e => e.BroadcasterId).IsRequired();
 
         builder.Property(e => e.Provider).IsRequired().HasMaxLength(50);
 

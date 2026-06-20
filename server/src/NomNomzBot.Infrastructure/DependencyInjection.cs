@@ -299,6 +299,10 @@ public static class DependencyInjection
         // ITwitchAuthService → TwitchAuthService and ITwitchApiService → TwitchApiService are
         // scoped single-impl services discovered by AddServicesByConvention above.
 
+        // Twitch identity resolver — the single seam translating tenant/user Guids ↔ Twitch string ids
+        // (the invariant: Twitch never receives a Guid). Scoped: reads the per-request DbContext.
+        services.AddScoped<ITwitchIdentityResolver, TwitchIdentityResolver>();
+
         // Chat provider (Helix-first, used by pipeline actions and background services).
         // IChatProvider is not an I<X>Service, so it is registered explicitly.
         services.AddScoped<IChatProvider, HelixChatProvider>();

@@ -20,10 +20,10 @@ public class ChatMessage : SoftDeletableEntity
 {
     [MaxLength(255)]
     public string Id { get; set; } = null!;
+    public Guid BroadcasterId { get; set; }
 
-    [MaxLength(50)]
-    public string BroadcasterId { get; set; } = null!;
-
+    // Twitch user id (string) of the chatter — a first-class indexed attribute, NOT an FK to Users.Id
+    // (chat is high-volume and carries the Twitch id + denormalized Username/DisplayName inline).
     [MaxLength(50)]
     public string UserId { get; set; } = null!;
 
@@ -60,9 +60,6 @@ public class ChatMessage : SoftDeletableEntity
 
     [ForeignKey(nameof(BroadcasterId))]
     public virtual Channel Channel { get; set; } = null!;
-
-    [ForeignKey(nameof(UserId))]
-    public virtual User User { get; set; } = null!;
 
     [ForeignKey(nameof(StreamId))]
     public virtual global::NomNomzBot.Domain.Stream.Entities.Stream? Stream { get; set; }

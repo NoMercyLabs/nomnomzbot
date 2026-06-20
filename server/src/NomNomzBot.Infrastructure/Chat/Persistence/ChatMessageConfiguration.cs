@@ -22,7 +22,7 @@ public class ChatMessageConfiguration : IEntityTypeConfiguration<ChatMessage>
 
         builder.Property(e => e.Id).IsRequired().HasMaxLength(255);
 
-        builder.Property(e => e.BroadcasterId).IsRequired().HasMaxLength(50);
+        builder.Property(e => e.BroadcasterId).IsRequired();
 
         builder.Property(e => e.UserId).IsRequired().HasMaxLength(50);
 
@@ -58,11 +58,8 @@ public class ChatMessageConfiguration : IEntityTypeConfiguration<ChatMessage>
             .HasForeignKey(e => e.BroadcasterId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        builder
-            .HasOne(e => e.User)
-            .WithMany()
-            .HasForeignKey(e => e.UserId)
-            .OnDelete(DeleteBehavior.Restrict);
+        // UserId is the Twitch user id (indexed attribute), not an FK to Users.Id.
+        builder.HasIndex(e => e.UserId).HasDatabaseName("IX_ChatMessage_UserId");
 
         builder
             .HasOne(e => e.Stream)
@@ -73,7 +70,5 @@ public class ChatMessageConfiguration : IEntityTypeConfiguration<ChatMessage>
         builder
             .HasIndex(e => new { e.BroadcasterId, e.CreatedAt })
             .HasDatabaseName("IX_ChatMessage_BroadcasterId_CreatedAt");
-
-        builder.HasQueryFilter(e => e.DeletedAt == null);
     }
 }

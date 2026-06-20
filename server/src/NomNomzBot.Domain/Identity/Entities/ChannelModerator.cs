@@ -16,11 +16,11 @@ namespace NomNomzBot.Domain.Identity.Entities;
 
 public class ChannelModerator : SoftDeletableEntity, ITenantScoped
 {
-    [MaxLength(50)]
-    public string ChannelId { get; set; } = null!;
+    // FK→Channels.Id (tenant) — string→Guid per schema §1.1.
+    public Guid ChannelId { get; set; }
 
-    [MaxLength(50)]
-    public string UserId { get; set; } = null!;
+    // FK→Users.Id — string→Guid per schema §1.1.
+    public Guid UserId { get; set; }
 
     [MaxLength(20)]
     public string Role { get; set; } = "moderator";
@@ -29,10 +29,9 @@ public class ChannelModerator : SoftDeletableEntity, ITenantScoped
     // platform-conventions §3.11) — entities do not self-stamp time.
     public DateTime GrantedAt { get; set; }
 
-    [MaxLength(50)]
-    public string? GrantedBy { get; set; }
+    public Guid? GrantedByUserId { get; set; }
 
-    string ITenantScoped.BroadcasterId
+    Guid ITenantScoped.BroadcasterId
     {
         get => ChannelId;
         set => ChannelId = value;

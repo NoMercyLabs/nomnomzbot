@@ -32,7 +32,7 @@ public sealed class PredictionBeganHandler
     )
         : base(s, p, l) { }
 
-    protected override string? GetUserId(PredictionBeganEvent e) => e.BroadcasterId;
+    protected override string? GetUserId(PredictionBeganEvent e) => e.BroadcasterId.ToString();
 
     protected override string? GetUserDisplayName(PredictionBeganEvent e) => null;
 
@@ -63,7 +63,7 @@ public sealed class PredictionLockedHandler
     )
         : base(s, p, l) { }
 
-    protected override string? GetUserId(PredictionLockedEvent e) => e.BroadcasterId;
+    protected override string? GetUserId(PredictionLockedEvent e) => e.BroadcasterId.ToString();
 
     protected override string? GetUserDisplayName(PredictionLockedEvent e) => null;
 
@@ -93,7 +93,7 @@ public sealed class PredictionEndedHandler
     )
         : base(s, p, l) { }
 
-    protected override string? GetUserId(PredictionEndedEvent e) => e.BroadcasterId;
+    protected override string? GetUserId(PredictionEndedEvent e) => e.BroadcasterId.ToString();
 
     protected override string? GetUserDisplayName(PredictionEndedEvent e) => null;
 

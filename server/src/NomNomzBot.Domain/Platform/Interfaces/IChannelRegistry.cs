@@ -18,13 +18,16 @@ namespace NomNomzBot.Domain.Platform.Interfaces;
 /// </summary>
 public interface IChannelRegistry
 {
+    // broadcasterId is the tenant (channel) Guid; twitchChannelId is the Twitch string id used for
+    // Helix/IRC; channelName is the channel login name.
     Task<ChannelContext> GetOrCreateAsync(
-        string broadcasterId,
+        Guid broadcasterId,
+        string twitchChannelId,
         string channelName,
         CancellationToken ct = default
     );
-    ChannelContext? Get(string broadcasterId);
-    Task RemoveAsync(string broadcasterId, CancellationToken ct = default);
+    ChannelContext? Get(Guid broadcasterId);
+    Task RemoveAsync(Guid broadcasterId, CancellationToken ct = default);
     IReadOnlyCollection<ChannelContext> GetAll();
     IReadOnlyCollection<ChannelContext> GetLiveChannels();
     int Count { get; }
@@ -35,7 +38,9 @@ public interface IChannelRegistry
 /// </summary>
 public class ChannelContext
 {
-    public required string BroadcasterId { get; init; }
+    // Tenant (channel) Guid — the registry key. The Twitch string id is carried separately for transport.
+    public required Guid BroadcasterId { get; init; }
+    public required string TwitchChannelId { get; init; }
     public required string ChannelName { get; init; }
     public string? DisplayName { get; set; }
     public bool IsLive { get; set; }

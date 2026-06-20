@@ -194,6 +194,10 @@ public sealed class TrustService : ITrustService
         CancellationToken ct
     )
     {
+        // Record.BroadcasterId is the tenant Guid; the per-(broadcaster,user) keys arrive as strings.
+        if (!Guid.TryParse(broadcasterId, out Guid tenantId))
+            return null;
+
         try
         {
             using IServiceScope scope = _scopeFactory.CreateScope();
@@ -202,9 +206,7 @@ public sealed class TrustService : ITrustService
 
             Record? record = await db.Records.FirstOrDefaultAsync(
                 r =>
-                    r.BroadcasterId == broadcasterId
-                    && r.UserId == userId
-                    && r.RecordType == RecordType,
+                    r.BroadcasterId == tenantId && r.UserId == userId && r.RecordType == RecordType,
                 ct
             );
 
@@ -244,9 +246,13 @@ public sealed class TrustService : ITrustService
             IApplicationDbContext db =
                 scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
 
-            User? user = await db.Users.FirstOrDefaultAsync(u => u.Id == userId, ct);
-            if (user is not null)
-                accountCreated = user.CreatedAt;
+            // userId is the internal user Guid key; look up the User by its surrogate PK.
+            if (Guid.TryParse(userId, out Guid userGuid))
+            {
+                User? user = await db.Users.FirstOrDefaultAsync(u => u.Id == userGuid, ct);
+                if (user is not null)
+                    accountCreated = user.CreatedAt;
+            }
         }
         catch
         {
@@ -290,9 +296,11 @@ public sealed class TrustService : ITrustService
                 }
             }
 
+            // Record.BroadcasterId is the tenant Guid; the string key is parsed at this boundary.
+            Guid.TryParse(broadcasterId, out Guid tenantId);
             Record newRecord = new()
             {
-                BroadcasterId = broadcasterId,
+                BroadcasterId = tenantId,
                 UserId = userId,
                 RecordType = RecordType,
                 Data = data,

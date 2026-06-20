@@ -18,9 +18,7 @@ namespace NomNomzBot.Domain.Rewards.Entities;
 public class WatchStreak : BaseEntity
 {
     public Guid Id { get; set; }
-
-    [MaxLength(50)]
-    public string BroadcasterId { get; set; } = null!;
+    public Guid BroadcasterId { get; set; }
 
     [MaxLength(50)]
     public string UserId { get; set; } = null!;

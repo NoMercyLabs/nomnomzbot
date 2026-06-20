@@ -19,11 +19,11 @@ public class ChannelEvent : BaseEntity
     [MaxLength(50)]
     public string Id { get; set; } = null!;
 
-    [MaxLength(50)]
-    public string? ChannelId { get; set; }
+    // FK→Channels.Id (tenant) — string→Guid per schema §1.1.
+    public Guid? ChannelId { get; set; }
 
-    [MaxLength(50)]
-    public string? UserId { get; set; }
+    // FK→Users.Id — string→Guid per schema §1.1.
+    public Guid? UserId { get; set; }
 
     [MaxLength(50)]
     public string Type { get; set; } = null!;

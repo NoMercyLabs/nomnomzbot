@@ -48,7 +48,7 @@ public interface ITrustService
 public sealed class TrustScore
 {
     public required string UserId { get; init; }
-    public required string BroadcasterId { get; init; }
+    public required Guid BroadcasterId { get; init; }
     public required double Score { get; init; }
     public required double RequestScore { get; init; }
     public required double AccountScore { get; init; }

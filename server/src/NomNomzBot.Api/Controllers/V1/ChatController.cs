@@ -89,13 +89,16 @@ public class ChatController : BaseController
     {
         limit = Math.Clamp(limit, 1, 200);
 
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
+
         var messages = await _db
-            .ChatMessages.Where(m => m.BroadcasterId == channelId && m.DeletedAt == null)
+            .ChatMessages.Where(m => m.BroadcasterId == broadcasterId && m.DeletedAt == null)
             .OrderByDescending(m => m.CreatedAt)
             .Take(limit)
             .Select(m => new ChatMessageDto(
                 m.Id,
-                m.BroadcasterId,
+                channelId,
                 m.UserId,
                 m.Username,
                 m.DisplayName,
@@ -125,8 +128,10 @@ public class ChatController : BaseController
     [ProducesResponseType<StatusResponseDto<ChatSettingsDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetSettings(string channelId, CancellationToken ct)
     {
+        Guid? broadcasterId = Guid.TryParse(channelId, out Guid g) ? g : null;
+
         ConfigEntity? config = await _db.Configurations.FirstOrDefaultAsync(
-            c => c.BroadcasterId == channelId && c.Key == "chat.settings",
+            c => c.BroadcasterId == broadcasterId && c.Key == "chat.settings",
             ct
         );
 
@@ -158,9 +163,11 @@ public class ChatController : BaseController
         CancellationToken ct
     )
     {
+        Guid? broadcasterId = Guid.TryParse(channelId, out Guid g) ? g : null;
+
         // Load existing, apply partial override from patch body
         ConfigEntity? config = await _db.Configurations.FirstOrDefaultAsync(
-            c => c.BroadcasterId == channelId && c.Key == "chat.settings",
+            c => c.BroadcasterId == broadcasterId && c.Key == "chat.settings",
             ct
         );
 
@@ -205,8 +212,10 @@ public class ChatController : BaseController
         CancellationToken ct
     )
     {
+        Guid? broadcasterId = Guid.TryParse(channelId, out Guid g) ? g : null;
+
         ConfigEntity? config = await _db.Configurations.FirstOrDefaultAsync(
-            c => c.BroadcasterId == channelId && c.Key == "chat.settings",
+            c => c.BroadcasterId == broadcasterId && c.Key == "chat.settings",
             ct
         );
 
@@ -217,7 +226,7 @@ public class ChatController : BaseController
             _db.Configurations.Add(
                 new ConfigEntity
                 {
-                    BroadcasterId = channelId,
+                    BroadcasterId = broadcasterId,
                     Key = "chat.settings",
                     Value = json,
                 }

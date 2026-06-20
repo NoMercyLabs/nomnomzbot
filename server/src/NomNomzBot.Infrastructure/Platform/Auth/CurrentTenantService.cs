@@ -18,10 +18,17 @@ namespace NomNomzBot.Infrastructure.Platform.Auth;
 /// </summary>
 public sealed class CurrentTenantService : ICurrentTenantService
 {
-    public string? BroadcasterId { get; set; }
+    public Guid? BroadcasterId { get; private set; }
 
-    public void SetTenant(string broadcasterId)
+    public bool HasTenant => BroadcasterId.HasValue;
+
+    public void SetTenant(Guid broadcasterId)
     {
         BroadcasterId = broadcasterId;
+    }
+
+    public void Clear()
+    {
+        BroadcasterId = null;
     }
 }

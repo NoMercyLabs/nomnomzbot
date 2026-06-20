@@ -21,9 +21,7 @@ public class ChannelBotAuthorizationConfiguration
     {
         builder.HasKey(e => e.Id);
 
-        builder.Property(e => e.BroadcasterId).IsRequired().HasMaxLength(50);
-
-        builder.Property(e => e.AuthorizedBy).HasMaxLength(50);
+        builder.Property(e => e.BroadcasterId).IsRequired();
 
         builder.Property(e => e.IsActive).HasDefaultValue(true);
 

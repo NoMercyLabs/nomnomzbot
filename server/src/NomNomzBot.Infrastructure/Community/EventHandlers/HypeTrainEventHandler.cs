@@ -32,7 +32,7 @@ public sealed class HypeTrainBeganHandler
     )
         : base(s, p, l) { }
 
-    protected override string? GetUserId(HypeTrainBeganEvent e) => e.BroadcasterId;
+    protected override string? GetUserId(HypeTrainBeganEvent e) => e.BroadcasterId.ToString();
 
     protected override string? GetUserDisplayName(HypeTrainBeganEvent e) => null;
 
@@ -63,7 +63,7 @@ public sealed class HypeTrainEndedHandler
     )
         : base(s, p, l) { }
 
-    protected override string? GetUserId(HypeTrainEndedEvent e) => e.BroadcasterId;
+    protected override string? GetUserId(HypeTrainEndedEvent e) => e.BroadcasterId.ToString();
 
     protected override string? GetUserDisplayName(HypeTrainEndedEvent e) => null;
 

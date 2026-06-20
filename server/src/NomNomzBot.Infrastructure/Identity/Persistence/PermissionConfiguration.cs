@@ -20,7 +20,7 @@ public class PermissionConfiguration : IEntityTypeConfiguration<Permission>
     {
         builder.HasKey(e => e.Id);
 
-        builder.Property(e => e.BroadcasterId).IsRequired().HasMaxLength(50);
+        builder.Property(e => e.BroadcasterId).IsRequired();
 
         builder.Property(e => e.SubjectType).IsRequired().HasMaxLength(10);
 
@@ -48,7 +48,5 @@ public class PermissionConfiguration : IEntityTypeConfiguration<Permission>
             })
             .IsUnique()
             .HasDatabaseName("IX_Permission_BroadcasterId_Subject_ResourceType");
-
-        builder.HasQueryFilter(e => e.DeletedAt == null);
     }
 }

@@ -19,7 +19,7 @@ public class InfraStopActionTests
     private static PipelineExecutionContext BuildCtx() =>
         new()
         {
-            BroadcasterId = "chan",
+            BroadcasterId = Guid.Parse("0192a000-0000-7000-8000-0000000000c1"),
             TriggeredByUserId = "user",
             TriggeredByDisplayName = "User",
             MessageId = "msg",

@@ -74,14 +74,17 @@ public class IntegrationsController : BaseController
     [ProducesResponseType<StatusResponseDto<IntegrationsResponse>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> ListIntegrations(string channelId, CancellationToken ct)
     {
+        if (!Guid.TryParse(channelId, out Guid tenantId))
+            return BadRequestResponse("Invalid channel id.");
+
         // Load all Service records for this channel in one query
         List<string> connectedServiceNames = await _db
-            .Services.Where(s => s.BroadcasterId == channelId && s.Enabled && s.AccessToken != null)
+            .Services.Where(s => s.BroadcasterId == tenantId && s.Enabled && s.AccessToken != null)
             .Select(s => s.Name.ToLower())
             .ToListAsync(ct);
 
         bool discordConnected = await _db.DiscordServerAuthorizations.AnyAsync(
-            d => d.BroadcasterId == channelId,
+            d => d.BroadcasterId == tenantId,
             ct
         );
 
@@ -90,27 +93,28 @@ public class IntegrationsController : BaseController
 
         // Twitch is always connected when the channel exists
         var channel = await _db
-            .Channels.Where(c => c.Id == channelId)
+            .Channels.Where(c => c.Id == tenantId)
             .Select(c => new { c.Id, c.Name })
             .FirstOrDefaultAsync(ct);
         bool twitchConnected = channel is not null;
 
-        // White-label custom bot is per-channel (BroadcasterId=channelId, Name="twitch_bot")
+        // White-label custom bot is per-channel (BroadcasterId=tenantId, Name="twitch_bot")
         var customBotService = await _db
             .Services.Where(s =>
                 s.Name == "twitch_bot"
-                && s.BroadcasterId == channelId
+                && s.BroadcasterId == tenantId
                 && s.Enabled
                 && s.AccessToken != null
             )
             .Select(s => new { s.UserId })
             .FirstOrDefaultAsync(ct);
 
+        // Service.UserId holds the Twitch user string id — join on User.TwitchUserId.
         string? customBotLogin = null;
         if (customBotService?.UserId is not null)
         {
             customBotLogin = await _db
-                .Users.Where(u => u.Id == customBotService.UserId)
+                .Users.Where(u => u.TwitchUserId == customBotService.UserId)
                 .Select(u => u.Username)
                 .FirstOrDefaultAsync(ct);
         }
@@ -173,6 +177,9 @@ public class IntegrationsController : BaseController
         CancellationToken ct
     )
     {
+        if (!Guid.TryParse(channelId, out Guid tenantId))
+            return BadRequestResponse("Invalid channel id.");
+
         string id = integrationId.ToLower();
 
         if (id == "twitch")
@@ -182,7 +189,7 @@ public class IntegrationsController : BaseController
         if (id == "custom_bot")
         {
             var botService = await _db.Services.FirstOrDefaultAsync(
-                s => s.Name == "twitch_bot" && s.BroadcasterId == channelId,
+                s => s.Name == "twitch_bot" && s.BroadcasterId == tenantId,
                 ct
             );
             if (botService is not null)
@@ -196,7 +203,7 @@ public class IntegrationsController : BaseController
         if (id == "discord")
         {
             var discordAuth = await _db.DiscordServerAuthorizations.FirstOrDefaultAsync(
-                d => d.BroadcasterId == channelId,
+                d => d.BroadcasterId == tenantId,
                 ct
             );
             if (discordAuth is not null)
@@ -208,7 +215,7 @@ public class IntegrationsController : BaseController
         }
 
         var service = await _db.Services.FirstOrDefaultAsync(
-            s => s.BroadcasterId == channelId && s.Name.ToLower() == id,
+            s => s.BroadcasterId == tenantId && s.Name.ToLower() == id,
             ct
         );
 

@@ -223,8 +223,10 @@ public class ModerationController : BaseController
     [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetShieldMode(string channelId, CancellationToken ct)
     {
+        Guid? broadcasterId = Guid.TryParse(channelId, out Guid g) ? g : null;
+
         ConfigEntity? cfg = await _db.Configurations.FirstOrDefaultAsync(
-            c => c.BroadcasterId == channelId && c.Key == "shield.mode",
+            c => c.BroadcasterId == broadcasterId && c.Key == "shield.mode",
             ct
         );
 
@@ -240,8 +242,10 @@ public class ModerationController : BaseController
         CancellationToken ct
     )
     {
+        Guid? broadcasterId = Guid.TryParse(channelId, out Guid g) ? g : null;
+
         ConfigEntity? cfg = await _db.Configurations.FirstOrDefaultAsync(
-            c => c.BroadcasterId == channelId && c.Key == "shield.mode",
+            c => c.BroadcasterId == broadcasterId && c.Key == "shield.mode",
             ct
         );
 
@@ -249,7 +253,7 @@ public class ModerationController : BaseController
         {
             cfg = new ConfigEntity
             {
-                BroadcasterId = channelId,
+                BroadcasterId = broadcasterId,
                 Key = "shield.mode",
                 Value = request.Enabled.ToString(),
             };
@@ -272,8 +276,10 @@ public class ModerationController : BaseController
     [ProducesResponseType<StatusResponseDto<List<string>>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetBlockedTerms(string channelId, CancellationToken ct)
     {
+        Guid? broadcasterId = Guid.TryParse(channelId, out Guid g) ? g : null;
+
         ConfigEntity? cfg = await _db.Configurations.FirstOrDefaultAsync(
-            c => c.BroadcasterId == channelId && c.Key == "blocked-terms",
+            c => c.BroadcasterId == broadcasterId && c.Key == "blocked-terms",
             ct
         );
 
@@ -292,8 +298,10 @@ public class ModerationController : BaseController
         CancellationToken ct
     )
     {
+        Guid? broadcasterId = Guid.TryParse(channelId, out Guid g) ? g : null;
+
         ConfigEntity? cfg = await _db.Configurations.FirstOrDefaultAsync(
-            c => c.BroadcasterId == channelId && c.Key == "blocked-terms",
+            c => c.BroadcasterId == broadcasterId && c.Key == "blocked-terms",
             ct
         );
 
@@ -308,7 +316,7 @@ public class ModerationController : BaseController
         {
             cfg = new ConfigEntity
             {
-                BroadcasterId = channelId,
+                BroadcasterId = broadcasterId,
                 Key = "blocked-terms",
                 Value = JsonSerializer.Serialize(terms),
             };
@@ -331,8 +339,10 @@ public class ModerationController : BaseController
         CancellationToken ct
     )
     {
+        Guid? broadcasterId = Guid.TryParse(channelId, out Guid g) ? g : null;
+
         ConfigEntity? cfg = await _db.Configurations.FirstOrDefaultAsync(
-            c => c.BroadcasterId == channelId && c.Key == "blocked-terms",
+            c => c.BroadcasterId == broadcasterId && c.Key == "blocked-terms",
             ct
         );
 
@@ -356,8 +366,11 @@ public class ModerationController : BaseController
     {
         DateTime today = _timeProvider.GetUtcNow().UtcDateTime.Date;
 
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
+
         var events = await _db
-            .ChannelEvents.Where(e => e.ChannelId == channelId && e.CreatedAt >= today)
+            .ChannelEvents.Where(e => e.ChannelId == broadcasterId && e.CreatedAt >= today)
             .Select(e => e.Type)
             .ToListAsync(ct);
 

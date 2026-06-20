@@ -17,8 +17,18 @@ namespace NomNomzBot.Domain.Identity.Entities;
 
 public class Channel : SoftDeletableEntity
 {
+    // Surrogate UUIDv7 PK (schema §1.1, A.2) = the tenant id used in every BroadcasterId + RLS.
+    // Generated app-side; never DB-default; never sent to Twitch.
+    public Guid Id { get; set; } = Guid.CreateVersion7();
+
+    // Broadcaster identity — one channel per owner (schema A.2). Replaces the old
+    // [ForeignKey(nameof(Id))] shared-PK hack between Channel and User.
+    public Guid OwnerUserId { get; set; }
+
+    // External Twitch channel/broadcaster id — first-class indexed attribute (schema A.2),
+    // NOT the key. Every Helix call's broadcaster_id resolves to this from the tenant Guid.
     [MaxLength(50)]
-    public string Id { get; set; } = null!;
+    public string TwitchChannelId { get; set; } = null!;
 
     [MaxLength(25)]
     public string Name { get; set; } = null!;
@@ -63,7 +73,7 @@ public class Channel : SoftDeletableEntity
 
     public bool IsBrandedContent { get; set; }
 
-    [ForeignKey(nameof(Id))]
+    [ForeignKey(nameof(OwnerUserId))]
     public virtual User User { get; set; } = null!;
 
     public virtual ICollection<ChannelModerator> Moderators { get; set; } = [];

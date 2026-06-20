@@ -54,8 +54,8 @@ public sealed class ChannelOfflineHandler : IEventHandler<ChannelOfflineEvent>
         CancellationToken cancellationToken = default
     )
     {
-        string? broadcasterId = @event.BroadcasterId;
-        if (string.IsNullOrEmpty(broadcasterId))
+        Guid broadcasterId = @event.BroadcasterId;
+        if (broadcasterId == Guid.Empty)
             return;
 
         using IServiceScope scope = _scopeFactory.CreateScope();
@@ -122,7 +122,7 @@ public sealed class ChannelOfflineHandler : IEventHandler<ChannelOfflineEvent>
 
     private async Task ExecuteEventResponseAsync(
         IApplicationDbContext db,
-        string broadcasterId,
+        Guid broadcasterId,
         string eventType,
         Dictionary<string, string> variables,
         CancellationToken ct
@@ -143,7 +143,7 @@ public sealed class ChannelOfflineHandler : IEventHandler<ChannelOfflineEvent>
                 {
                     BroadcasterId = broadcasterId,
                     PipelineJson = config.Data,
-                    TriggeredByUserId = broadcasterId,
+                    TriggeredByUserId = broadcasterId.ToString(),
                     TriggeredByDisplayName = string.Empty,
                     RawMessage = string.Empty,
                     InitialVariables = variables,

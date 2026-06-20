@@ -21,18 +21,18 @@ public class WidgetRepository : GenericRepository<Widget>
         : base(db) { }
 
     public Task<List<Widget>> GetByBroadcasterIdAsync(
-        string broadcasterId,
+        Guid broadcasterId,
         CancellationToken ct = default
     ) => Set.Where(w => w.BroadcasterId == broadcasterId).OrderBy(w => w.Name).ToListAsync(ct);
 
     public Task<Widget?> GetByIdAndBroadcasterAsync(
         string id,
-        string broadcasterId,
+        Guid broadcasterId,
         CancellationToken ct = default
     ) => Set.FirstOrDefaultAsync(w => w.Id == id && w.BroadcasterId == broadcasterId, ct);
 
     public Task<List<Widget>> GetPagedAsync(
-        string broadcasterId,
+        Guid broadcasterId,
         int page,
         int take,
         CancellationToken ct = default
@@ -43,6 +43,6 @@ public class WidgetRepository : GenericRepository<Widget>
             .Take(take)
             .ToListAsync(ct);
 
-    public Task<int> GetCountAsync(string broadcasterId, CancellationToken ct = default) =>
+    public Task<int> GetCountAsync(Guid broadcasterId, CancellationToken ct = default) =>
         Set.CountAsync(w => w.BroadcasterId == broadcasterId, ct);
 }

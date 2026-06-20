@@ -18,9 +18,7 @@ namespace NomNomzBot.Domain.Discord.Entities;
 public class DiscordServerAuthorization : BaseEntity
 {
     public int Id { get; set; }
-
-    [MaxLength(50)]
-    public string BroadcasterId { get; set; } = null!;
+    public Guid BroadcasterId { get; set; }
 
     [MaxLength(50)]
     public string GuildId { get; set; } = null!;

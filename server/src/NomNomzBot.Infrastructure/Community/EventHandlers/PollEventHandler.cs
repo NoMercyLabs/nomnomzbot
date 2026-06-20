@@ -31,7 +31,7 @@ public sealed class PollBeganHandler
     public PollBeganHandler(IServiceScopeFactory s, IPipelineEngine p, ILogger<PollBeganHandler> l)
         : base(s, p, l) { }
 
-    protected override string? GetUserId(PollBeganEvent e) => e.BroadcasterId;
+    protected override string? GetUserId(PollBeganEvent e) => e.BroadcasterId.ToString();
 
     protected override string? GetUserDisplayName(PollBeganEvent e) => null;
 
@@ -58,7 +58,7 @@ public sealed class PollEndedHandler
     public PollEndedHandler(IServiceScopeFactory s, IPipelineEngine p, ILogger<PollEndedHandler> l)
         : base(s, p, l) { }
 
-    protected override string? GetUserId(PollEndedEvent e) => e.BroadcasterId;
+    protected override string? GetUserId(PollEndedEvent e) => e.BroadcasterId.ToString();
 
     protected override string? GetUserDisplayName(PollEndedEvent e) => null;
 

@@ -33,6 +33,7 @@ public class DashboardController : BaseController
     private readonly IChannelService _channelService;
     private readonly IApplicationDbContext _db;
     private readonly ITwitchApiService _twitchApi;
+    private readonly ITwitchIdentityResolver _identityResolver;
     private readonly TimeProvider _timeProvider;
 
     public DashboardController(
@@ -40,6 +41,7 @@ public class DashboardController : BaseController
         IChannelService channelService,
         IApplicationDbContext db,
         ITwitchApiService twitchApi,
+        ITwitchIdentityResolver identityResolver,
         TimeProvider timeProvider
     )
     {
@@ -47,6 +49,7 @@ public class DashboardController : BaseController
         _channelService = channelService;
         _db = db;
         _twitchApi = twitchApi;
+        _identityResolver = identityResolver;
         _timeProvider = timeProvider;
     }
 
@@ -69,10 +72,18 @@ public class DashboardController : BaseController
     [ProducesResponseType<StatusResponseDto<DashboardStatsDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetStats(string broadcasterId, CancellationToken ct)
     {
-        // Fetch real follower count from Twitch API (fire-and-forget safe — returns 0 on failure)
-        int followerCount = await _twitchApi.GetFollowerCountAsync(broadcasterId, ct);
+        if (!Guid.TryParse(broadcasterId, out Guid tenantId))
+            return BadRequestResponse("Invalid channel id.");
 
-        ChannelContext? ctx = _registry.Get(broadcasterId);
+        // Helix calls take the Twitch channel string id, resolved from the tenant Guid.
+        string? twitchChannelId = await _identityResolver.GetTwitchChannelIdAsync(tenantId, ct);
+
+        // Fetch real follower count from Twitch API (fire-and-forget safe — returns 0 on failure)
+        int followerCount = twitchChannelId is null
+            ? 0
+            : await _twitchApi.GetFollowerCountAsync(twitchChannelId, ct);
+
+        ChannelContext? ctx = _registry.Get(tenantId);
 
         if (ctx is not null)
         {
@@ -83,10 +94,10 @@ public class DashboardController : BaseController
 
             // Get live viewer count from Twitch stream info
             int viewerCount = 0;
-            if (ctx.IsLive)
+            if (ctx.IsLive && twitchChannelId is not null)
             {
                 TwitchStreamInfo? streamInfo = await _twitchApi.GetStreamInfoAsync(
-                    broadcasterId,
+                    twitchChannelId,
                     ct
                 );
                 viewerCount = streamInfo?.ViewerCount ?? 0;
@@ -135,8 +146,11 @@ public class DashboardController : BaseController
     [ProducesResponseType<StatusResponseDto<List<ActivityEventDto>>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetActivity(string broadcasterId, CancellationToken ct)
     {
+        if (!Guid.TryParse(broadcasterId, out Guid tenantId))
+            return BadRequestResponse("Invalid channel id.");
+
         var events = await _db
-            .ChannelEvents.Where(e => e.ChannelId == broadcasterId)
+            .ChannelEvents.Where(e => e.ChannelId == tenantId)
             .OrderByDescending(e => e.CreatedAt)
             .Take(20)
             .ToListAsync(ct);
@@ -155,10 +169,17 @@ public class DashboardController : BaseController
             .Select(e =>
             {
                 string? username = null;
-                if (e.UserId is not null && users.TryGetValue(e.UserId, out var user))
+                if (e.UserId is not null && users.TryGetValue(e.UserId.Value, out var user))
                     username = user.DisplayName;
 
-                return new ActivityEventDto(e.Id, e.Type, e.UserId, username, e.Data, e.CreatedAt);
+                return new ActivityEventDto(
+                    e.Id,
+                    e.Type,
+                    e.UserId?.ToString(),
+                    username,
+                    e.Data,
+                    e.CreatedAt
+                );
             })
             .ToList();
 

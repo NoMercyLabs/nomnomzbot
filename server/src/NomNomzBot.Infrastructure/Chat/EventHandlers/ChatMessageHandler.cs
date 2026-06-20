@@ -62,8 +62,11 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
         CancellationToken cancellationToken
     )
     {
-        if (string.IsNullOrWhiteSpace(@event.BroadcasterId))
+        if (@event.BroadcasterId == Guid.Empty)
             return;
+
+        // Cooldown manager is keyed by a string channel id; use the tenant Guid's string form.
+        string cooldownChannelKey = @event.BroadcasterId.ToString();
 
         // Increment channel message counter (used by TimerService for activity gating; approximate is fine)
         ChannelContext? channelCtx = _registry.Get(@event.BroadcasterId);
@@ -106,10 +109,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
         }
 
         // Global cooldown check
-        if (
-            command.GlobalCooldown > 0
-            && _cooldowns.IsOnCooldown(@event.BroadcasterId, commandName)
-        )
+        if (command.GlobalCooldown > 0 && _cooldowns.IsOnCooldown(cooldownChannelKey, commandName))
         {
             _logger.LogDebug(
                 "Command {Command} on global cooldown in {Channel}",
@@ -122,7 +122,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
         // Per-user cooldown check
         if (
             command.UserCooldown > 0
-            && _cooldowns.IsOnCooldown(@event.BroadcasterId, commandName, @event.UserId)
+            && _cooldowns.IsOnCooldown(cooldownChannelKey, commandName, @event.UserId)
         )
         {
             _logger.LogDebug(
@@ -137,13 +137,13 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
         // Set cooldowns
         if (command.GlobalCooldown > 0)
             _cooldowns.SetCooldown(
-                @event.BroadcasterId,
+                cooldownChannelKey,
                 commandName,
                 TimeSpan.FromSeconds(command.GlobalCooldown)
             );
         if (command.UserCooldown > 0)
             _cooldowns.SetCooldown(
-                @event.BroadcasterId,
+                cooldownChannelKey,
                 commandName,
                 TimeSpan.FromSeconds(command.UserCooldown),
                 @event.UserId
@@ -185,10 +185,12 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
                 string resolved = await _templateResolver.ResolveAsync(
                     response,
                     variables,
-                    @event.BroadcasterId!,
+                    @event.BroadcasterId,
                     cancellationToken
                 );
 
+                // IChatProvider takes the tenant Guid and resolves it to the Twitch channel string id
+                // internally (the invariant boundary lives in HelixChatProvider).
                 await _chat.SendMessageAsync(@event.BroadcasterId, resolved, cancellationToken);
             }
         }

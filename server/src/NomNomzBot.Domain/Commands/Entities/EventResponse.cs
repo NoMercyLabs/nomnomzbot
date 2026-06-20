@@ -22,9 +22,7 @@ namespace NomNomzBot.Domain.Commands.Entities;
 public class EventResponse : BaseEntity, ITenantScoped
 {
     public int Id { get; set; }
-
-    [MaxLength(50)]
-    public string BroadcasterId { get; set; } = null!;
+    public Guid BroadcasterId { get; set; }
 
     /// <summary>The event type this response applies to (e.g., "channel.follow", "channel.subscribe").</summary>
     [MaxLength(100)]

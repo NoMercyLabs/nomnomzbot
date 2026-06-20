@@ -75,7 +75,7 @@ public sealed class DefaultCommandsSeeder : ISeeder
 
     public async Task SeedAsync(CancellationToken ct = default)
     {
-        List<string> channelIds = await _db.Channels.Select(c => c.Id).ToListAsync(ct);
+        List<Guid> channelIds = await _db.Channels.Select(c => c.Id).ToListAsync(ct);
 
         if (channelIds.Count == 0)
             return;
@@ -83,16 +83,16 @@ public sealed class DefaultCommandsSeeder : ISeeder
         string[] defaultNames = Defaults.Select(d => d.Name).ToArray();
 
         // One round-trip: which (channel, name) pairs already exist among the defaults.
-        List<(string BroadcasterId, string Name)> existing = await _db
+        List<(Guid BroadcasterId, string Name)> existing = await _db
             .Commands.Where(c =>
                 channelIds.Contains(c.BroadcasterId) && defaultNames.Contains(c.Name)
             )
-            .Select(c => new ValueTuple<string, string>(c.BroadcasterId, c.Name))
+            .Select(c => new ValueTuple<Guid, string>(c.BroadcasterId, c.Name))
             .ToListAsync(ct);
 
-        HashSet<(string, string)> present = existing.ToHashSet();
+        HashSet<(Guid, string)> present = existing.ToHashSet();
 
-        foreach (string channelId in channelIds)
+        foreach (Guid channelId in channelIds)
         {
             foreach (DefaultCommand def in Defaults)
             {

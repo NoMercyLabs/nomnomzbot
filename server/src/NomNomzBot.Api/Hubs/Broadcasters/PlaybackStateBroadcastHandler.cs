@@ -23,7 +23,7 @@ public sealed class PlaybackStateBroadcastHandler : IEventHandler<PlaybackStateC
 
     public Task HandleAsync(PlaybackStateChangedEvent @event, CancellationToken ct = default)
     {
-        if (string.IsNullOrEmpty(@event.BroadcasterId))
+        if (@event.BroadcasterId == Guid.Empty)
             return Task.CompletedTask;
 
         MusicTrackDto? track = @event.TrackName is not null
@@ -31,7 +31,7 @@ public sealed class PlaybackStateBroadcastHandler : IEventHandler<PlaybackStateC
             : null;
 
         return _notifier.SendMusicStateAsync(
-            @event.BroadcasterId,
+            @event.BroadcasterId.ToString(),
             new(@event.IsPlaying, track),
             ct
         );

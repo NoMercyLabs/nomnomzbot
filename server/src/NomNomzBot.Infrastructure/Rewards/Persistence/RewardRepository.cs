@@ -21,18 +21,18 @@ public class RewardRepository : GenericRepository<Reward>
         : base(db) { }
 
     public Task<List<Reward>> GetByBroadcasterIdAsync(
-        string broadcasterId,
+        Guid broadcasterId,
         CancellationToken ct = default
     ) => Set.Where(r => r.BroadcasterId == broadcasterId).OrderBy(r => r.Title).ToListAsync(ct);
 
     public Task<Reward?> GetByIdAndBroadcasterAsync(
         Guid id,
-        string broadcasterId,
+        Guid broadcasterId,
         CancellationToken ct = default
     ) => Set.FirstOrDefaultAsync(r => r.Id == id && r.BroadcasterId == broadcasterId, ct);
 
     public Task<List<Reward>> GetPagedAsync(
-        string broadcasterId,
+        Guid broadcasterId,
         int page,
         int take,
         CancellationToken ct = default
@@ -43,6 +43,6 @@ public class RewardRepository : GenericRepository<Reward>
             .Take(take)
             .ToListAsync(ct);
 
-    public Task<int> GetCountAsync(string broadcasterId, CancellationToken ct = default) =>
+    public Task<int> GetCountAsync(Guid broadcasterId, CancellationToken ct = default) =>
         Set.CountAsync(r => r.BroadcasterId == broadcasterId, ct);
 }

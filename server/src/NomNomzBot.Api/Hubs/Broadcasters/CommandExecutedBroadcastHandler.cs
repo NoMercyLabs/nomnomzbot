@@ -28,7 +28,7 @@ public sealed class CommandExecutedBroadcastHandler : IEventHandler<AfterCommand
 
     public Task HandleAsync(AfterCommandExecutedEvent @event, CancellationToken ct = default)
     {
-        if (string.IsNullOrEmpty(@event.BroadcasterId))
+        if (@event.BroadcasterId == Guid.Empty)
             return Task.CompletedTask;
 
         if (@event.Succeeded)
@@ -42,9 +42,9 @@ public sealed class CommandExecutedBroadcastHandler : IEventHandler<AfterCommand
         }
 
         return _notifier.SendCommandExecutedAsync(
-            @event.BroadcasterId,
+            @event.BroadcasterId.ToString(),
             new(
-                @event.BroadcasterId,
+                @event.BroadcasterId.ToString(),
                 @event.CommandName,
                 @event.TriggeredByUserId,
                 @event.Succeeded,

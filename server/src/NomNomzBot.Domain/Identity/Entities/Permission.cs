@@ -17,9 +17,7 @@ namespace NomNomzBot.Domain.Identity.Entities;
 public class Permission : SoftDeletableEntity, ITenantScoped
 {
     public int Id { get; set; }
-
-    [MaxLength(50)]
-    public string BroadcasterId { get; set; } = null!;
+    public Guid BroadcasterId { get; set; }
 
     [MaxLength(10)]
     public string SubjectType { get; set; } = null!;

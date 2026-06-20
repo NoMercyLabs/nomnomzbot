@@ -18,9 +18,7 @@ namespace NomNomzBot.Domain.Widgets.Entities;
 public class Widget : SoftDeletableEntity, ITenantScoped
 {
     public string Id { get; set; } = Guid.NewGuid().ToString();
-
-    [MaxLength(50)]
-    public string BroadcasterId { get; set; } = null!;
+    public Guid BroadcasterId { get; set; }
 
     [MaxLength(255)]
     public string Name { get; set; } = null!;

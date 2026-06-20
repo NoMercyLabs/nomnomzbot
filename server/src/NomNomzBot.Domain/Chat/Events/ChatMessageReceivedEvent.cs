@@ -20,7 +20,10 @@ namespace NomNomzBot.Domain.Chat.Events;
 public sealed class ChatMessageReceivedEvent : DomainEventBase
 {
     public required string MessageId { get; init; }
-    public new required string BroadcasterId { get; init; }
+
+    // The tenant (channel) id is inherited from DomainEventBase as a Guid. The raw Twitch broadcaster
+    // string id is carried alongside for the Twitch send/reply boundary (handlers pass it to IChatProvider).
+    public required string TwitchBroadcasterId { get; init; }
     public required string UserId { get; init; }
     public required string UserDisplayName { get; init; }
     public required string UserLogin { get; init; }

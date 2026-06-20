@@ -17,9 +17,7 @@ namespace NomNomzBot.Domain.Platform.Entities;
 public class EventSubscription : BaseEntity, ITenantScoped
 {
     public string Id { get; set; } = Guid.NewGuid().ToString();
-
-    [MaxLength(50)]
-    public string BroadcasterId { get; set; } = null!;
+    public Guid BroadcasterId { get; set; }
 
     [MaxLength(50)]
     public string Provider { get; set; } = null!;

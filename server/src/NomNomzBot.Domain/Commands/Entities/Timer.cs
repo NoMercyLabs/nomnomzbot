@@ -22,9 +22,7 @@ namespace NomNomzBot.Domain.Commands.Entities;
 public class Timer : SoftDeletableEntity, ITenantScoped
 {
     public int Id { get; set; }
-
-    [MaxLength(50)]
-    public string BroadcasterId { get; set; } = null!;
+    public Guid BroadcasterId { get; set; }
 
     [MaxLength(100)]
     public string Name { get; set; } = null!;

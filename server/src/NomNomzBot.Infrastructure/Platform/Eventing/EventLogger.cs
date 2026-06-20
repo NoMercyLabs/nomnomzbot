@@ -36,7 +36,7 @@ public sealed class EventLogger
             "DomainEvent {EventType} published. EventId={EventId}, BroadcasterId={BroadcasterId}, Timestamp={Timestamp}",
             typeof(TEvent).Name,
             @event.EventId,
-            @event.BroadcasterId ?? "(platform)",
+            @event.BroadcasterId == Guid.Empty ? "(platform)" : @event.BroadcasterId.ToString(),
             @event.Timestamp
         );
     }

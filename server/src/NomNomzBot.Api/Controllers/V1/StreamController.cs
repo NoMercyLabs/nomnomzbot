@@ -31,18 +31,21 @@ public class StreamController : BaseController
     private readonly IChannelService _channelService;
     private readonly IChannelRegistry _registry;
     private readonly ITwitchApiService _twitchApi;
+    private readonly ITwitchIdentityResolver _identityResolver;
     private readonly IApplicationDbContext _db;
 
     public StreamController(
         IChannelService channelService,
         IChannelRegistry registry,
         ITwitchApiService twitchApi,
+        ITwitchIdentityResolver identityResolver,
         IApplicationDbContext db
     )
     {
         _channelService = channelService;
         _registry = registry;
         _twitchApi = twitchApi;
+        _identityResolver = identityResolver;
         _db = db;
     }
 
@@ -77,7 +80,13 @@ public class StreamController : BaseController
     [ProducesResponseType<StatusResponseDto<StreamInfoDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetStreamInfo(string channelId, CancellationToken ct)
     {
-        ChannelContext? ctx = _registry.Get(channelId);
+        if (!Guid.TryParse(channelId, out Guid tenantId))
+            return BadRequestResponse("Invalid channel id.");
+
+        // Helix calls take the Twitch channel string id, resolved from the tenant Guid.
+        string? twitchChannelId = await _identityResolver.GetTwitchChannelIdAsync(tenantId, ct);
+
+        ChannelContext? ctx = _registry.Get(tenantId);
 
         if (ctx is not null)
         {
@@ -86,13 +95,18 @@ public class StreamController : BaseController
             List<string> tags = [];
             string? language = null;
 
-            if (ctx.IsLive)
+            if (ctx.IsLive && twitchChannelId is not null)
             {
-                TwitchStreamInfo? streamInfo = await _twitchApi.GetStreamInfoAsync(channelId, ct);
+                TwitchStreamInfo? streamInfo = await _twitchApi.GetStreamInfoAsync(
+                    twitchChannelId,
+                    ct
+                );
                 viewerCount = streamInfo?.ViewerCount ?? 0;
             }
 
-            TwitchChannelInfo? channelInfo = await _twitchApi.GetChannelInfoAsync(channelId, ct);
+            TwitchChannelInfo? channelInfo = twitchChannelId is null
+                ? null
+                : await _twitchApi.GetChannelInfoAsync(twitchChannelId, ct);
             if (channelInfo is not null)
             {
                 tags = channelInfo.Tags;
@@ -103,7 +117,7 @@ public class StreamController : BaseController
             if (!ctx.IsLive)
             {
                 lastStreamedAt = await _db
-                    .Streams.Where(s => s.ChannelId == channelId && s.EndedAt != null)
+                    .Streams.Where(s => s.ChannelId == tenantId && s.EndedAt != null)
                     .OrderByDescending(s => s.EndedAt)
                     .Select(s => (DateTime?)s.EndedAt!.Value.UtcDateTime)
                     .FirstOrDefaultAsync(ct);
@@ -124,7 +138,9 @@ public class StreamController : BaseController
         }
 
         // Channel not in registry — fetch real info from Twitch API
-        TwitchChannelInfo? twitchChannel = await _twitchApi.GetChannelInfoAsync(channelId, ct);
+        TwitchChannelInfo? twitchChannel = twitchChannelId is null
+            ? null
+            : await _twitchApi.GetChannelInfoAsync(twitchChannelId, ct);
 
         Result<ChannelDto> result = await _channelService.GetAsync(channelId, ct);
         if (result.IsFailure)
@@ -135,7 +151,7 @@ public class StreamController : BaseController
         DateTime? lastStreamedAtFallback = channel.IsLive
             ? null
             : await _db
-                .Streams.Where(s => s.ChannelId == channelId && s.EndedAt != null)
+                .Streams.Where(s => s.ChannelId == tenantId && s.EndedAt != null)
                 .OrderByDescending(s => s.EndedAt)
                 .Select(s => (DateTime?)s.EndedAt!.Value.UtcDateTime)
                 .FirstOrDefaultAsync(ct);
@@ -164,6 +180,13 @@ public class StreamController : BaseController
         CancellationToken ct
     )
     {
+        if (!Guid.TryParse(channelId, out Guid tenantId))
+            return BadRequestResponse("Invalid channel id.");
+
+        string? twitchChannelId = await _identityResolver.GetTwitchChannelIdAsync(tenantId, ct);
+        if (twitchChannelId is null)
+            return NotFoundResponse("Channel not found.");
+
         Result<ChannelDto> result = await _channelService.GetAsync(channelId, ct);
         if (result.IsFailure)
             return ResultResponse(result);
@@ -190,10 +213,16 @@ public class StreamController : BaseController
         }
 
         // Push changes to Twitch
-        await _twitchApi.UpdateChannelInfoAsync(channelId, request.Title, gameId, request.Tags, ct);
+        await _twitchApi.UpdateChannelInfoAsync(
+            twitchChannelId,
+            request.Title,
+            gameId,
+            request.Tags,
+            ct
+        );
 
         // Update in-memory context
-        ChannelContext? ctx = _registry.Get(channelId);
+        ChannelContext? ctx = _registry.Get(tenantId);
         if (ctx is not null)
         {
             if (request.Title is not null)
@@ -222,7 +251,10 @@ public class StreamController : BaseController
     [ProducesResponseType<StatusResponseDto<StreamStatusDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetStatus(string channelId, CancellationToken ct)
     {
-        ChannelContext? ctx = _registry.Get(channelId);
+        if (!Guid.TryParse(channelId, out Guid tenantId))
+            return BadRequestResponse("Invalid channel id.");
+
+        ChannelContext? ctx = _registry.Get(tenantId);
 
         if (ctx is not null)
         {
@@ -253,9 +285,16 @@ public class StreamController : BaseController
         CancellationToken ct
     )
     {
-        await _twitchApi.UpdateChannelInfoAsync(channelId, request.Title, null, null, ct);
+        if (!Guid.TryParse(channelId, out Guid tenantId))
+            return BadRequestResponse("Invalid channel id.");
 
-        ChannelContext? ctx = _registry.Get(channelId);
+        string? twitchChannelId = await _identityResolver.GetTwitchChannelIdAsync(tenantId, ct);
+        if (twitchChannelId is null)
+            return NotFoundResponse("Channel not found.");
+
+        await _twitchApi.UpdateChannelInfoAsync(twitchChannelId, request.Title, null, null, ct);
+
+        ChannelContext? ctx = _registry.Get(tenantId);
         if (ctx is not null)
             ctx.CurrentTitle = request.Title;
 
@@ -270,6 +309,13 @@ public class StreamController : BaseController
         CancellationToken ct
     )
     {
+        if (!Guid.TryParse(channelId, out Guid tenantId))
+            return BadRequestResponse("Invalid channel id.");
+
+        string? twitchChannelId = await _identityResolver.GetTwitchChannelIdAsync(tenantId, ct);
+        if (twitchChannelId is null)
+            return NotFoundResponse("Channel not found.");
+
         string? gameId = null;
         string resolvedName = request.GameName;
 
@@ -288,9 +334,9 @@ public class StreamController : BaseController
             resolvedName = match.Name;
         }
 
-        await _twitchApi.UpdateChannelInfoAsync(channelId, null, gameId, null, ct);
+        await _twitchApi.UpdateChannelInfoAsync(twitchChannelId, null, gameId, null, ct);
 
-        ChannelContext? ctx = _registry.Get(channelId);
+        ChannelContext? ctx = _registry.Get(tenantId);
         if (ctx is not null)
             ctx.CurrentGame = resolvedName;
 
@@ -305,7 +351,14 @@ public class StreamController : BaseController
         CancellationToken ct
     )
     {
-        await _twitchApi.UpdateChannelInfoAsync(channelId, null, null, request.Tags, ct);
+        if (!Guid.TryParse(channelId, out Guid tenantId))
+            return BadRequestResponse("Invalid channel id.");
+
+        string? twitchChannelId = await _identityResolver.GetTwitchChannelIdAsync(tenantId, ct);
+        if (twitchChannelId is null)
+            return NotFoundResponse("Channel not found.");
+
+        await _twitchApi.UpdateChannelInfoAsync(twitchChannelId, null, null, request.Tags, ct);
         return await GetStreamInfo(channelId, ct);
     }
 

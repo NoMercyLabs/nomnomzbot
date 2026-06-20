@@ -40,8 +40,8 @@ public sealed class ChannelUpdatedHandler : IEventHandler<ChannelUpdatedEvent>
         CancellationToken cancellationToken = default
     )
     {
-        string? broadcasterId = @event.BroadcasterId;
-        if (string.IsNullOrEmpty(broadcasterId))
+        Guid broadcasterId = @event.BroadcasterId;
+        if (broadcasterId == Guid.Empty)
             return;
 
         using IServiceScope scope = _scopeFactory.CreateScope();

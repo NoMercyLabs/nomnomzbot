@@ -32,6 +32,7 @@ public sealed class ShoutoutAction : ICommandAction
     private static readonly TimeSpan DefaultGlobalCooldown = TimeSpan.FromMinutes(2);
 
     private readonly ITwitchApiService _twitchApi;
+    private readonly ITwitchIdentityResolver _identityResolver;
     private readonly IChannelRegistry _registry;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<ShoutoutAction> _logger;
@@ -40,12 +41,14 @@ public sealed class ShoutoutAction : ICommandAction
 
     public ShoutoutAction(
         ITwitchApiService twitchApi,
+        ITwitchIdentityResolver identityResolver,
         IChannelRegistry registry,
         TimeProvider timeProvider,
         ILogger<ShoutoutAction> logger
     )
     {
         _twitchApi = twitchApi;
+        _identityResolver = identityResolver;
         _registry = registry;
         _timeProvider = timeProvider;
         _logger = logger;
@@ -106,10 +109,21 @@ public sealed class ShoutoutAction : ICommandAction
             }
         }
 
+        // Resolve the tenant Guid to the Twitch channel string id for the Helix call.
+        // The from-broadcaster and moderator are both this channel; rawUserId is already a Twitch user id.
+        string? twitchChannelId = await _identityResolver.GetTwitchChannelIdAsync(
+            ctx.BroadcasterId,
+            ctx.CancellationToken
+        );
+        if (twitchChannelId is null)
+            return ActionResult.Failure(
+                $"shoutout action could not resolve Twitch channel id for tenant {ctx.BroadcasterId}"
+            );
+
         bool success = await _twitchApi.ShoutoutAsync(
-            ctx.BroadcasterId,
+            twitchChannelId,
             rawUserId,
-            ctx.BroadcasterId,
+            twitchChannelId,
             ctx.CancellationToken
         );
 

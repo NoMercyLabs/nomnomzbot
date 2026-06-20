@@ -20,7 +20,18 @@ public class ChannelConfiguration : IEntityTypeConfiguration<Channel>
     {
         builder.HasKey(e => e.Id);
 
-        builder.Property(e => e.Id).IsRequired().HasMaxLength(50);
+        builder.Property(e => e.Id).IsRequired();
+
+        builder.Property(e => e.OwnerUserId).IsRequired();
+
+        builder.HasIndex(e => e.OwnerUserId).IsUnique().HasDatabaseName("IX_Channel_OwnerUserId");
+
+        builder.Property(e => e.TwitchChannelId).HasMaxLength(50);
+
+        builder
+            .HasIndex(e => e.TwitchChannelId)
+            .IsUnique()
+            .HasDatabaseName("IX_Channel_TwitchChannelId");
 
         builder.Property(e => e.Name).IsRequired().HasMaxLength(25);
 
@@ -58,7 +69,5 @@ public class ChannelConfiguration : IEntityTypeConfiguration<Channel>
         builder.Property(e => e.IsBrandedContent).IsRequired();
 
         builder.HasIndex(e => e.OverlayToken).IsUnique().HasDatabaseName("IX_Channel_OverlayToken");
-
-        builder.HasQueryFilter(e => e.DeletedAt == null);
     }
 }

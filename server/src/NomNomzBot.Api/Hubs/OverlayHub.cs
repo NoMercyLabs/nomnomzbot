@@ -68,8 +68,7 @@ public class OverlayHub : Hub<IOverlayClient>
 
     public async Task<JoinWidgetResponse> JoinWidget(string widgetId)
     {
-        string? broadcasterId = Context.Items["BroadcasterId"] as string;
-        if (broadcasterId == null)
+        if (Context.Items["BroadcasterId"] is not Guid broadcasterId)
             return new(false, "Not authenticated", null);
 
         string groupName = $"widget-{broadcasterId}-{widgetId}";
@@ -85,8 +84,7 @@ public class OverlayHub : Hub<IOverlayClient>
 
     public async Task LeaveWidget(string widgetId)
     {
-        string? broadcasterId = Context.Items["BroadcasterId"] as string;
-        if (broadcasterId == null)
+        if (Context.Items["BroadcasterId"] is not Guid broadcasterId)
             return;
         await Groups.RemoveFromGroupAsync(
             Context.ConnectionId,

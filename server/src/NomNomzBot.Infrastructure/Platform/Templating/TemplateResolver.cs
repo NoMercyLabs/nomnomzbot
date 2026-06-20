@@ -14,6 +14,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Templating;
+using NomNomzBot.Application.Abstractions.Transport;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Platform.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
@@ -82,7 +83,7 @@ public sealed partial class TemplateResolver : ITemplateResolver
     public async Task<string> ResolveAsync(
         string template,
         IDictionary<string, string> seedVariables,
-        string? broadcasterId,
+        Guid? broadcasterId,
         CancellationToken cancellationToken = default
     )
     {
@@ -117,12 +118,12 @@ public sealed partial class TemplateResolver : ITemplateResolver
     private async Task ResolveBuiltInsAsync(
         Dictionary<string, string> vars,
         HashSet<string> needed,
-        string? broadcasterId,
+        Guid? broadcasterId,
         CancellationToken ct
     )
     {
         ChannelContext? channelCtx = broadcasterId is not null
-            ? _registry.Get(broadcasterId)
+            ? _registry.Get(broadcasterId.Value)
             : null;
         DateTimeOffset now = _timeProvider.GetUtcNow();
 
@@ -155,7 +156,8 @@ public sealed partial class TemplateResolver : ITemplateResolver
             {
                 vars.TryAdd("channel", channelCtx.ChannelName);
                 vars.TryAdd("channel.display", channelCtx.DisplayName ?? channelCtx.ChannelName);
-                vars.TryAdd("channel.id", channelCtx.BroadcasterId);
+                // {{channel.id}} is the Twitch channel string id (transport boundary), never the tenant Guid.
+                vars.TryAdd("channel.id", channelCtx.TwitchChannelId);
                 vars.TryAdd("streamer", channelCtx.DisplayName ?? channelCtx.ChannelName);
                 vars.TryAdd("stream.title", channelCtx.CurrentTitle ?? string.Empty);
                 vars.TryAdd("stream.game", channelCtx.CurrentGame ?? string.Empty);
@@ -175,9 +177,15 @@ public sealed partial class TemplateResolver : ITemplateResolver
                     vars.TryAdd("stream.uptime", "offline");
                 }
             }
-            else if (broadcasterId is not null)
+            else if (broadcasterId is not null && needed.Contains("channel.id"))
             {
-                vars.TryAdd("channel.id", broadcasterId);
+                // No live registry context — resolve the Twitch channel string id from the tenant Guid.
+                string? twitchChannelId = await ResolveTwitchChannelIdAsync(
+                    broadcasterId.Value,
+                    ct
+                );
+                if (twitchChannelId is not null)
+                    vars.TryAdd("channel.id", twitchChannelId);
             }
         }
 
@@ -245,9 +253,9 @@ public sealed partial class TemplateResolver : ITemplateResolver
         )
         {
             string? userId = vars.GetValueOrDefault("user.id");
-            if (!string.IsNullOrEmpty(userId) && !string.IsNullOrEmpty(broadcasterId))
+            if (!string.IsNullOrEmpty(userId) && broadcasterId is not null)
             {
-                await ResolveUserDbFieldsAsync(vars, userId, broadcasterId, ct);
+                await ResolveUserDbFieldsAsync(vars, userId, broadcasterId.Value, ct);
             }
         }
 
@@ -257,7 +265,7 @@ public sealed partial class TemplateResolver : ITemplateResolver
             string? targetName = vars.GetValueOrDefault("target");
             if (!string.IsNullOrEmpty(targetName))
             {
-                await ResolveTargetAsync(vars, targetName, broadcasterId, ct);
+                await ResolveTargetAsync(vars, targetName, ct);
             }
         }
     }
@@ -266,8 +274,8 @@ public sealed partial class TemplateResolver : ITemplateResolver
 
     private async Task ResolveUserDbFieldsAsync(
         Dictionary<string, string> vars,
-        string userId,
-        string broadcasterId,
+        string twitchUserId,
+        Guid broadcasterId,
         CancellationToken ct
     )
     {
@@ -277,7 +285,11 @@ public sealed partial class TemplateResolver : ITemplateResolver
             IApplicationDbContext db =
                 scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
 
-            User? user = await db.Users.FirstOrDefaultAsync(u => u.Id == userId, ct);
+            // user.id is the Twitch string id (from the event); look the user up by TwitchUserId, not the Guid PK.
+            User? user = await db.Users.FirstOrDefaultAsync(
+                u => u.TwitchUserId == twitchUserId,
+                ct
+            );
             if (user is null)
                 return;
 
@@ -298,14 +310,13 @@ public sealed partial class TemplateResolver : ITemplateResolver
         }
         catch (Exception ex)
         {
-            _logger.LogDebug(ex, "Failed to resolve user DB fields for {UserId}", userId);
+            _logger.LogDebug(ex, "Failed to resolve user DB fields for {UserId}", twitchUserId);
         }
     }
 
     private async Task ResolveTargetAsync(
         Dictionary<string, string> vars,
         string targetName,
-        string? broadcasterId,
         CancellationToken ct
     )
     {
@@ -323,13 +334,37 @@ public sealed partial class TemplateResolver : ITemplateResolver
             if (target is null)
                 return;
 
-            vars.TryAdd("target.id", target.Id);
+            // {{target.id}} is the Twitch user string id, not the internal Guid PK.
+            vars.TryAdd("target.id", target.TwitchUserId);
             vars.TryAdd("target.name", target.Username ?? targetName);
             vars.TryAdd("target.followAge", "unknown");
         }
         catch (Exception ex)
         {
             _logger.LogDebug(ex, "Failed to resolve target {TargetName}", targetName);
+        }
+    }
+
+    private async Task<string?> ResolveTwitchChannelIdAsync(
+        Guid broadcasterId,
+        CancellationToken ct
+    )
+    {
+        try
+        {
+            using IServiceScope scope = _scopeFactory.CreateScope();
+            ITwitchIdentityResolver resolver =
+                scope.ServiceProvider.GetRequiredService<ITwitchIdentityResolver>();
+            return await resolver.GetTwitchChannelIdAsync(broadcasterId, ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(
+                ex,
+                "Failed to resolve Twitch channel id for tenant {BroadcasterId}",
+                broadcasterId
+            );
+            return null;
         }
     }
 

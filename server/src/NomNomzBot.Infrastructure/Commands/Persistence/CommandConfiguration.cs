@@ -20,7 +20,7 @@ public class CommandConfiguration : IEntityTypeConfiguration<Command>
     {
         builder.HasKey(e => e.Id);
 
-        builder.Property(e => e.BroadcasterId).IsRequired().HasMaxLength(50);
+        builder.Property(e => e.BroadcasterId).IsRequired();
 
         builder.Property(e => e.Name).IsRequired().HasMaxLength(100);
 
@@ -64,7 +64,5 @@ public class CommandConfiguration : IEntityTypeConfiguration<Command>
         builder
             .HasIndex(e => new { e.BroadcasterId, e.IsEnabled })
             .HasDatabaseName("IX_Command_BroadcasterId_IsEnabled");
-
-        builder.HasQueryFilter(e => e.DeletedAt == null);
     }
 }

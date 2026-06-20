@@ -22,7 +22,7 @@ public class ConfigurationEntityConfiguration
     {
         builder.HasKey(e => e.Id);
 
-        builder.Property(e => e.BroadcasterId).HasMaxLength(50);
+        builder.Property(e => e.BroadcasterId);
 
         builder.Property(e => e.Key).IsRequired().HasMaxLength(255);
 

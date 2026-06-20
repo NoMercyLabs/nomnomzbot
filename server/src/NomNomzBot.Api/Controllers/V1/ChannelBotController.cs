@@ -207,8 +207,11 @@ public class ChannelBotController : BaseController
     [ProducesResponseType<StatusResponseDto<ScopesResponseDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetScopes(string channelId, CancellationToken ct)
     {
+        if (!Guid.TryParse(channelId, out Guid tenantId))
+            return BadRequestResponse("Invalid channel id.");
+
         var service = await _db.Services.FirstOrDefaultAsync(
-            s => s.Name == "twitch" && s.BroadcasterId == channelId,
+            s => s.Name == "twitch" && s.BroadcasterId == tenantId,
             ct
         );
 

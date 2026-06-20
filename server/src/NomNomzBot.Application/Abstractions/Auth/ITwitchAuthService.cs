@@ -17,13 +17,15 @@ public interface ITwitchAuthService
         string redirectUri,
         CancellationToken ct = default
     );
+
+    // broadcasterId is the tenant (channel) Guid; null = the platform/shared-bot row (Service.BroadcasterId null).
     Task<TokenResult?> RefreshTokenAsync(
-        string broadcasterId,
+        Guid? broadcasterId,
         string serviceName,
         CancellationToken ct = default
     );
     Task RefreshExpiringTokensAsync(CancellationToken ct = default);
-    Task RevokeTokenAsync(string broadcasterId, string serviceName, CancellationToken ct = default);
+    Task RevokeTokenAsync(Guid? broadcasterId, string serviceName, CancellationToken ct = default);
 }
 
 public record TokenResult(

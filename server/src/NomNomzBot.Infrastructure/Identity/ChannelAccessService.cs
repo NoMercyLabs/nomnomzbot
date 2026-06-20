@@ -16,8 +16,8 @@ namespace NomNomzBot.Infrastructure.Identity;
 
 /// <summary>
 /// Default <see cref="IChannelAccessService"/> — authorizes tenant resolution against the
-/// database: the caller's own channel (Channel.Id == User.Id), an active moderator grant,
-/// or platform admin. Fails closed for everything else.
+/// database: the caller's own channel (Channel.OwnerUserId == User.Id), an active moderator
+/// grant, or platform admin. Fails closed for everything else.
 /// </summary>
 public sealed class ChannelAccessService : IChannelAccessService
 {
@@ -34,23 +34,46 @@ public sealed class ChannelAccessService : IChannelAccessService
         CancellationToken cancellationToken = default
     )
     {
-        if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(channelId))
+        // userId / channelId are the internal user / tenant Guids in string form (JWT sub + tenant key).
+        if (
+            !Guid.TryParse(userId, out Guid userGuid)
+            || !Guid.TryParse(channelId, out Guid channelGuid)
+        )
             return false;
 
-        // Own channel — Channel.Id is the owner's User.Id by design. No query needed.
-        if (string.Equals(userId, channelId, StringComparison.Ordinal))
+        // Own channel — the caller owns the channel they are resolving.
+        if (
+            await _db.Channels.AnyAsync(
+                c => c.Id == channelGuid && c.OwnerUserId == userGuid,
+                cancellationToken
+            )
+        )
             return true;
 
         // Active moderator grant (soft-deleted grants are excluded by the global query filter).
         if (
             await _db.ChannelModerators.AnyAsync(
-                m => m.ChannelId == channelId && m.UserId == userId,
+                m => m.ChannelId == channelGuid && m.UserId == userGuid,
                 cancellationToken
             )
         )
             return true;
 
         // Platform admin may act on any channel.
-        return await _db.Users.AnyAsync(u => u.Id == userId && u.IsAdmin, cancellationToken);
+        return await _db.Users.AnyAsync(u => u.Id == userGuid && u.IsAdmin, cancellationToken);
+    }
+
+    public async Task<Guid> ResolveOwnChannelAsync(
+        string userId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (!Guid.TryParse(userId, out Guid userGuid))
+            return Guid.Empty;
+
+        return await _db
+            .Channels.Where(c => c.OwnerUserId == userGuid)
+            .Select(c => c.Id)
+            .FirstOrDefaultAsync(cancellationToken);
     }
 }

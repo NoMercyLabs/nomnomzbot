@@ -147,11 +147,7 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                             "Npgsql:ValueGenerationStrategy",
                             NpgsqlValueGenerationStrategy.IdentityByDefaultColumn
                         ),
-                    BroadcasterId = table.Column<string>(
-                        type: "character varying(50)",
-                        maxLength: 50,
-                        nullable: false
-                    ),
+                    BroadcasterId = table.Column<Guid>(type: "uuid", nullable: false),
                     UserId = table.Column<string>(
                         type: "character varying(50)",
                         maxLength: 50,
@@ -247,11 +243,7 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                             "Npgsql:ValueGenerationStrategy",
                             NpgsqlValueGenerationStrategy.IdentityByDefaultColumn
                         ),
-                    BroadcasterId = table.Column<string>(
-                        type: "character varying(50)",
-                        maxLength: 50,
-                        nullable: false
-                    ),
+                    BroadcasterId = table.Column<Guid>(type: "uuid", nullable: false),
                     UserId = table.Column<string>(
                         type: "character varying(50)",
                         maxLength: 50,
@@ -281,7 +273,8 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                 name: "Users",
                 columns: table => new
                 {
-                    Id = table.Column<string>(
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    TwitchUserId = table.Column<string>(
                         type: "character varying(50)",
                         maxLength: 50,
                         nullable: false
@@ -366,7 +359,9 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                 name: "Channels",
                 columns: table => new
                 {
-                    Id = table.Column<string>(
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    OwnerUserId = table.Column<Guid>(type: "uuid", nullable: false),
+                    TwitchChannelId = table.Column<string>(
                         type: "character varying(50)",
                         maxLength: 50,
                         nullable: false
@@ -460,8 +455,8 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                 {
                     table.PrimaryKey("PK_Channels", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_Channels_Users_Id",
-                        column: x => x.Id,
+                        name: "FK_Channels_Users_OwnerUserId",
+                        column: x => x.OwnerUserId,
                         principalTable: "Users",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade
@@ -473,26 +468,13 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                 name: "ChannelBotAuthorizations",
                 columns: table => new
                 {
-                    Id = table
-                        .Column<int>(type: "integer", nullable: false)
-                        .Annotation(
-                            "Npgsql:ValueGenerationStrategy",
-                            NpgsqlValueGenerationStrategy.IdentityByDefaultColumn
-                        ),
-                    BroadcasterId = table.Column<string>(
-                        type: "character varying(50)",
-                        maxLength: 50,
-                        nullable: false
-                    ),
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    BroadcasterId = table.Column<Guid>(type: "uuid", nullable: false),
                     AuthorizedAt = table.Column<DateTime>(
                         type: "timestamp with time zone",
                         nullable: false
                     ),
-                    AuthorizedBy = table.Column<string>(
-                        type: "character varying(50)",
-                        maxLength: 50,
-                        nullable: true
-                    ),
+                    AuthorizedByUserId = table.Column<Guid>(type: "uuid", nullable: true),
                     IsActive = table.Column<bool>(
                         type: "boolean",
                         nullable: false,
@@ -529,16 +511,8 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         maxLength: 50,
                         nullable: false
                     ),
-                    ChannelId = table.Column<string>(
-                        type: "character varying(50)",
-                        maxLength: 50,
-                        nullable: true
-                    ),
-                    UserId = table.Column<string>(
-                        type: "character varying(50)",
-                        maxLength: 50,
-                        nullable: true
-                    ),
+                    ChannelId = table.Column<Guid>(type: "uuid", maxLength: 50, nullable: true),
+                    UserId = table.Column<Guid>(type: "uuid", maxLength: 50, nullable: true),
                     Type = table.Column<string>(
                         type: "character varying(50)",
                         maxLength: 50,
@@ -584,11 +558,7 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                             "Npgsql:ValueGenerationStrategy",
                             NpgsqlValueGenerationStrategy.IdentityByDefaultColumn
                         ),
-                    BroadcasterId = table.Column<string>(
-                        type: "character varying(50)",
-                        maxLength: 50,
-                        nullable: false
-                    ),
+                    BroadcasterId = table.Column<Guid>(type: "uuid", nullable: false),
                     FeatureKey = table.Column<string>(
                         type: "character varying(50)",
                         maxLength: 50,
@@ -634,16 +604,8 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                 name: "ChannelModerators",
                 columns: table => new
                 {
-                    ChannelId = table.Column<string>(
-                        type: "character varying(50)",
-                        maxLength: 50,
-                        nullable: false
-                    ),
-                    UserId = table.Column<string>(
-                        type: "character varying(50)",
-                        maxLength: 50,
-                        nullable: false
-                    ),
+                    ChannelId = table.Column<Guid>(type: "uuid", nullable: false),
+                    UserId = table.Column<Guid>(type: "uuid", nullable: false),
                     Role = table.Column<string>(
                         type: "character varying(20)",
                         maxLength: 20,
@@ -654,11 +616,7 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         type: "timestamp with time zone",
                         nullable: false
                     ),
-                    GrantedBy = table.Column<string>(
-                        type: "character varying(50)",
-                        maxLength: 50,
-                        nullable: true
-                    ),
+                    GrantedByUserId = table.Column<Guid>(type: "uuid", nullable: true),
                     CreatedAt = table.Column<DateTime>(
                         type: "timestamp with time zone",
                         nullable: false
@@ -702,11 +660,7 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                             "Npgsql:ValueGenerationStrategy",
                             NpgsqlValueGenerationStrategy.IdentityByDefaultColumn
                         ),
-                    BroadcasterId = table.Column<string>(
-                        type: "character varying(50)",
-                        maxLength: 50,
-                        nullable: false
-                    ),
+                    BroadcasterId = table.Column<Guid>(type: "uuid", nullable: false),
                     Tier = table.Column<string>(
                         type: "character varying(20)",
                         maxLength: 20,
@@ -765,11 +719,7 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                             "Npgsql:ValueGenerationStrategy",
                             NpgsqlValueGenerationStrategy.IdentityByDefaultColumn
                         ),
-                    BroadcasterId = table.Column<string>(
-                        type: "character varying(50)",
-                        maxLength: 50,
-                        nullable: false
-                    ),
+                    BroadcasterId = table.Column<Guid>(type: "uuid", nullable: false),
                     Name = table.Column<string>(
                         type: "character varying(100)",
                         maxLength: 100,
@@ -852,11 +802,7 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                             "Npgsql:ValueGenerationStrategy",
                             NpgsqlValueGenerationStrategy.IdentityByDefaultColumn
                         ),
-                    BroadcasterId = table.Column<string>(
-                        type: "character varying(50)",
-                        maxLength: 50,
-                        nullable: true
-                    ),
+                    BroadcasterId = table.Column<Guid>(type: "uuid", nullable: true),
                     Key = table.Column<string>(
                         type: "character varying(255)",
                         maxLength: 255,
@@ -900,11 +846,7 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                             "Npgsql:ValueGenerationStrategy",
                             NpgsqlValueGenerationStrategy.IdentityByDefaultColumn
                         ),
-                    BroadcasterId = table.Column<string>(
-                        type: "character varying(50)",
-                        maxLength: 50,
-                        nullable: false
-                    ),
+                    BroadcasterId = table.Column<Guid>(type: "uuid", nullable: false),
                     GuildId = table.Column<string>(
                         type: "character varying(50)",
                         maxLength: 50,
@@ -962,11 +904,7 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                             "Npgsql:ValueGenerationStrategy",
                             NpgsqlValueGenerationStrategy.IdentityByDefaultColumn
                         ),
-                    BroadcasterId = table.Column<string>(
-                        type: "character varying(50)",
-                        maxLength: 50,
-                        nullable: false
-                    ),
+                    BroadcasterId = table.Column<Guid>(type: "uuid", nullable: false),
                     EventType = table.Column<string>(
                         type: "character varying(100)",
                         maxLength: 100,
@@ -1019,11 +957,7 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         maxLength: 50,
                         nullable: false
                     ),
-                    BroadcasterId = table.Column<string>(
-                        type: "character varying(50)",
-                        maxLength: 50,
-                        nullable: false
-                    ),
+                    BroadcasterId = table.Column<Guid>(type: "uuid", nullable: false),
                     Provider = table.Column<string>(
                         type: "character varying(50)",
                         maxLength: 50,
@@ -1105,11 +1039,7 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                             "Npgsql:ValueGenerationStrategy",
                             NpgsqlValueGenerationStrategy.IdentityByDefaultColumn
                         ),
-                    BroadcasterId = table.Column<string>(
-                        type: "character varying(50)",
-                        maxLength: 50,
-                        nullable: false
-                    ),
+                    BroadcasterId = table.Column<Guid>(type: "uuid", nullable: false),
                     SubjectType = table.Column<string>(
                         type: "character varying(10)",
                         maxLength: 10,
@@ -1171,11 +1101,7 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                             "Npgsql:ValueGenerationStrategy",
                             NpgsqlValueGenerationStrategy.IdentityByDefaultColumn
                         ),
-                    BroadcasterId = table.Column<string>(
-                        type: "character varying(50)",
-                        maxLength: 50,
-                        nullable: false
-                    ),
+                    BroadcasterId = table.Column<Guid>(type: "uuid", nullable: false),
                     Name = table.Column<string>(
                         type: "character varying(200)",
                         maxLength: 200,
@@ -1225,11 +1151,7 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                             "Npgsql:ValueGenerationStrategy",
                             NpgsqlValueGenerationStrategy.IdentityByDefaultColumn
                         ),
-                    BroadcasterId = table.Column<string>(
-                        type: "character varying(50)",
-                        maxLength: 50,
-                        nullable: false
-                    ),
+                    BroadcasterId = table.Column<Guid>(type: "uuid", nullable: false),
                     RecordType = table.Column<string>(
                         type: "character varying(50)",
                         maxLength: 50,
@@ -1264,13 +1186,6 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade
                     );
-                    table.ForeignKey(
-                        name: "FK_Records_Users_UserId",
-                        column: x => x.UserId,
-                        principalTable: "Users",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade
-                    );
                 }
             );
 
@@ -1279,11 +1194,7 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    BroadcasterId = table.Column<string>(
-                        type: "character varying(50)",
-                        maxLength: 50,
-                        nullable: false
-                    ),
+                    BroadcasterId = table.Column<Guid>(type: "uuid", nullable: false),
                     Title = table.Column<string>(
                         type: "character varying(255)",
                         maxLength: 255,
@@ -1359,11 +1270,7 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         nullable: false,
                         defaultValue: true
                     ),
-                    BroadcasterId = table.Column<string>(
-                        type: "character varying(50)",
-                        maxLength: 50,
-                        nullable: true
-                    ),
+                    BroadcasterId = table.Column<Guid>(type: "uuid", nullable: true),
                     ClientId = table.Column<string>(
                         type: "character varying(512)",
                         maxLength: 512,
@@ -1435,11 +1342,7 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                             "Npgsql:ValueGenerationStrategy",
                             NpgsqlValueGenerationStrategy.IdentityByDefaultColumn
                         ),
-                    BroadcasterId = table.Column<string>(
-                        type: "character varying(50)",
-                        maxLength: 50,
-                        nullable: true
-                    ),
+                    BroadcasterId = table.Column<Guid>(type: "uuid", nullable: true),
                     Key = table.Column<string>(
                         type: "character varying(255)",
                         maxLength: 255,
@@ -1482,11 +1385,7 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         maxLength: 50,
                         nullable: false
                     ),
-                    ChannelId = table.Column<string>(
-                        type: "character varying(50)",
-                        maxLength: 50,
-                        nullable: false
-                    ),
+                    ChannelId = table.Column<Guid>(type: "uuid", maxLength: 50, nullable: false),
                     Language = table.Column<string>(
                         type: "character varying(50)",
                         maxLength: 50,
@@ -1559,11 +1458,7 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                             "Npgsql:ValueGenerationStrategy",
                             NpgsqlValueGenerationStrategy.IdentityByDefaultColumn
                         ),
-                    BroadcasterId = table.Column<string>(
-                        type: "character varying(50)",
-                        maxLength: 50,
-                        nullable: false
-                    ),
+                    BroadcasterId = table.Column<Guid>(type: "uuid", nullable: false),
                     Name = table.Column<string>(
                         type: "character varying(100)",
                         maxLength: 100,
@@ -1609,11 +1504,7 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    BroadcasterId = table.Column<string>(
-                        type: "character varying(50)",
-                        maxLength: 50,
-                        nullable: false
-                    ),
+                    BroadcasterId = table.Column<Guid>(type: "uuid", nullable: false),
                     UserId = table.Column<string>(
                         type: "character varying(50)",
                         maxLength: 50,
@@ -1654,11 +1545,7 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                 columns: table => new
                 {
                     Id = table.Column<string>(type: "text", nullable: false),
-                    BroadcasterId = table.Column<string>(
-                        type: "character varying(50)",
-                        maxLength: 50,
-                        nullable: false
-                    ),
+                    BroadcasterId = table.Column<Guid>(type: "uuid", nullable: false),
                     Name = table.Column<string>(
                         type: "character varying(255)",
                         maxLength: 255,
@@ -1737,11 +1624,7 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         maxLength: 255,
                         nullable: false
                     ),
-                    BroadcasterId = table.Column<string>(
-                        type: "character varying(50)",
-                        maxLength: 50,
-                        nullable: false
-                    ),
+                    BroadcasterId = table.Column<Guid>(type: "uuid", nullable: false),
                     UserId = table.Column<string>(
                         type: "character varying(50)",
                         maxLength: 50,
@@ -1828,13 +1711,6 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         principalColumn: "Id",
                         onDelete: ReferentialAction.SetNull
                     );
-                    table.ForeignKey(
-                        name: "FK_ChatMessages_Users_UserId",
-                        column: x => x.UserId,
-                        principalTable: "Users",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict
-                    );
                 }
             );
 
@@ -1884,6 +1760,20 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
             );
 
             migrationBuilder.CreateIndex(
+                name: "IX_Channel_OwnerUserId",
+                table: "Channels",
+                column: "OwnerUserId",
+                unique: true
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Channel_TwitchChannelId",
+                table: "Channels",
+                column: "TwitchChannelId",
+                unique: true
+            );
+
+            migrationBuilder.CreateIndex(
                 name: "IX_ChannelSubscription_BroadcasterId",
                 table: "ChannelSubscriptions",
                 column: "BroadcasterId",
@@ -1897,15 +1787,15 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
             );
 
             migrationBuilder.CreateIndex(
-                name: "IX_ChatMessages_StreamId",
+                name: "IX_ChatMessage_UserId",
                 table: "ChatMessages",
-                column: "StreamId"
+                column: "UserId"
             );
 
             migrationBuilder.CreateIndex(
-                name: "IX_ChatMessages_UserId",
+                name: "IX_ChatMessages_StreamId",
                 table: "ChatMessages",
-                column: "UserId"
+                column: "StreamId"
             );
 
             migrationBuilder.CreateIndex(
@@ -1965,7 +1855,7 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
             );
 
             migrationBuilder.CreateIndex(
-                name: "IX_Records_UserId",
+                name: "IX_Record_UserId",
                 table: "Records",
                 column: "UserId"
             );
@@ -2021,6 +1911,13 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                 name: "IX_TtsCacheEntry_ContentHash",
                 table: "TtsCacheEntries",
                 column: "ContentHash",
+                unique: true
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_User_TwitchUserId",
+                table: "Users",
+                column: "TwitchUserId",
                 unique: true
             );
 

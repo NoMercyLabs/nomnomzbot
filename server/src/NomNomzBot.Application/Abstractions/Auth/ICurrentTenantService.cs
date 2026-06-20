@@ -12,6 +12,14 @@ namespace NomNomzBot.Application.Abstractions.Auth;
 
 public interface ICurrentTenantService
 {
-    string? BroadcasterId { get; }
-    void SetTenant(string broadcasterId);
+    // The current tenant (channel) id, widened string? -> Guid? (schema §1.1). Null when no tenant
+    // is resolved (anonymous / background contexts before SetTenant).
+    Guid? BroadcasterId { get; }
+
+    bool HasTenant { get; }
+
+    void SetTenant(Guid broadcasterId);
+
+    // Drops tenant context so a background service can be reused across tenants.
+    void Clear();
 }

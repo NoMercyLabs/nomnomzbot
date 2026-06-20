@@ -24,7 +24,7 @@ namespace NomNomzBot.Infrastructure.Platform;
 /// </summary>
 public sealed class ChannelRegistry : IChannelRegistry, IHostedService
 {
-    private readonly ConcurrentDictionary<string, ChannelContext> _channels = new();
+    private readonly ConcurrentDictionary<Guid, ChannelContext> _channels = new();
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<ChannelRegistry> _logger;
     private readonly TimeProvider _timeProvider;
@@ -69,7 +69,8 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
     public int Count => _channels.Count;
 
     public async Task<ChannelContext> GetOrCreateAsync(
-        string broadcasterId,
+        Guid broadcasterId,
+        string twitchChannelId,
         string channelName,
         CancellationToken ct = default
     )
@@ -85,6 +86,7 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
         ChannelContext ctx = new()
         {
             BroadcasterId = broadcasterId,
+            TwitchChannelId = twitchChannelId,
             ChannelName = channelName,
             LoadedAt = now,
             LastActivityAt = now,
@@ -102,10 +104,10 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
         return ctx;
     }
 
-    public ChannelContext? Get(string broadcasterId) =>
+    public ChannelContext? Get(Guid broadcasterId) =>
         _channels.TryGetValue(broadcasterId, out ChannelContext? ctx) ? ctx : null;
 
-    public async Task RemoveAsync(string broadcasterId, CancellationToken ct = default)
+    public async Task RemoveAsync(Guid broadcasterId, CancellationToken ct = default)
     {
         if (!_channels.TryRemove(broadcasterId, out ChannelContext? ctx))
             return;

@@ -44,8 +44,9 @@ public class MusicConfigService : IMusicConfigService
         CancellationToken cancellationToken = default
     )
     {
+        Guid? tenantId = Guid.TryParse(broadcasterId, out Guid g) ? g : null;
         ChannelConfiguration? existing = await _db.Configurations.FirstOrDefaultAsync(
-            c => c.BroadcasterId == broadcasterId && c.Key == ConfigKey,
+            c => c.BroadcasterId == tenantId && c.Key == ConfigKey,
             cancellationToken
         );
 
@@ -80,7 +81,7 @@ public class MusicConfigService : IMusicConfigService
             _db.Configurations.Add(
                 new()
                 {
-                    BroadcasterId = broadcasterId,
+                    BroadcasterId = tenantId,
                     Key = ConfigKey,
                     Value = json,
                 }
@@ -97,8 +98,9 @@ public class MusicConfigService : IMusicConfigService
         CancellationToken cancellationToken
     )
     {
+        Guid? tenantId = Guid.TryParse(broadcasterId, out Guid g) ? g : null;
         ChannelConfiguration? entry = await _db.Configurations.FirstOrDefaultAsync(
-            c => c.BroadcasterId == broadcasterId && c.Key == ConfigKey,
+            c => c.BroadcasterId == tenantId && c.Key == ConfigKey,
             cancellationToken
         );
 

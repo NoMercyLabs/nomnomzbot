@@ -65,7 +65,11 @@ public sealed class SongVolumeAction : ICommandAction
         if (volume is < 0 or > 100)
             return ActionResult.Failure("song_volume: 'volume' must be between 0 and 100");
 
-        bool set = await _music.SetVolumeAsync(ctx.BroadcasterId, volume, ctx.CancellationToken);
+        bool set = await _music.SetVolumeAsync(
+            ctx.BroadcasterId.ToString(),
+            volume,
+            ctx.CancellationToken
+        );
         if (!set)
             return ActionResult.Failure("song_volume: failed to set volume");
 
