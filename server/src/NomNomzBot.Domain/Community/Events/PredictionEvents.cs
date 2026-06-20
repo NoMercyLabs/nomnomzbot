@@ -22,6 +22,15 @@ public sealed class PredictionBeganEvent : DomainEventBase
     public required DateTimeOffset LocksAt { get; init; }
 }
 
+/// <summary>Published on each <c>channel.prediction.progress</c> tick while a prediction is open (running pools).</summary>
+public sealed class PredictionProgressEvent : DomainEventBase
+{
+    public required string PredictionId { get; init; }
+    public required string Title { get; init; }
+    public required IReadOnlyList<PredictionOutcome> Outcomes { get; init; }
+    public required DateTimeOffset LocksAt { get; init; }
+}
+
 /// <summary>Published when voting is locked (but not yet resolved).</summary>
 public sealed class PredictionLockedEvent : DomainEventBase
 {
