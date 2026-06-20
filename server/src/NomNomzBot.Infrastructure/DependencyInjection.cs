@@ -389,6 +389,18 @@ public static class DependencyInjection
             Platform.Transport.Helix.SubClients.TwitchPredictionsApi
         >();
         services.AddScoped<ITwitchRaidsApi, Platform.Transport.Helix.SubClients.TwitchRaidsApi>();
+        services.AddScoped<ITwitchChatApi, Platform.Transport.Helix.SubClients.TwitchChatApi>();
+        services.AddScoped<
+            ITwitchChatAssetsApi,
+            Platform.Transport.Helix.SubClients.TwitchChatAssetsApi
+        >();
+        services.AddScoped<ITwitchBitsApi, Platform.Transport.Helix.SubClients.TwitchBitsApi>();
+        services.AddScoped<ITwitchClipsApi, Platform.Transport.Helix.SubClients.TwitchClipsApi>();
+        services.AddScoped<ITwitchVideosApi, Platform.Transport.Helix.SubClients.TwitchVideosApi>();
+        services.AddScoped<
+            ITwitchScheduleApi,
+            Platform.Transport.Helix.SubClients.TwitchScheduleApi
+        >();
 
         services
             .AddHttpClient("twitch-eventsub")
