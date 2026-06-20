@@ -11,8 +11,8 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
-using NomNomzBot.Application.Abstractions.Transport;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Rewards.Dtos;
 using NomNomzBot.Application.Rewards.Services;
 using NomNomzBot.Domain.Rewards.Entities;
@@ -22,20 +22,17 @@ namespace NomNomzBot.Infrastructure.Rewards;
 public class RewardService : IRewardService
 {
     private readonly IApplicationDbContext _db;
-    private readonly ITwitchApiService _twitchApi;
-    private readonly ITwitchIdentityResolver _identityResolver;
+    private readonly ITwitchChannelPointsApi _channelPoints;
     private readonly ILogger<RewardService> _logger;
 
     public RewardService(
         IApplicationDbContext db,
-        ITwitchApiService twitchApi,
-        ITwitchIdentityResolver identityResolver,
+        ITwitchChannelPointsApi channelPoints,
         ILogger<RewardService> logger
     )
     {
         _db = db;
-        _twitchApi = twitchApi;
-        _identityResolver = identityResolver;
+        _channelPoints = channelPoints;
         _logger = logger;
     }
 
@@ -212,18 +209,16 @@ public class RewardService : IRewardService
         if (!channelExists)
             return Errors.ChannelNotFound(broadcasterId);
 
-        // Resolve the tenant Guid to the Twitch channel string id — Helix never receives a Guid.
-        string? twitchChannelId = await _identityResolver.GetTwitchChannelIdAsync(
-            broadcaster,
-            cancellationToken
-        );
-        if (twitchChannelId is null)
-            return Errors.ChannelNotFound(broadcasterId);
-
-        IReadOnlyList<TwitchRewardInfo> twitchRewards = await _twitchApi.GetCustomRewardsAsync(
-            twitchChannelId,
-            cancellationToken
-        );
+        // The sub-client resolves the tenant Guid → Twitch id internally; a failure degrades to "no rewards".
+        Result<IReadOnlyList<TwitchCustomReward>> rewardsResult =
+            await _channelPoints.GetCustomRewardsAsync(
+                broadcaster,
+                onlyManageableRewards: true,
+                ct: cancellationToken
+            );
+        IReadOnlyList<TwitchCustomReward> twitchRewards = rewardsResult.IsSuccess
+            ? rewardsResult.Value
+            : [];
         if (twitchRewards.Count == 0)
         {
             _logger.LogInformation(
@@ -247,7 +242,7 @@ public class RewardService : IRewardService
         );
 
         int syncedCount = 0;
-        foreach (TwitchRewardInfo tr in twitchRewards)
+        foreach (TwitchCustomReward tr in twitchRewards)
         {
             if (existingByTwitchId.TryGetValue(tr.Id, out Reward? reward))
             {

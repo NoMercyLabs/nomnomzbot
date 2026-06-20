@@ -13,6 +13,8 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Transport;
+using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Platform.Entities;
 using NomNomzBot.Infrastructure.Platform;
@@ -20,16 +22,18 @@ using NomNomzBot.Infrastructure.Platform;
 namespace NomNomzBot.Infrastructure.Chat;
 
 /// <summary>
-/// Primary IChatProvider implementation that uses the Twitch Helix API.
-/// Sending: POST /helix/chat/messages
-/// Moderation: /helix/moderation/*
+/// Primary <see cref="IChatProvider"/> implementation over the Twitch Helix API. Sending posts
+/// <c>/helix/chat/messages</c> on the bot token through <see cref="ITwitchHelixTransport"/> (this provider is
+/// the chat-send owner the moderation sub-client deliberately leaves the plain send to); chat enforcement
+/// delegates to <see cref="ITwitchModerationApi"/>, which resolves the tenant Guid → Twitch id internally.
 ///
-/// This is the EventSub-first path. IRC (TwitchIrcService) is only used as a
-/// thin fallback for features not yet available in Helix (e.g. watch streaks).
+/// This is the EventSub-first path. IRC (<c>TwitchIrcService</c>) is only a thin fallback for features not
+/// yet available in Helix (e.g. watch streaks).
 /// </summary>
 public sealed class HelixChatProvider : IChatProvider
 {
-    private readonly ITwitchApiService _api;
+    private readonly ITwitchHelixTransport _transport;
+    private readonly ITwitchModerationApi _moderation;
     private readonly ITwitchIdentityResolver _identityResolver;
     private readonly IApplicationDbContext _db;
     private readonly TwitchOptions _options;
@@ -39,34 +43,89 @@ public sealed class HelixChatProvider : IChatProvider
     private string? _cachedBotUserId;
 
     public HelixChatProvider(
-        ITwitchApiService api,
+        ITwitchHelixTransport transport,
+        ITwitchModerationApi moderation,
         ITwitchIdentityResolver identityResolver,
         IApplicationDbContext db,
         IOptions<TwitchOptions> options,
         ILogger<HelixChatProvider> logger
     )
     {
-        _api = api;
+        _transport = transport;
+        _moderation = moderation;
         _identityResolver = identityResolver;
         _db = db;
         _options = options.Value;
         _logger = logger;
     }
 
-    public async Task SendMessageAsync(
+    public Task SendMessageAsync(
         Guid broadcasterId,
         string message,
         CancellationToken cancellationToken = default
-    )
-    {
-        string? twitchBroadcasterId = await ResolveTwitchChannelIdAsync(
+    ) => PostChatMessageAsync(broadcasterId, message, null, cancellationToken);
+
+    public Task SendReplyAsync(
+        Guid broadcasterId,
+        string replyToMessageId,
+        string message,
+        CancellationToken cancellationToken = default
+    ) => PostChatMessageAsync(broadcasterId, message, replyToMessageId, cancellationToken);
+
+    public Task TimeoutUserAsync(
+        Guid broadcasterId,
+        string userId,
+        int durationSeconds,
+        string? reason = null,
+        CancellationToken cancellationToken = default
+    ) =>
+        _moderation.TimeoutUserAsync(
             broadcasterId,
+            userId,
+            durationSeconds,
+            reason,
             cancellationToken
         );
+
+    public Task BanUserAsync(
+        Guid broadcasterId,
+        string userId,
+        string? reason = null,
+        CancellationToken cancellationToken = default
+    ) => _moderation.BanUserAsync(broadcasterId, userId, reason, cancellationToken);
+
+    public Task UnbanUserAsync(
+        Guid broadcasterId,
+        string userId,
+        CancellationToken cancellationToken = default
+    ) => _moderation.UnbanUserAsync(broadcasterId, userId, cancellationToken);
+
+    public Task DeleteMessageAsync(
+        Guid broadcasterId,
+        string messageId,
+        CancellationToken cancellationToken = default
+    ) => _moderation.DeleteChatMessageAsync(broadcasterId, messageId, cancellationToken);
+
+    // ─── Helpers ─────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Posts a chat message (or reply) as the bot. The bot sends as itself, so the call rides the bot token
+    /// (<see cref="TwitchHelixAuth.App"/>) rather than the tenant's user token — the target channel and
+    /// sender id travel in the body. The transport serialises this PascalCase body to snake_case and omits
+    /// the null reply id for a plain message.
+    /// </summary>
+    private async Task PostChatMessageAsync(
+        Guid broadcasterId,
+        string message,
+        string? replyToMessageId,
+        CancellationToken ct
+    )
+    {
+        string? twitchBroadcasterId = await ResolveTwitchChannelIdAsync(broadcasterId, ct);
         if (twitchBroadcasterId is null)
             return;
 
-        string? botUserId = await GetBotUserIdAsync(cancellationToken);
+        string? botUserId = await GetBotUserIdAsync(ct);
         if (botUserId is null)
         {
             _logger.LogWarning(
@@ -76,122 +135,28 @@ public sealed class HelixChatProvider : IChatProvider
             return;
         }
 
-        await _api.SendChatMessageAsync(
-            twitchBroadcasterId,
-            botUserId,
-            message,
-            null,
-            cancellationToken
+        TwitchHelixRequest request = new(
+            HttpMethod.Post,
+            "chat/messages",
+            TwitchHelixAuth.App,
+            Body: new
+            {
+                BroadcasterId = twitchBroadcasterId,
+                SenderId = botUserId,
+                Message = message,
+                ReplyParentMessageId = replyToMessageId,
+            },
+            Priority: TwitchCallPriority.UserInteractive
         );
-    }
 
-    public async Task SendReplyAsync(
-        Guid broadcasterId,
-        string replyToMessageId,
-        string message,
-        CancellationToken cancellationToken = default
-    )
-    {
-        string? twitchBroadcasterId = await ResolveTwitchChannelIdAsync(
-            broadcasterId,
-            cancellationToken
-        );
-        if (twitchBroadcasterId is null)
-            return;
-
-        string? botUserId = await GetBotUserIdAsync(cancellationToken);
-        if (botUserId is null)
-        {
+        Result result = await _transport.SendAsync(request, ct);
+        if (result.IsFailure)
             _logger.LogWarning(
-                "HelixChatProvider: no bot user ID, cannot send reply to {BroadcasterId}",
-                broadcasterId
+                "HelixChatProvider: send to {BroadcasterId} failed: {Error}",
+                broadcasterId,
+                result.ErrorMessage
             );
-            return;
-        }
-
-        await _api.SendChatMessageAsync(
-            twitchBroadcasterId,
-            botUserId,
-            message,
-            replyToMessageId,
-            cancellationToken
-        );
     }
-
-    public async Task TimeoutUserAsync(
-        Guid broadcasterId,
-        string userId,
-        int durationSeconds,
-        string? reason = null,
-        CancellationToken cancellationToken = default
-    )
-    {
-        string? twitchBroadcasterId = await ResolveTwitchChannelIdAsync(
-            broadcasterId,
-            cancellationToken
-        );
-        if (twitchBroadcasterId is null)
-            return;
-
-        await _api.TimeoutUserAsync(
-            twitchBroadcasterId,
-            userId,
-            durationSeconds,
-            reason,
-            cancellationToken
-        );
-    }
-
-    public async Task BanUserAsync(
-        Guid broadcasterId,
-        string userId,
-        string? reason = null,
-        CancellationToken cancellationToken = default
-    )
-    {
-        string? twitchBroadcasterId = await ResolveTwitchChannelIdAsync(
-            broadcasterId,
-            cancellationToken
-        );
-        if (twitchBroadcasterId is null)
-            return;
-
-        await _api.BanUserAsync(twitchBroadcasterId, userId, reason, cancellationToken);
-    }
-
-    public async Task UnbanUserAsync(
-        Guid broadcasterId,
-        string userId,
-        CancellationToken cancellationToken = default
-    )
-    {
-        string? twitchBroadcasterId = await ResolveTwitchChannelIdAsync(
-            broadcasterId,
-            cancellationToken
-        );
-        if (twitchBroadcasterId is null)
-            return;
-
-        await _api.UnbanUserAsync(twitchBroadcasterId, userId, cancellationToken);
-    }
-
-    public async Task DeleteMessageAsync(
-        Guid broadcasterId,
-        string messageId,
-        CancellationToken cancellationToken = default
-    )
-    {
-        string? twitchBroadcasterId = await ResolveTwitchChannelIdAsync(
-            broadcasterId,
-            cancellationToken
-        );
-        if (twitchBroadcasterId is null)
-            return;
-
-        await _api.DeleteChatMessageAsync(twitchBroadcasterId, messageId, cancellationToken);
-    }
-
-    // ─── Helpers ─────────────────────────────────────────────────────────────────
 
     /// <summary>
     /// Resolves the tenant Guid to the Twitch channel string id. Logs and returns null when the channel

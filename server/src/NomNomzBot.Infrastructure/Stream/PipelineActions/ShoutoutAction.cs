@@ -10,7 +10,8 @@
 
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Pipeline;
-using NomNomzBot.Application.Abstractions.Transport;
+using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Domain.Platform.Interfaces;
 
 namespace NomNomzBot.Infrastructure.Stream.PipelineActions;
@@ -31,8 +32,7 @@ public sealed class ShoutoutAction : ICommandAction
     private static readonly TimeSpan DefaultPerUserCooldown = TimeSpan.FromMinutes(60);
     private static readonly TimeSpan DefaultGlobalCooldown = TimeSpan.FromMinutes(2);
 
-    private readonly ITwitchApiService _twitchApi;
-    private readonly ITwitchIdentityResolver _identityResolver;
+    private readonly ITwitchChatApi _chat;
     private readonly IChannelRegistry _registry;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<ShoutoutAction> _logger;
@@ -40,15 +40,13 @@ public sealed class ShoutoutAction : ICommandAction
     public string ActionType => "shoutout";
 
     public ShoutoutAction(
-        ITwitchApiService twitchApi,
-        ITwitchIdentityResolver identityResolver,
+        ITwitchChatApi chat,
         IChannelRegistry registry,
         TimeProvider timeProvider,
         ILogger<ShoutoutAction> logger
     )
     {
-        _twitchApi = twitchApi;
-        _identityResolver = identityResolver;
+        _chat = chat;
         _registry = registry;
         _timeProvider = timeProvider;
         _logger = logger;
@@ -109,23 +107,14 @@ public sealed class ShoutoutAction : ICommandAction
             }
         }
 
-        // Resolve the tenant Guid to the Twitch channel string id for the Helix call.
-        // The from-broadcaster and moderator are both this channel; rawUserId is already a Twitch user id.
-        string? twitchChannelId = await _identityResolver.GetTwitchChannelIdAsync(
+        // rawUserId is the Twitch id of the channel to shout out. The sub-client resolves this channel's
+        // tenant Guid → Twitch id internally and sends the shoutout as its own moderator.
+        Result result = await _chat.SendShoutoutAsync(
             ctx.BroadcasterId,
-            ctx.CancellationToken
-        );
-        if (twitchChannelId is null)
-            return ActionResult.Failure(
-                $"shoutout action could not resolve Twitch channel id for tenant {ctx.BroadcasterId}"
-            );
-
-        bool success = await _twitchApi.ShoutoutAsync(
-            twitchChannelId,
             rawUserId,
-            twitchChannelId,
             ctx.CancellationToken
         );
+        bool success = result.IsSuccess;
 
         if (success && channelCtx is not null)
         {

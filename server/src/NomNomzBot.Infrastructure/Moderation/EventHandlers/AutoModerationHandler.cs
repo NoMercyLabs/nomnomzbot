@@ -15,7 +15,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
-using NomNomzBot.Application.Abstractions.Transport;
+using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Platform;
 using NomNomzBot.Domain.Platform.Entities;
@@ -103,11 +103,11 @@ public sealed partial class AutoModerationHandler : IEventHandler<ChatMessageRec
                 message
             );
 
-            // Twitch moderation actions take the Twitch channel string id (carried on the event),
-            // not the tenant Guid. @event.UserId is already the Twitch user id.
+            // The moderation sub-client resolves the tenant Guid → Twitch id internally;
+            // @event.UserId is already the Twitch user id.
             await ApplyActionAsync(
                 rule,
-                @event.TwitchBroadcasterId,
+                broadcasterId,
                 @event.UserId,
                 @event.MessageId,
                 cancellationToken
@@ -215,7 +215,7 @@ public sealed partial class AutoModerationHandler : IEventHandler<ChatMessageRec
 
     private async Task ApplyActionAsync(
         AutoModRule rule,
-        string broadcasterId,
+        Guid broadcasterId,
         string userId,
         string messageId,
         CancellationToken ct
@@ -224,14 +224,14 @@ public sealed partial class AutoModerationHandler : IEventHandler<ChatMessageRec
         try
         {
             using IServiceScope scope = _scopeFactory.CreateScope();
-            ITwitchApiService twitchApi =
-                scope.ServiceProvider.GetRequiredService<ITwitchApiService>();
+            ITwitchModerationApi moderation =
+                scope.ServiceProvider.GetRequiredService<ITwitchModerationApi>();
 
             switch (rule.Action.ToLowerInvariant())
             {
                 case "timeout":
                     int duration = rule.DurationSeconds ?? 60;
-                    await twitchApi.TimeoutUserAsync(
+                    await moderation.TimeoutUserAsync(
                         broadcasterId,
                         userId,
                         duration,
@@ -241,7 +241,7 @@ public sealed partial class AutoModerationHandler : IEventHandler<ChatMessageRec
                     break;
 
                 case "ban":
-                    await twitchApi.BanUserAsync(
+                    await moderation.BanUserAsync(
                         broadcasterId,
                         userId,
                         rule.Reason ?? rule.Name,
@@ -250,7 +250,7 @@ public sealed partial class AutoModerationHandler : IEventHandler<ChatMessageRec
                     break;
 
                 case "delete":
-                    await twitchApi.DeleteChatMessageAsync(broadcasterId, messageId, ct);
+                    await moderation.DeleteChatMessageAsync(broadcasterId, messageId, ct);
                     break;
 
                 default:

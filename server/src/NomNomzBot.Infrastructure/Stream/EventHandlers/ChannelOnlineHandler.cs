@@ -13,7 +13,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
-using NomNomzBot.Application.Abstractions.Transport;
+using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Platform;
 using NomNomzBot.Domain.Platform.Entities;
@@ -76,25 +77,16 @@ public sealed class ChannelOnlineHandler : IEventHandler<ChannelOnlineEvent>
         string gameName = @event.GameName;
         if (string.IsNullOrEmpty(title))
         {
-            ITwitchIdentityResolver resolver =
-                scope.ServiceProvider.GetRequiredService<ITwitchIdentityResolver>();
-            string? twitchChannelId = await resolver.GetTwitchChannelIdAsync(
+            ITwitchStreamsApi streams =
+                scope.ServiceProvider.GetRequiredService<ITwitchStreamsApi>();
+            Result<TwitchStream> streamResult = await streams.GetStreamAsync(
                 broadcasterId,
                 cancellationToken
             );
-            if (twitchChannelId is not null)
+            if (streamResult.IsSuccess)
             {
-                ITwitchApiService twitchApi =
-                    scope.ServiceProvider.GetRequiredService<ITwitchApiService>();
-                TwitchStreamInfo? streamInfo = await twitchApi.GetStreamInfoAsync(
-                    twitchChannelId,
-                    cancellationToken
-                );
-                if (streamInfo is not null)
-                {
-                    title = streamInfo.Title ?? string.Empty;
-                    gameName = streamInfo.GameName ?? string.Empty;
-                }
+                title = streamResult.Value.Title;
+                gameName = streamResult.Value.GameName;
             }
         }
 

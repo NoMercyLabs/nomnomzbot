@@ -12,8 +12,8 @@ using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
-using NomNomzBot.Application.Abstractions.Transport;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Moderation.Dtos;
 using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Domain.Identity.Entities;
@@ -27,20 +27,17 @@ public class ModerationService : IModerationService
     private const string ActionRecordType = "moderation_action";
 
     private readonly IApplicationDbContext _db;
-    private readonly ITwitchApiService _twitchApi;
-    private readonly ITwitchIdentityResolver _identityResolver;
+    private readonly ITwitchModerationApi _moderation;
     private readonly ILogger<ModerationService> _logger;
 
     public ModerationService(
         IApplicationDbContext db,
-        ITwitchApiService twitchApi,
-        ITwitchIdentityResolver identityResolver,
+        ITwitchModerationApi moderation,
         ILogger<ModerationService> logger
     )
     {
         _db = db;
-        _twitchApi = twitchApi;
-        _identityResolver = identityResolver;
+        _moderation = moderation;
         _logger = logger;
     }
 
@@ -66,26 +63,20 @@ public class ModerationService : IModerationService
 
         if (result.IsSuccess)
         {
-            string? twitchChannelId = await _identityResolver.GetTwitchChannelIdAsync(
+            Result<TwitchBanResult> twitchResult = await _moderation.TimeoutUserAsync(
                 tenantId,
+                targetUserId,
+                durationSeconds,
+                reason,
                 cancellationToken
             );
-            if (twitchChannelId is not null)
-            {
-                bool ok = await _twitchApi.TimeoutUserAsync(
-                    twitchChannelId,
+            if (twitchResult.IsFailure)
+                _logger.LogWarning(
+                    "Twitch API timeout failed for {UserId} in {Channel}: {Error}",
                     targetUserId,
-                    durationSeconds,
-                    reason,
-                    cancellationToken
+                    tenantId,
+                    twitchResult.ErrorMessage
                 );
-                if (!ok)
-                    _logger.LogWarning(
-                        "Twitch API timeout failed for {UserId} in {Channel}",
-                        targetUserId,
-                        tenantId
-                    );
-            }
         }
 
         return result;
@@ -112,25 +103,19 @@ public class ModerationService : IModerationService
 
         if (result.IsSuccess)
         {
-            string? twitchChannelId = await _identityResolver.GetTwitchChannelIdAsync(
+            Result<TwitchBanResult> twitchResult = await _moderation.BanUserAsync(
                 tenantId,
+                targetUserId,
+                reason,
                 cancellationToken
             );
-            if (twitchChannelId is not null)
-            {
-                bool ok = await _twitchApi.BanUserAsync(
-                    twitchChannelId,
+            if (twitchResult.IsFailure)
+                _logger.LogWarning(
+                    "Twitch API ban failed for {UserId} in {Channel}: {Error}",
                     targetUserId,
-                    reason,
-                    cancellationToken
+                    tenantId,
+                    twitchResult.ErrorMessage
                 );
-                if (!ok)
-                    _logger.LogWarning(
-                        "Twitch API ban failed for {UserId} in {Channel}",
-                        targetUserId,
-                        tenantId
-                    );
-            }
         }
 
         return result;
@@ -156,24 +141,18 @@ public class ModerationService : IModerationService
 
         if (result.IsSuccess)
         {
-            string? twitchChannelId = await _identityResolver.GetTwitchChannelIdAsync(
+            Result twitchResult = await _moderation.UnbanUserAsync(
                 tenantId,
+                targetUserId,
                 cancellationToken
             );
-            if (twitchChannelId is not null)
-            {
-                bool ok = await _twitchApi.UnbanUserAsync(
-                    twitchChannelId,
+            if (twitchResult.IsFailure)
+                _logger.LogWarning(
+                    "Twitch API unban failed for {UserId} in {Channel}: {Error}",
                     targetUserId,
-                    cancellationToken
+                    tenantId,
+                    twitchResult.ErrorMessage
                 );
-                if (!ok)
-                    _logger.LogWarning(
-                        "Twitch API unban failed for {UserId} in {Channel}",
-                        targetUserId,
-                        tenantId
-                    );
-            }
         }
 
         return result;
