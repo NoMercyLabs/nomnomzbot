@@ -8,12 +8,9 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-// Alias only the resolver from the legacy transport namespace — it also still holds the soon-to-be-deleted
-// ITwitchApiService inline DTOs (TwitchModeratedChannel, ...), whose names collide with the canonical
-// Contracts.Twitch records. The alias keeps those legacy types out of scope here.
+using NomNomzBot.Application.Abstractions.Transport;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
-using ITwitchIdentityResolver = NomNomzBot.Application.Abstractions.Transport.ITwitchIdentityResolver;
 
 namespace NomNomzBot.Infrastructure.Platform.Transport.Helix.SubClients;
 

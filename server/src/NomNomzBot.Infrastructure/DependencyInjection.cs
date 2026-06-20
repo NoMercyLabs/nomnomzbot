@@ -441,8 +441,9 @@ public static class DependencyInjection
                 }
             );
 
-        // ITwitchAuthService → TwitchAuthService and ITwitchApiService → TwitchApiService are
-        // scoped single-impl services discovered by AddServicesByConvention above.
+        // ITwitchAuthService → TwitchAuthService is a scoped single-impl service discovered by
+        // AddServicesByConvention above. (The legacy ITwitchApiService has been retired — every caller now
+        // targets the granular Helix sub-clients / ITwitchHelixClient façade.)
 
         // Twitch identity resolver — the single seam translating tenant/user Guids ↔ Twitch string ids
         // (the invariant: Twitch never receives a Guid). Scoped: reads the per-request DbContext.
