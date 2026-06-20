@@ -11,176 +11,192 @@
 using System.Security.Claims;
 using FluentAssertions;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Infrastructure.Platform.Auth;
 
 namespace NomNomzBot.Infrastructure.Tests.Platform.Auth;
 
+/// <summary>
+/// Proves the access-JWT contract (identity-auth §3.2, §9): the HS256 default path mints a token carrying
+/// the internal user Guid (<c>sub</c>), the resolved tenant (<c>tenant</c>) and session (<c>sid</c>) claims,
+/// and validation accepts a good token but rejects a tampered signature, a wrong key/issuer/audience, and
+/// an expired token. Opaque refresh-token values are random and non-JWT.
+/// </summary>
 public class JwtTokenServiceTests
 {
+    private static readonly Guid UserId = Guid.Parse("0192a000-0000-7000-8000-0000000000a1");
+    private static readonly Guid TenantId = Guid.Parse("0192a000-0000-7000-8000-0000000000b2");
+    private static readonly Guid SessionId = Guid.Parse("0192a000-0000-7000-8000-0000000000c3");
+
     private static JwtTokenService Create(
         string key = "super-secret-key-that-is-at-least-32-bytes-long!",
         string issuer = "TestIssuer",
         string audience = "TestAudience",
-        string expirationMinutes = "60"
+        string expirationMinutes = "60",
+        TimeProvider? timeProvider = null
     )
     {
         IConfigurationRoot config = new ConfigurationBuilder()
             .AddInMemoryCollection(
                 new Dictionary<string, string?>
                 {
-                    { "Jwt:Key", key },
+                    { "Jwt:Secret", key },
                     { "Jwt:Issuer", issuer },
                     { "Jwt:Audience", audience },
-                    { "Jwt:ExpirationMinutes", expirationMinutes },
+                    { "Jwt:ExpiryMinutes", expirationMinutes },
                 }
             )
             .Build();
 
-        return new(config, TimeProvider.System);
+        return new(config, timeProvider ?? TimeProvider.System);
     }
 
-    // ─── GenerateToken ────────────────────────────────────────────────────────
+    // ─── GenerateAccessToken ──────────────────────────────────────────────────
 
     [Fact]
-    public void GenerateToken_ValidInputs_ReturnsNonEmptyString()
+    public void GenerateAccessToken_ProducesAThreePartToken()
     {
         JwtTokenService svc = Create();
-        string token = svc.GenerateToken("uid1", "alice");
-
-        token.Should().NotBeNullOrEmpty();
-    }
-
-    [Fact]
-    public void GenerateToken_HasThreeJwtParts()
-    {
-        JwtTokenService svc = Create();
-        string token = svc.GenerateToken("uid1", "alice");
+        string token = svc.GenerateAccessToken(UserId, "alice", TenantId, SessionId);
 
         token.Split('.').Should().HaveCount(3);
     }
 
     [Fact]
-    public void GenerateToken_DifferentCalls_ProduceDifferentTokens()
+    public void GenerateAccessToken_EmbedsSubTenantAndSessionClaims()
     {
         JwtTokenService svc = Create();
-        string t1 = svc.GenerateToken("uid1", "alice");
-        string t2 = svc.GenerateToken("uid1", "alice");
+        string token = svc.GenerateAccessToken(UserId, "alice", TenantId, SessionId);
 
-        // Different JTI claims → different tokens
-        t1.Should().NotBe(t2);
-    }
+        ClaimsPrincipal principal = svc.ValidateAccessToken(token)!;
 
-    // ─── ValidateToken ────────────────────────────────────────────────────────
-
-    [Fact]
-    public void ValidateToken_ValidToken_ReturnsPrincipal()
-    {
-        JwtTokenService svc = Create();
-        string token = svc.GenerateToken("uid1", "alice");
-
-        ClaimsPrincipal? principal = svc.ValidateToken(token);
-
-        principal.Should().NotBeNull();
+        principal.FindFirstValue(ClaimTypes.NameIdentifier).Should().Be(UserId.ToString());
+        principal.FindFirstValue(ClaimTypes.Name).Should().Be("alice");
+        principal.FindFirstValue(JwtTokenService.TenantClaim).Should().Be(TenantId.ToString());
+        principal.FindFirstValue(JwtTokenService.SessionClaim).Should().Be(SessionId.ToString());
     }
 
     [Fact]
-    public void ValidateToken_ValidToken_ContainsNameIdentifierClaim()
+    public void GenerateAccessToken_NoTenant_OmitsTenantClaim()
     {
         JwtTokenService svc = Create();
-        string token = svc.GenerateToken("uid1", "alice");
+        string token = svc.GenerateAccessToken(UserId, "alice", broadcasterId: null, SessionId);
 
-        ClaimsPrincipal? principal = svc.ValidateToken(token);
-
-        principal!.FindFirstValue(ClaimTypes.NameIdentifier).Should().Be("uid1");
+        ClaimsPrincipal principal = svc.ValidateAccessToken(token)!;
+        principal.FindFirst(JwtTokenService.TenantClaim).Should().BeNull();
     }
 
     [Fact]
-    public void ValidateToken_ValidToken_ContainsNameClaim()
+    public void GenerateAccessToken_WithRoles_EmbedsRoleClaims()
     {
         JwtTokenService svc = Create();
-        string token = svc.GenerateToken("uid1", "alice");
+        string token = svc.GenerateAccessToken(
+            UserId,
+            "alice",
+            TenantId,
+            SessionId,
+            ["user", "admin"]
+        );
 
-        ClaimsPrincipal? principal = svc.ValidateToken(token);
-
-        principal!.FindFirstValue(ClaimTypes.Name).Should().Be("alice");
+        ClaimsPrincipal principal = svc.ValidateAccessToken(token)!;
+        principal.FindAll(ClaimTypes.Role).Select(c => c.Value).Should().Contain(["user", "admin"]);
     }
 
     [Fact]
-    public void ValidateToken_WithRoles_ContainsRoleClaims()
+    public void GenerateAccessToken_DistinctCalls_DifferByJti()
     {
         JwtTokenService svc = Create();
-        string token = svc.GenerateToken("uid1", "alice", ["admin", "moderator"]);
+        string a = svc.GenerateAccessToken(UserId, "alice", TenantId, SessionId);
+        string b = svc.GenerateAccessToken(UserId, "alice", TenantId, SessionId);
 
-        ClaimsPrincipal? principal = svc.ValidateToken(token);
+        a.Should().NotBe(b);
+    }
 
-        List<string> roles = principal!.FindAll(ClaimTypes.Role).Select(c => c.Value).ToList();
-        roles.Should().Contain("admin").And.Contain("moderator");
+    // ─── GenerateRefreshTokenValue ────────────────────────────────────────────
+
+    [Fact]
+    public void GenerateRefreshTokenValue_IsRandomAndNotAJwt()
+    {
+        JwtTokenService svc = Create();
+        string a = svc.GenerateRefreshTokenValue();
+        string b = svc.GenerateRefreshTokenValue();
+
+        a.Should().NotBeNullOrEmpty();
+        a.Should().NotBe(b, "refresh values are cryptographically random, not self-describing");
+        a.Split('.').Should().NotHaveCount(3, "the refresh value is opaque, not a JWT");
+    }
+
+    // ─── ValidateAccessToken ──────────────────────────────────────────────────
+
+    [Fact]
+    public void ValidateAccessToken_GoodToken_ReturnsPrincipal()
+    {
+        JwtTokenService svc = Create();
+        string token = svc.GenerateAccessToken(UserId, "alice", TenantId, SessionId);
+
+        svc.ValidateAccessToken(token).Should().NotBeNull();
     }
 
     [Fact]
-    public void ValidateToken_InvalidToken_ReturnsNull()
+    public void ValidateAccessToken_TamperedSignature_ReturnsNull()
     {
         JwtTokenService svc = Create();
-        ClaimsPrincipal? principal = svc.ValidateToken("not.a.valid.token");
-
-        principal.Should().BeNull();
-    }
-
-    [Fact]
-    public void ValidateToken_TamperedToken_ReturnsNull()
-    {
-        JwtTokenService svc = Create();
-        string token = svc.GenerateToken("uid1", "alice");
+        string token = svc.GenerateAccessToken(UserId, "alice", TenantId, SessionId);
         string[] parts = token.Split('.');
-        string tampered = parts[0] + "." + parts[1] + ".INVALIDSIGNATURE";
+        string tampered = $"{parts[0]}.{parts[1]}.INVALIDSIGNATURE";
 
-        ClaimsPrincipal? principal = svc.ValidateToken(tampered);
-
-        principal.Should().BeNull();
+        svc.ValidateAccessToken(tampered).Should().BeNull();
     }
 
     [Fact]
-    public void ValidateToken_WrongKey_ReturnsNull()
+    public void ValidateAccessToken_WrongKey_ReturnsNull()
     {
-        JwtTokenService svc1 = Create(key: "super-secret-key-that-is-at-least-32-bytes-long!");
-        JwtTokenService svc2 = Create(key: "different-key-that-is-at-least-32-bytes-long-x!");
+        JwtTokenService signer = Create(key: "super-secret-key-that-is-at-least-32-bytes-long!");
+        JwtTokenService verifier = Create(key: "different-key-that-is-at-least-32-bytes-long-x!");
 
-        string token = svc1.GenerateToken("uid1", "alice");
-        ClaimsPrincipal? principal = svc2.ValidateToken(token);
-
-        principal.Should().BeNull();
+        string token = signer.GenerateAccessToken(UserId, "alice", TenantId, SessionId);
+        verifier.ValidateAccessToken(token).Should().BeNull();
     }
 
     [Fact]
-    public void ValidateToken_WrongIssuer_ReturnsNull()
+    public void ValidateAccessToken_WrongIssuer_ReturnsNull()
     {
-        JwtTokenService svc1 = Create(issuer: "Issuer1");
-        JwtTokenService svc2 = Create(issuer: "Issuer2");
+        JwtTokenService signer = Create(issuer: "Issuer1");
+        JwtTokenService verifier = Create(issuer: "Issuer2");
 
-        string token = svc1.GenerateToken("uid1", "alice");
-        ClaimsPrincipal? principal = svc2.ValidateToken(token);
-
-        principal.Should().BeNull();
+        string token = signer.GenerateAccessToken(UserId, "alice", TenantId, SessionId);
+        verifier.ValidateAccessToken(token).Should().BeNull();
     }
 
     [Fact]
-    public void ValidateToken_WrongAudience_ReturnsNull()
+    public void ValidateAccessToken_WrongAudience_ReturnsNull()
     {
-        JwtTokenService svc1 = Create(audience: "Audience1");
-        JwtTokenService svc2 = Create(audience: "Audience2");
+        JwtTokenService signer = Create(audience: "Audience1");
+        JwtTokenService verifier = Create(audience: "Audience2");
 
-        string token = svc1.GenerateToken("uid1", "alice");
-        ClaimsPrincipal? principal = svc2.ValidateToken(token);
-
-        principal.Should().BeNull();
+        string token = signer.GenerateAccessToken(UserId, "alice", TenantId, SessionId);
+        verifier.ValidateAccessToken(token).Should().BeNull();
     }
 
     [Fact]
-    public void ValidateToken_EmptyString_ReturnsNull()
+    public void ValidateAccessToken_ExpiredToken_ReturnsNull()
+    {
+        // Mint the token with a clock set well in the past so its `exp` is already behind real-time
+        // (and behind the validator's 1-minute clock skew). The handler validates lifetime against the
+        // real wall clock, so an already-expired token must be rejected.
+        FakeTimeProvider pastClock = new(DateTimeOffset.UtcNow.AddHours(-2));
+        JwtTokenService svc = Create(expirationMinutes: "5", timeProvider: pastClock);
+
+        string expiredToken = svc.GenerateAccessToken(UserId, "alice", TenantId, SessionId);
+
+        svc.ValidateAccessToken(expiredToken).Should().BeNull();
+    }
+
+    [Fact]
+    public void ValidateAccessToken_EmptyOrGarbage_ReturnsNull()
     {
         JwtTokenService svc = Create();
-        ClaimsPrincipal? principal = svc.ValidateToken(string.Empty);
-
-        principal.Should().BeNull();
+        svc.ValidateAccessToken(string.Empty).Should().BeNull();
+        svc.ValidateAccessToken("not.a.valid.token").Should().BeNull();
     }
 }

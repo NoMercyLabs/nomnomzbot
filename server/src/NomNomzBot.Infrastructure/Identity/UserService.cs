@@ -48,7 +48,7 @@ public class UserService : IUserService
                 u.ProfileImageUrl,
                 u.Color,
                 u.BroadcasterType,
-                u.IsAdmin,
+                u.IsPlatformPrincipal,
                 u.CreatedAt
             ))
             .FirstOrDefaultAsync(cancellationToken);

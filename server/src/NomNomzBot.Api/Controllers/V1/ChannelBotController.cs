@@ -14,9 +14,7 @@ using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
-using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Api.Models;
-using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
@@ -37,17 +35,17 @@ namespace NomNomzBot.Api.Controllers.V1;
 public class ChannelBotController : BaseController
 {
     private readonly IAuthService _authService;
-    private readonly IApplicationDbContext _db;
+    private readonly IIntegrationTokenVault _vault;
     private readonly IConfiguration _config;
 
     public ChannelBotController(
         IAuthService authService,
-        IApplicationDbContext db,
+        IIntegrationTokenVault vault,
         IConfiguration config
     )
     {
         _authService = authService;
-        _db = db;
+        _vault = vault;
         _config = config;
     }
 
@@ -210,13 +208,14 @@ public class ChannelBotController : BaseController
         if (!Guid.TryParse(channelId, out Guid tenantId))
             return BadRequestResponse("Invalid channel id.");
 
-        var service = await _db.Services.FirstOrDefaultAsync(
-            s => s.Name == "twitch" && s.BroadcasterId == tenantId,
-            ct
-        );
+        Result<IReadOnlyList<IntegrationConnectionDto>> connections =
+            await _vault.ListConnectionsAsync(tenantId, ct);
+        IntegrationConnectionDto? twitch = connections.IsSuccess
+            ? connections.Value.FirstOrDefault(c => c.Provider == "twitch")
+            : null;
 
         var grantedScopes =
-            service?.Scopes?.ToHashSet(StringComparer.OrdinalIgnoreCase)
+            twitch?.Scopes.ToHashSet(StringComparer.OrdinalIgnoreCase)
             ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         var permissions = KnownScopes
@@ -249,8 +248,19 @@ public class ChannelBotController : BaseController
     [EnableRateLimiting("auth")]
     public async Task<IActionResult> StartChannelBotOAuth(string channelId, CancellationToken ct)
     {
+        if (!Guid.TryParse(channelId, out Guid tenantId))
+            return BadRequestResponse("Invalid channel id.");
+
+        // Embed the flow + tenant id so the single callback endpoint can route it back.
+        string state = Convert.ToBase64String(
+            Encoding.UTF8.GetBytes(
+                JsonSerializer.Serialize(new { flow = "channel_bot", channel_id = channelId })
+            )
+        );
+
         string authUrl = await _authService.GetTwitchChannelBotOAuthUrl(
-            channelId,
+            tenantId,
+            state,
             baseUrl: GetPublicBaseUrl(),
             cancellationToken: ct
         );
@@ -288,12 +298,12 @@ public class ChannelBotController : BaseController
             catch { }
         }
 
-        if (string.IsNullOrEmpty(channelId))
-            return BadRequest("Missing channel_id in state.");
+        if (string.IsNullOrEmpty(channelId) || !Guid.TryParse(channelId, out Guid tenantId))
+            return BadRequest("Missing or invalid channel_id in state.");
 
         string callbackUri = $"{GetPublicBaseUrl()}/api/v1/channels/callback/bot";
         Result<BotStatusDto> result = await _authService.HandleTwitchChannelBotCallbackAsync(
-            channelId,
+            tenantId,
             new OAuthCallbackDto { Code = code, RedirectUri = callbackUri },
             ct
         );
@@ -318,7 +328,10 @@ public class ChannelBotController : BaseController
     [Authorize]
     public async Task<IActionResult> GetChannelBotStatus(string channelId, CancellationToken ct)
     {
-        Result<BotStatusDto> result = await _authService.GetChannelBotStatusAsync(channelId, ct);
+        if (!Guid.TryParse(channelId, out Guid tenantId))
+            return BadRequestResponse("Invalid channel id.");
+
+        Result<BotStatusDto> result = await _authService.GetChannelBotStatusAsync(tenantId, ct);
         return ResultResponse(result);
     }
 
@@ -327,7 +340,10 @@ public class ChannelBotController : BaseController
     [Authorize]
     public async Task<IActionResult> DisconnectChannelBot(string channelId, CancellationToken ct)
     {
-        Result result = await _authService.DisconnectChannelBotAsync(channelId, ct);
+        if (!Guid.TryParse(channelId, out Guid tenantId))
+            return BadRequestResponse("Invalid channel id.");
+
+        Result result = await _authService.DisconnectChannelBotAsync(tenantId, ct);
         return ResultResponse(result);
     }
 }

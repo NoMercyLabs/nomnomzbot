@@ -15,21 +15,25 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Persistence;
-using NomNomzBot.Application.Common.Interfaces.Crypto;
-using NomNomzBot.Domain.Platform.Entities;
+using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Identity.Dtos;
+using NomNomzBot.Application.Identity.Services;
+using NomNomzBot.Domain.Identity.Enums;
+using NomNomzBot.Domain.Integrations.Entities;
 using NomNomzBot.Infrastructure.Platform;
 
 namespace NomNomzBot.Infrastructure.Platform.Auth;
 
 /// <summary>
-/// Manages Twitch OAuth tokens: exchange, refresh, and revoke.
-/// Tokens are stored encrypted in the Service entity.
-/// Service.Name conventions: "twitch" = broadcaster account, "twitch_bot" = shared bot account.
+/// Low-level Twitch OAuth HTTP: exchange, refresh, and revoke. Token storage is owned by the
+/// <see cref="IIntegrationTokenVault"/> (identity-auth §3.4) — this service reads/writes through it, never
+/// the flat <c>Service</c> table. <see cref="ExchangeCodeAsync"/> is pure HTTP (the caller vaults the
+/// result); refresh and revoke read the vaulted refresh token, call Twitch, and re-vault.
 /// </summary>
 public sealed class TwitchAuthService : ITwitchAuthService
 {
     private readonly IApplicationDbContext _db;
-    private readonly ITokenProtector _tokenProtector;
+    private readonly IIntegrationTokenVault _vault;
     private readonly HttpClient _http;
     private readonly TwitchOptions _options;
     private readonly ILogger<TwitchAuthService> _logger;
@@ -40,7 +44,7 @@ public sealed class TwitchAuthService : ITwitchAuthService
 
     public TwitchAuthService(
         IApplicationDbContext db,
-        ITokenProtector tokenProtector,
+        IIntegrationTokenVault vault,
         IHttpClientFactory httpClientFactory,
         IOptions<TwitchOptions> options,
         ILogger<TwitchAuthService> logger,
@@ -48,7 +52,7 @@ public sealed class TwitchAuthService : ITwitchAuthService
     )
     {
         _db = db;
-        _tokenProtector = tokenProtector;
+        _vault = vault;
         _http = httpClientFactory.CreateClient("twitch-auth");
         _options = options.Value;
         _logger = logger;
@@ -56,8 +60,8 @@ public sealed class TwitchAuthService : ITwitchAuthService
     }
 
     /// <summary>
-    /// Exchange an authorization code for access + refresh tokens.
-    /// Does NOT persist to DB — caller is responsible for saving the returned result.
+    /// Exchange an authorization code for access + refresh tokens. Does NOT persist — the caller vaults the
+    /// returned result via the token vault.
     /// </summary>
     public async Task<TokenResult?> ExchangeCodeAsync(
         string code,
@@ -98,47 +102,31 @@ public sealed class TwitchAuthService : ITwitchAuthService
     }
 
     /// <summary>
-    /// Refresh the token for a specific broadcaster / service combination.
-    /// Persists updated tokens back to the Service entity.
+    /// Refresh the vaulted token for a broadcaster / provider, then re-vault. On Twitch failure, records a
+    /// vault refresh-failure (drives the needs-reauth path). Returns null when no connection / refresh token
+    /// exists or the call fails.
     /// </summary>
-    // Canonical SubjectId for the crypto AAD: the tenant Guid as a string, or the platform sentinel
-    // for the shared-bot row (Service.BroadcasterId null). Keeps every ciphertext bound to one subject.
-    private static string SubjectId(Guid? broadcasterId) =>
-        broadcasterId?.ToString() ?? "_platform";
-
     public async Task<TokenResult?> RefreshTokenAsync(
         Guid? broadcasterId,
-        string serviceName,
+        string provider,
         CancellationToken ct = default
     )
     {
-        Service? service = await _db.Services.FirstOrDefaultAsync(
-            s => s.BroadcasterId == broadcasterId && s.Name == serviceName,
+        IntegrationConnection? connection = await ResolveConnectionAsync(
+            broadcasterId,
+            provider,
             ct
         );
-
-        if (service?.RefreshToken is null)
-        {
-            _logger.LogDebug(
-                "No refresh token found for {BroadcasterId}/{Service}",
-                broadcasterId,
-                serviceName
-            );
+        if (connection is null)
             return null;
-        }
 
-        string subjectId = SubjectId(broadcasterId);
-        string? refreshToken = await _tokenProtector.TryUnprotectAsync(
-            service.RefreshToken,
-            new TokenProtectionContext(subjectId, serviceName, "refresh"),
-            ct
-        );
-        if (refreshToken is null)
+        Result<DecryptedTokenDto> refresh = await _vault.GetRefreshTokenAsync(connection.Id, ct);
+        if (refresh.IsFailure)
         {
             _logger.LogWarning(
-                "Could not decrypt refresh token for {BroadcasterId}/{Service}",
+                "No usable refresh token for {BroadcasterId}/{Provider}",
                 broadcasterId,
-                serviceName
+                provider
             );
             return null;
         }
@@ -148,7 +136,7 @@ public sealed class TwitchAuthService : ITwitchAuthService
             {
                 ["client_id"] = _options.ClientId,
                 ["client_secret"] = _options.ClientSecret,
-                ["refresh_token"] = refreshToken,
+                ["refresh_token"] = refresh.Value.Value,
                 ["grant_type"] = "refresh_token",
             }
         );
@@ -156,10 +144,15 @@ public sealed class TwitchAuthService : ITwitchAuthService
         HttpResponseMessage resp = await _http.PostAsync(TokenEndpoint, form, ct);
         if (!resp.IsSuccessStatusCode)
         {
+            await _vault.MarkRefreshFailureAsync(
+                connection.Id,
+                $"twitch_refresh_{(int)resp.StatusCode}",
+                ct
+            );
             _logger.LogWarning(
-                "Token refresh failed for {BroadcasterId}/{Service}: {Status}",
+                "Token refresh failed for {BroadcasterId}/{Provider}: {Status}",
                 broadcasterId,
-                serviceName,
+                provider,
                 resp.StatusCode
             );
             return null;
@@ -178,47 +171,42 @@ public sealed class TwitchAuthService : ITwitchAuthService
             json.Scope ?? []
         );
 
-        service.AccessToken = await _tokenProtector.ProtectAsync(
-            result.AccessToken,
-            new TokenProtectionContext(subjectId, serviceName, "access"),
+        await _vault.StoreTokensAsync(
+            connection.Id,
+            new StoreTokensDto(
+                result.AccessToken,
+                result.RefreshToken,
+                AppToken: null,
+                result.ExpiresAt
+            ),
+            result.Scopes,
             ct
         );
-        service.RefreshToken = await _tokenProtector.ProtectAsync(
-            result.RefreshToken,
-            new TokenProtectionContext(subjectId, serviceName, "refresh"),
-            ct
-        );
-        service.TokenExpiry = result.ExpiresAt;
-        service.Scopes = result.Scopes;
-        await _db.SaveChangesAsync(ct);
 
         _logger.LogInformation(
-            "Refreshed token for {BroadcasterId}/{Service}, expires {ExpiresAt:u}",
+            "Refreshed token for {BroadcasterId}/{Provider}, expires {ExpiresAt:u}",
             broadcasterId,
-            serviceName,
+            provider,
             result.ExpiresAt
         );
-
         return result;
     }
 
-    /// <summary>
-    /// Proactively refresh all tokens expiring within the next 30 minutes.
-    /// Called by the background TokenRefreshService every 30 minutes.
-    /// </summary>
+    /// <summary>Proactively refresh tokens expiring within the next 30 minutes.</summary>
     public async Task RefreshExpiringTokensAsync(CancellationToken ct = default)
     {
         DateTime threshold = _timeProvider.GetUtcNow().UtcDateTime.AddMinutes(30);
 
         var expiring = await _db
-            .Services.Where(s =>
-                s.Enabled
-                && s.RefreshToken != null
-                && s.TokenExpiry != null
-                && s.TokenExpiry < threshold
-                && s.BroadcasterId != null
+            .IntegrationTokens.IgnoreQueryFilters()
+            .Where(t =>
+                t.DeletedAt == null
+                && t.TokenType == AuthEnums.TokenType.Access
+                && t.ExpiresAt != null
+                && t.ExpiresAt < threshold
+                && t.BroadcasterId != null
             )
-            .Select(s => new { s.BroadcasterId, s.Name })
+            .Select(t => new { t.BroadcasterId, t.Connection.Provider })
             .ToListAsync(ct);
 
         _logger.LogDebug("Refreshing {Count} expiring token(s)", expiring.Count);
@@ -227,84 +215,82 @@ public sealed class TwitchAuthService : ITwitchAuthService
         {
             try
             {
-                await RefreshTokenAsync(entry.BroadcasterId, entry.Name, ct);
+                await RefreshTokenAsync(entry.BroadcasterId, entry.Provider, ct);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 _logger.LogError(
                     ex,
-                    "Failed to refresh token for {BroadcasterId}/{Service}",
+                    "Failed to refresh token for {BroadcasterId}/{Provider}",
                     entry.BroadcasterId,
-                    entry.Name
+                    entry.Provider
                 );
             }
         }
     }
 
-    /// <summary>
-    /// Revoke the token for a broadcaster / service and clear the stored values.
-    /// </summary>
+    /// <summary>Revoke the access token at Twitch and revoke the vaulted connection.</summary>
     public async Task RevokeTokenAsync(
         Guid? broadcasterId,
-        string serviceName,
+        string provider,
         CancellationToken ct = default
     )
     {
-        Service? service = await _db.Services.FirstOrDefaultAsync(
-            s => s.BroadcasterId == broadcasterId && s.Name == serviceName,
+        IntegrationConnection? connection = await ResolveConnectionAsync(
+            broadcasterId,
+            provider,
             ct
         );
-
-        if (service is null)
+        if (connection is null)
             return;
 
-        if (service.AccessToken is not null)
+        Result<DecryptedTokenDto> access = await _vault.GetAccessTokenAsync(connection.Id, ct);
+        if (access.IsSuccess)
         {
-            string? accessToken = await _tokenProtector.TryUnprotectAsync(
-                service.AccessToken,
-                new TokenProtectionContext(SubjectId(broadcasterId), serviceName, "access"),
-                ct
+            FormUrlEncodedContent form = new(
+                new Dictionary<string, string>
+                {
+                    ["client_id"] = _options.ClientId,
+                    ["token"] = access.Value.Value,
+                }
             );
-            if (accessToken is not null)
+            try
             {
-                FormUrlEncodedContent form = new(
-                    new Dictionary<string, string>
-                    {
-                        ["client_id"] = _options.ClientId,
-                        ["token"] = accessToken,
-                    }
+                await _http.PostAsync(RevokeEndpoint, form, ct);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _logger.LogWarning(
+                    ex,
+                    "Token revocation request failed for {BroadcasterId}/{Provider}",
+                    broadcasterId,
+                    provider
                 );
-
-                try
-                {
-                    await _http.PostAsync(RevokeEndpoint, form, ct);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(
-                        ex,
-                        "Token revocation request failed for {BroadcasterId}/{Service}",
-                        broadcasterId,
-                        serviceName
-                    );
-                }
             }
         }
 
-        service.AccessToken = null;
-        service.RefreshToken = null;
-        service.TokenExpiry = null;
-        service.Scopes = [];
-        await _db.SaveChangesAsync(ct);
-
+        await _vault.RevokeConnectionAsync(connection.Id, "token_revoked", ct);
         _logger.LogInformation(
-            "Revoked and cleared token for {BroadcasterId}/{Service}",
+            "Revoked token for {BroadcasterId}/{Provider}",
             broadcasterId,
-            serviceName
+            provider
         );
     }
 
-    // ─── Internal response model ────────────────────────────────────────────────
+    private async Task<IntegrationConnection?> ResolveConnectionAsync(
+        Guid? broadcasterId,
+        string provider,
+        CancellationToken ct
+    ) =>
+        await _db
+            .IntegrationConnections.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(
+                c =>
+                    c.BroadcasterId == broadcasterId
+                    && c.Provider == provider
+                    && c.DeletedAt == null,
+                ct
+            );
 
     private sealed class TwitchTokenResponse
     {

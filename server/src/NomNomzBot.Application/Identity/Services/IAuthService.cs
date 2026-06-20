@@ -14,79 +14,77 @@ using NomNomzBot.Application.Identity.Dtos;
 namespace NomNomzBot.Application.Identity.Services;
 
 /// <summary>
-/// Application service for authentication: OAuth callbacks, token refresh, and logout.
+/// Twitch identity/login + bot OAuth (identity-auth §3.1). Ids are <see cref="Guid"/>; the callback is
+/// session-aware (opens an <c>AuthSession</c> + issues a rotating refresh token via <c>ISessionService</c>)
+/// and vaults Twitch tokens via <c>IIntegrationTokenVault</c>. Twitch is the identity/login provider; the
+/// generic non-Twitch connect lives in <c>IIntegrationOAuthService</c>.
 /// </summary>
 public interface IAuthService
 {
-    /// <summary>Get the Twitch OAuth authorization URL.</summary>
+    // ── User OAuth ──────────────────────────────────────────────────────────
     Task<string> GetTwitchOAuthUrl(
         string? state = null,
         string? baseUrl = null,
         CancellationToken cancellationToken = default
     );
 
-    /// <summary>Handle the OAuth callback from Twitch and return auth tokens.</summary>
     Task<Result<AuthResultDto>> HandleTwitchCallbackAsync(
         OAuthCallbackDto callback,
+        AuthContextDto context,
         CancellationToken cancellationToken = default
     );
 
-    /// <summary>Refresh an expired access token.</summary>
     Task<Result<AuthResultDto>> RefreshTokenAsync(
         string refreshToken,
+        AuthContextDto context,
         CancellationToken cancellationToken = default
     );
 
-    /// <summary>Log out a user, revoking their tokens.</summary>
-    Task<Result> LogoutAsync(string userId, CancellationToken cancellationToken = default);
+    Task<Result> LogoutAsync(
+        Guid userId,
+        Guid sessionId,
+        CancellationToken cancellationToken = default
+    );
 
-    // ── Platform bot (NomNomzBot) — admin only, BroadcasterId=null ──────────
+    Task<Result<int>> LogoutAllAsync(Guid userId, CancellationToken cancellationToken = default);
 
-    /// <summary>Get the Twitch OAuth URL for the platform bot account (NomNomzBot).</summary>
+    // ── Platform bot (NomNomzBot) — IsPlatformPrincipal gate, BroadcasterId=null ──
     Task<string> GetTwitchBotOAuthUrl(
         string? state = null,
         string? baseUrl = null,
         CancellationToken cancellationToken = default
     );
 
-    /// <summary>Handle the OAuth callback for the platform bot and store the token globally.</summary>
     Task<Result<BotStatusDto>> HandleTwitchBotCallbackAsync(
         OAuthCallbackDto callback,
         CancellationToken cancellationToken = default
     );
 
-    /// <summary>Get the platform bot connection status.</summary>
     Task<Result<BotStatusDto>> GetBotStatusAsync(CancellationToken cancellationToken = default);
 
-    /// <summary>Disconnect the platform bot.</summary>
     Task<Result> DisconnectBotAsync(CancellationToken cancellationToken = default);
 
-    // ── White-label bot — per-channel, Pro tier, BroadcasterId=channelId ─────
-
-    /// <summary>Get the Twitch OAuth URL for a channel's white-label bot.</summary>
+    // ── Custom (white-label) bot — per-channel, BroadcasterId=channelId ──
     Task<string> GetTwitchChannelBotOAuthUrl(
-        string channelId,
+        Guid broadcasterId,
         string? state = null,
         string? baseUrl = null,
         CancellationToken cancellationToken = default
     );
 
-    /// <summary>Handle the OAuth callback for a channel's white-label bot and store per-channel.</summary>
     Task<Result<BotStatusDto>> HandleTwitchChannelBotCallbackAsync(
-        string channelId,
+        Guid broadcasterId,
         OAuthCallbackDto callback,
         CancellationToken cancellationToken = default
     );
 
-    /// <summary>Get the white-label bot status for a specific channel.</summary>
     Task<Result<BotStatusDto>> GetChannelBotStatusAsync(
-        string channelId,
+        Guid broadcasterId,
         CancellationToken cancellationToken = default
     );
 
-    /// <summary>Disconnect the white-label bot for a specific channel.</summary>
     Task<Result> DisconnectChannelBotAsync(
-        string channelId,
+        Guid broadcasterId,
         CancellationToken cancellationToken = default
     );
 }

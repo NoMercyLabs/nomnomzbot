@@ -10,6 +10,7 @@
 
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform;
 using NomNomzBot.Domain.Platform.Entities;
 
@@ -32,6 +33,27 @@ public class Channel : SoftDeletableEntity
 
     [MaxLength(25)]
     public string Name { get; set; } = null!;
+
+    // Lower-cased Name for case-insensitive lookup (IRC keys by login name, schema A.2).
+    [MaxLength(25)]
+    public string NameNormalized { get; set; } = null!;
+
+    // Tenant lifecycle ([VC:enum], schema A.2).
+    [MaxLength(20)]
+    public string Status { get; set; } = AuthEnums.ChannelStatus.Active;
+
+    public DateTime? SuspendedAt { get; set; }
+
+    [MaxLength(500)]
+    public string? SuspendedReason { get; set; }
+
+    // Deployment profile this tenant runs under ([VC:enum], schema A.2).
+    [MaxLength(20)]
+    public string DeploymentMode { get; set; } = AuthEnums.DeploymentMode.Saas;
+
+    // Resolved billing tier key (cross-ref monetization.md); the entitlement source for gated features.
+    [MaxLength(20)]
+    public string BillingTierKey { get; set; } = "free";
 
     public bool Enabled { get; set; } = true;
 

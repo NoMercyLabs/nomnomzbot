@@ -30,7 +30,7 @@ public sealed class IntegrationConnectedBroadcastHandler : IEventHandler<Integra
         return _notifier.NotifyChannelAsync(
             @event.BroadcasterId.ToString(),
             "integration_connected",
-            new IntegrationEventDto(@event.IntegrationName),
+            new IntegrationEventDto(@event.Provider),
             ct
         );
     }
@@ -54,8 +54,8 @@ public sealed class IntegrationDisconnectedBroadcastHandler
             @event.BroadcasterId.ToString(),
             new(
                 "integration_disconnected",
-                $"{@event.IntegrationName} disconnected",
-                new IntegrationEventDto(@event.IntegrationName)
+                $"{@event.Provider} disconnected",
+                new IntegrationEventDto(@event.Provider)
             ),
             ct
         );

@@ -188,6 +188,23 @@ public static class DependencyInjection
 
         services.AddSingleton<IJwtTokenService, JwtTokenService>();
 
+        // OAuth token vault (identity-auth §3.4) — scoped (DbContext); not I<X>Service-named, so explicit.
+        services.AddScoped<
+            NomNomzBot.Application.Identity.Services.IIntegrationTokenVault,
+            NomNomzBot.Infrastructure.Identity.IntegrationTokenVault
+        >();
+
+        // Generic OAuth connect (integrations-oauth §3.2) — provider descriptors registry (singleton, stateless).
+        services.AddSingleton<
+            NomNomzBot.Application.Integrations.Services.IOAuthProviderRegistry,
+            NomNomzBot.Infrastructure.Integrations.OAuthProviderRegistry
+        >();
+        // The descriptor-driven connect flow's token-exchange / account-identity HTTP client.
+        services.AddHttpClient("integration-oauth");
+
+        // ISessionService, IScopeGrantService, IIntegrationOAuthService, IAuthService follow the
+        // I<X>Service single-impl convention and are bound scoped by AddServicesByConvention above.
+
         // Caching — use Redis if configured, otherwise fall back to in-memory
         string? redisConnectionString =
             configuration.GetConnectionString("Redis") ?? configuration["Redis:ConnectionString"];

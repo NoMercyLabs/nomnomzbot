@@ -15,4 +15,8 @@ public interface ICurrentUserService
     string? UserId { get; }
     string? Username { get; }
     bool IsAuthenticated { get; }
+
+    // True when the principal is a platform operator/admin (identity-auth §3.6) — read from the JWT
+    // `admin` role claim, sourced from User.IsPlatformPrincipal at login.
+    bool IsPlatformPrincipal { get; }
 }

@@ -64,6 +64,25 @@ public class AuthController : BaseController
         return (_config["App:BaseUrl"] ?? "http://localhost:5080").TrimEnd('/');
     }
 
+    /// <summary>
+    /// The request fingerprint for a new login session: client class (web by default; clients may pass
+    /// <c>X-Client-Type</c>), source IP, and user-agent.
+    /// </summary>
+    private AuthContextDto BuildAuthContext()
+    {
+        string clientType = Request.Headers["X-Client-Type"].ToString();
+        if (string.IsNullOrWhiteSpace(clientType))
+            clientType = "web";
+
+        string? ip = Request.HttpContext.Connection.RemoteIpAddress?.ToString();
+        string? userAgent = Request.Headers.UserAgent.ToString();
+        return new AuthContextDto(
+            clientType,
+            ip,
+            string.IsNullOrWhiteSpace(userAgent) ? null : userAgent
+        );
+    }
+
     /// <summary>Get the currently authenticated user.</summary>
     [HttpGet("me")]
     [Authorize]
@@ -178,12 +197,15 @@ public class AuthController : BaseController
 
         if (flow == "channel_bot")
         {
-            if (string.IsNullOrWhiteSpace(channelId))
-                return BadRequest("Missing channel_id in state.");
+            if (
+                string.IsNullOrWhiteSpace(channelId)
+                || !Guid.TryParse(channelId, out Guid channelTenantId)
+            )
+                return BadRequest("Missing or invalid channel_id in state.");
 
             Result<BotStatusDto> channelBotResult =
                 await _authService.HandleTwitchChannelBotCallbackAsync(
-                    channelId,
+                    channelTenantId,
                     new OAuthCallbackDto { Code = code, RedirectUri = callbackUri },
                     ct
                 );
@@ -210,6 +232,7 @@ public class AuthController : BaseController
                 State = state,
                 RedirectUri = callbackUri,
             },
+            BuildAuthContext(),
             ct
         );
 
@@ -266,7 +289,11 @@ public class AuthController : BaseController
         CancellationToken ct
     )
     {
-        Result<AuthResultDto> result = await _authService.HandleTwitchCallbackAsync(body, ct);
+        Result<AuthResultDto> result = await _authService.HandleTwitchCallbackAsync(
+            body,
+            BuildAuthContext(),
+            ct
+        );
 
         if (result.IsFailure)
             return ResultResponse(result);
@@ -299,6 +326,7 @@ public class AuthController : BaseController
     {
         Result<AuthResultDto> result = await _authService.RefreshTokenAsync(
             request.RefreshToken,
+            BuildAuthContext(),
             ct
         );
 
@@ -322,16 +350,33 @@ public class AuthController : BaseController
         );
     }
 
-    /// <summary>Log out the current user, revoking their Twitch tokens.</summary>
+    /// <summary>Log out the current session, revoking its refresh tokens.</summary>
     [HttpPost("logout")]
     [Authorize]
     public async Task<IActionResult> Logout(CancellationToken ct)
     {
         string? userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (string.IsNullOrEmpty(userId))
+        string? sessionId = User.FindFirstValue("sid");
+        if (
+            !Guid.TryParse(userId, out Guid userGuid)
+            || !Guid.TryParse(sessionId, out Guid sessionGuid)
+        )
             return UnauthenticatedResponse();
 
-        Result result = await _authService.LogoutAsync(userId, ct);
+        Result result = await _authService.LogoutAsync(userGuid, sessionGuid, ct);
+        return ResultResponse(result);
+    }
+
+    /// <summary>Log out of all the current user's sessions, revoking every refresh token they hold.</summary>
+    [HttpPost("logout/all")]
+    [Authorize]
+    public async Task<IActionResult> LogoutAll(CancellationToken ct)
+    {
+        string? userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!Guid.TryParse(userId, out Guid userGuid))
+            return UnauthenticatedResponse();
+
+        Result<int> result = await _authService.LogoutAllAsync(userGuid, ct);
         return ResultResponse(result);
     }
 

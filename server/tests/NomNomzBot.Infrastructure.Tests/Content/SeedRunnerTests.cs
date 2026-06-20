@@ -195,6 +195,7 @@ public sealed class SeedRunnerTests
                     OwnerUserId = Guid.Parse("0192a000-0000-7000-8000-0000000001a0"),
                     TwitchChannelId = "100",
                     Name = "alpha",
+                    NameNormalized = "alpha",
                 }
             );
             context.Channels.Add(
@@ -204,6 +205,7 @@ public sealed class SeedRunnerTests
                     OwnerUserId = Guid.Parse("0192a000-0000-7000-8000-0000000002b0"),
                     TwitchChannelId = "200",
                     Name = "bravo",
+                    NameNormalized = "bravo",
                 }
             );
             await context.SaveChangesAsync();

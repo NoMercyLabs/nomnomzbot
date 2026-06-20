@@ -35,6 +35,18 @@ public class ChannelConfiguration : IEntityTypeConfiguration<Channel>
 
         builder.Property(e => e.Name).IsRequired().HasMaxLength(25);
 
+        builder.Property(e => e.NameNormalized).IsRequired().HasMaxLength(25);
+
+        builder.HasIndex(e => e.NameNormalized).HasDatabaseName("IX_Channel_NameNormalized");
+
+        builder.Property(e => e.Status).IsRequired().HasMaxLength(20);
+
+        builder.Property(e => e.SuspendedReason).HasMaxLength(500);
+
+        builder.Property(e => e.DeploymentMode).IsRequired().HasMaxLength(20);
+
+        builder.Property(e => e.BillingTierKey).IsRequired().HasMaxLength(20);
+
         builder.Property(e => e.Enabled).HasDefaultValue(true);
 
         builder.Property(e => e.ShoutoutTemplate).HasMaxLength(450);

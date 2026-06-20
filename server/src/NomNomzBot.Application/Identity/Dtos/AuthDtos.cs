@@ -33,3 +33,29 @@ public sealed record OAuthCallbackDto
 
 /// <summary>Token refresh request.</summary>
 public sealed record RefreshTokenRequest(string RefreshToken);
+
+/// <summary>The request fingerprint captured for a login session (identity-auth §4).</summary>
+public sealed record AuthContextDto(string ClientType, string? IpAddress, string? UserAgent);
+
+/// <summary>
+/// The tokens issued for a session (identity-auth §4): the access JWT plus the RAW refresh token (returned
+/// once — only its hash is persisted), with both expiries and the owning session id.
+/// </summary>
+public sealed record SessionTokensDto(
+    string AccessToken,
+    string RawRefreshToken,
+    DateTime AccessExpiresAt,
+    DateTime RefreshExpiresAt,
+    Guid SessionId
+);
+
+/// <summary>Read model of an auth session (identity-auth §4).</summary>
+public sealed record AuthSessionDto(
+    Guid Id,
+    Guid UserId,
+    Guid? BroadcasterId,
+    string ClientType,
+    DateTime LastSeenAt,
+    DateTime ExpiresAt,
+    bool IsRevoked
+);

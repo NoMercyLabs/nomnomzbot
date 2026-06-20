@@ -40,6 +40,9 @@ public sealed class CurrentUserService : ICurrentUserService
     public bool IsAuthenticated =>
         _httpContextAccessor.HttpContext?.User?.Identity?.IsAuthenticated ?? false;
 
+    public bool IsPlatformPrincipal =>
+        _httpContextAccessor.HttpContext?.User?.IsInRole("admin") ?? false;
+
     public IEnumerable<string> Roles =>
         _httpContextAccessor.HttpContext?.User?.FindAll(ClaimTypes.Role).Select(c => c.Value) ?? [];
 }

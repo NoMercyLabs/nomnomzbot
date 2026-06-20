@@ -13,6 +13,7 @@ using NomNomzBot.Domain.Chat.Entities;
 using NomNomzBot.Domain.Commands.Entities;
 using NomNomzBot.Domain.Discord.Entities;
 using NomNomzBot.Domain.Identity.Entities;
+using NomNomzBot.Domain.Integrations.Entities;
 using NomNomzBot.Domain.Platform.Entities;
 using NomNomzBot.Domain.Rewards.Entities;
 using NomNomzBot.Domain.Tts.Entities;
@@ -39,6 +40,12 @@ public interface IApplicationDbContext
     DbSet<Permission> Permissions { get; }
     DbSet<ChannelFeature> ChannelFeatures { get; }
     DbSet<ChannelBotAuthorization> ChannelBotAuthorizations { get; }
+    DbSet<BotAccount> BotAccounts { get; }
+    DbSet<AuthSession> AuthSessions { get; }
+    DbSet<RefreshToken> RefreshTokens { get; }
+    DbSet<IpcDevModeKey> IpcDevModeKeys { get; }
+    DbSet<IntegrationConnection> IntegrationConnections { get; }
+    DbSet<IntegrationToken> IntegrationTokens { get; }
     DbSet<DiscordServerAuthorization> DiscordServerAuthorizations { get; }
     DbSet<ChannelSubscription> ChannelSubscriptions { get; }
     DbSet<TtsVoice> TtsVoices { get; }

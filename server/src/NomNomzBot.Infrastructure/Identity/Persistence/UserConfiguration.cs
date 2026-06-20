@@ -26,7 +26,15 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
 
         builder.HasIndex(e => e.TwitchUserId).IsUnique().HasDatabaseName("IX_User_TwitchUserId");
 
+        builder.Property(e => e.Platform).IsRequired().HasMaxLength(20);
+
         builder.Property(e => e.Username).IsRequired().HasMaxLength(255);
+
+        builder.Property(e => e.UsernameNormalized).IsRequired().HasMaxLength(255);
+
+        builder.HasIndex(e => e.UsernameNormalized).HasDatabaseName("IX_User_UsernameNormalized");
+
+        builder.Property(e => e.EmailCipher).HasMaxLength(512);
 
         builder.Property(e => e.DisplayName).IsRequired().HasMaxLength(255);
 

@@ -12,8 +12,10 @@ using NomNomzBot.Domain.Platform;
 
 namespace NomNomzBot.Domain.Integrations.Events;
 
-/// <summary>Published when an external integration disconnects.</summary>
+/// <summary>Published when an external integration disconnects (identity-auth §2).</summary>
 public sealed class IntegrationDisconnectedEvent : DomainEventBase
 {
-    public required string IntegrationName { get; init; }
+    public required Guid ConnectionId { get; init; }
+    public required string Provider { get; init; }
+    public required string Reason { get; init; }
 }

@@ -25,12 +25,22 @@ public class ChannelBotAuthorizationConfiguration
 
         builder.Property(e => e.IsActive).HasDefaultValue(true);
 
-        builder.HasIndex(e => e.BroadcasterId).IsUnique();
-
         builder
             .HasOne(e => e.Channel)
-            .WithOne()
-            .HasForeignKey<ChannelBotAuthorization>(e => e.BroadcasterId)
+            .WithMany()
+            .HasForeignKey(e => e.BroadcasterId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        builder
+            .HasOne(e => e.BotAccount)
+            .WithMany()
+            .HasForeignKey(e => e.BotAccountId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        // One authorization per (channel, bot account).
+        builder
+            .HasIndex(e => new { e.BroadcasterId, e.BotAccountId })
+            .IsUnique()
+            .HasDatabaseName("IX_ChannelBotAuthorization_Broadcaster_BotAccount");
     }
 }

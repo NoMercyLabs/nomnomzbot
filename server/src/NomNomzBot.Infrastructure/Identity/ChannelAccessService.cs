@@ -59,8 +59,11 @@ public sealed class ChannelAccessService : IChannelAccessService
         )
             return true;
 
-        // Platform admin may act on any channel.
-        return await _db.Users.AnyAsync(u => u.Id == userGuid && u.IsAdmin, cancellationToken);
+        // Platform principal may act on any channel.
+        return await _db.Users.AnyAsync(
+            u => u.Id == userGuid && u.IsPlatformPrincipal,
+            cancellationToken
+        );
     }
 
     public async Task<Guid> ResolveOwnChannelAsync(

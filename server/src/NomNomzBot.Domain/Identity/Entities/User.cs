@@ -10,6 +10,7 @@
 
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform;
 
 namespace NomNomzBot.Domain.Identity.Entities;
@@ -25,14 +26,29 @@ public class User : BaseEntity
     [MaxLength(50)]
     public string TwitchUserId { get; set; } = null!;
 
+    // Identity platform ([VC:enum], schema A.1). Defaults to Twitch — the only login provider today.
+    [MaxLength(20)]
+    public string Platform { get; set; } = AuthEnums.Platform.Twitch;
+
     [MaxLength(255)]
     public string Username { get; set; } = null!;
+
+    // Lower-cased Username for case-insensitive unique lookups (schema A.1).
+    [MaxLength(255)]
+    public string UsernameNormalized { get; set; } = null!;
 
     [MaxLength(255)]
     public string DisplayName { get; set; } = null!;
 
     [MaxLength(255)]
     public string? NickName { get; set; }
+
+    // AES-256-GCM-sealed email (schema A.1, [PII-shred]) — replaces a plaintext email column.
+    [MaxLength(512)]
+    public string? EmailCipher { get; set; }
+
+    // The per-subject DEK that opens this user's [PII-shred] fields (FK→CryptoKey). Null until minted.
+    public Guid? SubjectKeyId { get; set; }
 
     [MaxLength(50)]
     public string? Timezone { get; set; }
@@ -54,7 +70,17 @@ public class User : BaseEntity
 
     public bool Enabled { get; set; } = true;
 
-    public bool IsAdmin { get; set; }
+    // Platform principal (operator/admin) — replaces the old IsAdmin. Sourced into the JWT and read by
+    // platform-plane authorization (identity-auth §3.6).
+    public bool IsPlatformPrincipal { get; set; }
+
+    // This user record is a bot identity, not a human login.
+    public bool IsBot { get; set; }
+
+    // GDPR crypto-shred / anonymization has been applied to this subject (schema A.1).
+    public bool IsAnonymized { get; set; }
+
+    public DateTime? LastSeenAt { get; set; }
 
     public Pronoun? Pronoun { get; set; }
     public bool PronounManualOverride { get; set; }

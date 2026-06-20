@@ -13,11 +13,34 @@ using System.Security.Claims;
 namespace NomNomzBot.Application.Abstractions.Auth;
 
 /// <summary>
-/// Generates and validates JWT tokens for API authentication.
+/// Mints and validates the platform access JWT (identity-auth §3.2). Signing-algorithm-agnostic: the impl
+/// chooses HS256 (single-user self-host, the default) or RS256/ES256 + JWKS (federation/SSO path) behind
+/// this unchanged surface. The <c>sub</c> claim is the internal user <see cref="Guid"/>; the resolved tenant
+/// and session ride along as the <c>tenant</c> / <c>sid</c> claims.
 /// </summary>
 public interface IJwtTokenService
 {
-    string GenerateToken(string userId, string username, IEnumerable<string>? roles = null);
-    string GenerateRefreshToken(string userId, string username);
-    ClaimsPrincipal? ValidateToken(string token);
+    /// <summary>
+    /// Mints a short-lived access JWT: <c>sub=userId</c>, <c>tenant=broadcasterId</c>, <c>sid=sessionId</c>,
+    /// plus any roles. Pure — no persistence.
+    /// </summary>
+    string GenerateAccessToken(
+        Guid userId,
+        string username,
+        Guid? broadcasterId,
+        Guid sessionId,
+        IEnumerable<string>? roles = null
+    );
+
+    /// <summary>
+    /// Returns a cryptographically-random opaque refresh-token string. The CALLER hashes and persists it;
+    /// the JWT layer never stores it (refresh tokens are no longer self-describing JWTs).
+    /// </summary>
+    string GenerateRefreshTokenValue();
+
+    /// <summary>
+    /// Validates signature + lifetime + issuer/audience and returns the principal, or null on any failure.
+    /// No state change.
+    /// </summary>
+    ClaimsPrincipal? ValidateAccessToken(string token);
 }

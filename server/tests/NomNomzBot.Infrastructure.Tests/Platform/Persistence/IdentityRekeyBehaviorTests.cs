@@ -117,6 +117,7 @@ public sealed class IdentityRekeyBehaviorTests
                 Id = ownerA,
                 TwitchUserId = "u-a",
                 Username = "alpha",
+                UsernameNormalized = "alpha",
                 DisplayName = "Alpha",
             }
         );
@@ -126,6 +127,7 @@ public sealed class IdentityRekeyBehaviorTests
                 Id = ownerB,
                 TwitchUserId = "u-b",
                 Username = "bravo",
+                UsernameNormalized = "bravo",
                 DisplayName = "Bravo",
             }
         );
@@ -136,6 +138,7 @@ public sealed class IdentityRekeyBehaviorTests
                 OwnerUserId = ownerA,
                 TwitchChannelId = TwitchChannelA,
                 Name = "alpha",
+                NameNormalized = "alpha",
             }
         );
         db.Channels.Add(
@@ -145,6 +148,7 @@ public sealed class IdentityRekeyBehaviorTests
                 OwnerUserId = ownerB,
                 TwitchChannelId = TwitchChannelB,
                 Name = "bravo",
+                NameNormalized = "bravo",
             }
         );
         db.Commands.Add(
@@ -342,6 +346,18 @@ public sealed class IdentityRekeyBehaviorTests
         public DbSet<NomNomzBot.Domain.Platform.Entities.ChannelFeature> ChannelFeatures =>
             throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.Identity.Entities.ChannelBotAuthorization> ChannelBotAuthorizations =>
+            throw new NotSupportedException();
+        public DbSet<NomNomzBot.Domain.Identity.Entities.BotAccount> BotAccounts =>
+            throw new NotSupportedException();
+        public DbSet<NomNomzBot.Domain.Identity.Entities.AuthSession> AuthSessions =>
+            throw new NotSupportedException();
+        public DbSet<NomNomzBot.Domain.Identity.Entities.RefreshToken> RefreshTokens =>
+            throw new NotSupportedException();
+        public DbSet<NomNomzBot.Domain.Identity.Entities.IpcDevModeKey> IpcDevModeKeys =>
+            throw new NotSupportedException();
+        public DbSet<NomNomzBot.Domain.Integrations.Entities.IntegrationConnection> IntegrationConnections =>
+            throw new NotSupportedException();
+        public DbSet<NomNomzBot.Domain.Integrations.Entities.IntegrationToken> IntegrationTokens =>
             throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.Discord.Entities.DiscordServerAuthorization> DiscordServerAuthorizations =>
             throw new NotSupportedException();

@@ -104,7 +104,7 @@ public sealed class AdminService : IAdminService
                 u.DisplayName,
                 u.Username,
                 null,
-                u.IsAdmin ? "admin" : "user",
+                u.IsPlatformPrincipal ? "admin" : "user",
                 _db.Channels.Count(c => c.OwnerUserId == u.Id),
                 u.CreatedAt,
                 u.UpdatedAt

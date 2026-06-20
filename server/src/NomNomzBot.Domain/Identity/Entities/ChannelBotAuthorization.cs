@@ -14,7 +14,7 @@ using NomNomzBot.Domain.Platform;
 
 namespace NomNomzBot.Domain.Identity.Entities;
 
-public class ChannelBotAuthorization : BaseEntity
+public class ChannelBotAuthorization : SoftDeletableEntity, ITenantScoped
 {
     // Surrogate UUIDv7 PK (schema E.4) — was int, re-keyed to Guid.
     public Guid Id { get; set; } = Guid.CreateVersion7();
@@ -22,12 +22,20 @@ public class ChannelBotAuthorization : BaseEntity
     // Tenant key (FK→Channels.Id) — string→Guid per schema §1.1.
     public Guid BroadcasterId { get; set; }
 
+    // The bot identity authorized for this channel (FK→BotAccount, schema E.4).
+    public Guid BotAccountId { get; set; }
+
     public DateTime AuthorizedAt { get; set; }
 
     public Guid? AuthorizedByUserId { get; set; }
+
+    public DateTime? BotJoinedAt { get; set; }
 
     public bool IsActive { get; set; } = true;
 
     [ForeignKey(nameof(BroadcasterId))]
     public virtual Channel Channel { get; set; } = null!;
+
+    [ForeignKey(nameof(BotAccountId))]
+    public virtual BotAccount BotAccount { get; set; } = null!;
 }

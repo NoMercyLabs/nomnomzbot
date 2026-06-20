@@ -17,6 +17,52 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
             migrationBuilder.AlterDatabase().Annotation("Npgsql:PostgresExtension:hstore", ",,");
 
             migrationBuilder.CreateTable(
+                name: "BotAccounts",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    IdentityType = table.Column<string>(
+                        type: "character varying(10)",
+                        maxLength: 10,
+                        nullable: false
+                    ),
+                    Platform = table.Column<string>(
+                        type: "character varying(20)",
+                        maxLength: 20,
+                        nullable: false
+                    ),
+                    BotUserId = table.Column<string>(
+                        type: "character varying(50)",
+                        maxLength: 50,
+                        nullable: false
+                    ),
+                    BotUsername = table.Column<string>(
+                        type: "character varying(255)",
+                        maxLength: 255,
+                        nullable: false
+                    ),
+                    ConnectionId = table.Column<Guid>(type: "uuid", nullable: true),
+                    IsActive = table.Column<bool>(type: "boolean", nullable: false),
+                    CreatedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                    UpdatedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                    DeletedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: true
+                    ),
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_BotAccounts", x => x.Id);
+                }
+            );
+
+            migrationBuilder.CreateTable(
                 name: "DeletionAuditLogs",
                 columns: table => new
                 {
@@ -279,7 +325,17 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         maxLength: 50,
                         nullable: false
                     ),
+                    Platform = table.Column<string>(
+                        type: "character varying(20)",
+                        maxLength: 20,
+                        nullable: false
+                    ),
                     Username = table.Column<string>(
+                        type: "character varying(255)",
+                        maxLength: 255,
+                        nullable: false
+                    ),
+                    UsernameNormalized = table.Column<string>(
                         type: "character varying(255)",
                         maxLength: 255,
                         nullable: false
@@ -294,6 +350,12 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         maxLength: 255,
                         nullable: true
                     ),
+                    EmailCipher = table.Column<string>(
+                        type: "character varying(512)",
+                        maxLength: 512,
+                        nullable: true
+                    ),
+                    SubjectKeyId = table.Column<Guid>(type: "uuid", nullable: true),
                     Timezone = table.Column<string>(
                         type: "character varying(50)",
                         maxLength: 50,
@@ -330,7 +392,13 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         nullable: false,
                         defaultValue: true
                     ),
-                    IsAdmin = table.Column<bool>(type: "boolean", nullable: false),
+                    IsPlatformPrincipal = table.Column<bool>(type: "boolean", nullable: false),
+                    IsBot = table.Column<bool>(type: "boolean", nullable: false),
+                    IsAnonymized = table.Column<bool>(type: "boolean", nullable: false),
+                    LastSeenAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: true
+                    ),
                     PronounId = table.Column<int>(type: "integer", nullable: true),
                     PronounManualOverride = table.Column<bool>(type: "boolean", nullable: false),
                     CreatedAt = table.Column<DateTime>(
@@ -369,6 +437,35 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     Name = table.Column<string>(
                         type: "character varying(25)",
                         maxLength: 25,
+                        nullable: false
+                    ),
+                    NameNormalized = table.Column<string>(
+                        type: "character varying(25)",
+                        maxLength: 25,
+                        nullable: false
+                    ),
+                    Status = table.Column<string>(
+                        type: "character varying(20)",
+                        maxLength: 20,
+                        nullable: false
+                    ),
+                    SuspendedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: true
+                    ),
+                    SuspendedReason = table.Column<string>(
+                        type: "character varying(500)",
+                        maxLength: 500,
+                        nullable: true
+                    ),
+                    DeploymentMode = table.Column<string>(
+                        type: "character varying(20)",
+                        maxLength: 20,
+                        nullable: false
+                    ),
+                    BillingTierKey = table.Column<string>(
+                        type: "character varying(20)",
+                        maxLength: 20,
                         nullable: false
                     ),
                     Enabled = table.Column<bool>(
@@ -465,16 +562,131 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
             );
 
             migrationBuilder.CreateTable(
+                name: "IpcDevModeKeys",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    KeyHash = table.Column<string>(
+                        type: "character varying(64)",
+                        maxLength: 64,
+                        nullable: false
+                    ),
+                    Label = table.Column<string>(
+                        type: "character varying(100)",
+                        maxLength: 100,
+                        nullable: true
+                    ),
+                    IsEnabled = table.Column<bool>(type: "boolean", nullable: false),
+                    CreatedByUserId = table.Column<Guid>(type: "uuid", nullable: true),
+                    ExpiresAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: true
+                    ),
+                    CreatedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                    UpdatedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                    DeletedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: true
+                    ),
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_IpcDevModeKeys", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_IpcDevModeKeys_Users_CreatedByUserId",
+                        column: x => x.CreatedByUserId,
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.SetNull
+                    );
+                }
+            );
+
+            migrationBuilder.CreateTable(
+                name: "AuthSessions",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    UserId = table.Column<Guid>(type: "uuid", nullable: false),
+                    BroadcasterId = table.Column<Guid>(type: "uuid", nullable: true),
+                    ClientType = table.Column<string>(
+                        type: "character varying(20)",
+                        maxLength: 20,
+                        nullable: false
+                    ),
+                    IpAddressCipher = table.Column<string>(
+                        type: "character varying(255)",
+                        maxLength: 255,
+                        nullable: true
+                    ),
+                    UserAgent = table.Column<string>(
+                        type: "character varying(512)",
+                        maxLength: 512,
+                        nullable: true
+                    ),
+                    LastSeenAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                    ExpiresAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                    RevokedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: true
+                    ),
+                    CreatedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                    UpdatedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_AuthSessions", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_AuthSessions_Channels_BroadcasterId",
+                        column: x => x.BroadcasterId,
+                        principalTable: "Channels",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.SetNull
+                    );
+                    table.ForeignKey(
+                        name: "FK_AuthSessions_Users_UserId",
+                        column: x => x.UserId,
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade
+                    );
+                }
+            );
+
+            migrationBuilder.CreateTable(
                 name: "ChannelBotAuthorizations",
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
                     BroadcasterId = table.Column<Guid>(type: "uuid", nullable: false),
+                    BotAccountId = table.Column<Guid>(type: "uuid", nullable: false),
                     AuthorizedAt = table.Column<DateTime>(
                         type: "timestamp with time zone",
                         nullable: false
                     ),
                     AuthorizedByUserId = table.Column<Guid>(type: "uuid", nullable: true),
+                    BotJoinedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: true
+                    ),
                     IsActive = table.Column<bool>(
                         type: "boolean",
                         nullable: false,
@@ -488,10 +700,21 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         type: "timestamp with time zone",
                         nullable: false
                     ),
+                    DeletedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: true
+                    ),
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_ChannelBotAuthorizations", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_ChannelBotAuthorizations_BotAccounts_BotAccountId",
+                        column: x => x.BotAccountId,
+                        principalTable: "BotAccounts",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade
+                    );
                     table.ForeignKey(
                         name: "FK_ChannelBotAuthorizations_Channels_BroadcasterId",
                         column: x => x.BroadcasterId,
@@ -1021,6 +1244,84 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     table.PrimaryKey("PK_EventSubscriptions", x => x.Id);
                     table.ForeignKey(
                         name: "FK_EventSubscriptions_Channels_BroadcasterId",
+                        column: x => x.BroadcasterId,
+                        principalTable: "Channels",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade
+                    );
+                }
+            );
+
+            migrationBuilder.CreateTable(
+                name: "IntegrationConnections",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    BroadcasterId = table.Column<Guid>(type: "uuid", nullable: true),
+                    Provider = table.Column<string>(
+                        type: "character varying(20)",
+                        maxLength: 20,
+                        nullable: false
+                    ),
+                    ProviderAccountId = table.Column<string>(
+                        type: "character varying(255)",
+                        maxLength: 255,
+                        nullable: true
+                    ),
+                    ProviderAccountName = table.Column<string>(
+                        type: "character varying(255)",
+                        maxLength: 255,
+                        nullable: true
+                    ),
+                    Status = table.Column<string>(
+                        type: "character varying(20)",
+                        maxLength: 20,
+                        nullable: false
+                    ),
+                    Scopes = table.Column<string>(
+                        type: "jsonb",
+                        nullable: false,
+                        defaultValueSql: "'[]'::jsonb"
+                    ),
+                    ClientId = table.Column<string>(
+                        type: "character varying(512)",
+                        maxLength: 512,
+                        nullable: true
+                    ),
+                    IsByok = table.Column<bool>(type: "boolean", nullable: false),
+                    Settings = table.Column<string>(type: "text", nullable: true),
+                    ConnectedByUserId = table.Column<Guid>(type: "uuid", nullable: true),
+                    ConnectedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: true
+                    ),
+                    LastRefreshedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: true
+                    ),
+                    LastErrorAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: true
+                    ),
+                    ConsecutiveFailureCount = table.Column<int>(type: "integer", nullable: false),
+                    CreatedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                    UpdatedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                    DeletedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: true
+                    ),
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_IntegrationConnections", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_IntegrationConnections_Channels_BroadcasterId",
                         column: x => x.BroadcasterId,
                         principalTable: "Channels",
                         principalColumn: "Id",
@@ -1616,6 +1917,133 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
             );
 
             migrationBuilder.CreateTable(
+                name: "RefreshTokens",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    SessionId = table.Column<Guid>(type: "uuid", nullable: false),
+                    UserId = table.Column<Guid>(type: "uuid", nullable: false),
+                    TokenHash = table.Column<string>(
+                        type: "character varying(64)",
+                        maxLength: 64,
+                        nullable: false
+                    ),
+                    PreviousTokenHash = table.Column<string>(
+                        type: "character varying(64)",
+                        maxLength: 64,
+                        nullable: true
+                    ),
+                    IssuedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                    ExpiresAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                    ConsumedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: true
+                    ),
+                    RevokedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: true
+                    ),
+                    RevokedReason = table.Column<string>(
+                        type: "character varying(30)",
+                        maxLength: 30,
+                        nullable: true
+                    ),
+                    CreatedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                    UpdatedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_RefreshTokens", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_RefreshTokens_AuthSessions_SessionId",
+                        column: x => x.SessionId,
+                        principalTable: "AuthSessions",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade
+                    );
+                    table.ForeignKey(
+                        name: "FK_RefreshTokens_Users_UserId",
+                        column: x => x.UserId,
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade
+                    );
+                }
+            );
+
+            migrationBuilder.CreateTable(
+                name: "IntegrationTokens",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    ConnectionId = table.Column<Guid>(type: "uuid", nullable: false),
+                    BroadcasterId = table.Column<Guid>(type: "uuid", nullable: true),
+                    TokenType = table.Column<string>(
+                        type: "character varying(10)",
+                        maxLength: 10,
+                        nullable: false
+                    ),
+                    CipherText = table.Column<string>(type: "text", nullable: false),
+                    Nonce = table.Column<string>(
+                        type: "character varying(64)",
+                        maxLength: 64,
+                        nullable: true
+                    ),
+                    EncryptionKeyId = table.Column<Guid>(type: "uuid", nullable: false),
+                    ExpiresAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: true
+                    ),
+                    RotatedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: true
+                    ),
+                    CreatedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                    UpdatedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                    DeletedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: true
+                    ),
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_IntegrationTokens", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_IntegrationTokens_Channels_BroadcasterId",
+                        column: x => x.BroadcasterId,
+                        principalTable: "Channels",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.SetNull
+                    );
+                    table.ForeignKey(
+                        name: "FK_IntegrationTokens_IntegrationConnections_ConnectionId",
+                        column: x => x.ConnectionId,
+                        principalTable: "IntegrationConnections",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade
+                    );
+                }
+            );
+
+            migrationBuilder.CreateTable(
                 name: "ChatMessages",
                 columns: table => new
                 {
@@ -1715,10 +2143,41 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
             );
 
             migrationBuilder.CreateIndex(
-                name: "IX_ChannelBotAuthorizations_BroadcasterId",
-                table: "ChannelBotAuthorizations",
-                column: "BroadcasterId",
+                name: "IX_AuthSessions_BroadcasterId",
+                table: "AuthSessions",
+                column: "BroadcasterId"
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_AuthSessions_UserId_RevokedAt",
+                table: "AuthSessions",
+                columns: new[] { "UserId", "RevokedAt" }
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_BotAccounts_BotUserId",
+                table: "BotAccounts",
+                column: "BotUserId",
                 unique: true
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_BotAccounts_Platform_IdentityType",
+                table: "BotAccounts",
+                columns: new[] { "Platform", "IdentityType" }
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ChannelBotAuthorization_Broadcaster_BotAccount",
+                table: "ChannelBotAuthorizations",
+                columns: new[] { "BroadcasterId", "BotAccountId" },
+                unique: true
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ChannelBotAuthorizations_BotAccountId",
+                table: "ChannelBotAuthorizations",
+                column: "BotAccountId"
             );
 
             migrationBuilder.CreateIndex(
@@ -1750,6 +2209,12 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                 name: "IX_ChannelModerators_UserId",
                 table: "ChannelModerators",
                 column: "UserId"
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Channel_NameNormalized",
+                table: "Channels",
+                column: "NameNormalized"
             );
 
             migrationBuilder.CreateIndex(
@@ -1836,6 +2301,39 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
             );
 
             migrationBuilder.CreateIndex(
+                name: "IX_IntegrationConnection_Broadcaster_Provider_Account",
+                table: "IntegrationConnections",
+                columns: new[] { "BroadcasterId", "Provider", "ProviderAccountId" },
+                unique: true
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_IntegrationToken_Connection_TokenType",
+                table: "IntegrationTokens",
+                columns: new[] { "ConnectionId", "TokenType" },
+                unique: true
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_IntegrationTokens_BroadcasterId",
+                table: "IntegrationTokens",
+                column: "BroadcasterId"
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_IpcDevModeKeys_CreatedByUserId",
+                table: "IpcDevModeKeys",
+                column: "CreatedByUserId"
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_IpcDevModeKeys_KeyHash",
+                table: "IpcDevModeKeys",
+                column: "KeyHash",
+                unique: true
+            );
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Permission_BroadcasterId_Subject_ResourceType",
                 table: "Permissions",
                 columns: new[] { "BroadcasterId", "SubjectType", "SubjectId", "ResourceType" },
@@ -1858,6 +2356,25 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                 name: "IX_Record_UserId",
                 table: "Records",
                 column: "UserId"
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_RefreshTokens_SessionId",
+                table: "RefreshTokens",
+                column: "SessionId"
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_RefreshTokens_TokenHash",
+                table: "RefreshTokens",
+                column: "TokenHash",
+                unique: true
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_RefreshTokens_UserId_RevokedAt",
+                table: "RefreshTokens",
+                columns: new[] { "UserId", "RevokedAt" }
             );
 
             migrationBuilder.CreateIndex(
@@ -1922,6 +2439,12 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
             );
 
             migrationBuilder.CreateIndex(
+                name: "IX_User_UsernameNormalized",
+                table: "Users",
+                column: "UsernameNormalized"
+            );
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Users_PronounId",
                 table: "Users",
                 column: "PronounId"
@@ -1974,11 +2497,17 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
 
             migrationBuilder.DropTable(name: "EventSubscriptions");
 
+            migrationBuilder.DropTable(name: "IntegrationTokens");
+
+            migrationBuilder.DropTable(name: "IpcDevModeKeys");
+
             migrationBuilder.DropTable(name: "Permissions");
 
             migrationBuilder.DropTable(name: "Pipelines");
 
             migrationBuilder.DropTable(name: "Records");
+
+            migrationBuilder.DropTable(name: "RefreshTokens");
 
             migrationBuilder.DropTable(name: "Rewards");
 
@@ -2000,7 +2529,13 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
 
             migrationBuilder.DropTable(name: "Widgets");
 
+            migrationBuilder.DropTable(name: "BotAccounts");
+
             migrationBuilder.DropTable(name: "Streams");
+
+            migrationBuilder.DropTable(name: "IntegrationConnections");
+
+            migrationBuilder.DropTable(name: "AuthSessions");
 
             migrationBuilder.DropTable(name: "Channels");
 

@@ -12,8 +12,14 @@ using NomNomzBot.Domain.Platform;
 
 namespace NomNomzBot.Domain.Integrations.Events;
 
-/// <summary>Published when an external integration (e.g. "spotify", "discord", "obs") connects successfully.</summary>
+/// <summary>
+/// Published when an external integration (twitch / spotify / discord / youtube …) connects for the first
+/// time (identity-auth §2). Tenant-scoped connections carry the channel in <c>BroadcasterId</c>; platform
+/// connections (the shared bot) leave it at <see cref="System.Guid.Empty"/>.
+/// </summary>
 public sealed class IntegrationConnectedEvent : DomainEventBase
 {
-    public required string IntegrationName { get; init; }
+    public required Guid ConnectionId { get; init; }
+    public required string Provider { get; init; }
+    public required string ProviderAccountId { get; init; }
 }

@@ -66,6 +66,14 @@ public sealed class SeedTestDbContext : DbContext, IApplicationDbContext
     public DbSet<ChannelFeature> ChannelFeatures => Set<ChannelFeature>();
     public DbSet<ChannelBotAuthorization> ChannelBotAuthorizations =>
         Set<ChannelBotAuthorization>();
+    public DbSet<BotAccount> BotAccounts => Set<BotAccount>();
+    public DbSet<AuthSession> AuthSessions => Set<AuthSession>();
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<IpcDevModeKey> IpcDevModeKeys => Set<IpcDevModeKey>();
+    public DbSet<NomNomzBot.Domain.Integrations.Entities.IntegrationConnection> IntegrationConnections =>
+        Set<NomNomzBot.Domain.Integrations.Entities.IntegrationConnection>();
+    public DbSet<NomNomzBot.Domain.Integrations.Entities.IntegrationToken> IntegrationTokens =>
+        Set<NomNomzBot.Domain.Integrations.Entities.IntegrationToken>();
     public DbSet<DiscordServerAuthorization> DiscordServerAuthorizations =>
         Set<DiscordServerAuthorization>();
     public DbSet<ChannelSubscription> ChannelSubscriptions => Set<ChannelSubscription>();
@@ -105,6 +113,12 @@ public sealed class SeedTestDbContext : DbContext, IApplicationDbContext
         modelBuilder.Ignore<Permission>();
         modelBuilder.Ignore<ChannelFeature>();
         modelBuilder.Ignore<ChannelBotAuthorization>();
+        modelBuilder.Ignore<BotAccount>();
+        modelBuilder.Ignore<AuthSession>();
+        modelBuilder.Ignore<RefreshToken>();
+        modelBuilder.Ignore<IpcDevModeKey>();
+        modelBuilder.Ignore<NomNomzBot.Domain.Integrations.Entities.IntegrationConnection>();
+        modelBuilder.Ignore<NomNomzBot.Domain.Integrations.Entities.IntegrationToken>();
         modelBuilder.Ignore<DiscordServerAuthorization>();
         modelBuilder.Ignore<ChannelSubscription>();
         modelBuilder.Ignore<UserTtsVoice>();

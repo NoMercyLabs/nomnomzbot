@@ -404,11 +404,116 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.ToTable("DiscordServerAuthorizations");
                 });
 
+            modelBuilder.Entity("NomNomzBot.Domain.Identity.Entities.AuthSession", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("BroadcasterId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ClientType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("IpAddressCipher")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<DateTime>("LastSeenAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("RevokedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UserAgent")
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BroadcasterId");
+
+                    b.HasIndex("UserId", "RevokedAt");
+
+                    b.ToTable("AuthSessions");
+                });
+
+            modelBuilder.Entity("NomNomzBot.Domain.Identity.Entities.BotAccount", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("BotUserId")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("BotUsername")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<Guid?>("ConnectionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("IdentityType")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Platform")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BotUserId")
+                        .IsUnique();
+
+                    b.HasIndex("Platform", "IdentityType");
+
+                    b.ToTable("BotAccounts");
+                });
+
             modelBuilder.Entity("NomNomzBot.Domain.Identity.Entities.Channel", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
+
+                    b.Property<string>("BillingTierKey")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
 
                     b.Property<DateTime?>("BotJoinedAt")
                         .HasColumnType("timestamp with time zone");
@@ -424,6 +529,11 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
 
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DeploymentMode")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
 
                     b.Property<bool>("Enabled")
                         .ValueGeneratedOnAdd()
@@ -459,6 +569,11 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         .HasMaxLength(25)
                         .HasColumnType("character varying(25)");
 
+                    b.Property<string>("NameNormalized")
+                        .IsRequired()
+                        .HasMaxLength(25)
+                        .HasColumnType("character varying(25)");
+
                     b.Property<string>("OverlayToken")
                         .IsRequired()
                         .HasMaxLength(36)
@@ -476,8 +591,20 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         .HasMaxLength(450)
                         .HasColumnType("character varying(450)");
 
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
                     b.Property<int>("StreamDelay")
                         .HasColumnType("integer");
+
+                    b.Property<DateTime?>("SuspendedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("SuspendedReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
 
                     b.PrimitiveCollection<string>("Tags")
                         .IsRequired()
@@ -502,6 +629,9 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         .HasColumnType("character varying(100)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("NameNormalized")
+                        .HasDatabaseName("IX_Channel_NameNormalized");
 
                     b.HasIndex("OverlayToken")
                         .IsUnique()
@@ -530,10 +660,19 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.Property<Guid?>("AuthorizedByUserId")
                         .HasColumnType("uuid");
 
+                    b.Property<Guid>("BotAccountId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("BotJoinedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<Guid>("BroadcasterId")
                         .HasColumnType("uuid");
 
                     b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<bool>("IsActive")
@@ -546,8 +685,11 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("BroadcasterId")
-                        .IsUnique();
+                    b.HasIndex("BotAccountId");
+
+                    b.HasIndex("BroadcasterId", "BotAccountId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_ChannelBotAuthorization_Broadcaster_BotAccount");
 
                     b.ToTable("ChannelBotAuthorizations");
                 });
@@ -681,6 +823,49 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.ToTable("ChannelSubscriptions");
                 });
 
+            modelBuilder.Entity("NomNomzBot.Domain.Identity.Entities.IpcDevModeKey", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("CreatedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("KeyHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("Label")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedByUserId");
+
+                    b.HasIndex("KeyHash")
+                        .IsUnique();
+
+                    b.ToTable("IpcDevModeKeys");
+                });
+
             modelBuilder.Entity("NomNomzBot.Domain.Identity.Entities.Permission", b =>
                 {
                     b.Property<int>("Id")
@@ -765,6 +950,61 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.ToTable("Pronouns");
                 });
 
+            modelBuilder.Entity("NomNomzBot.Domain.Identity.Entities.RefreshToken", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("ConsumedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("IssuedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("PreviousTokenHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTime?>("RevokedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("RevokedReason")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<Guid>("SessionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("TokenHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SessionId");
+
+                    b.HasIndex("TokenHash")
+                        .IsUnique();
+
+                    b.HasIndex("UserId", "RevokedAt");
+
+                    b.ToTable("RefreshTokens");
+                });
+
             modelBuilder.Entity("NomNomzBot.Domain.Identity.Entities.User", b =>
                 {
                     b.Property<Guid>("Id")
@@ -794,13 +1034,26 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)");
 
+                    b.Property<string>("EmailCipher")
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
                     b.Property<bool>("Enabled")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
                         .HasDefaultValue(true);
 
-                    b.Property<bool>("IsAdmin")
+                    b.Property<bool>("IsAnonymized")
                         .HasColumnType("boolean");
+
+                    b.Property<bool>("IsBot")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsPlatformPrincipal")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("LastSeenAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("NickName")
                         .HasMaxLength(255)
@@ -809,6 +1062,11 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.Property<string>("OfflineImageUrl")
                         .HasMaxLength(2048)
                         .HasColumnType("character varying(2048)");
+
+                    b.Property<string>("Platform")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
 
                     b.Property<string>("ProfileImageUrl")
                         .HasMaxLength(2048)
@@ -819,6 +1077,9 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
 
                     b.Property<bool>("PronounManualOverride")
                         .HasColumnType("boolean");
+
+                    b.Property<Guid?>("SubjectKeyId")
+                        .HasColumnType("uuid");
 
                     b.Property<string>("Timezone")
                         .HasMaxLength(50)
@@ -837,6 +1098,11 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)");
 
+                    b.Property<string>("UsernameNormalized")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("PronounId");
@@ -845,7 +1111,140 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         .IsUnique()
                         .HasDatabaseName("IX_User_TwitchUserId");
 
+                    b.HasIndex("UsernameNormalized")
+                        .HasDatabaseName("IX_User_UsernameNormalized");
+
                     b.ToTable("Users");
+                });
+
+            modelBuilder.Entity("NomNomzBot.Domain.Integrations.Entities.IntegrationConnection", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("BroadcasterId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ClientId")
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<DateTime?>("ConnectedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("ConnectedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("ConsecutiveFailureCount")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsByok")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("LastErrorAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("LastRefreshedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Provider")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("ProviderAccountId")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<string>("ProviderAccountName")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.PrimitiveCollection<string>("Scopes")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("jsonb")
+                        .HasDefaultValueSql("'[]'::jsonb");
+
+                    b.Property<string>("Settings")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BroadcasterId", "Provider", "ProviderAccountId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_IntegrationConnection_Broadcaster_Provider_Account");
+
+                    b.ToTable("IntegrationConnections");
+                });
+
+            modelBuilder.Entity("NomNomzBot.Domain.Integrations.Entities.IntegrationToken", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("BroadcasterId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CipherText")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("ConnectionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("EncryptionKeyId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Nonce")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTime?>("RotatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("TokenType")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BroadcasterId");
+
+                    b.HasIndex("ConnectionId", "TokenType")
+                        .IsUnique()
+                        .HasDatabaseName("IX_IntegrationToken_Connection_TokenType");
+
+                    b.ToTable("IntegrationTokens");
                 });
 
             modelBuilder.Entity("NomNomzBot.Domain.Platform.Entities.ChannelFeature", b =>
@@ -1673,6 +2072,24 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.Navigation("Channel");
                 });
 
+            modelBuilder.Entity("NomNomzBot.Domain.Identity.Entities.AuthSession", b =>
+                {
+                    b.HasOne("NomNomzBot.Domain.Identity.Entities.Channel", "Channel")
+                        .WithMany()
+                        .HasForeignKey("BroadcasterId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("NomNomzBot.Domain.Identity.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Channel");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("NomNomzBot.Domain.Identity.Entities.Channel", b =>
                 {
                     b.HasOne("NomNomzBot.Domain.Identity.Entities.User", "User")
@@ -1686,11 +2103,19 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
 
             modelBuilder.Entity("NomNomzBot.Domain.Identity.Entities.ChannelBotAuthorization", b =>
                 {
-                    b.HasOne("NomNomzBot.Domain.Identity.Entities.Channel", "Channel")
-                        .WithOne()
-                        .HasForeignKey("NomNomzBot.Domain.Identity.Entities.ChannelBotAuthorization", "BroadcasterId")
+                    b.HasOne("NomNomzBot.Domain.Identity.Entities.BotAccount", "BotAccount")
+                        .WithMany()
+                        .HasForeignKey("BotAccountId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.HasOne("NomNomzBot.Domain.Identity.Entities.Channel", "Channel")
+                        .WithMany()
+                        .HasForeignKey("BroadcasterId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("BotAccount");
 
                     b.Navigation("Channel");
                 });
@@ -1742,6 +2167,16 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.Navigation("Channel");
                 });
 
+            modelBuilder.Entity("NomNomzBot.Domain.Identity.Entities.IpcDevModeKey", b =>
+                {
+                    b.HasOne("NomNomzBot.Domain.Identity.Entities.User", "CreatedByUser")
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("CreatedByUser");
+                });
+
             modelBuilder.Entity("NomNomzBot.Domain.Identity.Entities.Permission", b =>
                 {
                     b.HasOne("NomNomzBot.Domain.Identity.Entities.Channel", "Channel")
@@ -1753,6 +2188,25 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.Navigation("Channel");
                 });
 
+            modelBuilder.Entity("NomNomzBot.Domain.Identity.Entities.RefreshToken", b =>
+                {
+                    b.HasOne("NomNomzBot.Domain.Identity.Entities.AuthSession", "Session")
+                        .WithMany("RefreshTokens")
+                        .HasForeignKey("SessionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("NomNomzBot.Domain.Identity.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Session");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("NomNomzBot.Domain.Identity.Entities.User", b =>
                 {
                     b.HasOne("NomNomzBot.Domain.Identity.Entities.Pronoun", "Pronoun")
@@ -1761,6 +2215,34 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("Pronoun");
+                });
+
+            modelBuilder.Entity("NomNomzBot.Domain.Integrations.Entities.IntegrationConnection", b =>
+                {
+                    b.HasOne("NomNomzBot.Domain.Identity.Entities.Channel", "Channel")
+                        .WithMany()
+                        .HasForeignKey("BroadcasterId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.Navigation("Channel");
+                });
+
+            modelBuilder.Entity("NomNomzBot.Domain.Integrations.Entities.IntegrationToken", b =>
+                {
+                    b.HasOne("NomNomzBot.Domain.Identity.Entities.Channel", "Channel")
+                        .WithMany()
+                        .HasForeignKey("BroadcasterId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("NomNomzBot.Domain.Integrations.Entities.IntegrationConnection", "Connection")
+                        .WithMany("Tokens")
+                        .HasForeignKey("ConnectionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Channel");
+
+                    b.Navigation("Connection");
                 });
 
             modelBuilder.Entity("NomNomzBot.Domain.Platform.Entities.ChannelFeature", b =>
@@ -1870,6 +2352,11 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.Navigation("Channel");
                 });
 
+            modelBuilder.Entity("NomNomzBot.Domain.Identity.Entities.AuthSession", b =>
+                {
+                    b.Navigation("RefreshTokens");
+                });
+
             modelBuilder.Entity("NomNomzBot.Domain.Identity.Entities.Channel", b =>
                 {
                     b.Navigation("Events");
@@ -1882,6 +2369,11 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
             modelBuilder.Entity("NomNomzBot.Domain.Identity.Entities.User", b =>
                 {
                     b.Navigation("Channel");
+                });
+
+            modelBuilder.Entity("NomNomzBot.Domain.Integrations.Entities.IntegrationConnection", b =>
+                {
+                    b.Navigation("Tokens");
                 });
 #pragma warning restore 612, 618
         }

@@ -10,6 +10,7 @@
 
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
@@ -18,108 +19,48 @@ using NomNomzBot.Application.Abstractions.Auth;
 namespace NomNomzBot.Infrastructure.Platform.Auth;
 
 /// <summary>
-/// Generates and validates JWT tokens for API authentication.
+/// Mints and validates the platform access JWT (identity-auth §3.2, §9). HS256 is the default on the
+/// single-user self-host path; setting <c>Jwt:Algorithm</c> to <c>RS256</c>/<c>ES256</c> selects asymmetric
+/// signing for the federation/SSO path — same interface, the impl picks the key. <c>sub</c> = internal user
+/// Guid; <c>tenant</c> = resolved channel; <c>sid</c> = session id. Refresh tokens are opaque random values
+/// minted by <see cref="GenerateRefreshTokenValue"/>; the caller hashes and persists them.
 /// </summary>
 public sealed class JwtTokenService : IJwtTokenService
 {
+    /// <summary>The resolved tenant (channel) the access token is scoped to.</summary>
+    public const string TenantClaim = "tenant";
+
+    /// <summary>The auth-session id the access token belongs to.</summary>
+    public const string SessionClaim = "sid";
+
     private readonly string _issuer;
     private readonly string _audience;
-    private readonly byte[] _key;
     private readonly TimeSpan _expiration;
-    private readonly TimeSpan _refreshExpiration;
     private readonly TimeProvider _timeProvider;
+    private readonly SigningCredentials _signingCredentials;
+    private readonly TokenValidationParameters _validationParameters;
 
     public JwtTokenService(IConfiguration configuration, TimeProvider timeProvider)
     {
         _timeProvider = timeProvider;
         IConfigurationSection jwtSection = configuration.GetSection("Jwt");
-        _issuer = jwtSection["Issuer"] ?? "nomercybot";
-        _audience = jwtSection["Audience"] ?? "nomercybot";
-        _key = Encoding.UTF8.GetBytes(
-            jwtSection["Secret"]
-                ?? jwtSection["Key"]
-                ?? throw new InvalidOperationException("JWT Secret is not configured.")
-        );
+        _issuer = jwtSection["Issuer"] ?? "nomnomzbot";
+        _audience = jwtSection["Audience"] ?? "nomnomzbot";
         _expiration = TimeSpan.FromMinutes(
             double.Parse(jwtSection["ExpiryMinutes"] ?? jwtSection["ExpirationMinutes"] ?? "60")
         );
-        _refreshExpiration = TimeSpan.FromDays(
-            double.Parse(jwtSection["RefreshExpiryDays"] ?? "7")
-        );
-    }
 
-    public string GenerateToken(string userId, string username, IEnumerable<string>? roles = null)
-    {
-        List<Claim> claims = new()
+        string algorithm = jwtSection["Algorithm"]?.ToUpperInvariant() ?? "HS256";
+        (_signingCredentials, SecurityKey validationKey) = algorithm switch
         {
-            new(ClaimTypes.NameIdentifier, userId),
-            new(ClaimTypes.Name, username),
-            new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-            new(
-                JwtRegisteredClaimNames.Iat,
-                _timeProvider.GetUtcNow().ToUnixTimeSeconds().ToString(),
-                ClaimValueTypes.Integer64
-            ),
+            "RS256" or "ES256" => BuildAsymmetric(jwtSection, algorithm),
+            _ => BuildSymmetric(jwtSection),
         };
 
-        if (roles is not null)
-        {
-            foreach (string role in roles)
-            {
-                claims.Add(new(ClaimTypes.Role, role));
-            }
-        }
-
-        SymmetricSecurityKey securityKey = new(_key);
-        SigningCredentials credentials = new(securityKey, SecurityAlgorithms.HmacSha256);
-
-        JwtSecurityToken token = new(
-            issuer: _issuer,
-            audience: _audience,
-            claims: claims,
-            expires: _timeProvider.GetUtcNow().UtcDateTime.Add(_expiration),
-            signingCredentials: credentials
-        );
-
-        return new JwtSecurityTokenHandler().WriteToken(token);
-    }
-
-    public string GenerateRefreshToken(string userId, string username)
-    {
-        List<Claim> claims =
-        [
-            new(ClaimTypes.NameIdentifier, userId),
-            new(ClaimTypes.Name, username),
-            new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-            new(
-                JwtRegisteredClaimNames.Iat,
-                _timeProvider.GetUtcNow().ToUnixTimeSeconds().ToString(),
-                ClaimValueTypes.Integer64
-            ),
-            new(ClaimTypes.Role, "refresh"),
-        ];
-
-        SymmetricSecurityKey securityKey = new(_key);
-        SigningCredentials credentials = new(securityKey, SecurityAlgorithms.HmacSha256);
-
-        JwtSecurityToken token = new(
-            issuer: _issuer,
-            audience: _audience,
-            claims: claims,
-            expires: _timeProvider.GetUtcNow().UtcDateTime.Add(_refreshExpiration),
-            signingCredentials: credentials
-        );
-
-        return new JwtSecurityTokenHandler().WriteToken(token);
-    }
-
-    public ClaimsPrincipal? ValidateToken(string token)
-    {
-        JwtSecurityTokenHandler tokenHandler = new();
-        TokenValidationParameters validationParameters = new()
+        _validationParameters = new TokenValidationParameters
         {
             ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(_key),
+            IssuerSigningKey = validationKey,
             ValidateIssuer = true,
             ValidIssuer = _issuer,
             ValidateAudience = true,
@@ -127,14 +68,95 @@ public sealed class JwtTokenService : IJwtTokenService
             ValidateLifetime = true,
             ClockSkew = TimeSpan.FromMinutes(1),
         };
+    }
 
+    public string GenerateAccessToken(
+        Guid userId,
+        string username,
+        Guid? broadcasterId,
+        Guid sessionId,
+        IEnumerable<string>? roles = null
+    )
+    {
+        List<Claim> claims =
+        [
+            new(ClaimTypes.NameIdentifier, userId.ToString()),
+            new(ClaimTypes.Name, username),
+            new(SessionClaim, sessionId.ToString()),
+            new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+            new(
+                JwtRegisteredClaimNames.Iat,
+                _timeProvider.GetUtcNow().ToUnixTimeSeconds().ToString(),
+                ClaimValueTypes.Integer64
+            ),
+        ];
+
+        if (broadcasterId is { } tenant)
+            claims.Add(new(TenantClaim, tenant.ToString()));
+
+        if (roles is not null)
+            foreach (string role in roles)
+                claims.Add(new(ClaimTypes.Role, role));
+
+        JwtSecurityToken token = new(
+            issuer: _issuer,
+            audience: _audience,
+            claims: claims,
+            expires: _timeProvider.GetUtcNow().UtcDateTime.Add(_expiration),
+            signingCredentials: _signingCredentials
+        );
+
+        return new JwtSecurityTokenHandler().WriteToken(token);
+    }
+
+    public string GenerateRefreshTokenValue() =>
+        Base64UrlEncoder.Encode(RandomNumberGenerator.GetBytes(32));
+
+    public ClaimsPrincipal? ValidateAccessToken(string token)
+    {
         try
         {
-            return tokenHandler.ValidateToken(token, validationParameters, out _);
+            return new JwtSecurityTokenHandler().ValidateToken(token, _validationParameters, out _);
         }
         catch (Exception)
         {
             return null;
         }
+    }
+
+    private static (SigningCredentials, SecurityKey) BuildSymmetric(IConfigurationSection jwt)
+    {
+        byte[] key = Encoding.UTF8.GetBytes(
+            jwt["Secret"]
+                ?? jwt["Key"]
+                ?? throw new InvalidOperationException("JWT Secret is not configured.")
+        );
+        SymmetricSecurityKey securityKey = new(key);
+        return (new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256), securityKey);
+    }
+
+    private static (SigningCredentials, SecurityKey) BuildAsymmetric(
+        IConfigurationSection jwt,
+        string algorithm
+    )
+    {
+        string privatePem =
+            jwt["PrivateKeyPem"]
+            ?? throw new InvalidOperationException(
+                "JWT asymmetric signing requires Jwt:PrivateKeyPem."
+            );
+
+        if (algorithm == "ES256")
+        {
+            ECDsa ecdsa = ECDsa.Create();
+            ecdsa.ImportFromPem(privatePem);
+            ECDsaSecurityKey key = new(ecdsa);
+            return (new SigningCredentials(key, SecurityAlgorithms.EcdsaSha256), key);
+        }
+
+        RSA rsa = RSA.Create();
+        rsa.ImportFromPem(privatePem);
+        RsaSecurityKey rsaKey = new(rsa);
+        return (new SigningCredentials(rsaKey, SecurityAlgorithms.RsaSha256), rsaKey);
     }
 }

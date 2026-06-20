@@ -16,6 +16,7 @@ using NomNomzBot.Domain.Chat.Entities;
 using NomNomzBot.Domain.Commands.Entities;
 using NomNomzBot.Domain.Discord.Entities;
 using NomNomzBot.Domain.Identity.Entities;
+using NomNomzBot.Domain.Integrations.Entities;
 using NomNomzBot.Domain.Platform.Entities;
 using NomNomzBot.Domain.Rewards.Entities;
 using NomNomzBot.Domain.Tts.Entities;
@@ -72,9 +73,17 @@ public class AppDbContext : DbContext, IApplicationDbContext
     // Auth & Billing
     public DbSet<ChannelBotAuthorization> ChannelBotAuthorizations =>
         Set<ChannelBotAuthorization>();
+    public DbSet<BotAccount> BotAccounts => Set<BotAccount>();
+    public DbSet<AuthSession> AuthSessions => Set<AuthSession>();
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<IpcDevModeKey> IpcDevModeKeys => Set<IpcDevModeKey>();
     public DbSet<DiscordServerAuthorization> DiscordServerAuthorizations =>
         Set<DiscordServerAuthorization>();
     public DbSet<ChannelSubscription> ChannelSubscriptions => Set<ChannelSubscription>();
+
+    // Integrations (token vault — identity-auth Domain E)
+    public DbSet<IntegrationConnection> IntegrationConnections => Set<IntegrationConnection>();
+    public DbSet<IntegrationToken> IntegrationTokens => Set<IntegrationToken>();
 
     // TTS
     public DbSet<TtsVoice> TtsVoices => Set<TtsVoice>();
