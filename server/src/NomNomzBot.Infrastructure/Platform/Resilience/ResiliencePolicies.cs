@@ -11,6 +11,8 @@
 using System.Net;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Http.Resilience;
+using NomNomzBot.Domain.Platform.Interfaces;
+using NomNomzBot.Domain.Twitch.Events;
 using Polly;
 
 namespace NomNomzBot.Infrastructure.Platform.Resilience;
@@ -23,9 +25,11 @@ namespace NomNomzBot.Infrastructure.Platform.Resilience;
 /// </summary>
 public static class ResiliencePolicies
 {
+    // Transient statuses worth a retry. 429 (TooManyRequests) is deliberately EXCLUDED: the adaptive
+    // TwitchRateLimitHandler owns 429 by honouring Ratelimit-Reset, and 4xx are never retried here
+    // (the only auth retry — 401-then-refresh-once — lives in the transport, not the resilience pipeline).
     private static readonly HttpStatusCode[] RetryableStatuses =
     [
-        HttpStatusCode.TooManyRequests,
         HttpStatusCode.ServiceUnavailable,
         HttpStatusCode.GatewayTimeout,
         HttpStatusCode.InternalServerError,
@@ -33,15 +37,17 @@ public static class ResiliencePolicies
     ];
 
     /// <summary>
-    /// Adds Twitch Helix API resilience: 3 retries with exponential backoff + circuit breaker.
+    /// Adds Twitch Helix API resilience: 3 retries (transient 5xx only) with exponential backoff + jitter,
+    /// a per-request timeout, and a circuit breaker that publishes <see cref="TwitchHelixCircuitOpenedEvent"/>
+    /// when it opens. 4xx are not retried; 429 is handled by the adaptive rate-limit handler.
     /// </summary>
     public static IHttpClientBuilder AddTwitchResilienceHandler(this IHttpClientBuilder builder)
     {
         builder.AddResilienceHandler(
             "twitch-resilience",
-            pipeline =>
+            (pipeline, context) =>
             {
-                // Retry: 3 attempts, exponential backoff starting at 500ms, jitter
+                // Retry: 3 attempts, exponential backoff starting at 500ms, jitter — transient 5xx only.
                 pipeline.AddRetry(
                     new HttpRetryStrategyOptions
                     {
@@ -60,20 +66,37 @@ public static class ResiliencePolicies
                 // Per-request timeout: 10s
                 pipeline.AddTimeout(TimeSpan.FromSeconds(10));
 
-                // Circuit breaker: 50% failure rate over 30s, min 5 requests, break for 30s
+                // Circuit breaker: 50% failure rate over 30s, min 5 requests, break for 30s.
+                // OnOpened surfaces the platform-level circuit-open as a domain event for observability.
+                TimeSpan breakDuration = TimeSpan.FromSeconds(30);
                 pipeline.AddCircuitBreaker(
                     new HttpCircuitBreakerStrategyOptions
                     {
                         FailureRatio = 0.5,
                         SamplingDuration = TimeSpan.FromSeconds(30),
                         MinimumThroughput = 5,
-                        BreakDuration = TimeSpan.FromSeconds(30),
+                        BreakDuration = breakDuration,
                         ShouldHandle = args =>
                             ValueTask.FromResult(
                                 args.Outcome.Result?.StatusCode
                                     >= HttpStatusCode.InternalServerError
                                     || args.Outcome.Exception is HttpRequestException
                             ),
+                        OnOpened = _ =>
+                        {
+                            IEventBus eventBus =
+                                context.ServiceProvider.GetRequiredService<IEventBus>();
+                            eventBus.PublishFireAndForget(
+                                new TwitchHelixCircuitOpenedEvent
+                                {
+                                    BroadcasterId = Guid.Empty,
+                                    ClientName = "twitch-helix",
+                                    OpenedAt = TimeProvider.System.GetUtcNow(),
+                                    BreakDuration = breakDuration,
+                                }
+                            );
+                            return default;
+                        },
                     }
                 );
             }

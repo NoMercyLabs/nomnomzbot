@@ -23,6 +23,7 @@ using NomNomzBot.Application.Abstractions.RateLimiting;
 using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Abstractions.Transport;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
+using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Services;
 using NomNomzBot.Application.Tts.Services;
 using NomNomzBot.Domain.Chat.Interfaces;
@@ -47,6 +48,7 @@ using NomNomzBot.Infrastructure.Platform.Resilience;
 using NomNomzBot.Infrastructure.Platform.Security;
 using NomNomzBot.Infrastructure.Platform.Templating;
 using NomNomzBot.Infrastructure.Platform.Transport;
+using NomNomzBot.Infrastructure.Platform.Transport.Helix;
 using NomNomzBot.Infrastructure.Tts;
 
 namespace NomNomzBot.Infrastructure;
@@ -326,7 +328,31 @@ public static class DependencyInjection
 
         // Twitch HTTP clients with resilience
         services.AddHttpClient("twitch-auth");
-        services.AddHttpClient("twitch-helix").AddTwitchResilienceHandler();
+
+        // ── Helix transport plumbing (twitch-helix.md §3, §7) ────────────────
+        // The named "twitch-helix" client carries the full Helix request pipeline:
+        //   resilience (retry+breaker+timeout, no 4xx retry) → adaptive header-driven rate limiter →
+        //   Client-Id + bearer injection. Order is outermost-first; the auth/limit handlers run closest
+        //   to the wire so they see the real status + Ratelimit-* headers. The transport itself resolves
+        //   the per-call token and stows it on the request options for the handlers.
+        services.AddTransient<TwitchAuthHeaderHandler>();
+        services.AddTransient<TwitchRateLimitHandler>();
+        services
+            .AddHttpClient("twitch-helix")
+            .AddTwitchResilienceHandler()
+            .AddHttpMessageHandler<TwitchRateLimitHandler>()
+            .AddHttpMessageHandler<TwitchAuthHeaderHandler>();
+
+        // Adaptive rate limiter — singleton (per-token buckets survive requests). Self-host binds the
+        // in-process limiter; the SaaS multi-node variant (delegating to the cross-node IRateLimiter,
+        // scaling-qos §4) is an additive adapter that lands with that subsystem.
+        services.AddSingleton<ITwitchRateLimiter, TwitchRateLimiter>();
+
+        // Token resolver (scoped — reads Services via the scoped DbContext, refreshes via the auth layer).
+        services.AddScoped<ITwitchTokenResolver, TwitchTokenResolver>();
+
+        // The DTO-agnostic Helix send pipeline every codegen-fed per-endpoint method rides on (scoped).
+        services.AddScoped<ITwitchHelixTransport, TwitchHelixTransport>();
         services
             .AddHttpClient("twitch-eventsub")
             .ConfigureHttpClient(

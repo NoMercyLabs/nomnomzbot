@@ -3,6 +3,13 @@
     <RootNamespace>NomNomzBot.Infrastructure</RootNamespace>
   </PropertyGroup>
 
+  <!-- Expose internal transport seams (e.g. the Helix per-request option keys that bridge the
+       transport and its delegating handlers) to the Infrastructure test project so the handler
+       behaviour can be exercised at the wire seam. -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="NomNomzBot.Infrastructure.Tests" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\NomNomzBot.Application\NomNomzBot.Application.csproj" />
     <ProjectReference Include="..\NomNomzBot.Domain\NomNomzBot.Domain.csproj" />
