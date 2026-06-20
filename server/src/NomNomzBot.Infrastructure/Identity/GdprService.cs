@@ -23,23 +23,27 @@ namespace NomNomzBot.Infrastructure.Identity;
 /// <summary>
 /// GDPR compliance service: data export (right of access) and deletion (right to erasure).
 ///
-/// Export includes: profile, chat messages, song requests, TTS usage, moderation history.
-/// Deletion: soft-deletes personal data, optionally hard-deletes on request.
-/// OAuth tokens are revoked and cleared on deletion.
+/// Export includes: profile, chat messages, moderation history, and the vaulted OAuth connections the user
+/// established (provider/status/scopes only — never the token ciphertext).
+/// Deletion: hard-deletes chat/records, anonymizes the profile, and revokes the user's vaulted OAuth
+/// connections through <see cref="IIntegrationTokenVault"/> so the stored tokens are actually cleared.
 /// </summary>
 public sealed class GdprService : IGdprService
 {
     private readonly IApplicationDbContext _db;
+    private readonly IIntegrationTokenVault _vault;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<GdprService> _logger;
 
     public GdprService(
         IApplicationDbContext db,
+        IIntegrationTokenVault vault,
         TimeProvider timeProvider,
         ILogger<GdprService> logger
     )
     {
         _db = db;
+        _vault = vault;
         _timeProvider = timeProvider;
         _logger = logger;
     }
@@ -103,6 +107,20 @@ public sealed class GdprService : IGdprService
             })
             .ToListAsync(cancellationToken);
 
+        // The vaulted OAuth connections the user established (no secrets — provider/status/scopes only).
+        var connections = await _db
+            .IntegrationConnections.IgnoreQueryFilters()
+            .Where(c => c.ConnectedByUserId == userGuid && c.DeletedAt == null)
+            .Select(c => new
+            {
+                c.Provider,
+                c.ProviderAccountName,
+                c.Status,
+                c.Scopes,
+                c.ConnectedAt,
+            })
+            .ToListAsync(cancellationToken);
+
         var export = new
         {
             ExportedAt = _timeProvider.GetUtcNow().UtcDateTime,
@@ -121,6 +139,7 @@ public sealed class GdprService : IGdprService
             ChatMessages = chatMessages,
             Records = records,
             ConnectedServices = services,
+            Connections = connections,
         };
 
         string json = JsonSerializer.Serialize(
@@ -166,7 +185,7 @@ public sealed class GdprService : IGdprService
             .ToListAsync(cancellationToken);
         _db.Records.RemoveRange(records);
 
-        // Hard delete: service tokens (revoke and remove).
+        // Hard delete: legacy service tokens (orphaned for Twitch, still live for Discord/Spotify).
         // Service.UserId stores the external Twitch user id, so match by the user's TwitchUserId.
         string twitchUserId = user.TwitchUserId;
         List<Service> services = await _db
@@ -174,8 +193,21 @@ public sealed class GdprService : IGdprService
             .ToListAsync(cancellationToken);
         _db.Services.RemoveRange(services);
 
-        // Anonymize user profile instead of hard deleting (preserves referential integrity)
+        // Revoke the user's vaulted OAuth connections — the real token store. RevokeConnectionAsync
+        // soft-deletes the IntegrationToken ciphertext and flips the connection to revoked, which is what
+        // makes erasure actually clear the OAuth tokens (the legacy Service rows above are orphaned for Twitch).
+        List<Guid> connectionIds = await _db
+            .IntegrationConnections.IgnoreQueryFilters()
+            .Where(c => c.ConnectedByUserId == userGuid && c.DeletedAt == null)
+            .Select(c => c.Id)
+            .ToListAsync(cancellationToken);
+        foreach (Guid connectionId in connectionIds)
+            await _vault.RevokeConnectionAsync(connectionId, "gdpr_erasure", cancellationToken);
+
+        // Anonymize user profile instead of hard deleting (preserves referential integrity). The normalized
+        // username is an indexed lookup column, so it must be anonymized too or it leaks the original login.
         user.Username = $"deleted_{userId}";
+        user.UsernameNormalized = $"deleted_{userId}";
         user.DisplayName = "Deleted User";
         user.ProfileImageUrl = null;
         user.Description = null;
@@ -193,8 +225,15 @@ public sealed class GdprService : IGdprService
                 RequestType = "GDPR_ERASURE",
                 SubjectIdHash = idHash,
                 RequestedBy = userId,
-                TablesAffected = ["ChatMessages", "Records", "Services", "Users"],
-                RowsDeleted = messages.Count + records.Count + services.Count,
+                TablesAffected =
+                [
+                    "ChatMessages",
+                    "Records",
+                    "Services",
+                    "IntegrationConnections",
+                    "Users",
+                ],
+                RowsDeleted = messages.Count + records.Count + services.Count + connectionIds.Count,
                 CreatedAt = _timeProvider.GetUtcNow().UtcDateTime,
                 CompletedAt = _timeProvider.GetUtcNow().UtcDateTime,
             }
