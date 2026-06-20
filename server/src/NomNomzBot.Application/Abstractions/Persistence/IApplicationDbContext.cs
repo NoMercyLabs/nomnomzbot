@@ -68,5 +68,12 @@ public interface IApplicationDbContext
     DbSet<TenantSequence> TenantSequences { get; }
     DbSet<ProjectionCheckpoint> ProjectionCheckpoints { get; }
 
+    // Roles & permissions (Plane A/B) — the authorization data the gates read.
+    DbSet<ChannelMembership> ChannelMemberships { get; }
+    DbSet<ChannelCommunityStanding> ChannelCommunityStandings { get; }
+    DbSet<NomNomzBot.Domain.Identity.Entities.ActionDefinition> ActionDefinitions { get; }
+    DbSet<ChannelActionOverride> ChannelActionOverrides { get; }
+    DbSet<PermitGrant> PermitGrants { get; }
+
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

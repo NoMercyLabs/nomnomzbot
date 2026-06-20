@@ -122,6 +122,15 @@ public class AppDbContext : DbContext, IApplicationDbContext
     public DbSet<TenantSequence> TenantSequences => Set<TenantSequence>();
     public DbSet<ProjectionCheckpoint> ProjectionCheckpoints => Set<ProjectionCheckpoint>();
 
+    // Roles & permissions (Plane A/B)
+    public DbSet<ChannelMembership> ChannelMemberships => Set<ChannelMembership>();
+    public DbSet<ChannelCommunityStanding> ChannelCommunityStandings =>
+        Set<ChannelCommunityStanding>();
+    public DbSet<NomNomzBot.Domain.Identity.Entities.ActionDefinition> ActionDefinitions =>
+        Set<NomNomzBot.Domain.Identity.Entities.ActionDefinition>();
+    public DbSet<ChannelActionOverride> ChannelActionOverrides => Set<ChannelActionOverride>();
+    public DbSet<PermitGrant> PermitGrants => Set<PermitGrant>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

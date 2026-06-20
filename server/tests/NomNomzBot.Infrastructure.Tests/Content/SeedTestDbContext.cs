@@ -95,6 +95,16 @@ public sealed class SeedTestDbContext : DbContext, IApplicationDbContext
         Set<NomNomzBot.Domain.EventStore.Entities.TenantSequence>();
     public DbSet<NomNomzBot.Domain.EventStore.Entities.ProjectionCheckpoint> ProjectionCheckpoints =>
         Set<NomNomzBot.Domain.EventStore.Entities.ProjectionCheckpoint>();
+    public DbSet<NomNomzBot.Domain.Identity.Entities.ChannelMembership> ChannelMemberships =>
+        Set<NomNomzBot.Domain.Identity.Entities.ChannelMembership>();
+    public DbSet<NomNomzBot.Domain.Identity.Entities.ChannelCommunityStanding> ChannelCommunityStandings =>
+        Set<NomNomzBot.Domain.Identity.Entities.ChannelCommunityStanding>();
+    public DbSet<NomNomzBot.Domain.Identity.Entities.ActionDefinition> ActionDefinitions =>
+        Set<NomNomzBot.Domain.Identity.Entities.ActionDefinition>();
+    public DbSet<NomNomzBot.Domain.Identity.Entities.ChannelActionOverride> ChannelActionOverrides =>
+        Set<NomNomzBot.Domain.Identity.Entities.ChannelActionOverride>();
+    public DbSet<NomNomzBot.Domain.Identity.Entities.PermitGrant> PermitGrants =>
+        Set<NomNomzBot.Domain.Identity.Entities.PermitGrant>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

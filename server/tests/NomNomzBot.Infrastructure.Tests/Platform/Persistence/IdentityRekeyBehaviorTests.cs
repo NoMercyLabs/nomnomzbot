@@ -395,5 +395,15 @@ public sealed class IdentityRekeyBehaviorTests
             throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.EventStore.Entities.ProjectionCheckpoint> ProjectionCheckpoints =>
             throw new NotSupportedException();
+        public DbSet<NomNomzBot.Domain.Identity.Entities.ChannelMembership> ChannelMemberships =>
+            throw new NotSupportedException();
+        public DbSet<NomNomzBot.Domain.Identity.Entities.ChannelCommunityStanding> ChannelCommunityStandings =>
+            throw new NotSupportedException();
+        public DbSet<NomNomzBot.Domain.Identity.Entities.ActionDefinition> ActionDefinitions =>
+            throw new NotSupportedException();
+        public DbSet<NomNomzBot.Domain.Identity.Entities.ChannelActionOverride> ChannelActionOverrides =>
+            throw new NotSupportedException();
+        public DbSet<NomNomzBot.Domain.Identity.Entities.PermitGrant> PermitGrants =>
+            throw new NotSupportedException();
     }
 }

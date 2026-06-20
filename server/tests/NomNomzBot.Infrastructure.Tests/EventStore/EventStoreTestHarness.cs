@@ -32,6 +32,16 @@ internal sealed class EventStoreTestDbContext : DbContext, IApplicationDbContext
     public DbSet<EventJournal> EventJournals => Set<EventJournal>();
     public DbSet<TenantSequence> TenantSequences => Set<TenantSequence>();
     public DbSet<ProjectionCheckpoint> ProjectionCheckpoints => Set<ProjectionCheckpoint>();
+    public DbSet<NomNomzBot.Domain.Identity.Entities.ChannelMembership> ChannelMemberships =>
+        Set<NomNomzBot.Domain.Identity.Entities.ChannelMembership>();
+    public DbSet<NomNomzBot.Domain.Identity.Entities.ChannelCommunityStanding> ChannelCommunityStandings =>
+        Set<NomNomzBot.Domain.Identity.Entities.ChannelCommunityStanding>();
+    public DbSet<NomNomzBot.Domain.Identity.Entities.ActionDefinition> ActionDefinitions =>
+        Set<NomNomzBot.Domain.Identity.Entities.ActionDefinition>();
+    public DbSet<NomNomzBot.Domain.Identity.Entities.ChannelActionOverride> ChannelActionOverrides =>
+        Set<NomNomzBot.Domain.Identity.Entities.ChannelActionOverride>();
+    public DbSet<NomNomzBot.Domain.Identity.Entities.PermitGrant> PermitGrants =>
+        Set<NomNomzBot.Domain.Identity.Entities.PermitGrant>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
