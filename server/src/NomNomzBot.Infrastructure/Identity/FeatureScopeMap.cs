@@ -38,6 +38,12 @@ public static class FeatureScopeMap
         ["chat_send"] = ["user:write:chat"],
     };
 
+    /// <summary>
+    /// The full feature→scopes registry, for callers that need the whole matrix rather than one lookup (the
+    /// scope-diagnostics endpoint flattens this into its per-feature requirement rows). Read-only.
+    /// </summary>
+    public static IReadOnlyDictionary<string, IReadOnlyList<string>> Features => Map;
+
     /// <summary>The scopes <paramref name="featureKey"/> needs, or an empty list when the feature is unknown.</summary>
     public static IReadOnlyList<string> RequiredScopesFor(string featureKey) =>
         Map.TryGetValue(featureKey, out IReadOnlyList<string>? scopes) ? scopes : [];
