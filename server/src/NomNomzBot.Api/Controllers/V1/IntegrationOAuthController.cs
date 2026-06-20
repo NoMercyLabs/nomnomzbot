@@ -70,7 +70,7 @@ public class IntegrationOAuthController : BaseController
         string baseUrl = _config["App:BaseUrl"] ?? $"{Request.Scheme}://{Request.Host}";
         string redirectUri = $"{baseUrl}/api/v1/integrations/spotify/callback";
 
-        var statePayload = JsonSerializer.Serialize(new { channel_id = channelId });
+        string statePayload = JsonSerializer.Serialize(new { channel_id = channelId });
         string state = Convert.ToBase64String(Encoding.UTF8.GetBytes(statePayload));
 
         string authUrl =
@@ -113,9 +113,9 @@ public class IntegrationOAuthController : BaseController
         string redirectUri = $"{baseUrl}/api/v1/integrations/spotify/callback";
 
         // Exchange code for token
-        using var client = _httpClientFactory.CreateClient();
+        using HttpClient client = _httpClientFactory.CreateClient();
 
-        var tokenRequest = new FormUrlEncodedContent(
+        FormUrlEncodedContent tokenRequest = new FormUrlEncodedContent(
             new Dictionary<string, string>
             {
                 ["grant_type"] = "authorization_code",
@@ -159,19 +159,21 @@ public class IntegrationOAuthController : BaseController
             return InternalServerErrorResponse("Spotify token exchange failed.");
         }
 
-        using var tokenDoc = JsonDocument.Parse(await response.Content.ReadAsStreamAsync(ct));
+        using JsonDocument tokenDoc = JsonDocument.Parse(
+            await response.Content.ReadAsStreamAsync(ct)
+        );
         JsonElement root = tokenDoc.RootElement;
 
         string? accessToken = root.GetProperty("access_token").GetString();
-        string? refreshToken = root.TryGetProperty("refresh_token", out var rtProp)
+        string? refreshToken = root.TryGetProperty("refresh_token", out JsonElement rtProp)
             ? rtProp.GetString()
             : null;
-        int expiresIn = root.TryGetProperty("expires_in", out var expProp)
+        int expiresIn = root.TryGetProperty("expires_in", out JsonElement expProp)
             ? expProp.GetInt32()
             : 3600;
 
         // Upsert Service record
-        var service = await _db.Services.FirstOrDefaultAsync(
+        Service? service = await _db.Services.FirstOrDefaultAsync(
             s => s.Name == "spotify" && s.BroadcasterId == tenantId,
             ct
         );
@@ -225,7 +227,7 @@ public class IntegrationOAuthController : BaseController
         string baseUrl = _config["App:BaseUrl"] ?? $"{Request.Scheme}://{Request.Host}";
         string redirectUri = $"{baseUrl}/api/v1/integrations/discord/callback";
 
-        var statePayload = JsonSerializer.Serialize(new { channel_id = channelId });
+        string statePayload = JsonSerializer.Serialize(new { channel_id = channelId });
         string state = Convert.ToBase64String(Encoding.UTF8.GetBytes(statePayload));
 
         string authUrl =
@@ -267,9 +269,9 @@ public class IntegrationOAuthController : BaseController
         string baseUrl = _config["App:BaseUrl"] ?? $"{Request.Scheme}://{Request.Host}";
         string redirectUri = $"{baseUrl}/api/v1/integrations/discord/callback";
 
-        using var client = _httpClientFactory.CreateClient();
+        using HttpClient client = _httpClientFactory.CreateClient();
 
-        var tokenRequest = new FormUrlEncodedContent(
+        FormUrlEncodedContent tokenRequest = new FormUrlEncodedContent(
             new Dictionary<string, string>
             {
                 ["grant_type"] = "authorization_code",
@@ -306,29 +308,31 @@ public class IntegrationOAuthController : BaseController
             return InternalServerErrorResponse("Discord token exchange failed.");
         }
 
-        using var tokenDoc = JsonDocument.Parse(await response.Content.ReadAsStreamAsync(ct));
+        using JsonDocument tokenDoc = JsonDocument.Parse(
+            await response.Content.ReadAsStreamAsync(ct)
+        );
         JsonElement root = tokenDoc.RootElement;
 
         string? accessToken = root.GetProperty("access_token").GetString();
-        string? refreshToken = root.TryGetProperty("refresh_token", out var rtProp)
+        string? refreshToken = root.TryGetProperty("refresh_token", out JsonElement rtProp)
             ? rtProp.GetString()
             : null;
-        int expiresIn = root.TryGetProperty("expires_in", out var expProp)
+        int expiresIn = root.TryGetProperty("expires_in", out JsonElement expProp)
             ? expProp.GetInt32()
             : 604800;
         string? guildId =
-            root.TryGetProperty("guild", out var guildProp)
-            && guildProp.TryGetProperty("id", out var guildIdProp)
+            root.TryGetProperty("guild", out JsonElement guildProp)
+            && guildProp.TryGetProperty("id", out JsonElement guildIdProp)
                 ? guildIdProp.GetString()
                 : null;
         string? guildName =
-            root.TryGetProperty("guild", out var guildProp2)
-            && guildProp2.TryGetProperty("name", out var guildNameProp)
+            root.TryGetProperty("guild", out JsonElement guildProp2)
+            && guildProp2.TryGetProperty("name", out JsonElement guildNameProp)
                 ? guildNameProp.GetString()
                 : null;
 
         // Store in Service table
-        var service = await _db.Services.FirstOrDefaultAsync(
+        Service? service = await _db.Services.FirstOrDefaultAsync(
             s => s.Name == "discord" && s.BroadcasterId == tenantId,
             ct
         );
@@ -353,10 +357,11 @@ public class IntegrationOAuthController : BaseController
         // If the bot was added to a guild, store a DiscordServerAuthorization too
         if (!string.IsNullOrEmpty(guildId))
         {
-            var discordAuth = await _db.DiscordServerAuthorizations.FirstOrDefaultAsync(
-                d => d.BroadcasterId == tenantId && d.GuildId == guildId,
-                ct
-            );
+            DiscordServerAuthorization? discordAuth =
+                await _db.DiscordServerAuthorizations.FirstOrDefaultAsync(
+                    d => d.BroadcasterId == tenantId && d.GuildId == guildId,
+                    ct
+                );
 
             if (discordAuth is null)
             {
@@ -414,7 +419,7 @@ public class IntegrationOAuthController : BaseController
         string baseUrl = _config["App:BaseUrl"] ?? $"{Request.Scheme}://{Request.Host}";
         string redirectUri = $"{baseUrl}/api/v1/integrations/youtube/callback";
 
-        var statePayload = JsonSerializer.Serialize(new { channel_id = channelId });
+        string statePayload = JsonSerializer.Serialize(new { channel_id = channelId });
         string state = Convert.ToBase64String(Encoding.UTF8.GetBytes(statePayload));
 
         string authUrl =
@@ -458,9 +463,9 @@ public class IntegrationOAuthController : BaseController
         string baseUrl = _config["App:BaseUrl"] ?? $"{Request.Scheme}://{Request.Host}";
         string redirectUri = $"{baseUrl}/api/v1/integrations/youtube/callback";
 
-        using var client = _httpClientFactory.CreateClient();
+        using HttpClient client = _httpClientFactory.CreateClient();
 
-        var tokenRequest = new FormUrlEncodedContent(
+        FormUrlEncodedContent tokenRequest = new FormUrlEncodedContent(
             new Dictionary<string, string>
             {
                 ["grant_type"] = "authorization_code",
@@ -497,19 +502,21 @@ public class IntegrationOAuthController : BaseController
             return InternalServerErrorResponse("YouTube token exchange failed.");
         }
 
-        using var tokenDoc = JsonDocument.Parse(await response.Content.ReadAsStreamAsync(ct));
+        using JsonDocument tokenDoc = JsonDocument.Parse(
+            await response.Content.ReadAsStreamAsync(ct)
+        );
         JsonElement root = tokenDoc.RootElement;
 
         string? accessToken = root.GetProperty("access_token").GetString();
-        string? refreshToken = root.TryGetProperty("refresh_token", out var rtProp)
+        string? refreshToken = root.TryGetProperty("refresh_token", out JsonElement rtProp)
             ? rtProp.GetString()
             : null;
-        int expiresIn = root.TryGetProperty("expires_in", out var expProp)
+        int expiresIn = root.TryGetProperty("expires_in", out JsonElement expProp)
             ? expProp.GetInt32()
             : 3600;
 
         // Upsert Service record
-        var service = await _db.Services.FirstOrDefaultAsync(
+        Service? service = await _db.Services.FirstOrDefaultAsync(
             s => s.Name == "youtube" && s.BroadcasterId == tenantId,
             ct
         );
@@ -615,8 +622,8 @@ public class IntegrationOAuthController : BaseController
         try
         {
             byte[] decoded = Convert.FromBase64String(state);
-            using var doc = JsonDocument.Parse(decoded);
-            if (doc.RootElement.TryGetProperty("channel_id", out var cidEl))
+            using JsonDocument doc = JsonDocument.Parse(decoded);
+            if (doc.RootElement.TryGetProperty("channel_id", out JsonElement cidEl))
                 return cidEl.GetString();
         }
         catch

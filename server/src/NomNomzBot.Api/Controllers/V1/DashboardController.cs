@@ -19,6 +19,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Dashboard.Dtos;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
+using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
 
 namespace NomNomzBot.Api.Controllers.V1;
@@ -149,27 +150,27 @@ public class DashboardController : BaseController
         if (!Guid.TryParse(broadcasterId, out Guid tenantId))
             return BadRequestResponse("Invalid channel id.");
 
-        var events = await _db
+        List<ChannelEvent> events = await _db
             .ChannelEvents.Where(e => e.ChannelId == tenantId)
             .OrderByDescending(e => e.CreatedAt)
             .Take(20)
             .ToListAsync(ct);
 
-        var userIds = events
+        List<Guid> userIds = events
             .Where(e => e.UserId is not null)
-            .Select(e => e.UserId!)
+            .Select(e => e.UserId!.Value)
             .Distinct()
             .ToList();
 
-        var users = await _db
+        Dictionary<Guid, User> users = await _db
             .Users.Where(u => userIds.Contains(u.Id))
             .ToDictionaryAsync(u => u.Id, ct);
 
-        var result = events
+        List<ActivityEventDto> result = events
             .Select(e =>
             {
                 string? username = null;
-                if (e.UserId is not null && users.TryGetValue(e.UserId.Value, out var user))
+                if (e.UserId is not null && users.TryGetValue(e.UserId.Value, out User? user))
                     username = user.DisplayName;
 
                 return new ActivityEventDto(

@@ -92,7 +92,7 @@ public class ChatController : BaseController
         if (!Guid.TryParse(channelId, out Guid broadcasterId))
             return BadRequestResponse("Invalid channel id.");
 
-        var messages = await _db
+        List<ChatMessageDto> messages = await _db
             .ChatMessages.Where(m => m.BroadcasterId == broadcasterId && m.DeletedAt == null)
             .OrderByDescending(m => m.CreatedAt)
             .Take(limit)
@@ -176,26 +176,29 @@ public class ChatController : BaseController
                 ?? DefaultSettings
             : DefaultSettings;
 
-        bool slowMode = patch.TryGetProperty("slowMode", out var sm)
+        bool slowMode = patch.TryGetProperty("slowMode", out JsonElement sm)
             ? sm.GetBoolean()
             : current.SlowMode;
-        int slowModeDelay = patch.TryGetProperty("slowModeDelay", out var smd)
+        int slowModeDelay = patch.TryGetProperty("slowModeDelay", out JsonElement smd)
             ? smd.GetInt32()
             : current.SlowModeDelay;
-        bool subscriberOnly = patch.TryGetProperty("subscriberOnly", out var so)
+        bool subscriberOnly = patch.TryGetProperty("subscriberOnly", out JsonElement so)
             ? so.GetBoolean()
             : current.SubscriberOnly;
-        bool emotesOnly = patch.TryGetProperty("emotesOnly", out var eo)
+        bool emotesOnly = patch.TryGetProperty("emotesOnly", out JsonElement eo)
             ? eo.GetBoolean()
             : current.EmotesOnly;
-        bool followersOnly = patch.TryGetProperty("followersOnly", out var fo)
+        bool followersOnly = patch.TryGetProperty("followersOnly", out JsonElement fo)
             ? fo.GetBoolean()
             : current.FollowersOnly;
-        int followersOnlyDuration = patch.TryGetProperty("followersOnlyDuration", out var fod)
+        int followersOnlyDuration = patch.TryGetProperty(
+            "followersOnlyDuration",
+            out JsonElement fod
+        )
             ? fod.GetInt32()
             : current.FollowersOnlyDuration;
 
-        var merged = new ChatSettingsDto(
+        ChatSettingsDto merged = new ChatSettingsDto(
             slowMode,
             slowModeDelay,
             subscriberOnly,

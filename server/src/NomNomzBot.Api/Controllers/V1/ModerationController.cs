@@ -369,7 +369,7 @@ public class ModerationController : BaseController
         if (!Guid.TryParse(channelId, out Guid broadcasterId))
             return BadRequestResponse("Invalid channel id.");
 
-        var events = await _db
+        List<string> events = await _db
             .ChannelEvents.Where(e => e.ChannelId == broadcasterId && e.CreatedAt >= today)
             .Select(e => e.Type)
             .ToListAsync(ct);

@@ -37,6 +37,8 @@ public class RewardsController : BaseController
 
     public record LeaderboardEntryDto(int Rank, string UserId, string DisplayName, int Points);
 
+    private sealed record ChatterTally(string UserId, int Count);
+
     [HttpGet]
     [ProducesResponseType<PaginatedResponse<RewardDetail>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> ListRewards(
@@ -162,26 +164,31 @@ public class RewardsController : BaseController
         if (!Guid.TryParse(channelId, out Guid broadcasterId))
             return BadRequestResponse("Invalid channel id.");
 
-        var topChatters = await _db
+        List<ChatterTally> topChatters = await _db
             .ChatMessages.Where(m => m.BroadcasterId == broadcasterId)
             .GroupBy(m => m.UserId)
-            .Select(g => new { UserId = g.Key, Count = g.Count() })
-            .OrderByDescending(x => x.Count)
+            .Select(g => new ChatterTally(g.Key, g.Count()))
+            .OrderByDescending(t => t.Count)
             .Take(50)
             .ToListAsync(ct);
 
         // ChatMessage.UserId holds the Twitch user string id — join on User.TwitchUserId.
-        var userIds = topChatters.Select(x => x.UserId).ToList();
-        var users = await _db
+        List<string> userIds = topChatters.Select(t => t.UserId).ToList();
+        Dictionary<string, string> displayNames = await _db
             .Users.Where(u => userIds.Contains(u.TwitchUserId))
             .ToDictionaryAsync(u => u.TwitchUserId, u => u.DisplayName, ct);
 
-        var entries = topChatters
+        List<LeaderboardEntryDto> entries = topChatters
             .Select(
-                (x, i) =>
+                (tally, index) =>
                 {
-                    users.TryGetValue(x.UserId, out string? displayName);
-                    return new LeaderboardEntryDto(i + 1, x.UserId, displayName ?? "", x.Count);
+                    displayNames.TryGetValue(tally.UserId, out string? displayName);
+                    return new LeaderboardEntryDto(
+                        index + 1,
+                        tally.UserId,
+                        displayName ?? "",
+                        tally.Count
+                    );
                 }
             )
             .ToList();

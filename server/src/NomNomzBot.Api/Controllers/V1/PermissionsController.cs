@@ -16,6 +16,7 @@ using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Identity.Services;
+using NomNomzBot.Domain.Identity.Entities;
 
 namespace NomNomzBot.Api.Controllers.V1;
 
@@ -58,27 +59,27 @@ public class PermissionsController : BaseController
         if (!Guid.TryParse(channelId, out Guid broadcasterId))
             return BadRequestResponse("Invalid channel id.");
 
-        var permissions = await _db
+        List<Permission> permissions = await _db
             .Permissions.Where(p => p.BroadcasterId == broadcasterId)
             .OrderByDescending(p => p.CreatedAt)
             .ToListAsync(ct);
 
         // Permission.SubjectId holds the Twitch user string id — join on User.TwitchUserId.
-        var userIds = permissions
+        List<string> userIds = permissions
             .Where(p => p.SubjectType == "user")
             .Select(p => p.SubjectId)
             .Distinct()
             .ToList();
 
-        var users = await _db
+        Dictionary<string, User> users = await _db
             .Users.Where(u => userIds.Contains(u.TwitchUserId))
             .ToDictionaryAsync(u => u.TwitchUserId, ct);
 
-        var result = permissions
+        List<PermissionDto> result = permissions
             .Select(p =>
             {
                 string? subjectName = null;
-                if (p.SubjectType == "user" && users.TryGetValue(p.SubjectId, out var user))
+                if (p.SubjectType == "user" && users.TryGetValue(p.SubjectId, out User? user))
                     subjectName = user.DisplayName;
 
                 return new PermissionDto(

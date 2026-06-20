@@ -422,7 +422,7 @@ public sealed class TwitchApiService : ITwitchApiService
 
         string url = $"{HelixBase}/channels?broadcaster_id={Uri.EscapeDataString(broadcasterId)}";
 
-        var body = new Dictionary<string, object?>();
+        Dictionary<string, object?> body = new Dictionary<string, object?>();
         if (title is not null)
             body["title"] = title;
         if (gameId is not null)
@@ -1233,7 +1233,7 @@ public sealed class TwitchApiService : ITwitchApiService
             string? str = reader.GetString();
             if (string.IsNullOrEmpty(str))
                 return null;
-            return DateTime.TryParse(str, out var dt) ? dt : null;
+            return DateTime.TryParse(str, out DateTime dt) ? dt : null;
         }
 
         public override void Write(

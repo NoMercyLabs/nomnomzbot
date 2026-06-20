@@ -123,7 +123,7 @@ public class StreamController : BaseController
                     .FirstOrDefaultAsync(ct);
             }
 
-            var info = new StreamInfoDto(
+            StreamInfoDto info = new StreamInfoDto(
                 ctx.CurrentTitle ?? channelInfo?.Title,
                 ctx.CurrentGame ?? channelInfo?.GameName,
                 tags,
@@ -156,7 +156,7 @@ public class StreamController : BaseController
                 .Select(s => (DateTime?)s.EndedAt!.Value.UtcDateTime)
                 .FirstOrDefaultAsync(ct);
 
-        var fallback = new StreamInfoDto(
+        StreamInfoDto fallback = new StreamInfoDto(
             twitchChannel?.Title ?? channel.Title,
             twitchChannel?.GameName ?? channel.GameName,
             twitchChannel?.Tags ?? [],
@@ -232,7 +232,7 @@ public class StreamController : BaseController
         }
 
         ChannelDto channel = result.Value;
-        var info = new StreamInfoDto(
+        StreamInfoDto info = new StreamInfoDto(
             request.Title ?? channel.Title,
             resolvedGameName ?? channel.GameName,
             request.Tags ?? [],

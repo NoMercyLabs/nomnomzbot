@@ -214,11 +214,11 @@ public class ChannelBotController : BaseController
             ? connections.Value.FirstOrDefault(c => c.Provider == "twitch")
             : null;
 
-        var grantedScopes =
+        HashSet<string> grantedScopes =
             twitch?.Scopes.ToHashSet(StringComparer.OrdinalIgnoreCase)
             ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        var permissions = KnownScopes
+        List<ScopeDto> permissions = KnownScopes
             .Select(s => new ScopeDto(
                 s.Scope,
                 s.Name,
@@ -289,10 +289,10 @@ public class ChannelBotController : BaseController
             try
             {
                 byte[] decoded = Convert.FromBase64String(state);
-                using var doc = JsonDocument.Parse(decoded);
-                if (doc.RootElement.TryGetProperty("channel_id", out var cidEl))
+                using JsonDocument doc = JsonDocument.Parse(decoded);
+                if (doc.RootElement.TryGetProperty("channel_id", out JsonElement cidEl))
                     channelId = cidEl.GetString();
-                if (doc.RootElement.TryGetProperty("redirect_uri", out var uriEl))
+                if (doc.RootElement.TryGetProperty("redirect_uri", out JsonElement uriEl))
                     mobileRedirectUri = uriEl.GetString();
             }
             catch { }

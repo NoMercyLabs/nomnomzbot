@@ -113,7 +113,7 @@ public class SystemController : BaseController
         // System is ready when Twitch app and platform bot are both configured
         bool ready = hasTwitch && hasPlatformBot;
 
-        var checks = new SystemChecks(
+        SystemChecks checks = new SystemChecks(
             TwitchApp: new CheckItem(
                 hasTwitch,
                 hasTwitch ? "configured" : "missing",

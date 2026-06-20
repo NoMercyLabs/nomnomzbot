@@ -108,7 +108,7 @@ public class AuthController : BaseController
     {
         // Encode the flow + optional mobile redirect URI into the state parameter so
         // the single callback endpoint can route the result correctly.
-        var payload = JsonSerializer.Serialize(new { flow = "user", redirect_uri });
+        string payload = JsonSerializer.Serialize(new { flow = "user", redirect_uri });
         string state = Convert.ToBase64String(Encoding.UTF8.GetBytes(payload));
 
         string authUrl = await _authService.GetTwitchOAuthUrl(state, GetPublicBaseUrl(), ct);
@@ -140,15 +140,15 @@ public class AuthController : BaseController
             try
             {
                 byte[] decoded = Convert.FromBase64String(state);
-                using var doc = JsonDocument.Parse(decoded);
+                using JsonDocument doc = JsonDocument.Parse(decoded);
 
-                if (doc.RootElement.TryGetProperty("flow", out var flowElement))
+                if (doc.RootElement.TryGetProperty("flow", out JsonElement flowElement))
                     flow = flowElement.GetString() ?? "user";
 
-                if (doc.RootElement.TryGetProperty("redirect_uri", out var uriElement))
+                if (doc.RootElement.TryGetProperty("redirect_uri", out JsonElement uriElement))
                     mobileRedirectUri = uriElement.GetString();
 
-                if (doc.RootElement.TryGetProperty("channel_id", out var channelElement))
+                if (doc.RootElement.TryGetProperty("channel_id", out JsonElement channelElement))
                     channelId = channelElement.GetString();
             }
             catch
@@ -253,7 +253,7 @@ public class AuthController : BaseController
 
         if (!string.IsNullOrWhiteSpace(mobileRedirectUri))
         {
-            var qs = new StringBuilder(mobileRedirectUri);
+            StringBuilder qs = new StringBuilder(mobileRedirectUri);
             qs.Append(mobileRedirectUri.Contains('?') ? '&' : '?');
             qs.Append("access_token=").Append(Uri.EscapeDataString(auth.AccessToken));
             qs.Append("&refresh_token=").Append(Uri.EscapeDataString(auth.RefreshToken));
@@ -395,7 +395,9 @@ public class AuthController : BaseController
         CancellationToken ct
     )
     {
-        var payload = System.Text.Json.JsonSerializer.Serialize(new { flow = "bot", redirect_uri });
+        string payload = System.Text.Json.JsonSerializer.Serialize(
+            new { flow = "bot", redirect_uri }
+        );
         string state = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(payload));
 
         string authUrl = await _authService.GetTwitchBotOAuthUrl(state, GetPublicBaseUrl(), ct);
@@ -421,8 +423,10 @@ public class AuthController : BaseController
             try
             {
                 byte[] decoded = Convert.FromBase64String(state);
-                using var doc = System.Text.Json.JsonDocument.Parse(decoded);
-                if (doc.RootElement.TryGetProperty("redirect_uri", out var uriElement))
+                using System.Text.Json.JsonDocument doc = System.Text.Json.JsonDocument.Parse(
+                    decoded
+                );
+                if (doc.RootElement.TryGetProperty("redirect_uri", out JsonElement uriElement))
                     mobileRedirectUri = uriElement.GetString();
             }
             catch { }

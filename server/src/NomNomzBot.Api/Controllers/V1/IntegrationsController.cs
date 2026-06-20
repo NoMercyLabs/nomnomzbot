@@ -14,6 +14,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Domain.Discord.Entities;
+using NomNomzBot.Domain.Platform.Entities;
 
 namespace NomNomzBot.Api.Controllers.V1;
 
@@ -121,7 +123,7 @@ public class IntegrationsController : BaseController
 
         string baseUrl = _config["App:BaseUrl"] ?? $"{Request.Scheme}://{Request.Host}";
 
-        var result = _meta
+        List<IntegrationDto> result = _meta
             .Select(kvp =>
             {
                 string id = kvp.Key;
@@ -188,7 +190,7 @@ public class IntegrationsController : BaseController
         // White-label custom bot is per-channel
         if (id == "custom_bot")
         {
-            var botService = await _db.Services.FirstOrDefaultAsync(
+            Service? botService = await _db.Services.FirstOrDefaultAsync(
                 s => s.Name == "twitch_bot" && s.BroadcasterId == tenantId,
                 ct
             );
@@ -202,10 +204,11 @@ public class IntegrationsController : BaseController
 
         if (id == "discord")
         {
-            var discordAuth = await _db.DiscordServerAuthorizations.FirstOrDefaultAsync(
-                d => d.BroadcasterId == tenantId,
-                ct
-            );
+            DiscordServerAuthorization? discordAuth =
+                await _db.DiscordServerAuthorizations.FirstOrDefaultAsync(
+                    d => d.BroadcasterId == tenantId,
+                    ct
+                );
             if (discordAuth is not null)
             {
                 _db.DiscordServerAuthorizations.Remove(discordAuth);
@@ -214,7 +217,7 @@ public class IntegrationsController : BaseController
             return NoContent();
         }
 
-        var service = await _db.Services.FirstOrDefaultAsync(
+        Service? service = await _db.Services.FirstOrDefaultAsync(
             s => s.BroadcasterId == tenantId && s.Name.ToLower() == id,
             ct
         );
