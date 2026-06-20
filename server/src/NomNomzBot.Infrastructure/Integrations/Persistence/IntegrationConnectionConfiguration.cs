@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using NomNomzBot.Domain.Integrations.Entities;
 
-namespace NomNomzBot.Infrastructure.Platform.Persistence.Configurations;
+namespace NomNomzBot.Infrastructure.Integrations.Persistence;
 
 public class IntegrationConnectionConfiguration : IEntityTypeConfiguration<IntegrationConnection>
 {

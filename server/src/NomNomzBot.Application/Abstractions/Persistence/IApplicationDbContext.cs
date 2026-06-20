@@ -12,6 +12,7 @@ using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Domain.Chat.Entities;
 using NomNomzBot.Domain.Commands.Entities;
 using NomNomzBot.Domain.Discord.Entities;
+using NomNomzBot.Domain.EventStore.Entities;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Integrations.Entities;
 using NomNomzBot.Domain.Platform.Entities;
@@ -58,6 +59,11 @@ public interface IApplicationDbContext
     DbSet<EventResponse> EventResponses { get; }
     DbSet<WatchStreak> WatchStreaks { get; }
     DbSet<NomNomzBot.Domain.Commands.Entities.Pipeline> Pipelines { get; }
+
+    // Event store (append-only journal + per-tenant sequences + projection checkpoints)
+    DbSet<EventJournal> EventJournals { get; }
+    DbSet<TenantSequence> TenantSequences { get; }
+    DbSet<ProjectionCheckpoint> ProjectionCheckpoints { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

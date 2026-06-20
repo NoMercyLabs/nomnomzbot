@@ -10,24 +10,24 @@
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using NomNomzBot.Domain.Integrations.Entities;
+using NomNomzBot.Domain.Identity.Entities;
 
-namespace NomNomzBot.Infrastructure.Platform.Persistence.Configurations;
+namespace NomNomzBot.Infrastructure.Identity.Persistence;
 
-public class IntegrationTokenConfiguration : IEntityTypeConfiguration<IntegrationToken>
+public class AuthSessionConfiguration : IEntityTypeConfiguration<AuthSession>
 {
-    public void Configure(EntityTypeBuilder<IntegrationToken> builder)
+    public void Configure(EntityTypeBuilder<AuthSession> builder)
     {
         builder.HasKey(e => e.Id);
 
-        builder.Property(e => e.TokenType).IsRequired().HasMaxLength(10);
-        builder.Property(e => e.CipherText).IsRequired();
-        builder.Property(e => e.Nonce).HasMaxLength(64);
+        builder.Property(e => e.ClientType).IsRequired().HasMaxLength(20);
+        builder.Property(e => e.IpAddressCipher).HasMaxLength(255);
+        builder.Property(e => e.UserAgent).HasMaxLength(512);
 
         builder
-            .HasOne(e => e.Connection)
-            .WithMany(c => c.Tokens)
-            .HasForeignKey(e => e.ConnectionId)
+            .HasOne(e => e.User)
+            .WithMany()
+            .HasForeignKey(e => e.UserId)
             .OnDelete(DeleteBehavior.Cascade);
 
         builder
@@ -36,10 +36,6 @@ public class IntegrationTokenConfiguration : IEntityTypeConfiguration<Integratio
             .HasForeignKey(e => e.BroadcasterId)
             .OnDelete(DeleteBehavior.SetNull);
 
-        // One row per (connection, token-type).
-        builder
-            .HasIndex(e => new { e.ConnectionId, e.TokenType })
-            .IsUnique()
-            .HasDatabaseName("IX_IntegrationToken_Connection_TokenType");
+        builder.HasIndex(e => new { e.UserId, e.RevokedAt });
     }
 }

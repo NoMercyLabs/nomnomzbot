@@ -109,6 +109,95 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
             );
 
             migrationBuilder.CreateTable(
+                name: "EventJournals",
+                columns: table => new
+                {
+                    Id = table
+                        .Column<long>(type: "bigint", nullable: false)
+                        .Annotation(
+                            "Npgsql:ValueGenerationStrategy",
+                            NpgsqlValueGenerationStrategy.IdentityByDefaultColumn
+                        ),
+                    EventId = table.Column<Guid>(type: "uuid", nullable: false),
+                    BroadcasterId = table.Column<Guid>(type: "uuid", nullable: true),
+                    StreamPosition = table.Column<long>(type: "bigint", nullable: false),
+                    EventType = table.Column<string>(
+                        type: "character varying(150)",
+                        maxLength: 150,
+                        nullable: false
+                    ),
+                    EventVersion = table.Column<int>(type: "integer", nullable: false),
+                    Source = table.Column<string>(
+                        type: "character varying(30)",
+                        maxLength: 30,
+                        nullable: false
+                    ),
+                    Payload = table.Column<string>(type: "text", nullable: false),
+                    PayloadIsEncrypted = table.Column<bool>(type: "boolean", nullable: false),
+                    SubjectKeyId = table.Column<Guid>(type: "uuid", nullable: true),
+                    CorrelationId = table.Column<Guid>(type: "uuid", nullable: true),
+                    CausationId = table.Column<Guid>(type: "uuid", nullable: true),
+                    ActorUserId = table.Column<Guid>(type: "uuid", nullable: true),
+                    ActorTwitchUserId = table.Column<string>(
+                        type: "character varying(50)",
+                        maxLength: 50,
+                        nullable: true
+                    ),
+                    Metadata = table.Column<string>(type: "text", nullable: false),
+                    OccurredAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                    RecordedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_EventJournals", x => x.Id);
+                }
+            );
+
+            migrationBuilder.CreateTable(
+                name: "ProjectionCheckpoints",
+                columns: table => new
+                {
+                    Id = table
+                        .Column<long>(type: "bigint", nullable: false)
+                        .Annotation(
+                            "Npgsql:ValueGenerationStrategy",
+                            NpgsqlValueGenerationStrategy.IdentityByDefaultColumn
+                        ),
+                    ProjectionName = table.Column<string>(
+                        type: "character varying(150)",
+                        maxLength: 150,
+                        nullable: false
+                    ),
+                    BroadcasterId = table.Column<Guid>(type: "uuid", nullable: true),
+                    LastPosition = table.Column<long>(type: "bigint", nullable: false),
+                    Status = table.Column<string>(
+                        type: "character varying(20)",
+                        maxLength: 20,
+                        nullable: false
+                    ),
+                    LastError = table.Column<string>(type: "text", nullable: true),
+                    LastProcessedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: true
+                    ),
+                    UpdatedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ProjectionCheckpoints", x => x.Id);
+                }
+            );
+
+            migrationBuilder.CreateTable(
                 name: "Pronouns",
                 columns: table => new
                 {
@@ -138,6 +227,29 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Pronouns", x => x.Id);
+                }
+            );
+
+            migrationBuilder.CreateTable(
+                name: "TenantSequences",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    BroadcasterId = table.Column<Guid>(type: "uuid", nullable: false),
+                    SequenceName = table.Column<string>(
+                        type: "character varying(50)",
+                        maxLength: 50,
+                        nullable: false
+                    ),
+                    NextValue = table.Column<long>(type: "bigint", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_TenantSequences", x => x.Id);
                 }
             );
 
@@ -2289,6 +2401,56 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
             );
 
             migrationBuilder.CreateIndex(
+                name: "IX_EventJournal_ActorUserId",
+                table: "EventJournals",
+                column: "ActorUserId"
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_EventJournal_BroadcasterId",
+                table: "EventJournals",
+                column: "BroadcasterId"
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_EventJournal_CorrelationId",
+                table: "EventJournals",
+                column: "CorrelationId"
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_EventJournal_EventId",
+                table: "EventJournals",
+                column: "EventId",
+                unique: true
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_EventJournal_EventType",
+                table: "EventJournals",
+                column: "EventType"
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_EventJournal_OccurredAt",
+                table: "EventJournals",
+                column: "OccurredAt"
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_EventJournal_SubjectKeyId",
+                table: "EventJournals",
+                column: "SubjectKeyId"
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "UX_EventJournal_BroadcasterId_StreamPosition",
+                table: "EventJournals",
+                columns: new[] { "BroadcasterId", "StreamPosition" },
+                unique: true
+            );
+
+            migrationBuilder.CreateIndex(
                 name: "IX_EventResponses_BroadcasterId",
                 table: "EventResponses",
                 column: "BroadcasterId"
@@ -2344,6 +2506,25 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                 name: "IX_Pipelines_BroadcasterId",
                 table: "Pipelines",
                 column: "BroadcasterId"
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ProjectionCheckpoint_BroadcasterId",
+                table: "ProjectionCheckpoints",
+                column: "BroadcasterId"
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ProjectionCheckpoint_ProjectionName",
+                table: "ProjectionCheckpoints",
+                column: "ProjectionName"
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "UX_ProjectionCheckpoint_ProjectionName_BroadcasterId",
+                table: "ProjectionCheckpoints",
+                columns: new[] { "ProjectionName", "BroadcasterId" },
+                unique: true
             );
 
             migrationBuilder.CreateIndex(
@@ -2416,6 +2597,19 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                 name: "IX_Streams_ChannelId",
                 table: "Streams",
                 column: "ChannelId"
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_TenantSequence_BroadcasterId",
+                table: "TenantSequences",
+                column: "BroadcasterId"
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "UX_TenantSequence_BroadcasterId_SequenceName",
+                table: "TenantSequences",
+                columns: new[] { "BroadcasterId", "SequenceName" },
+                unique: true
             );
 
             migrationBuilder.CreateIndex(
@@ -2493,6 +2687,8 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
 
             migrationBuilder.DropTable(name: "DiscordServerAuthorizations");
 
+            migrationBuilder.DropTable(name: "EventJournals");
+
             migrationBuilder.DropTable(name: "EventResponses");
 
             migrationBuilder.DropTable(name: "EventSubscriptions");
@@ -2505,6 +2701,8 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
 
             migrationBuilder.DropTable(name: "Pipelines");
 
+            migrationBuilder.DropTable(name: "ProjectionCheckpoints");
+
             migrationBuilder.DropTable(name: "Records");
 
             migrationBuilder.DropTable(name: "RefreshTokens");
@@ -2514,6 +2712,8 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
             migrationBuilder.DropTable(name: "Services");
 
             migrationBuilder.DropTable(name: "Storages");
+
+            migrationBuilder.DropTable(name: "TenantSequences");
 
             migrationBuilder.DropTable(name: "Timers");
 

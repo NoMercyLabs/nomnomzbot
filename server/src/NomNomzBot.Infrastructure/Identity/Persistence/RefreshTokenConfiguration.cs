@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using NomNomzBot.Domain.Identity.Entities;
 
-namespace NomNomzBot.Infrastructure.Platform.Persistence.Configurations;
+namespace NomNomzBot.Infrastructure.Identity.Persistence;
 
 public class RefreshTokenConfiguration : IEntityTypeConfiguration<RefreshToken>
 {

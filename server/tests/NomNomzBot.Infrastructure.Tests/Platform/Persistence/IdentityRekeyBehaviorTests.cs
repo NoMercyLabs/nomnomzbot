@@ -383,5 +383,11 @@ public sealed class IdentityRekeyBehaviorTests
             throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.Commands.Entities.Pipeline> Pipelines =>
             throw new NotSupportedException();
+        public DbSet<NomNomzBot.Domain.EventStore.Entities.EventJournal> EventJournals =>
+            throw new NotSupportedException();
+        public DbSet<NomNomzBot.Domain.EventStore.Entities.TenantSequence> TenantSequences =>
+            throw new NotSupportedException();
+        public DbSet<NomNomzBot.Domain.EventStore.Entities.ProjectionCheckpoint> ProjectionCheckpoints =>
+            throw new NotSupportedException();
     }
 }

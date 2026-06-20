@@ -12,20 +12,23 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using NomNomzBot.Domain.Identity.Entities;
 
-namespace NomNomzBot.Infrastructure.Platform.Persistence.Configurations;
+namespace NomNomzBot.Infrastructure.Identity.Persistence;
 
-public class BotAccountConfiguration : IEntityTypeConfiguration<BotAccount>
+public class IpcDevModeKeyConfiguration : IEntityTypeConfiguration<IpcDevModeKey>
 {
-    public void Configure(EntityTypeBuilder<BotAccount> builder)
+    public void Configure(EntityTypeBuilder<IpcDevModeKey> builder)
     {
         builder.HasKey(e => e.Id);
 
-        builder.Property(e => e.IdentityType).IsRequired().HasMaxLength(10);
-        builder.Property(e => e.Platform).IsRequired().HasMaxLength(20);
-        builder.Property(e => e.BotUserId).IsRequired().HasMaxLength(50);
-        builder.Property(e => e.BotUsername).IsRequired().HasMaxLength(255);
+        builder.Property(e => e.KeyHash).IsRequired().HasMaxLength(64);
+        builder.Property(e => e.Label).HasMaxLength(100);
 
-        builder.HasIndex(e => e.BotUserId).IsUnique();
-        builder.HasIndex(e => new { e.Platform, e.IdentityType });
+        builder
+            .HasOne(e => e.CreatedByUser)
+            .WithMany()
+            .HasForeignKey(e => e.CreatedByUserId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        builder.HasIndex(e => e.KeyHash).IsUnique();
     }
 }

@@ -152,6 +152,9 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
         b.Ignore<NomNomzBot.Domain.Commands.Entities.EventResponse>();
         b.Ignore<NomNomzBot.Domain.Rewards.Entities.WatchStreak>();
         b.Ignore<NomNomzBot.Domain.Commands.Entities.Pipeline>();
+        b.Ignore<NomNomzBot.Domain.EventStore.Entities.EventJournal>();
+        b.Ignore<NomNomzBot.Domain.EventStore.Entities.TenantSequence>();
+        b.Ignore<NomNomzBot.Domain.EventStore.Entities.ProjectionCheckpoint>();
     }
 
     // ── Unused IApplicationDbContext surface — never reached by these tests ──
@@ -212,5 +215,11 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
     public DbSet<NomNomzBot.Domain.Rewards.Entities.WatchStreak> WatchStreaks =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Commands.Entities.Pipeline> Pipelines =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.EventStore.Entities.EventJournal> EventJournals =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.EventStore.Entities.TenantSequence> TenantSequences =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.EventStore.Entities.ProjectionCheckpoint> ProjectionCheckpoints =>
         throw new NotSupportedException();
 }

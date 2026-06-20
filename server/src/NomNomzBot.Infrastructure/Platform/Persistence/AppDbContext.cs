@@ -15,6 +15,7 @@ using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Domain.Chat.Entities;
 using NomNomzBot.Domain.Commands.Entities;
 using NomNomzBot.Domain.Discord.Entities;
+using NomNomzBot.Domain.EventStore.Entities;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Integrations.Entities;
 using NomNomzBot.Domain.Platform.Entities;
@@ -109,6 +110,11 @@ public class AppDbContext : DbContext, IApplicationDbContext
     // Pipelines
     public DbSet<Domain.Commands.Entities.Pipeline> Pipelines =>
         Set<Domain.Commands.Entities.Pipeline>();
+
+    // Event store — append-only journal (O.1), per-tenant sequences (Q.3), projection checkpoints (O.3)
+    public DbSet<EventJournal> EventJournals => Set<EventJournal>();
+    public DbSet<TenantSequence> TenantSequences => Set<TenantSequence>();
+    public DbSet<ProjectionCheckpoint> ProjectionCheckpoints => Set<ProjectionCheckpoint>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

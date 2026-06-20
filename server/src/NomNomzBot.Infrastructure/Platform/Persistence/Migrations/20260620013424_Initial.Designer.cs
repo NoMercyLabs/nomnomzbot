@@ -14,7 +14,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260620005345_Initial")]
+    [Migration("20260620013424_Initial")]
     partial class Initial
     {
         /// <inheritdoc />
@@ -405,6 +405,180 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.HasIndex("BroadcasterId");
 
                     b.ToTable("DiscordServerAuthorizations");
+                });
+
+            modelBuilder.Entity("NomNomzBot.Domain.EventStore.Entities.EventJournal", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("ActorTwitchUserId")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<Guid?>("ActorUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("BroadcasterId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("CausationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("CorrelationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("EventId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
+
+                    b.Property<int>("EventVersion")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Metadata")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("OccurredAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Payload")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<bool>("PayloadIsEncrypted")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime>("RecordedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<long>("StreamPosition")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid?>("SubjectKeyId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ActorUserId")
+                        .HasDatabaseName("IX_EventJournal_ActorUserId");
+
+                    b.HasIndex("BroadcasterId")
+                        .HasDatabaseName("IX_EventJournal_BroadcasterId");
+
+                    b.HasIndex("CorrelationId")
+                        .HasDatabaseName("IX_EventJournal_CorrelationId");
+
+                    b.HasIndex("EventId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_EventJournal_EventId");
+
+                    b.HasIndex("EventType")
+                        .HasDatabaseName("IX_EventJournal_EventType");
+
+                    b.HasIndex("OccurredAt")
+                        .HasDatabaseName("IX_EventJournal_OccurredAt");
+
+                    b.HasIndex("SubjectKeyId")
+                        .HasDatabaseName("IX_EventJournal_SubjectKeyId");
+
+                    b.HasIndex("BroadcasterId", "StreamPosition")
+                        .IsUnique()
+                        .HasDatabaseName("UX_EventJournal_BroadcasterId_StreamPosition");
+
+                    b.ToTable("EventJournals");
+                });
+
+            modelBuilder.Entity("NomNomzBot.Domain.EventStore.Entities.ProjectionCheckpoint", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<Guid?>("BroadcasterId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("LastError")
+                        .HasColumnType("text");
+
+                    b.Property<long>("LastPosition")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime?>("LastProcessedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ProjectionName")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BroadcasterId")
+                        .HasDatabaseName("IX_ProjectionCheckpoint_BroadcasterId");
+
+                    b.HasIndex("ProjectionName")
+                        .HasDatabaseName("IX_ProjectionCheckpoint_ProjectionName");
+
+                    b.HasIndex("ProjectionName", "BroadcasterId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_ProjectionCheckpoint_ProjectionName_BroadcasterId");
+
+                    b.ToTable("ProjectionCheckpoints");
+                });
+
+            modelBuilder.Entity("NomNomzBot.Domain.EventStore.Entities.TenantSequence", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BroadcasterId")
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("NextValue")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("SequenceName")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BroadcasterId")
+                        .HasDatabaseName("IX_TenantSequence_BroadcasterId");
+
+                    b.HasIndex("BroadcasterId", "SequenceName")
+                        .IsUnique()
+                        .HasDatabaseName("UX_TenantSequence_BroadcasterId_SequenceName");
+
+                    b.ToTable("TenantSequences");
                 });
 
             modelBuilder.Entity("NomNomzBot.Domain.Identity.Entities.AuthSession", b =>

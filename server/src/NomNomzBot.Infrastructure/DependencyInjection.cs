@@ -105,9 +105,18 @@ public static class DependencyInjection
             provider.GetRequiredService<AppDbContext>()
         );
 
-        // EventBus (singleton -- resolves scoped handlers internally via IServiceProvider)
+        // EventBus (singleton -- resolves scoped handlers internally via IServiceProvider).
+        // IEventBus is the JournalingEventBusDecorator over the concrete EventBus: every publish is captured to
+        // the event store journal and post-commit hooks fire before delegation to live handlers (event-store §7).
         services.AddSingleton<EventLogger>();
-        services.AddSingleton<NomNomzBot.Domain.Platform.Interfaces.IEventBus, EventBus>();
+        services.AddSingleton<EventBus>();
+        services.AddSingleton<NomNomzBot.Domain.Platform.Interfaces.IEventBus>(
+            sp => new NomNomzBot.Infrastructure.EventStore.JournalingEventBusDecorator(
+                sp.GetRequiredService<EventBus>(),
+                sp,
+                sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<NomNomzBot.Infrastructure.EventStore.JournalingEventBusDecorator>>()
+            )
+        );
 
         // ── Auto-discovery (D5, backend-structure §4) ────────────────────────
         // One hand-rolled reflection scan binds every pluggable marker by convention.
@@ -127,6 +136,22 @@ public static class DependencyInjection
 
         // Music providers (scoped — multi-binding consumed as IEnumerable<IMusicProvider>).
         services.AddImplementationsOf<IMusicProvider>(infrastructure, ServiceLifetime.Scoped);
+
+        // Event store — projections, post-commit hooks, and upcasters are pluggable multi-bindings discovered
+        // by convention (drop a file → it is live next boot), mirroring ICommandAction. Projections + hooks
+        // touch the DbContext (scoped); upcasters are pure/stateless (singleton).
+        services.AddImplementationsOf<NomNomzBot.Application.Contracts.EventStore.IProjection>(
+            infrastructure,
+            ServiceLifetime.Scoped
+        );
+        services.AddImplementationsOf<NomNomzBot.Application.Contracts.EventStore.IJournalPostCommitHook>(
+            infrastructure,
+            ServiceLifetime.Scoped
+        );
+        services.AddImplementationsOf<NomNomzBot.Application.Contracts.EventStore.IEventUpcaster>(
+            infrastructure,
+            ServiceLifetime.Singleton
+        );
 
         // Content seeders (scoped — multi-binding consumed as IEnumerable<ISeeder> by the
         // SeedRunner, which orders them by ISeeder.Order and runs them in one transaction).
@@ -335,6 +360,31 @@ public static class DependencyInjection
             sp.GetRequiredService<TwitchEventSubService>()
         );
         services.AddHostedService(sp => sp.GetRequiredService<TwitchEventSubService>());
+
+        // ── Event store (event-store §7) ─────────────────────────────────────
+        // Journal, allocator, subscriber, projection runner all touch the DbContext / IUnitOfWork (scoped).
+        // The upcaster registry is pure over the singleton upcaster set (singleton). EventJournalRepository is
+        // self-registered scoped by AddRepositoriesByConvention above (it derives from GenericRepository<T>).
+        services.AddScoped<
+            NomNomzBot.Application.Contracts.EventStore.ITenantSequenceAllocator,
+            NomNomzBot.Infrastructure.EventStore.TenantSequenceAllocator
+        >();
+        services.AddScoped<
+            NomNomzBot.Application.Contracts.EventStore.IEventJournal,
+            NomNomzBot.Infrastructure.EventStore.EventJournalService
+        >();
+        services.AddScoped<
+            NomNomzBot.Application.Contracts.EventStore.IEventStoreSubscriber,
+            NomNomzBot.Infrastructure.EventStore.EventStoreSubscriber
+        >();
+        services.AddScoped<
+            NomNomzBot.Application.Contracts.EventStore.IProjectionRunner,
+            NomNomzBot.Infrastructure.EventStore.ProjectionRunner
+        >();
+        services.AddSingleton<
+            NomNomzBot.Application.Contracts.EventStore.IEventUpcasterRegistry,
+            NomNomzBot.Infrastructure.EventStore.EventUpcasterRegistry
+        >();
 
         return services;
     }
