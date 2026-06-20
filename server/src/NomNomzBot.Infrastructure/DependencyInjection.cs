@@ -426,6 +426,10 @@ public static class DependencyInjection
             Platform.Transport.Helix.SubClients.TwitchGuestStarApi
         >();
 
+        // Top-level façade (twitch-helix.md §3.1) — composes the scoped sub-clients above into one
+        // named-accessor surface for discoverability. Pure passthrough, scoped to share their lifetime.
+        services.AddScoped<ITwitchHelixClient, Platform.Transport.Helix.TwitchHelixClient>();
+
         services
             .AddHttpClient("twitch-eventsub")
             .ConfigureHttpClient(
