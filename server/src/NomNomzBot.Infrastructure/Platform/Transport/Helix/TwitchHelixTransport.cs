@@ -12,6 +12,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
@@ -43,7 +44,14 @@ public sealed class TwitchHelixTransport(
 {
     private const string HelixBase = "https://api.twitch.tv/helix";
 
-    private static readonly JsonSerializerOptions WireJson = new(JsonSerializerDefaults.Web);
+    // Twitch wire JSON is snake_case end to end (read and write). The naming policy lets the
+    // per-endpoint DTOs stay plain PascalCase records with no per-property annotations, and
+    // WhenWritingNull keeps PATCH bodies to only the fields the caller actually set.
+    private static readonly JsonSerializerOptions WireJson = new(JsonSerializerDefaults.Web)
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+    };
 
     private readonly HttpClient _http = httpClientFactory.CreateClient("twitch-helix");
 

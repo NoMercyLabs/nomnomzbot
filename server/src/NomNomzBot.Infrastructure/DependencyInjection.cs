@@ -353,6 +353,15 @@ public static class DependencyInjection
 
         // The DTO-agnostic Helix send pipeline every codegen-fed per-endpoint method rides on (scoped).
         services.AddScoped<ITwitchHelixTransport, TwitchHelixTransport>();
+
+        // ── Helix sub-clients (twitch-helix.md §3) — thin, uniform per-category wrappers over the
+        // transport, all scoped. Each resolves the tenant Guid → Twitch id, pre-checks scopes, and maps
+        // the typed response; local-state sync + domain events stay in the consuming services (SRP).
+        services.AddScoped<
+            ITwitchChannelsApi,
+            Platform.Transport.Helix.SubClients.TwitchChannelsApi
+        >();
+
         services
             .AddHttpClient("twitch-eventsub")
             .ConfigureHttpClient(

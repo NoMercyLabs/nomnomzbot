@@ -46,3 +46,7 @@ TestResults/
 # Pre-restructure planning notes — kept on disk, out of the repo.
 # The current design corpus lives in .claude/docs/ (also gitignored).
 server/docs/
+
+# Twitch OpenAPI spec + extraction scripts — a build-time reference for hand-authoring the
+# Helix wire DTOs (auto-generated community spec, not a runtime dependency). Kept on disk, out of the repo.
+server/.twitch-spec/
