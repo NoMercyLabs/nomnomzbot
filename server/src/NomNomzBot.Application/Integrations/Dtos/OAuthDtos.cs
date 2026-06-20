@@ -10,6 +10,9 @@
 
 namespace NomNomzBot.Application.Integrations.Dtos;
 
+/// <summary>The connect request body: the progressive scope-set to request, and where to return after connect (integrations-oauth §5).</summary>
+public sealed record ConnectIntegrationRequest(string ScopeSetKey, string? ReturnUrl);
+
 /// <summary>The authorize URL the client opens plus the signed single-use state (integrations-oauth §4).</summary>
 public sealed record OAuthStartDto(string AuthorizeUrl, string State);
 
