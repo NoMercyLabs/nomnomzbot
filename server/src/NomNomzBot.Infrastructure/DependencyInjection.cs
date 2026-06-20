@@ -445,6 +445,13 @@ public static class DependencyInjection
         // AddServicesByConvention above. (The legacy ITwitchApiService has been retired — every caller now
         // targets the granular Helix sub-clients / ITwitchHelixClient façade.)
 
+        // Roles & permissions — the effective-level resolver (Gate-2 reads it). Not an I<X>Service, so it is
+        // registered explicitly rather than by AddServicesByConvention. Scoped (reads the per-request DbContext).
+        services.AddScoped<
+            NomNomzBot.Application.Contracts.Authorization.IRoleResolver,
+            Identity.RoleResolver
+        >();
+
         // Twitch identity resolver — the single seam translating tenant/user Guids ↔ Twitch string ids
         // (the invariant: Twitch never receives a Guid). Scoped: reads the per-request DbContext.
         services.AddScoped<ITwitchIdentityResolver, TwitchIdentityResolver>();
