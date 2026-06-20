@@ -37,6 +37,7 @@ This is a long-lived, top-notch project. Write every file with love and care, no
 - **SOLID.** Depend on interfaces (the existing convention), constructor-inject, no god classes, no fat interfaces. Extend via new types, not by growing `switch` statements.
 - **No bloat / YAGNI.** No speculative params, abstractions, or "just in case" code. No file bloat — split when a file starts doing more than one thing. Generated code stays generated and thin; hand-written code stays minimal.
 - **Match the surrounding code.** File-scoped namespaces, `Nullable` enabled, async all the way (never `.Result`/`.Wait()`), `Result<T>` over exceptions/null, existing naming. Don't introduce a second style.
+- **Explicit types — never `var`.** Stoney's house style: spell the type on every local (`List<string> ids = ...`, not `var ids = ...`). The *only* exception is when the type is genuinely unnameable — an anonymous-type projection (`new { ... }` from an EF/LINQ `Select`/`GroupBy`/`ToDictionary`), where C# forces `var`. `.editorconfig` flags `var` as an **error** (IDE0008). This is a hard rule and **must be in every agent brief that writes C#** — it has been silently violated before.
 - **License header on every source file you create.** This project is **AGPL-3.0** (`server/LICENSE`); copyright holder is **NoMercy Labs**. At the very top, verbatim:
   ```
   // -----------------------------------------------------------------------------
