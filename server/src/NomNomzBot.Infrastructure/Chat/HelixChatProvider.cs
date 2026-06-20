@@ -16,7 +16,7 @@ using NomNomzBot.Application.Abstractions.Transport;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Domain.Chat.Interfaces;
-using NomNomzBot.Domain.Platform.Entities;
+using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Infrastructure.Platform;
 
 namespace NomNomzBot.Infrastructure.Chat;
@@ -184,11 +184,15 @@ public sealed class HelixChatProvider : IChatProvider
         if (_cachedBotUserId is not null)
             return _cachedBotUserId;
 
-        Service? service = await _db
-            .Services.Where(s => s.Name == "twitch_bot" && s.Enabled && s.UserId != null)
+        // The shared platform bot's Twitch user id is the connected account on its vault connection
+        // (Provider "twitch_bot", no broadcaster) — it is the sender_id on every chat send.
+        string botProvider = AuthEnums.IntegrationProvider.Twitch + "_bot";
+        _cachedBotUserId = await _db
+            .IntegrationConnections.IgnoreQueryFilters()
+            .Where(c => c.Provider == botProvider && c.BroadcasterId == null && c.DeletedAt == null)
+            .Select(c => c.ProviderAccountId)
             .FirstOrDefaultAsync(ct);
 
-        _cachedBotUserId = service?.UserId;
         return _cachedBotUserId;
     }
 }

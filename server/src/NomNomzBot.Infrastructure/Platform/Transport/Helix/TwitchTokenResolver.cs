@@ -13,41 +13,42 @@ using System.Text;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Persistence;
-using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
-using NomNomzBot.Domain.Platform.Entities;
+using NomNomzBot.Application.Identity.Dtos;
+using NomNomzBot.Application.Identity.Services;
+using NomNomzBot.Domain.Identity.Enums;
+using NomNomzBot.Domain.Integrations.Entities;
 
 namespace NomNomzBot.Infrastructure.Platform.Transport.Helix;
 
 /// <summary>
-/// Resolves a decrypted Helix bearer for one call (twitch-helix.md §3.5), choosing the bot/app token
-/// (service <c>twitch_bot</c>) or the broadcaster's user token (service <c>twitch</c>), and exposing the
-/// granted scope set for pre-checks. It enforces the hard invariant by construction — it only ever returns
-/// a Twitch access token + a derived bucket key, never the tenant <see cref="Guid"/>. On a 401 the transport
-/// calls <see cref="RefreshAsync"/>, which refreshes exactly once through the auth layer.
+/// Resolves a decrypted Helix bearer for one call (twitch-helix.md §3.5) from the canonical token vault —
+/// the broadcaster's user connection (Provider <c>twitch</c>) or the shared platform bot connection
+/// (Provider <c>twitch_bot</c>, no broadcaster) — and exposes the connection's granted scope set for
+/// pre-checks. It reads the same store the login/refresh paths write (<see cref="IIntegrationTokenVault"/> +
+/// <c>IntegrationConnection</c>), never the legacy flat <c>Service</c> table. It enforces the hard invariant
+/// by construction — it only ever returns a Twitch access token + a derived bucket key, never the tenant
+/// <see cref="Guid"/>. On a 401 the transport calls <see cref="RefreshAsync"/>, which refreshes exactly once
+/// through the auth layer (which re-vaults the new token).
 ///
-/// The token bucket key is a salted hash of the stable token <em>identity</em> (service name + tenant), not
-/// the raw token, so a refresh keeps the same bucket and the key is safe to log.
+/// The token bucket key is a salted hash of the stable token <em>identity</em> (provider + tenant), not the
+/// raw token, so a refresh keeps the same bucket and the key is safe to log.
 /// </summary>
 public sealed class TwitchTokenResolver(
     IApplicationDbContext db,
-    ITokenProtector tokenProtector,
+    IIntegrationTokenVault vault,
     ITwitchAuthService authService
 ) : ITwitchTokenResolver
 {
-    private const string BotServiceName = "twitch_bot";
-    private const string UserServiceName = "twitch";
+    private const string UserProvider = AuthEnums.IntegrationProvider.Twitch;
+    private const string BotProvider = AuthEnums.IntegrationProvider.Twitch + "_bot";
     private const string PlatformSubject = "_platform";
 
     public async Task<Result<TwitchAccessContext>> GetBotTokenAsync(CancellationToken ct = default)
     {
-        Service? service = await db
-            .Services.Where(s => s.Name == BotServiceName && s.Enabled && s.AccessToken != null)
-            .OrderByDescending(s => s.TokenExpiry)
-            .FirstOrDefaultAsync(ct);
-
-        if (service is null)
+        IntegrationConnection? connection = await ConnectionAsync(null, BotProvider, ct);
+        if (connection is null)
         {
             return Result.Failure<TwitchAccessContext>(
                 "No bot token is configured.",
@@ -55,7 +56,7 @@ public sealed class TwitchTokenResolver(
             );
         }
 
-        return await BuildContextAsync(service, ct);
+        return await BuildContextAsync(connection, ct);
     }
 
     public async Task<Result<TwitchAccessContext>> GetBroadcasterTokenAsync(
@@ -63,20 +64,13 @@ public sealed class TwitchTokenResolver(
         CancellationToken ct = default
     )
     {
-        Service? service = await db.Services.FirstOrDefaultAsync(
-            s =>
-                s.BroadcasterId == broadcasterId
-                && s.Name == UserServiceName
-                && s.Enabled
-                && s.AccessToken != null,
-            ct
-        );
+        IntegrationConnection? connection = await ConnectionAsync(broadcasterId, UserProvider, ct);
 
         // No user token for this tenant — fall back to the bot token (read scopes only).
-        if (service is null)
+        if (connection is null)
             return await GetBotTokenAsync(ct);
 
-        return await BuildContextAsync(service, ct);
+        return await BuildContextAsync(connection, ct);
     }
 
     public async Task<Result<TwitchAccessContext>> RefreshAsync(
@@ -108,45 +102,56 @@ public sealed class TwitchTokenResolver(
         CancellationToken ct = default
     )
     {
-        Service? service = await db.Services.FirstOrDefaultAsync(
-            s => s.BroadcasterId == broadcasterId && s.Name == UserServiceName && s.Enabled,
-            ct
-        );
-
-        return service is not null
-            && service.Scopes.Contains(scope, StringComparer.OrdinalIgnoreCase);
+        IntegrationConnection? connection = await ConnectionAsync(broadcasterId, UserProvider, ct);
+        return connection is not null
+            && connection.Scopes.Contains(scope, StringComparer.OrdinalIgnoreCase);
     }
 
+    /// <summary>The active (non-deleted) connection for a <c>(tenant, provider)</c>, or null when none exists.</summary>
+    private async Task<IntegrationConnection?> ConnectionAsync(
+        Guid? broadcasterId,
+        string provider,
+        CancellationToken ct
+    ) =>
+        await db
+            .IntegrationConnections.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(
+                c =>
+                    c.BroadcasterId == broadcasterId
+                    && c.Provider == provider
+                    && c.DeletedAt == null,
+                ct
+            );
+
     private async Task<Result<TwitchAccessContext>> BuildContextAsync(
-        Service service,
+        IntegrationConnection connection,
         CancellationToken ct
     )
     {
-        string subject = service.BroadcasterId?.ToString() ?? PlatformSubject;
-        string? token = await tokenProtector.TryUnprotectAsync(
-            service.AccessToken,
-            new TokenProtectionContext(subject, service.Name, "access"),
-            ct
-        );
-
-        if (token is null)
+        Result<DecryptedTokenDto> token = await vault.GetAccessTokenAsync(connection.Id, ct);
+        if (token.IsFailure)
         {
             return Result.Failure<TwitchAccessContext>(
-                "Stored token could not be decrypted.",
+                "Stored token could not be read.",
                 TwitchErrorCodes.NoToken
             );
         }
 
-        string bucketKey = DeriveBucketKey(service.Name, service.BroadcasterId);
+        string bucketKey = DeriveBucketKey(connection.Provider, connection.BroadcasterId);
         return Result.Success(
-            new TwitchAccessContext(token, service.BroadcasterId, service.Name, bucketKey)
+            new TwitchAccessContext(
+                token.Value.Value,
+                connection.BroadcasterId,
+                connection.Provider,
+                bucketKey
+            )
         );
     }
 
-    /// <summary>Stable, non-secret bucket id: a short hash over the token identity (service + tenant).</summary>
-    private static string DeriveBucketKey(string serviceName, Guid? broadcasterId)
+    /// <summary>Stable, non-secret bucket id: a short hash over the token identity (provider + tenant).</summary>
+    private static string DeriveBucketKey(string provider, Guid? broadcasterId)
     {
-        string identity = $"{serviceName}:{broadcasterId?.ToString() ?? PlatformSubject}";
+        string identity = $"{provider}:{broadcasterId?.ToString() ?? PlatformSubject}";
         byte[] hash = SHA256.HashData(Encoding.UTF8.GetBytes(identity));
         return $"helix:{Convert.ToHexString(hash.AsSpan(0, 8)).ToLowerInvariant()}";
     }
