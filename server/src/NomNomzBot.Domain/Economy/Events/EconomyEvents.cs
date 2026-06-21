@@ -84,3 +84,31 @@ public sealed class CatalogPurchaseRefundedEvent : DomainEventBase
     public required long AmountRefunded { get; init; }
     public required long ReversalLedgerEntryId { get; init; }
 }
+
+/// <summary>A mini-game / gamble resolved — <c>economy.game.played</c>.</summary>
+public sealed class GamePlayedEvent : DomainEventBase
+{
+    public required long GamePlayId { get; init; }
+    public required Guid GameConfigId { get; init; }
+    public required string GameType { get; init; }
+    public required Guid PlayerUserId { get; init; }
+    public required long BetAmount { get; init; }
+    public required string Outcome { get; init; }
+    public required long PayoutAmount { get; init; }
+    public required long NetResult { get; init; }
+}
+
+/// <summary>A viewer passed the 18+ gambling gate — <c>economy.consent.age18_granted</c>.</summary>
+public sealed class AgeConsentGrantedEvent : DomainEventBase
+{
+    public required Guid ViewerUserId { get; init; }
+    public required Guid ConsentRecordId { get; init; }
+    public required string ConfirmationMethod { get; init; }
+}
+
+/// <summary>A viewer revoked their 18+ consent — <c>economy.consent.age18_revoked</c>.</summary>
+public sealed class AgeConsentRevokedEvent : DomainEventBase
+{
+    public required Guid ViewerUserId { get; init; }
+    public required Guid ConsentRecordId { get; init; }
+}
