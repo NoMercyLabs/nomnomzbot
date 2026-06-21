@@ -81,7 +81,8 @@ public sealed class GameServiceTests
         decimal winChance = 50,
         decimal payout = 2,
         long? min = null,
-        long? max = null
+        long? max = null,
+        int? maxPlays = null
     )
     {
         GameConfig game = new()
@@ -95,12 +96,23 @@ public sealed class GameServiceTests
             PayoutMultiplier = payout,
             MinBet = min,
             MaxBet = max,
+            MaxPlaysPerStream = maxPlays,
             Permission = "Everyone",
         };
         db.GameConfigs.Add(game);
         db.SaveChanges();
         return game.Id;
     }
+
+    private static void SeedStream(EventStoreTestDbContext db) =>
+        db.Streams.Add(
+            new NomNomzBot.Domain.Stream.Entities.Stream
+            {
+                Id = "s1",
+                ChannelId = Channel,
+                StartedAt = new DateTimeOffset(2026, 6, 21, 11, 0, 0, TimeSpan.Zero),
+            }
+        );
 
     [Fact]
     public async Task A_win_debits_the_bet_then_credits_the_payout()
@@ -214,5 +226,21 @@ public sealed class GameServiceTests
 
         result.IsSuccess.Should().BeTrue(result.ErrorMessage);
         result.Value.IsEnabled.Should().BeFalse(); // TOS-sensitive opt-in
+    }
+
+    [Fact]
+    public async Task Play_enforces_the_per_stream_play_limit()
+    {
+        using SqliteTestDatabase database = SqliteTestDatabase.Open();
+        (GameService sut, EventStoreTestDbContext db, _) = New(database, roll: 0.1);
+        SeedStream(db);
+        Guid game = SeedGame(db, winChance: 50, payout: 2, maxPlays: 1);
+
+        (await sut.PlayAsync(Channel, new PlayGameRequest(game, Player, 10, 0)))
+            .IsSuccess.Should()
+            .BeTrue();
+        (await sut.PlayAsync(Channel, new PlayGameRequest(game, Player, 10, 0)))
+            .ErrorCode.Should()
+            .Be("PER_STREAM_LIMIT");
     }
 }

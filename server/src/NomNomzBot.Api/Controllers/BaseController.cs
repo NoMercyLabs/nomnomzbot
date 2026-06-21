@@ -126,6 +126,7 @@ public abstract class BaseController : ControllerBase
             or "MAX_BALANCE_EXCEEDED"
             or "OUT_OF_STOCK"
             or "ON_COOLDOWN"
+            or "PER_STREAM_LIMIT"
             or "JAR_NOT_OPEN"
             or "JAR_CAP_EXCEEDED" => ConflictResponse(result.ErrorMessage),
             "RATE_LIMITED" => TooManyRequestsResponse(result.ErrorMessage),
@@ -162,6 +163,7 @@ public abstract class BaseController : ControllerBase
             or "MAX_BALANCE_EXCEEDED"
             or "OUT_OF_STOCK"
             or "ON_COOLDOWN"
+            or "PER_STREAM_LIMIT"
             or "JAR_NOT_OPEN"
             or "JAR_CAP_EXCEEDED" => ConflictResponse(result.ErrorMessage),
             "RATE_LIMITED" => TooManyRequestsResponse(result.ErrorMessage),

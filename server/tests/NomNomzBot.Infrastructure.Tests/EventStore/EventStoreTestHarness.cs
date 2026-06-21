@@ -113,7 +113,14 @@ internal sealed class EventStoreTestDbContext : DbContext, IApplicationDbContext
         modelBuilder.Ignore<NomNomzBot.Domain.Platform.Entities.IdempotencyKey>();
         modelBuilder.Ignore<NomNomzBot.Domain.Chat.Entities.ChatMessage>();
         modelBuilder.Ignore<NomNomzBot.Domain.Identity.Entities.ChannelEvent>();
-        modelBuilder.Ignore<NomNomzBot.Domain.Stream.Entities.Stream>();
+        // Stream is mapped minimally for the economy per-stream-cap tests — its List<string> columns are
+        // jsonb (unsupported on SQLite) and its Channel nav points to an ignored entity, so drop both.
+        modelBuilder.Entity<NomNomzBot.Domain.Stream.Entities.Stream>(b =>
+        {
+            b.Ignore(s => s.Tags);
+            b.Ignore(s => s.ContentLabels);
+            b.Ignore(s => s.Channel);
+        });
         modelBuilder.Ignore<NomNomzBot.Domain.Platform.Entities.Configuration>();
         modelBuilder.Ignore<NomNomzBot.Domain.Platform.Entities.Storage>();
         modelBuilder.Ignore<NomNomzBot.Domain.Platform.Entities.Record>();
@@ -170,7 +177,7 @@ internal sealed class EventStoreTestDbContext : DbContext, IApplicationDbContext
     public DbSet<NomNomzBot.Domain.Identity.Entities.ChannelEvent> ChannelEvents =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Stream.Entities.Stream> Streams =>
-        throw new NotSupportedException();
+        Set<NomNomzBot.Domain.Stream.Entities.Stream>();
     public DbSet<NomNomzBot.Domain.Platform.Entities.Configuration> Configurations =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Platform.Entities.Storage> Storages =>

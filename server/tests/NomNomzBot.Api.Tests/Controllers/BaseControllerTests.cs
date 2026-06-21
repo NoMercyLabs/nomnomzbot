@@ -267,6 +267,7 @@ public class BaseControllerTests
     [InlineData("MAX_BALANCE_EXCEEDED")]
     [InlineData("OUT_OF_STOCK")]
     [InlineData("ON_COOLDOWN")]
+    [InlineData("PER_STREAM_LIMIT")]
     [InlineData("JAR_NOT_OPEN")]
     [InlineData("JAR_CAP_EXCEEDED")]
     public void ResultResponse_EconomyConflictCodes_Return409(string code)

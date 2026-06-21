@@ -225,4 +225,42 @@ public sealed class CatalogServiceTests
         (await sut.GetItemAsync(Channel, item)).Value.StockRemaining.Should().Be(5);
         bus.Published.OfType<CatalogPurchaseRefundedEvent>().Should().ContainSingle();
     }
+
+    [Fact]
+    public async Task Purchase_enforces_the_per_viewer_per_stream_limit()
+    {
+        using SqliteTestDatabase database = SqliteTestDatabase.Open();
+        (CatalogService sut, EventStoreTestDbContext db, _) = New(database);
+        db.Streams.Add(
+            new NomNomzBot.Domain.Stream.Entities.Stream
+            {
+                Id = "s1",
+                ChannelId = Channel,
+                StartedAt = new DateTimeOffset(2026, 6, 21, 11, 0, 0, TimeSpan.Zero),
+            }
+        );
+        db.SaveChanges();
+        Result<CatalogItemDto> created = await sut.CreateItemAsync(
+            Channel,
+            new CreateCatalogItemRequest(
+                "Hydrate",
+                null,
+                "pipeline",
+                0,
+                null,
+                true,
+                "Everyone",
+                null,
+                0,
+                false,
+                null,
+                MaxPerViewerPerStream: 1,
+                0
+            )
+        );
+        Guid item = created.Value.Id;
+
+        (await sut.PurchaseAsync(Channel, Buy(item))).IsSuccess.Should().BeTrue();
+        (await sut.PurchaseAsync(Channel, Buy(item))).ErrorCode.Should().Be("PER_STREAM_LIMIT");
+    }
 }

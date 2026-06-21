@@ -244,6 +244,28 @@ public sealed class CatalogService(
         if (item.StockLimit is not null && item.StockRemaining <= 0)
             return Result.Failure<CatalogPurchaseDto>("Item is out of stock.", "OUT_OF_STOCK");
 
+        if (item.MaxPerViewerPerStream is int maxPerStream)
+        {
+            DateTime? streamStart = await CurrentStreamStartAsync(broadcasterId, ct);
+            if (streamStart is DateTime since)
+            {
+                int already = await db.CatalogPurchases.CountAsync(
+                    p =>
+                        p.BroadcasterId == broadcasterId
+                        && p.CatalogItemId == item.Id
+                        && p.BuyerUserId == request.BuyerUserId
+                        && p.Status == CatalogPurchaseStatus.Completed
+                        && p.CreatedAt >= since,
+                    ct
+                );
+                if (already >= maxPerStream)
+                    return Result.Failure<CatalogPurchaseDto>(
+                        "Per-stream purchase limit reached for this item.",
+                        "PER_STREAM_LIMIT"
+                    );
+            }
+        }
+
         Result<CurrencyLedgerEntryDto> debit = await accounts.PostLedgerEntryAsync(
             broadcasterId,
             new PostLedgerEntryCommand(
@@ -416,6 +438,17 @@ public sealed class CatalogService(
             i => i.BroadcasterId == broadcasterId && i.Id == itemId && i.DeletedAt == null,
             ct
         );
+
+    /// <summary>The current stream's start (latest stream for the channel), or null when none — then the per-stream cap is moot.</summary>
+    private async Task<DateTime?> CurrentStreamStartAsync(Guid broadcasterId, CancellationToken ct)
+    {
+        DateTimeOffset? startedAt = await db
+            .Streams.Where(s => s.ChannelId == broadcasterId)
+            .OrderByDescending(s => s.CreatedAt) // latest-created stream = the current one
+            .Select(s => s.StartedAt)
+            .FirstOrDefaultAsync(ct);
+        return startedAt?.UtcDateTime;
+    }
 
     private static CatalogItemDto ToDto(CatalogItem i) =>
         new(

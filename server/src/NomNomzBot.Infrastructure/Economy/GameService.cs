@@ -189,6 +189,32 @@ public sealed class GameService(
                 return Result.Failure<GamePlayResultDto>("Game is on cooldown.", "ON_COOLDOWN");
         }
 
+        if (game.MaxPlaysPerStream is int maxPlays)
+        {
+            DateTimeOffset? streamStart = await db
+                .Streams.Where(s => s.ChannelId == broadcasterId)
+                .OrderByDescending(s => s.CreatedAt) // latest-created stream = the current one
+                .Select(s => s.StartedAt)
+                .FirstOrDefaultAsync(ct);
+            if (streamStart is DateTimeOffset start)
+            {
+                DateTime since = start.UtcDateTime;
+                int played = await db.GamePlays.CountAsync(
+                    p =>
+                        p.BroadcasterId == broadcasterId
+                        && p.GameConfigId == game.Id
+                        && p.PlayerUserId == request.PlayerUserId
+                        && p.CreatedAt >= since,
+                    ct
+                );
+                if (played >= maxPlays)
+                    return Result.Failure<GamePlayResultDto>(
+                        "Per-stream play limit reached for this game.",
+                        "PER_STREAM_LIMIT"
+                    );
+            }
+        }
+
         Result<CurrencyLedgerEntryDto> debit = await accounts.PostLedgerEntryAsync(
             broadcasterId,
             new PostLedgerEntryCommand(
