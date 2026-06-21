@@ -59,6 +59,17 @@ public sealed class ChannelAccessService : IChannelAccessService
         )
             return true;
 
+        // Active management membership — roles-permissions Gate 1 (§3.1): a Moderator/SuperMod/Editor/
+        // Broadcaster membership grants tenant access. TenantResolutionMiddleware sets the tenant to channelGuid
+        // before this call, so the global tenant + soft-delete filters already scope ChannelMemberships here.
+        if (
+            await _db.ChannelMemberships.AnyAsync(
+                m => m.BroadcasterId == channelGuid && m.UserId == userGuid,
+                cancellationToken
+            )
+        )
+            return true;
+
         // Platform principal may act on any channel.
         return await _db.Users.AnyAsync(
             u => u.Id == userGuid && u.IsPlatformPrincipal,

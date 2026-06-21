@@ -120,10 +120,17 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
         b.Entity<IntegrationToken>().HasKey(e => e.Id);
         b.Entity<IntegrationToken>().Ignore(e => e.Connection).Ignore(e => e.Channel);
 
+        // Mapped standalone (navs ignored, Channel.Moderators already ignored above) so the
+        // ChannelAccessService tests can exercise the moderator-grant branch of tenant resolution.
+        b.Entity<NomNomzBot.Domain.Identity.Entities.ChannelModerator>()
+            .HasKey(e => new { e.ChannelId, e.UserId });
+        b.Entity<NomNomzBot.Domain.Identity.Entities.ChannelModerator>()
+            .Ignore(e => e.Channel)
+            .Ignore(e => e.User);
+
         // EF discovers entity types from the DbSet<T> property declarations regardless of the throwing
         // getter bodies, then tries to map their jsonb-of-complex-type columns (unsupported on InMemory).
         // Ignore every entity these tests do not exercise so the model stays minimal and provider-agnostic.
-        b.Ignore<NomNomzBot.Domain.Identity.Entities.ChannelModerator>();
         b.Ignore<NomNomzBot.Domain.Platform.Entities.Service>();
         b.Ignore<NomNomzBot.Domain.Commands.Entities.Command>();
         b.Ignore<NomNomzBot.Domain.Rewards.Entities.Reward>();
@@ -162,7 +169,7 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
 
     // ── Unused IApplicationDbContext surface — never reached by these tests ──
     public DbSet<NomNomzBot.Domain.Identity.Entities.ChannelModerator> ChannelModerators =>
-        throw new NotSupportedException();
+        Set<NomNomzBot.Domain.Identity.Entities.ChannelModerator>();
     public DbSet<NomNomzBot.Domain.Platform.Entities.Service> Services =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Commands.Entities.Command> Commands =>
