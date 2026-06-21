@@ -10,6 +10,29 @@
 
 namespace NomNomzBot.Application.DTOs.Economy;
 
+/// <summary>Upsert a channel's currency definition (economy.md §4).</summary>
+public sealed record UpsertCurrencyConfigRequest(
+    string CurrencyName,
+    string? CurrencyNamePlural,
+    string? IconUrl,
+    bool IsEnabled,
+    long StartingBalance,
+    long? MaxBalance,
+    int DecimalPlaces
+);
+
+/// <summary>Upsert one earning rule (economy.md §4). <see cref="Source"/> is an <c>EarningSource</c> token.</summary>
+public sealed record UpsertEarningRuleRequest(
+    string Source,
+    bool IsEnabled,
+    long Rate,
+    int? UnitWindowSeconds,
+    long? PerWindowCap,
+    long? PerStreamCap,
+    int? MinRoleLevel,
+    IReadOnlyDictionary<string, object?>? BonusConfig
+);
+
 /// <summary>
 /// A ledger post (economy.md §4). The sign of <see cref="Amount"/> decides credit (+) vs debit (−);
 /// <see cref="EntryType"/> is a <c>CurrencyEntryType</c> token.

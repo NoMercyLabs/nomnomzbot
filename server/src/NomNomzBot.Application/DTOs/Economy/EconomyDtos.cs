@@ -10,6 +10,20 @@
 
 namespace NomNomzBot.Application.DTOs.Economy;
 
+/// <summary>One channel earning rule (economy.md §4). <c>Source</c> is an <c>EarningSource</c> token.</summary>
+public sealed record EarningRuleDto(
+    Guid Id,
+    string Source,
+    bool IsEnabled,
+    long Rate,
+    int? UnitWindowSeconds,
+    long? PerWindowCap,
+    long? PerStreamCap,
+    int? MinRoleLevel,
+    int ConfigSchemaVersion,
+    IReadOnlyDictionary<string, object?>? BonusConfig
+);
+
 /// <summary>A channel's currency definition (economy.md §4).</summary>
 public sealed record CurrencyConfigDto(
     Guid Id,
