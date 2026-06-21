@@ -184,3 +184,45 @@ public sealed record AgeConsentDto(
     DateTime? RevokedAt,
     string ConfirmationMethod
 );
+
+/// <summary>A channel's configuration for one game (economy.md §4).</summary>
+public sealed record GameConfigDto(
+    Guid Id,
+    string GameType,
+    string Category,
+    bool IsEnabled,
+    bool Requires18Plus,
+    long? MinBet,
+    long? MaxBet,
+    decimal? HouseEdgePercent,
+    decimal? WinChancePercent,
+    decimal? PayoutMultiplier,
+    int CooldownSeconds,
+    int? MaxPlaysPerStream,
+    string Permission,
+    IReadOnlyDictionary<string, object?>? Config
+);
+
+/// <summary>An immutable game play record (economy.md §4).</summary>
+public sealed record GamePlayDto(
+    long Id,
+    Guid GameConfigId,
+    Guid PlayerUserId,
+    long BetAmount,
+    string Outcome,
+    long PayoutAmount,
+    long NetResult,
+    DateTime CreatedAt
+);
+
+/// <summary>The settled outcome of one play (economy.md §4).</summary>
+public sealed record GamePlayResultDto(
+    long Id,
+    string GameType,
+    string Outcome,
+    long BetAmount,
+    long PayoutAmount,
+    long NetResult,
+    long BalanceAfter,
+    IReadOnlyDictionary<string, object?>? Result
+);

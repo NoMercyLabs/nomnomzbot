@@ -262,6 +262,11 @@ public static class DependencyInjection
         services.AddSingleton<ITemplateEngine, TemplateEngine>();
         services.AddSingleton<ITemplateResolver, TemplateResolver>();
         services.AddSingleton<ITrustService, TrustService>();
+        // Game outcome RNG (stateless CSPRNG; not an I<X>Service, so registered explicitly).
+        services.AddSingleton<
+            NomNomzBot.Application.Economy.Services.IGameRandomizer,
+            NomNomzBot.Infrastructure.Economy.CsprngGameRandomizer
+        >();
 
         // PipelineEngine (scoped — IPipelineEngine is not an I<X>Service, registered explicitly)
         services.AddScoped<IPipelineEngine, PipelineEngine>();

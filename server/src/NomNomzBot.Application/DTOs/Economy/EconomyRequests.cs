@@ -187,3 +187,31 @@ public sealed record GrantAgeConsentRequest(
     string? IpAddress,
     string? ConsentVersion
 );
+
+/// <summary>Upsert a game configuration (economy.md §4). <see cref="Category"/> is a GameCategory token.</summary>
+public sealed record UpsertGameConfigRequest(
+    string GameType,
+    string Category,
+    bool IsEnabled,
+    bool Requires18Plus,
+    long? MinBet,
+    long? MaxBet,
+    decimal? HouseEdgePercent,
+    decimal? WinChancePercent,
+    decimal? PayoutMultiplier,
+    int CooldownSeconds,
+    int? MaxPlaysPerStream,
+    string Permission,
+    IReadOnlyDictionary<string, object?>? Config
+);
+
+/// <summary>Play a game (economy.md §4). <see cref="RoleLevel"/> is the caller's resolved community level.</summary>
+public sealed record PlayGameRequest(
+    Guid GameConfigId,
+    Guid PlayerUserId,
+    long BetAmount,
+    int RoleLevel
+);
+
+/// <summary>Filter for the game-play history (economy.md §4).</summary>
+public sealed record GameHistoryFilter(Guid? GameConfigId, Guid? PlayerUserId, string? Outcome);
