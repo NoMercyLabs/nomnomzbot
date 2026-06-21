@@ -44,6 +44,7 @@ public enum CurrencyEntryType
     EarnGame,
     SpendCatalog,
     SpendGame,
+    SpendPipeline,
     RefundCatalog,
     JarContribute,
     JarWithdraw,
