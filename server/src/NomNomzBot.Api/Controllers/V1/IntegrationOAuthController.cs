@@ -11,6 +11,7 @@
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Extensions;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Common.Models;
@@ -27,11 +28,11 @@ namespace NomNomzBot.Api.Controllers.V1;
 /// guild/bot connect is owned by <c>discord.md</c> (see <see cref="DiscordOAuthController"/>), not this generic
 /// flow.
 /// <para>
-/// Gate 1 is <c>[Authorize]</c> + tenant resolution from the route <c>channelId</c>. The per-route Gate-2 floor
-/// (<c>integration:read</c> / <c>integration:write</c>, integrations-oauth §5) is DEFERRED to the
-/// roles-permissions subsystem (<c>IActionAuthorizationService</c>), consistent with every other controller —
-/// it is not built yet, so self-host collapses to "owner = full". The callback is anonymous (a provider redirect
-/// cannot carry the JWT) and is secured instead by the service's signed, single-use <c>state</c> nonce.
+/// Gate 1 is <c>[Authorize]</c> + tenant resolution from the route <c>channelId</c>. Gate 2 is the per-route
+/// <c>[RequireAction]</c> floor (<c>integration:read</c> / <c>integration:write</c>, integrations-oauth §5),
+/// enforced by <c>IActionAuthorizationService</c>; self-host collapses to "owner = full". The callback is
+/// anonymous (a provider redirect cannot carry the JWT) and is secured instead by the service's signed,
+/// single-use <c>state</c> nonce.
 /// </para>
 /// </summary>
 [ApiVersion("1.0")]
@@ -51,6 +52,7 @@ public class IntegrationOAuthController : BaseController
 
     /// <summary>The integrations screen read model: per provider — connected?, account, granted scope-sets, capabilities.</summary>
     [HttpGet("channels/{channelId}/integrations/status")]
+    [RequireAction("integration:read")]
     [ProducesResponseType<StatusResponseDto<IReadOnlyList<IntegrationStatusDto>>>(
         StatusCodes.Status200OK
     )]
@@ -72,6 +74,7 @@ public class IntegrationOAuthController : BaseController
     /// <c>spotify.playback</c>); re-connecting with a wider set is an incremental re-auth.
     /// </summary>
     [HttpPost("channels/{channelId}/integrations/{provider}/connect")]
+    [RequireAction("integration:write")]
     [ProducesResponseType<StatusResponseDto<OAuthStartDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> Connect(
         string channelId,
@@ -138,6 +141,7 @@ public class IntegrationOAuthController : BaseController
 
     /// <summary>Severs a provider connection: revokes the token where supported, then soft-deletes + crypto-shreds the vault entry. Idempotent.</summary>
     [HttpPost("channels/{channelId}/integrations/{provider}/disconnect")]
+    [RequireAction("integration:write")]
     [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> Disconnect(
         string channelId,

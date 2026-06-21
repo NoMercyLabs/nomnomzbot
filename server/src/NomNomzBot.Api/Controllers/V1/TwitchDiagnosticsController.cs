@@ -11,6 +11,7 @@
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Common.Models;
@@ -24,10 +25,9 @@ namespace NomNomzBot.Api.Controllers.V1;
 /// connection health so a missing scope is observable instead of silently degrading a feature.
 /// <para>
 /// Gate 1 is <c>[Authorize]</c> + tenant resolution from the JWT (<see cref="ICurrentTenantService"/>) — the
-/// diagnostics are inherently "my own channel". The per-route Gate-2 floor (<c>twitch:diagnostics:read</c>)
-/// and its seeded <c>ActionDefinitions</c> row are DEFERRED to the roles-permissions subsystem
-/// (<c>IActionAuthorizationService</c>), consistent with every other controller — it is not built yet, so
-/// self-host collapses to "owner = full".
+/// diagnostics are inherently "my own channel". Gate 2 is the per-route <c>[RequireAction]</c> floor
+/// (<c>twitch:diagnostics:read</c>), enforced by <c>IActionAuthorizationService</c>. Self-host collapses to
+/// "owner = full".
 /// </para>
 /// </summary>
 [ApiVersion("1.0")]
@@ -53,6 +53,7 @@ public class TwitchDiagnosticsController : BaseController
     /// per-feature granted/missing requirement rows. <c>404</c> when this channel has no Twitch connection.
     /// </summary>
     [HttpGet("scopes")]
+    [RequireAction("twitch:diagnostics:read")]
     [ProducesResponseType<StatusResponseDto<TwitchScopeDiagnosticsDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetScopeDiagnostics(CancellationToken ct)
     {
