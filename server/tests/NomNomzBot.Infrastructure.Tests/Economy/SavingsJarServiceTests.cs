@@ -188,4 +188,33 @@ public sealed class SavingsJarServiceTests
         result.Value.JarBalanceAfter.Should().Be(10); // 30 - 20
         (await sut.GetJarAsync(Owner, jarId)).Value.Balance.Should().Be(10);
     }
+
+    [Fact]
+    public async Task Contribute_enforces_the_per_stream_contribution_sum_cap()
+    {
+        using SqliteTestDatabase database = SqliteTestDatabase.Open();
+        (SavingsJarService sut, EventStoreTestDbContext db, _) = New(database);
+        db.Streams.Add(
+            new NomNomzBot.Domain.Stream.Entities.Stream
+            {
+                Id = "s1",
+                ChannelId = Owner,
+                StartedAt = new DateTimeOffset(2026, 6, 21, 11, 0, 0, TimeSpan.Zero),
+            }
+        );
+        db.SaveChanges();
+        Guid jarId = await CreateJarAsync(sut);
+        SavingsJarMembership owner = db.SavingsJarMemberships.Single(m =>
+            m.JarId == jarId && m.MemberBroadcasterId == Owner
+        );
+        owner.ContributionCapPerStream = 50;
+        db.SaveChanges();
+
+        (await sut.ContributeAsync(Owner, new JarContributeRequest(jarId, Viewer, 30)))
+            .IsSuccess.Should()
+            .BeTrue();
+        (await sut.ContributeAsync(Owner, new JarContributeRequest(jarId, Viewer, 30)))
+            .ErrorCode.Should()
+            .Be("JAR_CAP_EXCEEDED"); // 30 already + 30 > 50
+    }
 }

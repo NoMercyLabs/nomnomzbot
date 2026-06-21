@@ -24,10 +24,10 @@ namespace NomNomzBot.Infrastructure.Economy;
 
 /// <summary>
 /// Mini-games + fun-money gambling (economy.md §3.5). <see cref="PlayAsync"/> settles a play through the ledger:
-/// the optional 18+ gate (only when <c>Requires18Plus</c>), the permission / bet-range / cooldown guards, the
-/// CSPRNG roll, and the bet/payout movements. (Deferred — documented: the per-stream play cap needs stream
-/// context. The bet debit + payout credit are two ledger posts — each atomic on its own; the play row is written
-/// right after — consistent with the catalog/jar services.)
+/// the optional 18+ gate (only when <c>Requires18Plus</c>), the permission / bet-range / cooldown / per-stream
+/// guards, the CSPRNG roll, and the bet/payout movements. (Deferred — documented: the bet debit + payout credit
+/// are two ledger posts — each atomic on its own; the play row is written right after — consistent with the
+/// catalog/jar services.)
 /// </summary>
 public sealed class GameService(
     IApplicationDbContext db,
@@ -191,14 +191,13 @@ public sealed class GameService(
 
         if (game.MaxPlaysPerStream is int maxPlays)
         {
-            DateTimeOffset? streamStart = await db
-                .Streams.Where(s => s.ChannelId == broadcasterId)
-                .OrderByDescending(s => s.CreatedAt) // latest-created stream = the current one
-                .Select(s => s.StartedAt)
-                .FirstOrDefaultAsync(ct);
-            if (streamStart is DateTimeOffset start)
+            DateTime? streamStart = await EconomyStreamWindow.CurrentStreamStartAsync(
+                db,
+                broadcasterId,
+                ct
+            );
+            if (streamStart is DateTime since)
             {
-                DateTime since = start.UtcDateTime;
                 int played = await db.GamePlays.CountAsync(
                     p =>
                         p.BroadcasterId == broadcasterId

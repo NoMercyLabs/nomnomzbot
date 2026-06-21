@@ -23,11 +23,11 @@ namespace NomNomzBot.Infrastructure.Economy;
 
 /// <summary>
 /// Store catalog + redemptions (economy.md §3.4). Items are CRUD; a purchase enforces the
-/// permission/cooldown/stock guards then debits through the ledger and records an immutable purchase; a refund
-/// posts a reversing credit and an append-only refunded row. (Deferred — documented: the per-viewer-per-stream
-/// cap needs stream context, purchase idempotency needs the IdempotencyKeys store, the PipelineId-exists check
-/// is left to the caller, and the reversing entry's RelatedEntryId link awaits a ledger-command field. The
-/// purchase debit is atomic on its own; the purchase row is written immediately after.)
+/// permission/cooldown/stock/per-stream guards then debits through the ledger and records an immutable purchase;
+/// a refund posts a reversing credit and an append-only refunded row. (Deferred — documented: purchase
+/// idempotency needs the IdempotencyKeys store, the PipelineId-exists check is left to the caller, and the
+/// reversing entry's RelatedEntryId link awaits a ledger-command field. The purchase debit is atomic on its own;
+/// the purchase row is written immediately after.)
 /// </summary>
 public sealed class CatalogService(
     IApplicationDbContext db,
@@ -246,7 +246,11 @@ public sealed class CatalogService(
 
         if (item.MaxPerViewerPerStream is int maxPerStream)
         {
-            DateTime? streamStart = await CurrentStreamStartAsync(broadcasterId, ct);
+            DateTime? streamStart = await EconomyStreamWindow.CurrentStreamStartAsync(
+                db,
+                broadcasterId,
+                ct
+            );
             if (streamStart is DateTime since)
             {
                 int already = await db.CatalogPurchases.CountAsync(
@@ -438,17 +442,6 @@ public sealed class CatalogService(
             i => i.BroadcasterId == broadcasterId && i.Id == itemId && i.DeletedAt == null,
             ct
         );
-
-    /// <summary>The current stream's start (latest stream for the channel), or null when none — then the per-stream cap is moot.</summary>
-    private async Task<DateTime?> CurrentStreamStartAsync(Guid broadcasterId, CancellationToken ct)
-    {
-        DateTimeOffset? startedAt = await db
-            .Streams.Where(s => s.ChannelId == broadcasterId)
-            .OrderByDescending(s => s.CreatedAt) // latest-created stream = the current one
-            .Select(s => s.StartedAt)
-            .FirstOrDefaultAsync(ct);
-        return startedAt?.UtcDateTime;
-    }
 
     private static CatalogItemDto ToDto(CatalogItem i) =>
         new(

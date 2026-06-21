@@ -23,10 +23,10 @@ namespace NomNomzBot.Infrastructure.Economy;
 /// <summary>
 /// Pooled cross-channel savings jars (economy.md §3.7). The membership predicate (<see cref="AcceptedMembershipAsync"/>)
 /// is the cross-tenant guard — checked before every balance change. Contribute/withdraw move currency through
-/// the per-channel ledger. (Deferred — documented: the caps are enforced per-movement; the per-stream
-/// contribution sum and the cumulative per-channel withdrawal sum need stream context / a running tally, and
-/// the history's <c>JarBalanceAfter</c> is not stored on the movement. Debits/credits are atomic on the ledger;
-/// the jar balance + movement row are written right after.)
+/// the per-channel ledger. The contribution cap is a per-stream SUM (contributions since the channel's current
+/// stream started). (Deferred — documented: the per-channel withdrawal cap is still per-movement, and the
+/// history's <c>JarBalanceAfter</c> is not stored on the movement. Debits/credits are atomic on the ledger; the
+/// jar balance + movement row are written right after.)
 /// </summary>
 public sealed class SavingsJarService(
     IApplicationDbContext db,
@@ -245,11 +245,30 @@ public sealed class SavingsJarService(
             return Result.Failure<JarMovementDto>("Jar not found.", "NOT_FOUND");
         if (!jar.IsOpen)
             return Result.Failure<JarMovementDto>("Jar is not open.", "JAR_NOT_OPEN");
-        if (membership.ContributionCapPerStream is long cap && request.Amount > cap)
-            return Result.Failure<JarMovementDto>(
-                "Contribution exceeds the per-stream cap.",
-                "JAR_CAP_EXCEEDED"
+        if (membership.ContributionCapPerStream is long cap)
+        {
+            DateTime? streamStart = await EconomyStreamWindow.CurrentStreamStartAsync(
+                db,
+                broadcasterId,
+                ct
             );
+            long alreadyThisStream = streamStart is DateTime since
+                ? await db
+                    .JarContributions.Where(c =>
+                        c.JarId == request.JarId
+                        && c.SourceBroadcasterId == broadcasterId
+                        && c.MovementType == JarMovementType.Contribute
+                        && c.CreatedAt >= since
+                    )
+                    .SumAsync(c => (long?)c.Amount, ct)
+                    ?? 0
+                : 0;
+            if (alreadyThisStream + request.Amount > cap)
+                return Result.Failure<JarMovementDto>(
+                    "Contribution would exceed the per-stream cap.",
+                    "JAR_CAP_EXCEEDED"
+                );
+        }
 
         Result<CurrencyLedgerEntryDto> debit = await accounts.PostLedgerEntryAsync(
             broadcasterId,
