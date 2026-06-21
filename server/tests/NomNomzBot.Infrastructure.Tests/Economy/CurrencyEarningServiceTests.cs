@@ -57,7 +57,8 @@ public sealed class CurrencyEarningServiceTests
         bool enabled = true,
         int? minRoleLevel = null,
         long? perWindowCap = null,
-        int? windowSeconds = null
+        int? windowSeconds = null,
+        long? perStreamCap = null
     )
     {
         db.CurrencyConfigs.Add(
@@ -79,6 +80,7 @@ public sealed class CurrencyEarningServiceTests
                 MinRoleLevel = minRoleLevel,
                 PerWindowCap = perWindowCap,
                 UnitWindowSeconds = windowSeconds,
+                PerStreamCap = perStreamCap,
             }
         );
         await db.SaveChangesAsync();
@@ -210,5 +212,25 @@ public sealed class CurrencyEarningServiceTests
 
         results.Value.Single(r => r.ViewerUserId == present).AmountCredited.Should().Be(6); // 3 * (120/60)
         results.Value.Single(r => r.ViewerUserId == absent).AmountCredited.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Per_stream_cap_clamps_the_stream_total()
+    {
+        using SqliteTestDatabase database = SqliteTestDatabase.Open();
+        (CurrencyEarningService sut, EventStoreTestDbContext db, _) = New(database);
+        db.Streams.Add(
+            new NomNomzBot.Domain.Stream.Entities.Stream
+            {
+                Id = "s1",
+                ChannelId = Channel,
+                StartedAt = new DateTimeOffset(2026, 6, 21, 11, 0, 0, TimeSpan.Zero),
+            }
+        );
+        await SeedAsync(db, EarningSource.ChatMessage, rate: 5, perStreamCap: 15);
+
+        (await sut.ApplyEarningAsync(Channel, Earn(units: 2))).Value.Should().Be(10); // 5*2, stream total 10
+        (await sut.ApplyEarningAsync(Channel, Earn(units: 2))).Value.Should().Be(5); // clamped to 15 - 10
+        (await sut.ApplyEarningAsync(Channel, Earn(units: 2))).Value.Should().Be(0); // at the cap
     }
 }

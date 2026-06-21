@@ -22,10 +22,11 @@ namespace NomNomzBot.Infrastructure.Economy;
 
 /// <summary>
 /// Applies earning rules to engagement events (economy.md §3.3) — credits currency through the ledger core.
-/// Implements rule resolution, the role-level gate, idempotency per <c>(source, EventId)</c>, and the rolling
-/// per-window cap (folded from the ledger). The per-stream cap, BonusConfig multipliers, and anti-AFK presence
-/// (beyond the caller-supplied <c>PresenceVerified</c>) are deferred — they depend on the per-stream earned
-/// cache, the bonus-multiplier schema, and the presence subsystem respectively.
+/// Implements rule resolution, the role-level gate, idempotency per <c>(source, EventId)</c>, and both the
+/// rolling per-window cap and the per-stream cap (each folded from the ledger; the new earn is clamped to the
+/// remaining headroom). BonusConfig multipliers and anti-AFK presence (beyond the caller-supplied
+/// <c>PresenceVerified</c>) are deferred — they depend on the bonus-multiplier schema and the presence
+/// subsystem respectively.
 /// </summary>
 public sealed class CurrencyEarningService(
     IApplicationDbContext db,
@@ -102,6 +103,34 @@ public sealed class CurrencyEarningService(
             {
                 amount = remaining;
                 capped = true;
+            }
+        }
+
+        if (rule.PerStreamCap is long streamCap)
+        {
+            DateTime? streamStart = await EconomyStreamWindow.CurrentStreamStartAsync(
+                db,
+                broadcasterId,
+                ct
+            );
+            if (streamStart is DateTime since)
+            {
+                long earnedThisStream = await db
+                    .CurrencyLedgerEntries.Where(e =>
+                        e.BroadcasterId == broadcasterId
+                        && e.ViewerUserId == request.ViewerUserId
+                        && e.EntryType == earnType
+                        && e.CreatedAt >= since
+                    )
+                    .SumAsync(e => e.Amount, ct);
+                long remaining = streamCap - earnedThisStream;
+                if (remaining <= 0)
+                    return Result.Success(0L);
+                if (amount > remaining)
+                {
+                    amount = remaining;
+                    capped = true;
+                }
             }
         }
 
