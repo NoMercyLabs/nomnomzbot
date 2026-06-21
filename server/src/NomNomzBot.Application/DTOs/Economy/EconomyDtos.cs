@@ -174,3 +174,13 @@ public sealed record LeaderboardEntryDto(
     string DisplayName,
     long Value
 );
+
+/// <summary>A viewer's 18+ gambling consent state (economy.md §4).</summary>
+public sealed record AgeConsentDto(
+    Guid ViewerUserId,
+    Guid ConsentRecordId,
+    bool Granted,
+    DateTime ConfirmedAt,
+    DateTime? RevokedAt,
+    string ConfirmationMethod
+);

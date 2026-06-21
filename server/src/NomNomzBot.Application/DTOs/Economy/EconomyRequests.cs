@@ -179,3 +179,11 @@ public sealed record UpsertLeaderboardConfigRequest(
     int TopN,
     Guid? JarId
 );
+
+/// <summary>Grant a viewer's explicit 18+ gambling consent (economy.md §4).</summary>
+public sealed record GrantAgeConsentRequest(
+    Guid ViewerUserId,
+    string ConfirmationMethod,
+    string? IpAddress,
+    string? ConsentVersion
+);
