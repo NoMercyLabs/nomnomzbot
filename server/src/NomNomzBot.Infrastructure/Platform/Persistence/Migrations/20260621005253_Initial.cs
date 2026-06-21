@@ -118,6 +118,77 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "CurrencyAccounts",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    BroadcasterId = table.Column<Guid>(type: "uuid", nullable: false),
+                    ViewerUserId = table.Column<Guid>(type: "uuid", nullable: false),
+                    ViewerTwitchUserId = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
+                    Balance = table.Column<long>(type: "bigint", nullable: false),
+                    LifetimeEarned = table.Column<long>(type: "bigint", nullable: false),
+                    LifetimeSpent = table.Column<long>(type: "bigint", nullable: false),
+                    IsFrozen = table.Column<bool>(type: "boolean", nullable: false),
+                    LastActivityAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    DeletedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_CurrencyAccounts", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "CurrencyConfigs",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    BroadcasterId = table.Column<Guid>(type: "uuid", nullable: false),
+                    CurrencyName = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
+                    CurrencyNamePlural = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
+                    IconUrl = table.Column<string>(type: "text", nullable: true),
+                    IsEnabled = table.Column<bool>(type: "boolean", nullable: false),
+                    StartingBalance = table.Column<long>(type: "bigint", nullable: false),
+                    MaxBalance = table.Column<long>(type: "bigint", nullable: true),
+                    DecimalPlaces = table.Column<int>(type: "integer", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    DeletedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_CurrencyConfigs", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "CurrencyLedgerEntries",
+                columns: table => new
+                {
+                    Id = table.Column<long>(type: "bigint", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    BroadcasterId = table.Column<Guid>(type: "uuid", nullable: false),
+                    TenantPosition = table.Column<long>(type: "bigint", nullable: false),
+                    AccountId = table.Column<Guid>(type: "uuid", nullable: false),
+                    ViewerUserId = table.Column<Guid>(type: "uuid", nullable: false),
+                    ViewerTwitchUserId = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
+                    Amount = table.Column<long>(type: "bigint", nullable: false),
+                    BalanceAfter = table.Column<long>(type: "bigint", nullable: false),
+                    EntryType = table.Column<string>(type: "character varying(30)", maxLength: 30, nullable: false),
+                    SourceType = table.Column<string>(type: "character varying(30)", maxLength: 30, nullable: true),
+                    SourceId = table.Column<Guid>(type: "uuid", nullable: true),
+                    RelatedEntryId = table.Column<long>(type: "bigint", nullable: true),
+                    EventId = table.Column<Guid>(type: "uuid", nullable: true),
+                    Reason = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: true),
+                    ActorUserId = table.Column<Guid>(type: "uuid", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_CurrencyLedgerEntries", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "DeletionAuditLogs",
                 columns: table => new
                 {
@@ -134,6 +205,30 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_DeletionAuditLogs", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "EarningRules",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    BroadcasterId = table.Column<Guid>(type: "uuid", nullable: false),
+                    Source = table.Column<string>(type: "character varying(30)", maxLength: 30, nullable: false),
+                    IsEnabled = table.Column<bool>(type: "boolean", nullable: false),
+                    Rate = table.Column<long>(type: "bigint", nullable: false),
+                    UnitWindowSeconds = table.Column<int>(type: "integer", nullable: true),
+                    PerWindowCap = table.Column<long>(type: "bigint", nullable: true),
+                    PerStreamCap = table.Column<long>(type: "bigint", nullable: true),
+                    MinRoleLevel = table.Column<int>(type: "integer", nullable: true),
+                    ConfigSchemaVersion = table.Column<int>(type: "integer", nullable: false),
+                    BonusConfigJson = table.Column<string>(type: "text", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    DeletedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_EarningRules", x => x.Id);
                 });
 
             migrationBuilder.CreateTable(
@@ -1480,9 +1575,35 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                 column: "BroadcasterId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_CurrencyAccounts_BroadcasterId_ViewerUserId",
+                table: "CurrencyAccounts",
+                columns: new[] { "BroadcasterId", "ViewerUserId" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_CurrencyConfigs_BroadcasterId",
+                table: "CurrencyConfigs",
+                column: "BroadcasterId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_CurrencyLedgerEntries_BroadcasterId_AccountId_Id",
+                table: "CurrencyLedgerEntries",
+                columns: new[] { "BroadcasterId", "AccountId", "Id" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_CurrencyLedgerEntries_BroadcasterId_TenantPosition",
+                table: "CurrencyLedgerEntries",
+                columns: new[] { "BroadcasterId", "TenantPosition" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
                 name: "IX_DiscordServerAuthorizations_BroadcasterId",
                 table: "DiscordServerAuthorizations",
                 column: "BroadcasterId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_EarningRules_BroadcasterId_Source",
+                table: "EarningRules",
+                columns: new[] { "BroadcasterId", "Source" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_EventJournal_ActorUserId",
@@ -1818,10 +1939,22 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                 name: "Configurations");
 
             migrationBuilder.DropTable(
+                name: "CurrencyAccounts");
+
+            migrationBuilder.DropTable(
+                name: "CurrencyConfigs");
+
+            migrationBuilder.DropTable(
+                name: "CurrencyLedgerEntries");
+
+            migrationBuilder.DropTable(
                 name: "DeletionAuditLogs");
 
             migrationBuilder.DropTable(
                 name: "DiscordServerAuthorizations");
+
+            migrationBuilder.DropTable(
+                name: "EarningRules");
 
             migrationBuilder.DropTable(
                 name: "EventJournals");

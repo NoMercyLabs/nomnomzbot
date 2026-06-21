@@ -139,6 +139,16 @@ public class AppDbContext : DbContext, IApplicationDbContext
     public DbSet<IamRoleAssignment> IamRoleAssignments => Set<IamRoleAssignment>();
     public DbSet<IamAuditLog> IamAuditLogs => Set<IamAuditLog>();
 
+    // Economy — currency core (economy.md K.1-K.3)
+    public DbSet<NomNomzBot.Domain.Economy.Entities.CurrencyConfig> CurrencyConfigs =>
+        Set<NomNomzBot.Domain.Economy.Entities.CurrencyConfig>();
+    public DbSet<NomNomzBot.Domain.Economy.Entities.EarningRule> EarningRules =>
+        Set<NomNomzBot.Domain.Economy.Entities.EarningRule>();
+    public DbSet<NomNomzBot.Domain.Economy.Entities.CurrencyAccount> CurrencyAccounts =>
+        Set<NomNomzBot.Domain.Economy.Entities.CurrencyAccount>();
+    public DbSet<NomNomzBot.Domain.Economy.Entities.CurrencyLedgerEntry> CurrencyLedgerEntries =>
+        Set<NomNomzBot.Domain.Economy.Entities.CurrencyLedgerEntry>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

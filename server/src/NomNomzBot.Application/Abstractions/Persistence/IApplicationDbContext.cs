@@ -12,6 +12,7 @@ using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Domain.Chat.Entities;
 using NomNomzBot.Domain.Commands.Entities;
 using NomNomzBot.Domain.Discord.Entities;
+using NomNomzBot.Domain.Economy.Entities;
 using NomNomzBot.Domain.EventStore.Entities;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Integrations.Entities;
@@ -82,6 +83,12 @@ public interface IApplicationDbContext
     DbSet<IamPrincipal> IamPrincipals { get; }
     DbSet<IamRoleAssignment> IamRoleAssignments { get; }
     DbSet<IamAuditLog> IamAuditLogs { get; }
+
+    // Economy — currency core (economy.md K.1-K.3).
+    DbSet<CurrencyConfig> CurrencyConfigs { get; }
+    DbSet<EarningRule> EarningRules { get; }
+    DbSet<CurrencyAccount> CurrencyAccounts { get; }
+    DbSet<CurrencyLedgerEntry> CurrencyLedgerEntries { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

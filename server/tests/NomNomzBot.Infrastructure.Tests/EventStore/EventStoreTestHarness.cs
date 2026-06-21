@@ -54,6 +54,14 @@ internal sealed class EventStoreTestDbContext : DbContext, IApplicationDbContext
         Set<NomNomzBot.Domain.Identity.Entities.IamRoleAssignment>();
     public DbSet<NomNomzBot.Domain.Identity.Entities.IamAuditLog> IamAuditLogs =>
         Set<NomNomzBot.Domain.Identity.Entities.IamAuditLog>();
+    public DbSet<NomNomzBot.Domain.Economy.Entities.CurrencyConfig> CurrencyConfigs =>
+        Set<NomNomzBot.Domain.Economy.Entities.CurrencyConfig>();
+    public DbSet<NomNomzBot.Domain.Economy.Entities.EarningRule> EarningRules =>
+        Set<NomNomzBot.Domain.Economy.Entities.EarningRule>();
+    public DbSet<NomNomzBot.Domain.Economy.Entities.CurrencyAccount> CurrencyAccounts =>
+        Set<NomNomzBot.Domain.Economy.Entities.CurrencyAccount>();
+    public DbSet<NomNomzBot.Domain.Economy.Entities.CurrencyLedgerEntry> CurrencyLedgerEntries =>
+        Set<NomNomzBot.Domain.Economy.Entities.CurrencyLedgerEntry>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -417,5 +417,13 @@ public sealed class IdentityRekeyBehaviorTests
             throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.Identity.Entities.IamAuditLog> IamAuditLogs =>
             throw new NotSupportedException();
+        public DbSet<NomNomzBot.Domain.Economy.Entities.CurrencyConfig> CurrencyConfigs =>
+            throw new NotSupportedException();
+        public DbSet<NomNomzBot.Domain.Economy.Entities.EarningRule> EarningRules =>
+            throw new NotSupportedException();
+        public DbSet<NomNomzBot.Domain.Economy.Entities.CurrencyAccount> CurrencyAccounts =>
+            throw new NotSupportedException();
+        public DbSet<NomNomzBot.Domain.Economy.Entities.CurrencyLedgerEntry> CurrencyLedgerEntries =>
+            throw new NotSupportedException();
     }
 }
