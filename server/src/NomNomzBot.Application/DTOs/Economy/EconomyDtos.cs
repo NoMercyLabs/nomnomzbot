@@ -151,3 +151,26 @@ public sealed record CatalogPurchaseDto(
     string? InputArgs,
     DateTime CreatedAt
 );
+
+/// <summary>A configured leaderboard (economy.md §4).</summary>
+public sealed record LeaderboardConfigDto(
+    Guid Id,
+    Guid? BroadcasterId,
+    Guid? JarId,
+    string Metric,
+    string Scope,
+    string Period,
+    bool IsPublic,
+    int TopN,
+    DateTime CreatedAt,
+    DateTime UpdatedAt
+);
+
+/// <summary>One ranked row in a leaderboard (economy.md §4).</summary>
+public sealed record LeaderboardEntryDto(
+    int Rank,
+    Guid? SubjectUserId,
+    Guid? SubjectAccountId,
+    string DisplayName,
+    long Value
+);

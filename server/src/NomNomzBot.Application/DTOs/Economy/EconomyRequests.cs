@@ -168,3 +168,14 @@ public sealed record JarWithdrawRequest(
     long Amount,
     Guid ActorUserId
 );
+
+/// <summary>Create or update a leaderboard config (economy.md §4). <see cref="Id"/> null = create.</summary>
+public sealed record UpsertLeaderboardConfigRequest(
+    Guid? Id,
+    string Metric,
+    string Scope,
+    string Period,
+    bool IsPublic,
+    int TopN,
+    Guid? JarId
+);
