@@ -170,6 +170,33 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "ConsentRecords",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    BroadcasterId = table.Column<Guid>(type: "uuid", nullable: true),
+                    SubjectUserId = table.Column<Guid>(type: "uuid", nullable: false),
+                    SubjectKeyId = table.Column<Guid>(type: "uuid", nullable: true),
+                    SubjectIdHash = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: false),
+                    ConsentType = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
+                    Status = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
+                    LawfulBasis = table.Column<string>(type: "character varying(30)", maxLength: 30, nullable: false),
+                    ConsentVersion = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: true),
+                    Source = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
+                    IpAddressCipher = table.Column<string>(type: "character varying(255)", maxLength: 255, nullable: true),
+                    GrantedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    WithdrawnAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    ExpiresAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    DeletedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ConsentRecords", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "CurrencyAccounts",
                 columns: table => new
                 {
@@ -1842,6 +1869,11 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                 column: "BroadcasterId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_ConsentRecords_BroadcasterId_SubjectUserId_ConsentType",
+                table: "ConsentRecords",
+                columns: new[] { "BroadcasterId", "SubjectUserId", "ConsentType" });
+
+            migrationBuilder.CreateIndex(
                 name: "IX_CurrencyAccounts_BroadcasterId_ViewerUserId",
                 table: "CurrencyAccounts",
                 columns: new[] { "BroadcasterId", "ViewerUserId" });
@@ -2275,6 +2307,9 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
 
             migrationBuilder.DropTable(
                 name: "Configurations");
+
+            migrationBuilder.DropTable(
+                name: "ConsentRecords");
 
             migrationBuilder.DropTable(
                 name: "CurrencyAccounts");

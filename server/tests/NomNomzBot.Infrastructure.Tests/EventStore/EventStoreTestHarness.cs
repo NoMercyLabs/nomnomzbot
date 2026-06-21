@@ -143,6 +143,8 @@ internal sealed class EventStoreTestDbContext : DbContext, IApplicationDbContext
     // ── Unused IApplicationDbContext surface — never reached by these tests ──
     public DbSet<NomNomzBot.Domain.Identity.Entities.User> Users =>
         throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Identity.Entities.ConsentRecord> ConsentRecords =>
+        throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Identity.Entities.Channel> Channels =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Identity.Entities.ChannelModerator> ChannelModerators =>

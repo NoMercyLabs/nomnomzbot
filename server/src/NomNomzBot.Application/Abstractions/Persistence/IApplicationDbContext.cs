@@ -26,6 +26,7 @@ namespace NomNomzBot.Application.Abstractions.Persistence;
 public interface IApplicationDbContext
 {
     DbSet<User> Users { get; }
+    DbSet<ConsentRecord> ConsentRecords { get; }
     DbSet<Channel> Channels { get; }
     DbSet<ChannelModerator> ChannelModerators { get; }
     DbSet<Service> Services { get; }

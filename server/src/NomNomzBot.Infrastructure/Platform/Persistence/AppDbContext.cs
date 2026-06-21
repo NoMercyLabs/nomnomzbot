@@ -45,6 +45,7 @@ public class AppDbContext : DbContext, IApplicationDbContext
 
     // Core
     public DbSet<User> Users => Set<User>();
+    public DbSet<ConsentRecord> ConsentRecords => Set<ConsentRecord>();
     public DbSet<Channel> Channels => Set<Channel>();
     public DbSet<ChannelModerator> ChannelModerators => Set<ChannelModerator>();
     public DbSet<Service> Services => Set<Service>();

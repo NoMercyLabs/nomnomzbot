@@ -86,6 +86,7 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
         : base(options) { }
 
     public DbSet<User> Users => Set<User>();
+    public DbSet<ConsentRecord> ConsentRecords => Set<ConsentRecord>();
     public DbSet<Channel> Channels => Set<Channel>();
     public DbSet<AuthSession> AuthSessions => Set<AuthSession>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
