@@ -534,6 +534,67 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "LeaderboardConfigs",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    BroadcasterId = table.Column<Guid>(type: "uuid", nullable: true),
+                    JarId = table.Column<Guid>(type: "uuid", nullable: true),
+                    Metric = table.Column<string>(type: "character varying(30)", maxLength: 30, nullable: false),
+                    Scope = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
+                    Period = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
+                    IsPublic = table.Column<bool>(type: "boolean", nullable: false),
+                    TopN = table.Column<int>(type: "integer", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    DeletedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_LeaderboardConfigs", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "LeaderboardOptOuts",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    BroadcasterId = table.Column<Guid>(type: "uuid", nullable: false),
+                    ViewerUserId = table.Column<Guid>(type: "uuid", nullable: false),
+                    ViewerTwitchUserId = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
+                    OptedOutAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    DeletedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_LeaderboardOptOuts", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "LeaderboardSnapshots",
+                columns: table => new
+                {
+                    Id = table.Column<long>(type: "bigint", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    LeaderboardConfigId = table.Column<Guid>(type: "uuid", nullable: false),
+                    BroadcasterId = table.Column<Guid>(type: "uuid", nullable: true),
+                    PeriodKey = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
+                    Rank = table.Column<int>(type: "integer", nullable: false),
+                    SubjectAccountId = table.Column<Guid>(type: "uuid", nullable: true),
+                    SubjectUserId = table.Column<Guid>(type: "uuid", nullable: true),
+                    SubjectTwitchUserId = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
+                    DisplayNameSnapshot = table.Column<string>(type: "character varying(255)", maxLength: 255, nullable: false),
+                    Value = table.Column<long>(type: "bigint", nullable: false),
+                    CapturedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_LeaderboardSnapshots", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "PermitGrants",
                 columns: table => new
                 {
@@ -1983,6 +2044,26 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                 column: "SourceBroadcasterId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_LeaderboardConfigs_BroadcasterId",
+                table: "LeaderboardConfigs",
+                column: "BroadcasterId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_LeaderboardConfigs_JarId",
+                table: "LeaderboardConfigs",
+                column: "JarId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_LeaderboardOptOuts_BroadcasterId_ViewerUserId",
+                table: "LeaderboardOptOuts",
+                columns: new[] { "BroadcasterId", "ViewerUserId" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_LeaderboardSnapshots_LeaderboardConfigId_PeriodKey",
+                table: "LeaderboardSnapshots",
+                columns: new[] { "LeaderboardConfigId", "PeriodKey" });
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Permission_BroadcasterId_Subject_ResourceType",
                 table: "Permissions",
                 columns: new[] { "BroadcasterId", "SubjectType", "SubjectId", "ResourceType" },
@@ -2260,6 +2341,15 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
 
             migrationBuilder.DropTable(
                 name: "JarContributions");
+
+            migrationBuilder.DropTable(
+                name: "LeaderboardConfigs");
+
+            migrationBuilder.DropTable(
+                name: "LeaderboardOptOuts");
+
+            migrationBuilder.DropTable(
+                name: "LeaderboardSnapshots");
 
             migrationBuilder.DropTable(
                 name: "Permissions");

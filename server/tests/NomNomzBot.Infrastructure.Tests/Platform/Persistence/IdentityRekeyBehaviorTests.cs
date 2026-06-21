@@ -441,5 +441,11 @@ public sealed class IdentityRekeyBehaviorTests
             throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.Economy.Entities.JarContribution> JarContributions =>
             throw new NotSupportedException();
+        public DbSet<NomNomzBot.Domain.Economy.Entities.LeaderboardConfig> LeaderboardConfigs =>
+            throw new NotSupportedException();
+        public DbSet<NomNomzBot.Domain.Economy.Entities.LeaderboardOptOut> LeaderboardOptOuts =>
+            throw new NotSupportedException();
+        public DbSet<NomNomzBot.Domain.Economy.Entities.LeaderboardSnapshot> LeaderboardSnapshots =>
+            throw new NotSupportedException();
     }
 }

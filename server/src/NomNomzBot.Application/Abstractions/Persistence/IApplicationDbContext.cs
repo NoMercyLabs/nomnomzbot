@@ -97,6 +97,9 @@ public interface IApplicationDbContext
     DbSet<SavingsJar> SavingsJars { get; }
     DbSet<SavingsJarMembership> SavingsJarMemberships { get; }
     DbSet<JarContribution> JarContributions { get; }
+    DbSet<LeaderboardConfig> LeaderboardConfigs { get; }
+    DbSet<LeaderboardOptOut> LeaderboardOptOuts { get; }
+    DbSet<LeaderboardSnapshot> LeaderboardSnapshots { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

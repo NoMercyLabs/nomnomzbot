@@ -393,4 +393,10 @@ internal sealed class GdprTestDbContext : DbContext, IApplicationDbContext
         Set<NomNomzBot.Domain.Economy.Entities.SavingsJarMembership>();
     public DbSet<NomNomzBot.Domain.Economy.Entities.JarContribution> JarContributions =>
         Set<NomNomzBot.Domain.Economy.Entities.JarContribution>();
+    public DbSet<NomNomzBot.Domain.Economy.Entities.LeaderboardConfig> LeaderboardConfigs =>
+        Set<NomNomzBot.Domain.Economy.Entities.LeaderboardConfig>();
+    public DbSet<NomNomzBot.Domain.Economy.Entities.LeaderboardOptOut> LeaderboardOptOuts =>
+        Set<NomNomzBot.Domain.Economy.Entities.LeaderboardOptOut>();
+    public DbSet<NomNomzBot.Domain.Economy.Entities.LeaderboardSnapshot> LeaderboardSnapshots =>
+        Set<NomNomzBot.Domain.Economy.Entities.LeaderboardSnapshot>();
 }
