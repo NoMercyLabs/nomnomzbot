@@ -387,4 +387,10 @@ internal sealed class GdprTestDbContext : DbContext, IApplicationDbContext
         Set<NomNomzBot.Domain.Economy.Entities.GamePlay>();
     public DbSet<NomNomzBot.Domain.Economy.Entities.ViewerAgeConsent> ViewerAgeConsents =>
         Set<NomNomzBot.Domain.Economy.Entities.ViewerAgeConsent>();
+    public DbSet<NomNomzBot.Domain.Economy.Entities.SavingsJar> SavingsJars =>
+        Set<NomNomzBot.Domain.Economy.Entities.SavingsJar>();
+    public DbSet<NomNomzBot.Domain.Economy.Entities.SavingsJarMembership> SavingsJarMemberships =>
+        Set<NomNomzBot.Domain.Economy.Entities.SavingsJarMembership>();
+    public DbSet<NomNomzBot.Domain.Economy.Entities.JarContribution> JarContributions =>
+        Set<NomNomzBot.Domain.Economy.Entities.JarContribution>();
 }

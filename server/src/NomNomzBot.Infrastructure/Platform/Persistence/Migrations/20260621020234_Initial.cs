@@ -513,6 +513,27 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "JarContributions",
+                columns: table => new
+                {
+                    Id = table.Column<long>(type: "bigint", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    JarId = table.Column<Guid>(type: "uuid", nullable: false),
+                    SourceBroadcasterId = table.Column<Guid>(type: "uuid", nullable: false),
+                    ContributorAccountId = table.Column<Guid>(type: "uuid", nullable: true),
+                    ContributorUserId = table.Column<Guid>(type: "uuid", nullable: true),
+                    Amount = table.Column<long>(type: "bigint", nullable: false),
+                    MovementType = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
+                    LedgerEntryId = table.Column<long>(type: "bigint", nullable: true),
+                    ActorUserId = table.Column<Guid>(type: "uuid", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_JarContributions", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "PermitGrants",
                 columns: table => new
                 {
@@ -568,6 +589,50 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Pronouns", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "SavingsJarMemberships",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    JarId = table.Column<Guid>(type: "uuid", nullable: false),
+                    MemberBroadcasterId = table.Column<Guid>(type: "uuid", nullable: false),
+                    Role = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
+                    Status = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
+                    ContributionCapPerStream = table.Column<long>(type: "bigint", nullable: true),
+                    WithdrawalCap = table.Column<long>(type: "bigint", nullable: true),
+                    InvitedByBroadcasterId = table.Column<Guid>(type: "uuid", nullable: true),
+                    AcceptedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    DeletedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_SavingsJarMemberships", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "SavingsJars",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    OwnerBroadcasterId = table.Column<Guid>(type: "uuid", nullable: false),
+                    Name = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
+                    Description = table.Column<string>(type: "text", nullable: true),
+                    GoalAmount = table.Column<long>(type: "bigint", nullable: true),
+                    Balance = table.Column<long>(type: "bigint", nullable: false),
+                    IconUrl = table.Column<string>(type: "text", nullable: true),
+                    IsOpen = table.Column<bool>(type: "boolean", nullable: false),
+                    MaxWithdrawalPerChannel = table.Column<long>(type: "bigint", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    DeletedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_SavingsJars", x => x.Id);
                 });
 
             migrationBuilder.CreateTable(
@@ -1908,6 +1973,16 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
+                name: "IX_JarContributions_JarId",
+                table: "JarContributions",
+                column: "JarId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_JarContributions_SourceBroadcasterId",
+                table: "JarContributions",
+                column: "SourceBroadcasterId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Permission_BroadcasterId_Subject_ResourceType",
                 table: "Permissions",
                 columns: new[] { "BroadcasterId", "SubjectType", "SubjectId", "ResourceType" },
@@ -1971,6 +2046,21 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                 columns: new[] { "BroadcasterId", "TwitchRewardId" },
                 unique: true,
                 filter: "\"TwitchRewardId\" IS NOT NULL");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_SavingsJarMemberships_JarId_MemberBroadcasterId",
+                table: "SavingsJarMemberships",
+                columns: new[] { "JarId", "MemberBroadcasterId" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_SavingsJarMemberships_MemberBroadcasterId",
+                table: "SavingsJarMemberships",
+                column: "MemberBroadcasterId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_SavingsJars_OwnerBroadcasterId",
+                table: "SavingsJars",
+                column: "OwnerBroadcasterId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Service_Name_BroadcasterId",
@@ -2169,6 +2259,9 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                 name: "IpcDevModeKeys");
 
             migrationBuilder.DropTable(
+                name: "JarContributions");
+
+            migrationBuilder.DropTable(
                 name: "Permissions");
 
             migrationBuilder.DropTable(
@@ -2188,6 +2281,12 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
 
             migrationBuilder.DropTable(
                 name: "Rewards");
+
+            migrationBuilder.DropTable(
+                name: "SavingsJarMemberships");
+
+            migrationBuilder.DropTable(
+                name: "SavingsJars");
 
             migrationBuilder.DropTable(
                 name: "Services");

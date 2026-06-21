@@ -94,6 +94,9 @@ public interface IApplicationDbContext
     DbSet<GameConfig> GameConfigs { get; }
     DbSet<GamePlay> GamePlays { get; }
     DbSet<ViewerAgeConsent> ViewerAgeConsents { get; }
+    DbSet<SavingsJar> SavingsJars { get; }
+    DbSet<SavingsJarMembership> SavingsJarMemberships { get; }
+    DbSet<JarContribution> JarContributions { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

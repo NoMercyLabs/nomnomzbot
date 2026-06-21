@@ -435,5 +435,11 @@ public sealed class IdentityRekeyBehaviorTests
             throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.Economy.Entities.ViewerAgeConsent> ViewerAgeConsents =>
             throw new NotSupportedException();
+        public DbSet<NomNomzBot.Domain.Economy.Entities.SavingsJar> SavingsJars =>
+            throw new NotSupportedException();
+        public DbSet<NomNomzBot.Domain.Economy.Entities.SavingsJarMembership> SavingsJarMemberships =>
+            throw new NotSupportedException();
+        public DbSet<NomNomzBot.Domain.Economy.Entities.JarContribution> JarContributions =>
+            throw new NotSupportedException();
     }
 }
