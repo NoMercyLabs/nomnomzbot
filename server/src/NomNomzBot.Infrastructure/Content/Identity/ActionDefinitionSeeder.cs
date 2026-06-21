@@ -219,6 +219,10 @@ public sealed class ActionDefinitionSeeder : ISeeder
         // Economy (management)
         M("economy:config:read", Mod);
         M("economy:config:write", Editor);
+        M("economy:earning-rules:read", Mod);
+        M("economy:earning-rules:write", Editor);
+        M("economy:earning-rules:delete", Editor);
+        M("economy:accounts:read", Mod);
         M("economy:catalog:create", Editor);
         M("economy:catalog:update", Editor);
         M("economy:catalog:delete", Editor);

@@ -108,13 +108,26 @@ public abstract class BaseController : ControllerBase
             "AUTH_REQUIRED" or "TOKEN_EXPIRED" or "INVALID_TOKEN" => UnauthenticatedResponse(
                 result.ErrorMessage
             ),
-            "FORBIDDEN" or "FEATURE_DISABLED" or "SCOPE_MISSING" or "BILLING_LIMIT" =>
-                UnauthorizedResponse(result.ErrorMessage),
+            "FORBIDDEN"
+            or "FEATURE_DISABLED"
+            or "SCOPE_MISSING"
+            or "BILLING_LIMIT"
+            or "JAR_MEMBERSHIP_REQUIRED"
+            or "AGE_CONSENT_REQUIRED"
+            or "GAMBLING_DISABLED" => UnauthorizedResponse(result.ErrorMessage),
             "NOT_FOUND" or "CHANNEL_NOT_FOUND" or "CHANNEL_NOT_ONBOARDED" => NotFoundResponse(
                 result.ErrorMessage
             ),
-            "VALIDATION_FAILED" => BadRequestResponse(result.ErrorMessage),
-            "ALREADY_EXISTS" => ConflictResponse(result.ErrorMessage),
+            "VALIDATION_FAILED" or "BET_OUT_OF_RANGE" => BadRequestResponse(result.ErrorMessage),
+            "ALREADY_EXISTS"
+            or "INSUFFICIENT_FUNDS"
+            or "ACCOUNT_FROZEN"
+            or "CURRENCY_DISABLED"
+            or "MAX_BALANCE_EXCEEDED"
+            or "OUT_OF_STOCK"
+            or "ON_COOLDOWN"
+            or "JAR_NOT_OPEN"
+            or "JAR_CAP_EXCEEDED" => ConflictResponse(result.ErrorMessage),
             "RATE_LIMITED" => TooManyRequestsResponse(result.ErrorMessage),
             "SERVICE_UNAVAILABLE" => ServiceUnavailableResponse(result.ErrorMessage),
             _ => InternalServerErrorResponse(result.ErrorMessage),
@@ -131,13 +144,26 @@ public abstract class BaseController : ControllerBase
             "AUTH_REQUIRED" or "TOKEN_EXPIRED" or "INVALID_TOKEN" => UnauthenticatedResponse(
                 result.ErrorMessage
             ),
-            "FORBIDDEN" or "FEATURE_DISABLED" or "SCOPE_MISSING" or "BILLING_LIMIT" =>
-                UnauthorizedResponse(result.ErrorMessage),
+            "FORBIDDEN"
+            or "FEATURE_DISABLED"
+            or "SCOPE_MISSING"
+            or "BILLING_LIMIT"
+            or "JAR_MEMBERSHIP_REQUIRED"
+            or "AGE_CONSENT_REQUIRED"
+            or "GAMBLING_DISABLED" => UnauthorizedResponse(result.ErrorMessage),
             "NOT_FOUND" or "CHANNEL_NOT_FOUND" or "CHANNEL_NOT_ONBOARDED" => NotFoundResponse(
                 result.ErrorMessage
             ),
-            "VALIDATION_FAILED" => BadRequestResponse(result.ErrorMessage),
-            "ALREADY_EXISTS" => ConflictResponse(result.ErrorMessage),
+            "VALIDATION_FAILED" or "BET_OUT_OF_RANGE" => BadRequestResponse(result.ErrorMessage),
+            "ALREADY_EXISTS"
+            or "INSUFFICIENT_FUNDS"
+            or "ACCOUNT_FROZEN"
+            or "CURRENCY_DISABLED"
+            or "MAX_BALANCE_EXCEEDED"
+            or "OUT_OF_STOCK"
+            or "ON_COOLDOWN"
+            or "JAR_NOT_OPEN"
+            or "JAR_CAP_EXCEEDED" => ConflictResponse(result.ErrorMessage),
             "RATE_LIMITED" => TooManyRequestsResponse(result.ErrorMessage),
             "SERVICE_UNAVAILABLE" => ServiceUnavailableResponse(result.ErrorMessage),
             _ => InternalServerErrorResponse(result.ErrorMessage),

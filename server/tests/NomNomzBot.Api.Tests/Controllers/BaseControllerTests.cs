@@ -257,4 +257,47 @@ public class BaseControllerTests
 
         result!.StatusCode.Should().Be(403);
     }
+
+    // ─── Economy codes (economy.md §5) ────────────────────────────────────────
+
+    [Theory]
+    [InlineData("INSUFFICIENT_FUNDS")]
+    [InlineData("ACCOUNT_FROZEN")]
+    [InlineData("CURRENCY_DISABLED")]
+    [InlineData("MAX_BALANCE_EXCEEDED")]
+    [InlineData("OUT_OF_STOCK")]
+    [InlineData("ON_COOLDOWN")]
+    [InlineData("JAR_NOT_OPEN")]
+    [InlineData("JAR_CAP_EXCEEDED")]
+    public void ResultResponse_EconomyConflictCodes_Return409(string code)
+    {
+        TestController ctrl = CreateController();
+        ObjectResult? result =
+            ctrl.TestResultResponse(Result.Failure("nope", code)) as ObjectResult;
+
+        result!.StatusCode.Should().Be(409);
+    }
+
+    [Theory]
+    [InlineData("JAR_MEMBERSHIP_REQUIRED")]
+    [InlineData("AGE_CONSENT_REQUIRED")]
+    [InlineData("GAMBLING_DISABLED")]
+    public void ResultResponse_EconomyForbiddenCodes_Return403(string code)
+    {
+        TestController ctrl = CreateController();
+        ObjectResult? result =
+            ctrl.TestResultResponse(Result.Failure("nope", code)) as ObjectResult;
+
+        result!.StatusCode.Should().Be(403);
+    }
+
+    [Fact]
+    public void ResultResponse_BetOutOfRange_Returns400()
+    {
+        TestController ctrl = CreateController();
+        ObjectResult? result =
+            ctrl.TestResultResponse(Result.Failure("nope", "BET_OUT_OF_RANGE")) as ObjectResult;
+
+        result!.StatusCode.Should().Be(400);
+    }
 }
