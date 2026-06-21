@@ -12,6 +12,7 @@ using System.Text.Json;
 using FluentAssertions;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.DTOs.Economy;
 using NomNomzBot.Application.Economy.Services;
 using NomNomzBot.Infrastructure.Economy.PipelineActions;
@@ -192,6 +193,65 @@ public sealed class EconomyPipelineActionsTests
                 Channel,
                 Arg.Is<JarContributeRequest>(c =>
                     c.JarId == Jar && c.ContributorUserId == Viewer && c.Amount == 25
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task PlayGame_resolves_the_game_by_type_and_publishes_the_outcome()
+    {
+        IGameService games = Substitute.For<IGameService>();
+        IRoleResolver roles = Substitute.For<IRoleResolver>();
+        Guid gameId = Guid.Parse("0192a000-0000-7000-8000-0000000000c9");
+        games
+            .ListGamesAsync(Channel, Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Success<IReadOnlyList<GameConfigDto>>([
+                    new GameConfigDto(
+                        gameId,
+                        "coinflip",
+                        "Gambling",
+                        true,
+                        false,
+                        null,
+                        null,
+                        null,
+                        50,
+                        2,
+                        0,
+                        null,
+                        "Everyone",
+                        null
+                    ),
+                ])
+            );
+        roles
+            .ResolveEffectiveLevelAsync(Viewer, Channel, Arg.Any<CancellationToken>())
+            .Returns(Result.Success(5));
+        games
+            .PlayAsync(Channel, Arg.Any<PlayGameRequest>(), Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Success(new GamePlayResultDto(1, "coinflip", "Win", 10, 20, 10, 110, null))
+            );
+        PlayGameAction sut = new(games, roles);
+        PipelineExecutionContext ctx = Context();
+
+        ActionResult result = await sut.ExecuteAsync(
+            ctx,
+            Action(("game_type", "coinflip"), ("bet", 10))
+        );
+
+        result.Succeeded.Should().BeTrue(result.ErrorMessage);
+        ctx.Variables["outcome"].Should().Be("Win");
+        ctx.Variables["payout"].Should().Be("20");
+        ctx.Variables["balance"].Should().Be("110");
+        await games
+            .Received(1)
+            .PlayAsync(
+                Channel,
+                Arg.Is<PlayGameRequest>(p =>
+                    p.GameConfigId == gameId && p.PlayerUserId == Viewer && p.RoleLevel == 5
                 ),
                 Arg.Any<CancellationToken>()
             );

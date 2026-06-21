@@ -223,6 +223,7 @@ public sealed class ActionDefinitionSeeder : ISeeder
         M("economy:earning-rules:write", Editor);
         M("economy:earning-rules:delete", Editor);
         M("economy:accounts:read", Mod);
+        M("economy:games:write", Broadcaster);
         M("economy:catalog:create", Editor);
         M("economy:catalog:update", Editor);
         M("economy:catalog:delete", Editor);
