@@ -330,6 +330,58 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "GameConfigs",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    BroadcasterId = table.Column<Guid>(type: "uuid", nullable: false),
+                    GameType = table.Column<string>(type: "character varying(30)", maxLength: 30, nullable: false),
+                    Category = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
+                    IsEnabled = table.Column<bool>(type: "boolean", nullable: false),
+                    Requires18Plus = table.Column<bool>(type: "boolean", nullable: false),
+                    MinBet = table.Column<long>(type: "bigint", nullable: true),
+                    MaxBet = table.Column<long>(type: "bigint", nullable: true),
+                    HouseEdgePercent = table.Column<decimal>(type: "numeric(5,2)", precision: 5, scale: 2, nullable: true),
+                    WinChancePercent = table.Column<decimal>(type: "numeric(5,2)", precision: 5, scale: 2, nullable: true),
+                    PayoutMultiplier = table.Column<decimal>(type: "numeric(8,2)", precision: 8, scale: 2, nullable: true),
+                    CooldownSeconds = table.Column<int>(type: "integer", nullable: false),
+                    MaxPlaysPerStream = table.Column<int>(type: "integer", nullable: true),
+                    ConfigJson = table.Column<string>(type: "text", nullable: true),
+                    Permission = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    DeletedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_GameConfigs", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "GamePlays",
+                columns: table => new
+                {
+                    Id = table.Column<long>(type: "bigint", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    BroadcasterId = table.Column<Guid>(type: "uuid", nullable: false),
+                    GameConfigId = table.Column<Guid>(type: "uuid", nullable: false),
+                    PlayerAccountId = table.Column<Guid>(type: "uuid", nullable: false),
+                    PlayerUserId = table.Column<Guid>(type: "uuid", nullable: false),
+                    BetAmount = table.Column<long>(type: "bigint", nullable: false),
+                    Outcome = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
+                    PayoutAmount = table.Column<long>(type: "bigint", nullable: false),
+                    NetResult = table.Column<long>(type: "bigint", nullable: false),
+                    ResultJson = table.Column<string>(type: "text", nullable: true),
+                    BetLedgerEntryId = table.Column<long>(type: "bigint", nullable: true),
+                    PayoutLedgerEntryId = table.Column<long>(type: "bigint", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_GamePlays", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "IamAuditLogs",
                 columns: table => new
                 {
@@ -605,6 +657,28 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_UserTtsVoices", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "ViewerAgeConsents",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    BroadcasterId = table.Column<Guid>(type: "uuid", nullable: false),
+                    ViewerUserId = table.Column<Guid>(type: "uuid", nullable: false),
+                    ViewerTwitchUserId = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
+                    ConsentRecordId = table.Column<Guid>(type: "uuid", nullable: false),
+                    Granted = table.Column<bool>(type: "boolean", nullable: false),
+                    ConfirmedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    RevokedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    ConfirmationMethod = table.Column<string>(type: "character varying(30)", maxLength: 30, nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    DeletedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ViewerAgeConsents", x => x.Id);
                 });
 
             migrationBuilder.CreateTable(
@@ -1743,6 +1817,21 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
+                name: "IX_GameConfigs_BroadcasterId_GameType",
+                table: "GameConfigs",
+                columns: new[] { "BroadcasterId", "GameType" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_GamePlays_BroadcasterId_GameConfigId",
+                table: "GamePlays",
+                columns: new[] { "BroadcasterId", "GameConfigId" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_GamePlays_BroadcasterId_PlayerUserId",
+                table: "GamePlays",
+                columns: new[] { "BroadcasterId", "PlayerUserId" });
+
+            migrationBuilder.CreateIndex(
                 name: "IX_IamAuditLogs_OccurredAt",
                 table: "IamAuditLogs",
                 column: "OccurredAt");
@@ -1956,6 +2045,11 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
+                name: "IX_ViewerAgeConsents_BroadcasterId_ViewerUserId",
+                table: "ViewerAgeConsents",
+                columns: new[] { "BroadcasterId", "ViewerUserId" });
+
+            migrationBuilder.CreateIndex(
                 name: "IX_WatchStreaks_BroadcasterId",
                 table: "WatchStreaks",
                 column: "BroadcasterId");
@@ -2042,6 +2136,12 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                 name: "EventSubSubscriptions");
 
             migrationBuilder.DropTable(
+                name: "GameConfigs");
+
+            migrationBuilder.DropTable(
+                name: "GamePlays");
+
+            migrationBuilder.DropTable(
                 name: "IamAuditLogs");
 
             migrationBuilder.DropTable(
@@ -2112,6 +2212,9 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
 
             migrationBuilder.DropTable(
                 name: "UserTtsVoices");
+
+            migrationBuilder.DropTable(
+                name: "ViewerAgeConsents");
 
             migrationBuilder.DropTable(
                 name: "WatchStreaks");

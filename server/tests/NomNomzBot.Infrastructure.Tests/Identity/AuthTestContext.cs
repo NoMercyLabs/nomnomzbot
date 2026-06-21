@@ -279,4 +279,10 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
         Set<NomNomzBot.Domain.Economy.Entities.CatalogItem>();
     public DbSet<NomNomzBot.Domain.Economy.Entities.CatalogPurchase> CatalogPurchases =>
         Set<NomNomzBot.Domain.Economy.Entities.CatalogPurchase>();
+    public DbSet<NomNomzBot.Domain.Economy.Entities.GameConfig> GameConfigs =>
+        Set<NomNomzBot.Domain.Economy.Entities.GameConfig>();
+    public DbSet<NomNomzBot.Domain.Economy.Entities.GamePlay> GamePlays =>
+        Set<NomNomzBot.Domain.Economy.Entities.GamePlay>();
+    public DbSet<NomNomzBot.Domain.Economy.Entities.ViewerAgeConsent> ViewerAgeConsents =>
+        Set<NomNomzBot.Domain.Economy.Entities.ViewerAgeConsent>();
 }

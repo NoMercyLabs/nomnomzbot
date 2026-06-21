@@ -91,6 +91,9 @@ public interface IApplicationDbContext
     DbSet<CurrencyLedgerEntry> CurrencyLedgerEntries { get; }
     DbSet<CatalogItem> CatalogItems { get; }
     DbSet<CatalogPurchase> CatalogPurchases { get; }
+    DbSet<GameConfig> GameConfigs { get; }
+    DbSet<GamePlay> GamePlays { get; }
+    DbSet<ViewerAgeConsent> ViewerAgeConsents { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

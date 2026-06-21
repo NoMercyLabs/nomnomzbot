@@ -14,7 +14,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260621013317_Initial")]
+    [Migration("20260621014757_Initial")]
     partial class Initial
     {
         /// <inheritdoc />
@@ -754,6 +754,184 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.HasIndex("BroadcasterId", "Source");
 
                     b.ToTable("EarningRules");
+                });
+
+            modelBuilder.Entity("NomNomzBot.Domain.Economy.Entities.GameConfig", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BroadcasterId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("ConfigJson")
+                        .HasColumnType("text");
+
+                    b.Property<int>("CooldownSeconds")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("GameType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<decimal?>("HouseEdgePercent")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)");
+
+                    b.Property<bool>("IsEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<long?>("MaxBet")
+                        .HasColumnType("bigint");
+
+                    b.Property<int?>("MaxPlaysPerStream")
+                        .HasColumnType("integer");
+
+                    b.Property<long?>("MinBet")
+                        .HasColumnType("bigint");
+
+                    b.Property<decimal?>("PayoutMultiplier")
+                        .HasPrecision(8, 2)
+                        .HasColumnType("numeric(8,2)");
+
+                    b.Property<string>("Permission")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<bool>("Requires18Plus")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal?>("WinChancePercent")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BroadcasterId", "GameType");
+
+                    b.ToTable("GameConfigs");
+                });
+
+            modelBuilder.Entity("NomNomzBot.Domain.Economy.Entities.GamePlay", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("BetAmount")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("BetLedgerEntryId")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid>("BroadcasterId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("GameConfigId")
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("NetResult")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Outcome")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<long>("PayoutAmount")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("PayoutLedgerEntryId")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid>("PlayerAccountId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("PlayerUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ResultJson")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BroadcasterId", "GameConfigId");
+
+                    b.HasIndex("BroadcasterId", "PlayerUserId");
+
+                    b.ToTable("GamePlays");
+                });
+
+            modelBuilder.Entity("NomNomzBot.Domain.Economy.Entities.ViewerAgeConsent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BroadcasterId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ConfirmationMethod")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<DateTime>("ConfirmedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("ConsentRecordId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("Granted")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("RevokedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ViewerTwitchUserId")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<Guid>("ViewerUserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BroadcasterId", "ViewerUserId");
+
+                    b.ToTable("ViewerAgeConsents");
                 });
 
             modelBuilder.Entity("NomNomzBot.Domain.EventStore.Entities.EventJournal", b =>

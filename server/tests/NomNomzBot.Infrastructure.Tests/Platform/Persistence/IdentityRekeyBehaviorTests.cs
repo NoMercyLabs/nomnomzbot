@@ -429,5 +429,11 @@ public sealed class IdentityRekeyBehaviorTests
             throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.Economy.Entities.CatalogPurchase> CatalogPurchases =>
             throw new NotSupportedException();
+        public DbSet<NomNomzBot.Domain.Economy.Entities.GameConfig> GameConfigs =>
+            throw new NotSupportedException();
+        public DbSet<NomNomzBot.Domain.Economy.Entities.GamePlay> GamePlays =>
+            throw new NotSupportedException();
+        public DbSet<NomNomzBot.Domain.Economy.Entities.ViewerAgeConsent> ViewerAgeConsents =>
+            throw new NotSupportedException();
     }
 }
