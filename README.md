@@ -6,11 +6,19 @@ a visual pipeline engine, and integrations (Spotify, Discord, YouTube, TTS).
 
 ## Status
 
-- **Backend (`server/`)** — live and the only supported component today. .NET 10 / C# clean
-  architecture, PostgreSQL + Redis, Twitch OAuth + EventSub + IRC, SignalR, Serilog.
-- **Frontend** — the previous Expo/React Native app was removed. A replacement is being
-  reconsidered and is **not yet decided**. There is no shipping UI right now; the API is driven
-  directly (Scalar docs, HTTP clients, overlays).
+- **Backend (`server/`)** — the live, supported component. .NET 10 / C# clean architecture,
+  PostgreSQL + Redis, Twitch OAuth + Helix + EventSub (WebSocket) + IRC, SignalR, Serilog.
+  Built and tested: identity/auth, the Twitch Helix + EventSub integration, moderation,
+  channel-point rewards, the visual pipeline engine, timers, TTS, widgets/overlays, community,
+  and dashboard. **Roles & permissions** — a full three-plane authorization subsystem (community
+  standing ∪ channel-management role ∪ `!permit` delegation on one numeric ladder; Gate-1 tenant
+  resolution + Gate-2 per-action gating via `[RequireAction]`; platform IAM) — is complete. The
+  **economy** is in progress: the atomic currency ledger, earning rules, and store catalog are
+  built and proven against a real database; cross-channel savings jars, games, and leaderboards
+  are next. ~850 tests green across four suites.
+- **Frontend** — **Kotlin Multiplatform + Compose Multiplatform** (one codebase, desktop + web/Wasm
+  identical UI; mobile later). The previous Expo/React Native app was removed. The dashboard app is
+  **not built yet** — today the API is driven directly (Scalar docs, HTTP clients, overlays).
 
 ## Tech stack
 

@@ -221,14 +221,12 @@ Tenant context is resolved in `TenantResolutionMiddleware` from three sources (i
 2. `X-Channel-Id` request header
 3. `?channelId=` query string
 
-The authenticated user's ID comes from the JWT `sub` claim (Twitch user ID). Controllers use `IApplicationDbContext` with EF Core global query filters that enforce `BroadcasterId == tenantId` or `UserId == userId` at the ORM level.
+The authenticated user's ID comes from the JWT `sub` claim. Controllers use `IApplicationDbContext` with EF Core global query filters that enforce `BroadcasterId == tenantId` at the ORM level. **`TenantResolutionMiddleware` validates the requested tenant before setting it** — via `IChannelAccessService.CanResolveTenantAsync`, which grants access only for the caller's own channel, an active moderator grant, an active management membership (roles-permissions Gate 1, §3.1), or a platform principal; everything else fails closed. Per-action authorization is then enforced by the **roles-permissions Gate 2** (`[RequireAction("<key>")]` → `IActionAuthorizationService`), comparing the caller's resolved level to the action's floor-clamped required level.
 
 ### Gaps & Vulnerabilities
 
-**🟠 HIGH — Tenant ID supplied by client, not validated by middleware**
-`TenantResolutionMiddleware` sets the tenant context from the request without verifying the authenticated user has access to that channel. Ownership validation must happen in every service call. If any service ever queries by `tenantId` from the context without also checking `UserId`, a user could read another user's data by passing a different `channelId`.
-
-This is not a vulnerability in the middleware design (validation is correct at service layer), but it is a **class of bug** that will be introduced as the codebase grows. The risk is that a developer adds a new endpoint, queries by `TenantId` from context, and forgets to also gate by `UserId`.
+**🟢 RESOLVED — Tenant access is validated by the middleware**
+Previously the middleware set the tenant context from the request without verifying access. It now calls `IChannelAccessService.CanResolveTenantAsync` (own channel / moderator grant / management membership / platform principal) before setting the tenant, so passing another channel's `channelId` is rejected at the boundary. Service-layer queries remain tenant-filtered as defence in depth.
 
 **🟡 MEDIUM — No integration test for cross-tenant access**
 There are no tests that assert User A cannot access User B's resources. The EF global query filters provide protection only if they are configured correctly and not bypassed with `IgnoreQueryFilters()`.
@@ -244,15 +242,8 @@ Add integration tests that:
 - Assert UserA cannot read/write UserB's commands, timers, rewards, chat history
 - Assert querying with UserA's JWT and UserB's channel ID is rejected
 
-**Fix 2 — Centralize tenant ownership assertion (MEDIUM)**
-Add a guard method on `BaseController` or a service:
-```csharp
-protected async Task<bool> UserOwnsChannelAsync(string channelId, CancellationToken ct)
-{
-    return await _db.Channels.AnyAsync(c => c.Id == channelId && c.OwnerId == CurrentUserId, ct);
-}
-```
-Call this at the controller level before delegating to services for any cross-tenant action.
+**Fix 2 — Centralize tenant ownership assertion — ✅ DONE**
+This is now `IChannelAccessService.CanResolveTenantAsync(userId, channelId)`, called by `TenantResolutionMiddleware` before the tenant is set (own channel / moderator grant / management membership / platform principal; fails closed). It has DB-level behaviour tests (`ChannelAccessServiceTests`); the broader HTTP cross-tenant suite of Fix 1 is still outstanding.
 
 ---
 
