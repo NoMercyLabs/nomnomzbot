@@ -84,11 +84,13 @@ public interface IApplicationDbContext
     DbSet<IamRoleAssignment> IamRoleAssignments { get; }
     DbSet<IamAuditLog> IamAuditLogs { get; }
 
-    // Economy — currency core (economy.md K.1-K.3).
+    // Economy — currency core (economy.md K.1-K.3) + catalog (K.10-K.11).
     DbSet<CurrencyConfig> CurrencyConfigs { get; }
     DbSet<EarningRule> EarningRules { get; }
     DbSet<CurrencyAccount> CurrencyAccounts { get; }
     DbSet<CurrencyLedgerEntry> CurrencyLedgerEntries { get; }
+    DbSet<CatalogItem> CatalogItems { get; }
+    DbSet<CatalogPurchase> CatalogPurchases { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

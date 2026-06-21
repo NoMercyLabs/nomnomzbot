@@ -58,6 +58,58 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "CatalogItems",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    BroadcasterId = table.Column<Guid>(type: "uuid", nullable: false),
+                    Name = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
+                    NameNormalized = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
+                    Description = table.Column<string>(type: "text", nullable: true),
+                    SinkType = table.Column<string>(type: "character varying(30)", maxLength: 30, nullable: false),
+                    Cost = table.Column<long>(type: "bigint", nullable: false),
+                    IconUrl = table.Column<string>(type: "text", nullable: true),
+                    IsEnabled = table.Column<bool>(type: "boolean", nullable: false),
+                    Permission = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
+                    PipelineId = table.Column<Guid>(type: "uuid", nullable: true),
+                    CooldownSeconds = table.Column<int>(type: "integer", nullable: false),
+                    CooldownPerUser = table.Column<bool>(type: "boolean", nullable: false),
+                    StockLimit = table.Column<int>(type: "integer", nullable: true),
+                    StockRemaining = table.Column<int>(type: "integer", nullable: true),
+                    MaxPerViewerPerStream = table.Column<int>(type: "integer", nullable: true),
+                    SortOrder = table.Column<int>(type: "integer", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    DeletedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_CatalogItems", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "CatalogPurchases",
+                columns: table => new
+                {
+                    Id = table.Column<long>(type: "bigint", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    BroadcasterId = table.Column<Guid>(type: "uuid", nullable: false),
+                    CatalogItemId = table.Column<Guid>(type: "uuid", nullable: false),
+                    BuyerAccountId = table.Column<Guid>(type: "uuid", nullable: false),
+                    BuyerUserId = table.Column<Guid>(type: "uuid", nullable: false),
+                    CostPaid = table.Column<long>(type: "bigint", nullable: false),
+                    ItemNameSnapshot = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
+                    Status = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
+                    LedgerEntryId = table.Column<long>(type: "bigint", nullable: true),
+                    InputArgs = table.Column<string>(type: "text", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_CatalogPurchases", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "ChannelActionOverrides",
                 columns: table => new
                 {
@@ -1462,6 +1514,21 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                 columns: new[] { "Platform", "IdentityType" });
 
             migrationBuilder.CreateIndex(
+                name: "IX_CatalogItems_BroadcasterId_NameNormalized",
+                table: "CatalogItems",
+                columns: new[] { "BroadcasterId", "NameNormalized" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_CatalogPurchases_BroadcasterId_BuyerUserId",
+                table: "CatalogPurchases",
+                columns: new[] { "BroadcasterId", "BuyerUserId" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_CatalogPurchases_BroadcasterId_CatalogItemId",
+                table: "CatalogPurchases",
+                columns: new[] { "BroadcasterId", "CatalogItemId" });
+
+            migrationBuilder.CreateIndex(
                 name: "IX_ChannelActionOverrides_BroadcasterId_ActionDefinitionId",
                 table: "ChannelActionOverrides",
                 columns: new[] { "BroadcasterId", "ActionDefinitionId" });
@@ -1904,6 +1971,12 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
         {
             migrationBuilder.DropTable(
                 name: "ActionDefinitions");
+
+            migrationBuilder.DropTable(
+                name: "CatalogItems");
+
+            migrationBuilder.DropTable(
+                name: "CatalogPurchases");
 
             migrationBuilder.DropTable(
                 name: "ChannelActionOverrides");

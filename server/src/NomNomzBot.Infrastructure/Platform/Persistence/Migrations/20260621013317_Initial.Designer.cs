@@ -14,7 +14,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260621005253_Initial")]
+    [Migration("20260621013317_Initial")]
     partial class Initial
     {
         /// <inheritdoc />
@@ -405,6 +405,135 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.HasIndex("BroadcasterId");
 
                     b.ToTable("DiscordServerAuthorizations");
+                });
+
+            modelBuilder.Entity("NomNomzBot.Domain.Economy.Entities.CatalogItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BroadcasterId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("CooldownPerUser")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("CooldownSeconds")
+                        .HasColumnType("integer");
+
+                    b.Property<long>("Cost")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text");
+
+                    b.Property<string>("IconUrl")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<int?>("MaxPerViewerPerStream")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("NameNormalized")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Permission")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<Guid?>("PipelineId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("SinkType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("StockLimit")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("StockRemaining")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BroadcasterId", "NameNormalized");
+
+                    b.ToTable("CatalogItems");
+                });
+
+            modelBuilder.Entity("NomNomzBot.Domain.Economy.Entities.CatalogPurchase", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<Guid>("BroadcasterId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BuyerAccountId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BuyerUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CatalogItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("CostPaid")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("InputArgs")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ItemNameSnapshot")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<long?>("LedgerEntryId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BroadcasterId", "BuyerUserId");
+
+                    b.HasIndex("BroadcasterId", "CatalogItemId");
+
+                    b.ToTable("CatalogPurchases");
                 });
 
             modelBuilder.Entity("NomNomzBot.Domain.Economy.Entities.CurrencyAccount", b =>

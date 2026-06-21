@@ -275,4 +275,8 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
         Set<NomNomzBot.Domain.Economy.Entities.CurrencyAccount>();
     public DbSet<NomNomzBot.Domain.Economy.Entities.CurrencyLedgerEntry> CurrencyLedgerEntries =>
         Set<NomNomzBot.Domain.Economy.Entities.CurrencyLedgerEntry>();
+    public DbSet<NomNomzBot.Domain.Economy.Entities.CatalogItem> CatalogItems =>
+        Set<NomNomzBot.Domain.Economy.Entities.CatalogItem>();
+    public DbSet<NomNomzBot.Domain.Economy.Entities.CatalogPurchase> CatalogPurchases =>
+        Set<NomNomzBot.Domain.Economy.Entities.CatalogPurchase>();
 }

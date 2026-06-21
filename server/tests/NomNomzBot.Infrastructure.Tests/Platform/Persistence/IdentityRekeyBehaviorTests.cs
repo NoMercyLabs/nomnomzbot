@@ -425,5 +425,9 @@ public sealed class IdentityRekeyBehaviorTests
             throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.Economy.Entities.CurrencyLedgerEntry> CurrencyLedgerEntries =>
             throw new NotSupportedException();
+        public DbSet<NomNomzBot.Domain.Economy.Entities.CatalogItem> CatalogItems =>
+            throw new NotSupportedException();
+        public DbSet<NomNomzBot.Domain.Economy.Entities.CatalogPurchase> CatalogPurchases =>
+            throw new NotSupportedException();
     }
 }
