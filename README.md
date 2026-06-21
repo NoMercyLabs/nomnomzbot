@@ -13,9 +13,10 @@ a visual pipeline engine, and integrations (Spotify, Discord, YouTube, TTS).
   and dashboard. **Roles & permissions** — a full three-plane authorization subsystem (community
   standing ∪ channel-management role ∪ `!permit` delegation on one numeric ladder; Gate-1 tenant
   resolution + Gate-2 per-action gating via `[RequireAction]`; platform IAM) — is complete. The
-  **economy** is in progress: the atomic currency ledger, earning rules, and store catalog are
-  built and proven against a real database; cross-channel savings jars, games, and leaderboards
-  are next. ~850 tests green across four suites.
+  **economy** is in progress: the atomic currency ledger, earning rules, the store catalog, and
+  cross-channel savings jars are built and proven against a real database; leaderboards are next,
+  and the games / 18+ gambling gate is parked pending its cross-subsystem dependencies (a consent
+  audit ledger + Twitch account-age/type identity fields). ~855 tests green across four suites.
 - **Frontend** — **Kotlin Multiplatform + Compose Multiplatform** (one codebase, desktop + web/Wasm
   identical UI; mobile later). The previous Expo/React Native app was removed. The dashboard app is
   **not built yet** — today the API is driven directly (Scalar docs, HTTP clients, overlays).
