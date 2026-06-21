@@ -140,6 +140,17 @@ try
 
     builder.Services.AddAuthorization();
 
+    // Roles-permissions Gate 2 (§6): a dynamic policy provider that synthesizes a policy for any
+    // rbac:<actionKey> name + the handler that enforces it via IActionAuthorizationService.
+    builder.Services.AddSingleton<
+        Microsoft.AspNetCore.Authorization.IAuthorizationPolicyProvider,
+        NomNomzBot.Api.Authorization.ActionAuthorizationPolicyProvider
+    >();
+    builder.Services.AddScoped<
+        Microsoft.AspNetCore.Authorization.IAuthorizationHandler,
+        NomNomzBot.Api.Authorization.ActionAuthorizationHandler
+    >();
+
     // Rate limiting — per-user (or per-IP for anonymous) fixed window
     builder.Services.AddRateLimiter(options =>
     {
