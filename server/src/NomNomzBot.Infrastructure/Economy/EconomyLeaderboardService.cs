@@ -18,12 +18,12 @@ using NomNomzBot.Domain.Economy.Entities;
 namespace NomNomzBot.Infrastructure.Economy;
 
 /// <summary>
-/// Economy leaderboards (economy.md §3.8). Rankings are computed live from the <see cref="CurrencyAccount"/>
-/// projections (balance / lifetime earned / lifetime spent), excluding opted-out viewers; closed periods freeze
-/// into append-only snapshots. (Deferred — documented: jar-scope rankings and period-windowed metrics — the
-/// live ranking uses the all-time account projection regardless of <c>Period</c>; the display name falls back
-/// to the account's Twitch id pending a Users-join enrichment; and the opt-out's ConsentRecords marker awaits
-/// the unbuilt ConsentRecords O.5 ledger.)
+/// Economy leaderboards (economy.md §3.8), excluding opted-out viewers; closed periods freeze into append-only
+/// snapshots. An <c>alltime</c> ranking (and any <c>balance</c> metric) reads the <see cref="CurrencyAccount"/>
+/// projection; a bounded period (daily / weekly / monthly) folds the ledger over the window for the earned /
+/// spent metrics. (Deferred — documented: jar-scope rankings; the display name falls back to the account's
+/// Twitch id pending a Users-join enrichment; and the opt-out's ConsentRecords marker awaits the IConsentService
+/// owner of the now-built ConsentRecords ledger.)
 /// </summary>
 public sealed class EconomyLeaderboardService(IApplicationDbContext db, TimeProvider clock)
     : IEconomyLeaderboardService
@@ -284,28 +284,95 @@ public sealed class EconomyLeaderboardService(IApplicationDbContext db, TimeProv
             .Select(o => o.ViewerUserId)
             .ToListAsync(ct);
 
+        string metric = config.Metric.ToLowerInvariant();
+        // Balance is point-in-time (no window); earned/spent over a BOUNDED period fold the ledger.
+        DateTime? windowStart = metric == "balance" ? null : PeriodStart(config.Period);
+        if (windowStart is DateTime since)
+            return await RankByLedgerWindowAsync(broadcasterId, metric, since, optedOut, take, ct);
+
         IQueryable<CurrencyAccount> query = db.CurrencyAccounts.Where(a =>
             a.BroadcasterId == broadcasterId
             && a.DeletedAt == null
             && !optedOut.Contains(a.ViewerUserId)
         );
-        query = config.Metric.ToLowerInvariant() switch
+        query = metric switch
         {
             "earned" => query.OrderByDescending(a => a.LifetimeEarned),
             "spent" => query.OrderByDescending(a => a.LifetimeSpent),
             _ => query.OrderByDescending(a => a.Balance),
         };
         List<CurrencyAccount> rows = await query.Take(take).ToListAsync(ct);
-        return [.. rows.Select(a => (a, MetricValue(config.Metric, a)))];
+        return [.. rows.Select(a => (a, MetricValue(metric, a)))];
+    }
+
+    /// <summary>Ranks earned/spent over the period window by folding the ledger (positive inflow / absolute outflow).</summary>
+    private async Task<List<(CurrencyAccount Account, long Value)>> RankByLedgerWindowAsync(
+        Guid broadcasterId,
+        string metric,
+        DateTime since,
+        List<Guid> optedOut,
+        int take,
+        CancellationToken ct
+    )
+    {
+        IQueryable<CurrencyLedgerEntry> entries = db.CurrencyLedgerEntries.Where(e =>
+            e.BroadcasterId == broadcasterId
+            && e.CreatedAt >= since
+            && !optedOut.Contains(e.ViewerUserId)
+        );
+        entries =
+            metric == "spent" ? entries.Where(e => e.Amount < 0) : entries.Where(e => e.Amount > 0);
+
+        // Aggregate the per-viewer sums DB-side, then order + take in memory (the InMemory test provider
+        // cannot translate an OrderBy over a GroupBy projection; the group set is bounded by viewer count).
+        List<ViewerTotal> totals = await entries
+            .GroupBy(e => e.ViewerUserId)
+            .Select(g => new ViewerTotal(g.Key, g.Sum(e => e.Amount)))
+            .ToListAsync(ct);
+        List<ViewerTotal> top =
+        [
+            .. (
+                metric == "spent"
+                    ? totals.OrderBy(t => t.Total) // most negative = most spent
+                    : totals.OrderByDescending(t => t.Total)
+            ).Take(take),
+        ];
+
+        List<Guid> ids = [.. top.Select(t => t.ViewerUserId)];
+        Dictionary<Guid, CurrencyAccount> accounts = await db
+            .CurrencyAccounts.Where(a =>
+                a.BroadcasterId == broadcasterId && ids.Contains(a.ViewerUserId)
+            )
+            .ToDictionaryAsync(a => a.ViewerUserId, ct);
+
+        List<(CurrencyAccount, long)> result = [];
+        foreach (ViewerTotal t in top)
+            if (accounts.TryGetValue(t.ViewerUserId, out CurrencyAccount? account))
+                result.Add((account, metric == "spent" ? -t.Total : t.Total));
+        return result;
+    }
+
+    private DateTime? PeriodStart(string period)
+    {
+        DateTime now = clock.GetUtcNow().UtcDateTime;
+        return period.ToLowerInvariant() switch
+        {
+            "daily" => now.Date,
+            "weekly" => now.Date.AddDays(-(int)now.DayOfWeek),
+            "monthly" => new DateTime(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc),
+            _ => null, // alltime / unknown → the lifetime projection
+        };
     }
 
     private static long MetricValue(string metric, CurrencyAccount a) =>
-        metric.ToLowerInvariant() switch
+        metric switch
         {
             "earned" => a.LifetimeEarned,
             "spent" => a.LifetimeSpent,
             _ => a.Balance,
         };
+
+    private readonly record struct ViewerTotal(Guid ViewerUserId, long Total);
 
     private static LeaderboardConfigDto ToDto(LeaderboardConfig c) =>
         new(

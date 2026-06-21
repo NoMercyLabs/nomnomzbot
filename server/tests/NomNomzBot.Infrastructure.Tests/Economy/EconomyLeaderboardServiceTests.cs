@@ -14,6 +14,7 @@ using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.DTOs.Economy;
 using NomNomzBot.Domain.Economy.Entities;
+using NomNomzBot.Domain.Economy.Enums;
 using NomNomzBot.Infrastructure.Economy;
 using NomNomzBot.Infrastructure.Tests.Identity;
 
@@ -48,6 +49,26 @@ public sealed class EconomyLeaderboardServiceTests
                 ViewerTwitchUserId = viewer.ToString()[..8],
                 Balance = balance,
                 LifetimeEarned = balance,
+            }
+        );
+    }
+
+    private static long _ledgerSeq;
+
+    private static void SeedLedger(AuthDbContext db, Guid viewer, long amount, DateTime createdAt)
+    {
+        db.CurrencyLedgerEntries.Add(
+            new CurrencyLedgerEntry
+            {
+                BroadcasterId = Channel,
+                TenantPosition = ++_ledgerSeq,
+                AccountId = Guid.NewGuid(),
+                ViewerUserId = viewer,
+                ViewerTwitchUserId = string.Empty,
+                Amount = amount,
+                BalanceAfter = amount,
+                EntryType = CurrencyEntryType.EarnChat,
+                CreatedAt = createdAt,
             }
         );
     }
@@ -158,5 +179,40 @@ public sealed class EconomyLeaderboardServiceTests
         frozen.Should().HaveCount(2);
         frozen[0].SubjectUserId.Should().Be(V3);
         frozen[0].Value.Should().Be(200);
+    }
+
+    [Fact]
+    public async Task A_monthly_ranking_folds_only_the_current_month_ledger()
+    {
+        (EconomyLeaderboardService sut, AuthDbContext db) = Build();
+        SeedAccount(db, V1, 0);
+        SeedAccount(db, V2, 0);
+        SeedLedger(db, V1, 100, new DateTime(2026, 6, 10)); // this month — counts
+        SeedLedger(db, V1, 500, new DateTime(2026, 5, 1)); // last month — excluded
+        SeedLedger(db, V2, 50, new DateTime(2026, 6, 15)); // this month — counts
+        await db.SaveChangesAsync();
+        Guid configId = (
+            await sut.UpsertConfigAsync(
+                Channel,
+                new UpsertLeaderboardConfigRequest(
+                    null,
+                    "earned",
+                    "channel",
+                    "monthly",
+                    true,
+                    10,
+                    null
+                )
+            )
+        )
+            .Value
+            .Id;
+
+        IReadOnlyList<LeaderboardEntryDto> ranking = (
+            await sut.GetRankingAsync(Channel, configId, top: null)
+        ).Value;
+
+        ranking.Select(r => r.SubjectUserId).Should().ContainInOrder(V1, V2);
+        ranking[0].Value.Should().Be(100); // only the in-month +100, NOT the all-time 600
     }
 }
