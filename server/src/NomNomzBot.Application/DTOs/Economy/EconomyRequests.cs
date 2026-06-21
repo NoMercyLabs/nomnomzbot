@@ -65,3 +65,28 @@ public sealed record AdminAdjustCommand(
     string Reason,
     Guid ActorUserId
 );
+
+/// <summary>An engagement event to accrue currency for (economy.md §4). <see cref="Source"/> is an <c>EarningSource</c> token.</summary>
+public sealed record EarnRequest(
+    Guid ViewerUserId,
+    string Source,
+    long Units,
+    Guid? EventId,
+    int? ViewerRoleLevel,
+    IReadOnlyDictionary<string, object?>? Context
+);
+
+/// <summary>The watch-time presence sweep batch (economy.md §4).</summary>
+public sealed record WatchTimeBatchRequest(
+    IReadOnlyList<WatchTimeViewer> Viewers,
+    int WindowSeconds,
+    Guid? StreamId
+);
+
+/// <summary>One viewer in a watch-time sweep (economy.md §4).</summary>
+public sealed record WatchTimeViewer(
+    Guid ViewerUserId,
+    int PresentSeconds,
+    bool PresenceVerified,
+    int RoleLevel
+);

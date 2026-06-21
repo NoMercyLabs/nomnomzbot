@@ -71,3 +71,6 @@ public sealed record CurrencyLedgerEntryDto(
 
 /// <summary>The linked debit + credit pair produced by a transfer (economy.md §4).</summary>
 public sealed record TransferResultDto(CurrencyLedgerEntryDto Debit, CurrencyLedgerEntryDto Credit);
+
+/// <summary>The outcome of applying an earning rule to one viewer (economy.md §4).</summary>
+public sealed record EarnResultDto(Guid ViewerUserId, long AmountCredited, bool Capped);
