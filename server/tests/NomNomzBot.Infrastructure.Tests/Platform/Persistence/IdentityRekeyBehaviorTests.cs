@@ -405,5 +405,17 @@ public sealed class IdentityRekeyBehaviorTests
             throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.Identity.Entities.PermitGrant> PermitGrants =>
             throw new NotSupportedException();
+        public DbSet<NomNomzBot.Domain.Identity.Entities.IamPermission> IamPermissions =>
+            throw new NotSupportedException();
+        public DbSet<NomNomzBot.Domain.Identity.Entities.IamRole> IamRoles =>
+            throw new NotSupportedException();
+        public DbSet<NomNomzBot.Domain.Identity.Entities.IamRolePermission> IamRolePermissions =>
+            throw new NotSupportedException();
+        public DbSet<NomNomzBot.Domain.Identity.Entities.IamPrincipal> IamPrincipals =>
+            throw new NotSupportedException();
+        public DbSet<NomNomzBot.Domain.Identity.Entities.IamRoleAssignment> IamRoleAssignments =>
+            throw new NotSupportedException();
+        public DbSet<NomNomzBot.Domain.Identity.Entities.IamAuditLog> IamAuditLogs =>
+            throw new NotSupportedException();
     }
 }

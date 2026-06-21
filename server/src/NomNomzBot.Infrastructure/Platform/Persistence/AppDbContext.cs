@@ -131,6 +131,14 @@ public class AppDbContext : DbContext, IApplicationDbContext
     public DbSet<ChannelActionOverride> ChannelActionOverrides => Set<ChannelActionOverride>();
     public DbSet<PermitGrant> PermitGrants => Set<PermitGrant>();
 
+    // Platform IAM (Plane C)
+    public DbSet<IamPermission> IamPermissions => Set<IamPermission>();
+    public DbSet<IamRole> IamRoles => Set<IamRole>();
+    public DbSet<IamRolePermission> IamRolePermissions => Set<IamRolePermission>();
+    public DbSet<IamPrincipal> IamPrincipals => Set<IamPrincipal>();
+    public DbSet<IamRoleAssignment> IamRoleAssignments => Set<IamRoleAssignment>();
+    public DbSet<IamAuditLog> IamAuditLogs => Set<IamAuditLog>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

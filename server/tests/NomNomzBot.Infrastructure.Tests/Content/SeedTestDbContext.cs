@@ -105,6 +105,18 @@ public sealed class SeedTestDbContext : DbContext, IApplicationDbContext
         Set<NomNomzBot.Domain.Identity.Entities.ChannelActionOverride>();
     public DbSet<NomNomzBot.Domain.Identity.Entities.PermitGrant> PermitGrants =>
         Set<NomNomzBot.Domain.Identity.Entities.PermitGrant>();
+    public DbSet<NomNomzBot.Domain.Identity.Entities.IamPermission> IamPermissions =>
+        Set<NomNomzBot.Domain.Identity.Entities.IamPermission>();
+    public DbSet<NomNomzBot.Domain.Identity.Entities.IamRole> IamRoles =>
+        Set<NomNomzBot.Domain.Identity.Entities.IamRole>();
+    public DbSet<NomNomzBot.Domain.Identity.Entities.IamRolePermission> IamRolePermissions =>
+        Set<NomNomzBot.Domain.Identity.Entities.IamRolePermission>();
+    public DbSet<NomNomzBot.Domain.Identity.Entities.IamPrincipal> IamPrincipals =>
+        Set<NomNomzBot.Domain.Identity.Entities.IamPrincipal>();
+    public DbSet<NomNomzBot.Domain.Identity.Entities.IamRoleAssignment> IamRoleAssignments =>
+        Set<NomNomzBot.Domain.Identity.Entities.IamRoleAssignment>();
+    public DbSet<NomNomzBot.Domain.Identity.Entities.IamAuditLog> IamAuditLogs =>
+        Set<NomNomzBot.Domain.Identity.Entities.IamAuditLog>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

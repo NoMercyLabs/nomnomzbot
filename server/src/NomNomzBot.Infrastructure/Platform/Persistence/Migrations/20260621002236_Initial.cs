@@ -183,6 +183,119 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "IamAuditLogs",
+                columns: table => new
+                {
+                    Id = table.Column<long>(type: "bigint", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    PrincipalId = table.Column<Guid>(type: "uuid", nullable: false),
+                    PrincipalType = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
+                    Permission = table.Column<string>(type: "character varying(60)", maxLength: 60, nullable: false),
+                    TargetBroadcasterId = table.Column<Guid>(type: "uuid", nullable: true),
+                    TargetResource = table.Column<string>(type: "character varying(150)", maxLength: 150, nullable: true),
+                    Justification = table.Column<string>(type: "text", nullable: true),
+                    BreakGlass = table.Column<bool>(type: "boolean", nullable: false),
+                    Outcome = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
+                    SourceIpCipher = table.Column<string>(type: "character varying(255)", maxLength: 255, nullable: true),
+                    OccurredAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_IamAuditLogs", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "IamPermissions",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    Key = table.Column<string>(type: "character varying(60)", maxLength: 60, nullable: false),
+                    Category = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
+                    IsSensitive = table.Column<bool>(type: "boolean", nullable: false),
+                    Description = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_IamPermissions", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "IamPrincipals",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    PrincipalType = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
+                    UserId = table.Column<Guid>(type: "uuid", nullable: true),
+                    Name = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
+                    EmailCipher = table.Column<string>(type: "character varying(512)", maxLength: 512, nullable: true),
+                    SubjectKeyId = table.Column<Guid>(type: "uuid", nullable: true),
+                    ServiceAccountKeyHash = table.Column<string>(type: "character varying(128)", maxLength: 128, nullable: true),
+                    IsActive = table.Column<bool>(type: "boolean", nullable: false),
+                    ExpiresAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    DeletedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_IamPrincipals", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "IamRoleAssignments",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    PrincipalId = table.Column<Guid>(type: "uuid", nullable: false),
+                    RoleId = table.Column<Guid>(type: "uuid", nullable: false),
+                    ScopeChannelId = table.Column<Guid>(type: "uuid", nullable: true),
+                    AssignedByPrincipalId = table.Column<Guid>(type: "uuid", nullable: true),
+                    ExpiresAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    RevokedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    Reason = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_IamRoleAssignments", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "IamRolePermissions",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    RoleId = table.Column<Guid>(type: "uuid", nullable: false),
+                    PermissionId = table.Column<Guid>(type: "uuid", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_IamRolePermissions", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "IamRoles",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    Name = table.Column<string>(type: "character varying(40)", maxLength: 40, nullable: false),
+                    IsSystem = table.Column<bool>(type: "boolean", nullable: false),
+                    Description = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    DeletedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_IamRoles", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "IdempotencyKeys",
                 columns: table => new
                 {
@@ -1442,6 +1555,43 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
+                name: "IX_IamAuditLogs_OccurredAt",
+                table: "IamAuditLogs",
+                column: "OccurredAt");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_IamAuditLogs_PrincipalId",
+                table: "IamAuditLogs",
+                column: "PrincipalId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_IamPermissions_Key",
+                table: "IamPermissions",
+                column: "Key",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_IamPrincipals_UserId",
+                table: "IamPrincipals",
+                column: "UserId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_IamRoleAssignments_PrincipalId_RoleId",
+                table: "IamRoleAssignments",
+                columns: new[] { "PrincipalId", "RoleId" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_IamRolePermissions_RoleId_PermissionId",
+                table: "IamRolePermissions",
+                columns: new[] { "RoleId", "PermissionId" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_IamRoles_Name",
+                table: "IamRoles",
+                column: "Name");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_IdempotencyKey_ExpiresAt",
                 table: "IdempotencyKeys",
                 column: "ExpiresAt");
@@ -1684,6 +1834,24 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
 
             migrationBuilder.DropTable(
                 name: "EventSubSubscriptions");
+
+            migrationBuilder.DropTable(
+                name: "IamAuditLogs");
+
+            migrationBuilder.DropTable(
+                name: "IamPermissions");
+
+            migrationBuilder.DropTable(
+                name: "IamPrincipals");
+
+            migrationBuilder.DropTable(
+                name: "IamRoleAssignments");
+
+            migrationBuilder.DropTable(
+                name: "IamRolePermissions");
+
+            migrationBuilder.DropTable(
+                name: "IamRoles");
 
             migrationBuilder.DropTable(
                 name: "IdempotencyKeys");

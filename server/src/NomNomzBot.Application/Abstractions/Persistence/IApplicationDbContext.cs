@@ -75,5 +75,13 @@ public interface IApplicationDbContext
     DbSet<ChannelActionOverride> ChannelActionOverrides { get; }
     DbSet<PermitGrant> PermitGrants { get; }
 
+    // Platform IAM (Plane C) — SaaS operator/admin access control. Empty on self-host (owner = full).
+    DbSet<IamPermission> IamPermissions { get; }
+    DbSet<IamRole> IamRoles { get; }
+    DbSet<IamRolePermission> IamRolePermissions { get; }
+    DbSet<IamPrincipal> IamPrincipals { get; }
+    DbSet<IamRoleAssignment> IamRoleAssignments { get; }
+    DbSet<IamAuditLog> IamAuditLogs { get; }
+
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }
