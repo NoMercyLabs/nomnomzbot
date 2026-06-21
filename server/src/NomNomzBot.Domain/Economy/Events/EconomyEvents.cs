@@ -61,3 +61,26 @@ public sealed class LedgerEntryRecordedEvent : DomainEventBase
     public required long Amount { get; init; }
     public required string EntryType { get; init; }
 }
+
+/// <summary>A catalog purchase completed (after the debit) — <c>economy.catalog.purchased</c>.</summary>
+public sealed class CatalogItemPurchasedEvent : DomainEventBase
+{
+    public required long PurchaseId { get; init; }
+    public required Guid CatalogItemId { get; init; }
+    public required Guid BuyerUserId { get; init; }
+    public required Guid BuyerAccountId { get; init; }
+    public required long CostPaid { get; init; }
+    public required string SinkType { get; init; }
+    public required Guid? PipelineId { get; init; }
+    public required string Status { get; init; }
+}
+
+/// <summary>A purchase was refunded via a reversing ledger entry — <c>economy.catalog.refunded</c>.</summary>
+public sealed class CatalogPurchaseRefundedEvent : DomainEventBase
+{
+    public required long PurchaseId { get; init; }
+    public required Guid CatalogItemId { get; init; }
+    public required Guid BuyerUserId { get; init; }
+    public required long AmountRefunded { get; init; }
+    public required long ReversalLedgerEntryId { get; init; }
+}
