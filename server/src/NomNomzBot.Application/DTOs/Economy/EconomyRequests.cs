@@ -138,3 +138,33 @@ public sealed record RefundRequest(string Reason, Guid ActorUserId);
 
 /// <summary>Filter for the purchase history (economy.md §4).</summary>
 public sealed record PurchaseFilter(Guid? CatalogItemId, Guid? BuyerUserId, string? Status);
+
+/// <summary>Create a savings jar (economy.md §4).</summary>
+public sealed record CreateSavingsJarRequest(
+    string Name,
+    string? Description,
+    long? GoalAmount,
+    string? IconUrl,
+    bool IsOpen,
+    long? MaxWithdrawalPerChannel
+);
+
+/// <summary>Invite a partner channel into a jar (economy.md §4). <see cref="Role"/> is a JarRole token.</summary>
+public sealed record InviteChannelRequest(
+    Guid JarId,
+    Guid InvitedBroadcasterId,
+    string Role,
+    long? ContributionCapPerStream,
+    long? WithdrawalCap
+);
+
+/// <summary>Contribute a viewer's currency into a jar (economy.md §4). <see cref="Amount"/> &gt; 0.</summary>
+public sealed record JarContributeRequest(Guid JarId, Guid ContributorUserId, long Amount);
+
+/// <summary>Withdraw from a jar back to a viewer's account (economy.md §4). <see cref="Amount"/> &gt; 0.</summary>
+public sealed record JarWithdrawRequest(
+    Guid JarId,
+    Guid TargetViewerUserId,
+    long Amount,
+    Guid ActorUserId
+);

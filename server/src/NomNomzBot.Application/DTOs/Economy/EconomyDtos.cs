@@ -96,6 +96,48 @@ public sealed record CatalogItemDto(
     DateTime UpdatedAt
 );
 
+/// <summary>A pooled cross-channel savings jar (economy.md §4).</summary>
+public sealed record SavingsJarDto(
+    Guid Id,
+    Guid OwnerBroadcasterId,
+    string Name,
+    string? Description,
+    long? GoalAmount,
+    long Balance,
+    string? IconUrl,
+    bool IsOpen,
+    long? MaxWithdrawalPerChannel,
+    DateTime CreatedAt,
+    DateTime UpdatedAt
+);
+
+/// <summary>A channel's membership in a savings jar (economy.md §4).</summary>
+public sealed record SavingsJarMembershipDto(
+    Guid Id,
+    Guid JarId,
+    Guid MemberBroadcasterId,
+    string Role,
+    string Status,
+    long? ContributionCapPerStream,
+    long? WithdrawalCap,
+    Guid? InvitedByBroadcasterId,
+    DateTime? AcceptedAt
+);
+
+/// <summary>An audited jar movement (economy.md §4).</summary>
+public sealed record JarMovementDto(
+    long Id,
+    Guid JarId,
+    Guid SourceBroadcasterId,
+    Guid? ContributorUserId,
+    long Amount,
+    string MovementType,
+    long JarBalanceAfter,
+    long? LedgerEntryId,
+    Guid? ActorUserId,
+    DateTime CreatedAt
+);
+
 /// <summary>An immutable catalog redemption record (economy.md §4).</summary>
 public sealed record CatalogPurchaseDto(
     long Id,
