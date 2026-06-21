@@ -90,3 +90,51 @@ public sealed record WatchTimeViewer(
     bool PresenceVerified,
     int RoleLevel
 );
+
+/// <summary>Create a catalog item (economy.md §4).</summary>
+public sealed record CreateCatalogItemRequest(
+    string Name,
+    string? Description,
+    string SinkType,
+    long Cost,
+    string? IconUrl,
+    bool IsEnabled,
+    string Permission,
+    Guid? PipelineId,
+    int CooldownSeconds,
+    bool CooldownPerUser,
+    int? StockLimit,
+    int? MaxPerViewerPerStream,
+    int SortOrder
+);
+
+/// <summary>Partial update of a catalog item (PATCH semantics — null = unchanged) (economy.md §4).</summary>
+public sealed record UpdateCatalogItemRequest(
+    string? Name,
+    string? Description,
+    long? Cost,
+    string? IconUrl,
+    bool? IsEnabled,
+    string? Permission,
+    Guid? PipelineId,
+    int? CooldownSeconds,
+    bool? CooldownPerUser,
+    int? StockLimit,
+    int? MaxPerViewerPerStream,
+    int? SortOrder
+);
+
+/// <summary>Redeem a catalog item (economy.md §4).</summary>
+public sealed record PurchaseRequest(
+    Guid ItemId,
+    Guid BuyerUserId,
+    string? InputArgs,
+    int RoleLevel,
+    string? IdempotencyKey
+);
+
+/// <summary>Refund a completed purchase (economy.md §4).</summary>
+public sealed record RefundRequest(string Reason, Guid ActorUserId);
+
+/// <summary>Filter for the purchase history (economy.md §4).</summary>
+public sealed record PurchaseFilter(Guid? CatalogItemId, Guid? BuyerUserId, string? Status);

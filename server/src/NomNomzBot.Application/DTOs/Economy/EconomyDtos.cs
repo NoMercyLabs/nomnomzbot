@@ -74,3 +74,38 @@ public sealed record TransferResultDto(CurrencyLedgerEntryDto Debit, CurrencyLed
 
 /// <summary>The outcome of applying an earning rule to one viewer (economy.md §4).</summary>
 public sealed record EarnResultDto(Guid ViewerUserId, long AmountCredited, bool Capped);
+
+/// <summary>A purchasable store item (economy.md §4).</summary>
+public sealed record CatalogItemDto(
+    Guid Id,
+    string Name,
+    string? Description,
+    string SinkType,
+    long Cost,
+    string? IconUrl,
+    bool IsEnabled,
+    string Permission,
+    Guid? PipelineId,
+    int CooldownSeconds,
+    bool CooldownPerUser,
+    int? StockLimit,
+    int? StockRemaining,
+    int? MaxPerViewerPerStream,
+    int SortOrder,
+    DateTime CreatedAt,
+    DateTime UpdatedAt
+);
+
+/// <summary>An immutable catalog redemption record (economy.md §4).</summary>
+public sealed record CatalogPurchaseDto(
+    long Id,
+    Guid CatalogItemId,
+    Guid BuyerUserId,
+    Guid BuyerAccountId,
+    long CostPaid,
+    string ItemNameSnapshot,
+    string Status,
+    long? LedgerEntryId,
+    string? InputArgs,
+    DateTime CreatedAt
+);
