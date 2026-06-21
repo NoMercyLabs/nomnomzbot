@@ -112,3 +112,50 @@ public sealed class AgeConsentRevokedEvent : DomainEventBase
     public required Guid ViewerUserId { get; init; }
     public required Guid ConsentRecordId { get; init; }
 }
+
+/// <summary>A jar contribution committed — <c>economy.jar.contributed</c>.</summary>
+public sealed class JarContributedEvent : DomainEventBase
+{
+    public required Guid JarId { get; init; }
+    public required Guid SourceBroadcasterId { get; init; }
+    public required Guid? ContributorUserId { get; init; }
+    public required long Amount { get; init; }
+    public required long JarBalanceAfter { get; init; }
+    public required long ContributionId { get; init; }
+}
+
+/// <summary>A jar withdrawal committed — <c>economy.jar.withdrawn</c>.</summary>
+public sealed class JarWithdrawnEvent : DomainEventBase
+{
+    public required Guid JarId { get; init; }
+    public required Guid SourceBroadcasterId { get; init; }
+    public required Guid ActorUserId { get; init; }
+    public required long Amount { get; init; }
+    public required long JarBalanceAfter { get; init; }
+    public required long ContributionId { get; init; }
+}
+
+/// <summary>A contribution brought the jar to its goal — <c>economy.jar.goal_reached</c> (once per crossing).</summary>
+public sealed class JarGoalReachedEvent : DomainEventBase
+{
+    public required Guid JarId { get; init; }
+    public required long GoalAmount { get; init; }
+    public required long Balance { get; init; }
+}
+
+/// <summary>A jar membership invite was created — <c>economy.jar.invite_sent</c>.</summary>
+public sealed class SavingsJarInviteSentEvent : DomainEventBase
+{
+    public required Guid JarId { get; init; }
+    public required Guid OwnerBroadcasterId { get; init; }
+    public required Guid InvitedBroadcasterId { get; init; }
+    public required string Role { get; init; }
+}
+
+/// <summary>A jar membership was accepted or revoked — <c>economy.jar.membership_changed</c>.</summary>
+public sealed class SavingsJarMembershipChangedEvent : DomainEventBase
+{
+    public required Guid JarId { get; init; }
+    public required Guid MemberBroadcasterId { get; init; }
+    public required string Status { get; init; }
+}
