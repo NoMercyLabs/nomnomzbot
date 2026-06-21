@@ -155,6 +155,8 @@ public sealed class AuthService : IAuthService
                 DisplayName = twitchUser.DisplayName,
                 ProfileImageUrl = twitchUser.ProfileImageUrl,
                 BroadcasterType = twitchUser.BroadcasterType,
+                Type = twitchUser.Type,
+                AccountCreatedAt = twitchUser.AccountCreatedAt,
                 Enabled = true,
             };
             _db.Users.Add(user);
@@ -165,6 +167,9 @@ public sealed class AuthService : IAuthService
             user.UsernameNormalized = twitchUser.Login.ToLowerInvariant();
             user.DisplayName = twitchUser.DisplayName;
             user.ProfileImageUrl = twitchUser.ProfileImageUrl;
+            user.Type = twitchUser.Type; // revocable — re-read live each login
+            if (twitchUser.AccountCreatedAt is not null)
+                user.AccountCreatedAt = twitchUser.AccountCreatedAt; // immutable Twitch fact
         }
         user.LastSeenAt = _timeProvider.GetUtcNow().UtcDateTime;
         await _db.SaveChangesAsync(cancellationToken);
@@ -782,7 +787,9 @@ public sealed class AuthService : IAuthService
                 user.Login,
                 user.DisplayName,
                 user.ProfileImageUrl,
-                user.BroadcasterType
+                user.BroadcasterType,
+                user.Type,
+                user.CreatedAt
             );
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
@@ -814,5 +821,11 @@ public sealed class AuthService : IAuthService
 
         [JsonPropertyName("broadcaster_type")]
         public string BroadcasterType { get; set; } = "";
+
+        [JsonPropertyName("type")]
+        public string Type { get; set; } = "";
+
+        [JsonPropertyName("created_at")]
+        public DateTime CreatedAt { get; set; }
     }
 }

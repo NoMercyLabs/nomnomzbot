@@ -21,5 +21,7 @@ public record TwitchUserInfo(
     string Login,
     string DisplayName,
     string? ProfileImageUrl,
-    string BroadcasterType
+    string BroadcasterType,
+    string Type = "",
+    DateTime? AccountCreatedAt = null
 );

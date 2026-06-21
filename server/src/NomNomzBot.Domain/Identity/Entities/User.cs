@@ -68,6 +68,15 @@ public class User : BaseEntity
     [MaxLength(50)]
     public string BroadcasterType { get; set; } = "";
 
+    // Twitch staff classification — "" | "staff" | "admin" | "global_mod" (Helix Get Users `type`). Used by
+    // the 18+ gambling gate's personnel inference (economy.md §3.6); revocable, so re-read live.
+    [MaxLength(20)]
+    public string Type { get; set; } = "";
+
+    // Twitch account creation date (Helix Get Users `created_at`). Immutable; the 18+ gate's MONOTONIC
+    // account-age inference reads it ({{user.accountage}}).
+    public DateTime? AccountCreatedAt { get; set; }
+
     public bool Enabled { get; set; } = true;
 
     // Platform principal (operator/admin) — replaces the old IsAdmin. Sourced into the JWT and read by

@@ -879,6 +879,8 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     OfflineImageUrl = table.Column<string>(type: "character varying(2048)", maxLength: 2048, nullable: true),
                     Color = table.Column<string>(type: "character varying(7)", maxLength: 7, nullable: true),
                     BroadcasterType = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false, defaultValue: ""),
+                    Type = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
+                    AccountCreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     Enabled = table.Column<bool>(type: "boolean", nullable: false, defaultValue: true),
                     IsPlatformPrincipal = table.Column<bool>(type: "boolean", nullable: false),
                     IsBot = table.Column<bool>(type: "boolean", nullable: false),
