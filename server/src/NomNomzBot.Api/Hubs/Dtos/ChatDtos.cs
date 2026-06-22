@@ -54,8 +54,19 @@ public record ChatFragmentDto(
     ChatMentionDto? Mention
 );
 
-/// <summary>Emote fragment data.</summary>
-public record ChatEmoteDto(string Id, string? SetId, string Format);
+/// <summary>
+/// Emote fragment data — the unified, render-ready shape covering Twitch and third-party (BTTV/FFZ/7TV) emotes
+/// (chat-decoration spec §4). <c>Urls</c> is scale-keyed ("1"/"2"/"3"); <c>Provider</c> is the source network.
+/// </summary>
+public record ChatEmoteDto(
+    string Id,
+    string? SetId,
+    string Format,
+    string Provider,
+    IReadOnlyDictionary<string, string> Urls,
+    bool Animated,
+    bool ZeroWidth
+);
 
 /// <summary>Cheermote fragment data.</summary>
 public record ChatCheermoteDto(string Prefix, int Bits, int Tier);

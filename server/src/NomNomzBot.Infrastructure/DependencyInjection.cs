@@ -151,6 +151,17 @@ public static class DependencyInjection
         // Warms the third-party emote cache the decoration pipeline reads; driven by ChatDecorationRefreshService
         // (auto-discovered as a hosted worker). Stateless → singleton.
         services.AddSingleton<NomNomzBot.Infrastructure.Chat.Jobs.ChatEmoteCacheWarmer>();
+
+        // Chat-decoration pipeline: the ordered adapters (multi-binding, discovered) + the thin orchestrator that runs
+        // them per message. Stateless → singleton; adapters read only cache on the hot path (chat-decoration §0).
+        services.AddImplementationsOf<NomNomzBot.Application.Chat.Services.IChatDecorationAdapter>(
+            infrastructure,
+            ServiceLifetime.Singleton
+        );
+        services.AddSingleton<
+            NomNomzBot.Application.Chat.Services.IChatMessageDecorator,
+            NomNomzBot.Infrastructure.Chat.ChatMessageDecorator
+        >();
         // Every outbound HttpClient the factory builds (provider fetches, OAuth, Twitch, TTS, webhooks…) sends
         // the product User-Agent by default, stamped with the running build version. A client may still override.
         services.ConfigureHttpClientDefaults(builder =>

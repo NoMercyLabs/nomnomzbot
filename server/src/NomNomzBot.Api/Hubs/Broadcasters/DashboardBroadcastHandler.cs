@@ -9,6 +9,8 @@
 // -----------------------------------------------------------------------------
 
 using NomNomzBot.Api.Hubs.Dtos;
+using NomNomzBot.Application.Chat.Decoration;
+using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Chat.ValueObjects;
 using NomNomzBot.Domain.Platform.Interfaces;
@@ -18,15 +20,22 @@ namespace NomNomzBot.Api.Hubs.Broadcasters;
 /// <summary>
 /// Listens to ChatMessageReceivedEvent and broadcasts the rich decorated
 /// message to all dashboard/overlay clients subscribed to that channel group.
+/// Runs the chat-decoration pipeline first so emotes (Twitch + BTTV/FFZ/7TV) carry render-ready urls.
 /// </summary>
 public sealed class ChatMessageBroadcastHandler : IEventHandler<ChatMessageReceivedEvent>
 {
     private readonly IDashboardNotifier _notifier;
+    private readonly IChatMessageDecorator _decorator;
     private readonly TimeProvider _timeProvider;
 
-    public ChatMessageBroadcastHandler(IDashboardNotifier notifier, TimeProvider timeProvider)
+    public ChatMessageBroadcastHandler(
+        IDashboardNotifier notifier,
+        IChatMessageDecorator decorator,
+        TimeProvider timeProvider
+    )
     {
         _notifier = notifier;
+        _decorator = decorator;
         _timeProvider = timeProvider;
     }
 
@@ -39,6 +48,8 @@ public sealed class ChatMessageBroadcastHandler : IEventHandler<ChatMessageRecei
             : evt.IsSubscriber ? "subscriber"
             : "viewer";
 
+        DecoratedChatMessage decorated = await _decorator.DecorateAsync(evt, ct);
+
         DashboardChatMessageDto dto = new(
             Id: evt.MessageId,
             ChannelId: evt.BroadcasterId.ToString(),
@@ -46,7 +57,7 @@ public sealed class ChatMessageBroadcastHandler : IEventHandler<ChatMessageRecei
             DisplayName: evt.UserDisplayName,
             Username: evt.UserLogin,
             Message: evt.Message,
-            Fragments: evt.Fragments.Select(MapFragment).ToList(),
+            Fragments: decorated.Fragments.Select(MapFragment).ToList(),
             UserType: userType,
             IsSubscriber: evt.IsSubscriber,
             IsVip: evt.IsVip,
@@ -71,11 +82,15 @@ public sealed class ChatMessageBroadcastHandler : IEventHandler<ChatMessageRecei
         new(
             Type: f.Type,
             Text: f.Text,
-            Emote: f.EmoteId is not null
+            Emote: f.Emote is not null
                 ? new ChatEmoteDto(
-                    Id: f.EmoteId,
-                    SetId: f.EmoteSetId,
-                    Format: f.EmoteFormats.Contains("animated") ? "animated" : "static"
+                    Id: f.Emote.Id,
+                    SetId: f.Emote.SetId,
+                    Format: f.Emote.Animated ? "animated" : "static",
+                    Provider: f.Emote.Provider.ToString(),
+                    Urls: f.Emote.Urls,
+                    Animated: f.Emote.Animated,
+                    ZeroWidth: f.Emote.ZeroWidth
                 )
                 : null,
             Cheermote: f.CheermotePrefix is not null
