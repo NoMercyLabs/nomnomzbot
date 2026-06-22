@@ -39,13 +39,15 @@ public class SystemController : BaseController
     private readonly IConfiguration _config;
     private readonly ITokenProtector _protector;
     private readonly IHostEnvironment _env;
+    private readonly ITwitchOAuthStateService _oauthState;
 
     public SystemController(
         IAuthService authService,
         IApplicationDbContext db,
         IConfiguration config,
         ITokenProtector protector,
-        IHostEnvironment env
+        IHostEnvironment env,
+        ITwitchOAuthStateService oauthState
     )
     {
         _authService = authService;
@@ -53,6 +55,7 @@ public class SystemController : BaseController
         _config = config;
         _protector = protector;
         _env = env;
+        _oauthState = oauthState;
     }
 
     // ── DTOs ──────────────────────────────────────────────────────────────────
@@ -216,7 +219,11 @@ public class SystemController : BaseController
                 ? $"{scheme}://{host}"
                 : (_config["App:BaseUrl"] ?? "http://localhost:5080").TrimEnd('/');
 
+        // Issue a single-use bot-flow CSRF state nonce so the callback routes the setup-wizard bot auth
+        // correctly and cannot be triggered by a forged state (§5).
+        string state = await _oauthState.IssueAsync(new TwitchOAuthFlowState("bot"), ct);
         string url = await _authService.GetTwitchBotOAuthUrl(
+            state,
             baseUrl: publicBaseUrl,
             cancellationToken: ct
         );

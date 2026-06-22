@@ -254,17 +254,17 @@ This is now `IChannelAccessService.CanResolveTenantAsync(userId, channelId)`, ca
 
 ### Gaps & Vulnerabilities
 
-**🟠 HIGH — OAuth state not validated on callback (CSRF on OAuth flow)**
-The `state` parameter is included in the authorization URL but `HandleTwitchCallbackAsync` does not verify that the returned `state` matches what was originally sent. An attacker can construct a malicious link, trick an admin into clicking it, and the resulting Twitch code exchange will link the attacker's Twitch account to the target session (OAuth CSRF / login CSRF).
+**🟢 RESOLVED — OAuth state validated on callback (CSRF closed)**
+Every Twitch authorize flow (user, bot, channel-bot, setup-wizard bot) now issues a single-use random nonce via `ITwitchOAuthStateService` and stores the flow payload **server-side** in the cache (10-min TTL). `HandleTwitchCallback` calls `ConsumeAsync(state)` first and **rejects** (`400`) any missing/expired/forged nonce, and a nonce works exactly once. An attacker's crafted link no longer carries a usable state.
 
-**🟠 HIGH — Mobile `redirect_uri` override accepted without validation**
-`HandleTwitchCallbackAsync` uses `callback.RedirectUri ?? _options.RedirectUri`. A client can supply any redirect URI. Twitch will reject mismatches, but the application should also validate the override against an allow-list of registered URIs to prevent manipulation.
+**🟢 RESOLVED — Mobile `redirect_uri` restricted to the app scheme**
+The issue endpoints reject any `redirect_uri` that is not blank (web flow) or the app's own `nomnomzbot://` deep-link scheme, so a phishing link cannot redirect the post-auth response (and its tokens) to an attacker-controlled URL.
 
-**🟠 HIGH — Channel-bot `state` payload unsigned**
-The channel-bot OAuth state (`{ channel_id, redirect_uri }`) is Base64-encoded JSON. Anyone can decode and modify it, then re-encode it. If an attacker can intercept or forge the state, they can associate a bot connection with an arbitrary channel.
+**🟢 RESOLVED — Channel-bot association cannot be forged**
+The channel-bot `channel_id` now lives in the server-side nonce payload, never the wire `state` — there is nothing to decode, tamper with, and re-encode. A forged or replayed state fails `ConsumeAsync`, so a bot cannot be bound to an arbitrary channel.
 
-**🟡 MEDIUM — No PKCE for mobile OAuth flows**
-Mobile OAuth flows should use PKCE (RFC 7636) to prevent authorization code interception attacks. The current flow is standard authorization code without PKCE.
+**🟢 RESOLVED (N/A) — Authorization code is server-exchanged**
+The "mobile" flow is server-mediated: the browser authenticates, the **server** (a confidential client holding the `client_secret`) exchanges the code, and only the resulting platform JWT is handed to the app's deep link. The authorization code never reaches the device, so PKCE's code-interception threat does not apply. (The generic integration OAuth, which is a different flow, already uses PKCE S256.)
 
 ### Recommendations
 
@@ -729,11 +729,11 @@ These must be resolved before the hosted version handles any real user data. Lis
 **Issue:** Database ports were exposed to all interfaces.
 **Resolution:** Both publish to `127.0.0.1` only. See §10.
 
-### 7. Validate OAuth `state` parameter on callback (🟠 HIGH)
+### 7. Validate OAuth `state` parameter on callback (🟢 RESOLVED)
 
-**File:** `AuthService.HandleTwitchCallbackAsync`
-**Issue:** CSRF on the OAuth flow — attacker can force an admin to link a malicious Twitch account.
-**Fix:** Generate nonce, store in Redis, verify on callback. See §5 Fix 1.
+**File:** `ITwitchOAuthStateService` + `AuthController.HandleTwitchCallback`
+**Issue:** CSRF on the OAuth flow — an attacker could force an admin to link a malicious Twitch account.
+**Resolution:** Single-use random nonce, payload held server-side in the cache, consumed-and-rejected on callback. Also resolves the unsigned channel-bot state (row 16) and the `redirect_uri` override. See §5.
 
 ### 8. Configure `AllowedHosts` for production domain (🟢 RESOLVED)
 
@@ -766,7 +766,7 @@ These must be resolved before the hosted version handles any real user data. Lis
 | 5 | Per-subject DEK (was shared key) | 🟢 | 🟢 | RESOLVED |
 | 6 | Authenticated envelope (was AES-CBC) | 🟢 | 🟢 | RESOLVED |
 | 7 | Refresh tokens revocable + single-use | 🟢 | 🟢 | RESOLVED |
-| 8 | OAuth state not validated (CSRF) | 🟠 | 🟠 | HIGH |
+| 8 | OAuth state validated (CSRF closed) | 🟢 | 🟢 | RESOLVED |
 | 9 | Redis password-protected | 🟢 | 🟢 | RESOLVED |
 | 10 | DB/Redis ports loopback-bound | 🟢 | 🟢 | RESOLVED |
 | 11 | API container non-root | 🟢 | 🟢 | RESOLVED |
@@ -774,7 +774,7 @@ These must be resolved before the hosted version handles any real user data. Lis
 | 13 | Scalar/OpenAPI gated out of prod | 🟢 | 🟢 | RESOLVED |
 | 14 | First admin bootstrapped from config | N/A | 🟢 | RESOLVED |
 | 15 | Rate limiter keys real client IP | 🟢 | 🟢 | RESOLVED |
-| 16 | Unsigned channel-bot state | 🟠 | 🟠 | HIGH |
+| 16 | Channel-bot state unforgeable | 🟢 | 🟢 | RESOLVED |
 | 17 | Stored content rendered safely | 🟢 | 🟢 | RESOLVED |
 | 18 | Setup-completion lock | 🟢 | 🟢 | RESOLVED |
 | 19 | No cross-tenant access tests | 🟡 | N/A | MEDIUM |

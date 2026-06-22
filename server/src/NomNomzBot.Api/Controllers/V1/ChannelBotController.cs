@@ -37,16 +37,19 @@ public class ChannelBotController : BaseController
     private readonly IAuthService _authService;
     private readonly IIntegrationTokenVault _vault;
     private readonly IConfiguration _config;
+    private readonly ITwitchOAuthStateService _oauthState;
 
     public ChannelBotController(
         IAuthService authService,
         IIntegrationTokenVault vault,
-        IConfiguration config
+        IConfiguration config,
+        ITwitchOAuthStateService oauthState
     )
     {
         _authService = authService;
         _vault = vault;
         _config = config;
+        _oauthState = oauthState;
     }
 
     private string GetPublicBaseUrl()
@@ -251,11 +254,11 @@ public class ChannelBotController : BaseController
         if (!Guid.TryParse(channelId, out Guid tenantId))
             return BadRequestResponse("Invalid channel id.");
 
-        // Embed the flow + tenant id so the single callback endpoint can route it back.
-        string state = Convert.ToBase64String(
-            Encoding.UTF8.GetBytes(
-                JsonSerializer.Serialize(new { flow = "channel_bot", channel_id = channelId })
-            )
+        // Issue a single-use, server-side CSRF state nonce holding the flow + tenant id, so the channel-bot
+        // association cannot be forged by tampering with the state (§5). Only the opaque nonce leaves us.
+        string state = await _oauthState.IssueAsync(
+            new TwitchOAuthFlowState("channel_bot", ChannelId: channelId),
+            ct
         );
 
         string authUrl = await _authService.GetTwitchChannelBotOAuthUrl(

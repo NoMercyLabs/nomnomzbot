@@ -31,19 +31,29 @@ public class AuthController : BaseController
     private readonly IAuthService _authService;
     private readonly IConfiguration _config;
     private readonly TimeProvider _timeProvider;
+    private readonly ITwitchOAuthStateService _oauthState;
 
     public AuthController(
         IUserService userService,
         IAuthService authService,
         IConfiguration config,
-        TimeProvider timeProvider
+        TimeProvider timeProvider,
+        ITwitchOAuthStateService oauthState
     )
     {
         _userService = userService;
         _authService = authService;
         _config = config;
         _timeProvider = timeProvider;
+        _oauthState = oauthState;
     }
+
+    // Mobile deep-link callbacks may only target the app's own custom scheme — never an arbitrary URL — so a
+    // phishing link cannot redirect the post-auth response (and its tokens) to an attacker (§5). A blank value
+    // is the normal web flow (JSON response, no redirect).
+    private static bool IsAllowedMobileRedirect(string? redirectUri) =>
+        string.IsNullOrWhiteSpace(redirectUri)
+        || redirectUri.StartsWith("nomnomzbot://", StringComparison.OrdinalIgnoreCase);
 
     private string GetPublicBaseUrl()
     {
@@ -106,10 +116,15 @@ public class AuthController : BaseController
         CancellationToken ct
     )
     {
-        // Encode the flow + optional mobile redirect URI into the state parameter so
-        // the single callback endpoint can route the result correctly.
-        string payload = JsonSerializer.Serialize(new { flow = "user", redirect_uri });
-        string state = Convert.ToBase64String(Encoding.UTF8.GetBytes(payload));
+        if (!IsAllowedMobileRedirect(redirect_uri))
+            return BadRequest("Disallowed redirect_uri.");
+
+        // Issue a single-use, server-side CSRF state nonce; only the opaque nonce travels through Twitch,
+        // and the flow + optional mobile redirect are held server-side so the callback can route safely.
+        string state = await _oauthState.IssueAsync(
+            new TwitchOAuthFlowState("user", redirect_uri),
+            ct
+        );
 
         string authUrl = await _authService.GetTwitchOAuthUrl(state, GetPublicBaseUrl(), ct);
         return Redirect(authUrl);
@@ -130,32 +145,17 @@ public class AuthController : BaseController
         CancellationToken ct
     )
     {
-        string? mobileRedirectUri = null;
-        string? channelId = null;
-        string flow = "user";
         string callbackUri = $"{GetPublicBaseUrl()}/api/v1/auth/twitch/callback";
 
-        if (!string.IsNullOrWhiteSpace(state))
-        {
-            try
-            {
-                byte[] decoded = Convert.FromBase64String(state);
-                using JsonDocument doc = JsonDocument.Parse(decoded);
+        // Consume the single-use CSRF state nonce. A missing, expired, or forged nonce is rejected here — the
+        // flow, mobile redirect, and channel id come only from the server-side payload, never the query string.
+        TwitchOAuthFlowState? flowState = await _oauthState.ConsumeAsync(state, ct);
+        if (flowState is null)
+            return BadRequest("Invalid or expired OAuth state.");
 
-                if (doc.RootElement.TryGetProperty("flow", out JsonElement flowElement))
-                    flow = flowElement.GetString() ?? "user";
-
-                if (doc.RootElement.TryGetProperty("redirect_uri", out JsonElement uriElement))
-                    mobileRedirectUri = uriElement.GetString();
-
-                if (doc.RootElement.TryGetProperty("channel_id", out JsonElement channelElement))
-                    channelId = channelElement.GetString();
-            }
-            catch
-            {
-                // State isn't our encoded payload — default to the normal user flow.
-            }
-        }
+        string flow = flowState.Flow;
+        string? mobileRedirectUri = flowState.RedirectUri;
+        string? channelId = flowState.ChannelId;
 
         if (flow == "bot")
         {
@@ -395,10 +395,13 @@ public class AuthController : BaseController
         CancellationToken ct
     )
     {
-        string payload = System.Text.Json.JsonSerializer.Serialize(
-            new { flow = "bot", redirect_uri }
+        if (!IsAllowedMobileRedirect(redirect_uri))
+            return BadRequest("Disallowed redirect_uri.");
+
+        string state = await _oauthState.IssueAsync(
+            new TwitchOAuthFlowState("bot", redirect_uri),
+            ct
         );
-        string state = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(payload));
 
         string authUrl = await _authService.GetTwitchBotOAuthUrl(state, GetPublicBaseUrl(), ct);
         return Redirect(authUrl);
