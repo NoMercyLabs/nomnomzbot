@@ -28,6 +28,10 @@ services:
       - Encryption__Key=${ENCRYPTION_KEY}
       - App__BaseUrl=${API_BASE_URL:-http://localhost:5080}
       - App__InitialAdminTwitchId=${INITIAL_ADMIN_TWITCH_ID:-}
+      # Trust X-Forwarded-* only from the proxy in front of the API. Leave blank for a reverse proxy on the
+      # host (loopback is trusted by default); set it to the proxy's network when the proxy reaches the API
+      # over the docker bridge — e.g. TRUSTED_PROXY_NETWORKS=172.16.0.0/12 for the cloudflared sidecar below.
+      - ForwardedHeaders__KnownNetworks__0=${TRUSTED_PROXY_NETWORKS:-}
       - Twitch__ClientId=${TWITCH_CLIENT_ID}
       - Twitch__ClientSecret=${TWITCH_CLIENT_SECRET}
       - Twitch__BotUsername=${TWITCH_BOT_USERNAME}

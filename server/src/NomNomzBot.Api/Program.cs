@@ -180,16 +180,59 @@ try
         NomNomzBot.Api.Authorization.ActionAuthorizationHandler
     >();
 
-    // Rate limiting — per-user (or per-IP for anonymous) fixed window
-    // Trust X-Forwarded-* from the upstream reverse proxy so the rate limiter and request log see the real
-    // client IP, not the proxy's (§6). The documented deployment model puts the API behind a single trusted
-    // proxy; the proxy address is not known at build time, so the default loopback-only restriction is cleared.
+    // Rate limiting — per-user (or per-IP for anonymous) sliding window.
+    //
+    // Trust X-Forwarded-* ONLY from explicitly-configured proxies, so the rate limiter and request log see the
+    // real client IP without letting a direct caller forge it. Clearing the known-proxy lists outright (as we
+    // once did) makes ASP.NET honour X-Forwarded-For from ANY source — a client could then rotate the header to
+    // bypass the per-IP rate limits and spoof the client IP in audit logs (§6). The default is loopback-only,
+    // which is correct for a reverse proxy terminating on the same host; set ForwardedHeaders:KnownProxies (IPs)
+    // and/or :KnownNetworks (CIDRs) when the proxy reaches the API from another address — e.g. a containerised
+    // cloudflared/nginx sidecar on the docker bridge network.
     builder.Services.Configure<ForwardedHeadersOptions>(options =>
     {
         options.ForwardedHeaders =
             ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
-        options.KnownNetworks.Clear();
-        options.KnownProxies.Clear();
+        options.ForwardLimit =
+            builder.Configuration.GetValue<int?>("ForwardedHeaders:ForwardLimit") ?? 1;
+
+        // Blank entries (e.g. an unset docker env var that expands to "") are dropped so they cannot wipe the
+        // safe loopback default by making the trust list non-empty.
+        string[] knownProxies = (
+            builder.Configuration.GetSection("ForwardedHeaders:KnownProxies").Get<string[]>() ?? []
+        )
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .ToArray();
+        string[] knownNetworks = (
+            builder.Configuration.GetSection("ForwardedHeaders:KnownNetworks").Get<string[]>() ?? []
+        )
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .ToArray();
+
+        if (knownProxies.Length > 0 || knownNetworks.Length > 0)
+        {
+            // An explicit trust list replaces the framework defaults entirely.
+            options.KnownProxies.Clear();
+            options.KnownNetworks.Clear();
+
+            foreach (string proxy in knownProxies)
+                if (System.Net.IPAddress.TryParse(proxy, out System.Net.IPAddress? ip))
+                    options.KnownProxies.Add(ip);
+
+            foreach (string network in knownNetworks)
+            {
+                string[] parts = network.Split('/', 2);
+                if (
+                    parts.Length == 2
+                    && System.Net.IPAddress.TryParse(parts[0], out System.Net.IPAddress? prefix)
+                    && int.TryParse(parts[1], out int prefixLength)
+                )
+                    options.KnownNetworks.Add(
+                        new Microsoft.AspNetCore.HttpOverrides.IPNetwork(prefix, prefixLength)
+                    );
+            }
+        }
+        // Otherwise keep the framework default (loopback only): a direct caller cannot spoof X-Forwarded-For.
     });
 
     builder.Services.AddRateLimiter(options =>
