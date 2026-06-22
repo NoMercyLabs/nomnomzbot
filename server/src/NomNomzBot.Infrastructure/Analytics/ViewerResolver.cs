@@ -60,19 +60,20 @@ public sealed class ViewerResolver(IApplicationDbContext db, IUserService userSe
     }
 
     /// <summary>
-    /// Extracts a viewer's identity from a chat event payload. Username is the normalized display name (the Twitch
-    /// login IS that); when the login is absent it is derived from the display, never the numeric Twitch id.
-    /// Returns null when the payload is unparseable or carries no Twitch user id.
+    /// Extracts a viewer's identity from an activity event payload, tolerating each event's field naming (chat:
+    /// UserLogin/UserDisplayName; command: Username; reward: UserDisplayName). Username is the normalized display
+    /// name (the Twitch login IS that); when no login field is present it is derived from the display, never the
+    /// numeric Twitch id. Returns null when the payload is unparseable or carries no Twitch user id.
     /// </summary>
-    public static (string TwitchUserId, string Login, string Display)? ParseChatIdentity(
+    public static (string TwitchUserId, string Login, string Display)? ParseIdentity(
         string payloadJson
     )
     {
         JObject? payload = TryParse(payloadJson);
-        return payload is null ? null : ParseChatIdentity(payload);
+        return payload is null ? null : ParseIdentity(payload);
     }
 
-    public static (string TwitchUserId, string Login, string Display)? ParseChatIdentity(
+    public static (string TwitchUserId, string Login, string Display)? ParseIdentity(
         JObject payload
     )
     {
@@ -83,8 +84,12 @@ public sealed class ViewerResolver(IApplicationDbContext db, IUserService userSe
         string display =
             payload["UserDisplayName"]?.Value<string>()
             ?? payload["UserLogin"]?.Value<string>()
+            ?? payload["Username"]?.Value<string>()
             ?? twitchUserId;
-        string login = payload["UserLogin"]?.Value<string>() ?? display.ToLowerInvariant();
+        string login =
+            payload["UserLogin"]?.Value<string>()
+            ?? payload["Username"]?.Value<string>()
+            ?? display.ToLowerInvariant();
         return (twitchUserId, login, display);
     }
 

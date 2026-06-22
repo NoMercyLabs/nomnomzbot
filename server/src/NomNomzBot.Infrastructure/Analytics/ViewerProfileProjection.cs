@@ -47,7 +47,7 @@ public sealed class ViewerProfileProjection(IApplicationDbContext db, ViewerReso
         if (payload is null)
             return Result.Success();
         (string TwitchUserId, string Login, string Display)? identity =
-            ViewerResolver.ParseChatIdentity(payload);
+            ViewerResolver.ParseIdentity(payload);
         if (identity is null)
             return Result.Success();
 

@@ -17,11 +17,12 @@ using NomNomzBot.Domain.Analytics.Entities;
 namespace NomNomzBot.Infrastructure.Analytics;
 
 /// <summary>
-/// Folds chat into the per-viewer daily message-count aggregate (analytics.md §3.1, schema M.4 — counts only, no
-/// content). Resolves the viewer via the shared <see cref="ViewerResolver"/>, then upserts the
-/// <c>(broadcaster, viewer, channel-local date)</c> row. Plain rollup — a rebuild hard-removes then re-folds.
+/// Folds activity into the per-viewer daily engagement roll-up (analytics.md §3.1, schema M.7) — the time-series
+/// behind the viewer charts. Resolves the viewer via the shared <see cref="ViewerResolver"/>, then upserts the
+/// <c>(broadcaster, viewer, channel-local date)</c> row. Folds chat/command/reward today; watch-seconds (from M.2),
+/// song requests, currency, and games extend it as those events are wired. Plain rollup — rebuild = remove + refold.
 /// </summary>
-public sealed class MessageActivityDailyProjection(
+public sealed class ViewerEngagementDailyProjection(
     IApplicationDbContext db,
     ViewerResolver resolver
 ) : IProjection
@@ -29,9 +30,11 @@ public sealed class MessageActivityDailyProjection(
     private static readonly HashSet<string> Subscribed = new(StringComparer.Ordinal)
     {
         "ChatMessageReceivedEvent",
+        "CommandExecutedEvent",
+        "RewardRedeemedEvent",
     };
 
-    public string Name => "message-activity-daily";
+    public string Name => "viewer-engagement-daily";
     public bool IsGlobal => false;
     public IReadOnlySet<string> SubscribedEventTypes => Subscribed;
 
@@ -58,16 +61,26 @@ public sealed class MessageActivityDailyProjection(
             return Result.Success();
 
         DateOnly date = DateOnly.FromDateTime(@event.OccurredAt);
-        MessageActivityDaily row = await GetOrCreateAsync(
+        ViewerEngagementDaily row = await GetOrCreateAsync(
             broadcasterId,
             profile.ViewerUserId,
             profile.Id,
             date,
             cancellationToken
         );
-        row.MessageCount++;
-        row.FirstMessageAt ??= @event.OccurredAt;
-        row.LastMessageAt = @event.OccurredAt;
+
+        switch (@event.EventType)
+        {
+            case "ChatMessageReceivedEvent":
+                row.MessageCount++;
+                break;
+            case "CommandExecutedEvent":
+                row.CommandCount++;
+                break;
+            case "RewardRedeemedEvent":
+                row.RedemptionCount++;
+                break;
+        }
 
         await db.SaveChangesAsync(cancellationToken);
         return Result.Success();
@@ -78,17 +91,17 @@ public sealed class MessageActivityDailyProjection(
         CancellationToken cancellationToken = default
     )
     {
-        List<MessageActivityDaily> rows = await (
+        List<ViewerEngagementDaily> rows = await (
             broadcasterId is Guid id
-                ? db.MessageActivityDailies.Where(r => r.BroadcasterId == id)
-                : db.MessageActivityDailies
+                ? db.ViewerEngagementDailies.Where(r => r.BroadcasterId == id)
+                : db.ViewerEngagementDailies
         ).ToListAsync(cancellationToken);
-        db.MessageActivityDailies.RemoveRange(rows);
+        db.ViewerEngagementDailies.RemoveRange(rows);
         await db.SaveChangesAsync(cancellationToken);
         return Result.Success();
     }
 
-    private async Task<MessageActivityDaily> GetOrCreateAsync(
+    private async Task<ViewerEngagementDaily> GetOrCreateAsync(
         Guid broadcasterId,
         Guid viewerUserId,
         Guid viewerProfileId,
@@ -96,7 +109,7 @@ public sealed class MessageActivityDailyProjection(
         CancellationToken ct
     )
     {
-        MessageActivityDaily? row = await db.MessageActivityDailies.FirstOrDefaultAsync(
+        ViewerEngagementDaily? row = await db.ViewerEngagementDailies.FirstOrDefaultAsync(
             r =>
                 r.BroadcasterId == broadcasterId
                 && r.ViewerUserId == viewerUserId
@@ -105,14 +118,14 @@ public sealed class MessageActivityDailyProjection(
         );
         if (row is null)
         {
-            row = new MessageActivityDaily
+            row = new ViewerEngagementDaily
             {
                 BroadcasterId = broadcasterId,
                 ViewerUserId = viewerUserId,
                 ViewerProfileId = viewerProfileId,
                 ActivityDate = date,
             };
-            db.MessageActivityDailies.Add(row);
+            db.ViewerEngagementDailies.Add(row);
         }
         return row;
     }
