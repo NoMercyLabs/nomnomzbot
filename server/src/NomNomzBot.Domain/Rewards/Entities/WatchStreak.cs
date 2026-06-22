@@ -15,7 +15,7 @@ using NomNomzBot.Domain.Platform;
 
 namespace NomNomzBot.Domain.Rewards.Entities;
 
-public class WatchStreak : BaseEntity
+public class WatchStreak : BaseEntity, ITenantScoped
 {
     public Guid Id { get; set; }
     public Guid BroadcasterId { get; set; }

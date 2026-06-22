@@ -15,7 +15,7 @@ using NomNomzBot.Domain.Platform;
 
 namespace NomNomzBot.Domain.Discord.Entities;
 
-public class DiscordServerAuthorization : BaseEntity
+public class DiscordServerAuthorization : BaseEntity, ITenantScoped
 {
     public int Id { get; set; }
     public Guid BroadcasterId { get; set; }

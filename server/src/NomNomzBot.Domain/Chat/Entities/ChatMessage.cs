@@ -16,7 +16,7 @@ using NomNomzBot.Domain.Platform;
 
 namespace NomNomzBot.Domain.Chat.Entities;
 
-public class ChatMessage : SoftDeletableEntity
+public class ChatMessage : SoftDeletableEntity, ITenantScoped
 {
     [MaxLength(255)]
     public string Id { get; set; } = null!;

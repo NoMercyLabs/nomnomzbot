@@ -14,7 +14,7 @@ using NomNomzBot.Domain.Platform;
 
 namespace NomNomzBot.Domain.Identity.Entities;
 
-public class ChannelSubscription : BaseEntity
+public class ChannelSubscription : BaseEntity, ITenantScoped
 {
     public int Id { get; set; }
     public Guid BroadcasterId { get; set; }
