@@ -15,7 +15,7 @@ public class JwtOptions
     public const string SectionName = "Jwt";
 
     public string Secret { get; set; } = null!;
-    public string Issuer { get; set; } = "nomercybot";
-    public string Audience { get; set; } = "nomercybot";
+    public string Issuer { get; set; } = "nomnomzbot";
+    public string Audience { get; set; } = "nomnomzbot";
     public int ExpiryMinutes { get; set; } = 60;
 }

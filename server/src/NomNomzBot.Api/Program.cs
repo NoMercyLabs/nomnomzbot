@@ -18,6 +18,7 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Primitives;
 using Microsoft.IdentityModel.Tokens;
+using NomNomzBot.Api.Configuration;
 using NomNomzBot.Api.Hubs;
 using NomNomzBot.Api.Middleware;
 using NomNomzBot.Application;
@@ -110,6 +111,14 @@ try
     // JWT Auth
     string jwtSecret =
         builder.Configuration["Jwt:Secret"] ?? "change-me-in-production-at-least-32-chars!";
+
+    // Fail fast in production rather than silently run with publicly-known default secrets (§2/§3).
+    StartupSecretGuard.Validate(
+        jwtSecret,
+        builder.Configuration["Encryption:Key"],
+        builder.Environment.IsDevelopment()
+    );
+
     builder
         .Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         .AddJwtBearer(options =>
@@ -120,8 +129,8 @@ try
                 ValidateAudience = true,
                 ValidateLifetime = true,
                 ValidateIssuerSigningKey = true,
-                ValidIssuer = builder.Configuration["Jwt:Issuer"] ?? "nomercybot",
-                ValidAudience = builder.Configuration["Jwt:Audience"] ?? "nomercybot",
+                ValidIssuer = builder.Configuration["Jwt:Issuer"] ?? "nomnomzbot",
+                ValidAudience = builder.Configuration["Jwt:Audience"] ?? "nomnomzbot",
                 IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret)),
             };
 

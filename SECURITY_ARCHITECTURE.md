@@ -114,8 +114,8 @@ Add a `dotnet run --project NomNomzBot.Api -- rotate-key --old-key <> --new-key 
 
 ### Gaps & Vulnerabilities
 
-**🔴 CRITICAL — Default JWT secret is public and committed to source**
-If an operator deploys without setting `JWT_SECRET`, the application runs with a publicly known signing key. Anyone who reads this document or the source code can forge valid JWTs for any user ID. This affects both hosted (if the env var is missing) and self-hosted (if the operator doesn't change it) modes.
+**🟢 RESOLVED — Production refuses to boot with default secrets**
+`StartupSecretGuard.Validate` (called in `Program.cs` before authentication is wired) throws in any non-Development environment when `Jwt:Secret` is a known bundled default or shorter than 32 chars, or when `Encryption:Key` is still the committed development key. A misconfigured production deploy now fails fast instead of silently running with a forgeable signing key. The guard is pure and unit-tested (`StartupSecretGuardTests`).
 
 **🟠 HIGH — No refresh token revocation**
 Refresh tokens are stateless JWTs with a 7-day lifetime. There is no token blacklist, no Redis-backed revocation store, and no `jti` tracking. A stolen refresh token grants the attacker a continuous 7-day re-authentication window with no way to terminate the session short of changing the JWT secret (which invalidates all active sessions platform-wide).
@@ -718,11 +718,11 @@ These must be resolved before the hosted version handles any real user data. Lis
 **Issue:** Twitch/Spotify/Discord client secrets stored in plaintext.
 **Fix:** Inject `IEncryptionService`, encrypt on write, decrypt on read. Two lines of code. See §1 Fix 1.
 
-### 3. Startup guard for default secrets (🔴 CRITICAL)
+### 3. Startup guard for default secrets (🟢 RESOLVED)
 
-**File:** `Program.cs`
-**Issue:** If `JWT_SECRET` or `ENCRYPTION_KEY` env vars are not set, the app runs with publicly known default values.
-**Fix:** Add startup validation that throws in Production if defaults are detected. See §2 Fix 1.
+**File:** `Program.cs` → `StartupSecretGuard.Validate`
+**Issue:** If `JWT_SECRET` or `ENCRYPTION_KEY` env vars are not set, the app ran with publicly known default values.
+**Resolution:** `StartupSecretGuard.Validate` throws in any non-Development environment on a default/short `Jwt:Secret` or the bundled `Encryption:Key`. Unit-tested.
 
 ### 4. Remove Adminer from production docker-compose (🔴 CRITICAL)
 
@@ -774,7 +774,7 @@ These must be resolved before the hosted version handles any real user data. Lis
 |---|---------|--------|-------------|---------|
 | 1 | SecureValue sealed at rest | 🟢 | 🟢 | RESOLVED |
 | 2 | Setup endpoints unauthenticated | 🔴 | 🟠 | CRITICAL |
-| 3 | Default JWT/encryption secrets | 🔴 | 🔴 | CRITICAL |
+| 3 | Production boot-guard on default secrets | 🟢 | 🟢 | RESOLVED |
 | 4 | Adminer exposed in production | 🔴 | 🟠 | CRITICAL |
 | 5 | Per-subject DEK (was shared key) | 🟢 | 🟢 | RESOLVED |
 | 6 | Authenticated envelope (was AES-CBC) | 🟢 | 🟢 | RESOLVED |
