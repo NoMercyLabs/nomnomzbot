@@ -97,6 +97,13 @@ public sealed class OutboundWebhookEndpointService(
                 "EGRESS_NOT_ALLOWED"
             );
 
+        // The path must not be able to redirect the delivery off the allowlisted host (authority hijack).
+        if (!OutboundWebhookTargetUrl.TryBuild(request.Fqdn, request.Path, out _))
+            return Result.Failure<OutboundWebhookEndpointCreatedDto>(
+                "Path must keep the request on the allowlisted host (no host, userinfo, or scheme override).",
+                "INVALID_PATH"
+            );
+
         DateTime now = clock.GetUtcNow().UtcDateTime;
         OutboundWebhookEndpoint endpoint = new()
         {

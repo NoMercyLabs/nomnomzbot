@@ -208,10 +208,15 @@ public sealed class OutboundWebhookDispatcher(
             secrets
         );
 
-        HttpRequestMessage request = new(
-            HttpMethod.Post,
-            $"https://{endpoint.Fqdn}{endpoint.Path ?? string.Empty}"
-        )
+        // Fail-closed backstop: build the URL only if the stored path keeps it on the allowlisted host. Creation
+        // already validates this, so a mismatch here means tampered data — refuse to deliver. HttpRequestException
+        // is caught by the caller and recorded as a delivery failure.
+        if (!OutboundWebhookTargetUrl.TryBuild(endpoint.Fqdn, endpoint.Path, out Uri? target))
+            throw new HttpRequestException(
+                "Delivery URL host does not match the allowlisted endpoint."
+            );
+
+        HttpRequestMessage request = new(HttpMethod.Post, target)
         {
             Content = new ByteArrayContent(body),
         };
