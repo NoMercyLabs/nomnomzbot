@@ -11,6 +11,7 @@
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Tts.Dtos;
@@ -32,6 +33,7 @@ public class TtsConfigController : BaseController
     }
 
     [HttpGet("config")]
+    [RequireAction("tts:config:read")]
     [ProducesResponseType<StatusResponseDto<TtsConfigDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetConfig(string channelId, CancellationToken ct)
     {
@@ -40,6 +42,7 @@ public class TtsConfigController : BaseController
     }
 
     [HttpPut("config")]
+    [RequireAction("tts:config:write")]
     [ProducesResponseType<StatusResponseDto<TtsConfigDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> UpdateConfig(
         string channelId,
@@ -58,6 +61,7 @@ public class TtsConfigController : BaseController
     }
 
     [HttpGet("voices")]
+    [RequireAction("tts:voice:read")]
     [ProducesResponseType<StatusResponseDto<IReadOnlyList<TtsVoiceDto>>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetVoices(string channelId, CancellationToken ct)
     {
@@ -66,6 +70,7 @@ public class TtsConfigController : BaseController
     }
 
     [HttpPost("test")]
+    [RequireAction("tts:voice:test")]
     [ProducesResponseType<StatusResponseDto<TtsTestResultDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> TestVoice(
         string channelId,
