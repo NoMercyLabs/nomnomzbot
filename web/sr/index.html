@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<!--
+  Copyright (c) NoMercy Labs. Part of NomNomzBot, AGPL-3.0-or-later. See LICENSE.
+  Public song-request page (music-sr.md §3.7). Served by the bot at /sr/{token}; no login.
+  The token in the URL path is an opaque capability that resolves to one channel.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>Song Request</title>
+    <style>
+      :root {
+        --bg: #0a0b0f;
+        --card: #12131a;
+        --elevated: #1a1b24;
+        --accent: #9146ff;
+        --text: #ffffff;
+        --muted: #a0a0b0;
+        --ok: #4ade80;
+        --err: #f87171;
+        --radius: 14px;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        background: var(--bg);
+        color: var(--text);
+        font: 15px/1.5 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      }
+      .card {
+        width: 100%;
+        max-width: 440px;
+        background: var(--card);
+        border: 1px solid #1e2030;
+        border-radius: var(--radius);
+        padding: 28px;
+      }
+      h1 { margin: 0 0 4px; font-size: 20px; }
+      .sub { margin: 0 0 22px; color: var(--muted); font-size: 13px; }
+      .channel { color: var(--accent); font-weight: 600; }
+      label { display: block; margin: 0 0 6px; font-size: 13px; color: var(--muted); }
+      input {
+        width: 100%;
+        padding: 11px 13px;
+        margin-bottom: 16px;
+        background: var(--elevated);
+        border: 1px solid #262838;
+        border-radius: 10px;
+        color: var(--text);
+        font-size: 15px;
+      }
+      input:focus { outline: none; border-color: var(--accent); }
+      button {
+        width: 100%;
+        padding: 12px;
+        border: 0;
+        border-radius: 10px;
+        background: var(--accent);
+        color: #fff;
+        font-size: 15px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      button:disabled { opacity: 0.55; cursor: default; }
+      .note { margin: 14px 0 0; font-size: 13px; min-height: 18px; }
+      .note.ok { color: var(--ok); }
+      .note.err { color: var(--err); }
+      .providers { margin: 16px 0 0; font-size: 12px; color: var(--muted); }
+      .hidden { display: none; }
+    </style>
+  </head>
+  <body>
+    <main class="card">
+      <h1 id="title">Song Request</h1>
+      <p class="sub" id="subtitle">Loading…</p>
+
+      <form id="form" class="hidden" autocomplete="off">
+        <label for="query">Song (title, artist, or link)</label>
+        <input id="query" name="query" maxlength="500" required placeholder="Never Gonna Give You Up" />
+        <label for="by">Your name (optional)</label>
+        <input id="by" name="by" maxlength="50" placeholder="Anonymous" />
+        <button id="submit" type="submit">Request song</button>
+        <p class="note" id="note"></p>
+        <p class="providers" id="providers"></p>
+      </form>
+
+      <p class="note err" id="fatal"></p>
+    </main>
+
+    <script>
+      // The token is the last path segment: /sr/{token}
+      const token = decodeURIComponent(location.pathname.split("/").filter(Boolean).pop() || "");
+      const api = `/api/v1/public/sr/${encodeURIComponent(token)}`;
+
+      const el = (id) => document.getElementById(id);
+      const pick = (o, k) => o?.[k] ?? o?.[k[0].toUpperCase() + k.slice(1)];
+
+      async function load() {
+        if (!token || token === "sr") return fatal("This song-request link is invalid.");
+        try {
+          const res = await fetch(api, { headers: { Accept: "application/json" } });
+          if (res.status === 404) return fatal("This song-request page was not found.");
+          if (!res.ok) return fatal("Could not load this song-request page.");
+          const body = await res.json();
+          const data = body.data ?? body.Data ?? body;
+          render(data);
+        } catch {
+          fatal("Could not reach the bot. Try again in a moment.");
+        }
+      }
+
+      function render(data) {
+        const name = pick(data, "channelName") || "this channel";
+        const accepting = pick(data, "isAcceptingRequests");
+        const providers = pick(data, "enabledProviders") || [];
+        el("title").textContent = `Request a song`;
+        el("subtitle").innerHTML = `for <span class="channel">${escapeHtml(name)}</span>`;
+        if (!accepting) return fatal(`${name} is not accepting song requests right now.`);
+        el("form").classList.remove("hidden");
+        if (providers.length)
+          el("providers").textContent = `Playing from: ${providers.join(", ")}`;
+      }
+
+      el("form").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const query = el("query").value.trim();
+        if (!query) return;
+        setBusy(true);
+        note("", "");
+        try {
+          const res = await fetch(api, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Accept: "application/json" },
+            body: JSON.stringify({ query, requestedBy: el("by").value.trim() || null }),
+          });
+          if (res.ok) {
+            note("Added to the queue! 🎵", "ok");
+            el("query").value = "";
+          } else if (res.status === 409) {
+            note("This channel just closed requests.", "err");
+          } else if (res.status === 429) {
+            note("Slow down a moment, then try again.", "err");
+          } else {
+            note("Could not add that song. Try a different search.", "err");
+          }
+        } catch {
+          note("Could not reach the bot. Try again.", "err");
+        } finally {
+          setBusy(false);
+        }
+      });
+
+      function setBusy(b) {
+        el("submit").disabled = b;
+        el("submit").textContent = b ? "Requesting…" : "Request song";
+      }
+      function note(msg, cls) {
+        const n = el("note");
+        n.textContent = msg;
+        n.className = `note ${cls}`;
+      }
+      function fatal(msg) {
+        el("subtitle").classList.add("hidden");
+        el("form").classList.add("hidden");
+        const f = el("fatal");
+        f.textContent = msg;
+        f.className = "note err";
+      }
+      function escapeHtml(s) {
+        return String(s).replace(/[&<>"']/g, (c) =>
+          ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])
+        );
+      }
+
+      load();
+    </script>
+  </body>
+</html>

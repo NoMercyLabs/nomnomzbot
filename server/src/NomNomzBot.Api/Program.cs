@@ -15,6 +15,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Primitives;
 using Microsoft.IdentityModel.Tokens;
 using NomNomzBot.Api.Hubs;
@@ -316,6 +317,27 @@ try
     // Middleware pipeline
     app.UseMiddleware<GlobalExceptionMiddleware>();
     app.UseMiddleware<RequestLoggingMiddleware>();
+
+    // ─── Public web pages (deployment-distribution.md §P5) ─────────────────────
+    // The bot serves its own lightweight web/ pages: the song-request page (/sr), the OBS overlay/widget
+    // browser-sources (/overlay), and the OAuth landing. Served pre-auth (public). A missing web/ dir is a
+    // no-op (API-only / test hosts). The dir is resolved from config or relative to the content root.
+    string webRoot =
+        app.Configuration["PublicWeb:RootPath"]
+        ?? Path.GetFullPath(Path.Combine(app.Environment.ContentRootPath, "..", "..", "..", "web"));
+    if (Directory.Exists(webRoot))
+    {
+        PhysicalFileProvider webFiles = new(webRoot);
+        app.UseDefaultFiles(new DefaultFilesOptions { FileProvider = webFiles });
+        app.UseStaticFiles(new StaticFileOptions { FileProvider = webFiles });
+
+        // Token-in-path public page: /sr/{token} resolves to the song-request shell; its JS reads the
+        // token from the URL and calls the public API. Static file hits (/sr/app.js, …) are served above.
+        string srShell = Path.Combine(webRoot, "sr", "index.html");
+        app.MapGet("/sr/{token}", () => Results.File(srShell, "text/html"))
+            .ExcludeFromDescription()
+            .AllowAnonymous();
+    }
 
     // OpenAPI spec + Scalar UI — always available (self-hosted / local dev)
     app.MapOpenApi();
