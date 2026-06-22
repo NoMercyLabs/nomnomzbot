@@ -12,20 +12,33 @@ using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NomNomzBot.Api.Authorization;
+using NomNomzBot.Api.Models;
+using NomNomzBot.Application.Abstractions.Auth;
+using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Analytics;
+using NomNomzBot.Application.Contracts.Authorization;
 
 namespace NomNomzBot.Api.Controllers.V1;
 
 /// <summary>
-/// Per-channel analytics dashboard reads (analytics.md §5). Channel-scoped, management plane — every route gated
-/// on <c>analytics:read</c> (Moderator floor). The viewer-scoped routes land with the viewer-analytics service.
+/// Analytics dashboard reads (analytics.md §5). Channel routes are management plane (<c>analytics:read</c>,
+/// Moderator floor). Viewer routes are <c>analytics:viewer:read</c> — but a viewer may read their OWN profile/
+/// engagement/streak/opt-out without a management role (self-or-Gate-2), so those bind the caller and authorize
+/// in-action rather than via the attribute.
 /// </summary>
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/channels/{channelId:guid}/analytics")]
 [Authorize]
 [Tags("Analytics")]
-public class AnalyticsController(IChannelAnalyticsService channelAnalytics) : BaseController
+public class AnalyticsController(
+    IChannelAnalyticsService channelAnalytics,
+    IViewerAnalyticsService viewerAnalytics,
+    IActionAuthorizationService authorization,
+    ICurrentUserService currentUser
+) : BaseController
 {
+    // ── Channel (management plane) ───────────────────────────────────────────
+
     [HttpGet("channel/daily")]
     [RequireAction("analytics:read")]
     public async Task<IActionResult> GetChannelDaily(
@@ -57,4 +70,105 @@ public class AnalyticsController(IChannelAnalyticsService channelAnalytics) : Ba
         ResultResponse(
             await channelAnalytics.GetTopViewersAsync(channelId, metric, from, to, top, ct)
         );
+
+    // ── Viewers ──────────────────────────────────────────────────────────────
+
+    [HttpGet("viewers")]
+    [RequireAction("analytics:viewer:read")]
+    public async Task<IActionResult> ListViewers(
+        Guid channelId,
+        [FromQuery] ViewerProfileQuery query,
+        [FromQuery] PageRequestDto request,
+        CancellationToken ct
+    )
+    {
+        PaginationParams paging = new(request.Page, request.Take, request.Sort, request.Order);
+        Result<PagedList<ViewerProfileListItemDto>> result =
+            await viewerAnalytics.ListProfilesAsync(channelId, query, paging, ct);
+        if (result.IsFailure)
+            return ResultResponse(result);
+        return GetPaginatedResponse(result.Value, request);
+    }
+
+    [HttpGet("viewers/{viewerUserId:guid}")]
+    public async Task<IActionResult> GetViewer(
+        Guid channelId,
+        Guid viewerUserId,
+        CancellationToken ct
+    )
+    {
+        if (!await CanReadViewerAsync(channelId, viewerUserId, ct))
+            return UnauthorizedResponse();
+        return ResultResponse(await viewerAnalytics.GetProfileAsync(channelId, viewerUserId, ct));
+    }
+
+    [HttpGet("viewers/{viewerUserId:guid}/engagement")]
+    public async Task<IActionResult> GetViewerEngagement(
+        Guid channelId,
+        Guid viewerUserId,
+        [FromQuery] DateOnly from,
+        [FromQuery] DateOnly to,
+        CancellationToken ct
+    )
+    {
+        if (!await CanReadViewerAsync(channelId, viewerUserId, ct))
+            return UnauthorizedResponse();
+        return ResultResponse(
+            await viewerAnalytics.GetEngagementSeriesAsync(channelId, viewerUserId, from, to, ct)
+        );
+    }
+
+    [HttpGet("viewers/{viewerUserId:guid}/streak")]
+    public async Task<IActionResult> GetViewerStreak(
+        Guid channelId,
+        Guid viewerUserId,
+        CancellationToken ct
+    )
+    {
+        if (!await CanReadViewerAsync(channelId, viewerUserId, ct))
+            return UnauthorizedResponse();
+        return ResultResponse(await viewerAnalytics.GetStreakAsync(channelId, viewerUserId, ct));
+    }
+
+    [HttpPost("viewers/{viewerUserId:guid}/opt-out")]
+    public async Task<IActionResult> SetViewerOptOut(
+        Guid channelId,
+        Guid viewerUserId,
+        [FromBody] SetAnalyticsOptOutRequest request,
+        CancellationToken ct
+    )
+    {
+        if (!await CanReadViewerAsync(channelId, viewerUserId, ct))
+            return UnauthorizedResponse();
+        return ResultResponse(
+            await viewerAnalytics.SetAnalyticsOptOutAsync(
+                channelId,
+                viewerUserId,
+                request.OptedOut,
+                ct
+            )
+        );
+    }
+
+    /// <summary>Self-or-Gate-2: the viewer themselves, or a caller holding <c>analytics:viewer:read</c>.</summary>
+    private async Task<bool> CanReadViewerAsync(
+        Guid channelId,
+        Guid viewerUserId,
+        CancellationToken ct
+    )
+    {
+        if (!TryGetCaller(out Guid caller))
+            return false;
+        if (caller == viewerUserId)
+            return true;
+        Result<bool> authorized = await authorization.AuthorizeActionAsync(
+            caller,
+            channelId,
+            "analytics:viewer:read",
+            ct
+        );
+        return authorized.IsSuccess && authorized.Value;
+    }
+
+    private bool TryGetCaller(out Guid caller) => Guid.TryParse(currentUser.UserId, out caller);
 }

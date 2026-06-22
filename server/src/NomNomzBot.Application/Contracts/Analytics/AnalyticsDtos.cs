@@ -67,3 +67,67 @@ public enum TopViewerMetric
     Redemptions,
     CurrencyEarned,
 }
+
+/// <summary>One viewer's aggregate profile for a channel (analytics.md §4, M.1).</summary>
+public sealed record ViewerProfileDto(
+    Guid ViewerUserId,
+    string ViewerTwitchUserId,
+    string? DisplayName,
+    DateTime? FirstSeenAt,
+    DateTime? LastSeenAt,
+    long TotalWatchSeconds,
+    long TotalMessages,
+    long TotalCommandsUsed,
+    long TotalRedemptions,
+    long TotalSongRequests,
+    bool IsFollower,
+    bool IsSubscriber,
+    string? SubTier,
+    bool IsAnalyticsOptedOut
+);
+
+/// <summary>A row in the ranked/filtered viewer list (analytics.md §4, M.1).</summary>
+public sealed record ViewerProfileListItemDto(
+    Guid ViewerUserId,
+    string? DisplayName,
+    long TotalWatchSeconds,
+    long TotalMessages,
+    DateTime? LastSeenAt
+);
+
+/// <summary>One viewer's daily engagement roll-up (analytics.md §4, M.7).</summary>
+public sealed record ViewerEngagementDailyDto(
+    DateOnly ActivityDate,
+    long WatchSeconds,
+    int MessageCount,
+    int CommandCount,
+    int RedemptionCount,
+    int SongRequestCount,
+    long CurrencyEarned,
+    long CurrencySpent,
+    int GamesPlayed
+);
+
+/// <summary>One viewer's attendance streak (analytics.md §4, M.3).</summary>
+public sealed record WatchStreakDto(int CurrentStreak, int MaxStreak, DateOnly LastSeenDate);
+
+/// <summary>How the viewer list is sorted (analytics.md §4).</summary>
+public enum ViewerProfileSort
+{
+    Watch,
+    Messages,
+    Commands,
+    Redemptions,
+    LastSeen,
+}
+
+/// <summary>Filter/sort over the viewer list (analytics.md §4).</summary>
+public sealed record ViewerProfileQuery(
+    string? Search = null,
+    ViewerProfileSort Sort = ViewerProfileSort.LastSeen,
+    bool? FollowersOnly = null,
+    bool? SubscribersOnly = null
+);
+
+/// <summary>Body for the viewer analytics opt-out toggle (analytics.md §5).</summary>
+public sealed record SetAnalyticsOptOutRequest(bool OptedOut);
