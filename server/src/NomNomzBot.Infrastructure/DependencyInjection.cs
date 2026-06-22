@@ -139,6 +139,22 @@ public static class DependencyInjection
         // Music providers (scoped — multi-binding consumed as IEnumerable<IMusicProvider>).
         services.AddImplementationsOf<IMusicProvider>(infrastructure, ServiceLifetime.Scoped);
 
+        // Webhook HMAC primitives (stateless; not name-convention "*Service", so registered explicitly).
+        services.AddSingleton<
+            NomNomzBot.Application.Contracts.Webhooks.IInboundSignatureVerifier,
+            NomNomzBot.Infrastructure.Webhooks.InboundSignatureVerifier
+        >();
+        services.AddSingleton<
+            NomNomzBot.Application.Contracts.Webhooks.IOutboundWebhookSigner,
+            NomNomzBot.Infrastructure.Webhooks.OutboundWebhookSigner
+        >();
+
+        // Inbound webhook adapters (transient — stateless, multi-binding by WebhookAdapterKind).
+        services.AddImplementationsOf<NomNomzBot.Application.Contracts.Webhooks.IInboundWebhookAdapter>(
+            infrastructure,
+            ServiceLifetime.Transient
+        );
+
         // Event store — projections, post-commit hooks, and upcasters are pluggable multi-bindings discovered
         // by convention (drop a file → it is live next boot), mirroring ICommandAction. Projections + hooks
         // touch the DbContext (scoped); upcasters are pure/stateless (singleton).

@@ -43,6 +43,20 @@ public sealed record InboundWebhookRequest
 /// <summary>The verdict of an adapter's signature/secret check.</summary>
 public sealed record WebhookVerification(bool IsValid, WebhookRejectReason? Reason);
 
+/// <summary>The dispatcher's typed outcome (webhooks.md §4) — the controller maps <c>HttpStatus</c> to the response.</summary>
+public sealed record InboundDispatchResult(
+    bool Verified,
+    bool WasDuplicate,
+    Guid? JournalEventId,
+    long StreamPosition,
+    string EventType,
+    WebhookRejectReason? RejectReason,
+    int HttpStatus,
+    Guid? ResolvedEndpointId,
+    Guid? ResolvedBroadcasterId,
+    WebhookAdapterKind? ResolvedAdapter
+);
+
 /// <summary>A normalized inbound event: the kind token, the dedupe id, and a flat variable bag (webhook.*/payload.*).</summary>
 public sealed record ParsedInboundEvent(
     string Kind,
