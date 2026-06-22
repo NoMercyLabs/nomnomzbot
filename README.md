@@ -25,7 +25,8 @@ a visual pipeline engine, and integrations (Spotify, Discord, YouTube, TTS).
   webhook appliers, and founders/invite codes that grant a badge and/or tier; the full REST
   surface (owner-only tenant billing, the platform-admin invite console, and an HMAC-verified
   Stripe webhook) plus a `require_tier` pipeline gate are wired. The outbound Stripe gateway
-  (hosted checkout / billing portal) is the one piece pending live Stripe credentials. The
+  (hosted checkout + self-serve billing portal, on Stripe.net) is built and wired — fail-closed
+  when unconfigured — and just needs live/test Stripe keys to transact. The
   **federation** trust plane is also built: a global peer directory with a default-deny
   trust lifecycle, per-channel opt-ins (a channel shares/accepts nothing until it explicitly
   enables it), and rsa-sha256 per-message signing/verification (in-box crypto, fail-closed) —
@@ -57,9 +58,12 @@ a visual pipeline engine, and integrations (Spotify, Discord, YouTube, TTS).
   the channel and accepts requests with no login) is wired front to back, and the **OBS overlay**
   browser-source renders seven event feeds pushed from domain events over SignalR — subscription,
   resub, follow, cheer, raid, and gift alerts plus a persistent now-playing bar — each fanned only
-  to the widgets that subscribe to it. The deferred pieces are the Wasmtime SaaS executor, overlay
-  settings-driven styling, and a handful of infrastructure-bound externals. ~1092 tests green across
-  four suites.
+  to the widgets that subscribe to it and styled by saved per-widget settings. The **SaaS Wasmtime
+  sandbox** executor's hardened isolation boundary is built too (wasmtime-dotnet, Cranelift-only,
+  fuel + epoch, every risky proposal off, WASI unlinked, mandatory Store limits) and proven against
+  real wasm; its JS-in-WASM engine module is the one remaining SaaS-deploy artifact. The remaining
+  infrastructure-bound externals are live Stripe keys, that engine module, and the OIDC issuer +
+  federation cross-instance transport. ~1103 tests green across four suites.
 - **Frontend** — **Kotlin Multiplatform + Compose Multiplatform** (one codebase, desktop + web/Wasm
   identical UI; mobile later). The previous Expo/React Native app was removed. The dashboard app is
   **not built yet** — today the API is driven directly (Scalar docs, HTTP clients, overlays), and the
