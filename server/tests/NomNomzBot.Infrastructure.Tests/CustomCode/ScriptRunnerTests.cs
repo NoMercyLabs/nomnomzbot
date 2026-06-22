@@ -61,6 +61,8 @@ public sealed class ScriptRunnerTests
                 new JintScriptExecutor(),
                 broker,
                 meter,
+                Substitute.For<NomNomzBot.Application.Abstractions.Transport.ITwitchChatService>(),
+                Substitute.For<NomNomzBot.Application.Abstractions.Transport.ITwitchIdentityResolver>(),
                 new FakeTimeProvider(Now)
             ),
             db

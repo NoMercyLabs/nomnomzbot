@@ -11,6 +11,7 @@
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Abstractions.Transport;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Domain.CustomCode.Entities;
@@ -30,6 +31,8 @@ public sealed class ScriptRunner(
     IScriptExecutor executor,
     IScriptCapabilityBroker broker,
     IScriptExecutionMeter meter,
+    ITwitchChatService chatService,
+    ITwitchIdentityResolver identityResolver,
     TimeProvider clock
 ) : IScriptRunner
 {
@@ -116,10 +119,11 @@ public sealed class ScriptRunner(
             );
         }
 
+        ScriptHostBridge bridge = new(script.BroadcasterId, chatService, identityResolver);
         Result<ScriptExecutionOutcomeResult> executed = await executor.ExecuteAsync(
             request,
             grantResult.Value,
-            NoOpScriptHostBridge.Instance,
+            bridge,
             cancellationToken
         );
         ScriptExecutionOutcomeResult outcome = executed.Value;
