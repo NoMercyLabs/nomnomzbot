@@ -77,6 +77,7 @@ public class UserService : IUserService
             {
                 TwitchUserId = platformUserId,
                 Username = username,
+                UsernameNormalized = username.ToLowerInvariant(),
                 DisplayName = displayName,
                 Enabled = true,
             };
@@ -88,6 +89,7 @@ public class UserService : IUserService
         {
             // Update username/displayName in case they changed
             user.Username = username;
+            user.UsernameNormalized = username.ToLowerInvariant();
             user.DisplayName = displayName;
             await _db.SaveChangesAsync(cancellationToken);
         }
