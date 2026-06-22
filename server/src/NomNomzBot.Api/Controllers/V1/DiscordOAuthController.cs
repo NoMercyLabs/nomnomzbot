@@ -8,13 +8,13 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-using System.Text;
 using System.Text.Json;
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Discord.Entities;
 using NomNomzBot.Domain.Platform.Entities;
 
@@ -29,8 +29,9 @@ namespace NomNomzBot.Api.Controllers.V1;
 /// guild authorization), so it is excluded from the descriptor-driven path by design (integrations-oauth §0).
 /// <para>
 /// KNOWN INTERIM DEBT (resolved when the discord.md subsystem is built): tokens land in the legacy
-/// <c>Service</c> entity in plaintext rather than the crypto vault, and the <c>state</c> is an unsigned base64
-/// payload. Do not extend this controller — fold it into <c>IDiscordGuildService</c> instead.
+/// <c>Service</c> entity in plaintext rather than the crypto vault. (The OAuth <c>state</c> is now a single-use
+/// server-side CSRF nonce via <c>ITwitchOAuthStateService</c>, not an unsigned base64 payload.) Do not extend
+/// this controller — fold it into <c>IDiscordGuildService</c> instead.
 /// </para>
 /// </summary>
 [ApiVersion("1.0")]
@@ -45,13 +46,15 @@ public class DiscordOAuthController : BaseController
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<DiscordOAuthController> _logger;
     private readonly TimeProvider _timeProvider;
+    private readonly ITwitchOAuthStateService _oauthState;
 
     public DiscordOAuthController(
         IApplicationDbContext db,
         IConfiguration config,
         IHttpClientFactory httpClientFactory,
         ILogger<DiscordOAuthController> logger,
-        TimeProvider timeProvider
+        TimeProvider timeProvider,
+        ITwitchOAuthStateService oauthState
     )
     {
         _db = db;
@@ -59,6 +62,7 @@ public class DiscordOAuthController : BaseController
         _httpClientFactory = httpClientFactory;
         _logger = logger;
         _timeProvider = timeProvider;
+        _oauthState = oauthState;
     }
 
     /// <summary>Start the Discord OAuth flow — redirects to Discord's authorization page with bot + guilds scopes.</summary>
@@ -75,8 +79,12 @@ public class DiscordOAuthController : BaseController
         string baseUrl = _config["App:BaseUrl"] ?? $"{Request.Scheme}://{Request.Host}";
         string redirectUri = $"{baseUrl}/api/v1/integrations/discord/callback";
 
-        string statePayload = JsonSerializer.Serialize(new { channel_id = channelId });
-        string state = Convert.ToBase64String(Encoding.UTF8.GetBytes(statePayload));
+        // Single-use, server-side CSRF state nonce (the channel id is held server-side, never in the query
+        // string) so a forged callback cannot bind a Discord guild to a channel the caller did not choose.
+        string state = await _oauthState.IssueAsync(
+            new TwitchOAuthFlowState("discord", ChannelId: channelId),
+            ct
+        );
 
         string authUrl =
             "https://discord.com/api/oauth2/authorize"
@@ -101,9 +109,12 @@ public class DiscordOAuthController : BaseController
         CancellationToken ct
     )
     {
-        string? channelId = ExtractChannelIdFromState(state);
+        // Consume the single-use nonce; a missing, expired, or forged state is rejected, and the channel id
+        // comes only from the server-side payload, never the query string.
+        TwitchOAuthFlowState? flowState = await _oauthState.ConsumeAsync(state, ct);
+        string? channelId = flowState?.ChannelId;
         if (string.IsNullOrEmpty(channelId))
-            return BadRequestResponse("Missing channel_id in OAuth state.");
+            return BadRequestResponse("Invalid or expired OAuth state.");
 
         if (!Guid.TryParse(channelId, out Guid tenantId))
             return BadRequestResponse("Invalid channel_id in OAuth state.");
@@ -286,25 +297,4 @@ public class DiscordOAuthController : BaseController
         string.Concat(
             segment.Split('_').Select(w => w.Length > 0 ? char.ToUpper(w[0]) + w[1..] : w)
         );
-
-    /// <summary>Extract channel_id from a Base64-encoded JSON state parameter.</summary>
-    private static string? ExtractChannelIdFromState(string? state)
-    {
-        if (string.IsNullOrWhiteSpace(state))
-            return null;
-
-        try
-        {
-            byte[] decoded = Convert.FromBase64String(state);
-            using JsonDocument doc = JsonDocument.Parse(decoded);
-            if (doc.RootElement.TryGetProperty("channel_id", out JsonElement cidEl))
-                return cidEl.GetString();
-        }
-        catch
-        {
-            // State isn't our encoded payload — ignore.
-        }
-
-        return null;
-    }
 }
