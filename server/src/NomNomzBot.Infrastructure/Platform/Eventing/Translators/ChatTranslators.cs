@@ -14,6 +14,7 @@ using NomNomzBot.Application.DTOs.Twitch.EventSub;
 using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Chat.ValueObjects;
 using NomNomzBot.Domain.Platform.Interfaces;
+using NomNomzBot.Domain.Rewards.Events;
 
 namespace NomNomzBot.Infrastructure.Platform.Eventing.Translators;
 
@@ -313,13 +314,14 @@ public sealed class ChannelChatNotificationTranslator(IEventBus bus, TimeProvide
 {
     public override string SubscriptionType => "channel.chat.notification";
 
-    public override Task TranslateAsync(
+    public override async Task TranslateAsync(
         EventSubNotification notification,
         CancellationToken ct = default
     )
     {
         JsonElement payload = notification.Event;
         JsonElement? message = payload.GetObject("message");
+        string noticeType = payload.GetRequiredString("notice_type");
 
         ChatNotificationEvent notice = new()
         {
@@ -329,13 +331,30 @@ public sealed class ChannelChatNotificationTranslator(IEventBus bus, TimeProvide
             ChatterDisplayName = payload.GetRequiredString("chatter_user_name"),
             ChatterLogin = payload.GetRequiredString("chatter_user_login"),
             IsAnonymous = payload.GetBool("chatter_is_anonymous"),
-            NoticeType = payload.GetRequiredString("notice_type"),
+            NoticeType = noticeType,
             SystemMessage = payload.GetRequiredString("system_message"),
             MessageText = ChatPayload.ReadMessageText(message),
             MessageId = payload.GetRequiredString("message_id"),
         };
+        await PublishAsync(notice, ct);
 
-        return PublishAsync(notice, ct);
+        // A watch_streak notice also carries the milestone — surface it as the WatchStreakReceivedEvent the
+        // WatchStreak read model folds. This is the EventSub source for watch streaks (the IRC service no longer
+        // parses inbound events). watch_streak.streak_count = consecutive broadcasts watched.
+        if (noticeType == "watch_streak" && payload.GetObject("watch_streak") is JsonElement streak)
+            await PublishAsync(
+                new WatchStreakReceivedEvent
+                {
+                    BroadcasterId = notification.BroadcasterId,
+                    Timestamp = Clock.GetUtcNow(),
+                    UserId = notice.ChatterUserId,
+                    UserLogin = notice.ChatterLogin,
+                    UserDisplayName = notice.ChatterDisplayName,
+                    StreakMonths = streak.GetInt("streak_count"),
+                    ChannelPointsEarned = streak.GetInt("channel_points_awarded"),
+                },
+                ct
+            );
     }
 }
 

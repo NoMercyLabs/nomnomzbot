@@ -14,6 +14,7 @@ using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.DTOs.Twitch.EventSub;
 using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Chat.ValueObjects;
+using NomNomzBot.Domain.Rewards.Events;
 using NomNomzBot.Infrastructure.Platform.Eventing.Translators;
 using NomNomzBot.Infrastructure.Tests.Platform.Transport.Helix;
 
@@ -661,5 +662,72 @@ public sealed class ChatTranslatorsTests
         published.MessageId.Should().Be("hold-1");
         published.UserLogin.Should().Be("held_user");
         published.Text.Should().Be("suspicious text");
+    }
+
+    [Fact]
+    public async Task ChatNotification_WatchStreak_PublishesWatchStreakReceivedEvent()
+    {
+        CapturingEventBus bus = new();
+        ChannelChatNotificationTranslator translator = new(bus, Clock);
+
+        await translator.TranslateAsync(
+            Notification(
+                "channel.chat.notification",
+                """
+                {
+                    "broadcaster_user_id": "broadcaster-99",
+                    "chatter_user_id": "555",
+                    "chatter_user_login": "cool_user",
+                    "chatter_user_name": "Cool_User",
+                    "chatter_is_anonymous": false,
+                    "message_id": "n-1",
+                    "message": { "text": "", "fragments": [] },
+                    "notice_type": "watch_streak",
+                    "system_message": "Cool_User watched 12 streams in a row!",
+                    "watch_streak": { "streak_count": 12, "channel_points_awarded": 350 }
+                }
+                """
+            )
+        );
+
+        WatchStreakReceivedEvent published = bus.EventsOf<WatchStreakReceivedEvent>()
+            .Should()
+            .ContainSingle()
+            .Subject;
+
+        published.BroadcasterId.Should().Be(Tenant);
+        published.UserDisplayName.Should().Be("Cool_User");
+        published.UserLogin.Should().Be("cool_user");
+        published.StreakMonths.Should().Be(12);
+        published.ChannelPointsEarned.Should().Be(350);
+    }
+
+    [Fact]
+    public async Task ChatNotification_NonWatchStreak_DoesNotPublishWatchStreak()
+    {
+        CapturingEventBus bus = new();
+        ChannelChatNotificationTranslator translator = new(bus, Clock);
+
+        await translator.TranslateAsync(
+            Notification(
+                "channel.chat.notification",
+                """
+                {
+                    "broadcaster_user_id": "broadcaster-99",
+                    "chatter_user_id": "555",
+                    "chatter_user_login": "cool_user",
+                    "chatter_user_name": "Cool_User",
+                    "chatter_is_anonymous": false,
+                    "message_id": "n-2",
+                    "message": { "text": "", "fragments": [] },
+                    "notice_type": "raid",
+                    "system_message": "Raiders incoming!"
+                }
+                """
+            )
+        );
+
+        bus.EventsOf<WatchStreakReceivedEvent>().Should().BeEmpty();
+        bus.EventsOf<ChatNotificationEvent>().Should().ContainSingle();
     }
 }
