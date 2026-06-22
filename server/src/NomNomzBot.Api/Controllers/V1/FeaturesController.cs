@@ -11,6 +11,7 @@
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Platform.Dtos;
@@ -32,6 +33,7 @@ public class FeaturesController : BaseController
     }
 
     [HttpGet]
+    [RequireAction("feature:read")]
     [ProducesResponseType<StatusResponseDto<List<FeatureStatusDto>>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetFeatures(string channelId, CancellationToken ct)
     {
@@ -43,6 +45,7 @@ public class FeaturesController : BaseController
     }
 
     [HttpPost("{featureKey}/toggle")]
+    [RequireAction("feature:write")]
     [ProducesResponseType<StatusResponseDto<FeatureStatusDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> ToggleFeature(
         string channelId,

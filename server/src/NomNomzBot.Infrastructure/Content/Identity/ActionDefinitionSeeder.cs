@@ -217,8 +217,13 @@ public sealed class ActionDefinitionSeeder : ISeeder
         M("integration:read", Mod);
         M("integration:write", Editor);
         M("community:read", Mod);
+        // Managing a viewer's trust level is a per-viewer moderation-tier community write.
+        M("community:trust:write", Mod);
         M("dashboard:read", Mod);
         M("setup:write", Broadcaster, grant: false);
+        // Per-channel feature enablement (FeaturesController): read at Mod, toggle at the config-write tier.
+        M("feature:read", Mod);
+        M("feature:write", Editor);
         M("analytics:read", Mod);
         M("analytics:viewer:read", Mod);
 

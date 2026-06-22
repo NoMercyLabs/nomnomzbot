@@ -12,6 +12,7 @@ using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
@@ -69,11 +70,12 @@ public class DashboardController : BaseController
     /// Returns a live stats snapshot for the given channel.
     /// Uses the in-memory ChannelContext when the bot is connected; falls back to DB otherwise.
     /// </summary>
-    [HttpGet("{broadcasterId}/stats")]
+    [HttpGet("{channelId}/stats")]
+    [RequireAction("dashboard:read")]
     [ProducesResponseType<StatusResponseDto<DashboardStatsDto>>(StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetStats(string broadcasterId, CancellationToken ct)
+    public async Task<IActionResult> GetStats(string channelId, CancellationToken ct)
     {
-        if (!Guid.TryParse(broadcasterId, out Guid tenantId))
+        if (!Guid.TryParse(channelId, out Guid tenantId))
             return BadRequestResponse("Invalid channel id.");
 
         // The sub-clients resolve the tenant Guid → Twitch id internally; a failure (no token / missing
@@ -115,7 +117,7 @@ public class DashboardController : BaseController
         }
 
         // Channel not currently active in registry — fall back to DB for basic info.
-        Result<ChannelDto> result = await _channelService.GetAsync(broadcasterId, ct);
+        Result<ChannelDto> result = await _channelService.GetAsync(channelId, ct);
         if (result.IsFailure)
             return ResultResponse(result);
 
@@ -138,11 +140,12 @@ public class DashboardController : BaseController
     /// <summary>
     /// Returns recent channel activity events.
     /// </summary>
-    [HttpGet("{broadcasterId}/activity")]
+    [HttpGet("{channelId}/activity")]
+    [RequireAction("dashboard:read")]
     [ProducesResponseType<StatusResponseDto<List<ActivityEventDto>>>(StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetActivity(string broadcasterId, CancellationToken ct)
+    public async Task<IActionResult> GetActivity(string channelId, CancellationToken ct)
     {
-        if (!Guid.TryParse(broadcasterId, out Guid tenantId))
+        if (!Guid.TryParse(channelId, out Guid tenantId))
             return BadRequestResponse("Invalid channel id.");
 
         List<ChannelEvent> events = await _db

@@ -603,6 +603,7 @@ public class CommunityController : BaseController
 
     // ── Set trust level ───────────────────────────────────────────────────────
 
+    [RequireAction("community:trust:write")]
     [HttpPut("{userId}/trust")]
     [ProducesResponseType<StatusResponseDto<UserDetailDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> SetTrustLevel(

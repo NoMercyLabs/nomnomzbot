@@ -12,6 +12,7 @@ using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
@@ -551,6 +552,7 @@ public class ChannelsController : BaseController
     }
 
     [HttpPut("{channelId}")]
+    [RequireAction("setup:write")]
     [ProducesResponseType<StatusResponseDto<ChannelDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> UpdateChannelSettings(
         string channelId,
@@ -569,6 +571,7 @@ public class ChannelsController : BaseController
     }
 
     [HttpPost("{channelId}/join")]
+    [RequireAction("setup:write")]
     [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> JoinChannel(string channelId, CancellationToken ct)
     {
@@ -579,6 +582,7 @@ public class ChannelsController : BaseController
     }
 
     [HttpPost("{channelId}/leave")]
+    [RequireAction("setup:write")]
     [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> LeaveChannel(string channelId, CancellationToken ct)
     {
@@ -589,6 +593,7 @@ public class ChannelsController : BaseController
     }
 
     [HttpDelete("{channelId}")]
+    [RequireAction("setup:write")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> DeleteChannel(string channelId, CancellationToken ct)
     {
@@ -600,6 +605,7 @@ public class ChannelsController : BaseController
 
     /// <summary>Reset all channel bot configuration to defaults (clears Configuration entries).</summary>
     [HttpPost("{channelId}/reset")]
+    [RequireAction("setup:write")]
     [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> ResetChannel(string channelId, CancellationToken ct)
     {
