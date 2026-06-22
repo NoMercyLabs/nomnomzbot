@@ -13,11 +13,15 @@ using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Caching;
 using NomNomzBot.Application.Chat.Decoration;
 using NomNomzBot.Application.Chat.Services;
+using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Platform.Dtos;
+using NomNomzBot.Application.Platform.Services;
 using NomNomzBot.Domain.Chat.Enums;
 using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Chat.ValueObjects;
 using NomNomzBot.Infrastructure.Chat;
 using NomNomzBot.Infrastructure.Chat.Adapters;
+using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Chat;
 
@@ -46,14 +50,7 @@ public sealed class ChatMessageDecoratorTests
             ]
         );
 
-        IChatDecorationAdapter[] adapters =
-        [
-            new ExplodeTextAdapter(),
-            new ThirdPartyEmoteAdapter(cache),
-            new TwitchEmoteUrlAdapter(),
-            new ImplodeTextAdapter(),
-        ];
-        ChatMessageDecorator decorator = new(adapters, NullLogger<ChatMessageDecorator>.Instance);
+        ChatMessageDecorator decorator = Decorator(cache, EmoteChain(cache));
 
         ChatMessageReceivedEvent evt = Event("PepeLaugh hello");
         DecoratedChatMessage result = await decorator.DecorateAsync(evt);
@@ -71,6 +68,38 @@ public sealed class ChatMessageDecoratorTests
     }
 
     [Fact]
+    public async Task An_explicit_off_toggle_disables_that_provider_so_its_emote_stays_text()
+    {
+        FakeCache cache = new();
+        await cache.SetAsync<IReadOnlyList<ChatEmote>>(
+            ChatEmoteCacheKeys.Global(EmoteProvider.SevenTv),
+            [
+                new ChatEmote(
+                    EmoteProvider.SevenTv,
+                    "7tv-1",
+                    "PepeLaugh",
+                    new Dictionary<string, string> { ["1"] = "https://cdn.7tv/1x" },
+                    Animated: true,
+                    ZeroWidth: false
+                ),
+            ]
+        );
+
+        // The channel has explicitly turned 7TV off — the cached emote must NOT be matched.
+        ChatMessageDecorator decorator = Decorator(cache, EmoteChain(cache), ("use_7tv", false));
+
+        DecoratedChatMessage result = await decorator.DecorateAsync(Event("PepeLaugh hello"));
+
+        result
+            .Fragments.Should()
+            .ContainSingle()
+            .Which.Should()
+            .Match<ChatMessageFragment>(fragment =>
+                fragment.Type == "text" && fragment.Text == "PepeLaugh hello"
+            );
+    }
+
+    [Fact]
     public async Task Runs_adapters_in_order_and_skips_a_throwing_one()
     {
         List<int> ran = [];
@@ -80,12 +109,43 @@ public sealed class ChatMessageDecoratorTests
             new RecordingAdapter(20, ran, throws: true),
             new RecordingAdapter(10, ran),
         ];
-        ChatMessageDecorator decorator = new(adapters, NullLogger<ChatMessageDecorator>.Instance);
+        ChatMessageDecorator decorator = Decorator(new FakeCache(), adapters);
 
         await decorator.DecorateAsync(Event("hello"));
 
         // Sorted ascending; the throwing step at 20 ran, was caught, and the step at 80 still ran.
         ran.Should().Equal(10, 20, 80);
+    }
+
+    // The real emote-resolving chain, sharing the test's cache so seeded sets are visible to the matcher.
+    private static IChatDecorationAdapter[] EmoteChain(ICacheService cache) =>
+        [
+            new ExplodeTextAdapter(),
+            new ThirdPartyEmoteAdapter(cache),
+            new TwitchEmoteUrlAdapter(),
+            new ImplodeTextAdapter(),
+        ];
+
+    private static ChatMessageDecorator Decorator(
+        ICacheService cache,
+        IEnumerable<IChatDecorationAdapter> adapters,
+        params (string Key, bool Enabled)[] toggles
+    )
+    {
+        IFeatureService features = Substitute.For<IFeatureService>();
+        List<FeatureStatusDto> dtos = toggles
+            .Select(toggle => new FeatureStatusDto(toggle.Key, toggle.Enabled, null, []))
+            .ToList();
+        features
+            .GetFeaturesAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(Result.Success(dtos)));
+
+        return new ChatMessageDecorator(
+            adapters,
+            features,
+            cache,
+            NullLogger<ChatMessageDecorator>.Instance
+        );
     }
 
     private static ChatMessageReceivedEvent Event(string text) =>

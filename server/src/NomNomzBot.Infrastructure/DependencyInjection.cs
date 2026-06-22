@@ -158,7 +158,9 @@ public static class DependencyInjection
             infrastructure,
             ServiceLifetime.Singleton
         );
-        services.AddSingleton<
+        // Scoped: it resolves the channel's feature toggles through the scoped IFeatureService (cache-backed, so the
+        // hot path stays cheap). Consumes the singleton adapters + cache fine.
+        services.AddScoped<
             NomNomzBot.Application.Chat.Services.IChatMessageDecorator,
             NomNomzBot.Infrastructure.Chat.ChatMessageDecorator
         >();

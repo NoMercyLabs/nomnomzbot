@@ -9,8 +9,12 @@
 // -----------------------------------------------------------------------------
 
 using Microsoft.Extensions.Logging;
+using NomNomzBot.Application.Abstractions.Caching;
 using NomNomzBot.Application.Chat.Decoration;
 using NomNomzBot.Application.Chat.Services;
+using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Platform.Dtos;
+using NomNomzBot.Application.Platform.Services;
 using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Chat.ValueObjects;
 
@@ -26,20 +30,35 @@ namespace NomNomzBot.Infrastructure.Chat;
 /// </summary>
 public sealed class ChatMessageDecorator : IChatMessageDecorator
 {
-    // Third-party emote rendering is on by default for every channel — the near-universal want, matching every emote
-    // extension. The per-channel opt-out (a cached IFeatureService lookup seeded here) is the next slice; link preview
-    // is deliberately absent (opt-in, gated on its own toggle + viewer standing).
-    private static readonly string[] DefaultEnabledFeatures = ["use_7tv", "use_bttv", "use_ffz"];
+    // The decoration features and their default state. Third-party emote rendering is ON by default — the near-universal
+    // want, matching every emote extension — and a channel opts OUT with an explicit toggle. Link preview is absent here
+    // (opt-in, gated on its own toggle + viewer standing in its adapter).
+    private static readonly (string Key, bool DefaultOn)[] DecorationFeatures =
+    [
+        ("use_7tv", true),
+        ("use_bttv", true),
+        ("use_ffz", true),
+    ];
+
+    // The channel's resolved decoration rules are cached briefly so the chat hot path does not hit the feature store
+    // per message; a toggle change takes effect within this window.
+    private static readonly TimeSpan RulesCacheTtl = TimeSpan.FromSeconds(60);
 
     private readonly IReadOnlyList<IChatDecorationAdapter> _adapters;
+    private readonly IFeatureService _features;
+    private readonly ICacheService _cache;
     private readonly ILogger<ChatMessageDecorator> _logger;
 
     public ChatMessageDecorator(
         IEnumerable<IChatDecorationAdapter> adapters,
+        IFeatureService features,
+        ICacheService cache,
         ILogger<ChatMessageDecorator> logger
     )
     {
         _adapters = adapters.OrderBy(adapter => adapter.Order).ToList();
+        _features = features;
+        _cache = cache;
         _logger = logger;
     }
 
@@ -51,7 +70,7 @@ public sealed class ChatMessageDecorator : IChatMessageDecorator
         ChatDecorationContext context = new()
         {
             TwitchBroadcasterId = message.TwitchBroadcasterId,
-            EnabledFeatures = DefaultEnabledFeatures.ToHashSet(StringComparer.Ordinal),
+            EnabledFeatures = await ResolveEnabledFeaturesAsync(message.BroadcasterId, ct),
             Fragments = message.Fragments.Select(Clone).ToList(),
         };
 
@@ -75,6 +94,38 @@ public sealed class ChatMessageDecorator : IChatMessageDecorator
         }
 
         return new DecoratedChatMessage { Fragments = context.Fragments };
+    }
+
+    // The set of enabled decoration feature keys for the channel: each feature ON unless an explicit toggle disables it
+    // (emote features default ON). Cached per channel for a short window so the hot path does not query the feature store
+    // per message.
+    private async Task<IReadOnlySet<string>> ResolveEnabledFeaturesAsync(
+        Guid broadcasterId,
+        CancellationToken ct
+    )
+    {
+        string cacheKey = $"chat:decoration:rules:{broadcasterId}";
+        HashSet<string>? cached = await _cache.GetAsync<HashSet<string>>(cacheKey, ct);
+        if (cached is not null)
+            return cached;
+
+        Result<List<FeatureStatusDto>> features = await _features.GetFeaturesAsync(
+            broadcasterId.ToString(),
+            ct
+        );
+        Dictionary<string, bool> toggles = features.IsSuccess
+            ? features
+                .Value.GroupBy(feature => feature.FeatureKey)
+                .ToDictionary(group => group.Key, group => group.Last().IsEnabled)
+            : [];
+
+        HashSet<string> enabled = new(StringComparer.Ordinal);
+        foreach ((string key, bool defaultOn) in DecorationFeatures)
+            if (toggles.TryGetValue(key, out bool on) ? on : defaultOn)
+                enabled.Add(key);
+
+        await _cache.SetAsync(cacheKey, enabled, RulesCacheTtl, ct);
+        return enabled;
     }
 
     // A field-for-field copy so in-place enrichment (e.g. setting Emote) never touches the event's own fragments,
