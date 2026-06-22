@@ -19,7 +19,9 @@ a visual pipeline engine, and integrations (Spotify, Discord, YouTube, TTS).
   against a real database; the full REST surface (currency, catalog, jars, leaderboards, games
   controllers, each per-action gated) is wired; and the pipeline actions (grant/deduct currency,
   check balance, jar contribute, play game) let the economy ride the command/event pipeline.
-  ~905 tests green across four suites.
+  **Platform / commerce** (Phase 7) is now underway — the monetization & billing subsystem
+  (tiers, subscriptions, metered quotas, founders/invite codes) has its domain + data layer
+  built. ~913 tests green across four suites.
 - **Frontend** — **Kotlin Multiplatform + Compose Multiplatform** (one codebase, desktop + web/Wasm
   identical UI; mobile later). The previous Expo/React Native app was removed. The dashboard app is
   **not built yet** — today the API is driven directly (Scalar docs, HTTP clients, overlays).
