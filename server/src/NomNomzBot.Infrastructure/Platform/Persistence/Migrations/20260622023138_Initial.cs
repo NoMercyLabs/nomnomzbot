@@ -1014,6 +1014,52 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
             );
 
             migrationBuilder.CreateTable(
+                name: "HttpEgressAllowlists",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    BroadcasterId = table.Column<Guid>(type: "uuid", nullable: false),
+                    Fqdn = table.Column<string>(
+                        type: "character varying(253)",
+                        maxLength: 253,
+                        nullable: false
+                    ),
+                    ApprovedByUserId = table.Column<Guid>(type: "uuid", nullable: true),
+                    IsEnabled = table.Column<bool>(type: "boolean", nullable: false),
+                    MaxResponseBytes = table.Column<int>(type: "integer", nullable: false),
+                    MaxRequestBytes = table.Column<int>(type: "integer", nullable: false),
+                    AllowRequestBody = table.Column<bool>(type: "boolean", nullable: false),
+                    AllowQuery = table.Column<bool>(type: "boolean", nullable: false),
+                    AllowedMethods = table.Column<string>(
+                        type: "character varying(100)",
+                        maxLength: 100,
+                        nullable: false
+                    ),
+                    PathPrefix = table.Column<string>(
+                        type: "character varying(255)",
+                        maxLength: 255,
+                        nullable: true
+                    ),
+                    CreatedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                    UpdatedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                    DeletedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: true
+                    ),
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_HttpEgressAllowlists", x => x.Id);
+                }
+            );
+
+            migrationBuilder.CreateTable(
                 name: "IamAuditLogs",
                 columns: table => new
                 {
@@ -4624,6 +4670,24 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
             );
 
             migrationBuilder.CreateIndex(
+                name: "IX_HttpEgressAllowlists_BroadcasterId",
+                table: "HttpEgressAllowlists",
+                column: "BroadcasterId"
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_HttpEgressAllowlists_BroadcasterId_Fqdn",
+                table: "HttpEgressAllowlists",
+                columns: new[] { "BroadcasterId", "Fqdn" }
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_HttpEgressAllowlists_IsEnabled",
+                table: "HttpEgressAllowlists",
+                column: "IsEnabled"
+            );
+
+            migrationBuilder.CreateIndex(
                 name: "IX_IamAuditLogs_OccurredAt",
                 table: "IamAuditLogs",
                 column: "OccurredAt"
@@ -5097,6 +5161,8 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
             migrationBuilder.DropTable(name: "GameConfigs");
 
             migrationBuilder.DropTable(name: "GamePlays");
+
+            migrationBuilder.DropTable(name: "HttpEgressAllowlists");
 
             migrationBuilder.DropTable(name: "IamAuditLogs");
 

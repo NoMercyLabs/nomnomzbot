@@ -14,7 +14,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260622014441_Initial")]
+    [Migration("20260622023138_Initial")]
     partial class Initial
     {
         /// <inheritdoc />
@@ -3607,6 +3607,67 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         .HasDatabaseName("UX_EventSubSubscription_Broadcaster_Provider_Type_Version");
 
                     b.ToTable("EventSubSubscriptions");
+                });
+
+            modelBuilder.Entity("NomNomzBot.Domain.Platform.Entities.HttpEgressAllowlist", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("AllowQuery")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("AllowRequestBody")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("AllowedMethods")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<Guid?>("ApprovedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BroadcasterId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Fqdn")
+                        .IsRequired()
+                        .HasMaxLength(253)
+                        .HasColumnType("character varying(253)");
+
+                    b.Property<bool>("IsEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("MaxRequestBytes")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("MaxResponseBytes")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("PathPrefix")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BroadcasterId");
+
+                    b.HasIndex("IsEnabled");
+
+                    b.HasIndex("BroadcasterId", "Fqdn");
+
+                    b.ToTable("HttpEgressAllowlists");
                 });
 
             modelBuilder.Entity("NomNomzBot.Domain.Platform.Entities.IdempotencyKey", b =>

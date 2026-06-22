@@ -197,6 +197,8 @@ public class AppDbContext : DbContext, IApplicationDbContext
         Set<NomNomzBot.Domain.Webhooks.Entities.OutboundWebhookDelivery>();
     public DbSet<NomNomzBot.Domain.Webhooks.Entities.InboundWebhookEndpoint> InboundWebhookEndpoints =>
         Set<NomNomzBot.Domain.Webhooks.Entities.InboundWebhookEndpoint>();
+    public DbSet<NomNomzBot.Domain.Platform.Entities.HttpEgressAllowlist> HttpEgressAllowlists =>
+        Set<NomNomzBot.Domain.Platform.Entities.HttpEgressAllowlist>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

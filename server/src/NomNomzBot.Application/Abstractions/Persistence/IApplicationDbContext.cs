@@ -117,6 +117,7 @@ public interface IApplicationDbContext
     DbSet<OutboundWebhookEndpoint> OutboundWebhookEndpoints { get; }
     DbSet<OutboundWebhookDelivery> OutboundWebhookDeliveries { get; }
     DbSet<InboundWebhookEndpoint> InboundWebhookEndpoints { get; }
+    DbSet<HttpEgressAllowlist> HttpEgressAllowlists { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }
