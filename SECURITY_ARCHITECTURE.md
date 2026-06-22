@@ -169,20 +169,14 @@ DateTime.UtcNow.Add(_jwt.AccessTokenExpiration) // expose property from IJwtToke
 
 ### Gaps & Vulnerabilities
 
-**🔴 CRITICAL — Credential endpoints permanently unauthenticated (hosted mode)**
-In hosted mode, any unauthenticated HTTP request to `PUT /api/v1/system/setup/credentials/twitch` can overwrite the platform's Twitch `client_id` and `client_secret`. An attacker who does this would:
-1. Replace the platform's Twitch app with their own
-2. All new OAuth logins would exchange codes against the attacker's app
-3. The attacker receives every new user's Twitch access tokens
-4. Existing sessions continue working (tokens already stored), but new logins are compromised
+**🟢 RESOLVED — Credential endpoints lock once setup completes**
+`SaveTwitchCredentials` / `SaveSpotifyCredentials` / `SaveDiscordCredentials` now call `IsSetupCompleteAsync` and return `403 Forbid` for non-admins once setup is complete. "Complete" means either the explicit `POST /system/setup/complete` flag was set, or the system is already ready (Twitch app + platform bot both configured). The anonymous window is now only the genuine first run; after that, repointing the platform's Twitch app requires a platform-admin JWT.
 
-In self-hosted mode this is a one-time first-run concern, but in hosted mode it is a permanent standing vulnerability with no mitigation at the application layer.
+**🟢 RESOLVED — Setup-completion lock**
+`system.setup_complete` (set by `POST /system/setup/complete`, or implied once the system is ready) flips the credential endpoints from anonymous to admin-only. Once set it is sticky — a later bot disconnect does not re-open them.
 
-**🟠 HIGH — No setup-completion lock**
-Even after the system is fully configured, anyone can overwrite credentials at any time. There is no `IsSetupComplete` flag that transitions the setup endpoints from anonymous to admin-only.
-
-**🟠 HIGH — `/system/status` leaks infrastructure hints**
-The public status endpoint returns `"Set TWITCH_CLIENT_ID and TWITCH_CLIENT_SECRET in .env"` as a detail string. This confirms the deployment model to attackers.
+**🟢 RESOLVED — Status detail no longer leaks the deployment model**
+The `/system/status` detail only emits the `.env` hint in `Development`; in any other environment the missing-Twitch detail is the generic `"Not configured"`. All three credential endpoints and `setup/complete` are `[EnableRateLimiting("auth")]`.
 
 ### Recommendations
 
@@ -706,11 +700,11 @@ Add `GET /health/version` that returns the running build version. Allows an oper
 
 These must be resolved before the hosted version handles any real user data. Listed in order of exploit severity.
 
-### 1. Lock setup credential endpoints (🔴 CRITICAL)
+### 1. Lock setup credential endpoints (🟢 RESOLVED)
 
 **File:** `SystemController.cs`
-**Issue:** Any unauthenticated HTTP request can overwrite the platform Twitch `client_id`/`client_secret`.
-**Fix:** Add `IsSetupComplete` guard — once setup completes, require admin JWT on credential endpoints. See §3.
+**Issue:** Any unauthenticated HTTP request could overwrite the platform Twitch `client_id`/`client_secret`.
+**Resolution:** `IsSetupCompleteAsync` guard — once setup completes (explicit flag or system ready), the credential endpoints `403` non-admins; all are now rate-limited. See §3.
 
 ### 2. Encrypt `SecureValue` in the Configuration table (🔴 CRITICAL)
 
@@ -773,7 +767,7 @@ These must be resolved before the hosted version handles any real user data. Lis
 | # | Concern | Hosted | Self-Hosted | Priority |
 |---|---------|--------|-------------|---------|
 | 1 | SecureValue sealed at rest | 🟢 | 🟢 | RESOLVED |
-| 2 | Setup endpoints unauthenticated | 🔴 | 🟠 | CRITICAL |
+| 2 | Setup endpoints lock after first-run | 🟢 | 🟢 | RESOLVED |
 | 3 | Production boot-guard on default secrets | 🟢 | 🟢 | RESOLVED |
 | 4 | Adminer exposed in production | 🔴 | 🟠 | CRITICAL |
 | 5 | Per-subject DEK (was shared key) | 🟢 | 🟢 | RESOLVED |
@@ -789,7 +783,7 @@ These must be resolved before the hosted version handles any real user data. Lis
 | 15 | Rate limiter uses proxy IP | 🟠 | 🟡 | HIGH |
 | 16 | Unsigned channel-bot state | 🟠 | 🟠 | HIGH |
 | 17 | XSS in stored commands | 🟡 | 🟡 | MEDIUM |
-| 18 | No setup-completion lock | 🟡 | 🟡 | MEDIUM |
+| 18 | Setup-completion lock | 🟢 | 🟢 | RESOLVED |
 | 19 | No cross-tenant access tests | 🟡 | N/A | MEDIUM |
 | 20 | Log file retention unbounded | 🟡 | 🟡 | MEDIUM |
 | 21 | No GDPR export/delete | 🟡 | 🟡 | MEDIUM |

@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Hosting;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
@@ -37,18 +38,21 @@ public class SystemController : BaseController
     private readonly IApplicationDbContext _db;
     private readonly IConfiguration _config;
     private readonly ITokenProtector _protector;
+    private readonly IHostEnvironment _env;
 
     public SystemController(
         IAuthService authService,
         IApplicationDbContext db,
         IConfiguration config,
-        ITokenProtector protector
+        ITokenProtector protector,
+        IHostEnvironment env
     )
     {
         _authService = authService;
         _db = db;
         _config = config;
         _protector = protector;
+        _env = env;
     }
 
     // ── DTOs ──────────────────────────────────────────────────────────────────
@@ -88,9 +92,9 @@ public class SystemController : BaseController
             TwitchApp: new CheckItem(
                 hasTwitch,
                 hasTwitch ? "configured" : "missing",
-                hasTwitch
-                    ? "Client ID and secret are set"
-                    : "Set TWITCH_CLIENT_ID and TWITCH_CLIENT_SECRET in .env"
+                hasTwitch ? "Client ID and secret are set"
+                    : _env.IsDevelopment() ? "Set TWITCH_CLIENT_ID and TWITCH_CLIENT_SECRET in .env"
+                    : "Not configured"
             ),
             PlatformBot: new CheckItem(
                 hasPlatformBot,
@@ -232,12 +236,16 @@ public class SystemController : BaseController
 
     /// <summary>Save system-level Twitch app credentials.</summary>
     [HttpPut("setup/credentials/twitch")]
+    [EnableRateLimiting("auth")]
     [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> SaveTwitchCredentials(
         [FromBody] SaveTwitchCredentialRequest request,
         CancellationToken ct
     )
     {
+        if (await IsSetupCompleteAsync(ct) && !User.IsInRole("admin"))
+            return Forbid();
+
         await UpsertSystemConfig("twitch.client_id", request.ClientId, ct);
         await UpsertSystemConfig(
             "twitch.client_secret",
@@ -260,12 +268,16 @@ public class SystemController : BaseController
 
     /// <summary>Save system-level Spotify app credentials.</summary>
     [HttpPut("setup/credentials/spotify")]
+    [EnableRateLimiting("auth")]
     [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> SaveSpotifyCredentials(
         [FromBody] SaveCredentialRequest request,
         CancellationToken ct
     )
     {
+        if (await IsSetupCompleteAsync(ct) && !User.IsInRole("admin"))
+            return Forbid();
+
         await UpsertSystemConfig("spotify.client_id", request.ClientId, ct);
         await UpsertSystemConfig(
             "spotify.client_secret",
@@ -280,12 +292,16 @@ public class SystemController : BaseController
 
     /// <summary>Save system-level Discord app credentials.</summary>
     [HttpPut("setup/credentials/discord")]
+    [EnableRateLimiting("auth")]
     [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> SaveDiscordCredentials(
         [FromBody] SaveCredentialRequest request,
         CancellationToken ct
     )
     {
+        if (await IsSetupCompleteAsync(ct) && !User.IsInRole("admin"))
+            return Forbid();
+
         await UpsertSystemConfig("discord.client_id", request.ClientId, ct);
         await UpsertSystemConfig(
             "discord.client_secret",
@@ -296,6 +312,35 @@ public class SystemController : BaseController
         await _db.SaveChangesAsync(ct);
 
         return Ok(new StatusResponseDto<object> { Message = "Discord credentials saved." });
+    }
+
+    /// <summary>
+    /// Finalize first-run setup. Once called — or once the system is otherwise ready — the credential
+    /// endpoints lock to platform admins, so anonymous callers can no longer repoint the platform's app
+    /// credentials. Callable anonymously only while setup is still open (the first-run window).
+    /// </summary>
+    [HttpPost("setup/complete")]
+    [EnableRateLimiting("auth")]
+    [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> CompleteSetup(CancellationToken ct)
+    {
+        if (await IsSetupCompleteAsync(ct) && !User.IsInRole("admin"))
+            return Forbid();
+
+        await UpsertSystemConfig("system.setup_complete", "true", ct);
+        await _db.SaveChangesAsync(ct);
+        return Ok(new StatusResponseDto<object> { Message = "Setup marked complete." });
+    }
+
+    // Setup is "complete" once explicitly finalized, or once the system is ready (Twitch app + platform
+    // bot both configured). After that, credential overwrites require a platform admin — closing the
+    // standing hosted-mode hole where anyone could repoint the platform's Twitch app.
+    private async Task<bool> IsSetupCompleteAsync(CancellationToken ct)
+    {
+        if (await GetSystemConfig("system.setup_complete", ct) == "true")
+            return true;
+        SetupState st = await ComputeSetupStateAsync(ct);
+        return st.HasTwitch && st.HasPlatformBot;
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
