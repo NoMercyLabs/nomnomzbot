@@ -783,3 +783,37 @@ These must be resolved before the hosted version handles any real user data. Lis
 | 26 | DB-backed IAM + deletion audit logs | 🟢 | 🟢 | RESOLVED |
 | 27 | Sliding-window rate limiter | 🟢 | 🟢 | RESOLVED |
 | 28 | Accurate expiry returned to client | 🟢 | 🟢 | RESOLVED |
+
+## Red-Team Hardening Pass (2026-06-22)
+
+A focused offensive review beyond the original 28 concerns. Each finding below was verified against the
+live code, patched in a validated slice (build + 4 test suites green), and committed.
+
+| # | Finding | Severity | Resolution |
+|---|---------|----------|------------|
+| R1 | `X-Forwarded-For` honoured from any caller (`KnownNetworks/Proxies.Clear()`) → per-IP rate limits bypassable + spoofed audit IPs | 🔴 Critical | Trust XFF only from configured proxies; loopback-only default; blank-entry hardened; `ForwardLimit=1`. `TRUSTED_PROXY_NETWORKS` for containerised proxies. |
+| R2 | Orphaned bot OAuth callbacks (`/twitch/bot/callback`, `/channels/callback/bot`) parsed unsigned base64 state, skipped the CSRF nonce | 🔴 Critical (surface) | Deleted — dead duplicates of the unified, nonce-validated `/twitch/callback`. |
+| R3 | Outbound-webhook `Path` of `@evil.com` hijacks the URL authority → signed payloads exfiltrate past the FQDN allowlist | 🟠 High | `OutboundWebhookTargetUrl.TryBuild` pins the host; validated at creation + fail-closed on delivery. |
+| R4 | Tenant-scoped controllers had only class-level `[Authorize]` — any tenant-resolver (incl. mods) got full read/write (privilege escalation) | 🟠 High | `[RequireAction]` Gate-2 applied across commands, pipelines, timers, event-responses, widgets, integrations, permissions, rewards, community, chat, music, stream, tts (seeded keys). |
+| R5 | Four entities (`ChatMessage`, `DiscordServerAuthorization`, `ChannelSubscription`, `WatchStreak`) had a non-nullable `BroadcasterId` but no `ITenantScoped` → no tenant filter → cross-tenant leak | 🟠 High | Implemented `ITenantScoped`; added `TenantIsolationCoverageTests` as a permanent invariant guard. |
+| R6 | `TtsController` and `TtsConfigController` mapped the identical route (`AmbiguousMatchException`) | 🟠 High (defect) | Deleted the dead duplicate; gated the survivor. |
+| R7 | IRC chat send interpolated user text into the line → CRLF command injection | 🟡 Medium | `IrcLineSanitizer` strips CR/LF/NUL + length-caps both send paths. |
+| R8 | `PaginationParams.PageSize` unbounded → `pageSize=1000000` materialises a huge result set (DoS) | 🟡 Medium | Clamped to `[1, 100]` at the single chokepoint. |
+| R9 | Discord OAuth used an unsigned base64 state (CSRF) | 🟡 Medium | Switched to the single-use server-side nonce. |
+
+### Surfaced for a product/spec decision (not unilaterally patched)
+
+These are real but require a key/route/spec decision rather than a mechanical fix — keys must come from the
+roles-permissions §5 vocabulary, not be invented:
+
+- **Read-only endpoints with no seeded key** — music reads (`GetConfig`/`GetQueue`/`GetNowPlaying`), stream
+  reads (`GetStreamInfo`/`GetStatus`/`SearchCategories`), chat history (`GetMessages`). Low risk (a
+  tenant-resolver can already read), but ungated. Need read keys (e.g. `music:config:read`, `stream:info:read`).
+- **Writes with no seeded key** — `CommunityController.SetTrustLevel`, `FeaturesController.ToggleFeature`,
+  `StreamController.UpdateStreamInfo` (the combined PUT; the granular title/game/tags are gated). Need new keys.
+- **Non-`{channelId}` routes** — `DashboardController` (`/dashboard/{broadcasterId}`) and `ChannelsController`
+  collection/create ops resolve the tenant differently; Gate-2 placement needs review.
+- **Webhook ingest rate limiting** — still the documented deferral pending the partitioned rate-limit store;
+  token + signature remain the boundary and the body is already 256 KiB-capped.
+- **Global request body size** — Kestrel default (~30 MB) is generous; lowering it is hygiene but risks
+  breaking a legitimately-large config/script payload, so left configurable rather than forced.
