@@ -26,6 +26,9 @@ public class JarContribution
     public Guid? ContributorUserId { get; set; }
     public long Amount { get; set; }
     public JarMovementType MovementType { get; set; }
+
+    /// <summary>The jar balance immediately after this movement — snapshotted so the history reads exactly.</summary>
+    public long JarBalanceAfter { get; set; }
     public long? LedgerEntryId { get; set; }
     public Guid? ActorUserId { get; set; }
     public DateTime CreatedAt { get; set; }

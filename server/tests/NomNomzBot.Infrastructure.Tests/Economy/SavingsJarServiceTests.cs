@@ -217,4 +217,22 @@ public sealed class SavingsJarServiceTests
             .ErrorCode.Should()
             .Be("JAR_CAP_EXCEEDED"); // 30 already + 30 > 50
     }
+
+    [Fact]
+    public async Task History_snapshots_the_jar_balance_after_each_movement()
+    {
+        using SqliteTestDatabase database = SqliteTestDatabase.Open();
+        (SavingsJarService sut, _, _) = New(database);
+        Guid jarId = await CreateJarAsync(sut);
+        await sut.ContributeAsync(Owner, new JarContributeRequest(jarId, Viewer, 30)); // jar = 30
+        await sut.WithdrawAsync(Owner, new JarWithdrawRequest(jarId, Viewer, 10, Owner)); // jar = 20
+
+        PagedList<JarMovementDto> history = (
+            await sut.GetJarHistoryAsync(Owner, jarId, new PaginationParams(1, 25))
+        ).Value;
+
+        history.Items.Should().HaveCount(2);
+        history.Items[0].JarBalanceAfter.Should().Be(20); // withdraw (newest first)
+        history.Items[1].JarBalanceAfter.Should().Be(30); // contribute
+    }
 }

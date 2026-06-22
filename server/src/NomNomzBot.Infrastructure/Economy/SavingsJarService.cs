@@ -24,9 +24,9 @@ namespace NomNomzBot.Infrastructure.Economy;
 /// Pooled cross-channel savings jars (economy.md §3.7). The membership predicate (<see cref="AcceptedMembershipAsync"/>)
 /// is the cross-tenant guard — checked before every balance change. Contribute/withdraw move currency through
 /// the per-channel ledger. The contribution cap is a per-stream SUM (contributions since the channel's current
-/// stream started). (Deferred — documented: the per-channel withdrawal cap is still per-movement, and the
-/// history's <c>JarBalanceAfter</c> is not stored on the movement. Debits/credits are atomic on the ledger; the
-/// jar balance + movement row are written right after.)
+/// stream started), and each movement snapshots its <c>JarBalanceAfter</c> for an exact history. (Deferred —
+/// documented: the per-channel withdrawal cap is still per-movement. Debits/credits are atomic on the ledger;
+/// the jar balance + movement row are written right after.)
 /// </summary>
 public sealed class SavingsJarService(
     IApplicationDbContext db,
@@ -301,6 +301,7 @@ public sealed class SavingsJarService(
             ContributorUserId = request.ContributorUserId,
             Amount = request.Amount,
             MovementType = JarMovementType.Contribute,
+            JarBalanceAfter = jar.Balance,
             LedgerEntryId = debit.Value.Id,
             CreatedAt = clock.GetUtcNow().UtcDateTime,
         };
@@ -397,6 +398,7 @@ public sealed class SavingsJarService(
             ContributorUserId = request.TargetViewerUserId,
             Amount = request.Amount,
             MovementType = JarMovementType.Withdraw,
+            JarBalanceAfter = jar.Balance,
             LedgerEntryId = credit.Value.Id,
             ActorUserId = request.ActorUserId,
             CreatedAt = clock.GetUtcNow().UtcDateTime,
@@ -448,7 +450,7 @@ public sealed class SavingsJarService(
             .ToListAsync(ct);
         return Result.Success(
             new PagedList<JarMovementDto>(
-                [.. rows.Select(c => ToDto(c, jarBalanceAfter: 0))], // balance-after not stored per movement
+                [.. rows.Select(c => ToDto(c, c.JarBalanceAfter))],
                 pagination.Page,
                 pagination.PageSize,
                 total
