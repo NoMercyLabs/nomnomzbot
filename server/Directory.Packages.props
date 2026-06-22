@@ -11,6 +11,7 @@
     <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.1" />
     <PackageVersion Include="Scalar.AspNetCore" Version="2.14.14" />
     <PackageVersion Include="Stripe.net" Version="52.0.0" />
+    <PackageVersion Include="Wasmtime" Version="44.0.0" />
   </ItemGroup>
   <ItemGroup Label="ASP.NET Core">
     <PackageVersion Include="Asp.Versioning.Mvc" Version="10.0.0" />

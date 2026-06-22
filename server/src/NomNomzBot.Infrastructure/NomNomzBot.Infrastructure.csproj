@@ -38,5 +38,6 @@
     <PackageReference Include="Microsoft.Extensions.Http.Resilience" />
     <PackageReference Include="Polly.Core" />
     <PackageReference Include="Microsoft.Data.Sqlite" />
+    <PackageReference Include="Wasmtime" />
   </ItemGroup>
 </Project>
