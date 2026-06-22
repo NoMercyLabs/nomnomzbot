@@ -490,8 +490,8 @@ Both database ports publish to `127.0.0.1` only (`docker compose config` confirm
 **🟢 RESOLVED — API container runs as an unprivileged user**
 The Dockerfile's final stage creates `appuser`, `chown`s `/app` to it (so rolling logs stay writable), and sets `USER appuser`. An RCE in the app or a dependency no longer lands as container root.
 
-**🟡 MEDIUM — No HTTPS in docker-compose**
-The docker-compose sets `ASPNETCORE_URLS=http://+:5000` only. HTTPS is expected to be terminated at a reverse proxy, but this is not documented and not enforced. If a self-hoster deploys without a reverse proxy, tokens travel in cleartext.
+**🟢 RESOLVED — TLS-termination model documented**
+The README "Production deployment (TLS)" section now states that the API speaks plain HTTP only inside the container and **must** sit behind a TLS-terminating reverse proxy (the bundled Cloudflare Tunnel, or Caddy/nginx with a worked example), with the DB ports loopback-bound so only the proxy reaches the API. See §13.
 
 ### Recommendations
 
@@ -618,8 +618,8 @@ Add `GET /api/v1/admin/users` and `PUT /api/v1/admin/users/{id}/role` endpoints 
 
 ### Gaps & Vulnerabilities
 
-**🟠 HIGH — No documented reverse proxy requirement**
-Self-hosters who follow the README and run `docker-compose up` get an HTTP-only API exposed on port 5080. All OAuth tokens, JWTs, and user data travel in plaintext. Twitch requires HTTPS for OAuth redirect URIs, so the Cloudflare tunnel workaround is documented, but nothing prevents a self-hoster from binding the API port directly to the internet without TLS.
+**🟢 RESOLVED — Reverse-proxy / TLS requirement documented**
+The README "Production deployment (TLS)" section states plainly that running the API port directly on the internet without TLS is unsupported, and gives two supported paths: the bundled `cloudflared` tunnel (public HTTPS, no inbound ports) or a Caddy/nginx reverse proxy with a worked Caddyfile that auto-provisions Let's Encrypt certs. `App:BaseUrl` is the single value an operator points at their HTTPS URL.
 
 ### Recommendations
 
@@ -785,7 +785,7 @@ These must be resolved before the hosted version handles any real user data. Lis
 | 22 | Refresh token opaque (no shared key) | 🟢 | 🟢 | RESOLVED |
 | 23 | Non-destructive key rotation | 🟢 | 🟢 | RESOLVED |
 | 24 | Security headers present | 🟢 | 🟢 | RESOLVED |
-| 25 | HTTPS not enforced/documented | 🟡 | 🟠 | MEDIUM |
+| 25 | TLS reverse-proxy model documented | 🟢 | 🟢 | RESOLVED |
 | 26 | DB-backed IAM + deletion audit logs | 🟢 | 🟢 | RESOLVED |
 | 27 | Sliding-window rate limiter | 🟢 | 🟢 | RESOLVED |
 | 28 | Accurate expiry returned to client | 🟢 | 🟢 | RESOLVED |

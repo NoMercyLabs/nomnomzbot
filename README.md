@@ -124,6 +124,27 @@ in `server/src/NomNomzBot.Api/appsettings.Development.json`. Everything else fal
 - Twitch OAuth redirect URIs are computed at runtime from `App:BaseUrl` — register only
   `{App:BaseUrl}/api/v1/auth/twitch/callback` in the Twitch Developer Console.
 
+## Production deployment (TLS)
+
+The API speaks plain HTTP inside the container (`ASPNETCORE_URLS=http://+:5000`); **TLS is terminated at
+a reverse proxy in front of it** — running the API port directly on the public internet without TLS is
+not supported, since OAuth tokens and JWTs would travel in cleartext. Two supported paths:
+
+- **Cloudflare Tunnel** — the bundled `cloudflared` service (set `CLOUDFLARE_TUNNEL_TOKEN`) gives a
+  public HTTPS hostname with no inbound ports opened.
+- **Reverse proxy** — put Caddy or nginx in front (`reverse_proxy localhost:5080`). Caddy provisions
+  Let's Encrypt certificates automatically; example:
+
+  ```caddyfile
+  api.example.com {
+      reverse_proxy localhost:5080
+  }
+  ```
+
+The Postgres/Redis ports are bound to `127.0.0.1` and Adminer is excluded from the production compose,
+so only the proxy reaches the API. Set `App:BaseUrl` to your public HTTPS URL — host-header filtering and
+the Twitch OAuth redirect URI are both derived from it.
+
 ## Tests
 
 ```bash
