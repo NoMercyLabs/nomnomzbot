@@ -14,6 +14,8 @@ using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Caching;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Platform;
+using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Billing;
 using NomNomzBot.Domain.Platform.Entities;
 
 namespace NomNomzBot.Infrastructure.Platform;
@@ -24,13 +26,14 @@ namespace NomNomzBot.Infrastructure.Platform;
 /// rollout bucket uses a process-independent FNV-1a hash of <c>BroadcasterId:Key</c> — never <c>GetHashCode</c> —
 /// so a channel's in/out decision is stable across instances and monotonic as the percentage climbs. Results are
 /// cached (<c>ff:{key}:{broadcasterId}</c>) with a short TTL.
-/// (Deferred — documented: the tier-floor and consent gates, and live cache invalidation on FeatureFlagChangedEvent;
-/// the TTL bounds staleness meanwhile.)
+/// (Deferred — documented: the consent gate (per-subject, ambiguous for a channel flag), and live cache
+/// invalidation on FeatureFlagChangedEvent for global changes; the TTL bounds staleness meanwhile.)
 /// </summary>
 public sealed class FeatureFlagService(
     IApplicationDbContext db,
     ICurrentTenantService tenant,
     ICacheService cache,
+    IBillingTierService billingTiers,
     TimeProvider clock
 ) : IFeatureFlagService
 {
@@ -89,6 +92,18 @@ public sealed class FeatureFlagService(
             && !await DeploymentModeMatchesAsync(flag, broadcasterId, ct)
         )
             return false;
+
+        // 5. Tier floor — the tenant's active tier must rank at or above the flag's minimum (fail closed).
+        if (flag.MinTierKey is not null)
+        {
+            Result<bool> atLeast = await billingTiers.IsTierAtLeastAsync(
+                broadcasterId,
+                flag.MinTierKey,
+                ct
+            );
+            if (atLeast.IsFailure || !atLeast.Value)
+                return false;
+        }
 
         return true;
     }

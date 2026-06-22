@@ -12,6 +12,8 @@ using FluentAssertions;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Caching;
+using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Billing;
 using NomNomzBot.Domain.Platform.Entities;
 using NomNomzBot.Infrastructure.Platform;
 using NomNomzBot.Infrastructure.Tests.Identity;
@@ -29,13 +31,17 @@ public sealed class FeatureFlagServiceTests
     private static readonly Guid Channel = Guid.Parse("0192a000-0000-7000-8000-000000007001");
     private static readonly DateTimeOffset Now = new(2026, 6, 22, 12, 0, 0, TimeSpan.Zero);
 
-    private static (FeatureFlagService Sut, AuthDbContext Db) Build()
+    private static (FeatureFlagService Sut, AuthDbContext Db) Build(bool tierMet = true)
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
         ICurrentTenantService tenant = Substitute.For<ICurrentTenantService>();
         ICacheService cache = Substitute.For<ICacheService>();
         cache.GetAsync<bool?>(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns((bool?)null); // always a cache miss so evaluation runs
-        return (new FeatureFlagService(db, tenant, cache, new FakeTimeProvider(Now)), db);
+        IBillingTierService tiers = Substitute.For<IBillingTierService>();
+        tiers
+            .IsTierAtLeastAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success(tierMet));
+        return (new FeatureFlagService(db, tenant, cache, tiers, new FakeTimeProvider(Now)), db);
     }
 
     private static async Task<FeatureFlag> SeedFlagAsync(
@@ -132,5 +138,16 @@ public sealed class FeatureFlagServiceTests
         (FeatureFlagService sut, _) = Build();
 
         (await sut.IsEnabledForAsync("nope", Channel)).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Disabled_when_below_the_minimum_tier()
+    {
+        (FeatureFlagService sut, AuthDbContext db) = Build(tierMet: false);
+        FeatureFlag flag = await SeedFlagAsync(db, global: true, rollout: 100);
+        flag.MinTierKey = "pro";
+        await db.SaveChangesAsync();
+
+        (await sut.IsEnabledForAsync("feat", Channel)).Should().BeFalse();
     }
 }
