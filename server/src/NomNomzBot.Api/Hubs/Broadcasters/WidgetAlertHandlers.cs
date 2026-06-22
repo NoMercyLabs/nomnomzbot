@@ -145,6 +145,29 @@ public sealed class WidgetGiftAlertHandler(IApplicationDbContext db, IWidgetNoti
         );
 }
 
+/// <summary>Resubscription → the <c>resub</c> overlay alert (with the cumulative-month milestone).</summary>
+public sealed class WidgetResubAlertHandler(IApplicationDbContext db, IWidgetNotifier notifier)
+    : IEventHandler<ResubscriptionEvent>
+{
+    public Task HandleAsync(
+        ResubscriptionEvent @event,
+        CancellationToken cancellationToken = default
+    ) =>
+        WidgetAlertDispatch.RouteAsync(
+            db,
+            notifier,
+            @event.BroadcasterId,
+            "resub",
+            new
+            {
+                user = @event.UserDisplayName,
+                tier = @event.Tier,
+                months = @event.CumulativeMonths,
+            },
+            cancellationToken
+        );
+}
+
 /// <summary>
 /// Playback change → the persistent <c>now_playing</c> overlay widget (music-sr.md). Unlike the transient alerts,
 /// this drives a standing now-playing display the browser-source keeps on screen until the next change.

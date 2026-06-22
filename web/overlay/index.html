@@ -80,6 +80,7 @@
 
       const HEADLINES = {
         subscription: "New Subscriber!",
+        resub: "Resub!",
         follow: "New Follower!",
         cheer: "Cheer!",
         raid: "Raid!",
@@ -107,6 +108,8 @@
         let detail = escapeHtml(who);
         const tier = get(data, "tier");
         if (tier) detail += ` · Tier ${escapeHtml(String(tier))}`;
+        const months = get(data, "months");
+        if (months) detail += ` · ${escapeHtml(String(months))} mo`;
         const amount = get(data, "amount") ?? get(data, "bits") ?? get(data, "viewers");
         if (amount) detail += ` · ${escapeHtml(String(amount))}`;
 
