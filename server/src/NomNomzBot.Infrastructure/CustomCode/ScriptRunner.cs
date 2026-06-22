@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using Microsoft.EntityFrameworkCore;
+using Newtonsoft.Json;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.CustomCode;
@@ -27,6 +28,7 @@ namespace NomNomzBot.Infrastructure.CustomCode;
 public sealed class ScriptRunner(
     IApplicationDbContext db,
     IScriptExecutor executor,
+    IScriptCapabilityBroker broker,
     TimeProvider clock
 ) : IScriptRunner
 {
@@ -70,13 +72,35 @@ public sealed class ScriptRunner(
             ),
             ScriptResourceBudget.Baseline
         );
-        // Empty grant until the capability broker lands — the built-in args/vars/send facade still works; any
-        // side-effecting bot.call is denied by the executor (fail-closed).
-        ScriptCapabilityGrant grant = new(script.BroadcasterId, []);
+        // Deny-by-default grant: the broker validates the version's declared capabilities against the catalogue
+        // + feature-flag gates. A disallowed capability denies the whole run (fail-closed).
+        List<string> declared =
+            JsonConvert.DeserializeObject<List<string>>(version.DeclaredCapabilitiesJson) ?? [];
+        Result<ScriptCapabilityGrant> grantResult = await broker.BuildGrantAsync(
+            script.BroadcasterId,
+            declared,
+            cancellationToken
+        );
+        if (grantResult.IsFailure)
+        {
+            script.LastRanAt = clock.GetUtcNow().UtcDateTime;
+            script.LastRuntimeError = grantResult.ErrorMessage;
+            await db.SaveChangesAsync(cancellationToken);
+            return Result.Success(
+                new ScriptRunResult(
+                    ScriptExecutionOutcome.Denied,
+                    new Dictionary<string, string>(),
+                    Output: null,
+                    StopPipeline: false,
+                    ErrorMessage: grantResult.ErrorMessage,
+                    DenialReason: ScriptDenialReason.CapabilityDenied
+                )
+            );
+        }
 
         Result<ScriptExecutionOutcomeResult> executed = await executor.ExecuteAsync(
             request,
-            grant,
+            grantResult.Value,
             NoOpScriptHostBridge.Instance,
             cancellationToken
         );

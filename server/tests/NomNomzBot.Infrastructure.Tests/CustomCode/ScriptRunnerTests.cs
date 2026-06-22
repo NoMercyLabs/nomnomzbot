@@ -11,12 +11,14 @@
 using System.Linq;
 using FluentAssertions;
 using Microsoft.Extensions.Time.Testing;
+using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Domain.CustomCode.Entities;
 using NomNomzBot.Domain.CustomCode.Enums;
 using NomNomzBot.Infrastructure.CustomCode;
 using NomNomzBot.Infrastructure.CustomCode.Jint;
 using NomNomzBot.Infrastructure.Tests.Identity;
+using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.CustomCode;
 
@@ -33,7 +35,18 @@ public sealed class ScriptRunnerTests
     private static (ScriptRunner Sut, AuthDbContext Db) Build()
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
-        return (new ScriptRunner(db, new JintScriptExecutor(), new FakeTimeProvider(Now)), db);
+        IScriptCapabilityBroker broker = Substitute.For<IScriptCapabilityBroker>();
+        broker
+            .BuildGrantAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<IReadOnlyList<string>>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(ci => Result.Success(new ScriptCapabilityGrant(Channel, [])));
+        return (
+            new ScriptRunner(db, new JintScriptExecutor(), broker, new FakeTimeProvider(Now)),
+            db
+        );
     }
 
     private static async Task<Guid> SeedAsync(
