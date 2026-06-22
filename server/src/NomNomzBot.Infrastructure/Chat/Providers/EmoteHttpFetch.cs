@@ -12,6 +12,7 @@ using System.Net;
 using Newtonsoft.Json;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Domain.Chat.ValueObjects;
+using Polly;
 
 namespace NomNomzBot.Infrastructure.Chat.Providers;
 
@@ -47,8 +48,15 @@ internal static class EmoteHttpFetch
             string json = await response.Content.ReadAsStringAsync(ct);
             return Result.Success(parse(json));
         }
+        // ExecutionRejectedException covers the resilience pipeline rejecting the call (open circuit / Polly timeout);
+        // treated as a transient failure so the worker falls back to the last-good cache rather than throwing.
         catch (Exception ex)
-            when (ex is HttpRequestException or TaskCanceledException or JsonException)
+            when (ex
+                    is HttpRequestException
+                        or TaskCanceledException
+                        or JsonException
+                        or ExecutionRejectedException
+            )
         {
             return Result.Failure<IReadOnlyList<ChatEmote>>(ex.Message, "EMOTE_PROVIDER_ERROR");
         }

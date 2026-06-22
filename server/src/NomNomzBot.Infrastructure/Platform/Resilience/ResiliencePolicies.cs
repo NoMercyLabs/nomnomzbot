@@ -105,6 +105,55 @@ public static class ResiliencePolicies
     }
 
     /// <summary>
+    /// Adds resilience for the third-party emote provider client (chat-decoration spec §7): 3 retries (transient 5xx /
+    /// network) with exponential backoff + jitter, a 10s per-attempt timeout, and a 50%/30s circuit breaker. Modelled
+    /// on the Twitch handler but without the Helix-specific circuit-open event — emote warming is best-effort and the
+    /// reader degrades a miss to plain text, so a rejected call simply leaves the last-good cache in place.
+    /// </summary>
+    public static IHttpClientBuilder AddChatEmoteResilienceHandler(this IHttpClientBuilder builder)
+    {
+        builder.AddResilienceHandler(
+            "chat-emote-resilience",
+            pipeline =>
+            {
+                pipeline.AddRetry(
+                    new HttpRetryStrategyOptions
+                    {
+                        MaxRetryAttempts = 3,
+                        BackoffType = DelayBackoffType.Exponential,
+                        UseJitter = true,
+                        Delay = TimeSpan.FromMilliseconds(500),
+                        ShouldHandle = args =>
+                            ValueTask.FromResult(
+                                RetryableStatuses.Contains(args.Outcome.Result?.StatusCode ?? 0)
+                                    || args.Outcome.Exception is HttpRequestException
+                            ),
+                    }
+                );
+
+                pipeline.AddTimeout(TimeSpan.FromSeconds(10));
+
+                pipeline.AddCircuitBreaker(
+                    new HttpCircuitBreakerStrategyOptions
+                    {
+                        FailureRatio = 0.5,
+                        SamplingDuration = TimeSpan.FromSeconds(30),
+                        MinimumThroughput = 5,
+                        BreakDuration = TimeSpan.FromSeconds(30),
+                        ShouldHandle = args =>
+                            ValueTask.FromResult(
+                                args.Outcome.Result?.StatusCode
+                                    >= HttpStatusCode.InternalServerError
+                                    || args.Outcome.Exception is HttpRequestException
+                            ),
+                    }
+                );
+            }
+        );
+        return builder;
+    }
+
+    /// <summary>
     /// Adds Spotify API resilience: 2 retries with exponential backoff + circuit breaker.
     /// Respects Retry-After header on 429.
     /// </summary>

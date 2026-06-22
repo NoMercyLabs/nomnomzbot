@@ -148,6 +148,9 @@ public static class DependencyInjection
             NomNomzBot.Application.Chat.Services.IThirdPartyEmoteProviderRegistry,
             NomNomzBot.Infrastructure.Chat.ThirdPartyEmoteProviderRegistry
         >();
+        // Warms the third-party emote cache the decoration pipeline reads; driven by ChatDecorationRefreshService
+        // (auto-discovered as a hosted worker). Stateless → singleton.
+        services.AddSingleton<NomNomzBot.Infrastructure.Chat.Jobs.ChatEmoteCacheWarmer>();
         // Every outbound HttpClient the factory builds (provider fetches, OAuth, Twitch, TTS, webhooks…) sends
         // the product User-Agent by default, stamped with the running build version. A client may still override.
         services.ConfigureHttpClientDefaults(builder =>
@@ -158,10 +161,13 @@ public static class DependencyInjection
             )
         );
 
-        services.AddHttpClient(
-            NomNomzBot.Infrastructure.Chat.ChatEmoteHttpClient.Name,
-            client => client.Timeout = TimeSpan.FromSeconds(10)
-        );
+        services
+            .AddHttpClient(
+                NomNomzBot.Infrastructure.Chat.ChatEmoteHttpClient.Name,
+                // Generous overall ceiling; the resilience pipeline owns the per-attempt 10s timeout + retries.
+                client => client.Timeout = TimeSpan.FromSeconds(30)
+            )
+            .AddChatEmoteResilienceHandler();
 
         // Webhook HMAC primitives (stateless; not name-convention "*Service", so registered explicitly).
         services.AddSingleton<
