@@ -210,6 +210,30 @@ public sealed class IdentityRekeyBehaviorTests
     }
 
     [Fact]
+    public async Task Query_AsTenantA_CannotFetchTenantB_RowByKnownId_IDOR()
+    {
+        // An attacker scoped to tenant A who has learned tenant B's exact command id still cannot read it:
+        // the global tenant filter excludes B's rows from every A-scoped query (the direct IDOR guard,
+        // complementing ChannelAccessService denying A from resolving B's tenant in the first place).
+        string dbName = Guid.NewGuid().ToString();
+        await SeedTwoTenantsAsync(dbName);
+
+        FakeTenant tenant = new();
+        await using RekeyTestContext db = NewContext(dbName, tenant);
+
+        // B's command id, looked up bypassing the filter (simulating an id the attacker leaked/guessed).
+        int bCommandId = (
+            await db.Commands.IgnoreQueryFilters().SingleAsync(c => c.BroadcasterId == TenantB)
+        ).Id;
+
+        // Scoped to A, a direct fetch of B's row by its exact id must come back empty.
+        tenant.SetTenant(TenantA);
+        Command? leaked = await db.Commands.FirstOrDefaultAsync(c => c.Id == bCommandId);
+
+        leaked.Should().BeNull();
+    }
+
+    [Fact]
     public async Task Query_NoAmbientTenant_SeesAllTenants()
     {
         // A background/cross-tenant context (no tenant set) reads all rows — the filter's null-tenant branch.

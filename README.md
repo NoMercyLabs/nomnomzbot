@@ -112,6 +112,7 @@ in `server/src/NomNomzBot.Api/appsettings.Development.json`. Everything else fal
 | `http://localhost:5080/health` | Health status (JSON) |
 | `http://localhost:5080/health/live` | Liveness probe |
 | `http://localhost:5080/health/ready` | Readiness probe (DB + Redis) |
+| `http://localhost:5080/health/version` | Deployed build version |
 | `http://localhost:8082` | Adminer (Postgres browser) — dev override only |
 
 ## Configuration
@@ -151,6 +152,12 @@ the Twitch OAuth redirect URI are both derived from it.
 cd server
 dotnet test
 ```
+
+## Security
+
+Security fixes ship as GitHub releases tagged `[SECURITY]` and, where warranted, as GitHub Security
+Advisories — **watch this repository's releases** so you learn about them. Check the build you are running
+with `GET /health/version`. See the [Security Architecture](SECURITY_ARCHITECTURE.md) for the full review.
 
 ## Docs
 

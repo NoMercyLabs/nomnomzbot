@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Reflection;
 using System.Text;
 using System.Threading.RateLimiting;
 using Asp.Versioning;
@@ -469,6 +470,23 @@ try
     // Liveness probe (no dependency checks — just proves the process is alive)
     app.MapGet("/health/live", () => Results.Ok(new { status = "alive" }))
         .ExcludeFromDescription();
+
+    // Running build version, so an operator can verify what is deployed and whether a security release
+    // has been applied (§15). Informational version (semver/git) when stamped, else the assembly version.
+    app.MapGet(
+            "/health/version",
+            () =>
+            {
+                System.Reflection.Assembly asm = typeof(Program).Assembly;
+                string version =
+                    asm.GetCustomAttribute<System.Reflection.AssemblyInformationalVersionAttribute>()?.InformationalVersion
+                    ?? asm.GetName().Version?.ToString()
+                    ?? "unknown";
+                return Results.Ok(new { version });
+            }
+        )
+        .ExcludeFromDescription()
+        .AllowAnonymous();
 
     // Readiness probe — checks DB + Redis connectivity before declaring ready
     app.MapHealthChecks(
