@@ -191,6 +191,12 @@ public static class DependencyInjection
             NomNomzBot.Infrastructure.Analytics.LiveWindowResolver
         >();
 
+        // The sandbox script executor — Jint on self-host (Wasmtime SaaS adapter is a separate profile binding).
+        services.AddScoped<
+            NomNomzBot.Application.Contracts.CustomCode.IScriptExecutor,
+            NomNomzBot.Infrastructure.CustomCode.Jint.JintScriptExecutor
+        >();
+
         // Event store — projections, post-commit hooks, and upcasters are pluggable multi-bindings discovered
         // by convention (drop a file → it is live next boot), mirroring ICommandAction. Projections + hooks
         // touch the DbContext (scoped); upcasters are pure/stateless (singleton).
