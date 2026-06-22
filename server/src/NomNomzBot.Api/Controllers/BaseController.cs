@@ -114,7 +114,9 @@ public abstract class BaseController : ControllerBase
             or "BILLING_LIMIT"
             or "JAR_MEMBERSHIP_REQUIRED"
             or "AGE_CONSENT_REQUIRED"
-            or "GAMBLING_DISABLED" => UnauthorizedResponse(result.ErrorMessage),
+            or "GAMBLING_DISABLED"
+            or "QUOTA_EXCEEDED"
+            or "tier_limit_reached" => UnauthorizedResponse(result.ErrorMessage),
             "NOT_FOUND" or "CHANNEL_NOT_FOUND" or "CHANNEL_NOT_ONBOARDED" => NotFoundResponse(
                 result.ErrorMessage
             ),
@@ -151,7 +153,9 @@ public abstract class BaseController : ControllerBase
             or "BILLING_LIMIT"
             or "JAR_MEMBERSHIP_REQUIRED"
             or "AGE_CONSENT_REQUIRED"
-            or "GAMBLING_DISABLED" => UnauthorizedResponse(result.ErrorMessage),
+            or "GAMBLING_DISABLED"
+            or "QUOTA_EXCEEDED"
+            or "tier_limit_reached" => UnauthorizedResponse(result.ErrorMessage),
             "NOT_FOUND" or "CHANNEL_NOT_FOUND" or "CHANNEL_NOT_ONBOARDED" => NotFoundResponse(
                 result.ErrorMessage
             ),

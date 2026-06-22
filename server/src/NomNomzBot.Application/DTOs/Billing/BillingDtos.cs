@@ -140,6 +140,12 @@ public sealed record ChangeTierRequest(string TierKey, bool AtPeriodEnd);
 /// <summary>Cancel the subscription (immediate or at period end).</summary>
 public sealed record CancelSubscriptionRequest(bool AtPeriodEnd, string? Reason);
 
+/// <summary>Validate or redeem an invite code by its code string.</summary>
+public sealed record InviteCodeRequest(string Code);
+
+/// <summary>Admin-grant a tier to a channel without Stripe.</summary>
+public sealed record GrantTierRequest(Guid TierId, bool IsInviteOnlyGrant);
+
 /// <summary>Create an invite code (admin).</summary>
 public sealed record CreateInviteCodeRequest(
     int MaxRedemptions,

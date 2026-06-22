@@ -236,6 +236,10 @@ public sealed class ActionDefinitionSeeder : ISeeder
         M("economy:leaderboards:config:write", Editor);
         M("economy:leaderboards:config:delete", Editor);
 
+        // Billing (owner-level control — reads included; mods/editors never see or touch billing)
+        M("billing:read", Broadcaster);
+        M("billing:manage", Broadcaster);
+
         // Rewards
         M("reward:read", Mod);
         M("reward:manage", Broadcaster);
