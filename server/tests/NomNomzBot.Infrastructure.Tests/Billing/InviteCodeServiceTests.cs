@@ -10,8 +10,10 @@
 
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Billing;
 using NomNomzBot.Application.DTOs.Billing;
 using NomNomzBot.Domain.Billing.Entities;
 using NomNomzBot.Domain.Billing.Events;
@@ -20,6 +22,7 @@ using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Infrastructure.Billing;
 using NomNomzBot.Infrastructure.Content.Billing;
 using NomNomzBot.Infrastructure.Tests.Identity;
+using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Billing;
 
@@ -40,6 +43,8 @@ public sealed class InviteCodeServiceTests
         SubscriptionService subs = new(
             db,
             new BillingTierService(db),
+            Substitute.For<IStripeGateway>(),
+            Substitute.For<IConfiguration>(),
             bus,
             new FakeTimeProvider(Now)
         );

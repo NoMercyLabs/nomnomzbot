@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Billing;
@@ -23,13 +24,16 @@ namespace NomNomzBot.Infrastructure.Billing;
 /// <summary>
 /// Subscription lifecycle (monetization-billing.md §3.1). The reads, the invite/admin <see cref="GrantTierAsync"/>,
 /// the local cancel/resume, and the inbound Stripe webhook appliers are fully implemented and sync
-/// <c>Channels.BillingTierKey</c>. (Deferred — documented: the OUTBOUND Stripe operations — checkout, billing
-/// portal, proration tier change — return <c>SERVICE_UNAVAILABLE</c> until the Stripe gateway is wired; webhook
+/// <c>Channels.BillingTierKey</c>. Outbound hosted checkout + the self-serve billing portal go through
+/// <see cref="IStripeGateway"/> (fail-closed to <c>SERVICE_UNAVAILABLE</c> when Stripe is unconfigured, so self-host
+/// is unaffected). (Deferred — documented: proration tier change still routes through the portal; webhook
 /// idempotency relies on the upsert being state-convergent pending a processed-event store.)
 /// </summary>
 public sealed class SubscriptionService(
     IApplicationDbContext db,
     IBillingTierService tiers,
+    IStripeGateway stripe,
+    IConfiguration configuration,
     IEventBus eventBus,
     TimeProvider clock
 ) : ISubscriptionService
@@ -74,11 +78,33 @@ public sealed class SubscriptionService(
         );
     }
 
-    public Task<Result<CheckoutSessionDto>> StartCheckoutAsync(
+    public async Task<Result<CheckoutSessionDto>> StartCheckoutAsync(
         Guid broadcasterId,
         StartCheckoutRequest request,
         CancellationToken ct = default
-    ) => Task.FromResult(Result.Failure<CheckoutSessionDto>(StripeDeferred, "SERVICE_UNAVAILABLE"));
+    )
+    {
+        BillingTier? tier = await db.BillingTiers.FirstOrDefaultAsync(
+            t => t.Key == request.TierKey,
+            ct
+        );
+        if (tier is null)
+            return Result.Failure<CheckoutSessionDto>("Unknown billing tier.", "NOT_FOUND");
+        if (string.IsNullOrWhiteSpace(tier.StripePriceId))
+            return Result.Failure<CheckoutSessionDto>(
+                "This tier is not purchasable.",
+                "VALIDATION_FAILED"
+            );
+
+        string baseUrl = configuration["App:BaseUrl"]?.TrimEnd('/') ?? string.Empty;
+        return await stripe.CreateCheckoutSessionAsync(
+            tier.StripePriceId,
+            broadcasterId.ToString(),
+            request.SuccessUrl ?? $"{baseUrl}/billing/success",
+            request.CancelUrl ?? $"{baseUrl}/billing/cancel",
+            ct
+        );
+    }
 
     public Task<Result<SubscriptionDto>> ChangeTierAsync(
         Guid broadcasterId,
@@ -142,10 +168,25 @@ public sealed class SubscriptionService(
         return Result.Success(await ToDtoAsync(broadcasterId, sub, ct));
     }
 
-    public Task<Result<BillingPortalDto>> CreateBillingPortalSessionAsync(
+    public async Task<Result<BillingPortalDto>> CreateBillingPortalSessionAsync(
         Guid broadcasterId,
         CancellationToken ct = default
-    ) => Task.FromResult(Result.Failure<BillingPortalDto>(StripeDeferred, "SERVICE_UNAVAILABLE"));
+    )
+    {
+        Subscription? sub = await FindAsync(broadcasterId, ct);
+        if (sub is null || string.IsNullOrWhiteSpace(sub.StripeSubscriptionId))
+            return Result.Failure<BillingPortalDto>(
+                "No active Stripe subscription to manage.",
+                "NOT_FOUND"
+            );
+
+        string baseUrl = configuration["App:BaseUrl"]?.TrimEnd('/') ?? string.Empty;
+        return await stripe.CreateBillingPortalSessionAsync(
+            sub.StripeSubscriptionId,
+            $"{baseUrl}/billing",
+            ct
+        );
+    }
 
     public async Task<Result> ApplyStripeSubscriptionEventAsync(
         StripeSubscriptionEventDto stripeEvent,

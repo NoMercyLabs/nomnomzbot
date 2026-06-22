@@ -209,6 +209,10 @@ public static class DependencyInjection
             NomNomzBot.Application.Contracts.CustomCode.IScriptExecutionMeter,
             NomNomzBot.Infrastructure.CustomCode.ScriptExecutionMeter
         >();
+        services.AddScoped<
+            NomNomzBot.Application.Contracts.Billing.IStripeGateway,
+            NomNomzBot.Infrastructure.Billing.StripeGateway
+        >();
 
         // Event store — projections, post-commit hooks, and upcasters are pluggable multi-bindings discovered
         // by convention (drop a file → it is live next boot), mirroring ICommandAction. Projections + hooks

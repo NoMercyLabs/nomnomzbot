@@ -10,8 +10,10 @@
 
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Billing;
 using NomNomzBot.Application.DTOs.Billing;
 using NomNomzBot.Domain.Billing.Entities;
 using NomNomzBot.Domain.Billing.Enums;
@@ -21,6 +23,7 @@ using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Infrastructure.Billing;
 using NomNomzBot.Infrastructure.Content.Billing;
 using NomNomzBot.Infrastructure.Tests.Identity;
+using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Billing;
 
@@ -35,13 +38,19 @@ public sealed class SubscriptionServiceTests
     private static readonly Guid Channel = Guid.Parse("0192a000-0000-7000-8000-0000000000e7");
     private static readonly DateTimeOffset Now = new(2026, 6, 22, 12, 0, 0, TimeSpan.Zero);
 
-    private static (SubscriptionService Sut, AuthDbContext Db, RecordingEventBus Bus) Build()
+    private static (SubscriptionService Sut, AuthDbContext Db, RecordingEventBus Bus) Build(
+        IStripeGateway? stripe = null
+    )
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
         RecordingEventBus bus = new();
+        IConfiguration config = Substitute.For<IConfiguration>();
+        config["App:BaseUrl"].Returns("https://bot.example");
         SubscriptionService sut = new(
             db,
             new BillingTierService(db),
+            stripe ?? Substitute.For<IStripeGateway>(),
+            config,
             bus,
             new FakeTimeProvider(Now)
         );
@@ -162,16 +171,64 @@ public sealed class SubscriptionServiceTests
     }
 
     [Fact]
-    public async Task Stripe_outbound_checkout_is_unavailable_until_the_gateway_lands()
+    public async Task StartCheckout_for_a_tier_without_a_stripe_price_is_validation_failed()
     {
         (SubscriptionService sut, AuthDbContext db, _) = Build();
-        await SeedAsync(db);
+        await SeedAsync(db); // seeded tiers carry no Stripe price id by default
 
         Result<CheckoutSessionDto> result = await sut.StartCheckoutAsync(
             Channel,
             new StartCheckoutRequest("pro", null, null)
         );
 
-        result.ErrorCode.Should().Be("SERVICE_UNAVAILABLE");
+        result.ErrorCode.Should().Be("VALIDATION_FAILED");
+    }
+
+    [Fact]
+    public async Task StartCheckout_for_a_purchasable_tier_opens_a_gateway_checkout()
+    {
+        IStripeGateway gateway = Substitute.For<IStripeGateway>();
+        gateway
+            .CreateCheckoutSessionAsync(
+                "price_pro",
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success(new CheckoutSessionDto("https://checkout.stripe/abc", "cs_1")));
+        (SubscriptionService sut, AuthDbContext db, _) = Build(gateway);
+        await SeedAsync(db);
+        BillingTier pro = await db.BillingTiers.FirstAsync(t => t.Key == "pro");
+        pro.StripePriceId = "price_pro";
+        await db.SaveChangesAsync();
+
+        Result<CheckoutSessionDto> result = await sut.StartCheckoutAsync(
+            Channel,
+            new StartCheckoutRequest("pro", null, null)
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.CheckoutUrl.Should().Be("https://checkout.stripe/abc");
+        await gateway
+            .Received()
+            .CreateCheckoutSessionAsync(
+                "price_pro",
+                Channel.ToString(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task BillingPortal_without_a_stripe_subscription_is_not_found()
+    {
+        (SubscriptionService sut, AuthDbContext db, _) = Build();
+        await SeedAsync(db);
+
+        Result<BillingPortalDto> result = await sut.CreateBillingPortalSessionAsync(Channel);
+
+        result.ErrorCode.Should().Be("NOT_FOUND");
     }
 }
