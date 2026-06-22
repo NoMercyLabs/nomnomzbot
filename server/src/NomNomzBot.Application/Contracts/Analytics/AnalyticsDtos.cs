@@ -131,3 +131,13 @@ public sealed record ViewerProfileQuery(
 
 /// <summary>Body for the viewer analytics opt-out toggle (analytics.md §5).</summary>
 public sealed record SetAnalyticsOptOutRequest(bool OptedOut);
+
+/// <summary>SaaS-only cross-tenant platform stats (analytics.md §4) — no per-tenant identity crosses the boundary.</summary>
+public sealed record PlatformAnalyticsDto(
+    int ActiveChannels,
+    int DailyActiveChannels,
+    long TotalEventsProcessed,
+    long TotalMessages,
+    long TotalRedemptions,
+    long TotalCommandsRun
+);
