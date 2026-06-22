@@ -14,7 +14,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260622071918_Initial")]
+    [Migration("20260622132105_Initial")]
     partial class Initial
     {
         /// <inheritdoc />
@@ -2547,6 +2547,10 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         .HasMaxLength(450)
                         .HasColumnType("character varying(450)");
 
+                    b.Property<string>("SongRequestPageToken")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -2596,6 +2600,10 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.HasIndex("OwnerUserId")
                         .IsUnique()
                         .HasDatabaseName("IX_Channel_OwnerUserId");
+
+                    b.HasIndex("SongRequestPageToken")
+                        .IsUnique()
+                        .HasDatabaseName("IX_Channel_SongRequestPageToken");
 
                     b.HasIndex("TwitchChannelId")
                         .IsUnique()

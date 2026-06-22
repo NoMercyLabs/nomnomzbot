@@ -2961,6 +2961,11 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         maxLength: 36,
                         nullable: false
                     ),
+                    SongRequestPageToken = table.Column<string>(
+                        type: "character varying(64)",
+                        maxLength: 64,
+                        nullable: true
+                    ),
                     IsLive = table.Column<bool>(type: "boolean", nullable: false),
                     Language = table.Column<string>(
                         type: "character varying(50)",
@@ -4783,6 +4788,13 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                 name: "IX_Channel_OwnerUserId",
                 table: "Channels",
                 column: "OwnerUserId",
+                unique: true
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Channel_SongRequestPageToken",
+                table: "Channels",
+                column: "SongRequestPageToken",
                 unique: true
             );
 

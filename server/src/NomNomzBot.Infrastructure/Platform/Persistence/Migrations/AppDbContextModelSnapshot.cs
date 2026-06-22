@@ -2544,6 +2544,10 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         .HasMaxLength(450)
                         .HasColumnType("character varying(450)");
 
+                    b.Property<string>("SongRequestPageToken")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -2593,6 +2597,10 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.HasIndex("OwnerUserId")
                         .IsUnique()
                         .HasDatabaseName("IX_Channel_OwnerUserId");
+
+                    b.HasIndex("SongRequestPageToken")
+                        .IsUnique()
+                        .HasDatabaseName("IX_Channel_SongRequestPageToken");
 
                     b.HasIndex("TwitchChannelId")
                         .IsUnique()

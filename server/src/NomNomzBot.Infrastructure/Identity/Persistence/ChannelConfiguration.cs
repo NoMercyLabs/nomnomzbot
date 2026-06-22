@@ -39,6 +39,12 @@ public class ChannelConfiguration : IEntityTypeConfiguration<Channel>
 
         builder.HasIndex(e => e.NameNormalized).HasDatabaseName("IX_Channel_NameNormalized");
 
+        builder.Property(e => e.SongRequestPageToken).HasMaxLength(64);
+        builder
+            .HasIndex(e => e.SongRequestPageToken)
+            .IsUnique()
+            .HasDatabaseName("IX_Channel_SongRequestPageToken");
+
         builder.Property(e => e.Status).IsRequired().HasMaxLength(20);
 
         builder.Property(e => e.SuspendedReason).HasMaxLength(500);

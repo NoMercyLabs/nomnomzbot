@@ -74,6 +74,14 @@ public class Channel : SoftDeletableEntity
     [MaxLength(36)]
     public string OverlayToken { get; set; } = Guid.NewGuid().ToString();
 
+    /// <summary>
+    /// Opaque, rotatable public song-request-page token (music-sr.md §3.7) — resolves the public
+    /// <c>/sr/{token}</c> page to this channel without a JWT. Distinct from <see cref="OverlayToken"/> (OBS
+    /// sources). Null until first minted by <c>ISongRequestPageTokenService.GetOrCreateAsync</c>. Not PII.
+    /// </summary>
+    [MaxLength(64)]
+    public string? SongRequestPageToken { get; set; }
+
     public bool IsLive { get; set; }
 
     [MaxLength(50)]
