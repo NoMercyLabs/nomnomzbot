@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<!--
+  Copyright (c) NoMercy Labs. Part of NomNomzBot, AGPL-3.0-or-later. See LICENSE.
+  OBS overlay browser-source. URL: /overlay/{overlayToken}?w={widgetId}
+  Connects to OverlayHub (?token=overlayToken), joins the widget, and renders pushed WidgetEvents
+  as transient on-stream alerts. Background is transparent for OBS compositing.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Overlay</title>
+    <style>
+      html, body {
+        margin: 0;
+        height: 100%;
+        background: transparent;
+        overflow: hidden;
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      }
+      #stage {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: flex-start;
+        justify-content: center;
+        padding-top: 8vh;
+      }
+      .alert {
+        min-width: 320px;
+        max-width: 70vw;
+        padding: 22px 30px;
+        border-radius: 16px;
+        text-align: center;
+        color: #fff;
+        background: linear-gradient(135deg, rgba(145, 70, 255, 0.96), rgba(99, 49, 175, 0.96));
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+        text-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+        animation: pop 0.45s cubic-bezier(0.2, 0.9, 0.3, 1.4) both;
+      }
+      .alert.out { animation: fade 0.5s ease forwards; }
+      .headline { font-size: 30px; font-weight: 800; margin: 0 0 4px; }
+      .detail { font-size: 19px; opacity: 0.95; }
+      .who { font-weight: 700; }
+      @keyframes pop {
+        from { transform: translateY(-24px) scale(0.92); opacity: 0; }
+        to { transform: translateY(0) scale(1); opacity: 1; }
+      }
+      @keyframes fade { to { transform: translateY(-16px); opacity: 0; } }
+    </style>
+  </head>
+  <body>
+    <div id="stage"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@microsoft/signalr@8.0.7/dist/browser/signalr.min.js"></script>
+    <script>
+      const path = location.pathname.split("/").filter(Boolean);
+      const token = decodeURIComponent(path[path.length - 1] || "");
+      const widgetId = new URLSearchParams(location.search).get("w") || "alerts";
+      const get = (o, k) => o?.[k] ?? o?.[k[0].toUpperCase() + k.slice(1)];
+
+      const HEADLINES = {
+        subscription: "New Subscriber!",
+        follow: "New Follower!",
+        cheer: "Cheer!",
+        raid: "Raid!",
+        gift: "Gift Subs!",
+      };
+
+      function show(evt) {
+        const type = get(evt, "eventType") || "alert";
+        const data = get(evt, "data") || {};
+        const who = get(data, "user") || get(data, "userDisplayName") || "";
+        const headline = HEADLINES[type] || type;
+        let detail = escapeHtml(who);
+        const tier = get(data, "tier");
+        if (tier) detail += ` · Tier ${escapeHtml(String(tier))}`;
+        const amount = get(data, "amount") ?? get(data, "bits") ?? get(data, "viewers");
+        if (amount) detail += ` · ${escapeHtml(String(amount))}`;
+
+        const el = document.createElement("div");
+        el.className = "alert";
+        el.innerHTML = `<p class="headline">${escapeHtml(headline)}</p><p class="detail who">${detail}</p>`;
+        document.getElementById("stage").appendChild(el);
+        setTimeout(() => el.classList.add("out"), 5000);
+        setTimeout(() => el.remove(), 5600);
+      }
+
+      function escapeHtml(s) {
+        return String(s).replace(/[&<>"']/g, (c) =>
+          ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])
+        );
+      }
+
+      async function connect() {
+        if (!token || token === "overlay") return; // not a valid overlay URL
+        const connection = new signalR.HubConnectionBuilder()
+          .withUrl(`/hubs/overlay?token=${encodeURIComponent(token)}`)
+          .withAutomaticReconnect()
+          .build();
+
+        connection.on("WidgetEvent", show);
+        connection.on("WidgetReload", () => location.reload());
+
+        async function join() {
+          try {
+            await connection.invoke("JoinWidget", widgetId);
+          } catch {
+            /* hub will retry on reconnect */
+          }
+        }
+        connection.onreconnected(join);
+
+        try {
+          await connection.start();
+          await join();
+        } catch {
+          setTimeout(connect, 4000); // backend not ready yet — retry
+        }
+      }
+
+      connect();
+    </script>
+  </body>
+</html>

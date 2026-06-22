@@ -337,6 +337,11 @@ try
         app.MapGet("/sr/{token}", () => Results.File(srShell, "text/html"))
             .ExcludeFromDescription()
             .AllowAnonymous();
+
+        string overlayShell = Path.Combine(webRoot, "overlay", "index.html");
+        app.MapGet("/overlay/{token}", () => Results.File(overlayShell, "text/html"))
+            .ExcludeFromDescription()
+            .AllowAnonymous();
     }
 
     // OpenAPI spec + Scalar UI — always available (self-hosted / local dev)
