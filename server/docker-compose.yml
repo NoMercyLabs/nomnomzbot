@@ -61,8 +61,9 @@ services:
       POSTGRES_DB: nomnomzbot
       POSTGRES_USER: ${POSTGRES_USER:-nomnomzbot}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-nomnomzbot_dev}
+    # Bound to loopback only — Postgres is reached over the compose network, never from outside the host.
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./docker/postgres:/docker-entrypoint-initdb.d:ro
@@ -83,8 +84,9 @@ services:
       $([ -n \"$REDIS_PASSWORD\" ] && echo \"--requirepass $REDIS_PASSWORD\")"
     environment:
       - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+    # Bound to loopback only — Redis is reached over the compose network, never from outside the host.
     ports:
-      - "${REDIS_PORT:-6379}:6379"
+      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
     healthcheck:
       test: >
         ["CMD-SHELL",
@@ -97,19 +99,9 @@ services:
     networks:
       - nomnomzbot
 
-  adminer:
-    image: adminer:latest
-    ports:
-      - "${ADMINER_PORT:-8082}:8080"
-    environment:
-      ADMINER_DEFAULT_SERVER: postgres
-      ADMINER_DESIGN: dracula
-    depends_on:
-      postgres:
-        condition: service_healthy
-    restart: unless-stopped
-    networks:
-      - nomnomzbot
+  # Adminer (DB GUI) is intentionally NOT in the production compose — it would expose full database
+  # access with only the Postgres credentials. It lives in docker-compose.dev.yml; enable it locally with
+  #   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d adminer
 
   cloudflared:
     image: cloudflare/cloudflared:latest

@@ -88,9 +88,11 @@ a visual pipeline engine, and integrations (Spotify, Discord, YouTube, TTS).
 Requires the **.NET 10 SDK** and **Docker** (for Postgres + Redis).
 
 ```bash
-# 1. Start infrastructure (Postgres + Redis + Adminer) — compose lives in server/
+# 1. Start infrastructure (Postgres + Redis) — compose lives in server/
 cd server
-docker compose up -d postgres redis adminer
+docker compose up -d postgres redis
+# Optional DB GUI (Adminer) — dev-only override, never run in production:
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d adminer
 
 # 2. Run the API (auto-migrates, auto-seeds on first start) — from server/
 cd src/NomNomzBot.Api
@@ -110,7 +112,7 @@ in `server/src/NomNomzBot.Api/appsettings.Development.json`. Everything else fal
 | `http://localhost:5080/health` | Health status (JSON) |
 | `http://localhost:5080/health/live` | Liveness probe |
 | `http://localhost:5080/health/ready` | Readiness probe (DB + Redis) |
-| `http://localhost:8082` | Adminer (Postgres browser) |
+| `http://localhost:8082` | Adminer (Postgres browser) — dev override only |
 
 ## Configuration
 

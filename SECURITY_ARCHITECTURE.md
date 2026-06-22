@@ -483,17 +483,17 @@ From `docker-compose.yml` and `Dockerfile`:
 
 ### Gaps & Vulnerabilities
 
-**🔴 CRITICAL — Adminer exposed with no additional authentication (hosted mode)**
-Adminer at `http://<host>:8082` provides full GUI database access requiring only the Postgres credentials (which are also defaulted). In hosted mode, if port 8082 is publicly reachable, any attacker with the default credentials (or who can brute-force them) has full database access — all user tokens, all configuration, everything.
+**🟢 RESOLVED — Adminer removed from the production compose**
+`docker-compose.yml` no longer ships Adminer. The DB GUI now lives only in `docker-compose.dev.yml`, enabled explicitly with `docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d adminer`, and even there it binds to `127.0.0.1`. A production deploy has no database GUI surface.
 
-**🟠 HIGH — Redis has no authentication**
-Redis on port `6379` is unauthenticated. Anyone who can reach the port can read/write all cache keys, which includes rate limit counters, session state, and (after Fix 2 in §2) refresh token JTIs. Poisoning rate limit keys defeats the auth rate limiter.
+**🟢 RESOLVED — Redis requires a password**
+The Redis service starts with `--requirepass "${REDIS_PASSWORD}"` and the connection string carries it. Unauthenticated cache access (rate-limit counters, session state, refresh-token JTIs) is closed.
 
-**🟠 HIGH — PostgreSQL port exposed to host**
-Port `5432` being mapped to `0.0.0.0` means it's accessible from outside the Docker network. Combined with the default credentials, this is a direct database exposure.
+**🟢 RESOLVED — PostgreSQL/Redis ports bound to loopback**
+Both database ports publish to `127.0.0.1` only (`docker compose config` confirms `host_ip: 127.0.0.1`), so they are reachable over the compose network and from the host, never from other interfaces.
 
-**🟠 HIGH — API container runs as root**
-If a remote code execution vulnerability is found in the application or any dependency, the attacker has root access inside the container, which simplifies container escape.
+**🟢 RESOLVED — API container runs as an unprivileged user**
+The Dockerfile's final stage creates `appuser`, `chown`s `/app` to it (so rolling logs stay writable), and sets `USER appuser`. An RCE in the app or a dependency no longer lands as container root.
 
 **🟡 MEDIUM — No HTTPS in docker-compose**
 The docker-compose sets `ASPNETCORE_URLS=http://+:5000` only. HTTPS is expected to be terminated at a reverse proxy, but this is not documented and not enforced. If a self-hoster deploys without a reverse proxy, tokens travel in cleartext.
@@ -718,23 +718,23 @@ These must be resolved before the hosted version handles any real user data. Lis
 **Issue:** If `JWT_SECRET` or `ENCRYPTION_KEY` env vars are not set, the app ran with publicly known default values.
 **Resolution:** `StartupSecretGuard.Validate` throws in any non-Development environment on a default/short `Jwt:Secret` or the bundled `Encryption:Key`. Unit-tested.
 
-### 4. Remove Adminer from production docker-compose (🔴 CRITICAL)
+### 4. Remove Adminer from production docker-compose (🟢 RESOLVED)
+
+**File:** `docker-compose.yml` / `docker-compose.dev.yml`
+**Issue:** Adminer on port 8082 provided GUI database access with default credentials.
+**Resolution:** Adminer is gone from the production compose; it lives only in `docker-compose.dev.yml` (loopback-bound), enabled by an explicit `-f` overlay. See §10.
+
+### 5. Add Redis authentication (🟢 RESOLVED)
 
 **File:** `docker-compose.yml`
-**Issue:** Adminer on port 8082 provides GUI database access with default credentials.
-**Fix:** Move Adminer to a dev-only compose override. See §10 Fix 1.
+**Issue:** Redis was unauthenticated; rate limit counters and session data could be read/written by anyone reaching the port.
+**Resolution:** Redis starts with `--requirepass "${REDIS_PASSWORD}"`. See §10.
 
-### 5. Add Redis authentication (🟠 HIGH)
-
-**File:** `docker-compose.yml`
-**Issue:** Redis is unauthenticated; rate limit counters and session data can be read/written by anyone reaching the port.
-**Fix:** Add `--requirepass` and `REDIS_PASSWORD` env var. See §10 Fix 2.
-
-### 6. Bind Postgres/Redis ports to localhost (🟠 HIGH)
+### 6. Bind Postgres/Redis ports to localhost (🟢 RESOLVED)
 
 **File:** `docker-compose.yml`
-**Issue:** Database ports exposed to all interfaces.
-**Fix:** Bind to `127.0.0.1`. See §10 Fix 3.
+**Issue:** Database ports were exposed to all interfaces.
+**Resolution:** Both publish to `127.0.0.1` only. See §10.
 
 ### 7. Validate OAuth `state` parameter on callback (🟠 HIGH)
 
@@ -769,14 +769,14 @@ These must be resolved before the hosted version handles any real user data. Lis
 | 1 | SecureValue sealed at rest | 🟢 | 🟢 | RESOLVED |
 | 2 | Setup endpoints lock after first-run | 🟢 | 🟢 | RESOLVED |
 | 3 | Production boot-guard on default secrets | 🟢 | 🟢 | RESOLVED |
-| 4 | Adminer exposed in production | 🔴 | 🟠 | CRITICAL |
+| 4 | Adminer dev-override only | 🟢 | 🟢 | RESOLVED |
 | 5 | Per-subject DEK (was shared key) | 🟢 | 🟢 | RESOLVED |
 | 6 | Authenticated envelope (was AES-CBC) | 🟢 | 🟢 | RESOLVED |
 | 7 | JWT refresh token no revocation | 🟠 | 🟠 | HIGH |
 | 8 | OAuth state not validated (CSRF) | 🟠 | 🟠 | HIGH |
-| 9 | Redis unauthenticated | 🟠 | 🟠 | HIGH |
-| 10 | DB/Redis ports exposed | 🟠 | 🟠 | HIGH |
-| 11 | API container runs as root | 🟠 | 🟠 | HIGH |
+| 9 | Redis password-protected | 🟢 | 🟢 | RESOLVED |
+| 10 | DB/Redis ports loopback-bound | 🟢 | 🟢 | RESOLVED |
+| 11 | API container non-root | 🟢 | 🟢 | RESOLVED |
 | 12 | AllowedHosts = "*" | 🟠 | 🟠 | HIGH |
 | 13 | Scalar/OpenAPI in production | 🟠 | 🟡 | HIGH |
 | 14 | No bootstrap admin path | N/A | 🟠 | HIGH |
