@@ -43,9 +43,11 @@ public sealed class ChatMessageFragment
     /// The fully-resolved, render-ready emote for this fragment (Type == "emote"), unifying Twitch and
     /// third-party (BTTV/FFZ/7TV) emotes behind one shape — provider tag, scale-keyed urls, animated and
     /// zero-width flags (chat-decoration spec §4). Null until the decoration pipeline resolves it; the flat
-    /// Twitch <c>Emote*</c> fields above carry the raw EventSub payload until then.
+    /// Twitch <c>Emote*</c> fields above carry the raw EventSub payload until then. Settable so a decoration
+    /// adapter can enrich the fragment in place (the orchestrator seeds the pipeline with copies, not the event's
+    /// own fragments).
     /// </summary>
-    public ChatEmote? Emote { get; init; }
+    public ChatEmote? Emote { get; set; }
 
     // ─── Cheermote fields (when Type == "cheermote") ─────────────────────────
 
