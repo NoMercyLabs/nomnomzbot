@@ -48,12 +48,22 @@ a visual pipeline engine, and integrations (Spotify, Discord, YouTube, TTS).
   engagement, derived watch-session presence) behind channel + viewer + SaaS-platform read APIs.
   A **feature-flag** system (deterministic FNV-1a rollout buckets, per-tenant overrides, tier +
   deployment gates, an admin write surface with cache invalidation) backs staged rollout and the
-  `FEATURE_DISABLED` gating used across the platform. All six Phase-7 subsystems are now functional;
-  the deferred pieces are the sandbox capability broker for direct `bot.*` host calls, the Wasmtime
-  SaaS executor, and a handful of infrastructure-bound externals. ~1068 tests green across four suites.
+  `FEATURE_DISABLED` gating used across the platform. All six Phase-7 subsystems are complete,
+  including the custom-code capability broker and the full `bot.*` host surface — chat, economy,
+  music, and a 256 KiB-capped, SSRF-hardened `http.fetch`, every catalogued capability dispatching
+  through the per-execution, capability-gated bridge. **Phase 8 — the public web pages — is built**,
+  so the bot is a working, headless-on-Twitch product end to end. The bot serves its own lightweight
+  pages (`UseStaticFiles`): the public **song-request** page (a rotatable per-channel token resolves
+  the channel and accepts requests with no login) is wired front to back, and the **OBS overlay**
+  browser-source renders seven event feeds pushed from domain events over SignalR — subscription,
+  resub, follow, cheer, raid, and gift alerts plus a persistent now-playing bar — each fanned only
+  to the widgets that subscribe to it. The deferred pieces are the Wasmtime SaaS executor, overlay
+  settings-driven styling, and a handful of infrastructure-bound externals. ~1092 tests green across
+  four suites.
 - **Frontend** — **Kotlin Multiplatform + Compose Multiplatform** (one codebase, desktop + web/Wasm
   identical UI; mobile later). The previous Expo/React Native app was removed. The dashboard app is
-  **not built yet** — today the API is driven directly (Scalar docs, HTTP clients, overlays).
+  **not built yet** — today the API is driven directly (Scalar docs, HTTP clients, overlays), and the
+  public viewer/OBS pages (song-request, overlays) are the lightweight `web/` pages served by the bot.
 
 ## Tech stack
 
