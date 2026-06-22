@@ -414,4 +414,10 @@ internal sealed class GdprTestDbContext : DbContext, IApplicationDbContext
         Set<NomNomzBot.Domain.Billing.Entities.FoundersBadge>();
     public DbSet<NomNomzBot.Domain.Billing.Entities.InviteCode> InviteCodes =>
         Set<NomNomzBot.Domain.Billing.Entities.InviteCode>();
+    public DbSet<NomNomzBot.Domain.Federation.Entities.FederationPeer> FederationPeers =>
+        Set<NomNomzBot.Domain.Federation.Entities.FederationPeer>();
+    public DbSet<NomNomzBot.Domain.Federation.Entities.FederationPeerKey> FederationPeerKeys =>
+        Set<NomNomzBot.Domain.Federation.Entities.FederationPeerKey>();
+    public DbSet<NomNomzBot.Domain.Federation.Entities.ChannelFederationOptIn> ChannelFederationOptIns =>
+        Set<NomNomzBot.Domain.Federation.Entities.ChannelFederationOptIn>();
 }

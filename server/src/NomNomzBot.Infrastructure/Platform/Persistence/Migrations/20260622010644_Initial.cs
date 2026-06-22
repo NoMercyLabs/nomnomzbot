@@ -173,6 +173,26 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "ChannelFederationOptIns",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    BroadcasterId = table.Column<Guid>(type: "uuid", nullable: false),
+                    PeerId = table.Column<Guid>(type: "uuid", nullable: true),
+                    OptInType = table.Column<string>(type: "character varying(30)", maxLength: 30, nullable: false),
+                    Direction = table.Column<string>(type: "character varying(10)", maxLength: 10, nullable: false),
+                    IsEnabled = table.Column<bool>(type: "boolean", nullable: false),
+                    EnabledByUserId = table.Column<Guid>(type: "uuid", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    DeletedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ChannelFederationOptIns", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "ChannelMemberships",
                 columns: table => new
                 {
@@ -379,6 +399,47 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_EventSubConduits", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "FederationPeerKeys",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    PeerId = table.Column<Guid>(type: "uuid", nullable: false),
+                    PublicKey = table.Column<string>(type: "text", nullable: false),
+                    Algorithm = table.Column<string>(type: "character varying(30)", maxLength: 30, nullable: false),
+                    KeyId = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: false),
+                    ValidFrom = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    ValidTo = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    IsActive = table.Column<bool>(type: "boolean", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_FederationPeerKeys", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "FederationPeers",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    InstanceId = table.Column<string>(type: "character varying(36)", maxLength: 36, nullable: false),
+                    DisplayName = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
+                    BaseUrl = table.Column<string>(type: "character varying(2048)", maxLength: 2048, nullable: true),
+                    DeploymentMode = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
+                    TrustState = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
+                    FirstSeenAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    LastHandshakeAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    DeletedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_FederationPeers", x => x.Id);
                 });
 
             migrationBuilder.CreateTable(
@@ -1964,6 +2025,26 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
+                name: "IX_ChannelFederationOptIns_BroadcasterId",
+                table: "ChannelFederationOptIns",
+                column: "BroadcasterId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ChannelFederationOptIns_BroadcasterId_PeerId_OptInType",
+                table: "ChannelFederationOptIns",
+                columns: new[] { "BroadcasterId", "PeerId", "OptInType" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ChannelFederationOptIns_IsEnabled",
+                table: "ChannelFederationOptIns",
+                column: "IsEnabled");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ChannelFederationOptIns_OptInType",
+                table: "ChannelFederationOptIns",
+                column: "OptInType");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_ChannelMemberships_BroadcasterId_UserId",
                 table: "ChannelMemberships",
                 columns: new[] { "BroadcasterId", "UserId" });
@@ -2138,6 +2219,38 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                 table: "EventSubSubscriptions",
                 columns: new[] { "BroadcasterId", "Provider", "EventType", "Version" },
                 unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_FederationPeerKeys_IsActive",
+                table: "FederationPeerKeys",
+                column: "IsActive");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_FederationPeerKeys_KeyId",
+                table: "FederationPeerKeys",
+                column: "KeyId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_FederationPeerKeys_PeerId",
+                table: "FederationPeerKeys",
+                column: "PeerId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_FederationPeerKeys_PeerId_KeyId",
+                table: "FederationPeerKeys",
+                columns: new[] { "PeerId", "KeyId" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_FederationPeers_InstanceId",
+                table: "FederationPeers",
+                column: "InstanceId",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_FederationPeers_TrustState",
+                table: "FederationPeers",
+                column: "TrustState");
 
             migrationBuilder.CreateIndex(
                 name: "IX_FoundersBadges_BroadcasterId",
@@ -2514,6 +2627,9 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                 name: "ChannelFeatures");
 
             migrationBuilder.DropTable(
+                name: "ChannelFederationOptIns");
+
+            migrationBuilder.DropTable(
                 name: "ChannelMemberships");
 
             migrationBuilder.DropTable(
@@ -2563,6 +2679,12 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
 
             migrationBuilder.DropTable(
                 name: "EventSubSubscriptions");
+
+            migrationBuilder.DropTable(
+                name: "FederationPeerKeys");
+
+            migrationBuilder.DropTable(
+                name: "FederationPeers");
 
             migrationBuilder.DropTable(
                 name: "FoundersBadges");

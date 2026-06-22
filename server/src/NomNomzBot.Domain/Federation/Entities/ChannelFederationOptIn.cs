@@ -20,6 +20,7 @@ namespace NomNomzBot.Domain.Federation.Entities;
 /// </summary>
 public class ChannelFederationOptIn : SoftDeletableEntity, ITenantScoped
 {
+    public Guid Id { get; set; } = Guid.CreateVersion7();
     public Guid BroadcasterId { get; set; }
 
     /// <summary>The specific peer this opt-in applies to, or null for any trusted peer.</summary>

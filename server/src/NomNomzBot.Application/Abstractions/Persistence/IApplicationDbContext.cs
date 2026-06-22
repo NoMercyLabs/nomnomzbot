@@ -15,6 +15,7 @@ using NomNomzBot.Domain.Commands.Entities;
 using NomNomzBot.Domain.Discord.Entities;
 using NomNomzBot.Domain.Economy.Entities;
 using NomNomzBot.Domain.EventStore.Entities;
+using NomNomzBot.Domain.Federation.Entities;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Integrations.Entities;
 using NomNomzBot.Domain.Platform.Entities;
@@ -109,6 +110,9 @@ public interface IApplicationDbContext
     DbSet<UsageRecord> UsageRecords { get; }
     DbSet<FoundersBadge> FoundersBadges { get; }
     DbSet<InviteCode> InviteCodes { get; }
+    DbSet<FederationPeer> FederationPeers { get; }
+    DbSet<FederationPeerKey> FederationPeerKeys { get; }
+    DbSet<ChannelFederationOptIn> ChannelFederationOptIns { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

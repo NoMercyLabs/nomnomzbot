@@ -98,6 +98,12 @@ internal sealed class EventStoreTestDbContext : DbContext, IApplicationDbContext
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Billing.Entities.InviteCode> InviteCodes =>
         throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Federation.Entities.FederationPeer> FederationPeers =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Federation.Entities.FederationPeerKey> FederationPeerKeys =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Federation.Entities.ChannelFederationOptIn> ChannelFederationOptIns =>
+        throw new NotSupportedException();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -166,6 +172,9 @@ internal sealed class EventStoreTestDbContext : DbContext, IApplicationDbContext
         modelBuilder.Ignore<NomNomzBot.Domain.Billing.Entities.UsageRecord>();
         modelBuilder.Ignore<NomNomzBot.Domain.Billing.Entities.FoundersBadge>();
         modelBuilder.Ignore<NomNomzBot.Domain.Billing.Entities.InviteCode>();
+        modelBuilder.Ignore<NomNomzBot.Domain.Federation.Entities.FederationPeer>();
+        modelBuilder.Ignore<NomNomzBot.Domain.Federation.Entities.FederationPeerKey>();
+        modelBuilder.Ignore<NomNomzBot.Domain.Federation.Entities.ChannelFederationOptIn>();
     }
 
     // ── Unused IApplicationDbContext surface — never reached by these tests ──

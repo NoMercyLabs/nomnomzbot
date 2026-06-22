@@ -20,6 +20,8 @@ namespace NomNomzBot.Domain.Federation.Entities;
 /// </summary>
 public class FederationPeer : SoftDeletableEntity
 {
+    public Guid Id { get; set; } = Guid.CreateVersion7();
+
     /// <summary>The peer's stable instance identifier (unique).</summary>
     public string InstanceId { get; set; } = null!;
     public string? DisplayName { get; set; }

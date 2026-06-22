@@ -18,6 +18,7 @@ namespace NomNomzBot.Domain.Federation.Entities;
 /// </summary>
 public class FederationPeerKey : BaseEntity
 {
+    public Guid Id { get; set; } = Guid.CreateVersion7();
     public Guid PeerId { get; set; }
 
     /// <summary>The PEM/base64 public key.</summary>

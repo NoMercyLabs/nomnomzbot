@@ -463,5 +463,11 @@ public sealed class IdentityRekeyBehaviorTests
             throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.Billing.Entities.InviteCode> InviteCodes =>
             throw new NotSupportedException();
+        public DbSet<NomNomzBot.Domain.Federation.Entities.FederationPeer> FederationPeers =>
+            throw new NotSupportedException();
+        public DbSet<NomNomzBot.Domain.Federation.Entities.FederationPeerKey> FederationPeerKeys =>
+            throw new NotSupportedException();
+        public DbSet<NomNomzBot.Domain.Federation.Entities.ChannelFederationOptIn> ChannelFederationOptIns =>
+            throw new NotSupportedException();
     }
 }
