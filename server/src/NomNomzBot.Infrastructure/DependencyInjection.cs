@@ -151,6 +151,8 @@ public static class DependencyInjection
         // Warms the third-party emote cache the decoration pipeline reads; driven by ChatDecorationRefreshService
         // (auto-discovered as a hosted worker). Stateless → singleton.
         services.AddSingleton<NomNomzBot.Infrastructure.Chat.Jobs.ChatEmoteCacheWarmer>();
+        // Warms the Helix badge cache; scoped because it uses the scoped Helix client (the worker resolves it per scope).
+        services.AddScoped<NomNomzBot.Infrastructure.Chat.Jobs.ChatBadgeCacheWarmer>();
 
         // Chat-decoration pipeline: the ordered adapters (multi-binding, discovered) + the thin orchestrator that runs
         // them per message. Stateless → singleton; adapters read only cache on the hot path (chat-decoration §0).

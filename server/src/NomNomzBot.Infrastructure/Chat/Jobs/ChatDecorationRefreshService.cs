@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Domain.Platform.Interfaces;
@@ -15,11 +16,12 @@ using NomNomzBot.Domain.Platform.Interfaces;
 namespace NomNomzBot.Infrastructure.Chat.Jobs;
 
 /// <summary>
-/// Keeps the third-party emote cache warm so the decoration pipeline only ever reads cache on the chat hot path
-/// (chat-decoration spec §3.6). Two cadences run concurrently: every provider's GLOBAL set on startup then every 6 h,
-/// and every live channel's CHANNEL set on startup then every 5 min (the staleness window for a newly-added emote).
-/// Per-iteration failures are logged and retried next tick — they never tear the worker (or the host) down.
-/// Auto-discovered by <c>AddHostedWorkers</c>; a channel going live is warmed immediately by <c>StreamWentLiveEmoteWarmer</c>.
+/// Keeps the decoration caches warm so the pipeline only ever reads cache on the chat hot path (chat-decoration spec
+/// §3.6). Two cadences run concurrently: GLOBAL sets (third-party emotes + Helix badges) on startup then every 6 h, and
+/// every live channel's sets on startup then every 5 min (the staleness window for a newly-added emote). Per-iteration
+/// failures are logged and retried next tick — they never tear the worker (or the host) down. Auto-discovered by
+/// <c>AddHostedWorkers</c>; a channel going live is warmed immediately by <c>StreamWentLiveEmoteWarmer</c>. The badge
+/// warmer is scoped (it uses the scoped Helix client), so it is resolved inside a per-iteration scope.
 /// </summary>
 public sealed class ChatDecorationRefreshService : BackgroundService
 {
@@ -28,16 +30,19 @@ public sealed class ChatDecorationRefreshService : BackgroundService
 
     private readonly ChatEmoteCacheWarmer _warmer;
     private readonly IChannelRegistry _channels;
+    private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<ChatDecorationRefreshService> _logger;
 
     public ChatDecorationRefreshService(
         ChatEmoteCacheWarmer warmer,
         IChannelRegistry channels,
+        IServiceScopeFactory scopeFactory,
         ILogger<ChatDecorationRefreshService> logger
     )
     {
         _warmer = warmer;
         _channels = channels;
+        _scopeFactory = scopeFactory;
         _logger = logger;
     }
 
@@ -82,23 +87,23 @@ public sealed class ChatDecorationRefreshService : BackgroundService
                 "Global emote refresh iteration failed; retrying at the next interval."
             );
         }
+
+        await WarmBadgesAsync(badges => badges.WarmGlobalAsync(ct), "global", ct);
     }
 
     private async Task WarmLiveChannelsAsync(CancellationToken ct)
     {
+        IReadOnlyCollection<ChannelContext> live = _channels.GetLiveChannels();
+
         try
         {
-            int channels = 0;
-            foreach (ChannelContext channel in _channels.GetLiveChannels())
-            {
+            foreach (ChannelContext channel in live)
                 await _warmer.WarmChannelAsync(channel.TwitchChannelId, channel.ChannelName, ct);
-                channels++;
-            }
 
-            if (channels > 0)
+            if (live.Count > 0)
                 _logger.LogDebug(
                     "Refreshed channel emote sets for {Count} live channel(s).",
-                    channels
+                    live.Count
                 );
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
@@ -106,6 +111,40 @@ public sealed class ChatDecorationRefreshService : BackgroundService
             _logger.LogError(
                 ex,
                 "Live-channel emote refresh iteration failed; retrying at the next interval."
+            );
+        }
+
+        await WarmBadgesAsync(
+            async badges =>
+            {
+                foreach (ChannelContext channel in live)
+                    await badges.WarmChannelAsync(channel.BroadcasterId, ct);
+            },
+            "live-channel",
+            ct
+        );
+    }
+
+    // Resolves the scoped badge warmer inside its own scope (it uses the scoped Helix client) and runs the given work.
+    private async Task WarmBadgesAsync(
+        Func<ChatBadgeCacheWarmer, Task> work,
+        string scope,
+        CancellationToken ct
+    )
+    {
+        try
+        {
+            using IServiceScope serviceScope = _scopeFactory.CreateScope();
+            ChatBadgeCacheWarmer badges =
+                serviceScope.ServiceProvider.GetRequiredService<ChatBadgeCacheWarmer>();
+            await work(badges);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogError(
+                ex,
+                "Badge refresh iteration ({Scope}) failed; retrying at the next interval.",
+                scope
             );
         }
     }
