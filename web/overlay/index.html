@@ -71,7 +71,8 @@
     <div id="stage"></div>
     <div id="nowplaying"><span class="eq">♪</span><span class="track"></span></div>
 
-    <script src="https://cdn.jsdelivr.net/npm/@microsoft/signalr@8.0.7/dist/browser/signalr.min.js"></script>
+    <!-- Vendored (bot-served, no external CDN) so the overlay works offline / on locked-down networks. -->
+    <script src="/overlay/lib/signalr.min.js"></script>
     <script>
       const path = location.pathname.split("/").filter(Boolean);
       const token = decodeURIComponent(path[path.length - 1] || "");
