@@ -13,6 +13,9 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using NomNomzBot.Api.Controllers;
+using NomNomzBot.Api.Models;
+using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Music.Dtos;
 using NomNomzBot.Application.Music.Services;
 
 namespace NomNomzBot.Api.Controllers.V1;
@@ -26,11 +29,42 @@ namespace NomNomzBot.Api.Controllers.V1;
 [Route("api/v{version:apiVersion}/public/sr")]
 [AllowAnonymous]
 [EnableRateLimiting("api")]
-public sealed class PublicSongRequestController(ISongRequestPageTokenService pageTokens)
-    : BaseController
+public sealed class PublicSongRequestController(
+    ISongRequestPageTokenService pageTokens,
+    IMusicService music
+) : BaseController
 {
     /// <summary>Resolves a public SR-page token to its channel context; 404 on an unknown/disabled token.</summary>
     [HttpGet("{token}")]
     public async Task<IActionResult> GetPage(string token, CancellationToken cancellationToken) =>
         ResultResponse(await pageTokens.ResolveAsync(token, cancellationToken));
+
+    /// <summary>
+    /// Submits a viewer song request through a public SR-page token. 404 on an unknown token, 409 when the channel
+    /// is not accepting requests. The requester label is untrusted display text (anonymous page) — defaults to
+    /// "Anonymous"; richer provenance/trust scoring rides on the persisted-queue migration (music-sr.md).
+    /// </summary>
+    [HttpPost("{token}")]
+    public async Task<IActionResult> Submit(
+        string token,
+        [FromBody] SongRequestDto request,
+        CancellationToken cancellationToken
+    )
+    {
+        Result<SongRequestPageDto> page = await pageTokens.ResolveAsync(token, cancellationToken);
+        if (page.IsFailure)
+            return NotFoundResponse(page.ErrorMessage);
+        if (!page.Value.IsAcceptingRequests)
+            return ConflictResponse("This channel is not accepting song requests right now.");
+
+        bool added = await music.AddToQueueAsync(
+            page.Value.BroadcasterId.ToString(),
+            request.Query,
+            string.IsNullOrWhiteSpace(request.RequestedBy) ? "Anonymous" : request.RequestedBy,
+            cancellationToken
+        );
+        return added
+            ? Ok(new StatusResponseDto<object> { Message = "Song added to the queue." })
+            : ServiceUnavailableResponse("No music provider is connected for this channel.");
+    }
 }

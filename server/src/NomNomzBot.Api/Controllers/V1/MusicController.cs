@@ -26,11 +26,17 @@ public class MusicController : BaseController
 {
     private readonly IMusicService _musicService;
     private readonly IMusicConfigService _configService;
+    private readonly ISongRequestPageTokenService _srPageTokens;
 
-    public MusicController(IMusicService musicService, IMusicConfigService configService)
+    public MusicController(
+        IMusicService musicService,
+        IMusicConfigService configService,
+        ISongRequestPageTokenService srPageTokens
+    )
     {
         _musicService = musicService;
         _configService = configService;
+        _srPageTokens = srPageTokens;
     }
 
     // ─── Configuration ────────────────────────────────────────────────────────
@@ -59,6 +65,28 @@ public class MusicController : BaseController
         if (result.IsFailure)
             return ResultResponse(result);
         return Ok(new StatusResponseDto<MusicConfigDto> { Data = result.Value });
+    }
+
+    // ─── Public SR-page token (music-sr.md §3.7) ───────────────────────────────
+
+    /// <summary>Returns this channel's public SR-page token, minting one on first call (the shareable /sr link).</summary>
+    [HttpGet("sr-page-token")]
+    [ProducesResponseType<StatusResponseDto<string>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetSrPageToken(string channelId, CancellationToken ct)
+    {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
+        return ResultResponse(await _srPageTokens.GetOrCreateAsync(broadcasterId, ct));
+    }
+
+    /// <summary>Rotates the SR-page token, revoking public access via the old /sr link.</summary>
+    [HttpPost("sr-page-token/rotate")]
+    [ProducesResponseType<StatusResponseDto<string>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> RotateSrPageToken(string channelId, CancellationToken ct)
+    {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
+        return ResultResponse(await _srPageTokens.RotateAsync(broadcasterId, ct));
     }
 
     // ─── Queue ───────────────────────────────────────────────────────────────
