@@ -29,12 +29,12 @@ public class OutboundWebhookEndpoint : SoftDeletableEntity, ITenantScoped
     public Guid? HttpEgressAllowlistId { get; set; }
     public string? Path { get; set; }
 
-    /// <summary>Event types this endpoint receives (<c>*</c> = all). Stored as JSON.</summary>
-    public List<string> SubscribedEventTypes { get; set; } = [];
+    /// <summary>Event types this endpoint receives (<c>*</c> = all), as a JSON array string.</summary>
+    public string SubscribedEventTypesJson { get; set; } = "[]";
     public string? BodyTemplate { get; set; }
 
-    /// <summary>Author-supplied headers (also templated). Stored as JSON.</summary>
-    public Dictionary<string, string>? CustomHeaders { get; set; }
+    /// <summary>Author-supplied headers (also templated), as a JSON object string.</summary>
+    public string? CustomHeadersJson { get; set; }
 
     public string SigningSecretCipher { get; set; } = null!;
     public string SigningSecretNonce { get; set; } = null!;

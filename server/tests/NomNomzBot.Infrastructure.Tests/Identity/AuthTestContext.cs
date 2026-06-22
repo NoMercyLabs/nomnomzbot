@@ -318,4 +318,10 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
         Set<NomNomzBot.Domain.Federation.Entities.FederationPeerKey>();
     public DbSet<NomNomzBot.Domain.Federation.Entities.ChannelFederationOptIn> ChannelFederationOptIns =>
         Set<NomNomzBot.Domain.Federation.Entities.ChannelFederationOptIn>();
+    public DbSet<NomNomzBot.Domain.Webhooks.Entities.OutboundWebhookEndpoint> OutboundWebhookEndpoints =>
+        Set<NomNomzBot.Domain.Webhooks.Entities.OutboundWebhookEndpoint>();
+    public DbSet<NomNomzBot.Domain.Webhooks.Entities.OutboundWebhookDelivery> OutboundWebhookDeliveries =>
+        Set<NomNomzBot.Domain.Webhooks.Entities.OutboundWebhookDelivery>();
+    public DbSet<NomNomzBot.Domain.Webhooks.Entities.InboundWebhookEndpoint> InboundWebhookEndpoints =>
+        Set<NomNomzBot.Domain.Webhooks.Entities.InboundWebhookEndpoint>();
 }

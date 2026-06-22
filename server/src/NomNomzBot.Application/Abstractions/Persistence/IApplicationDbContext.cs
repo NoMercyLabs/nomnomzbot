@@ -21,6 +21,7 @@ using NomNomzBot.Domain.Integrations.Entities;
 using NomNomzBot.Domain.Platform.Entities;
 using NomNomzBot.Domain.Rewards.Entities;
 using NomNomzBot.Domain.Tts.Entities;
+using NomNomzBot.Domain.Webhooks.Entities;
 using NomNomzBot.Domain.Widgets.Entities;
 
 namespace NomNomzBot.Application.Abstractions.Persistence;
@@ -113,6 +114,9 @@ public interface IApplicationDbContext
     DbSet<FederationPeer> FederationPeers { get; }
     DbSet<FederationPeerKey> FederationPeerKeys { get; }
     DbSet<ChannelFederationOptIn> ChannelFederationOptIns { get; }
+    DbSet<OutboundWebhookEndpoint> OutboundWebhookEndpoints { get; }
+    DbSet<OutboundWebhookDelivery> OutboundWebhookDeliveries { get; }
+    DbSet<InboundWebhookEndpoint> InboundWebhookEndpoints { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

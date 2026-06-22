@@ -104,6 +104,12 @@ internal sealed class EventStoreTestDbContext : DbContext, IApplicationDbContext
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Federation.Entities.ChannelFederationOptIn> ChannelFederationOptIns =>
         throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Webhooks.Entities.OutboundWebhookEndpoint> OutboundWebhookEndpoints =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Webhooks.Entities.OutboundWebhookDelivery> OutboundWebhookDeliveries =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Webhooks.Entities.InboundWebhookEndpoint> InboundWebhookEndpoints =>
+        throw new NotSupportedException();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -175,6 +181,9 @@ internal sealed class EventStoreTestDbContext : DbContext, IApplicationDbContext
         modelBuilder.Ignore<NomNomzBot.Domain.Federation.Entities.FederationPeer>();
         modelBuilder.Ignore<NomNomzBot.Domain.Federation.Entities.FederationPeerKey>();
         modelBuilder.Ignore<NomNomzBot.Domain.Federation.Entities.ChannelFederationOptIn>();
+        modelBuilder.Ignore<NomNomzBot.Domain.Webhooks.Entities.OutboundWebhookEndpoint>();
+        modelBuilder.Ignore<NomNomzBot.Domain.Webhooks.Entities.OutboundWebhookDelivery>();
+        modelBuilder.Ignore<NomNomzBot.Domain.Webhooks.Entities.InboundWebhookEndpoint>();
     }
 
     // ── Unused IApplicationDbContext surface — never reached by these tests ──
