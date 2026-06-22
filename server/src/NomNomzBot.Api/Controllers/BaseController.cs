@@ -116,7 +116,8 @@ public abstract class BaseController : ControllerBase
             or "AGE_CONSENT_REQUIRED"
             or "GAMBLING_DISABLED"
             or "QUOTA_EXCEEDED"
-            or "tier_limit_reached" => UnauthorizedResponse(result.ErrorMessage),
+            or "tier_limit_reached"
+            or "EGRESS_NOT_ALLOWED" => UnauthorizedResponse(result.ErrorMessage),
             "NOT_FOUND" or "CHANNEL_NOT_FOUND" or "CHANNEL_NOT_ONBOARDED" => NotFoundResponse(
                 result.ErrorMessage
             ),
@@ -155,7 +156,8 @@ public abstract class BaseController : ControllerBase
             or "AGE_CONSENT_REQUIRED"
             or "GAMBLING_DISABLED"
             or "QUOTA_EXCEEDED"
-            or "tier_limit_reached" => UnauthorizedResponse(result.ErrorMessage),
+            or "tier_limit_reached"
+            or "EGRESS_NOT_ALLOWED" => UnauthorizedResponse(result.ErrorMessage),
             "NOT_FOUND" or "CHANNEL_NOT_FOUND" or "CHANNEL_NOT_ONBOARDED" => NotFoundResponse(
                 result.ErrorMessage
             ),

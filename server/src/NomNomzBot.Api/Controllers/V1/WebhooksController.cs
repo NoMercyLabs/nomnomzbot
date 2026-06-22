@@ -30,6 +30,7 @@ namespace NomNomzBot.Api.Controllers.V1;
 [Tags("Webhooks")]
 public class WebhooksController(
     IInboundWebhookEndpointService inbound,
+    IOutboundWebhookEndpointService outbound,
     NomNomzBot.Application.Abstractions.Auth.ICurrentUserService currentUser
 ) : BaseController
 {
@@ -98,6 +99,88 @@ public class WebhooksController(
         Guid endpointId,
         CancellationToken ct
     ) => ResultResponse(await inbound.DeleteAsync(channelId, endpointId, ct));
+
+    [HttpGet("outbound")]
+    [RequireAction("webhooks:outbound:read")]
+    [ProducesResponseType<PaginatedResponse<OutboundWebhookEndpointDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> ListOutbound(
+        Guid channelId,
+        [FromQuery] PageRequestDto request,
+        CancellationToken ct
+    )
+    {
+        PaginationParams pagination = new(request.Page, request.Take, request.Sort, request.Order);
+        Result<PagedList<OutboundWebhookEndpointDto>> result = await outbound.ListAsync(
+            channelId,
+            pagination,
+            ct
+        );
+        if (result.IsFailure)
+            return ResultResponse(result);
+        return GetPaginatedResponse(result.Value, request);
+    }
+
+    [HttpGet("outbound/{endpointId:guid}")]
+    [RequireAction("webhooks:outbound:read")]
+    public async Task<IActionResult> GetOutbound(
+        Guid channelId,
+        Guid endpointId,
+        CancellationToken ct
+    ) => ResultResponse(await outbound.GetAsync(channelId, endpointId, ct));
+
+    [HttpPost("outbound")]
+    [RequireAction("webhooks:outbound:write")]
+    public async Task<IActionResult> CreateOutbound(
+        Guid channelId,
+        [FromBody] CreateOutboundWebhookRequest request,
+        CancellationToken ct
+    )
+    {
+        if (!TryGetCaller(out Guid caller))
+            return UnauthenticatedResponse();
+        return ResultResponse(await outbound.CreateAsync(channelId, caller, request, ct));
+    }
+
+    [HttpPut("outbound/{endpointId:guid}")]
+    [RequireAction("webhooks:outbound:write")]
+    public async Task<IActionResult> UpdateOutbound(
+        Guid channelId,
+        Guid endpointId,
+        [FromBody] UpdateOutboundWebhookRequest request,
+        CancellationToken ct
+    ) => ResultResponse(await outbound.UpdateAsync(channelId, endpointId, request, ct));
+
+    [HttpPost("outbound/{endpointId:guid}/rotate-secret")]
+    [RequireAction("webhooks:outbound:write")]
+    public async Task<IActionResult> RotateOutboundSecret(
+        Guid channelId,
+        Guid endpointId,
+        CancellationToken ct
+    ) => ResultResponse(await outbound.RotateSecretAsync(channelId, endpointId, ct));
+
+    [HttpPost("outbound/{endpointId:guid}/reenable")]
+    [RequireAction("webhooks:outbound:write")]
+    public async Task<IActionResult> ReenableOutbound(
+        Guid channelId,
+        Guid endpointId,
+        CancellationToken ct
+    ) => ResultResponse(await outbound.ReenableAsync(channelId, endpointId, ct));
+
+    [HttpPost("outbound/{endpointId:guid}/test")]
+    [RequireAction("webhooks:outbound:write")]
+    public async Task<IActionResult> TestOutbound(
+        Guid channelId,
+        Guid endpointId,
+        CancellationToken ct
+    ) => ResultResponse(await outbound.SendTestAsync(channelId, endpointId, ct));
+
+    [HttpDelete("outbound/{endpointId:guid}")]
+    [RequireAction("webhooks:outbound:write")]
+    public async Task<IActionResult> DeleteOutbound(
+        Guid channelId,
+        Guid endpointId,
+        CancellationToken ct
+    ) => ResultResponse(await outbound.DeleteAsync(channelId, endpointId, ct));
 
     private bool TryGetCaller(out Guid caller) => Guid.TryParse(currentUser.UserId, out caller);
 }
