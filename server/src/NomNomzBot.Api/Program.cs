@@ -13,6 +13,7 @@ using System.Threading.RateLimiting;
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.FileProviders;
@@ -173,9 +174,21 @@ try
     >();
 
     // Rate limiting — per-user (or per-IP for anonymous) fixed window
+    // Trust X-Forwarded-* from the upstream reverse proxy so the rate limiter and request log see the real
+    // client IP, not the proxy's (§6). The documented deployment model puts the API behind a single trusted
+    // proxy; the proxy address is not known at build time, so the default loopback-only restriction is cleared.
+    builder.Services.Configure<ForwardedHeadersOptions>(options =>
+    {
+        options.ForwardedHeaders =
+            ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+        options.KnownNetworks.Clear();
+        options.KnownProxies.Clear();
+    });
+
     builder.Services.AddRateLimiter(options =>
     {
-        // General API: 120 req/min per authenticated user or IP
+        // General API: 120 req/min per authenticated user or IP. Sliding window (6 segments) so a window
+        // reset cannot be exploited to burst 2x the limit at the boundary.
         options.AddPolicy(
             "api",
             context =>
@@ -184,32 +197,34 @@ try
                     context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
                     ?? context.Connection.RemoteIpAddress?.ToString()
                     ?? "anonymous";
-                return RateLimitPartition.GetFixedWindowLimiter(
+                return RateLimitPartition.GetSlidingWindowLimiter(
                     key,
                     _ =>
                         new()
                         {
                             PermitLimit = 120,
                             Window = TimeSpan.FromMinutes(1),
+                            SegmentsPerWindow = 6,
                             QueueLimit = 0,
                         }
                 );
             }
         );
 
-        // Auth endpoints: 10 req/min per IP (brute-force protection)
+        // Auth endpoints: 10 req/min per IP (brute-force protection), sliding window for the same reason.
         options.AddPolicy(
             "auth",
             context =>
             {
                 string ip = context.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
-                return RateLimitPartition.GetFixedWindowLimiter(
+                return RateLimitPartition.GetSlidingWindowLimiter(
                     $"auth:{ip}",
                     _ =>
                         new()
                         {
                             PermitLimit = 10,
                             Window = TimeSpan.FromMinutes(1),
+                            SegmentsPerWindow = 6,
                             QueueLimit = 0,
                         }
                 );
@@ -335,6 +350,9 @@ try
     }
 
     // Middleware pipeline
+    // Honour X-Forwarded-* from the trusted proxy first, so RemoteIpAddress and scheme are correct for the
+    // rate limiter, request logging, and absolute-URL building downstream (§6).
+    app.UseForwardedHeaders();
     app.UseMiddleware<GlobalExceptionMiddleware>();
     app.UseMiddleware<RequestLoggingMiddleware>();
 

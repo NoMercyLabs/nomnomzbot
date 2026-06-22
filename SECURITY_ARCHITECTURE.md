@@ -311,16 +311,14 @@ Applied via `[EnableRateLimiting("auth")]` on `AuthController`, `ChannelBotContr
 
 ### Gaps & Vulnerabilities
 
-**🟠 HIGH — Rate limiter uses `RemoteIpAddress` which is the reverse proxy behind load balancers**
-In production behind nginx, Caddy, Cloudflare, or any reverse proxy, `context.Connection.RemoteIpAddress` is the proxy's IP, not the client's. All users share the same rate limit bucket, which means:
-- The auth limiter (10 req/min) trips immediately under normal load
-- The per-IP anonymous limiter lumps all users together
+**🟢 RESOLVED — Rate limiter keys on the real client IP**
+`app.UseForwardedHeaders()` runs first in the pipeline, with `ForwardedHeadersOptions` trusting `X-Forwarded-For`/`-Proto` from the upstream proxy (loopback-only restriction cleared for the documented single-proxy model). `RemoteIpAddress` is now the real client, so the per-IP buckets partition correctly instead of lumping every user behind the proxy IP.
 
-**🟡 MEDIUM — Setup credential endpoints have no rate limiting**
-`PUT /system/setup/credentials/twitch|spotify|discord` has no `[EnableRateLimiting]` attribute. While they should be locked behind auth after fix (see §3), they should also be rate-limited.
+**🟢 RESOLVED — Setup credential endpoints rate-limited**
+All three `PUT /system/setup/credentials/*` endpoints and `POST /system/setup/complete` carry `[EnableRateLimiting("auth")]` (see §3).
 
-**🟡 MEDIUM — Fixed-window limiter is burst-exploitable**
-A fixed-window limiter allows 120 requests immediately at window reset (e.g., 120 requests at 00:00:00 and 120 more at 00:01:00). A sliding window or token bucket provides smoother protection.
+**🟢 RESOLVED — Sliding-window limiter**
+Both the `api` (120/min) and `auth` (10/min) policies use `GetSlidingWindowLimiter` with 6 segments, so a window boundary cannot be exploited to burst 2× the limit.
 
 ### Recommendations
 
@@ -775,7 +773,7 @@ These must be resolved before the hosted version handles any real user data. Lis
 | 12 | Host filtering from App:BaseUrl | 🟢 | 🟢 | RESOLVED |
 | 13 | Scalar/OpenAPI gated out of prod | 🟢 | 🟢 | RESOLVED |
 | 14 | No bootstrap admin path | N/A | 🟠 | HIGH |
-| 15 | Rate limiter uses proxy IP | 🟠 | 🟡 | HIGH |
+| 15 | Rate limiter keys real client IP | 🟢 | 🟢 | RESOLVED |
 | 16 | Unsigned channel-bot state | 🟠 | 🟠 | HIGH |
 | 17 | XSS in stored commands | 🟡 | 🟡 | MEDIUM |
 | 18 | Setup-completion lock | 🟢 | 🟢 | RESOLVED |
@@ -787,5 +785,5 @@ These must be resolved before the hosted version handles any real user data. Lis
 | 24 | Security headers present | 🟢 | 🟢 | RESOLVED |
 | 25 | HTTPS not enforced/documented | 🟡 | 🟠 | MEDIUM |
 | 26 | No audit log | 🟢 | 🟢 | LOW |
-| 27 | Fixed-window rate limiter burst | 🟢 | 🟢 | LOW |
+| 27 | Sliding-window rate limiter | 🟢 | 🟢 | RESOLVED |
 | 28 | JWT expiry hardcoded in response | 🟢 | 🟢 | LOW |
