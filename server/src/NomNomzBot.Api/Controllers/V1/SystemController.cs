@@ -71,44 +71,11 @@ public class SystemController : BaseController
     [ProducesResponseType<StatusResponseDto<SystemStatusDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetStatus(CancellationToken ct)
     {
-        // 1. Twitch app credentials (from DB first, then env/config fallback)
-        string? twitchClientId =
-            await GetSystemConfig("twitch.client_id", ct) ?? _config["Twitch:ClientId"];
-        string? twitchClientSecret =
-            await GetSystemConfig("twitch.client_secret", ct) ?? _config["Twitch:ClientSecret"];
-        bool hasTwitch =
-            !string.IsNullOrWhiteSpace(twitchClientId)
-            && !string.IsNullOrWhiteSpace(twitchClientSecret);
-
-        // 2. Platform bot (Service with Name="twitch_bot" and BroadcasterId IS NULL)
-        bool hasPlatformBot = await _db.Services.AnyAsync(
-            s => s.Name == "twitch_bot" && s.BroadcasterId == null && s.AccessToken != null,
-            ct
-        );
-
-        // 3. Spotify app credentials (DB → IConfiguration → raw env)
-        string? spotifyClientId =
-            await GetSystemConfig("spotify.client_id", ct)
-            ?? _config["Spotify:ClientId"]
-            ?? Environment.GetEnvironmentVariable("Spotify__ClientId");
-        string? spotifyClientSecret =
-            await GetSystemConfig("spotify.client_secret", ct)
-            ?? _config["Spotify:ClientSecret"]
-            ?? Environment.GetEnvironmentVariable("Spotify__ClientSecret");
-        bool hasSpotify =
-            !string.IsNullOrEmpty(spotifyClientId) && !string.IsNullOrEmpty(spotifyClientSecret);
-
-        // 4. Discord app credentials (DB → IConfiguration → raw env)
-        string? discordClientId =
-            await GetSystemConfig("discord.client_id", ct)
-            ?? _config["Discord:ClientId"]
-            ?? Environment.GetEnvironmentVariable("Discord__ClientId");
-        string? discordClientSecret =
-            await GetSystemConfig("discord.client_secret", ct)
-            ?? _config["Discord:ClientSecret"]
-            ?? Environment.GetEnvironmentVariable("Discord__ClientSecret");
-        bool hasDiscord =
-            !string.IsNullOrEmpty(discordClientId) && !string.IsNullOrEmpty(discordClientSecret);
+        SetupState st = await ComputeSetupStateAsync(ct);
+        bool hasTwitch = st.HasTwitch;
+        bool hasPlatformBot = st.HasPlatformBot;
+        bool hasSpotify = st.HasSpotify;
+        bool hasDiscord = st.HasDiscord;
 
         // System is ready when Twitch app and platform bot are both configured
         bool ready = hasTwitch && hasPlatformBot;
@@ -146,6 +113,79 @@ public class SystemController : BaseController
             new StatusResponseDto<SystemStatusDto> { Data = new SystemStatusDto(ready, checks) }
         );
     }
+
+    /// <summary>
+    /// The self-describing onboarding wizard: the ordered steps, each with its copy, step-by-step instructions, the
+    /// exact redirect URI to register, the API call that satisfies it, the input fields, and its live completion
+    /// state. A dashboard renders the entire first-time-setup flow from this single call.
+    /// </summary>
+    [HttpGet("setup/wizard")]
+    [ProducesResponseType<StatusResponseDto<SetupWizardDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetWizard(CancellationToken ct)
+    {
+        SetupState st = await ComputeSetupStateAsync(ct);
+        string baseUrl = _config["App:BaseUrl"] ?? $"{Request.Scheme}://{Request.Host}";
+
+        return Ok(
+            new StatusResponseDto<SetupWizardDto>
+            {
+                Data = SetupWizard.Build(
+                    st.HasTwitch,
+                    st.HasPlatformBot,
+                    st.HasSpotify,
+                    st.HasDiscord,
+                    baseUrl
+                ),
+            }
+        );
+    }
+
+    private async Task<SetupState> ComputeSetupStateAsync(CancellationToken ct)
+    {
+        string? twitchClientId =
+            await GetSystemConfig("twitch.client_id", ct) ?? _config["Twitch:ClientId"];
+        string? twitchClientSecret =
+            await GetSystemConfig("twitch.client_secret", ct) ?? _config["Twitch:ClientSecret"];
+        bool hasTwitch =
+            !string.IsNullOrWhiteSpace(twitchClientId)
+            && !string.IsNullOrWhiteSpace(twitchClientSecret);
+
+        bool hasPlatformBot = await _db.Services.AnyAsync(
+            s => s.Name == "twitch_bot" && s.BroadcasterId == null && s.AccessToken != null,
+            ct
+        );
+
+        string? spotifyClientId =
+            await GetSystemConfig("spotify.client_id", ct)
+            ?? _config["Spotify:ClientId"]
+            ?? Environment.GetEnvironmentVariable("Spotify__ClientId");
+        string? spotifyClientSecret =
+            await GetSystemConfig("spotify.client_secret", ct)
+            ?? _config["Spotify:ClientSecret"]
+            ?? Environment.GetEnvironmentVariable("Spotify__ClientSecret");
+        bool hasSpotify =
+            !string.IsNullOrEmpty(spotifyClientId) && !string.IsNullOrEmpty(spotifyClientSecret);
+
+        string? discordClientId =
+            await GetSystemConfig("discord.client_id", ct)
+            ?? _config["Discord:ClientId"]
+            ?? Environment.GetEnvironmentVariable("Discord__ClientId");
+        string? discordClientSecret =
+            await GetSystemConfig("discord.client_secret", ct)
+            ?? _config["Discord:ClientSecret"]
+            ?? Environment.GetEnvironmentVariable("Discord__ClientSecret");
+        bool hasDiscord =
+            !string.IsNullOrEmpty(discordClientId) && !string.IsNullOrEmpty(discordClientSecret);
+
+        return new SetupState(hasTwitch, hasPlatformBot, hasSpotify, hasDiscord);
+    }
+
+    private sealed record SetupState(
+        bool HasTwitch,
+        bool HasPlatformBot,
+        bool HasSpotify,
+        bool HasDiscord
+    );
 
     // ── Platform bot OAuth ───────────────────────────────────────────────────
 
