@@ -15,6 +15,7 @@ using NomNomzBot.Application.Abstractions.Transport;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Application.Economy.Services;
+using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Domain.CustomCode.Entities;
 using NomNomzBot.Domain.CustomCode.Enums;
 
@@ -35,6 +36,7 @@ public sealed class ScriptRunner(
     ITwitchChatService chatService,
     ITwitchIdentityResolver identityResolver,
     ICurrencyAccountService currencyService,
+    IMusicService musicService,
     TimeProvider clock
 ) : IScriptRunner
 {
@@ -126,7 +128,8 @@ public sealed class ScriptRunner(
             invocation.TriggeredByUserId,
             chatService,
             identityResolver,
-            currencyService
+            currencyService,
+            musicService
         );
         Result<ScriptExecutionOutcomeResult> executed = await executor.ExecuteAsync(
             request,

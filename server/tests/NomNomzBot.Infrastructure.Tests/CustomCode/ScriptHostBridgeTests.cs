@@ -12,6 +12,7 @@ using FluentAssertions;
 using NomNomzBot.Application.Abstractions.Transport;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Economy.Services;
+using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Infrastructure.CustomCode;
 using NSubstitute;
 
@@ -30,14 +31,16 @@ public sealed class ScriptHostBridgeTests
     private static ScriptHostBridge Build(
         ITwitchChatService? chat = null,
         ITwitchIdentityResolver? resolver = null,
-        ICurrencyAccountService? currency = null
+        ICurrencyAccountService? currency = null,
+        IMusicService? music = null
     ) =>
         new(
             Channel,
             Viewer.ToString(),
             chat ?? Substitute.For<ITwitchChatService>(),
             resolver ?? Substitute.For<ITwitchIdentityResolver>(),
-            currency ?? Substitute.For<ICurrencyAccountService>()
+            currency ?? Substitute.For<ICurrencyAccountService>(),
+            music ?? Substitute.For<IMusicService>()
         );
 
     [Fact]
@@ -75,10 +78,30 @@ public sealed class ScriptHostBridgeTests
     }
 
     [Fact]
+    public void Music_queue_enqueues_the_request_for_the_channel()
+    {
+        IMusicService music = Substitute.For<IMusicService>();
+        music
+            .AddToQueueAsync(
+                Channel.ToString(),
+                "lofi beats",
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(true);
+        ScriptHostBridge bridge = Build(music: music);
+
+        bridge
+            .Resolve("music.queue")("music.queue", ["lofi beats"], CancellationToken.None)
+            .Should()
+            .Be("true");
+    }
+
+    [Fact]
     public void A_granted_but_unwired_capability_is_a_noop()
     {
         Build()
-            .Resolve("music.queue")("music.queue", ["a song"], CancellationToken.None)
+            .Resolve("http.fetch")("http.fetch", ["https://example.com"], CancellationToken.None)
             .Should()
             .BeNull();
     }
