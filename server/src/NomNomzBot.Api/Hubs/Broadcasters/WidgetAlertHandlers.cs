@@ -12,6 +12,7 @@ using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Domain.Community.Events;
+using NomNomzBot.Domain.Music.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Rewards.Events;
 using NomNomzBot.Domain.Stream.Events;
@@ -140,6 +141,27 @@ public sealed class WidgetGiftAlertHandler(IApplicationDbContext db, IWidgetNoti
                 tier = @event.Tier,
                 amount = @event.GiftCount,
             },
+            cancellationToken
+        );
+}
+
+/// <summary>
+/// Playback change → the persistent <c>now_playing</c> overlay widget (music-sr.md). Unlike the transient alerts,
+/// this drives a standing now-playing display the browser-source keeps on screen until the next change.
+/// </summary>
+public sealed class WidgetNowPlayingHandler(IApplicationDbContext db, IWidgetNotifier notifier)
+    : IEventHandler<PlaybackStateChangedEvent>
+{
+    public Task HandleAsync(
+        PlaybackStateChangedEvent @event,
+        CancellationToken cancellationToken = default
+    ) =>
+        WidgetAlertDispatch.RouteAsync(
+            db,
+            notifier,
+            @event.BroadcasterId,
+            "now_playing",
+            new { isPlaying = @event.IsPlaying, track = @event.TrackName },
             cancellationToken
         );
 }

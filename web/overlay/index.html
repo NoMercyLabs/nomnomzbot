@@ -47,10 +47,29 @@
         to { transform: translateY(0) scale(1); opacity: 1; }
       }
       @keyframes fade { to { transform: translateY(-16px); opacity: 0; } }
+      #nowplaying {
+        position: fixed;
+        left: 24px;
+        bottom: 24px;
+        display: none;
+        align-items: center;
+        gap: 12px;
+        max-width: 60vw;
+        padding: 12px 18px;
+        border-radius: 12px;
+        color: #fff;
+        background: rgba(10, 11, 15, 0.82);
+        box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+        font-size: 16px;
+      }
+      #nowplaying.on { display: flex; }
+      #nowplaying .eq { color: #9146ff; font-size: 20px; }
+      #nowplaying .track { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     </style>
   </head>
   <body>
     <div id="stage"></div>
+    <div id="nowplaying"><span class="eq">♪</span><span class="track"></span></div>
 
     <script src="https://cdn.jsdelivr.net/npm/@microsoft/signalr@8.0.7/dist/browser/signalr.min.js"></script>
     <script>
@@ -67,9 +86,22 @@
         gift: "Gift Subs!",
       };
 
+      function updateNowPlaying(data) {
+        const box = document.getElementById("nowplaying");
+        const track = get(data, "track");
+        const playing = get(data, "isPlaying");
+        if (!playing || !track) {
+          box.classList.remove("on");
+          return;
+        }
+        box.querySelector(".track").textContent = String(track);
+        box.classList.add("on");
+      }
+
       function show(evt) {
         const type = get(evt, "eventType") || "alert";
         const data = get(evt, "data") || {};
+        if (type === "now_playing") return updateNowPlaying(data);
         const who = get(data, "user") || get(data, "userDisplayName") || "";
         const headline = HEADLINES[type] || type;
         let detail = escapeHtml(who);
