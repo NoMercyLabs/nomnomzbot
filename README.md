@@ -38,9 +38,19 @@ a visual pipeline engine, and integrations (Spotify, Discord, YouTube, TTS).
   fan-out, with in-box HMAC and a no-amplification rule for unknown tokens. Outbound: endpoints
   pin to the shared egress allowlist, deliver through an SSRF-hardened client (resolve-then-pin,
   https-only, internal/metadata IPs blocked), sign per Standard Webhooks with rotation overlap,
-  and retry with exponential backoff + auto-disable via a background drain. The sandbox subsystem
-  shares that egress core and the allowlist; its sandboxed code executor is the remaining
-  exit-critical piece. ~1012 tests green across four suites.
+  and retry with exponential backoff + auto-disable via a background drain. The **custom-code /
+  sandbox** subsystem is functional end to end: authors version TypeScript scripts (validate-on-
+  save, immutable versions, hot-swap), and the `run_code` pipeline action runs them in a hardened
+  Jint sandbox — a fresh engine per run, CLR interop off, no code-from-string (eval/Function), and
+  statement/memory/time/recursion budgets, with side-effecting host calls gated behind a per-
+  execution, capability-keyed bridge and the shared SSRF-hardened egress client. **Analytics**
+  rebuilds read models from the event journal (per-channel daily aggregate, per-viewer profiles +
+  engagement, derived watch-session presence) behind channel + viewer + SaaS-platform read APIs.
+  A **feature-flag** system (deterministic FNV-1a rollout buckets, per-tenant overrides, tier +
+  deployment gates, an admin write surface with cache invalidation) backs staged rollout and the
+  `FEATURE_DISABLED` gating used across the platform. All six Phase-7 subsystems are now functional;
+  the deferred pieces are the sandbox capability broker for direct `bot.*` host calls, the Wasmtime
+  SaaS executor, and a handful of infrastructure-bound externals. ~1068 tests green across four suites.
 - **Frontend** — **Kotlin Multiplatform + Compose Multiplatform** (one codebase, desktop + web/Wasm
   identical UI; mobile later). The previous Expo/React Native app was removed. The dashboard app is
   **not built yet** — today the API is driven directly (Scalar docs, HTTP clients, overlays).
