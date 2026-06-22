@@ -24,10 +24,8 @@ public class OutboundWebhookEndpointConfiguration
         builder.Property(e => e.Name).IsRequired().HasMaxLength(200);
         builder.Property(e => e.Fqdn).IsRequired().HasMaxLength(253);
         builder.Property(e => e.Path).HasMaxLength(255);
-        builder.Property(e => e.SigningSecretCipher).IsRequired().HasMaxLength(512);
-        builder.Property(e => e.SigningSecretNonce).IsRequired().HasMaxLength(255);
-        builder.Property(e => e.SecondarySigningSecretCipher).HasMaxLength(512);
-        builder.Property(e => e.SecondarySigningSecretNonce).HasMaxLength(255);
+        builder.Property(e => e.SigningSecretEnvelope).IsRequired().HasMaxLength(1024);
+        builder.Property(e => e.SecondarySigningSecretEnvelope).HasMaxLength(1024);
         builder.Property(e => e.DisabledReason).HasMaxLength(255);
 
         // SubscribedEventTypesJson / CustomHeadersJson are JSON text columns (the service owns (de)serialization).

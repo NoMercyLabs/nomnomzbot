@@ -23,8 +23,7 @@ public class InboundWebhookEndpointConfiguration : IEntityTypeConfiguration<Inbo
         builder.Property(e => e.Name).IsRequired().HasMaxLength(200);
         builder.Property(e => e.Token).IsRequired().HasMaxLength(64);
         builder.Property(e => e.AdapterKind).HasConversion<string>().HasMaxLength(20);
-        builder.Property(e => e.VerificationSecretCipher).IsRequired().HasMaxLength(512);
-        builder.Property(e => e.VerificationSecretNonce).IsRequired().HasMaxLength(255);
+        builder.Property(e => e.VerificationSecretEnvelope).IsRequired().HasMaxLength(1024);
         builder.Property(e => e.TargetEventType).HasMaxLength(100);
 
         builder.HasIndex(e => e.Token).IsUnique(); // the unguessable URL path segment

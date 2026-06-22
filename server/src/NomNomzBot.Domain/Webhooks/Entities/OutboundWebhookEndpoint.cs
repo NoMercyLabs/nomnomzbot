@@ -36,12 +36,11 @@ public class OutboundWebhookEndpoint : SoftDeletableEntity, ITenantScoped
     /// <summary>Author-supplied headers (also templated), as a JSON object string.</summary>
     public string? CustomHeadersJson { get; set; }
 
-    public string SigningSecretCipher { get; set; } = null!;
-    public string SigningSecretNonce { get; set; } = null!;
+    /// <summary>The AEAD-sealed <c>whsec_</c> signing secret (ITokenProtector envelope; nonce + tag inside).</summary>
+    public string SigningSecretEnvelope { get; set; } = null!;
 
-    /// <summary>An overlap-valid secret during rotation (multi-sig).</summary>
-    public string? SecondarySigningSecretCipher { get; set; }
-    public string? SecondarySigningSecretNonce { get; set; }
+    /// <summary>An overlap-valid sealed secret during rotation (multi-sig).</summary>
+    public string? SecondarySigningSecretEnvelope { get; set; }
     public Guid EncryptionKeyId { get; set; }
 
     public bool IsEnabled { get; set; }

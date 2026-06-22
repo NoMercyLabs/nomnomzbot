@@ -1306,14 +1306,9 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         maxLength: 20,
                         nullable: false
                     ),
-                    VerificationSecretCipher = table.Column<string>(
-                        type: "character varying(512)",
-                        maxLength: 512,
-                        nullable: false
-                    ),
-                    VerificationSecretNonce = table.Column<string>(
-                        type: "character varying(255)",
-                        maxLength: 255,
+                    VerificationSecretEnvelope = table.Column<string>(
+                        type: "character varying(1024)",
+                        maxLength: 1024,
                         nullable: false
                     ),
                     EncryptionKeyId = table.Column<Guid>(type: "uuid", nullable: false),
@@ -1681,24 +1676,14 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     SubscribedEventTypesJson = table.Column<string>(type: "text", nullable: false),
                     BodyTemplate = table.Column<string>(type: "text", nullable: true),
                     CustomHeadersJson = table.Column<string>(type: "text", nullable: true),
-                    SigningSecretCipher = table.Column<string>(
-                        type: "character varying(512)",
-                        maxLength: 512,
+                    SigningSecretEnvelope = table.Column<string>(
+                        type: "character varying(1024)",
+                        maxLength: 1024,
                         nullable: false
                     ),
-                    SigningSecretNonce = table.Column<string>(
-                        type: "character varying(255)",
-                        maxLength: 255,
-                        nullable: false
-                    ),
-                    SecondarySigningSecretCipher = table.Column<string>(
-                        type: "character varying(512)",
-                        maxLength: 512,
-                        nullable: true
-                    ),
-                    SecondarySigningSecretNonce = table.Column<string>(
-                        type: "character varying(255)",
-                        maxLength: 255,
+                    SecondarySigningSecretEnvelope = table.Column<string>(
+                        type: "character varying(1024)",
+                        maxLength: 1024,
                         nullable: true
                     ),
                     EncryptionKeyId = table.Column<Guid>(type: "uuid", nullable: false),

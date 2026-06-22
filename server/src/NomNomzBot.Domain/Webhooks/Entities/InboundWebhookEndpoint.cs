@@ -28,8 +28,8 @@ public class InboundWebhookEndpoint : SoftDeletableEntity, ITenantScoped
     public string Token { get; set; } = null!;
     public WebhookAdapterKind AdapterKind { get; set; }
 
-    public string VerificationSecretCipher { get; set; } = null!;
-    public string VerificationSecretNonce { get; set; } = null!;
+    /// <summary>The AEAD-sealed per-provider verification secret (ITokenProtector envelope; nonce + tag inside).</summary>
+    public string VerificationSecretEnvelope { get; set; } = null!;
     public Guid EncryptionKeyId { get; set; }
 
     /// <summary>Generic-adapter config (signature header / signing-string / shared-secret field) as JSON.</summary>
