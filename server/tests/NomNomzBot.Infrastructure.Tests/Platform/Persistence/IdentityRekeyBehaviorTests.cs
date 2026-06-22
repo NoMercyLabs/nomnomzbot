@@ -477,5 +477,15 @@ public sealed class IdentityRekeyBehaviorTests
             throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.Platform.Entities.HttpEgressAllowlist> HttpEgressAllowlists =>
             throw new NotSupportedException();
+        public DbSet<NomNomzBot.Domain.Analytics.Entities.ViewerProfile> ViewerProfiles =>
+            throw new NotSupportedException();
+        public DbSet<NomNomzBot.Domain.Analytics.Entities.WatchSession> WatchSessions =>
+            throw new NotSupportedException();
+        public DbSet<NomNomzBot.Domain.Analytics.Entities.MessageActivityDaily> MessageActivityDailies =>
+            throw new NotSupportedException();
+        public DbSet<NomNomzBot.Domain.Analytics.Entities.ViewerEngagementDaily> ViewerEngagementDailies =>
+            throw new NotSupportedException();
+        public DbSet<NomNomzBot.Domain.Analytics.Entities.ChannelAnalyticsDaily> ChannelAnalyticsDailies =>
+            throw new NotSupportedException();
     }
 }

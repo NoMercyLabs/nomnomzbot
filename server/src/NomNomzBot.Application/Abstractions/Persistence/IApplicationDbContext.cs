@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using Microsoft.EntityFrameworkCore;
+using NomNomzBot.Domain.Analytics.Entities;
 using NomNomzBot.Domain.Billing.Entities;
 using NomNomzBot.Domain.Chat.Entities;
 using NomNomzBot.Domain.Commands.Entities;
@@ -118,6 +119,11 @@ public interface IApplicationDbContext
     DbSet<OutboundWebhookDelivery> OutboundWebhookDeliveries { get; }
     DbSet<InboundWebhookEndpoint> InboundWebhookEndpoints { get; }
     DbSet<HttpEgressAllowlist> HttpEgressAllowlists { get; }
+    DbSet<ViewerProfile> ViewerProfiles { get; }
+    DbSet<WatchSession> WatchSessions { get; }
+    DbSet<MessageActivityDaily> MessageActivityDailies { get; }
+    DbSet<ViewerEngagementDaily> ViewerEngagementDailies { get; }
+    DbSet<ChannelAnalyticsDaily> ChannelAnalyticsDailies { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

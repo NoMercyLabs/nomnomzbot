@@ -112,6 +112,16 @@ internal sealed class EventStoreTestDbContext : DbContext, IApplicationDbContext
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Platform.Entities.HttpEgressAllowlist> HttpEgressAllowlists =>
         throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Analytics.Entities.ViewerProfile> ViewerProfiles =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Analytics.Entities.WatchSession> WatchSessions =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Analytics.Entities.MessageActivityDaily> MessageActivityDailies =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Analytics.Entities.ViewerEngagementDaily> ViewerEngagementDailies =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Analytics.Entities.ChannelAnalyticsDaily> ChannelAnalyticsDailies =>
+        throw new NotSupportedException();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -187,6 +197,11 @@ internal sealed class EventStoreTestDbContext : DbContext, IApplicationDbContext
         modelBuilder.Ignore<NomNomzBot.Domain.Webhooks.Entities.OutboundWebhookDelivery>();
         modelBuilder.Ignore<NomNomzBot.Domain.Webhooks.Entities.InboundWebhookEndpoint>();
         modelBuilder.Ignore<NomNomzBot.Domain.Platform.Entities.HttpEgressAllowlist>();
+        modelBuilder.Ignore<NomNomzBot.Domain.Analytics.Entities.ViewerProfile>();
+        modelBuilder.Ignore<NomNomzBot.Domain.Analytics.Entities.WatchSession>();
+        modelBuilder.Ignore<NomNomzBot.Domain.Analytics.Entities.MessageActivityDaily>();
+        modelBuilder.Ignore<NomNomzBot.Domain.Analytics.Entities.ViewerEngagementDaily>();
+        modelBuilder.Ignore<NomNomzBot.Domain.Analytics.Entities.ChannelAnalyticsDaily>();
     }
 
     // ── Unused IApplicationDbContext surface — never reached by these tests ──

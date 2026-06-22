@@ -287,6 +287,38 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
             );
 
             migrationBuilder.CreateTable(
+                name: "ChannelAnalyticsDailies",
+                columns: table => new
+                {
+                    Id = table
+                        .Column<long>(type: "bigint", nullable: false)
+                        .Annotation(
+                            "Npgsql:ValueGenerationStrategy",
+                            NpgsqlValueGenerationStrategy.IdentityByDefaultColumn
+                        ),
+                    BroadcasterId = table.Column<Guid>(type: "uuid", nullable: false),
+                    ActivityDate = table.Column<DateOnly>(type: "date", nullable: false),
+                    UniqueChatters = table.Column<int>(type: "integer", nullable: false),
+                    TotalMessages = table.Column<long>(type: "bigint", nullable: false),
+                    TotalWatchSeconds = table.Column<long>(type: "bigint", nullable: false),
+                    NewFollowers = table.Column<int>(type: "integer", nullable: false),
+                    NewSubscribers = table.Column<int>(type: "integer", nullable: false),
+                    BitsCheered = table.Column<long>(type: "bigint", nullable: false),
+                    CommandsRun = table.Column<long>(type: "bigint", nullable: false),
+                    RedemptionsCount = table.Column<long>(type: "bigint", nullable: false),
+                    SongRequests = table.Column<int>(type: "integer", nullable: false),
+                    CurrencyEarnedTotal = table.Column<long>(type: "bigint", nullable: false),
+                    CurrencySpentTotal = table.Column<long>(type: "bigint", nullable: false),
+                    GamesPlayed = table.Column<int>(type: "integer", nullable: false),
+                    PeakViewers = table.Column<int>(type: "integer", nullable: true),
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ChannelAnalyticsDailies", x => x.Id);
+                }
+            );
+
+            migrationBuilder.CreateTable(
                 name: "ChannelCommunityStandings",
                 columns: table => new
                 {
@@ -1651,6 +1683,36 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
             );
 
             migrationBuilder.CreateTable(
+                name: "MessageActivityDailies",
+                columns: table => new
+                {
+                    Id = table
+                        .Column<long>(type: "bigint", nullable: false)
+                        .Annotation(
+                            "Npgsql:ValueGenerationStrategy",
+                            NpgsqlValueGenerationStrategy.IdentityByDefaultColumn
+                        ),
+                    BroadcasterId = table.Column<Guid>(type: "uuid", nullable: false),
+                    ViewerProfileId = table.Column<Guid>(type: "uuid", nullable: false),
+                    ViewerUserId = table.Column<Guid>(type: "uuid", nullable: false),
+                    ActivityDate = table.Column<DateOnly>(type: "date", nullable: false),
+                    MessageCount = table.Column<int>(type: "integer", nullable: false),
+                    FirstMessageAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: true
+                    ),
+                    LastMessageAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: true
+                    ),
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_MessageActivityDailies", x => x.Id);
+                }
+            );
+
+            migrationBuilder.CreateTable(
                 name: "OutboundWebhookDeliveries",
                 columns: table => new
                 {
@@ -2350,6 +2412,133 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_ViewerAgeConsents", x => x.Id);
+                }
+            );
+
+            migrationBuilder.CreateTable(
+                name: "ViewerEngagementDailies",
+                columns: table => new
+                {
+                    Id = table
+                        .Column<long>(type: "bigint", nullable: false)
+                        .Annotation(
+                            "Npgsql:ValueGenerationStrategy",
+                            NpgsqlValueGenerationStrategy.IdentityByDefaultColumn
+                        ),
+                    BroadcasterId = table.Column<Guid>(type: "uuid", nullable: false),
+                    ViewerProfileId = table.Column<Guid>(type: "uuid", nullable: false),
+                    ViewerUserId = table.Column<Guid>(type: "uuid", nullable: false),
+                    ActivityDate = table.Column<DateOnly>(type: "date", nullable: false),
+                    WatchSeconds = table.Column<long>(type: "bigint", nullable: false),
+                    MessageCount = table.Column<int>(type: "integer", nullable: false),
+                    CommandCount = table.Column<int>(type: "integer", nullable: false),
+                    RedemptionCount = table.Column<int>(type: "integer", nullable: false),
+                    SongRequestCount = table.Column<int>(type: "integer", nullable: false),
+                    CurrencyEarned = table.Column<long>(type: "bigint", nullable: false),
+                    CurrencySpent = table.Column<long>(type: "bigint", nullable: false),
+                    GamesPlayed = table.Column<int>(type: "integer", nullable: false),
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ViewerEngagementDailies", x => x.Id);
+                }
+            );
+
+            migrationBuilder.CreateTable(
+                name: "ViewerProfiles",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    BroadcasterId = table.Column<Guid>(type: "uuid", nullable: false),
+                    ViewerUserId = table.Column<Guid>(type: "uuid", nullable: false),
+                    ViewerTwitchUserId = table.Column<string>(
+                        type: "character varying(50)",
+                        maxLength: 50,
+                        nullable: false
+                    ),
+                    UsernameSnapshot = table.Column<string>(
+                        type: "character varying(255)",
+                        maxLength: 255,
+                        nullable: true
+                    ),
+                    DisplayNameSnapshot = table.Column<string>(
+                        type: "character varying(255)",
+                        maxLength: 255,
+                        nullable: true
+                    ),
+                    FirstSeenAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: true
+                    ),
+                    LastSeenAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: true
+                    ),
+                    TotalWatchSeconds = table.Column<long>(type: "bigint", nullable: false),
+                    TotalMessages = table.Column<long>(type: "bigint", nullable: false),
+                    TotalCommandsUsed = table.Column<long>(type: "bigint", nullable: false),
+                    TotalRedemptions = table.Column<long>(type: "bigint", nullable: false),
+                    TotalSongRequests = table.Column<long>(type: "bigint", nullable: false),
+                    IsFollower = table.Column<bool>(type: "boolean", nullable: false),
+                    IsSubscriber = table.Column<bool>(type: "boolean", nullable: false),
+                    SubTier = table.Column<string>(
+                        type: "character varying(10)",
+                        maxLength: 10,
+                        nullable: true
+                    ),
+                    IsAnalyticsOptedOut = table.Column<bool>(type: "boolean", nullable: false),
+                    CreatedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                    UpdatedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                    DeletedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: true
+                    ),
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ViewerProfiles", x => x.Id);
+                }
+            );
+
+            migrationBuilder.CreateTable(
+                name: "WatchSessions",
+                columns: table => new
+                {
+                    Id = table
+                        .Column<long>(type: "bigint", nullable: false)
+                        .Annotation(
+                            "Npgsql:ValueGenerationStrategy",
+                            NpgsqlValueGenerationStrategy.IdentityByDefaultColumn
+                        ),
+                    BroadcasterId = table.Column<Guid>(type: "uuid", nullable: false),
+                    ViewerProfileId = table.Column<Guid>(type: "uuid", nullable: false),
+                    ViewerUserId = table.Column<Guid>(type: "uuid", nullable: false),
+                    StreamId = table.Column<Guid>(type: "uuid", nullable: true),
+                    StartedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                    EndedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: true
+                    ),
+                    DurationSeconds = table.Column<long>(type: "bigint", nullable: false),
+                    PresenceConfirmed = table.Column<bool>(type: "boolean", nullable: false),
+                    MessageCountInSession = table.Column<int>(type: "integer", nullable: false),
+                    CreatedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_WatchSessions", x => x.Id);
                 }
             );
 
@@ -4324,6 +4513,13 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
             );
 
             migrationBuilder.CreateIndex(
+                name: "IX_ChannelAnalyticsDailies_BroadcasterId_ActivityDate",
+                table: "ChannelAnalyticsDailies",
+                columns: new[] { "BroadcasterId", "ActivityDate" },
+                unique: true
+            );
+
+            migrationBuilder.CreateIndex(
                 name: "IX_ChannelBotAuthorization_Broadcaster_BotAccount",
                 table: "ChannelBotAuthorizations",
                 columns: new[] { "BroadcasterId", "BotAccountId" },
@@ -4848,6 +5044,19 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
             );
 
             migrationBuilder.CreateIndex(
+                name: "IX_MessageActivityDailies_BroadcasterId_ViewerUserId_ActivityD~",
+                table: "MessageActivityDailies",
+                columns: new[] { "BroadcasterId", "ViewerUserId", "ActivityDate" },
+                unique: true
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_MessageActivityDailies_ViewerUserId",
+                table: "MessageActivityDailies",
+                column: "ViewerUserId"
+            );
+
+            migrationBuilder.CreateIndex(
                 name: "IX_OutboundWebhookDeliveries_EndpointId_CreatedAt",
                 table: "OutboundWebhookDeliveries",
                 columns: new[] { "EndpointId", "CreatedAt" }
@@ -5084,6 +5293,55 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
             );
 
             migrationBuilder.CreateIndex(
+                name: "IX_ViewerEngagementDailies_BroadcasterId_ViewerUserId_Activity~",
+                table: "ViewerEngagementDailies",
+                columns: new[] { "BroadcasterId", "ViewerUserId", "ActivityDate" },
+                unique: true
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ViewerEngagementDailies_ViewerUserId",
+                table: "ViewerEngagementDailies",
+                column: "ViewerUserId"
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ViewerProfiles_BroadcasterId_ViewerUserId",
+                table: "ViewerProfiles",
+                columns: new[] { "BroadcasterId", "ViewerUserId" }
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ViewerProfiles_LastSeenAt",
+                table: "ViewerProfiles",
+                column: "LastSeenAt"
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ViewerProfiles_ViewerTwitchUserId",
+                table: "ViewerProfiles",
+                column: "ViewerTwitchUserId"
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_WatchSessions_BroadcasterId_ViewerUserId",
+                table: "WatchSessions",
+                columns: new[] { "BroadcasterId", "ViewerUserId" }
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_WatchSessions_CreatedAt",
+                table: "WatchSessions",
+                column: "CreatedAt"
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_WatchSessions_StreamId",
+                table: "WatchSessions",
+                column: "StreamId"
+            );
+
+            migrationBuilder.CreateIndex(
                 name: "IX_WatchStreaks_BroadcasterId",
                 table: "WatchStreaks",
                 column: "BroadcasterId"
@@ -5108,6 +5366,8 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
             migrationBuilder.DropTable(name: "CatalogPurchases");
 
             migrationBuilder.DropTable(name: "ChannelActionOverrides");
+
+            migrationBuilder.DropTable(name: "ChannelAnalyticsDailies");
 
             migrationBuilder.DropTable(name: "ChannelBotAuthorizations");
 
@@ -5197,6 +5457,8 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
 
             migrationBuilder.DropTable(name: "LeaderboardSnapshots");
 
+            migrationBuilder.DropTable(name: "MessageActivityDailies");
+
             migrationBuilder.DropTable(name: "OutboundWebhookDeliveries");
 
             migrationBuilder.DropTable(name: "OutboundWebhookEndpoints");
@@ -5242,6 +5504,12 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
             migrationBuilder.DropTable(name: "UserTtsVoices");
 
             migrationBuilder.DropTable(name: "ViewerAgeConsents");
+
+            migrationBuilder.DropTable(name: "ViewerEngagementDailies");
+
+            migrationBuilder.DropTable(name: "ViewerProfiles");
+
+            migrationBuilder.DropTable(name: "WatchSessions");
 
             migrationBuilder.DropTable(name: "WatchStreaks");
 

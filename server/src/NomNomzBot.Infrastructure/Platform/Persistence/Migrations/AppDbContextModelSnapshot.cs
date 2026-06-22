@@ -25,6 +25,288 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
             NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "hstore");
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("NomNomzBot.Domain.Analytics.Entities.ChannelAnalyticsDaily", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<DateOnly>("ActivityDate")
+                        .HasColumnType("date");
+
+                    b.Property<long>("BitsCheered")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid>("BroadcasterId")
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("CommandsRun")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("CurrencyEarnedTotal")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("CurrencySpentTotal")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("GamesPlayed")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("NewFollowers")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("NewSubscribers")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("PeakViewers")
+                        .HasColumnType("integer");
+
+                    b.Property<long>("RedemptionsCount")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("SongRequests")
+                        .HasColumnType("integer");
+
+                    b.Property<long>("TotalMessages")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("TotalWatchSeconds")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("UniqueChatters")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BroadcasterId", "ActivityDate")
+                        .IsUnique();
+
+                    b.ToTable("ChannelAnalyticsDailies");
+                });
+
+            modelBuilder.Entity("NomNomzBot.Domain.Analytics.Entities.MessageActivityDaily", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<DateOnly>("ActivityDate")
+                        .HasColumnType("date");
+
+                    b.Property<Guid>("BroadcasterId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("FirstMessageAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("LastMessageAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("MessageCount")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("ViewerProfileId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ViewerUserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ViewerUserId");
+
+                    b.HasIndex("BroadcasterId", "ViewerUserId", "ActivityDate")
+                        .IsUnique();
+
+                    b.ToTable("MessageActivityDailies");
+                });
+
+            modelBuilder.Entity("NomNomzBot.Domain.Analytics.Entities.ViewerEngagementDaily", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<DateOnly>("ActivityDate")
+                        .HasColumnType("date");
+
+                    b.Property<Guid>("BroadcasterId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("CommandCount")
+                        .HasColumnType("integer");
+
+                    b.Property<long>("CurrencyEarned")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("CurrencySpent")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("GamesPlayed")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("MessageCount")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("RedemptionCount")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("SongRequestCount")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("ViewerProfileId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ViewerUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("WatchSeconds")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ViewerUserId");
+
+                    b.HasIndex("BroadcasterId", "ViewerUserId", "ActivityDate")
+                        .IsUnique();
+
+                    b.ToTable("ViewerEngagementDailies");
+                });
+
+            modelBuilder.Entity("NomNomzBot.Domain.Analytics.Entities.ViewerProfile", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BroadcasterId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DisplayNameSnapshot")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<DateTime?>("FirstSeenAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsAnalyticsOptedOut")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsFollower")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsSubscriber")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("LastSeenAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("SubTier")
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
+
+                    b.Property<long>("TotalCommandsUsed")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("TotalMessages")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("TotalRedemptions")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("TotalSongRequests")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("TotalWatchSeconds")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UsernameSnapshot")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<string>("ViewerTwitchUserId")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<Guid>("ViewerUserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LastSeenAt");
+
+                    b.HasIndex("ViewerTwitchUserId");
+
+                    b.HasIndex("BroadcasterId", "ViewerUserId");
+
+                    b.ToTable("ViewerProfiles");
+                });
+
+            modelBuilder.Entity("NomNomzBot.Domain.Analytics.Entities.WatchSession", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<Guid>("BroadcasterId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long>("DurationSeconds")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime?>("EndedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("MessageCountInSession")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("PresenceConfirmed")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime>("StartedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("StreamId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ViewerProfileId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ViewerUserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedAt");
+
+                    b.HasIndex("StreamId");
+
+                    b.HasIndex("BroadcasterId", "ViewerUserId");
+
+                    b.ToTable("WatchSessions");
+                });
+
             modelBuilder.Entity("NomNomzBot.Domain.Billing.Entities.BillingTier", b =>
                 {
                     b.Property<Guid>("Id")

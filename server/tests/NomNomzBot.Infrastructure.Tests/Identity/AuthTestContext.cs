@@ -326,4 +326,14 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
         Set<NomNomzBot.Domain.Webhooks.Entities.InboundWebhookEndpoint>();
     public DbSet<NomNomzBot.Domain.Platform.Entities.HttpEgressAllowlist> HttpEgressAllowlists =>
         Set<NomNomzBot.Domain.Platform.Entities.HttpEgressAllowlist>();
+    public DbSet<NomNomzBot.Domain.Analytics.Entities.ViewerProfile> ViewerProfiles =>
+        Set<NomNomzBot.Domain.Analytics.Entities.ViewerProfile>();
+    public DbSet<NomNomzBot.Domain.Analytics.Entities.WatchSession> WatchSessions =>
+        Set<NomNomzBot.Domain.Analytics.Entities.WatchSession>();
+    public DbSet<NomNomzBot.Domain.Analytics.Entities.MessageActivityDaily> MessageActivityDailies =>
+        Set<NomNomzBot.Domain.Analytics.Entities.MessageActivityDaily>();
+    public DbSet<NomNomzBot.Domain.Analytics.Entities.ViewerEngagementDaily> ViewerEngagementDailies =>
+        Set<NomNomzBot.Domain.Analytics.Entities.ViewerEngagementDaily>();
+    public DbSet<NomNomzBot.Domain.Analytics.Entities.ChannelAnalyticsDaily> ChannelAnalyticsDailies =>
+        Set<NomNomzBot.Domain.Analytics.Entities.ChannelAnalyticsDaily>();
 }
