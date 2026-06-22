@@ -24,11 +24,20 @@ public sealed class ChatDecorationContext
     /// <summary>The message fragments, enriched in place as the pipeline runs (text exploded, emotes matched, urls filled).</summary>
     public List<ChatMessageFragment> Fragments { get; init; } = [];
 
+    /// <summary>The owning channel's tenant id — the discriminator for per-channel cached Helix sets (badges, cheermotes).</summary>
+    public Guid BroadcasterId { get; init; }
+
     /// <summary>
-    /// The channel's Twitch broadcaster id — the discriminator for the per-channel cached emote/badge/cheermote sets.
+    /// The channel's Twitch broadcaster id — the discriminator for the per-channel cached emote sets.
     /// Empty when unknown, in which case channel-specific lookups simply miss and only global sets can match.
     /// </summary>
     public string TwitchBroadcasterId { get; init; } = string.Empty;
+
+    /// <summary>The message's raw badges (set id + version id) seeded from the event; resolved to urls by the badge step.</summary>
+    public IReadOnlyList<ChatBadge> Badges { get; init; } = [];
+
+    /// <summary>The badges resolved to image urls — filled by <c>BadgeAdapter</c>, surfaced on the decorated message.</summary>
+    public IReadOnlyList<ResolvedChatBadge> ResolvedBadges { get; set; } = [];
 
     /// <summary>
     /// The channel's enabled decoration feature keys (<c>use_bttv</c> / <c>use_ffz</c> / <c>use_7tv</c> /

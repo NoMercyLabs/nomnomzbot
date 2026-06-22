@@ -21,4 +21,7 @@ namespace NomNomzBot.Application.Chat.Decoration;
 public sealed class DecoratedChatMessage
 {
     public required IReadOnlyList<ChatMessageFragment> Fragments { get; init; }
+
+    /// <summary>The message's badges resolved to image urls (chat-decoration spec §3.3).</summary>
+    public IReadOnlyList<ResolvedChatBadge> Badges { get; init; } = [];
 }

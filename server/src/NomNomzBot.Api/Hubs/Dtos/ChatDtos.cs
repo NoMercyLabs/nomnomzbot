@@ -74,5 +74,13 @@ public record ChatCheermoteDto(string Prefix, int Bits, int Tier);
 /// <summary>Mention fragment data (@user).</summary>
 public record ChatMentionDto(string UserId, string Username, string DisplayName);
 
-/// <summary>A chat badge (subscriber, moderator, etc.).</summary>
-public record ChatBadgeDto(string SetId, string Id, string? Info = null);
+/// <summary>
+/// A chat badge (subscriber, moderator, etc.) resolved to its scale-keyed image urls ("1"/"2"/"4") from the cached
+/// Helix badge sets (chat-decoration spec §3.3). <c>Urls</c> is empty when the badge set is not yet warmed in cache.
+/// </summary>
+public record ChatBadgeDto(
+    string SetId,
+    string Id,
+    string? Info,
+    IReadOnlyDictionary<string, string> Urls
+);

@@ -65,7 +65,14 @@ public sealed class ChatMessageBroadcastHandler : IEventHandler<ChatMessageRecei
             IsBroadcaster: evt.IsBroadcaster,
             IsCheer: evt.Bits > 0,
             IsCommand: false,
-            Badges: evt.Badges.Select(b => new ChatBadgeDto(b.SetId, b.Id, b.Info)).ToList(),
+            Badges: decorated
+                .Badges.Select(badge => new ChatBadgeDto(
+                    badge.SetId,
+                    badge.Id,
+                    badge.Info,
+                    badge.Urls
+                ))
+                .ToList(),
             BitsAmount: evt.Bits,
             Color: evt.ColorHex,
             MessageType: evt.MessageType,

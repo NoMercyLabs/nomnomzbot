@@ -158,6 +158,11 @@ public static class DependencyInjection
             infrastructure,
             ServiceLifetime.Singleton
         );
+        // Badge resolver (cache-only; not name-convention "*Service", so registered explicitly). Stateless → singleton.
+        services.AddSingleton<
+            NomNomzBot.Application.Chat.Services.IChatBadgeResolver,
+            NomNomzBot.Infrastructure.Chat.ChatBadgeResolver
+        >();
         // Scoped: it resolves the channel's feature toggles through the scoped IFeatureService (cache-backed, so the
         // hot path stays cheap). Consumes the singleton adapters + cache fine.
         services.AddScoped<

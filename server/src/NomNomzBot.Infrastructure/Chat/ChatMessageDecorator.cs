@@ -69,9 +69,11 @@ public sealed class ChatMessageDecorator : IChatMessageDecorator
     {
         ChatDecorationContext context = new()
         {
+            BroadcasterId = message.BroadcasterId,
             TwitchBroadcasterId = message.TwitchBroadcasterId,
             EnabledFeatures = await ResolveEnabledFeaturesAsync(message.BroadcasterId, ct),
             Fragments = message.Fragments.Select(Clone).ToList(),
+            Badges = message.Badges,
         };
 
         foreach (IChatDecorationAdapter adapter in _adapters)
@@ -93,7 +95,11 @@ public sealed class ChatMessageDecorator : IChatMessageDecorator
             }
         }
 
-        return new DecoratedChatMessage { Fragments = context.Fragments };
+        return new DecoratedChatMessage
+        {
+            Fragments = context.Fragments,
+            Badges = context.ResolvedBadges,
+        };
     }
 
     // The set of enabled decoration feature keys for the channel: each feature ON unless an explicit toggle disables it
