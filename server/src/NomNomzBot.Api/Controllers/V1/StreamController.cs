@@ -176,9 +176,12 @@ public class StreamController : BaseController
 
     // ── Update stream info ───────────────────────────────────────────────────
 
-    // The combined update writes the same title/game/tags as the granular PATCH routes, so it must carry the
-    // same Editor floor — otherwise a Moderator could change stream info through this route and bypass the
-    // per-field channel:*:write gates (stream-admin §5; all three fields floor at Editor).
+    /// <summary>
+    /// Update the channel's stream metadata (title, game, tags) in a single call. Carries the same Editor
+    /// floor as the granular PATCH routes (<c>channel:title:write</c>) so a Moderator cannot use this combined
+    /// route to bypass the per-field <c>channel:*:write</c> gates (stream-admin §5; all three fields floor at
+    /// Editor).
+    /// </summary>
     [HttpPut]
     [RequireAction("channel:title:write")]
     [ProducesResponseType<StatusResponseDto<StreamInfoDto>>(StatusCodes.Status200OK)]

@@ -800,20 +800,30 @@ live code, patched in a validated slice (build + 4 test suites green), and commi
 | R7 | IRC chat send interpolated user text into the line → CRLF command injection | 🟡 Medium | `IrcLineSanitizer` strips CR/LF/NUL + length-caps both send paths. |
 | R8 | `PaginationParams.PageSize` unbounded → `pageSize=1000000` materialises a huge result set (DoS) | 🟡 Medium | Clamped to `[1, 100]` at the single chokepoint. |
 | R9 | Discord OAuth used an unsigned base64 state (CSRF) | 🟡 Medium | Switched to the single-use server-side nonce. |
+| R10 | Bot-account OAuth start endpoints were `[AllowAnonymous]` redirects — anyone could initiate (and on completion hijack) the bot identity | 🟠 High | A bot connection is an authenticated registration like Discord/Spotify: platform-shared bot → `[Authorize(Roles=admin)]` (iam:manage); white-label bot → `[Authorize]` + `channelbot:connect/read/disconnect` (new seeded keys); both return the authorize URL as JSON. |
+| R11 | Combined `PUT /stream` wrote title/game/tags with only Gate-1 → a Moderator bypassed the Editor-floor PATCH gates; Dashboard's route token wasn't `channelId` so its Gate-2 couldn't resolve the tenant; several writes (channel lifecycle, feature toggle, viewer trust) were ungated | 🟠 High | Full mutation-endpoint sweep: gated `UpdateStreamInfo` (channel:title:write); renamed Dashboard route token to `channelId` + dashboard:read; Channels writes → setup:write; added feature:read/write + community:trust:write keys. Every POST/PUT/DELETE/PATCH now gated (per-action key, class-level admin, in-code self/admin, or token/signature). |
 
-### Surfaced for a product/spec decision (not unilaterally patched)
+### Gate-2 coverage — now complete (R10/R11 follow-up)
 
-These are real but require a key/route/spec decision rather than a mechanical fix — keys must come from the
-roles-permissions §5 vocabulary, not be invented:
+The IAM gaps first surfaced here were then closed in full:
 
-- **Read-only endpoints with no seeded key** — music reads (`GetConfig`/`GetQueue`/`GetNowPlaying`), stream
-  reads (`GetStreamInfo`/`GetStatus`/`SearchCategories`), chat history (`GetMessages`). Low risk (a
-  tenant-resolver can already read), but ungated. Need read keys (e.g. `music:config:read`, `stream:info:read`).
-- **Writes with no seeded key** — `CommunityController.SetTrustLevel`, `FeaturesController.ToggleFeature`,
-  `StreamController.UpdateStreamInfo` (the combined PUT; the granular title/game/tags are gated). Need new keys.
-- **Non-`{channelId}` routes** — `DashboardController` (`/dashboard/{broadcasterId}`) and `ChannelsController`
-  collection/create ops resolve the tenant differently; Gate-2 placement needs review.
-- **Webhook ingest rate limiting** — still the documented deferral pending the partitioned rate-limit store;
-  token + signature remain the boundary and the body is already 256 KiB-capped.
+- **Read-only endpoints left at Gate-1** — confirmed *intentional* per their owning specs (music/stream reads,
+  chat history): a tenant-resolver (Moderator+) may read; the specs assign no Gate-2 key. Left as-is by design.
+- **Writes that lacked a key** — `UpdateStreamInfo`, `SetTrustLevel`, `ToggleFeature` are now gated; new keys
+  `community:trust:write`, `feature:read`, `feature:write` (and `channelbot:connect/read/disconnect`) were
+  seeded and added to roles-permissions §7.1.
+- **Non-`{channelId}` routes** — `DashboardController`'s route token is renamed to `channelId` so Gate-2
+  resolves the tenant; `ChannelsController` lifecycle writes are gated `setup:write` while its collection/create
+  reads remain correctly self-scoped (no tenant to gate).
+- A full POST/PUT/DELETE/PATCH sweep confirms **every** mutating endpoint is now gated by a per-action key,
+  a class-level admin role, an in-code self/admin check, or (for anonymous routes) a token/HMAC/nonce.
+
+### Still deferred (deliberate, low-risk)
+
+- **Webhook ingest rate limiting** — documented deferral pending the partitioned rate-limit store; token +
+  signature remain the boundary and the body is already 256 KiB-capped.
 - **Global request body size** — Kestrel default (~30 MB) is generous; lowering it is hygiene but risks
   breaking a legitimately-large config/script payload, so left configurable rather than forced.
+- **`ChannelsController.OnboardChannel` caller binding** — onboarding takes the broadcaster id from the body;
+  it currently fails safe (Twitch token must already exist for that channel) but should bind to the
+  authenticated caller. Tracked as a hardening follow-up, not a Gate-2 gap.
