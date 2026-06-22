@@ -196,6 +196,11 @@ public static class DependencyInjection
             NomNomzBot.Application.Contracts.CustomCode.IScriptExecutor,
             NomNomzBot.Infrastructure.CustomCode.Jint.JintScriptExecutor
         >();
+        // The script run orchestrator (non-"*Service", so registered explicitly).
+        services.AddScoped<
+            NomNomzBot.Application.Contracts.CustomCode.IScriptRunner,
+            NomNomzBot.Infrastructure.CustomCode.ScriptRunner
+        >();
 
         // Event store — projections, post-commit hooks, and upcasters are pluggable multi-bindings discovered
         // by convention (drop a file → it is live next boot), mirroring ICommandAction. Projections + hooks

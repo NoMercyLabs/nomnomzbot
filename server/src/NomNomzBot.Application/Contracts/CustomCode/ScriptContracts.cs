@@ -90,6 +90,25 @@ public sealed record ScriptCompilation(
     IReadOnlyList<string> DeclaredCapabilities
 );
 
+/// <summary>The pipeline-step inputs to one script run (custom-code.md §4) — value snapshot, no PII.</summary>
+public sealed record ScriptInvocation(
+    string ExecutionId,
+    string TriggeredByUserId,
+    string TriggeredByDisplayName,
+    IReadOnlyList<string> Args,
+    IReadOnlyDictionary<string, string> Variables
+);
+
+/// <summary>What <see cref="IScriptRunner"/> returns to the run_code action (custom-code.md §4).</summary>
+public sealed record ScriptRunResult(
+    ScriptExecutionOutcome Outcome,
+    IReadOnlyDictionary<string, string> VariablesOut,
+    string? Output,
+    bool StopPipeline,
+    string? ErrorMessage,
+    ScriptDenialReason? DenialReason
+);
+
 /// <summary>
 /// The host trampoline a granted <c>bot.*</c> import binds to — primitive-in / primitive-out only
 /// (custom-code.md §3.1). The token is the per-execution watchdog token.
