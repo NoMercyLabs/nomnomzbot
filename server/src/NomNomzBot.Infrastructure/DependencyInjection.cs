@@ -185,6 +185,11 @@ public static class DependencyInjection
 
         // Analytics — the shared viewer-as-User resolver the per-viewer projections fold through.
         services.AddScoped<NomNomzBot.Infrastructure.Analytics.ViewerResolver>();
+        // The live-window resolver (watch-session gating; non-"*Service", so registered explicitly).
+        services.AddScoped<
+            NomNomzBot.Application.Contracts.Analytics.ILiveWindowResolver,
+            NomNomzBot.Infrastructure.Analytics.LiveWindowResolver
+        >();
 
         // Event store — projections, post-commit hooks, and upcasters are pluggable multi-bindings discovered
         // by convention (drop a file → it is live next boot), mirroring ICommandAction. Projections + hooks

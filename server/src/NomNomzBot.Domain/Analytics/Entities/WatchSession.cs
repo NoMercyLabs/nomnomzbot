@@ -24,7 +24,9 @@ public class WatchSession : ITenantScoped
     public Guid BroadcasterId { get; set; }
     public Guid ViewerProfileId { get; set; }
     public Guid ViewerUserId { get; set; }
-    public Guid? StreamId { get; set; }
+
+    /// <summary>The covering stream's id (Twitch stream id string — matches <c>Stream.Id</c>), null if unattributed.</summary>
+    public string? StreamId { get; set; }
     public DateTime StartedAt { get; set; }
     public DateTime? EndedAt { get; set; }
     public long DurationSeconds { get; set; }

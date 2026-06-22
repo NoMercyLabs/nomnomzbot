@@ -14,7 +14,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260622031435_Initial")]
+    [Migration("20260622063512_Initial")]
     partial class Initial
     {
         /// <inheritdoc />
@@ -290,8 +290,8 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.Property<DateTime>("StartedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<Guid?>("StreamId")
-                        .HasColumnType("uuid");
+                    b.Property<string>("StreamId")
+                        .HasColumnType("text");
 
                     b.Property<Guid>("ViewerProfileId")
                         .HasColumnType("uuid");

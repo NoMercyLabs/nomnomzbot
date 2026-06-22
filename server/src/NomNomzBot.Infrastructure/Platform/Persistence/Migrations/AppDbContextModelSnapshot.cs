@@ -287,8 +287,8 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.Property<DateTime>("StartedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<Guid?>("StreamId")
-                        .HasColumnType("uuid");
+                    b.Property<string>("StreamId")
+                        .HasColumnType("text");
 
                     b.Property<Guid>("ViewerProfileId")
                         .HasColumnType("uuid");

@@ -2519,7 +2519,7 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     BroadcasterId = table.Column<Guid>(type: "uuid", nullable: false),
                     ViewerProfileId = table.Column<Guid>(type: "uuid", nullable: false),
                     ViewerUserId = table.Column<Guid>(type: "uuid", nullable: false),
-                    StreamId = table.Column<Guid>(type: "uuid", nullable: true),
+                    StreamId = table.Column<string>(type: "text", nullable: true),
                     StartedAt = table.Column<DateTime>(
                         type: "timestamp with time zone",
                         nullable: false
