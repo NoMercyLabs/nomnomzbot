@@ -8,8 +8,6 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-using System.Text;
-using System.Text.Json;
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -268,62 +266,6 @@ public class ChannelBotController : BaseController
             cancellationToken: ct
         );
         return Redirect(authUrl);
-    }
-
-    /// <summary>
-    /// Twitch OAuth callback for the white-label bot.
-    /// Reads channelId from the state parameter embedded during StartChannelBotOAuth.
-    /// Stores the token as Service(Name="twitch_bot", BroadcasterId=channelId).
-    /// </summary>
-    [HttpGet("callback/bot")]
-    [AllowAnonymous]
-    [EnableRateLimiting("auth")]
-    public async Task<IActionResult> HandleChannelBotCallback(
-        [FromQuery] string code,
-        [FromQuery] string? state,
-        CancellationToken ct
-    )
-    {
-        string? channelId = null;
-        string? mobileRedirectUri = null;
-
-        if (!string.IsNullOrWhiteSpace(state))
-        {
-            try
-            {
-                byte[] decoded = Convert.FromBase64String(state);
-                using JsonDocument doc = JsonDocument.Parse(decoded);
-                if (doc.RootElement.TryGetProperty("channel_id", out JsonElement cidEl))
-                    channelId = cidEl.GetString();
-                if (doc.RootElement.TryGetProperty("redirect_uri", out JsonElement uriEl))
-                    mobileRedirectUri = uriEl.GetString();
-            }
-            catch { }
-        }
-
-        if (string.IsNullOrEmpty(channelId) || !Guid.TryParse(channelId, out Guid tenantId))
-            return BadRequest("Missing or invalid channel_id in state.");
-
-        string callbackUri = $"{GetPublicBaseUrl()}/api/v1/channels/callback/bot";
-        Result<BotStatusDto> result = await _authService.HandleTwitchChannelBotCallbackAsync(
-            tenantId,
-            new OAuthCallbackDto { Code = code, RedirectUri = callbackUri },
-            ct
-        );
-
-        if (result.IsFailure)
-        {
-            if (!string.IsNullOrWhiteSpace(mobileRedirectUri))
-                return Redirect($"{mobileRedirectUri}?error=bot_auth_failed");
-            return ResultResponse(result);
-        }
-
-        // Redirect back to integrations page
-        if (!string.IsNullOrWhiteSpace(mobileRedirectUri))
-            return Redirect($"{mobileRedirectUri}?custom_bot_connected=true");
-
-        string frontendUrl = _config["App:FrontendUrl"] ?? "https://bot-dev.nomercy.tv";
-        return Redirect($"{frontendUrl}/(dashboard)/integrations?custom_bot_connected=true");
     }
 
     /// <summary>Get white-label bot status for a specific channel.</summary>

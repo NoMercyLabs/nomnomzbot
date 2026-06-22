@@ -12,15 +12,15 @@ Licensed under **AGPL-3.0**. Copyright (C) NoMercy Labs.
 
 - **Everything is `NomNomzBot.*`** — namespace, folder, assembly, and product all match. Every `.cs` file's `namespace` and every csproj `<RootNamespace>` is `NomNomzBot.*`. (History: the legacy code carried `NoMercyBot.*` from an incomplete earlier rename; the clean-slate rebuild **fully migrated** it to `NomNomzBot.*` via a repo-wide rename — there is no `NoMercyBot` left in code or specs, **do not reintroduce it**. The **copyright holder is still NoMercy Labs** — the company name in license headers is unaffected.)
 - **Username is `Stoney_Eagle`** — underscore, not hyphen. Never change this.
-- **Figma is the source of truth for design** — file key `MkKBuW2Ee6T5jC8fCtZsM0`. When in doubt, Figma wins over HTML mockups.
-- **HTML mockups at `nomnomzbot-design/mockups/`** are a reference implementation of the Figma designs.
+- **shadcn/ui (new-york) is the source of truth for the dashboard design** — ported 1:1 to Compose; full spec in `.claude/docs/design/spec/frontend-design-system.md`. The old Figma file (`MkKBuW2Ee6T5jC8fCtZsM0`) is **discarded** (not a viable dashboard); a fresh Figma may be minted from the spec later.
+- **HTML mockups at `nomnomzbot-design/mockups/`** are a loose historical reference only — the design system, not the mockups, is authoritative.
 - **No `Co-Authored-By` in git commits** — ever.
 - **No MediatR** — services are called directly via typed interfaces registered in DI.
 - **No Roslyn** — don't use Roslyn for code generation or analysis.
 - **Don't ask permission to fix bugs** — find it, fix it, move on.
 - **No fake/seed data for community** — all community/viewer data must come from the real Twitch API. Never fabricate viewer lists, subscriber counts, etc.
 - **Don't ask "should I continue?" or "want me to fix this?"** — just do it.
-- **Match Figma exactly** — pixel-perfect components, correct colors, correct spacing. Do not approximate.
+- **Match the design system exactly** — the shadcn (new-york) tokens, component catalogue, and variant tables in `frontend-design-system.md`; correct tokens/spacing/variants. Never hardcode a color or `dp`; do not approximate.
 - **Test every interactive element** — never claim something "works" without full validation.
 - **No half-assed work** — seed ALL data, test EVERY button, run parallel where possible.
 
@@ -495,12 +495,11 @@ All action blocks are compiled C# classes — no scripting engine.
 
 ## Design System
 
-- **Figma file key:** `MkKBuW2Ee6T5jC8fCtZsM0`
-- Background colors: `#0a0b0f` (app bg), `#12131a` (card bg), `#1a1b24` (elevated)
-- Accent: Twitch purple `#9146FF`
-- Text: `#ffffff` (primary), `#a0a0b0` (muted)
-- 56 components, 28 desktop pages, 12 modals documented in Figma
-- HTML mockups at `nomnomzbot-design/mockups/` are reference implementations — cross-reference when Figma intent is unclear, but Figma takes precedence
+- **Source of truth:** shadcn/ui (new-york), ported 1:1 to Compose — full spec in `.claude/docs/design/spec/frontend-design-system.md`.
+- **Tokens:** shadcn's closed **OKLCH** contract (Tailwind v4), **neutral base**; the accent is **dynamic — derived at runtime from the signed-in user's Twitch chat color** (subtle, light + dark).
+- **Components:** a closed catalogue, variants-as-data, each on the most-correct primitive (Material3-wrapped or Compose Foundation). **Icons:** the designer's pack (`IconKey`/`IconSet`), Line style, Lucide fallback.
+- **Enforcement:** a detekt linter bans raw hex/`dp`, off-catalogue components, and hardcoded strings.
+- The old Figma (`MkKBuW2Ee6T5jC8fCtZsM0`) is discarded; HTML mockups at `nomnomzbot-design/mockups/` are a loose historical reference only.
 
 ---
 

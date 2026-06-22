@@ -10,7 +10,6 @@
 
 using System.Security.Claims;
 using System.Text;
-using System.Text.Json;
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -405,74 +404,6 @@ public class AuthController : BaseController
 
         string authUrl = await _authService.GetTwitchBotOAuthUrl(state, GetPublicBaseUrl(), ct);
         return Redirect(authUrl);
-    }
-
-    /// <summary>
-    /// Handle the Twitch callback for the bot account.
-    /// Stores the token as "twitch_bot" and redirects to the dashboard integrations page.
-    /// </summary>
-    [HttpGet("twitch/bot/callback")]
-    [AllowAnonymous]
-    [EnableRateLimiting("auth")]
-    public async Task<IActionResult> HandleBotCallback(
-        [FromQuery] string code,
-        [FromQuery] string? state,
-        CancellationToken ct
-    )
-    {
-        string? mobileRedirectUri = null;
-        if (!string.IsNullOrWhiteSpace(state))
-        {
-            try
-            {
-                byte[] decoded = Convert.FromBase64String(state);
-                using System.Text.Json.JsonDocument doc = System.Text.Json.JsonDocument.Parse(
-                    decoded
-                );
-                if (doc.RootElement.TryGetProperty("redirect_uri", out JsonElement uriElement))
-                    mobileRedirectUri = uriElement.GetString();
-            }
-            catch { }
-        }
-
-        string callbackUri = $"{GetPublicBaseUrl()}/api/v1/auth/twitch/bot/callback";
-        Result<BotStatusDto> result = await _authService.HandleTwitchBotCallbackAsync(
-            new OAuthCallbackDto { Code = code, RedirectUri = callbackUri },
-            ct
-        );
-
-        if (result.IsFailure)
-        {
-            if (!string.IsNullOrWhiteSpace(mobileRedirectUri))
-                return Redirect($"{mobileRedirectUri}?error=bot_auth_failed");
-
-            return ResultResponse(result);
-        }
-
-        // Redirect back to the integrations page on success
-        if (!string.IsNullOrWhiteSpace(mobileRedirectUri))
-            return Redirect($"{mobileRedirectUri}?bot_connected=true");
-
-        // Web: show a success page — the user likely authorized in a different browser,
-        // so redirecting to the app would show a login page (confusing).
-        string botName = result.Value.DisplayName ?? result.Value.Login ?? "Bot";
-        string html =
-            "<!DOCTYPE html><html><head><title>Bot Connected</title>"
-            + "<style>"
-            + "body{background:#141125;color:#f4f5fa;font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}"
-            + ".card{background:#1A1530;border:1px solid #1e1a35;border-radius:16px;padding:48px;text-align:center;max-width:420px}"
-            + ".check{width:64px;height:64px;border-radius:50%;background:rgba(74,222,128,0.15);display:flex;align-items:center;justify-content:center;margin:0 auto 24px;font-size:32px;color:#4ade80}"
-            + "h1{font-size:24px;margin:0 0 8px}p{color:#8889a0;font-size:14px;margin:0}.name{color:#a78bfa;font-weight:600}"
-            + "</style></head><body>"
-            + "<div class='card'>"
-            + "<div class='check'>&#10003;</div>"
-            + "<h1>Bot Connected</h1>"
-            + "<p><span class='name'>"
-            + botName
-            + "</span> has been authorized successfully.</p>"
-            + "<p style='margin-top:16px'>You can close this tab and return to the setup wizard.</p>"
-            + "</div></body></html>";
-        return Content(html, "text/html");
     }
 
     /// <summary>Get the current bot account connection status.</summary>
