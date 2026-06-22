@@ -65,6 +65,7 @@ public sealed class ScriptRunnerTests
                 Substitute.For<NomNomzBot.Application.Abstractions.Transport.ITwitchIdentityResolver>(),
                 Substitute.For<NomNomzBot.Application.Economy.Services.ICurrencyAccountService>(),
                 Substitute.For<NomNomzBot.Application.Music.Services.IMusicService>(),
+                Substitute.For<System.Net.Http.IHttpClientFactory>(),
                 new FakeTimeProvider(Now)
             ),
             db

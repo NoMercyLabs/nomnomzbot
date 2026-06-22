@@ -8,11 +8,14 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Net.Http;
+using System.Text;
 using NomNomzBot.Application.Abstractions.Transport;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Application.Economy.Services;
 using NomNomzBot.Application.Music.Services;
+using NomNomzBot.Infrastructure.Sandbox;
 
 namespace NomNomzBot.Infrastructure.CustomCode;
 
@@ -21,9 +24,8 @@ namespace NomNomzBot.Infrastructure.CustomCode;
 /// import to host code. Bound to exactly one <c>BroadcasterId</c> (host-side; never readable by the guest); each
 /// resolved delegate is primitive-in / primitive-out and tenant-scoped to that channel. <c>chat.send</c>/
 /// <c>chat.reply</c> dispatch to the channel's chat transport (bot token host-side, never in the guest);
-/// <c>economy.read</c> reads this channel's ledger; <c>music.queue</c> enqueues a request. (Deferred — documented:
-/// http.fetch dispatch over the SSRF egress front-end; that granted cap no-ops until wired — the grant still
-/// gates access.)
+/// <c>economy.read</c> reads this channel's ledger; <c>music.queue</c> enqueues a request; <c>http.fetch</c> does a
+/// capped GET through the SSRF-hardened egress client. Every dispatch fails closed (returns a safe primitive).
 /// </summary>
 public sealed class ScriptHostBridge(
     Guid broadcasterId,
@@ -31,17 +33,59 @@ public sealed class ScriptHostBridge(
     ITwitchChatService chatService,
     ITwitchIdentityResolver identityResolver,
     ICurrencyAccountService currencyService,
-    IMusicService musicService
+    IMusicService musicService,
+    IHttpClientFactory httpClientFactory
 ) : IScriptHostBridge
 {
+    private const int MaxResponseBytes = 256 * 1024;
+
     public HostImportDelegate Resolve(string capabilityKey) =>
         capabilityKey switch
         {
             "chat.send" or "chat.reply" => SendChat,
             "economy.read" => ReadBalance,
             "music.queue" => QueueMusic,
+            "http.fetch" => Fetch,
             _ => static (_, _, _) => null, // granted-but-unwired caps no-op; the grant already gated access
         };
+
+    private string? Fetch(string capabilityKey, IReadOnlyList<string> args, CancellationToken ct)
+    {
+        if (
+            args.Count == 0
+            || !Uri.TryCreate(args[0], UriKind.Absolute, out Uri? uri)
+            || uri.Scheme != Uri.UriSchemeHttps
+        )
+            return null;
+
+        try
+        {
+            // The egress client resolves-then-pins + blocks non-public IPs + is https-only (SSRF-hardened);
+            // bounded by the script's cancellation budget. Read is capped so a huge body can't flood the guest.
+            HttpClient client = httpClientFactory.CreateClient(EgressHttpClient.Name);
+            using HttpResponseMessage response = client
+                .GetAsync(uri, HttpCompletionOption.ResponseHeadersRead, ct)
+                .GetAwaiter()
+                .GetResult();
+            if (!response.IsSuccessStatusCode)
+                return null;
+
+            using System.IO.Stream body = response.Content.ReadAsStream(ct);
+            byte[] buffer = new byte[MaxResponseBytes];
+            int total = 0;
+            int read;
+            while (
+                total < MaxResponseBytes
+                && (read = body.Read(buffer, total, MaxResponseBytes - total)) > 0
+            )
+                total += read;
+            return Encoding.UTF8.GetString(buffer, 0, total);
+        }
+        catch
+        {
+            return null; // blocked egress / timeout / transport fault — fail closed
+        }
+    }
 
     private string? QueueMusic(
         string capabilityKey,

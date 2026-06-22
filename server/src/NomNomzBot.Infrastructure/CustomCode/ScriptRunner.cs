@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Net.Http;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
 using NomNomzBot.Application.Abstractions.Persistence;
@@ -37,6 +38,7 @@ public sealed class ScriptRunner(
     ITwitchIdentityResolver identityResolver,
     ICurrencyAccountService currencyService,
     IMusicService musicService,
+    IHttpClientFactory httpClientFactory,
     TimeProvider clock
 ) : IScriptRunner
 {
@@ -129,7 +131,8 @@ public sealed class ScriptRunner(
             chatService,
             identityResolver,
             currencyService,
-            musicService
+            musicService,
+            httpClientFactory
         );
         Result<ScriptExecutionOutcomeResult> executed = await executor.ExecuteAsync(
             request,

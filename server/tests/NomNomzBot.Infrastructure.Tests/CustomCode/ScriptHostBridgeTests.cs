@@ -8,12 +8,15 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Net;
+using System.Net.Http;
 using FluentAssertions;
 using NomNomzBot.Application.Abstractions.Transport;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Economy.Services;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Infrastructure.CustomCode;
+using NomNomzBot.Infrastructure.Sandbox;
 using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.CustomCode;
@@ -32,7 +35,8 @@ public sealed class ScriptHostBridgeTests
         ITwitchChatService? chat = null,
         ITwitchIdentityResolver? resolver = null,
         ICurrencyAccountService? currency = null,
-        IMusicService? music = null
+        IMusicService? music = null,
+        IHttpClientFactory? http = null
     ) =>
         new(
             Channel,
@@ -40,8 +44,20 @@ public sealed class ScriptHostBridgeTests
             chat ?? Substitute.For<ITwitchChatService>(),
             resolver ?? Substitute.For<ITwitchIdentityResolver>(),
             currency ?? Substitute.For<ICurrencyAccountService>(),
-            music ?? Substitute.For<IMusicService>()
+            music ?? Substitute.For<IMusicService>(),
+            http ?? Substitute.For<IHttpClientFactory>()
         );
+
+    private sealed class StubHandler(string body) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken
+        ) =>
+            Task.FromResult(
+                new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(body) }
+            );
+    }
 
     [Fact]
     public async Task Chat_send_dispatches_to_the_chat_transport_with_the_resolved_channel()
@@ -98,10 +114,38 @@ public sealed class ScriptHostBridgeTests
     }
 
     [Fact]
+    public void Http_fetch_returns_the_capped_response_body()
+    {
+        IHttpClientFactory factory = Substitute.For<IHttpClientFactory>();
+        factory
+            .CreateClient(EgressHttpClient.Name)
+            .Returns(new HttpClient(new StubHandler("hello from the web")));
+        ScriptHostBridge bridge = Build(http: factory);
+
+        bridge
+            .Resolve("http.fetch")(
+                "http.fetch",
+                ["https://example.com/data"],
+                CancellationToken.None
+            )
+            .Should()
+            .Be("hello from the web");
+    }
+
+    [Fact]
+    public void Http_fetch_rejects_a_non_https_url()
+    {
+        Build()
+            .Resolve("http.fetch")("http.fetch", ["http://example.com"], CancellationToken.None)
+            .Should()
+            .BeNull();
+    }
+
+    [Fact]
     public void A_granted_but_unwired_capability_is_a_noop()
     {
         Build()
-            .Resolve("http.fetch")("http.fetch", ["https://example.com"], CancellationToken.None)
+            .Resolve("moderation.timeout")("moderation.timeout", ["user"], CancellationToken.None)
             .Should()
             .BeNull();
     }
