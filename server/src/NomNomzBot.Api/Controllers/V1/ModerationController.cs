@@ -13,6 +13,7 @@ using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
@@ -45,6 +46,7 @@ public class ModerationController : BaseController
 
     // ─── Rules ───────────────────────────────────────────────────────────────
 
+    [RequireAction("moderation:filter:read")]
     [HttpGet("rules")]
     [ProducesResponseType<PaginatedResponse<ModerationRuleDetail>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> ListRules(
@@ -64,6 +66,7 @@ public class ModerationController : BaseController
         return GetPaginatedResponse(result.Value, request);
     }
 
+    [RequireAction("moderation:filter:write")]
     [HttpPost("rules")]
     [ProducesResponseType<StatusResponseDto<ModerationRuleDetail>>(StatusCodes.Status201Created)]
     public async Task<IActionResult> CreateRule(
@@ -91,6 +94,7 @@ public class ModerationController : BaseController
         );
     }
 
+    [RequireAction("moderation:filter:write")]
     [HttpPut("rules/{ruleId:int}")]
     [ProducesResponseType<StatusResponseDto<ModerationRuleDetail>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> UpdateRule(
@@ -111,6 +115,7 @@ public class ModerationController : BaseController
         return Ok(new StatusResponseDto<ModerationRuleDetail> { Data = result.Value });
     }
 
+    [RequireAction("moderation:filter:write")]
     [HttpDelete("rules/{ruleId:int}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> DeleteRule(string channelId, int ruleId, CancellationToken ct)
@@ -123,6 +128,7 @@ public class ModerationController : BaseController
 
     // ─── AutoMod Config ──────────────────────────────────────────────────────
 
+    [RequireAction("moderation:automod:read")]
     [HttpGet("automod")]
     [ProducesResponseType<StatusResponseDto<AutomodConfigDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetAutomodConfig(string channelId, CancellationToken ct)
@@ -134,6 +140,7 @@ public class ModerationController : BaseController
         return ResultResponse(result);
     }
 
+    [RequireAction("moderation:automod:write")]
     [HttpPost("automod")]
     [ProducesResponseType<StatusResponseDto<AutomodConfigDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> SaveAutomodConfig(
@@ -152,6 +159,7 @@ public class ModerationController : BaseController
 
     // ─── Bans ─────────────────────────────────────────────────────────────────
 
+    [RequireAction("moderation:read")]
     [HttpGet("bans")]
     [ProducesResponseType<StatusResponseDto<List<BannedUserDto>>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetBannedUsers(string channelId, CancellationToken ct)
@@ -163,6 +171,7 @@ public class ModerationController : BaseController
         return ResultResponse(result);
     }
 
+    [RequireAction("moderation:unban")]
     [HttpDelete("bans/{userId}")]
     [ProducesResponseType<StatusResponseDto<ModerationActionResult>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> UnbanUser(
@@ -181,6 +190,7 @@ public class ModerationController : BaseController
 
     // ─── Mod Log ─────────────────────────────────────────────────────────────
 
+    [RequireAction("moderation:action:read")]
     [HttpGet("log")]
     [ProducesResponseType<PaginatedResponse<ModLogEntryDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetModLog(
@@ -219,6 +229,7 @@ public class ModerationController : BaseController
 
     // ─── Shield Mode ─────────────────────────────────────────────────────────
 
+    [RequireAction("moderation:shieldmode:read")]
     [HttpGet("shield")]
     [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetShieldMode(string channelId, CancellationToken ct)
@@ -234,6 +245,7 @@ public class ModerationController : BaseController
         return Ok(new StatusResponseDto<object> { Data = new { enabled } });
     }
 
+    [RequireAction("moderation:shieldmode:write")]
     [HttpPatch("shield")]
     [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> SetShieldMode(
@@ -272,6 +284,7 @@ public class ModerationController : BaseController
 
     // ─── Blocked Terms ────────────────────────────────────────────────────────
 
+    [RequireAction("moderation:filter:read")]
     [HttpGet("blocked-terms")]
     [ProducesResponseType<StatusResponseDto<List<string>>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetBlockedTerms(string channelId, CancellationToken ct)
@@ -290,6 +303,7 @@ public class ModerationController : BaseController
         return Ok(new StatusResponseDto<List<string>> { Data = terms });
     }
 
+    [RequireAction("moderation:blocklist:write")]
     [HttpPost("blocked-terms")]
     [ProducesResponseType<StatusResponseDto<List<string>>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> AddBlockedTerm(
@@ -331,6 +345,7 @@ public class ModerationController : BaseController
         return Ok(new StatusResponseDto<List<string>> { Data = terms });
     }
 
+    [RequireAction("moderation:blocklist:write")]
     [HttpDelete("blocked-terms/{term}")]
     [ProducesResponseType<StatusResponseDto<List<string>>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> RemoveBlockedTerm(
@@ -360,6 +375,7 @@ public class ModerationController : BaseController
 
     // ─── Stats ────────────────────────────────────────────────────────────────
 
+    [RequireAction("moderation:read")]
     [HttpGet("stats")]
     [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetStats(string channelId, CancellationToken ct)
@@ -399,6 +415,7 @@ public class ModerationController : BaseController
 
     // ─── Actions ─────────────────────────────────────────────────────────────
 
+    [RequireAction("moderation:action:read")]
     [HttpGet("actions")]
     [ProducesResponseType<PaginatedResponse<ModerationActionResult>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> ListActions(
@@ -418,6 +435,7 @@ public class ModerationController : BaseController
         return GetPaginatedResponse(result.Value, request);
     }
 
+    [RequireAction("moderation:ban")]
     [HttpPost("actions")]
     [ProducesResponseType<StatusResponseDto<ModerationActionResult>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> PerformAction(
