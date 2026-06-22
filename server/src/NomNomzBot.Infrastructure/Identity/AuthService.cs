@@ -51,6 +51,9 @@ public sealed class AuthService : IAuthService
     private readonly ILogger<AuthService> _logger;
     private readonly string _baseUrl;
 
+    // Twitch user id of the account to promote to platform admin on login (§12 first-admin bootstrap).
+    private readonly string? _initialAdminTwitchId;
+
     private static readonly string[] RequiredScopes =
     [
         "user:read:email",
@@ -100,6 +103,7 @@ public sealed class AuthService : IAuthService
         _timeProvider = timeProvider;
         _logger = logger;
         _baseUrl = configuration["App:BaseUrl"] ?? "http://localhost:5080";
+        _initialAdminTwitchId = configuration["App:InitialAdminTwitchId"];
     }
 
     // ─── User OAuth ──────────────────────────────────────────────────────────
@@ -172,6 +176,24 @@ public sealed class AuthService : IAuthService
                 user.AccountCreatedAt = twitchUser.AccountCreatedAt; // immutable Twitch fact
         }
         user.LastSeenAt = _timeProvider.GetUtcNow().UtcDateTime;
+
+        // First-admin bootstrap (§12): a self-hoster sets App:InitialAdminTwitchId to their Twitch user id,
+        // and the matching account is promoted to platform principal on login — no raw SQL, idempotent.
+        if (
+            AdminBootstrap.ShouldPromote(
+                user.IsPlatformPrincipal,
+                _initialAdminTwitchId,
+                user.TwitchUserId
+            )
+        )
+        {
+            user.IsPlatformPrincipal = true;
+            _logger.LogInformation(
+                "Bootstrapped platform admin from App:InitialAdminTwitchId: {TwitchUserId}",
+                user.TwitchUserId
+            );
+        }
+
         await _db.SaveChangesAsync(cancellationToken);
 
         // Upsert the owning Channel (tenant root). A streamer's own channel = their Twitch user id.

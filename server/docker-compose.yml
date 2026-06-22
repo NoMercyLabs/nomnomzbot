@@ -27,6 +27,7 @@ services:
       - Jwt__Audience=${JWT_AUDIENCE:-nomnomzbot}
       - Encryption__Key=${ENCRYPTION_KEY}
       - App__BaseUrl=${API_BASE_URL:-http://localhost:5080}
+      - App__InitialAdminTwitchId=${INITIAL_ADMIN_TWITCH_ID:-}
       - Twitch__ClientId=${TWITCH_CLIENT_ID}
       - Twitch__ClientSecret=${TWITCH_CLIENT_SECRET}
       - Twitch__BotUsername=${TWITCH_BOT_USERNAME}

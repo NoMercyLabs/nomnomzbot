@@ -574,17 +574,15 @@ Add a dedicated `AdminAuditLogger` that writes admin actions to a separate log s
 
 ### Current State
 
-`User.IsAdmin` is a boolean column. It defaults to `false` on user creation. No API endpoint exists to set it — the only path is a direct database update: `UPDATE "Users" SET "IsAdmin" = true WHERE "Id" = '<twitch_id>'`.
-
-The `IsAdmin` flag is read during JWT generation and manifests as the `admin` role claim. Admin routes are gated with `[Authorize(Roles = "admin")]`.
+Platform-admin status is the `User.IsPlatformPrincipal` flag (it replaced the old `IsAdmin` boolean), sourced into the JWT and read by platform-plane authorization; finer platform IAM (principals, role assignments, with an `IamAuditLog`) is managed by `PlatformIamService`. Admin routes are gated with `[Authorize(Roles = "admin")]`.
 
 ### Gaps & Vulnerabilities
 
-**🟠 HIGH — No bootstrap mechanism for the first admin (self-hosted mode)**
-A self-hoster must manually run a raw SQL command to grant themselves admin access. This is undiscovered, fragile, and likely to be done wrong (e.g., disabling row security, using wrong ID format). There should be a `INITIAL_ADMIN_TWITCH_ID` environment variable that is promoted to admin on first startup.
+**🟢 RESOLVED — First admin bootstrapped from config, no raw SQL**
+A self-hoster sets `App:InitialAdminTwitchId` (env `INITIAL_ADMIN_TWITCH_ID`, documented in `.env.example`) to their Twitch **user id**. On that account's next login, `AdminBootstrap.ShouldPromote` (pure, unit-tested: opt-in, exact-match, idempotent) promotes it to platform principal. No `UPDATE … SET IsPlatformPrincipal` by hand.
 
-**🟡 MEDIUM — No admin management UI**
-Admins cannot revoke other admins or view who has admin access. In hosted mode, this is a gap in the incident response playbook (how do you demote a compromised admin account?).
+**🟢 RESOLVED — Admin/IAM management exists at the service layer**
+`PlatformIamService` exposes resolve / create-principal / assign-role / revoke-assignment, each writing an `IamAuditLog` row, so admins can be listed and demoted programmatically (and an erased/compromised admin is revocable). The operator-facing surface for these operations is the KMP dashboard (the frontend phase), not a bespoke server-rendered UI.
 
 ### Recommendations
 
@@ -749,11 +747,11 @@ These must be resolved before the hosted version handles any real user data. Lis
 **Issue:** Full API schema publicly browsable in production.
 **Resolution:** Registered only in Development, or in production behind opt-in `Api:ExposeDocs=true`. See §9.
 
-### 10. Add bootstrap admin mechanism (🟠 HIGH)
+### 10. Add bootstrap admin mechanism (🟢 RESOLVED)
 
-**File:** `DataSeeder.cs`
-**Issue:** No path exists for a self-hoster to grant themselves admin without raw SQL.
-**Fix:** `APP__INITIAL_ADMIN_TWITCH_ID` env var processed at seeder startup. See §12 Fix 1.
+**File:** `AuthService.HandleTwitchCallbackAsync` → `AdminBootstrap.ShouldPromote`
+**Issue:** No path existed for a self-hoster to grant themselves admin without raw SQL.
+**Resolution:** `App:InitialAdminTwitchId` (env `INITIAL_ADMIN_TWITCH_ID`) promotes the matching account to platform principal on login — opt-in, exact-match, idempotent, unit-tested. See §12.
 
 ---
 
@@ -774,7 +772,7 @@ These must be resolved before the hosted version handles any real user data. Lis
 | 11 | API container non-root | 🟢 | 🟢 | RESOLVED |
 | 12 | Host filtering from App:BaseUrl | 🟢 | 🟢 | RESOLVED |
 | 13 | Scalar/OpenAPI gated out of prod | 🟢 | 🟢 | RESOLVED |
-| 14 | No bootstrap admin path | N/A | 🟠 | HIGH |
+| 14 | First admin bootstrapped from config | N/A | 🟢 | RESOLVED |
 | 15 | Rate limiter keys real client IP | 🟢 | 🟢 | RESOLVED |
 | 16 | Unsigned channel-bot state | 🟠 | 🟠 | HIGH |
 | 17 | XSS in stored commands | 🟡 | 🟡 | MEDIUM |
