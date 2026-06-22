@@ -60,8 +60,14 @@
   <ItemGroup Label="Health">
     <PackageVersion Include="AspNetCore.HealthChecks.NpgSql" Version="9.0.0" />
   </ItemGroup>
-  <ItemGroup Label="SignalR">
-    <PackageVersion Include="Microsoft.AspNetCore.SignalR.Protocols.MessagePack" Version="10.0.8" />
+  <!-- SQLitePCLRaw native bundle: the 2.1.11 transitively pulled by Microsoft.Data.Sqlite / EFCore.Sqlite
+       carries GHSA-2m69-gcr7-jv3q (high). Pin the whole family to the patched 3.50.x line; transitive pinning
+       (CentralPackageTransitivePinningEnabled in Directory.Build.props) applies it without an explicit ref. -->
+  <ItemGroup Label="SQLite native (CVE-patched transitive pin)">
+    <PackageVersion Include="SQLitePCLRaw.core" Version="3.0.3" />
+    <PackageVersion Include="SQLitePCLRaw.lib.e_sqlite3" Version="3.50.3" />
+    <PackageVersion Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.3" />
+    <PackageVersion Include="SQLitePCLRaw.provider.e_sqlite3" Version="3.0.3" />
   </ItemGroup>
   <ItemGroup Label="Testing">
     <PackageVersion Include="coverlet.collector" Version="10.0.0" />

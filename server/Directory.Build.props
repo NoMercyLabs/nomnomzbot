@@ -4,6 +4,10 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
     <LangVersion>latest</LangVersion>
+    <!-- Warnings are errors across the whole solution: compiler, analyzer, and NuGet (incl. the NU1903
+         vulnerability audit) warnings all fail the build, keeping it clean. -->
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
 </Project>

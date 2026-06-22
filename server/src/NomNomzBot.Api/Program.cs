@@ -97,17 +97,15 @@ try
         .AddMvc();
 
     // SignalR
-    builder
-        .Services.AddSignalR(options =>
-        {
-            options.EnableDetailedErrors = builder.Environment.IsDevelopment();
-            options.MaximumReceiveMessageSize = 128 * 1024;
-            options.KeepAliveInterval = TimeSpan.FromSeconds(15);
-            options.ClientTimeoutInterval = TimeSpan.FromSeconds(60);
-            options.HandshakeTimeout = TimeSpan.FromSeconds(15);
-            options.StatefulReconnectBufferSize = 100_000;
-        })
-        .AddMessagePackProtocol();
+    builder.Services.AddSignalR(options =>
+    {
+        options.EnableDetailedErrors = builder.Environment.IsDevelopment();
+        options.MaximumReceiveMessageSize = 128 * 1024;
+        options.KeepAliveInterval = TimeSpan.FromSeconds(15);
+        options.ClientTimeoutInterval = TimeSpan.FromSeconds(60);
+        options.HandshakeTimeout = TimeSpan.FromSeconds(15);
+        options.StatefulReconnectBufferSize = 100_000;
+    });
 
     // Hub notifiers
     builder.Services.AddScoped<IDashboardNotifier, DashboardNotifier>();
@@ -213,24 +211,15 @@ try
         {
             // An explicit trust list replaces the framework defaults entirely.
             options.KnownProxies.Clear();
-            options.KnownNetworks.Clear();
+            options.KnownIPNetworks.Clear();
 
             foreach (string proxy in knownProxies)
                 if (System.Net.IPAddress.TryParse(proxy, out System.Net.IPAddress? ip))
                     options.KnownProxies.Add(ip);
 
             foreach (string network in knownNetworks)
-            {
-                string[] parts = network.Split('/', 2);
-                if (
-                    parts.Length == 2
-                    && System.Net.IPAddress.TryParse(parts[0], out System.Net.IPAddress? prefix)
-                    && int.TryParse(parts[1], out int prefixLength)
-                )
-                    options.KnownNetworks.Add(
-                        new Microsoft.AspNetCore.HttpOverrides.IPNetwork(prefix, prefixLength)
-                    );
-            }
+                if (System.Net.IPNetwork.TryParse(network, out System.Net.IPNetwork parsed))
+                    options.KnownIPNetworks.Add(parsed);
         }
         // Otherwise keep the framework default (loopback only): a direct caller cannot spoof X-Forwarded-For.
     });
