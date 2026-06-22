@@ -102,14 +102,16 @@ Add a `dotnet run --project NomNomzBot.Api -- rotate-key --old-key <> --new-key 
 
 ### Current State
 
+> **Rebuilt to a session model.** The auth layer no longer issues stateless refresh JWTs. It uses a
+> DB-backed session store (`AuthSession` + `RefreshToken`): the **access token** is a short-lived signed
+> JWT; the **refresh token** is an opaque random string stored only as a SHA-256 hash, rotated single-use
+> with reuse detection, and revocable per-session or per-user. The points below describe the access JWT.
+
 - Algorithm: HMAC-SHA256 (`SecurityAlgorithms.HmacSha256`) — correct
 - Access token expiry: 60 minutes (configurable via `Jwt:ExpiryMinutes`)
-- Refresh token expiry: 7 days (configurable via `Jwt:RefreshExpiryDays`)
-- Both access and refresh tokens are signed with the **same** key (`_key`)
 - Token validation: issuer ✅, audience ✅, lifetime ✅, signature ✅, clock skew 1 min ✅
 - JTI claim included in every token ✅
-- Refresh tokens carry a `refresh` role claim so they cannot be used as access tokens ✅
-- Default secret in `appsettings.json`: `dev-secret-key-at-least-32-characters-long!!`
+- Default secret in `appsettings.json`: `dev-secret-key-at-least-32-characters-long!!` — **boot-blocked in production** (§2 startup guard)
 - Default secret in `docker-compose.yml`: same string, passed via `JWT_SECRET` env var fallback
 
 ### Gaps & Vulnerabilities
@@ -117,14 +119,14 @@ Add a `dotnet run --project NomNomzBot.Api -- rotate-key --old-key <> --new-key 
 **🟢 RESOLVED — Production refuses to boot with default secrets**
 `StartupSecretGuard.Validate` (called in `Program.cs` before authentication is wired) throws in any non-Development environment when `Jwt:Secret` is a known bundled default or shorter than 32 chars, or when `Encryption:Key` is still the committed development key. A misconfigured production deploy now fails fast instead of silently running with a forgeable signing key. The guard is pure and unit-tested (`StartupSecretGuardTests`).
 
-**🟠 HIGH — No refresh token revocation**
-Refresh tokens are stateless JWTs with a 7-day lifetime. There is no token blacklist, no Redis-backed revocation store, and no `jti` tracking. A stolen refresh token grants the attacker a continuous 7-day re-authentication window with no way to terminate the session short of changing the JWT secret (which invalidates all active sessions platform-wide).
+**🟢 RESOLVED — Refresh tokens are server-side, revocable, and single-use**
+The auth layer was rebuilt onto a DB-backed session store (`AuthSession` + `RefreshToken`). Refresh tokens are opaque random strings stored only as a SHA-256 hash; `RotateAsync` consumes one and issues a successor linked via `PreviousTokenHash`, and **presenting an already-consumed token is detected as reuse**. `RevokeSessionAsync` / `RevokeAllForUserAsync` terminate a session (or all of a user's) immediately — no JWT-secret rotation needed.
 
-**🟠 HIGH — Access and refresh tokens share the same signing key**
-If the signing key is ever compromised, an attacker can forge both access tokens and refresh tokens. A separate key for refresh tokens allows rotating the access key without invalidating refresh tokens (or vice versa).
+**🟢 RESOLVED — Access and refresh tokens no longer share a key**
+The refresh token is not a JWT and is signed with no key — it is an opaque, hash-stored server-side credential. Only the short-lived access token is a signed JWT. Compromising the JWT signing key cannot forge refresh tokens.
 
-**🟡 MEDIUM — `AuthResultDto` expires hardcoded to `DateTime.UtcNow.AddHours(1)`**
-The expiry returned to the client in `HandleTwitchCallbackAsync` and `RefreshTokenAsync` is hardcoded to 1 hour, but the actual token is created with the configurable `Jwt:ExpiryMinutes`. If that setting is changed, the client receives stale expiry information and may not refresh in time (or refresh too eagerly).
+**🟢 RESOLVED — Accurate expiry returned to the client**
+`BuildAuthResult` returns `session.AccessExpiresAt` (the session's real access-token expiry), not a hardcoded hour, for both `HandleTwitchCallbackAsync` and `RefreshTokenAsync`.
 
 ### Recommendations
 
@@ -765,7 +767,7 @@ These must be resolved before the hosted version handles any real user data. Lis
 | 4 | Adminer dev-override only | 🟢 | 🟢 | RESOLVED |
 | 5 | Per-subject DEK (was shared key) | 🟢 | 🟢 | RESOLVED |
 | 6 | Authenticated envelope (was AES-CBC) | 🟢 | 🟢 | RESOLVED |
-| 7 | JWT refresh token no revocation | 🟠 | 🟠 | HIGH |
+| 7 | Refresh tokens revocable + single-use | 🟢 | 🟢 | RESOLVED |
 | 8 | OAuth state not validated (CSRF) | 🟠 | 🟠 | HIGH |
 | 9 | Redis password-protected | 🟢 | 🟢 | RESOLVED |
 | 10 | DB/Redis ports loopback-bound | 🟢 | 🟢 | RESOLVED |
@@ -780,10 +782,10 @@ These must be resolved before the hosted version handles any real user data. Lis
 | 19 | No cross-tenant access tests | 🟡 | N/A | MEDIUM |
 | 20 | Log file retention unbounded | 🟡 | 🟡 | MEDIUM |
 | 21 | No GDPR export/delete | 🟡 | 🟡 | MEDIUM |
-| 22 | JWT/refresh share signing key | 🟡 | 🟡 | MEDIUM |
+| 22 | Refresh token opaque (no shared key) | 🟢 | 🟢 | RESOLVED |
 | 23 | Non-destructive key rotation | 🟢 | 🟢 | RESOLVED |
 | 24 | Security headers present | 🟢 | 🟢 | RESOLVED |
 | 25 | HTTPS not enforced/documented | 🟡 | 🟠 | MEDIUM |
 | 26 | No audit log | 🟢 | 🟢 | LOW |
 | 27 | Sliding-window rate limiter | 🟢 | 🟢 | RESOLVED |
-| 28 | JWT expiry hardcoded in response | 🟢 | 🟢 | LOW |
+| 28 | Accurate expiry returned to client | 🟢 | 🟢 | RESOLVED |
