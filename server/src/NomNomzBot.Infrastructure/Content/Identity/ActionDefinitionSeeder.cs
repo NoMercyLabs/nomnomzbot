@@ -115,6 +115,12 @@ public sealed class ActionDefinitionSeeder : ISeeder
         M("discord:optin:write", SuperMod, grant: false);
         M("discord:dispatch:read", Mod, grant: false);
 
+        // Bot identity — per-channel white-label bot connect/status/disconnect (identity-auth §5). Connecting
+        // or severing a bot identity is owner-level and not permit-delegable; reading status is.
+        M("channelbot:connect", Broadcaster, grant: false);
+        M("channelbot:read", Broadcaster);
+        M("channelbot:disconnect", Broadcaster, grant: false);
+
         // Moderation
         M("moderation:read", Mod);
         M("moderation:queue:read", Mod);

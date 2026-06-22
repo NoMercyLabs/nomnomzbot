@@ -12,10 +12,12 @@ using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
+using NomNomzBot.Application.Integrations.Dtos;
 
 namespace NomNomzBot.Api.Controllers.V1;
 
@@ -203,6 +205,7 @@ public class ChannelBotController : BaseController
     /// <summary>Returns OAuth scopes status for the broadcaster token on this channel.</summary>
     [HttpGet("{channelId}/scopes")]
     [Authorize]
+    [RequireAction("channelbot:read")]
     [ProducesResponseType<StatusResponseDto<ScopesResponseDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetScopes(string channelId, CancellationToken ct)
     {
@@ -241,11 +244,15 @@ public class ChannelBotController : BaseController
     }
 
     /// <summary>
-    /// Start Twitch OAuth for this channel's white-label bot.
-    /// Opens Twitch with force_verify=true so the streamer can log in as their bot account.
+    /// Start Twitch OAuth for this channel's white-label bot — an additional bot-identity registration on top
+    /// of the owner's account (not a login), handled like an integration connect. Gated owner-level
+    /// (identity-auth §5, <c>management/Broadcaster · channelbot:connect</c>). Returns the Twitch authorize URL
+    /// (force_verify) for the client to open; the callback completes via the unified, nonce-validated
+    /// <c>/auth/twitch/callback</c>.
     /// </summary>
     [HttpGet("{channelId}/bot/connect")]
-    [AllowAnonymous]
+    [Authorize]
+    [RequireAction("channelbot:connect")]
     [EnableRateLimiting("auth")]
     public async Task<IActionResult> StartChannelBotOAuth(string channelId, CancellationToken ct)
     {
@@ -265,12 +272,15 @@ public class ChannelBotController : BaseController
             baseUrl: GetPublicBaseUrl(),
             cancellationToken: ct
         );
-        return Redirect(authUrl);
+        return Ok(
+            new StatusResponseDto<OAuthStartDto> { Data = new OAuthStartDto(authUrl, state) }
+        );
     }
 
     /// <summary>Get white-label bot status for a specific channel.</summary>
     [HttpGet("{channelId}/bot/status")]
     [Authorize]
+    [RequireAction("channelbot:read")]
     public async Task<IActionResult> GetChannelBotStatus(string channelId, CancellationToken ct)
     {
         if (!Guid.TryParse(channelId, out Guid tenantId))
@@ -283,6 +293,7 @@ public class ChannelBotController : BaseController
     /// <summary>Disconnect the white-label bot for a specific channel.</summary>
     [HttpDelete("{channelId}/bot")]
     [Authorize]
+    [RequireAction("channelbot:disconnect")]
     public async Task<IActionResult> DisconnectChannelBot(string channelId, CancellationToken ct)
     {
         if (!Guid.TryParse(channelId, out Guid tenantId))

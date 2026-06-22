@@ -18,6 +18,7 @@ using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
+using NomNomzBot.Application.Integrations.Dtos;
 
 namespace NomNomzBot.Api.Controllers.V1;
 
@@ -382,12 +383,14 @@ public class AuthController : BaseController
     // ── Bot account OAuth ─────────────────────────────────────────────────────
 
     /// <summary>
-    /// Start the Twitch OAuth flow for the bot account.
-    /// The authenticated user authorizes a SECOND Twitch account (the bot) with chat scopes.
-    /// The resulting token is stored globally (no per-channel binding) as "twitch_bot".
+    /// Start the OAuth flow for the platform-shared bot account. This is a platform-level registration on top
+    /// of the operator's account (not a login), so it is admin-gated (identity-auth §5, <c>platform · iam:manage</c>,
+    /// enforced via the live <c>admin</c> role). Returns the Twitch authorize URL for the client to open —
+    /// the resulting token is stored globally (no per-channel binding). First-run setup uses the wizard's
+    /// <c>system/setup/bot/oauth-url</c> instead (before an admin exists).
     /// </summary>
     [HttpGet("twitch/bot")]
-    [AllowAnonymous]
+    [Authorize(Roles = "admin")]
     [EnableRateLimiting("auth")]
     public async Task<IActionResult> StartBotOAuth(
         [FromQuery] string? redirect_uri,
@@ -403,21 +406,23 @@ public class AuthController : BaseController
         );
 
         string authUrl = await _authService.GetTwitchBotOAuthUrl(state, GetPublicBaseUrl(), ct);
-        return Redirect(authUrl);
+        return Ok(
+            new StatusResponseDto<OAuthStartDto> { Data = new OAuthStartDto(authUrl, state) }
+        );
     }
 
-    /// <summary>Get the current bot account connection status.</summary>
+    /// <summary>Get the current platform-shared bot account connection status (admin-only).</summary>
     [HttpGet("twitch/bot/status")]
-    [Authorize]
+    [Authorize(Roles = "admin")]
     public async Task<IActionResult> GetBotStatus(CancellationToken ct)
     {
         Result<BotStatusDto> result = await _authService.GetBotStatusAsync(ct);
         return ResultResponse(result);
     }
 
-    /// <summary>Disconnect the bot account, revoking its Twitch token.</summary>
+    /// <summary>Disconnect the platform-shared bot account, revoking its Twitch token (admin-only).</summary>
     [HttpDelete("twitch/bot")]
-    [Authorize]
+    [Authorize(Roles = "admin")]
     public async Task<IActionResult> DisconnectBot(CancellationToken ct)
     {
         Result result = await _authService.DisconnectBotAsync(ct);
