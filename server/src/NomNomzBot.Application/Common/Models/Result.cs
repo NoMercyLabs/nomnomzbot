@@ -29,7 +29,7 @@ public class Result
     public static Result Success() => new(true, null, null, null);
 
     public static Result Failure(
-        string errorMessage,
+        string? errorMessage,
         string? errorCode = null,
         string? errorDetail = null
     ) => new(false, errorMessage, errorDetail, errorCode);
@@ -37,7 +37,7 @@ public class Result
     public static Result<T> Success<T>(T value) => Result<T>.Success(value);
 
     public static Result<T> Failure<T>(
-        string errorMessage,
+        string? errorMessage,
         string? errorCode = null,
         string? errorDetail = null
     ) => Result<T>.Failure(errorMessage, errorCode, errorDetail);
@@ -74,7 +74,7 @@ public class Result<T> : Result
     public static Result<T> Success(T value) => new(true, value, null, null, null);
 
     public static new Result<T> Failure(
-        string errorMessage,
+        string? errorMessage,
         string? errorCode = null,
         string? errorDetail = null
     ) => new(false, default, errorMessage, errorDetail, errorCode);
