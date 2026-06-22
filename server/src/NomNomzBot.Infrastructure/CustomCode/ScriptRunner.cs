@@ -14,6 +14,7 @@ using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Transport;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.CustomCode;
+using NomNomzBot.Application.Economy.Services;
 using NomNomzBot.Domain.CustomCode.Entities;
 using NomNomzBot.Domain.CustomCode.Enums;
 
@@ -33,6 +34,7 @@ public sealed class ScriptRunner(
     IScriptExecutionMeter meter,
     ITwitchChatService chatService,
     ITwitchIdentityResolver identityResolver,
+    ICurrencyAccountService currencyService,
     TimeProvider clock
 ) : IScriptRunner
 {
@@ -119,7 +121,13 @@ public sealed class ScriptRunner(
             );
         }
 
-        ScriptHostBridge bridge = new(script.BroadcasterId, chatService, identityResolver);
+        ScriptHostBridge bridge = new(
+            script.BroadcasterId,
+            invocation.TriggeredByUserId,
+            chatService,
+            identityResolver,
+            currencyService
+        );
         Result<ScriptExecutionOutcomeResult> executed = await executor.ExecuteAsync(
             request,
             grantResult.Value,

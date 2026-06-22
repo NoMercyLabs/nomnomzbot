@@ -10,19 +10,35 @@
 
 using FluentAssertions;
 using NomNomzBot.Application.Abstractions.Transport;
+using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Economy.Services;
 using NomNomzBot.Infrastructure.CustomCode;
 using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.CustomCode;
 
 /// <summary>
-/// Proves the per-execution host bridge (custom-code.md §3.1/§6.2): the granted chat.send capability dispatches to
-/// the channel's chat transport with the host-resolved Twitch channel id (the guest only ever holds the Guid); a
-/// granted-but-unwired capability resolves to a no-op.
+/// Proves the per-execution host bridge (custom-code.md §3.1/§6.2): chat.send dispatches to the channel's chat
+/// transport with the host-resolved Twitch channel id (the guest only holds the Guid); economy.read reads the
+/// channel ledger for the trigger user; a granted-but-unwired capability resolves to a no-op.
 /// </summary>
 public sealed class ScriptHostBridgeTests
 {
     private static readonly Guid Channel = Guid.Parse("0192a000-0000-7000-8000-00000000e001");
+    private static readonly Guid Viewer = Guid.Parse("0192a000-0000-7000-8000-00000000e0a2");
+
+    private static ScriptHostBridge Build(
+        ITwitchChatService? chat = null,
+        ITwitchIdentityResolver? resolver = null,
+        ICurrencyAccountService? currency = null
+    ) =>
+        new(
+            Channel,
+            Viewer.ToString(),
+            chat ?? Substitute.For<ITwitchChatService>(),
+            resolver ?? Substitute.For<ITwitchIdentityResolver>(),
+            currency ?? Substitute.For<ICurrencyAccountService>()
+        );
 
     [Fact]
     public async Task Chat_send_dispatches_to_the_chat_transport_with_the_resolved_channel()
@@ -30,7 +46,7 @@ public sealed class ScriptHostBridgeTests
         ITwitchChatService chat = Substitute.For<ITwitchChatService>();
         ITwitchIdentityResolver resolver = Substitute.For<ITwitchIdentityResolver>();
         resolver.GetTwitchChannelIdAsync(Channel, Arg.Any<CancellationToken>()).Returns("chan123");
-        ScriptHostBridge bridge = new(Channel, chat, resolver);
+        ScriptHostBridge bridge = Build(chat, resolver);
 
         string? result = bridge.Resolve("chat.send")(
             "chat.send",
@@ -44,15 +60,24 @@ public sealed class ScriptHostBridgeTests
     }
 
     [Fact]
-    public void A_granted_but_unwired_capability_is_a_noop()
+    public void Economy_read_returns_the_trigger_users_balance()
     {
-        ScriptHostBridge bridge = new(
-            Channel,
-            Substitute.For<ITwitchChatService>(),
-            Substitute.For<ITwitchIdentityResolver>()
-        );
+        ICurrencyAccountService currency = Substitute.For<ICurrencyAccountService>();
+        currency
+            .GetBalanceAsync(Channel, Viewer, Arg.Any<CancellationToken>())
+            .Returns(Result.Success(500L));
+        ScriptHostBridge bridge = Build(currency: currency);
 
         bridge
+            .Resolve("economy.read")("economy.read", [], CancellationToken.None)
+            .Should()
+            .Be("500");
+    }
+
+    [Fact]
+    public void A_granted_but_unwired_capability_is_a_noop()
+    {
+        Build()
             .Resolve("music.queue")("music.queue", ["a song"], CancellationToken.None)
             .Should()
             .BeNull();

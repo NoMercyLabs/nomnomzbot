@@ -63,6 +63,7 @@ public sealed class ScriptRunnerTests
                 meter,
                 Substitute.For<NomNomzBot.Application.Abstractions.Transport.ITwitchChatService>(),
                 Substitute.For<NomNomzBot.Application.Abstractions.Transport.ITwitchIdentityResolver>(),
+                Substitute.For<NomNomzBot.Application.Economy.Services.ICurrencyAccountService>(),
                 new FakeTimeProvider(Now)
             ),
             db

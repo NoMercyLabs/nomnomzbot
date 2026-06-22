@@ -9,7 +9,9 @@
 // -----------------------------------------------------------------------------
 
 using NomNomzBot.Application.Abstractions.Transport;
+using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.CustomCode;
+using NomNomzBot.Application.Economy.Services;
 
 namespace NomNomzBot.Infrastructure.CustomCode;
 
@@ -17,22 +19,44 @@ namespace NomNomzBot.Infrastructure.CustomCode;
 /// The per-execution host-dispatch bridge (custom-code.md §3.1/§6.2) — the only path from a granted <c>bot.*</c>
 /// import to host code. Bound to exactly one <c>BroadcasterId</c> (host-side; never readable by the guest); each
 /// resolved delegate is primitive-in / primitive-out and tenant-scoped to that channel. <c>chat.send</c>/
-/// <c>chat.reply</c> are wired to the channel's chat transport (the bot token lives host-side, never in the guest).
-/// (Deferred — documented: music.queue / http.fetch / economy.read dispatch; those granted caps currently no-op
-/// until wired — the grant still gates whether the script may call them at all.)
+/// <c>chat.reply</c> dispatch to the channel's chat transport (bot token host-side, never in the guest);
+/// <c>economy.read</c> reads this channel's ledger via the RLS-scoped service. (Deferred — documented: music.queue
+/// / http.fetch dispatch; those granted caps currently no-op until wired — the grant still gates access.)
 /// </summary>
 public sealed class ScriptHostBridge(
     Guid broadcasterId,
+    string triggeringUserId,
     ITwitchChatService chatService,
-    ITwitchIdentityResolver identityResolver
+    ITwitchIdentityResolver identityResolver,
+    ICurrencyAccountService currencyService
 ) : IScriptHostBridge
 {
     public HostImportDelegate Resolve(string capabilityKey) =>
         capabilityKey switch
         {
             "chat.send" or "chat.reply" => SendChat,
+            "economy.read" => ReadBalance,
             _ => static (_, _, _) => null, // granted-but-unwired caps no-op; the grant already gated access
         };
+
+    private string? ReadBalance(
+        string capabilityKey,
+        IReadOnlyList<string> args,
+        CancellationToken ct
+    )
+    {
+        // The optional userId arg names a viewer of THIS channel; default to the trigger user (host-validated).
+        string subject =
+            args.Count > 0 && !string.IsNullOrWhiteSpace(args[0]) ? args[0] : triggeringUserId;
+        if (!Guid.TryParse(subject, out Guid viewerUserId))
+            return "0";
+
+        Result<long> balance = currencyService
+            .GetBalanceAsync(broadcasterId, viewerUserId, ct)
+            .GetAwaiter()
+            .GetResult();
+        return balance.IsSuccess ? balance.Value.ToString() : "0";
+    }
 
     private string? SendChat(string capabilityKey, IReadOnlyList<string> args, CancellationToken ct)
     {
