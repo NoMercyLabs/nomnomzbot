@@ -139,6 +139,26 @@ public static class DependencyInjection
         // Music providers (scoped — multi-binding consumed as IEnumerable<IMusicProvider>).
         services.AddImplementationsOf<IMusicProvider>(infrastructure, ServiceLifetime.Scoped);
 
+        // Third-party emote providers (singleton — stateless HTTP-fetch adapters, multi-bound + registry-indexed).
+        services.AddImplementationsOf<NomNomzBot.Application.Chat.Services.IThirdPartyEmoteProvider>(
+            infrastructure,
+            ServiceLifetime.Singleton
+        );
+        services.AddSingleton<
+            NomNomzBot.Application.Chat.Services.IThirdPartyEmoteProviderRegistry,
+            NomNomzBot.Infrastructure.Chat.ThirdPartyEmoteProviderRegistry
+        >();
+        services.AddHttpClient(
+            NomNomzBot.Infrastructure.Chat.ChatEmoteHttpClient.Name,
+            client =>
+            {
+                client.Timeout = TimeSpan.FromSeconds(10);
+                client.DefaultRequestHeaders.UserAgent.ParseAdd(
+                    NomNomzBot.Infrastructure.Chat.ChatEmoteHttpClient.UserAgent
+                );
+            }
+        );
+
         // Webhook HMAC primitives (stateless; not name-convention "*Service", so registered explicitly).
         services.AddSingleton<
             NomNomzBot.Application.Contracts.Webhooks.IInboundSignatureVerifier,
