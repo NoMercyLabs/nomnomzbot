@@ -9,25 +9,21 @@
 // -----------------------------------------------------------------------------
 
 using Microsoft.EntityFrameworkCore;
-using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.EventStore;
-using NomNomzBot.Application.Identity.Dtos;
-using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Analytics.Entities;
 
 namespace NomNomzBot.Infrastructure.Analytics;
 
 /// <summary>
 /// Folds the journal into the per-viewer-per-channel profile (analytics.md §3.1, schema M.1 — the anonymization
-/// anchor). A viewer IS a non-setup User ([[viewer-identity-is-user]]): the projection get-or-creates the Users row
-/// via <see cref="IUserService.GetOrCreateAsync"/> so a rebuild re-materializes viewer identities (replay-safe),
-/// then upserts the profile keyed on (broadcaster, viewer). PII snapshots come from the journal payload, so a
-/// GDPR-scrubbed payload re-projects anonymized. Folds chat today; extends to the other activity events next.
+/// anchor). Resolves the viewer-as-User + the profile anchor via the shared <see cref="ViewerResolver"/>
+/// ([[viewer-identity-is-user]]), then folds the aggregates it owns. PII snapshots come from the journal payload,
+/// so a GDPR-scrubbed payload re-projects anonymized. Folds chat today; extends to the other activity events next.
 /// </summary>
-public sealed class ViewerProfileProjection(IApplicationDbContext db, IUserService userService)
+public sealed class ViewerProfileProjection(IApplicationDbContext db, ViewerResolver resolver)
     : IProjection
 {
     private static readonly HashSet<string> Subscribed = new(StringComparer.Ordinal)
@@ -47,44 +43,30 @@ public sealed class ViewerProfileProjection(IApplicationDbContext db, IUserServi
         if (@event.BroadcasterId is not Guid broadcasterId)
             return Result.Success();
 
-        JObject payload;
-        try
-        {
-            payload = JObject.Parse(@event.PayloadJson);
-        }
-        catch (JsonException)
-        {
+        JObject? payload = ViewerResolver.TryParse(@event.PayloadJson);
+        if (payload is null)
             return Result.Success();
-        }
-
-        string? twitchUserId = payload["UserId"]?.Value<string>();
-        if (string.IsNullOrEmpty(twitchUserId))
-            return Result.Success();
-        string login = payload["UserLogin"]?.Value<string>() ?? twitchUserId;
-        string display = payload["UserDisplayName"]?.Value<string>() ?? login;
-        bool isSubscriber = payload["IsSubscriber"]?.Value<bool?>() ?? false;
-
-        Result<UserDto> user = await userService.GetOrCreateAsync(
-            twitchUserId,
-            login,
-            display,
-            cancellationToken
-        );
-        if (user.IsFailure || !Guid.TryParse(user.Value.Id, out Guid viewerUserId))
+        (string TwitchUserId, string Login, string Display)? identity =
+            ViewerResolver.ParseChatIdentity(payload);
+        if (identity is null)
             return Result.Success();
 
-        ViewerProfile profile = await GetOrCreateAsync(
+        ViewerProfile? profile = await resolver.ResolveAsync(
             broadcasterId,
-            viewerUserId,
-            twitchUserId,
+            identity.Value.TwitchUserId,
+            identity.Value.Login,
+            identity.Value.Display,
             cancellationToken
         );
-        profile.UsernameSnapshot = login;
-        profile.DisplayNameSnapshot = display;
+        if (profile is null)
+            return Result.Success();
+
+        profile.UsernameSnapshot = identity.Value.Login;
+        profile.DisplayNameSnapshot = identity.Value.Display;
         profile.FirstSeenAt ??= @event.OccurredAt;
         profile.LastSeenAt = @event.OccurredAt;
         profile.TotalMessages++;
-        profile.IsSubscriber = isSubscriber;
+        profile.IsSubscriber = payload["IsSubscriber"]?.Value<bool?>() ?? false;
 
         await db.SaveChangesAsync(cancellationToken);
         return Result.Success();
@@ -117,29 +99,5 @@ public sealed class ViewerProfileProjection(IApplicationDbContext db, IUserServi
         }
         await db.SaveChangesAsync(cancellationToken);
         return Result.Success();
-    }
-
-    private async Task<ViewerProfile> GetOrCreateAsync(
-        Guid broadcasterId,
-        Guid viewerUserId,
-        string twitchUserId,
-        CancellationToken ct
-    )
-    {
-        ViewerProfile? profile = await db.ViewerProfiles.FirstOrDefaultAsync(
-            p => p.BroadcasterId == broadcasterId && p.ViewerUserId == viewerUserId,
-            ct
-        );
-        if (profile is null)
-        {
-            profile = new ViewerProfile
-            {
-                BroadcasterId = broadcasterId,
-                ViewerUserId = viewerUserId,
-                ViewerTwitchUserId = twitchUserId,
-            };
-            db.ViewerProfiles.Add(profile);
-        }
-        return profile;
     }
 }

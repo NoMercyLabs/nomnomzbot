@@ -39,7 +39,7 @@ public sealed class ViewerProfileProjectionTests
         AuthDbContext db = AuthTestBuilder.NewContext();
         ICurrentUserService currentUser = Substitute.For<ICurrentUserService>();
         IUserService userService = new UserService(db, currentUser);
-        return (new ViewerProfileProjection(db, userService), db);
+        return (new ViewerProfileProjection(db, new ViewerResolver(db, userService)), db);
     }
 
     private static EventRecord Chat(

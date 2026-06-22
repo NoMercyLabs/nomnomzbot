@@ -183,6 +183,9 @@ public static class DependencyInjection
         services.AddScoped<NomNomzBot.Infrastructure.Webhooks.WebhookRetryProcessor>();
         services.AddHostedService<NomNomzBot.Infrastructure.BackgroundServices.WebhookDeliveryWorker>();
 
+        // Analytics — the shared viewer-as-User resolver the per-viewer projections fold through.
+        services.AddScoped<NomNomzBot.Infrastructure.Analytics.ViewerResolver>();
+
         // Event store — projections, post-commit hooks, and upcasters are pluggable multi-bindings discovered
         // by convention (drop a file → it is live next boot), mirroring ICommandAction. Projections + hooks
         // touch the DbContext (scoped); upcasters are pure/stateless (singleton).
