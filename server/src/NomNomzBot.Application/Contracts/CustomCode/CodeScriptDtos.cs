@@ -18,6 +18,9 @@ public sealed record CreateCodeScriptRequest(string Name, string? Description, s
 /// <summary>Append a new immutable version; <c>Publish</c> = save-and-swap on valid (custom-code.md §4).</summary>
 public sealed record CreateCodeScriptVersionRequest(string SourceCode, bool Publish);
 
+/// <summary>Toggle a script's enabled state (custom-code.md §5).</summary>
+public sealed record SetCodeScriptEnabledRequest(bool IsEnabled);
+
 public sealed record CodeScriptSummaryDto(
     Guid Id,
     string Name,
