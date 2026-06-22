@@ -643,18 +643,18 @@ Add a commented-out `caddy` service to `docker-compose.yml` as the recommended p
 
 ### Current State
 
-There are no data export or deletion endpoints. No privacy policy routing is implemented. The system stores Twitch user IDs, display names, profile images, OAuth tokens, and all user-configured data (commands, timers, rewards, integrations) indefinitely with soft-delete only (`IsDeleted` flag).
+`IGdprService` (exposed on `UsersController`) implements both data-subject rights, each guarded so a user can only act on their own data.
 
 ### Gaps & Vulnerabilities
 
-**🟡 MEDIUM — No user data export (GDPR Art. 20 — right to portability)**
-Users have no way to request a machine-readable copy of their data.
+**🟢 RESOLVED — User data export (GDPR Art. 20)**
+`GET /api/v1/users/{userId}/data-export` (self-only) returns `GdprService.ExportUserDataAsync` — a JSON document of the user's profile, chat messages, moderation history, and vaulted OAuth connections.
 
-**🟡 MEDIUM — No user data deletion (GDPR Art. 17 — right to erasure)**
-Soft-delete does not satisfy erasure requirements. Personal data (name, tokens, profile image URL) must be nulled or deleted, not just flagged.
+**🟢 RESOLVED — User data erasure (GDPR Art. 17)**
+`DELETE` erasure hard-deletes chat messages and records and **anonymizes** the user profile (`UsernameNormalized = "deleted_{id}"`) rather than relying on the soft-delete flag, so personal data is actually removed.
 
-**🟡 MEDIUM — Token revocation on account deletion**
-When a user leaves, their Twitch OAuth tokens stored in the database should be revoked with Twitch before being deleted.
+**🟢 RESOLVED — Token revocation on erasure**
+Erasure first calls `_vault.RevokeConnectionAsync(connectionId, "gdpr_erasure")` for every vaulted OAuth connection, so the provider tokens are revoked before the record is anonymized.
 
 ### Recommendations
 
@@ -781,7 +781,7 @@ These must be resolved before the hosted version handles any real user data. Lis
 | 18 | Setup-completion lock | 🟢 | 🟢 | RESOLVED |
 | 19 | No cross-tenant access tests | 🟡 | N/A | MEDIUM |
 | 20 | Log file retention unbounded | 🟡 | 🟡 | MEDIUM |
-| 21 | No GDPR export/delete | 🟡 | 🟡 | MEDIUM |
+| 21 | GDPR export + erasure + token-revoke | 🟢 | 🟢 | RESOLVED |
 | 22 | Refresh token opaque (no shared key) | 🟢 | 🟢 | RESOLVED |
 | 23 | Non-destructive key rotation | 🟢 | 🟢 | RESOLVED |
 | 24 | Security headers present | 🟢 | 🟢 | RESOLVED |
