@@ -31,7 +31,13 @@ a visual pipeline engine, and integrations (Spotify, Discord, YouTube, TTS).
   enables it), and rsa-sha256 per-message signing/verification (in-box crypto, fail-closed) —
   AuthN federates while every authorization decision stays local. Its cross-instance transport
   (mTLS handshake, remote event bus) and the OpenIddict OIDC issuer are the deferred,
-  infrastructure-bound pieces. ~952 tests green across four suites.
+  infrastructure-bound pieces. The **inbound webhooks** subsystem is built end to end: a tenant
+  configures an endpoint (Ko-fi / GitHub / generic adapter, opaque URL token, AEAD-sealed
+  verification secret), and a real third-party POST flows through the public ingest endpoint →
+  per-provider signature verification → endpoint-salted dedup → the event journal → fan-out — all
+  with in-box HMAC and a no-amplification rule for unknown tokens. Outbound webhooks follow once
+  the shared egress allowlist lands with the sandbox subsystem. ~974 tests green across four
+  suites.
 - **Frontend** — **Kotlin Multiplatform + Compose Multiplatform** (one codebase, desktop + web/Wasm
   identical UI; mobile later). The previous Expo/React Native app was removed. The dashboard app is
   **not built yet** — today the API is driven directly (Scalar docs, HTTP clients, overlays).
