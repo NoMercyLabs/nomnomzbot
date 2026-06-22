@@ -12,6 +12,7 @@ using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
@@ -39,6 +40,7 @@ public class RewardsController : BaseController
 
     private sealed record ChatterTally(string UserId, int Count);
 
+    [RequireAction("reward:read")]
     [HttpGet]
     [ProducesResponseType<PaginatedResponse<RewardDetail>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> ListRewards(
@@ -58,6 +60,7 @@ public class RewardsController : BaseController
         return GetPaginatedResponse(result.Value, request);
     }
 
+    [RequireAction("reward:read")]
     [HttpGet("{rewardId}")]
     [ProducesResponseType<StatusResponseDto<RewardDetail>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetReward(
@@ -70,6 +73,7 @@ public class RewardsController : BaseController
         return ResultResponse(result);
     }
 
+    [RequireAction("reward:manage")]
     [HttpPost]
     [ProducesResponseType<StatusResponseDto<RewardDetail>>(StatusCodes.Status201Created)]
     public async Task<IActionResult> CreateReward(
@@ -93,6 +97,7 @@ public class RewardsController : BaseController
         );
     }
 
+    [RequireAction("reward:manage")]
     [HttpPatch("{rewardId}")]
     [ProducesResponseType<StatusResponseDto<RewardDetail>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> PatchReward(
@@ -113,6 +118,7 @@ public class RewardsController : BaseController
         return Ok(new StatusResponseDto<RewardDetail> { Data = result.Value });
     }
 
+    [RequireAction("reward:manage")]
     [HttpPut("{rewardId}")]
     [ProducesResponseType<StatusResponseDto<RewardDetail>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> UpdateReward(
@@ -133,6 +139,7 @@ public class RewardsController : BaseController
         return Ok(new StatusResponseDto<RewardDetail> { Data = result.Value });
     }
 
+    [RequireAction("reward:manage")]
     [HttpDelete("{rewardId}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> DeleteReward(
@@ -147,6 +154,7 @@ public class RewardsController : BaseController
         return NoContent();
     }
 
+    [RequireAction("reward:sync")]
     [HttpPost("sync")]
     [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> SyncRewards(string channelId, CancellationToken ct)
@@ -157,6 +165,7 @@ public class RewardsController : BaseController
         return Ok(new StatusResponseDto<object> { Message = "Rewards synced with Twitch." });
     }
 
+    [RequireAction("reward:read")]
     [HttpGet("leaderboard")]
     [ProducesResponseType<StatusResponseDto<List<LeaderboardEntryDto>>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetLeaderboard(string channelId, CancellationToken ct)

@@ -14,6 +14,7 @@ using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
@@ -128,6 +129,7 @@ public class CommunityController : BaseController
 
     // ── Paginated user list ──────────────────────────────────────────────────
 
+    [RequireAction("community:read")]
     [HttpGet]
     [ProducesResponseType<PaginatedResponse<CommunityUserDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> ListMembers(
@@ -403,6 +405,7 @@ public class CommunityController : BaseController
 
     // ── Community stats ──────────────────────────────────────────────────────
 
+    [RequireAction("community:read")]
     [HttpGet("stats")]
     [ProducesResponseType<StatusResponseDto<CommunityStatsDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetStats(string channelId, CancellationToken ct)
@@ -449,6 +452,7 @@ public class CommunityController : BaseController
 
     // ── Banned users list ────────────────────────────────────────────────────
 
+    [RequireAction("community:read")]
     [HttpGet("bans")]
     [ProducesResponseType<PaginatedResponse<BannedUserDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetBans(
@@ -502,6 +506,7 @@ public class CommunityController : BaseController
 
     // ── User detail ──────────────────────────────────────────────────────────
 
+    [RequireAction("community:read")]
     [HttpGet("{userId}")]
     [ProducesResponseType<StatusResponseDto<UserDetailDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetUserDetail(
@@ -637,6 +642,7 @@ public class CommunityController : BaseController
 
     // ── Ban user ──────────────────────────────────────────────────────────────
 
+    [RequireAction("moderation:ban")]
     [HttpPost("{userId}/ban")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> BanUser(
@@ -697,6 +703,7 @@ public class CommunityController : BaseController
 
     // ── Unban user ────────────────────────────────────────────────────────────
 
+    [RequireAction("moderation:unban")]
     [HttpDelete("{userId}/ban")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> UnbanUser(

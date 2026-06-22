@@ -11,6 +11,7 @@
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Commands.Services;
@@ -31,6 +32,7 @@ public class PipelinesController : BaseController
         _pipelineService = pipelineService;
     }
 
+    [RequireAction("pipelines:read")]
     [HttpGet]
     [ProducesResponseType<PaginatedResponse<PipelineListItemDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> ListPipelines(
@@ -50,6 +52,7 @@ public class PipelinesController : BaseController
         return GetPaginatedResponse(result.Value, request);
     }
 
+    [RequireAction("pipelines:read")]
     [HttpGet("{id:int}")]
     [ProducesResponseType<StatusResponseDto<PipelineDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetPipeline(string channelId, int id, CancellationToken ct)
@@ -58,6 +61,7 @@ public class PipelinesController : BaseController
         return ResultResponse(result);
     }
 
+    [RequireAction("pipelines:write")]
     [HttpPost]
     [ProducesResponseType<StatusResponseDto<PipelineDto>>(StatusCodes.Status201Created)]
     public async Task<IActionResult> CreatePipeline(
@@ -81,6 +85,7 @@ public class PipelinesController : BaseController
         );
     }
 
+    [RequireAction("pipelines:write")]
     [HttpPut("{id:int}")]
     [ProducesResponseType<StatusResponseDto<PipelineDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> UpdatePipeline(
@@ -96,6 +101,7 @@ public class PipelinesController : BaseController
         return Ok(new StatusResponseDto<PipelineDto> { Data = result.Value });
     }
 
+    [RequireAction("pipelines:write")]
     [HttpDelete("{id:int}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> DeletePipeline(string channelId, int id, CancellationToken ct)

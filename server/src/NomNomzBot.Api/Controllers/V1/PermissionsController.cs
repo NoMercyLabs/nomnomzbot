@@ -12,6 +12,7 @@ using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
@@ -52,6 +53,7 @@ public class PermissionsController : BaseController
 
     // ── List permissions ─────────────────────────────────────────────────────
 
+    [RequireAction("roles:read")]
     [HttpGet]
     [ProducesResponseType<StatusResponseDto<List<PermissionDto>>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> ListPermissions(string channelId, CancellationToken ct)
@@ -100,6 +102,7 @@ public class PermissionsController : BaseController
 
     // ── Grant permission ─────────────────────────────────────────────────────
 
+    [RequireAction("roles:manage")]
     [HttpPost]
     [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GrantPermission(
@@ -120,6 +123,7 @@ public class PermissionsController : BaseController
 
     // ── Revoke permission ────────────────────────────────────────────────────
 
+    [RequireAction("roles:manage")]
     [HttpDelete("{userId}")]
     [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> RevokePermission(

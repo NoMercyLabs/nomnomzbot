@@ -12,6 +12,7 @@ using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
@@ -284,6 +285,7 @@ public class StreamController : BaseController
 
     // ── PATCH sub-routes (used by StreamScreen) ──────────────────────────────
 
+    [RequireAction("channel:title:write")]
     [HttpPatch("title")]
     [ProducesResponseType<StatusResponseDto<StreamInfoDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> UpdateTitle(
@@ -310,6 +312,7 @@ public class StreamController : BaseController
         return await GetStreamInfo(channelId, ct);
     }
 
+    [RequireAction("channel:game:write")]
     [HttpPatch("game")]
     [ProducesResponseType<StatusResponseDto<StreamInfoDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> UpdateGame(
@@ -356,6 +359,7 @@ public class StreamController : BaseController
         return await GetStreamInfo(channelId, ct);
     }
 
+    [RequireAction("channel:tags:write")]
     [HttpPatch("tags")]
     [ProducesResponseType<StatusResponseDto<StreamInfoDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> UpdateTags(

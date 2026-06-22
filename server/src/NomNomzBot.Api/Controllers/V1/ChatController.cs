@@ -13,6 +13,7 @@ using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Domain.Chat.ValueObjects;
@@ -124,6 +125,7 @@ public class ChatController : BaseController
 
     // ── GET settings ─────────────────────────────────────────────────────────
 
+    [RequireAction("moderation:chat:settings:read")]
     [HttpGet("settings")]
     [ProducesResponseType<StatusResponseDto<ChatSettingsDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetSettings(string channelId, CancellationToken ct)
@@ -145,6 +147,7 @@ public class ChatController : BaseController
 
     // ── PUT settings ──────────────────────────────────────────────────────────
 
+    [RequireAction("moderation:chat:settings:write")]
     [HttpPut("settings")]
     [ProducesResponseType<StatusResponseDto<ChatSettingsDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> UpdateSettings(
@@ -155,6 +158,7 @@ public class ChatController : BaseController
 
     // ── PATCH settings (partial update) ───────────────────────────────────────
 
+    [RequireAction("moderation:chat:settings:write")]
     [HttpPatch("settings")]
     [ProducesResponseType<StatusResponseDto<ChatSettingsDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> PatchSettings(

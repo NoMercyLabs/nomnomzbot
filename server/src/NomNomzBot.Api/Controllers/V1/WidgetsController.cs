@@ -11,6 +11,7 @@
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Widgets.Dtos;
@@ -31,6 +32,7 @@ public class WidgetsController : BaseController
         _widgetService = widgetService;
     }
 
+    [RequireAction("widget:read")]
     [HttpGet]
     [ProducesResponseType<PaginatedResponse<WidgetDetail>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> ListWidgets(
@@ -50,6 +52,7 @@ public class WidgetsController : BaseController
         return GetPaginatedResponse(result.Value, request);
     }
 
+    [RequireAction("widget:read")]
     [HttpGet("{widgetId}")]
     [ProducesResponseType<StatusResponseDto<WidgetDetail>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetWidget(
@@ -62,6 +65,7 @@ public class WidgetsController : BaseController
         return ResultResponse(result);
     }
 
+    [RequireAction("widget:write")]
     [HttpPost]
     [ProducesResponseType<StatusResponseDto<WidgetDetail>>(StatusCodes.Status201Created)]
     public async Task<IActionResult> CreateWidget(
@@ -85,6 +89,7 @@ public class WidgetsController : BaseController
         );
     }
 
+    [RequireAction("widget:write")]
     [HttpPut("{widgetId}")]
     [ProducesResponseType<StatusResponseDto<WidgetDetail>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> UpdateWidget(
@@ -105,6 +110,7 @@ public class WidgetsController : BaseController
         return Ok(new StatusResponseDto<WidgetDetail> { Data = result.Value });
     }
 
+    [RequireAction("widget:write")]
     [HttpDelete("{widgetId}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> DeleteWidget(

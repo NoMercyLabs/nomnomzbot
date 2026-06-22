@@ -12,6 +12,7 @@ using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Domain.Discord.Entities;
@@ -72,6 +73,7 @@ public class IntegrationsController : BaseController
 
     // ── List integrations ─────────────────────────────────────────────────────
 
+    [RequireAction("integration:read")]
     [HttpGet]
     [ProducesResponseType<StatusResponseDto<IntegrationsResponse>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> ListIntegrations(string channelId, CancellationToken ct)
@@ -171,6 +173,7 @@ public class IntegrationsController : BaseController
 
     // ── Disconnect integration ────────────────────────────────────────────────
 
+    [RequireAction("integration:write")]
     [HttpDelete("{integrationId}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> Disconnect(
@@ -232,6 +235,7 @@ public class IntegrationsController : BaseController
 
     // ── Get OAuth connect URL ─────────────────────────────────────────────────
 
+    [RequireAction("integration:read")]
     [HttpGet("{integrationId}/connect")]
     [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
     public IActionResult GetConnectUrl(string channelId, string integrationId)

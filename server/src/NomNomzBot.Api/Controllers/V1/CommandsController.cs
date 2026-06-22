@@ -11,6 +11,7 @@
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Commands.Services;
@@ -31,6 +32,7 @@ public class CommandsController : BaseController
         _commandService = commandService;
     }
 
+    [RequireAction("commands:read")]
     [HttpGet]
     [ProducesResponseType<PaginatedResponse<CommandDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> ListCommands(
@@ -50,6 +52,7 @@ public class CommandsController : BaseController
         return GetPaginatedResponse(result.Value, request);
     }
 
+    [RequireAction("commands:read")]
     [HttpGet("{commandName}")]
     [ProducesResponseType<StatusResponseDto<CommandDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetCommand(
@@ -62,6 +65,7 @@ public class CommandsController : BaseController
         return ResultResponse(result);
     }
 
+    [RequireAction("commands:write")]
     [HttpPost]
     [ProducesResponseType<StatusResponseDto<CommandDto>>(StatusCodes.Status201Created)]
     public async Task<IActionResult> CreateCommand(
@@ -85,6 +89,7 @@ public class CommandsController : BaseController
         );
     }
 
+    [RequireAction("commands:write")]
     [HttpPut("{commandName}")]
     [ProducesResponseType<StatusResponseDto<CommandDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> UpdateCommand(
@@ -105,6 +110,7 @@ public class CommandsController : BaseController
         return Ok(new StatusResponseDto<CommandDto> { Data = result.Value });
     }
 
+    [RequireAction("commands:write")]
     [HttpDelete("{commandName}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> DeleteCommand(

@@ -11,6 +11,7 @@
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Music.Dtos;
@@ -49,6 +50,7 @@ public class MusicController : BaseController
         return ResultResponse(result);
     }
 
+    [RequireAction("music:config:write")]
     [HttpPut("config")]
     [ProducesResponseType<StatusResponseDto<MusicConfigDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> UpdateConfig(
@@ -70,6 +72,7 @@ public class MusicController : BaseController
     // ─── Public SR-page token (music-sr.md §3.7) ───────────────────────────────
 
     /// <summary>Returns this channel's public SR-page token, minting one on first call (the shareable /sr link).</summary>
+    [RequireAction("music:token:read")]
     [HttpGet("sr-page-token")]
     [ProducesResponseType<StatusResponseDto<string>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetSrPageToken(string channelId, CancellationToken ct)
@@ -80,6 +83,7 @@ public class MusicController : BaseController
     }
 
     /// <summary>Rotates the SR-page token, revoking public access via the old /sr link.</summary>
+    [RequireAction("music:token:rotate")]
     [HttpPost("sr-page-token/rotate")]
     [ProducesResponseType<StatusResponseDto<string>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> RotateSrPageToken(string channelId, CancellationToken ct)
@@ -152,6 +156,7 @@ public class MusicController : BaseController
         return Ok(new StatusResponseDto<object> { Message = "Song added to queue." });
     }
 
+    [RequireAction("music:queue:moderate")]
     [HttpDelete("queue/{position:int}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> RemoveFromQueue(
@@ -169,6 +174,7 @@ public class MusicController : BaseController
 
     // ─── Playback controls ────────────────────────────────────────────────────
 
+    [RequireAction("music:queue:moderate")]
     [HttpPost("skip")]
     [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> Skip(string channelId, CancellationToken ct)
@@ -179,6 +185,7 @@ public class MusicController : BaseController
         return Ok(new StatusResponseDto<object> { Message = "Skipped to next track." });
     }
 
+    [RequireAction("music:queue:moderate")]
     [HttpPost("pause")]
     [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> Pause(string channelId, CancellationToken ct)
@@ -189,6 +196,7 @@ public class MusicController : BaseController
         return Ok(new StatusResponseDto<object> { Message = "Playback paused." });
     }
 
+    [RequireAction("music:queue:moderate")]
     [HttpPost("resume")]
     [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> Resume(string channelId, CancellationToken ct)

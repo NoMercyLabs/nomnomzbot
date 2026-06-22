@@ -11,6 +11,7 @@
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Commands.Services;
@@ -31,6 +32,7 @@ public class TimersController : BaseController
         _timerService = timerService;
     }
 
+    [RequireAction("timers:read")]
     [HttpGet]
     [ProducesResponseType<PaginatedResponse<TimerListItem>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> ListTimers(
@@ -50,6 +52,7 @@ public class TimersController : BaseController
         return GetPaginatedResponse(result.Value, request);
     }
 
+    [RequireAction("timers:read")]
     [HttpGet("{id:int}")]
     [ProducesResponseType<StatusResponseDto<TimerDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetTimer(string channelId, int id, CancellationToken ct)
@@ -58,6 +61,7 @@ public class TimersController : BaseController
         return ResultResponse(result);
     }
 
+    [RequireAction("timers:write")]
     [HttpPost]
     [ProducesResponseType<StatusResponseDto<TimerDto>>(StatusCodes.Status201Created)]
     public async Task<IActionResult> CreateTimer(
@@ -81,6 +85,7 @@ public class TimersController : BaseController
         );
     }
 
+    [RequireAction("timers:write")]
     [HttpPut("{id:int}")]
     [ProducesResponseType<StatusResponseDto<TimerDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> UpdateTimer(
@@ -96,6 +101,7 @@ public class TimersController : BaseController
         return Ok(new StatusResponseDto<TimerDto> { Data = result.Value });
     }
 
+    [RequireAction("timers:write")]
     [HttpDelete("{id:int}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> DeleteTimer(string channelId, int id, CancellationToken ct)
@@ -106,6 +112,7 @@ public class TimersController : BaseController
         return NoContent();
     }
 
+    [RequireAction("timers:write")]
     [HttpPost("{id:int}/toggle")]
     [ProducesResponseType<StatusResponseDto<TimerDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> ToggleTimer(string channelId, int id, CancellationToken ct)

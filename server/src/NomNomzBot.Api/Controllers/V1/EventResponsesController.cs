@@ -11,6 +11,7 @@
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Commands.Services;
@@ -31,6 +32,7 @@ public class EventResponsesController : BaseController
         _eventResponseService = eventResponseService;
     }
 
+    [RequireAction("eventresponses:read")]
     [HttpGet]
     [ProducesResponseType<PaginatedResponse<EventResponseListItem>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> ListEventResponses(
@@ -50,6 +52,7 @@ public class EventResponsesController : BaseController
         return GetPaginatedResponse(result.Value, request);
     }
 
+    [RequireAction("eventresponses:read")]
     [HttpGet("{eventType}")]
     [ProducesResponseType<StatusResponseDto<EventResponseDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetEventResponse(
@@ -66,6 +69,7 @@ public class EventResponsesController : BaseController
         return ResultResponse(result);
     }
 
+    [RequireAction("eventresponses:write")]
     [HttpPut("{eventType}")]
     [ProducesResponseType<StatusResponseDto<EventResponseDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> UpsertEventResponse(
@@ -86,6 +90,7 @@ public class EventResponsesController : BaseController
         return Ok(new StatusResponseDto<EventResponseDto> { Data = result.Value });
     }
 
+    [RequireAction("eventresponses:write")]
     [HttpDelete("{eventType}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> DeleteEventResponse(
