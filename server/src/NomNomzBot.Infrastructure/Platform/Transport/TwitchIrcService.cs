@@ -118,7 +118,10 @@ public sealed class TwitchIrcService : ITwitchChatService, IHostedService
         CancellationToken ct = default
     )
     {
-        await SendRawWithRateLimitAsync($"PRIVMSG #{channelId.ToLowerInvariant()} :{message}", ct);
+        await SendRawWithRateLimitAsync(
+            $"PRIVMSG #{channelId.ToLowerInvariant()} :{IrcLineSanitizer.Message(message)}",
+            ct
+        );
     }
 
     public async Task SendReplyAsync(
@@ -129,7 +132,8 @@ public sealed class TwitchIrcService : ITwitchChatService, IHostedService
     )
     {
         await SendRawWithRateLimitAsync(
-            $"@reply-parent-msg-id={replyToMessageId} PRIVMSG #{channelId.ToLowerInvariant()} :{message}",
+            $"@reply-parent-msg-id={IrcLineSanitizer.TagValue(replyToMessageId)} "
+                + $"PRIVMSG #{channelId.ToLowerInvariant()} :{IrcLineSanitizer.Message(message)}",
             ct
         );
     }
