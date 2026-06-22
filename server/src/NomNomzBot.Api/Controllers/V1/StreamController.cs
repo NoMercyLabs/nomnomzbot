@@ -176,7 +176,11 @@ public class StreamController : BaseController
 
     // ── Update stream info ───────────────────────────────────────────────────
 
+    // The combined update writes the same title/game/tags as the granular PATCH routes, so it must carry the
+    // same Editor floor — otherwise a Moderator could change stream info through this route and bypass the
+    // per-field channel:*:write gates (stream-admin §5; all three fields floor at Editor).
     [HttpPut]
+    [RequireAction("channel:title:write")]
     [ProducesResponseType<StatusResponseDto<StreamInfoDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> UpdateStreamInfo(
         string channelId,
