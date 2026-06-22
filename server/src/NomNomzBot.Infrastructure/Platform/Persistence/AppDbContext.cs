@@ -171,6 +171,20 @@ public class AppDbContext : DbContext, IApplicationDbContext
         Set<NomNomzBot.Domain.Economy.Entities.LeaderboardOptOut>();
     public DbSet<NomNomzBot.Domain.Economy.Entities.LeaderboardSnapshot> LeaderboardSnapshots =>
         Set<NomNomzBot.Domain.Economy.Entities.LeaderboardSnapshot>();
+    public DbSet<NomNomzBot.Domain.Billing.Entities.BillingTier> BillingTiers =>
+        Set<NomNomzBot.Domain.Billing.Entities.BillingTier>();
+    public DbSet<NomNomzBot.Domain.Billing.Entities.TierLimit> TierLimits =>
+        Set<NomNomzBot.Domain.Billing.Entities.TierLimit>();
+    public DbSet<NomNomzBot.Domain.Billing.Entities.Subscription> Subscriptions =>
+        Set<NomNomzBot.Domain.Billing.Entities.Subscription>();
+    public DbSet<NomNomzBot.Domain.Billing.Entities.Invoice> Invoices =>
+        Set<NomNomzBot.Domain.Billing.Entities.Invoice>();
+    public DbSet<NomNomzBot.Domain.Billing.Entities.UsageRecord> UsageRecords =>
+        Set<NomNomzBot.Domain.Billing.Entities.UsageRecord>();
+    public DbSet<NomNomzBot.Domain.Billing.Entities.FoundersBadge> FoundersBadges =>
+        Set<NomNomzBot.Domain.Billing.Entities.FoundersBadge>();
+    public DbSet<NomNomzBot.Domain.Billing.Entities.InviteCode> InviteCodes =>
+        Set<NomNomzBot.Domain.Billing.Entities.InviteCode>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

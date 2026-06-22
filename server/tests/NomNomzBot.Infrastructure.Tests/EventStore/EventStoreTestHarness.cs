@@ -84,6 +84,20 @@ internal sealed class EventStoreTestDbContext : DbContext, IApplicationDbContext
         Set<NomNomzBot.Domain.Economy.Entities.LeaderboardOptOut>();
     public DbSet<NomNomzBot.Domain.Economy.Entities.LeaderboardSnapshot> LeaderboardSnapshots =>
         Set<NomNomzBot.Domain.Economy.Entities.LeaderboardSnapshot>();
+    public DbSet<NomNomzBot.Domain.Billing.Entities.BillingTier> BillingTiers =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Billing.Entities.TierLimit> TierLimits =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Billing.Entities.Subscription> Subscriptions =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Billing.Entities.Invoice> Invoices =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Billing.Entities.UsageRecord> UsageRecords =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Billing.Entities.FoundersBadge> FoundersBadges =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Billing.Entities.InviteCode> InviteCodes =>
+        throw new NotSupportedException();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -145,6 +159,13 @@ internal sealed class EventStoreTestDbContext : DbContext, IApplicationDbContext
         modelBuilder.Ignore<NomNomzBot.Domain.Commands.Entities.EventResponse>();
         modelBuilder.Ignore<NomNomzBot.Domain.Rewards.Entities.WatchStreak>();
         modelBuilder.Ignore<NomNomzBot.Domain.Commands.Entities.Pipeline>();
+        modelBuilder.Ignore<NomNomzBot.Domain.Billing.Entities.BillingTier>();
+        modelBuilder.Ignore<NomNomzBot.Domain.Billing.Entities.TierLimit>();
+        modelBuilder.Ignore<NomNomzBot.Domain.Billing.Entities.Subscription>();
+        modelBuilder.Ignore<NomNomzBot.Domain.Billing.Entities.Invoice>();
+        modelBuilder.Ignore<NomNomzBot.Domain.Billing.Entities.UsageRecord>();
+        modelBuilder.Ignore<NomNomzBot.Domain.Billing.Entities.FoundersBadge>();
+        modelBuilder.Ignore<NomNomzBot.Domain.Billing.Entities.InviteCode>();
     }
 
     // ── Unused IApplicationDbContext surface — never reached by these tests ──

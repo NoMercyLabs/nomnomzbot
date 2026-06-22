@@ -449,5 +449,19 @@ public sealed class IdentityRekeyBehaviorTests
             throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.Economy.Entities.LeaderboardSnapshot> LeaderboardSnapshots =>
             throw new NotSupportedException();
+        public DbSet<NomNomzBot.Domain.Billing.Entities.BillingTier> BillingTiers =>
+            throw new NotSupportedException();
+        public DbSet<NomNomzBot.Domain.Billing.Entities.TierLimit> TierLimits =>
+            throw new NotSupportedException();
+        public DbSet<NomNomzBot.Domain.Billing.Entities.Subscription> Subscriptions =>
+            throw new NotSupportedException();
+        public DbSet<NomNomzBot.Domain.Billing.Entities.Invoice> Invoices =>
+            throw new NotSupportedException();
+        public DbSet<NomNomzBot.Domain.Billing.Entities.UsageRecord> UsageRecords =>
+            throw new NotSupportedException();
+        public DbSet<NomNomzBot.Domain.Billing.Entities.FoundersBadge> FoundersBadges =>
+            throw new NotSupportedException();
+        public DbSet<NomNomzBot.Domain.Billing.Entities.InviteCode> InviteCodes =>
+            throw new NotSupportedException();
     }
 }

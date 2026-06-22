@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using Microsoft.EntityFrameworkCore;
+using NomNomzBot.Domain.Billing.Entities;
 using NomNomzBot.Domain.Chat.Entities;
 using NomNomzBot.Domain.Commands.Entities;
 using NomNomzBot.Domain.Discord.Entities;
@@ -101,6 +102,13 @@ public interface IApplicationDbContext
     DbSet<LeaderboardConfig> LeaderboardConfigs { get; }
     DbSet<LeaderboardOptOut> LeaderboardOptOuts { get; }
     DbSet<LeaderboardSnapshot> LeaderboardSnapshots { get; }
+    DbSet<BillingTier> BillingTiers { get; }
+    DbSet<TierLimit> TierLimits { get; }
+    DbSet<Subscription> Subscriptions { get; }
+    DbSet<Invoice> Invoices { get; }
+    DbSet<UsageRecord> UsageRecords { get; }
+    DbSet<FoundersBadge> FoundersBadges { get; }
+    DbSet<InviteCode> InviteCodes { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }
