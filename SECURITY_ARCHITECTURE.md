@@ -355,14 +355,14 @@ Replace `GetFixedWindowLimiter` with `GetSlidingWindowLimiter` for the general A
 
 ### Gaps & Vulnerabilities
 
-**🟡 MEDIUM — XSS via stored command responses (hosted mode)**
-A user could store a command response like `<script>alert(1)</script>` or `javascript:...`. If the frontend renders this via `innerHTML` rather than `innerText`, it executes in other users' browsers (stored XSS). The backend API returns this unencoded. Defense must be in the frontend, but the backend should also encode on output.
+**🟢 RESOLVED — Stored content is rendered safely**
+The backend correctly returns raw values inside JSON (`System.Text.Json` escapes string values into valid JSON — re-encoding server-side would double-encode and corrupt JSON consumers). The XSS sink is the renderer, and the backend-served public pages handle it: `web/sr` and `web/overlay` route **every** user-controlled value through `escapeHtml` (which escapes `& < > " '`) before any `innerHTML`, and use `textContent` elsewhere. The Compose dashboard renders text safely by default.
 
-**🟡 MEDIUM — Template injection via `{{...}}` variables**
-If the pipeline template engine resolves user-supplied strings (e.g., command arguments `{{args.1}}`) inside operator-defined templates, a crafted argument could escape the template context depending on the engine's design. This requires auditing the pipeline engine's template substitution logic.
+**🟢 RESOLVED — Template substitution cannot be injected**
+`TemplateEngine.Render` is a **single-pass** regex substitution (`{{(.+?)}}` → dictionary lookup) — it never re-expands a resolved value, so a user-supplied `{{args.N}}` whose value contains `{{…}}` is emitted literally, not re-evaluated. There is no scripting/eval path.
 
-**🟢 LOW — No maximum length enforcement on command names/responses**
-Without database-level length constraints or model validation, a large payload can bloat the database. EF Core model MaxLength attributes should be verified on all user-supplied string fields.
+**🟢 RESOLVED — Length-bounded user input**
+User-supplied string fields carry `[MaxLength]` (e.g. `Command.Name` 100, `Command.Response` 2000, `Command.Description` 500; `EventResponse` and `Timer` text fields likewise), so a single payload cannot bloat the database.
 
 ### Recommendations
 
@@ -775,7 +775,7 @@ These must be resolved before the hosted version handles any real user data. Lis
 | 14 | First admin bootstrapped from config | N/A | 🟢 | RESOLVED |
 | 15 | Rate limiter keys real client IP | 🟢 | 🟢 | RESOLVED |
 | 16 | Unsigned channel-bot state | 🟠 | 🟠 | HIGH |
-| 17 | XSS in stored commands | 🟡 | 🟡 | MEDIUM |
+| 17 | Stored content rendered safely | 🟢 | 🟢 | RESOLVED |
 | 18 | Setup-completion lock | 🟢 | 🟢 | RESOLVED |
 | 19 | No cross-tenant access tests | 🟡 | N/A | MEDIUM |
 | 20 | Log retention bounded (30 days) | 🟢 | 🟢 | RESOLVED |
