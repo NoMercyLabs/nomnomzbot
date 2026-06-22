@@ -240,6 +240,11 @@ public sealed class ActionDefinitionSeeder : ISeeder
         M("billing:read", Broadcaster);
         M("billing:manage", Broadcaster);
 
+        // Federation opt-ins (cross-instance sharing — default-deny, SuperMod gated)
+        M("federation:optin:read", SuperMod);
+        M("federation:optin:write", SuperMod);
+        M("federation:optin:delete", SuperMod);
+
         // Rewards
         M("reward:read", Mod);
         M("reward:manage", Broadcaster);
