@@ -43,8 +43,26 @@ public sealed class ScriptRunnerTests
                 Arg.Any<CancellationToken>()
             )
             .Returns(ci => Result.Success(new ScriptCapabilityGrant(Channel, [])));
+        IScriptExecutionMeter meter = Substitute.For<IScriptExecutionMeter>();
+        meter
+            .CheckSandboxBudgetAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success(new QuotaCheck(true, -1, 0, default, default)));
+        meter
+            .RecordSandboxUsageAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<long>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success());
         return (
-            new ScriptRunner(db, new JintScriptExecutor(), broker, new FakeTimeProvider(Now)),
+            new ScriptRunner(
+                db,
+                new JintScriptExecutor(),
+                broker,
+                meter,
+                new FakeTimeProvider(Now)
+            ),
             db
         );
     }

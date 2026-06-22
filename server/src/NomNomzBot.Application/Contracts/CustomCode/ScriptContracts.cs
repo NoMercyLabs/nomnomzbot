@@ -109,6 +109,15 @@ public sealed record ScriptRunResult(
     ScriptDenialReason? DenialReason
 );
 
+/// <summary>The sandbox exec-ms quota verdict for a period (custom-code.md §4). <c>LimitMs</c> -1 = unlimited.</summary>
+public sealed record QuotaCheck(
+    bool Allowed,
+    long LimitMs,
+    long UsedMs,
+    DateTime PeriodStart,
+    DateTime PeriodEnd
+);
+
 /// <summary>
 /// The host trampoline a granted <c>bot.*</c> import binds to — primitive-in / primitive-out only
 /// (custom-code.md §3.1). The token is the per-execution watchdog token.

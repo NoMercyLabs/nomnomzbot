@@ -29,6 +29,7 @@ public sealed class ScriptRunner(
     IApplicationDbContext db,
     IScriptExecutor executor,
     IScriptCapabilityBroker broker,
+    IScriptExecutionMeter meter,
     TimeProvider clock
 ) : IScriptRunner
 {
@@ -47,6 +48,23 @@ public sealed class ScriptRunner(
 
         if (!script.IsEnabled)
             return Faulted("Script is disabled.", ScriptDenialReason.ScriptDisabled);
+
+        // Meter-gate: refuse before execution when the tenant is over its sandbox-exec-ms budget (fail-closed).
+        Result<QuotaCheck> budget = await meter.CheckSandboxBudgetAsync(
+            script.BroadcasterId,
+            cancellationToken
+        );
+        if (budget.IsSuccess && !budget.Value.Allowed)
+            return Result.Success(
+                new ScriptRunResult(
+                    ScriptExecutionOutcome.Denied,
+                    new Dictionary<string, string>(),
+                    Output: null,
+                    StopPipeline: false,
+                    ErrorMessage: "Sandbox execution quota exhausted for this period.",
+                    DenialReason: ScriptDenialReason.QuotaExceeded
+                )
+            );
 
         CodeScriptVersion? version = script.CurrentVersionId is Guid versionId
             ? await db.CodeScriptVersions.FirstOrDefaultAsync(
@@ -110,6 +128,14 @@ public sealed class ScriptRunner(
         script.LastRuntimeError =
             outcome.Outcome == ScriptExecutionOutcome.Success ? null : outcome.ErrorMessage;
         await db.SaveChangesAsync(cancellationToken);
+
+        // Meter-record: accumulate this run's elapsed ms into the tenant's period usage.
+        await meter.RecordSandboxUsageAsync(
+            script.BroadcasterId,
+            outcome.ElapsedMs,
+            invocation.ExecutionId,
+            cancellationToken
+        );
 
         ScriptDenialReason? denial =
             outcome.Outcome == ScriptExecutionOutcome.Denied
