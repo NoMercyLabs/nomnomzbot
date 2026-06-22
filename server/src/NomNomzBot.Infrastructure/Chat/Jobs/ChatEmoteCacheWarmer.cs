@@ -12,6 +12,7 @@ using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Caching;
 using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Domain.Chat.Enums;
 using NomNomzBot.Domain.Chat.ValueObjects;
 
 namespace NomNomzBot.Infrastructure.Chat.Jobs;
@@ -26,6 +27,7 @@ public sealed class ChatEmoteCacheWarmer
 {
     // The cache TTL is the stale ceiling if the worker stops; while it runs, each refresh resets it (spec §7).
     private static readonly TimeSpan GlobalTtl = TimeSpan.FromHours(6);
+    private static readonly TimeSpan ChannelTtl = TimeSpan.FromHours(1);
 
     private readonly IThirdPartyEmoteProviderRegistry _registry;
     private readonly ICacheService _cache;
@@ -43,29 +45,58 @@ public sealed class ChatEmoteCacheWarmer
     }
 
     /// <summary>Refreshes every provider's GLOBAL emote set into cache; returns how many providers were warmed.</summary>
-    public async Task<int> WarmGlobalAsync(CancellationToken ct = default)
+    public Task<int> WarmGlobalAsync(CancellationToken ct = default) =>
+        WarmAsync(
+            provider => provider.GetGlobalAsync(ct),
+            ChatEmoteCacheKeys.Global,
+            GlobalTtl,
+            "Global",
+            ct
+        );
+
+    /// <summary>Refreshes every provider's CHANNEL emote set for one broadcaster; returns how many providers were warmed.</summary>
+    public Task<int> WarmChannelAsync(
+        string twitchBroadcasterId,
+        string broadcasterLogin,
+        CancellationToken ct = default
+    ) =>
+        WarmAsync(
+            provider => provider.GetChannelAsync(twitchBroadcasterId, broadcasterLogin, ct),
+            provider => ChatEmoteCacheKeys.Channel(provider, twitchBroadcasterId),
+            ChannelTtl,
+            $"Channel {twitchBroadcasterId}",
+            ct
+        );
+
+    /// <summary>
+    /// The shared warm loop: fetch each provider's set, and on success write it to cache under <paramref name="keyFor"/>.
+    /// A provider failure writes nothing — the previously cached (last-good) set survives untouched — and never throws.
+    /// </summary>
+    private async Task<int> WarmAsync(
+        Func<IThirdPartyEmoteProvider, Task<Result<IReadOnlyList<ChatEmote>>>> fetch,
+        Func<EmoteProvider, string> keyFor,
+        TimeSpan ttl,
+        string scope,
+        CancellationToken ct
+    )
     {
         int warmed = 0;
 
         foreach (IThirdPartyEmoteProvider provider in _registry.All)
         {
-            Result<IReadOnlyList<ChatEmote>> result = await provider.GetGlobalAsync(ct);
+            Result<IReadOnlyList<ChatEmote>> result = await fetch(provider);
             if (result.IsFailure)
             {
                 _logger.LogWarning(
-                    "Global emote refresh for {Provider} failed: {Error}. Keeping last-good cache.",
+                    "{Scope} emote refresh for {Provider} failed: {Error}. Keeping last-good cache.",
+                    scope,
                     provider.Provider,
                     result.ErrorMessage
                 );
                 continue;
             }
 
-            await _cache.SetAsync(
-                ChatEmoteCacheKeys.Global(provider.Provider),
-                result.Value,
-                GlobalTtl,
-                ct
-            );
+            await _cache.SetAsync(keyFor(provider.Provider), result.Value, ttl, ct);
             warmed++;
         }
 

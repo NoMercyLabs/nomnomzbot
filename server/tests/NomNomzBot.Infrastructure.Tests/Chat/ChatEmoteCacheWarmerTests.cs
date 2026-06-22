@@ -76,6 +76,55 @@ public sealed class ChatEmoteCacheWarmerTests
     }
 
     [Fact]
+    public async Task WarmChannelAsync_caches_each_provider_channel_set_under_the_broadcaster_key()
+    {
+        FakeCache cache = new();
+        ChatEmoteCacheWarmer warmer = Warmer(
+            cache,
+            new FakeProvider(
+                EmoteProvider.SevenTv,
+                Result.Success<IReadOnlyList<ChatEmote>>([
+                    Emote(EmoteProvider.SevenTv, "ChannelPog", "c1"),
+                ])
+            )
+        );
+
+        int warmed = await warmer.WarmChannelAsync("999", "stoney_eagle");
+
+        warmed.Should().Be(1);
+        IReadOnlyList<ChatEmote>? cached = await cache.GetAsync<IReadOnlyList<ChatEmote>>(
+            ChatEmoteCacheKeys.Channel(EmoteProvider.SevenTv, "999")
+        );
+        cached.Should().ContainSingle().Which.Code.Should().Be("ChannelPog");
+    }
+
+    [Fact]
+    public async Task WarmChannelAsync_keeps_last_good_cache_when_a_provider_fails()
+    {
+        FakeCache cache = new();
+        await cache.SetAsync<IReadOnlyList<ChatEmote>>(
+            ChatEmoteCacheKeys.Channel(EmoteProvider.SevenTv, "999"),
+            [Emote(EmoteProvider.SevenTv, "OldChannelEmote", "old")]
+        );
+
+        ChatEmoteCacheWarmer warmer = Warmer(
+            cache,
+            new FakeProvider(
+                EmoteProvider.SevenTv,
+                Result.Failure<IReadOnlyList<ChatEmote>>("provider down", "EMOTE_PROVIDER_ERROR")
+            )
+        );
+
+        int warmed = await warmer.WarmChannelAsync("999", "stoney_eagle");
+
+        warmed.Should().Be(0);
+        IReadOnlyList<ChatEmote>? stillCached = await cache.GetAsync<IReadOnlyList<ChatEmote>>(
+            ChatEmoteCacheKeys.Channel(EmoteProvider.SevenTv, "999")
+        );
+        stillCached.Should().ContainSingle().Which.Code.Should().Be("OldChannelEmote");
+    }
+
+    [Fact]
     public async Task WarmGlobalAsync_keeps_last_good_cache_when_a_provider_fails()
     {
         FakeCache cache = new();
