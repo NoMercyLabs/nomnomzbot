@@ -58,17 +58,17 @@ The `Configuration` table has a `SecureValue` column used for system-level secre
 
 ### Gaps & Vulnerabilities
 
-**🔴 CRITICAL — `SecureValue` stored in plaintext**
-`SystemController.UpsertSystemConfig` writes secrets (Twitch `client_secret`, Spotify `client_secret`, Discord `client_secret`) directly to the `SecureValue` column without encrypting them. Despite the field name, these secrets are readable in plaintext by anyone with database access. In hosted mode this means a single DB read exposes all tenants' integration credentials.
+**🟢 RESOLVED — `SecureValue` is sealed at rest**
+`SystemController.UpsertSystemConfig` now seals the `SecureValue` column through `ITokenProtector` (per-subject DEK envelope, AAD-bound to `provider`+`field`) before persisting, and `GetSystemConfig` unseals on read. A raw DB read yields only sealed bytes — the Twitch/Spotify/Discord client secrets are no longer plaintext.
 
-**🟠 HIGH — Single shared encryption key for all tenants**
-All user OAuth tokens are encrypted with one `ENCRYPTION_KEY`. If that key leaks (compromised environment variable, container logs, cloud secrets manager breach), every user's Twitch/Spotify/Discord tokens are immediately decryptable in bulk. There is no per-user key derivation or key escrow hierarchy.
+**🟢 RESOLVED — Per-subject key derivation (no single shared key)**
+The legacy single-`ENCRYPTION_KEY` AES-CBC `IEncryptionService` was replaced by `ITokenProtector` envelope encryption: each secret is sealed under a **per-subject DEK** (minted via `ISubjectKeyService`), wrapped by the root KEK. A leaked KEK still requires the per-subject DEK to open any ciphertext, and the AAD binds each ciphertext to its subject+field so it is non-transplantable.
 
-**🟠 HIGH — AES-256-CBC without message authentication**
-AES-CBC does not authenticate the ciphertext. It is theoretically susceptible to padding-oracle attacks if error responses differ between bad padding and decryption failures. `TryDecrypt` swallows all exceptions uniformly, which reduces oracle surface, but the correct fix is to use AES-256-GCM (authenticated encryption), which provides both confidentiality and integrity guarantees in one primitive.
+**🟢 RESOLVED — Authenticated encryption (AES-GCM envelope)**
+The CBC-without-MAC primitive is gone; `ITokenProtector` uses an authenticated sealed envelope (key id + nonce + ciphertext + tag). `TryUnprotectAsync` returns null on any authentication failure — there is no padding-oracle surface.
 
-**🟡 MEDIUM — No encryption key rotation path**
-Changing `ENCRYPTION_KEY` immediately invalidates all stored tokens; users must re-authenticate. There is no migration utility to re-encrypt under a new key. This makes incident response to a key compromise significantly more disruptive.
+**🟢 RESOLVED (by design) — Key rotation is non-destructive**
+Because data is sealed under per-subject DEKs and only the DEKs are wrapped by the KEK, rotating the KEK re-wraps the DEKs without re-encrypting (or invalidating) any token. The original "changing `ENCRYPTION_KEY` logs everyone out" failure mode no longer applies.
 
 ### Recommendations
 
@@ -772,12 +772,12 @@ These must be resolved before the hosted version handles any real user data. Lis
 
 | # | Concern | Hosted | Self-Hosted | Priority |
 |---|---------|--------|-------------|---------|
-| 1 | SecureValue plaintext storage | 🔴 | 🔴 | CRITICAL |
+| 1 | SecureValue sealed at rest | 🟢 | 🟢 | RESOLVED |
 | 2 | Setup endpoints unauthenticated | 🔴 | 🟠 | CRITICAL |
 | 3 | Default JWT/encryption secrets | 🔴 | 🔴 | CRITICAL |
 | 4 | Adminer exposed in production | 🔴 | 🟠 | CRITICAL |
-| 5 | Shared encryption key (all tenants) | 🟠 | N/A | HIGH |
-| 6 | AES-CBC without authentication | 🟠 | 🟠 | HIGH |
+| 5 | Per-subject DEK (was shared key) | 🟢 | 🟢 | RESOLVED |
+| 6 | Authenticated envelope (was AES-CBC) | 🟢 | 🟢 | RESOLVED |
 | 7 | JWT refresh token no revocation | 🟠 | 🟠 | HIGH |
 | 8 | OAuth state not validated (CSRF) | 🟠 | 🟠 | HIGH |
 | 9 | Redis unauthenticated | 🟠 | 🟠 | HIGH |
@@ -794,7 +794,7 @@ These must be resolved before the hosted version handles any real user data. Lis
 | 20 | Log file retention unbounded | 🟡 | 🟡 | MEDIUM |
 | 21 | No GDPR export/delete | 🟡 | 🟡 | MEDIUM |
 | 22 | JWT/refresh share signing key | 🟡 | 🟡 | MEDIUM |
-| 23 | No encryption key rotation | 🟡 | 🟡 | MEDIUM |
+| 23 | Non-destructive key rotation | 🟢 | 🟢 | RESOLVED |
 | 24 | Security headers missing | 🟡 | 🟡 | MEDIUM |
 | 25 | HTTPS not enforced/documented | 🟡 | 🟠 | MEDIUM |
 | 26 | No audit log | 🟢 | 🟢 | LOW |

@@ -15,6 +15,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Identity.Services;
 using ConfigEntity = NomNomzBot.Domain.Platform.Entities.Configuration;
@@ -35,16 +36,19 @@ public class SystemController : BaseController
     private readonly IAuthService _authService;
     private readonly IApplicationDbContext _db;
     private readonly IConfiguration _config;
+    private readonly ITokenProtector _protector;
 
     public SystemController(
         IAuthService authService,
         IApplicationDbContext db,
-        IConfiguration config
+        IConfiguration config,
+        ITokenProtector protector
     )
     {
         _authService = authService;
         _db = db;
         _config = config;
+        _protector = protector;
     }
 
     // ── DTOs ──────────────────────────────────────────────────────────────────
@@ -302,7 +306,23 @@ public class SystemController : BaseController
             c => c.BroadcasterId == null && c.Key == key,
             ct
         );
-        return cfg?.SecureValue ?? cfg?.Value;
+        if (cfg is null)
+            return null;
+        return cfg.SecureValue is not null
+            ? await _protector.TryUnprotectAsync(cfg.SecureValue, ContextFor(key), ct)
+            : cfg.Value;
+    }
+
+    // System-level secrets share the "system" subject; the AAD binds each to its provider + field so a sealed
+    // value for twitch.client_secret can't be replayed as spotify's, and a raw DB read yields only sealed bytes.
+    private static TokenProtectionContext ContextFor(string key)
+    {
+        int dot = key.IndexOf('.');
+        return new TokenProtectionContext(
+            "system",
+            dot > 0 ? key[..dot] : "system",
+            dot > 0 ? key[(dot + 1)..] : key
+        );
     }
 
     private async Task UpsertSystemConfig(
@@ -324,7 +344,7 @@ public class SystemController : BaseController
         }
 
         if (secure)
-            cfg.SecureValue = value;
+            cfg.SecureValue = await _protector.ProtectAsync(value, ContextFor(key), ct);
         else
             cfg.Value = value;
     }
