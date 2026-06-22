@@ -4308,6 +4308,10 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.Property<DateTime?>("NextRetryAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("RenderedBody")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<int?>("ResponseCode")
                         .HasColumnType("integer");
 

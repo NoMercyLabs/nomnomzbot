@@ -1669,6 +1669,7 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         maxLength: 150,
                         nullable: false
                     ),
+                    RenderedBody = table.Column<string>(type: "text", nullable: false),
                     Attempt = table.Column<int>(type: "integer", nullable: false),
                     Status = table.Column<string>(
                         type: "character varying(20)",

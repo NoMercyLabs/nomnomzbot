@@ -14,7 +14,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260622023138_Initial")]
+    [Migration("20260622025512_Initial")]
     partial class Initial
     {
         /// <inheritdoc />
@@ -4310,6 +4310,10 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
 
                     b.Property<DateTime?>("NextRetryAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("RenderedBody")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<int?>("ResponseCode")
                         .HasColumnType("integer");

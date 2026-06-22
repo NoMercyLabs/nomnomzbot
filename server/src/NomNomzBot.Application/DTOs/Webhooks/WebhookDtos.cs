@@ -117,6 +117,14 @@ public sealed record WebhookTestResultDto(
     string? Error
 );
 
+/// <summary>The outcome of enqueuing one outbound delivery (webhooks.md §4).</summary>
+public sealed record OutboundEnqueueResult(
+    Guid EndpointId,
+    Guid WebhookMessageId,
+    long DeliveryId,
+    WebhookDeliveryStatus Status
+);
+
 /// <summary>Generic / Standard-Webhooks adapter config (Zapier/IFTTT/Make/Stream Deck/custom).</summary>
 public sealed record GenericInboundConfig(
     string? SignatureHeaderName,

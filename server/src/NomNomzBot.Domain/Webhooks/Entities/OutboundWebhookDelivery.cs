@@ -26,6 +26,9 @@ public class OutboundWebhookDelivery : ITenantScoped
     public Guid WebhookMessageId { get; set; }
     public Guid? JournalEventId { get; set; }
     public string EventType { get; set; } = null!;
+
+    /// <summary>The rendered request body, stored so a retry re-sends the exact same bytes (re-signed each attempt).</summary>
+    public string RenderedBody { get; set; } = null!;
     public int Attempt { get; set; }
     public WebhookDeliveryStatus Status { get; set; }
     public int? ResponseCode { get; set; }
