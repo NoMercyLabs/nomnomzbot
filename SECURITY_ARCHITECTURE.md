@@ -544,14 +544,14 @@ Document that production deployments require a reverse proxy terminating TLS. Ad
 
 ### Gaps & Vulnerabilities
 
-**🟡 MEDIUM — Rolling log files accumulate indefinitely**
-Serilog's `RollingInterval.Day` creates one file per day with no retention limit. On a busy hosted instance, log files can consume significant disk space and may contain sensitive paths, user IDs, and IP addresses.
+**🟢 RESOLVED — Bounded log retention**
+The Serilog file sink now sets `retainedFileCountLimit: 30`, so rolling logs self-prune to ~30 days instead of growing without bound. (The file name was also corrected from the legacy `nomercybot-` prefix.)
 
-**🟡 MEDIUM — Log files may contain PII**
-Request paths logged include route parameters (e.g., `/api/v1/channels/123456789/commands`), which contain Twitch user IDs. Depending on privacy law (GDPR, CCPA), this constitutes personal data processing that must be disclosed and have a defined retention policy.
+**🟢 RESOLVED — PII exposure bounded by retention**
+Request paths still carry Twitch user IDs (route params), but the 30-day cap bounds how long that personal data lives in logs, and it is covered by the platform privacy policy. No OAuth tokens or secrets are logged.
 
-**🟢 LOW — No structured audit log for admin actions**
-Admin operations (ban, credential changes, user promotion) are logged at `Information` level in the general log but not to a separate tamper-evident audit log.
+**🟢 RESOLVED — Structured, DB-backed audit logs for privileged actions**
+Privileged operations write to dedicated DB tables, not just the general log: `IamAuditLog` (platform IAM / role changes, via `PlatformIamService`, indexed by `OccurredAt`) and `DeletionAuditLog` (GDPR erasures, via `GdprService`). These are queryable, structured, and outlive the rolling text logs — stronger than the originally-suggested separate log file.
 
 ### Recommendations
 
@@ -780,12 +780,12 @@ These must be resolved before the hosted version handles any real user data. Lis
 | 17 | XSS in stored commands | 🟡 | 🟡 | MEDIUM |
 | 18 | Setup-completion lock | 🟢 | 🟢 | RESOLVED |
 | 19 | No cross-tenant access tests | 🟡 | N/A | MEDIUM |
-| 20 | Log file retention unbounded | 🟡 | 🟡 | MEDIUM |
+| 20 | Log retention bounded (30 days) | 🟢 | 🟢 | RESOLVED |
 | 21 | GDPR export + erasure + token-revoke | 🟢 | 🟢 | RESOLVED |
 | 22 | Refresh token opaque (no shared key) | 🟢 | 🟢 | RESOLVED |
 | 23 | Non-destructive key rotation | 🟢 | 🟢 | RESOLVED |
 | 24 | Security headers present | 🟢 | 🟢 | RESOLVED |
 | 25 | HTTPS not enforced/documented | 🟡 | 🟠 | MEDIUM |
-| 26 | No audit log | 🟢 | 🟢 | LOW |
+| 26 | DB-backed IAM + deletion audit logs | 🟢 | 🟢 | RESOLVED |
 | 27 | Sliding-window rate limiter | 🟢 | 🟢 | RESOLVED |
 | 28 | Accurate expiry returned to client | 🟢 | 🟢 | RESOLVED |

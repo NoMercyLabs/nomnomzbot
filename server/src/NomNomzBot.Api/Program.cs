@@ -54,7 +54,13 @@ try
                 .Enrich.FromLogContext()
                 .Enrich.WithEnvironmentName()
                 .WriteTo.Console()
-                .WriteTo.File("logs/nomercybot-.log", rollingInterval: RollingInterval.Day)
+                // Cap rolling logs at 30 days so they do not grow without bound (§11). Paths/IDs in logs
+                // are covered by the retention note in the operational runbook.
+                .WriteTo.File(
+                    "logs/nomnomzbot-.log",
+                    rollingInterval: RollingInterval.Day,
+                    retainedFileCountLimit: 30
+                )
     );
 
     // Application + Infrastructure DI
@@ -264,7 +270,7 @@ try
         .Services.AddHealthChecks()
         .AddNpgSql(
             builder.Configuration.GetConnectionString("DefaultConnection")
-                ?? "Host=localhost;Database=nomercybot;Username=postgres;Password=postgres",
+                ?? "Host=localhost;Database=nomnomzbot;Username=postgres;Password=postgres",
             name: "postgresql",
             tags: ["db", "ready"]
         )

@@ -96,7 +96,7 @@ public class AuthController : BaseController
 
     /// <summary>
     /// Start the Twitch OAuth flow. Redirects the browser to Twitch's authorization page.
-    /// Pass <c>redirect_uri</c> for mobile deep-link callbacks (e.g. <c>nomercybot://callback</c>).
+    /// Pass <c>redirect_uri</c> for mobile deep-link callbacks (e.g. <c>nomnomzbot://callback</c>).
     /// </summary>
     [HttpGet("twitch")]
     [AllowAnonymous]

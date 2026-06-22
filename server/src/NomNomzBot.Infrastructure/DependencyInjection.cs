@@ -315,7 +315,7 @@ public static class DependencyInjection
             services.AddStackExchangeRedisCache(options =>
             {
                 options.Configuration = redisConnectionString;
-                options.InstanceName = "nomercybot:";
+                options.InstanceName = "nomnomzbot:";
             });
             services.AddSingleton<ICacheService, DistributedCacheService>();
         }

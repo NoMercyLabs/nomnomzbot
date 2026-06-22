@@ -31,7 +31,7 @@ public class AppDbContextFactory : IDesignTimeDbContextFactory<AppDbContext>
 
         string connectionString =
             configuration.GetConnectionString("DefaultConnection")
-            ?? "Host=localhost;Database=nomercybot;Username=postgres;Password=postgres";
+            ?? "Host=localhost;Database=nomnomzbot;Username=postgres;Password=postgres";
 
         DbContextOptionsBuilder<AppDbContext> optionsBuilder = new();
         optionsBuilder.UseNpgsql(
