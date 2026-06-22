@@ -165,6 +165,24 @@ public static class DependencyInjection
                 new NomNomzBot.Infrastructure.Sandbox.EgressSchemeHandler()
             );
 
+        // Webhook dispatchers (I*Dispatcher — not the name-convention "*Service", so registered explicitly).
+        services.AddScoped<
+            NomNomzBot.Application.Contracts.Webhooks.IInboundWebhookDispatcher,
+            NomNomzBot.Infrastructure.Webhooks.InboundWebhookDispatcher
+        >();
+        services.AddScoped<
+            NomNomzBot.Application.Contracts.Webhooks.IOutboundWebhookDispatcher,
+            NomNomzBot.Infrastructure.Webhooks.OutboundWebhookDispatcher
+        >();
+        services.AddScoped<
+            NomNomzBot.Application.Contracts.Billing.IStripeWebhookHandler,
+            NomNomzBot.Infrastructure.Billing.StripeWebhookHandler
+        >();
+
+        // Outbound webhook retry drain (scoped processor + the hosted worker that ticks it).
+        services.AddScoped<NomNomzBot.Infrastructure.Webhooks.WebhookRetryProcessor>();
+        services.AddHostedService<NomNomzBot.Infrastructure.BackgroundServices.WebhookDeliveryWorker>();
+
         // Event store — projections, post-commit hooks, and upcasters are pluggable multi-bindings discovered
         // by convention (drop a file → it is live next boot), mirroring ICommandAction. Projections + hooks
         // touch the DbContext (scoped); upcasters are pure/stateless (singleton).
