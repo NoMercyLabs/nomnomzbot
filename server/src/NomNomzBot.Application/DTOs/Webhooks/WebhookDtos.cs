@@ -64,6 +64,59 @@ public sealed record ParsedInboundEvent(
     IReadOnlyDictionary<string, string> Variables
 );
 
+// ── Outbound endpoints (webhooks.md §3.5 / §4) ──
+
+public sealed record OutboundWebhookEndpointDto(
+    Guid Id,
+    string Name,
+    string Fqdn,
+    string? Path,
+    IReadOnlyList<string> SubscribedEventTypes,
+    bool IsEnabled,
+    int ConsecutiveFailureCount,
+    DateTime? DisabledAt,
+    string? DisabledReason,
+    DateTime? LastDeliveryAt,
+    DateTime? LastSuccessAt,
+    DateTime CreatedAt,
+    DateTime UpdatedAt
+);
+
+/// <summary>Create result — carries the plaintext <c>whsec_</c> secret ONCE (never re-readable).</summary>
+public sealed record OutboundWebhookEndpointCreatedDto(
+    OutboundWebhookEndpointDto Endpoint,
+    string SigningSecret
+);
+
+public sealed record CreateOutboundWebhookRequest
+{
+    public required string Name { get; init; }
+
+    /// <summary>Must match an enabled HttpEgressAllowlist (H.7) row for the tenant.</summary>
+    public required string Fqdn { get; init; }
+    public string? Path { get; init; }
+    public required List<string> SubscribedEventTypes { get; init; }
+    public string? BodyTemplate { get; init; }
+    public Dictionary<string, string>? CustomHeaders { get; init; }
+    public bool IsEnabled { get; init; } = true;
+}
+
+public sealed record UpdateOutboundWebhookRequest
+{
+    public string? Name { get; init; }
+    public List<string>? SubscribedEventTypes { get; init; }
+    public string? BodyTemplate { get; init; }
+    public Dictionary<string, string>? CustomHeaders { get; init; }
+    public bool? IsEnabled { get; init; }
+}
+
+public sealed record WebhookTestResultDto(
+    bool Delivered,
+    int? ResponseCode,
+    int DurationMs,
+    string? Error
+);
+
 /// <summary>Generic / Standard-Webhooks adapter config (Zapier/IFTTT/Make/Stream Deck/custom).</summary>
 public sealed record GenericInboundConfig(
     string? SignatureHeaderName,

@@ -1,0 +1,279 @@
+// -----------------------------------------------------------------------------
+//  Copyright (c) NoMercy Labs.
+//
+//  This file is part of NomNomzBot, free software licensed under the GNU Affero
+//  General Public License v3.0 or later. You may redistribute and/or modify it
+//  under those terms. Distributed WITHOUT ANY WARRANTY. See LICENSE for details.
+//
+//  SPDX-License-Identifier: AGPL-3.0-or-later
+// -----------------------------------------------------------------------------
+
+using System.Security.Cryptography;
+using System.Text;
+using Microsoft.EntityFrameworkCore;
+using Newtonsoft.Json;
+using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Common.Interfaces.Crypto;
+using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Webhooks;
+using NomNomzBot.Application.DTOs.Webhooks;
+using NomNomzBot.Application.Services;
+using NomNomzBot.Domain.Webhooks.Entities;
+
+namespace NomNomzBot.Infrastructure.Webhooks;
+
+/// <summary>
+/// Outbound webhook endpoint CRUD (webhooks.md §3.5). Each endpoint pins to an enabled H.7 egress-allowlist row
+/// (the SSRF boundary lives there, not here). The <c>whsec_</c> secret is minted, AEAD-sealed via the canonical
+/// <see cref="ITokenProtector"/>, and revealed exactly once. Rotation keeps an overlap-valid secondary envelope so
+/// the multi-sig signer accepts either during the window. (Deferred: <see cref="SendTestAsync"/> awaits the
+/// SSRF-hardened egress client.)
+/// </summary>
+public sealed class OutboundWebhookEndpointService(
+    IApplicationDbContext db,
+    ITokenProtector tokenProtector,
+    ISubjectKeyService subjectKeys,
+    TimeProvider clock
+) : IOutboundWebhookEndpointService
+{
+    private const string Provider = "webhook:out";
+
+    public async Task<Result<PagedList<OutboundWebhookEndpointDto>>> ListAsync(
+        Guid broadcasterId,
+        PaginationParams pagination,
+        CancellationToken ct = default
+    )
+    {
+        IQueryable<OutboundWebhookEndpoint> query = db.OutboundWebhookEndpoints.Where(e =>
+            e.BroadcasterId == broadcasterId && e.DeletedAt == null
+        );
+        int total = await query.CountAsync(ct);
+        List<OutboundWebhookEndpoint> rows = await query
+            .OrderByDescending(e => e.CreatedAt)
+            .Skip((pagination.Page - 1) * pagination.PageSize)
+            .Take(pagination.PageSize)
+            .ToListAsync(ct);
+        return Result.Success(
+            new PagedList<OutboundWebhookEndpointDto>(
+                [.. rows.Select(ToDto)],
+                pagination.Page,
+                pagination.PageSize,
+                total
+            )
+        );
+    }
+
+    public async Task<Result<OutboundWebhookEndpointDto>> GetAsync(
+        Guid broadcasterId,
+        Guid endpointId,
+        CancellationToken ct = default
+    )
+    {
+        OutboundWebhookEndpoint? endpoint = await FindAsync(broadcasterId, endpointId, ct);
+        return endpoint is null
+            ? Result.Failure<OutboundWebhookEndpointDto>("Endpoint not found.", "NOT_FOUND")
+            : Result.Success(ToDto(endpoint));
+    }
+
+    public async Task<Result<OutboundWebhookEndpointCreatedDto>> CreateAsync(
+        Guid broadcasterId,
+        Guid actorUserId,
+        CreateOutboundWebhookRequest request,
+        CancellationToken ct = default
+    )
+    {
+        Guid? allowlistId = await db
+            .HttpEgressAllowlists.Where(a =>
+                a.BroadcasterId == broadcasterId
+                && a.Fqdn == request.Fqdn
+                && a.IsEnabled
+                && a.DeletedAt == null
+            )
+            .Select(a => (Guid?)a.Id)
+            .FirstOrDefaultAsync(ct);
+        if (allowlistId is null)
+            return Result.Failure<OutboundWebhookEndpointCreatedDto>(
+                "The target host is not in an enabled egress allowlist.",
+                "EGRESS_NOT_ALLOWED"
+            );
+
+        DateTime now = clock.GetUtcNow().UtcDateTime;
+        OutboundWebhookEndpoint endpoint = new()
+        {
+            BroadcasterId = broadcasterId,
+            Name = request.Name,
+            Fqdn = request.Fqdn,
+            HttpEgressAllowlistId = allowlistId,
+            Path = request.Path,
+            SubscribedEventTypesJson = JsonConvert.SerializeObject(request.SubscribedEventTypes),
+            BodyTemplate = request.BodyTemplate,
+            CustomHeadersJson = request.CustomHeaders is null
+                ? null
+                : JsonConvert.SerializeObject(request.CustomHeaders),
+            IsEnabled = request.IsEnabled,
+            ConsecutiveFailureCount = 0,
+            CreatedAt = now,
+            UpdatedAt = now,
+        };
+        string secret = MintSecret();
+        await SealPrimaryAsync(endpoint, secret, broadcasterId, ct);
+        db.OutboundWebhookEndpoints.Add(endpoint);
+        await db.SaveChangesAsync(ct);
+        return Result.Success(new OutboundWebhookEndpointCreatedDto(ToDto(endpoint), secret));
+    }
+
+    public async Task<Result<OutboundWebhookEndpointDto>> UpdateAsync(
+        Guid broadcasterId,
+        Guid endpointId,
+        UpdateOutboundWebhookRequest request,
+        CancellationToken ct = default
+    )
+    {
+        OutboundWebhookEndpoint? endpoint = await FindAsync(broadcasterId, endpointId, ct);
+        if (endpoint is null)
+            return Result.Failure<OutboundWebhookEndpointDto>("Endpoint not found.", "NOT_FOUND");
+
+        if (request.Name is not null)
+            endpoint.Name = request.Name;
+        if (request.SubscribedEventTypes is not null)
+            endpoint.SubscribedEventTypesJson = JsonConvert.SerializeObject(
+                request.SubscribedEventTypes
+            );
+        if (request.BodyTemplate is not null)
+            endpoint.BodyTemplate = request.BodyTemplate;
+        if (request.CustomHeaders is not null)
+            endpoint.CustomHeadersJson = JsonConvert.SerializeObject(request.CustomHeaders);
+        if (request.IsEnabled is bool enabled)
+            endpoint.IsEnabled = enabled;
+
+        endpoint.UpdatedAt = clock.GetUtcNow().UtcDateTime;
+        await db.SaveChangesAsync(ct);
+        return Result.Success(ToDto(endpoint));
+    }
+
+    public async Task<Result<OutboundWebhookEndpointCreatedDto>> RotateSecretAsync(
+        Guid broadcasterId,
+        Guid endpointId,
+        CancellationToken ct = default
+    )
+    {
+        OutboundWebhookEndpoint? endpoint = await FindAsync(broadcasterId, endpointId, ct);
+        if (endpoint is null)
+            return Result.Failure<OutboundWebhookEndpointCreatedDto>(
+                "Endpoint not found.",
+                "NOT_FOUND"
+            );
+
+        // Overlap: the current primary becomes the secondary; a fresh primary is minted.
+        endpoint.SecondarySigningSecretEnvelope = endpoint.SigningSecretEnvelope;
+        string secret = MintSecret();
+        await SealPrimaryAsync(endpoint, secret, broadcasterId, ct);
+        endpoint.UpdatedAt = clock.GetUtcNow().UtcDateTime;
+        await db.SaveChangesAsync(ct);
+        return Result.Success(new OutboundWebhookEndpointCreatedDto(ToDto(endpoint), secret));
+    }
+
+    public async Task<Result<OutboundWebhookEndpointDto>> ReenableAsync(
+        Guid broadcasterId,
+        Guid endpointId,
+        CancellationToken ct = default
+    )
+    {
+        OutboundWebhookEndpoint? endpoint = await FindAsync(broadcasterId, endpointId, ct);
+        if (endpoint is null)
+            return Result.Failure<OutboundWebhookEndpointDto>("Endpoint not found.", "NOT_FOUND");
+
+        endpoint.IsEnabled = true;
+        endpoint.ConsecutiveFailureCount = 0;
+        endpoint.DisabledAt = null;
+        endpoint.DisabledReason = null;
+        endpoint.UpdatedAt = clock.GetUtcNow().UtcDateTime;
+        await db.SaveChangesAsync(ct);
+        return Result.Success(ToDto(endpoint));
+    }
+
+    public async Task<Result> DeleteAsync(
+        Guid broadcasterId,
+        Guid endpointId,
+        CancellationToken ct = default
+    )
+    {
+        OutboundWebhookEndpoint? endpoint = await FindAsync(broadcasterId, endpointId, ct);
+        if (endpoint is null)
+            return Result.Failure("Endpoint not found.", "NOT_FOUND");
+        endpoint.DeletedAt = clock.GetUtcNow().UtcDateTime;
+        await db.SaveChangesAsync(ct);
+        return Result.Success();
+    }
+
+    public Task<Result<WebhookTestResultDto>> SendTestAsync(
+        Guid broadcasterId,
+        Guid endpointId,
+        CancellationToken ct = default
+    ) =>
+        // The synthetic delivery needs the SSRF-hardened egress client (deferred with the egress handler).
+        Task.FromResult(
+            Result.Failure<WebhookTestResultDto>(
+                "Test delivery is not available yet.",
+                "SERVICE_UNAVAILABLE"
+            )
+        );
+
+    private Task<OutboundWebhookEndpoint?> FindAsync(
+        Guid broadcasterId,
+        Guid endpointId,
+        CancellationToken ct
+    ) =>
+        db.OutboundWebhookEndpoints.FirstOrDefaultAsync(
+            e => e.Id == endpointId && e.BroadcasterId == broadcasterId && e.DeletedAt == null,
+            ct
+        );
+
+    private async Task SealPrimaryAsync(
+        OutboundWebhookEndpoint endpoint,
+        string secret,
+        Guid broadcasterId,
+        CancellationToken ct
+    )
+    {
+        endpoint.SigningSecretEnvelope = await tokenProtector.ProtectAsync(
+            secret,
+            new TokenProtectionContext(broadcasterId.ToString(), Provider, endpoint.Id.ToString()),
+            ct
+        );
+        endpoint.EncryptionKeyId = await ResolveKeyIdAsync(broadcasterId, ct);
+    }
+
+    private async Task<Guid> ResolveKeyIdAsync(Guid broadcasterId, CancellationToken ct)
+    {
+        byte[] hash = SHA256.HashData(Encoding.UTF8.GetBytes($"{Provider}:{broadcasterId}"));
+        Guid subjectUserId = new(hash.AsSpan(0, 16));
+        string subjectIdHash = Convert.ToHexStringLower(hash);
+        Result<Guid> keyId = await subjectKeys.GetOrCreateSubjectKeyAsync(
+            subjectUserId,
+            subjectIdHash,
+            ct
+        );
+        return keyId.IsSuccess ? keyId.Value : Guid.Empty;
+    }
+
+    private static string MintSecret() =>
+        "whsec_" + Convert.ToBase64String(RandomNumberGenerator.GetBytes(24));
+
+    private static OutboundWebhookEndpointDto ToDto(OutboundWebhookEndpoint e) =>
+        new(
+            e.Id,
+            e.Name,
+            e.Fqdn,
+            e.Path,
+            JsonConvert.DeserializeObject<List<string>>(e.SubscribedEventTypesJson) ?? [],
+            e.IsEnabled,
+            e.ConsecutiveFailureCount,
+            e.DisabledAt,
+            e.DisabledReason,
+            e.LastDeliveryAt,
+            e.LastSuccessAt,
+            e.CreatedAt,
+            e.UpdatedAt
+        );
+}
