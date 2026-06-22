@@ -25,8 +25,13 @@ a visual pipeline engine, and integrations (Spotify, Discord, YouTube, TTS).
   webhook appliers, and founders/invite codes that grant a badge and/or tier; the full REST
   surface (owner-only tenant billing, the platform-admin invite console, and an HMAC-verified
   Stripe webhook) plus a `require_tier` pipeline gate are wired. The outbound Stripe gateway
-  (hosted checkout / billing portal) is the one piece pending live Stripe credentials. ~939
-  tests green across four suites.
+  (hosted checkout / billing portal) is the one piece pending live Stripe credentials. The
+  **federation** trust plane is also built: a global peer directory with a default-deny
+  trust lifecycle, per-channel opt-ins (a channel shares/accepts nothing until it explicitly
+  enables it), and rsa-sha256 per-message signing/verification (in-box crypto, fail-closed) —
+  AuthN federates while every authorization decision stays local. Its cross-instance transport
+  (mTLS handshake, remote event bus) and the OpenIddict OIDC issuer are the deferred,
+  infrastructure-bound pieces. ~952 tests green across four suites.
 - **Frontend** — **Kotlin Multiplatform + Compose Multiplatform** (one codebase, desktop + web/Wasm
   identical UI; mobile later). The previous Expo/React Native app was removed. The dashboard app is
   **not built yet** — today the API is driven directly (Scalar docs, HTTP clients, overlays).
