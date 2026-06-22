@@ -155,4 +155,16 @@ public sealed class JintScriptExecutorTests
 
         r.Outcome.Should().Be(ScriptExecutionOutcome.HostBudgetExceeded);
     }
+
+    [Fact]
+    public async Task Compile_declares_the_capabilities_the_script_calls()
+    {
+        JintScriptExecutor sut = new();
+
+        ScriptCompilation compilation = (
+            await sut.CompileAsync("bot.call('chat.send', 'hi'); bot.call(\"music.queue\", 's');")
+        ).Value;
+
+        compilation.DeclaredCapabilities.Should().BeEquivalentTo("chat.send", "music.queue");
+    }
 }

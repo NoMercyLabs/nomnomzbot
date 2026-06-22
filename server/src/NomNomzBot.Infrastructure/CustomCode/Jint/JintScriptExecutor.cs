@@ -11,6 +11,7 @@
 using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.RegularExpressions;
 using global::Jint;
 using global::Jint.Runtime;
 using Newtonsoft.Json;
@@ -27,7 +28,7 @@ namespace NomNomzBot.Infrastructure.CustomCode.Jint;
 /// <see cref="IScriptHostBridge"/>, capability-key-gated and host-call-budgeted. NEVER throws a sandbox escape
 /// outward — every fault maps to the matching <see cref="ScriptExecutionOutcome"/> (fail-closed).
 /// </summary>
-public sealed class JintScriptExecutor : IScriptExecutor
+public sealed partial class JintScriptExecutor : IScriptExecutor
 {
     public ScriptRuntimeKind Runtime => ScriptRuntimeKind.Jint;
 
@@ -67,9 +68,24 @@ public sealed class JintScriptExecutor : IScriptExecutor
 
         string hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(sourceCode)));
         return Task.FromResult(
-            Result.Success(new ScriptCompilation(sourceCode, hash, Array.Empty<string>()))
+            Result.Success(
+                new ScriptCompilation(sourceCode, hash, DeclaredCapabilities(sourceCode))
+            )
         );
     }
+
+    // Heuristic save-time capability declaration: every `bot.call("key", …)` host import the script makes.
+    // The broker then validates each against the catalogue + gates; an undeclared call is denied at run time.
+    [GeneratedRegex("""bot\.call\(\s*["']([a-zA-Z][a-zA-Z0-9.]*)["']""")]
+    private static partial Regex HostCallPattern();
+
+    private static IReadOnlyList<string> DeclaredCapabilities(string sourceCode) =>
+        [
+            .. HostCallPattern()
+                .Matches(sourceCode)
+                .Select(m => m.Groups[1].Value)
+                .Distinct(StringComparer.Ordinal),
+        ];
 
     public Task<Result<ScriptExecutionOutcomeResult>> ExecuteAsync(
         ScriptExecutionRequest request,
