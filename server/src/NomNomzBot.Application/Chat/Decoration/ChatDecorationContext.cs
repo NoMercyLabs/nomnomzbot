@@ -23,4 +23,17 @@ public sealed class ChatDecorationContext
 {
     /// <summary>The message fragments, enriched in place as the pipeline runs (text exploded, emotes matched, urls filled).</summary>
     public List<ChatMessageFragment> Fragments { get; init; } = [];
+
+    /// <summary>
+    /// The channel's Twitch broadcaster id — the discriminator for the per-channel cached emote/badge/cheermote sets.
+    /// Empty when unknown, in which case channel-specific lookups simply miss and only global sets can match.
+    /// </summary>
+    public string TwitchBroadcasterId { get; init; } = string.Empty;
+
+    /// <summary>
+    /// The channel's enabled decoration feature keys (<c>use_bttv</c> / <c>use_ffz</c> / <c>use_7tv</c> /
+    /// <c>use_link_preview</c>), resolved once by the orchestrator from the channel's rules so every adapter can gate
+    /// synchronously in <c>AppliesTo</c> without an async feature lookup on the chat hot path.
+    /// </summary>
+    public IReadOnlySet<string> EnabledFeatures { get; init; } = new HashSet<string>();
 }
