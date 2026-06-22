@@ -508,6 +508,10 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("IdempotencyKey")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
                     b.Property<string>("InputArgs")
                         .HasColumnType("text");
 
@@ -529,6 +533,8 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.HasIndex("BroadcasterId", "BuyerUserId");
 
                     b.HasIndex("BroadcasterId", "CatalogItemId");
+
+                    b.HasIndex("BroadcasterId", "IdempotencyKey");
 
                     b.ToTable("CatalogPurchases");
                 });

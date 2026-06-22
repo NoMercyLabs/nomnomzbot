@@ -22,12 +22,12 @@ using NomNomzBot.Domain.Platform.Interfaces;
 namespace NomNomzBot.Infrastructure.Economy;
 
 /// <summary>
-/// Store catalog + redemptions (economy.md §3.4). Items are CRUD; a purchase enforces the
-/// permission/cooldown/stock/per-stream guards then debits through the ledger and records an immutable purchase;
-/// a refund posts a reversing credit and an append-only refunded row. (Deferred — documented: purchase
-/// idempotency needs the IdempotencyKeys store, the PipelineId-exists check is left to the caller, and the
-/// reversing entry's RelatedEntryId link awaits a ledger-command field. The purchase debit is atomic on its own;
-/// the purchase row is written immediately after.)
+/// Store catalog + redemptions (economy.md §3.4). Items are CRUD; a purchase is idempotent per
+/// <c>IdempotencyKey</c> (a retry returns the original, no second charge), enforces the
+/// permission/cooldown/stock/per-stream guards, then debits through the ledger and records an immutable
+/// purchase; a refund posts a reversing credit and an append-only refunded row. (Deferred — documented: the
+/// PipelineId-exists check is left to the caller, and the reversing entry's RelatedEntryId link awaits a
+/// ledger-command field. The purchase debit is atomic on its own; the purchase row is written immediately after.)
 /// </summary>
 public sealed class CatalogService(
     IApplicationDbContext db,
@@ -213,6 +213,20 @@ public sealed class CatalogService(
         if (item is null || !item.IsEnabled)
             return Result.Failure<CatalogPurchaseDto>("Item not available.", "NOT_FOUND");
 
+        // Idempotency: a retried purchase (same key) returns the original — no second charge.
+        if (!string.IsNullOrEmpty(request.IdempotencyKey))
+        {
+            CatalogPurchase? prior = await db.CatalogPurchases.FirstOrDefaultAsync(
+                p =>
+                    p.BroadcasterId == broadcasterId
+                    && p.IdempotencyKey == request.IdempotencyKey
+                    && p.Status == CatalogPurchaseStatus.Completed,
+                ct
+            );
+            if (prior is not null)
+                return Result.Success(ToDto(prior));
+        }
+
         int requiredLevel = Enum.TryParse(
             item.Permission,
             ignoreCase: true,
@@ -302,6 +316,7 @@ public sealed class CatalogService(
             Status = CatalogPurchaseStatus.Completed,
             LedgerEntryId = debit.Value.Id,
             InputArgs = request.InputArgs,
+            IdempotencyKey = request.IdempotencyKey,
             CreatedAt = clock.GetUtcNow().UtcDateTime,
         };
         db.CatalogPurchases.Add(purchase);

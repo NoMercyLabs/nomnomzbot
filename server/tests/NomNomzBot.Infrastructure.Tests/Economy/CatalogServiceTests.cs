@@ -263,4 +263,37 @@ public sealed class CatalogServiceTests
         (await sut.PurchaseAsync(Channel, Buy(item))).IsSuccess.Should().BeTrue();
         (await sut.PurchaseAsync(Channel, Buy(item))).ErrorCode.Should().Be("PER_STREAM_LIMIT");
     }
+
+    [Fact]
+    public async Task Purchase_is_idempotent_per_key()
+    {
+        using SqliteTestDatabase database = SqliteTestDatabase.Open();
+        (CatalogService sut, EventStoreTestDbContext db, RecordingEventBus bus) = New(database);
+        Guid item = await CreateAsync(sut, cost: 30, stock: 5);
+        PurchaseRequest request = new(
+            item,
+            Buyer,
+            InputArgs: null,
+            RoleLevel: 0,
+            IdempotencyKey: "k1"
+        );
+
+        Result<CatalogPurchaseDto> first = await sut.PurchaseAsync(Channel, request);
+        Result<CatalogPurchaseDto> retry = await sut.PurchaseAsync(Channel, request);
+
+        first.IsSuccess.Should().BeTrue(first.ErrorMessage);
+        retry.Value.Id.Should().Be(first.Value.Id); // the original, not a new purchase
+        (
+            await new CurrencyAccountService(
+                db,
+                new TenantSequenceAllocator(db),
+                new EventStoreTestUnitOfWork(db),
+                bus,
+                Clock
+            ).GetBalanceAsync(Channel, Buyer)
+        )
+            .Value.Should()
+            .Be(70); // charged once: 100 - 30
+        db.CatalogPurchases.Count(p => p.IdempotencyKey == "k1").Should().Be(1);
+    }
 }

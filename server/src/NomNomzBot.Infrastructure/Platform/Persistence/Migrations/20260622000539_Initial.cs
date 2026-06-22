@@ -188,6 +188,11 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     ),
                     LedgerEntryId = table.Column<long>(type: "bigint", nullable: true),
                     InputArgs = table.Column<string>(type: "text", nullable: true),
+                    IdempotencyKey = table.Column<string>(
+                        type: "character varying(100)",
+                        maxLength: 100,
+                        nullable: true
+                    ),
                     CreatedAt = table.Column<DateTime>(
                         type: "timestamp with time zone",
                         nullable: false
@@ -3614,6 +3619,12 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                 name: "IX_CatalogPurchases_BroadcasterId_CatalogItemId",
                 table: "CatalogPurchases",
                 columns: new[] { "BroadcasterId", "CatalogItemId" }
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_CatalogPurchases_BroadcasterId_IdempotencyKey",
+                table: "CatalogPurchases",
+                columns: new[] { "BroadcasterId", "IdempotencyKey" }
             );
 
             migrationBuilder.CreateIndex(

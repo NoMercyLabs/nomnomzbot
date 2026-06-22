@@ -31,5 +31,8 @@ public class CatalogPurchase : ITenantScoped
     public CatalogPurchaseStatus Status { get; set; }
     public long? LedgerEntryId { get; set; }
     public string? InputArgs { get; set; }
+
+    /// <summary>A client-supplied token making a retried purchase a no-op (returns the original, no double-charge).</summary>
+    public string? IdempotencyKey { get; set; }
     public DateTime CreatedAt { get; set; }
 }
