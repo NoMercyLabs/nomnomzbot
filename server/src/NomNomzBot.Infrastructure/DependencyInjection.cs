@@ -148,15 +148,19 @@ public static class DependencyInjection
             NomNomzBot.Application.Chat.Services.IThirdPartyEmoteProviderRegistry,
             NomNomzBot.Infrastructure.Chat.ThirdPartyEmoteProviderRegistry
         >();
+        // Every outbound HttpClient the factory builds (provider fetches, OAuth, Twitch, TTS, webhooks…) sends
+        // the product User-Agent by default, stamped with the running build version. A client may still override.
+        services.ConfigureHttpClientDefaults(builder =>
+            builder.ConfigureHttpClient(client =>
+                client.DefaultRequestHeaders.UserAgent.ParseAdd(
+                    NomNomzBot.Infrastructure.Platform.Http.AppUserAgent.Value
+                )
+            )
+        );
+
         services.AddHttpClient(
             NomNomzBot.Infrastructure.Chat.ChatEmoteHttpClient.Name,
-            client =>
-            {
-                client.Timeout = TimeSpan.FromSeconds(10);
-                client.DefaultRequestHeaders.UserAgent.ParseAdd(
-                    NomNomzBot.Infrastructure.Chat.ChatEmoteHttpClient.UserAgent
-                );
-            }
+            client => client.Timeout = TimeSpan.FromSeconds(10)
         );
 
         // Webhook HMAC primitives (stateless; not name-convention "*Service", so registered explicitly).
