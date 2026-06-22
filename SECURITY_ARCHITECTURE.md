@@ -786,22 +786,24 @@ These must be resolved before the hosted version handles any real user data. Lis
 
 ## Red-Team Hardening Pass (2026-06-22)
 
-A focused offensive review beyond the original 28 concerns. Each finding below was verified against the
-live code, patched in a validated slice (build + 4 test suites green), and committed.
+A focused offensive review beyond the original 28 concerns. **Every finding below is 🟢 RESOLVED** — each was
+verified against the live code, patched in a validated slice (build + 4 test suites green), and committed
+(commits `3d04ebd`→`7821e8c`). The Severity column is the finding's *original* severity (plain text), not its
+status; the Status column is the live state.
 
-| # | Finding | Severity | Resolution |
-|---|---------|----------|------------|
-| R1 | `X-Forwarded-For` honoured from any caller (`KnownNetworks/Proxies.Clear()`) → per-IP rate limits bypassable + spoofed audit IPs | 🔴 Critical | Trust XFF only from configured proxies; loopback-only default; blank-entry hardened; `ForwardLimit=1`. `TRUSTED_PROXY_NETWORKS` for containerised proxies. |
-| R2 | Orphaned bot OAuth callbacks (`/twitch/bot/callback`, `/channels/callback/bot`) parsed unsigned base64 state, skipped the CSRF nonce | 🔴 Critical (surface) | Deleted — dead duplicates of the unified, nonce-validated `/twitch/callback`. |
-| R3 | Outbound-webhook `Path` of `@evil.com` hijacks the URL authority → signed payloads exfiltrate past the FQDN allowlist | 🟠 High | `OutboundWebhookTargetUrl.TryBuild` pins the host; validated at creation + fail-closed on delivery. |
-| R4 | Tenant-scoped controllers had only class-level `[Authorize]` — any tenant-resolver (incl. mods) got full read/write (privilege escalation) | 🟠 High | `[RequireAction]` Gate-2 applied across commands, pipelines, timers, event-responses, widgets, integrations, permissions, rewards, community, chat, music, stream, tts (seeded keys). |
-| R5 | Four entities (`ChatMessage`, `DiscordServerAuthorization`, `ChannelSubscription`, `WatchStreak`) had a non-nullable `BroadcasterId` but no `ITenantScoped` → no tenant filter → cross-tenant leak | 🟠 High | Implemented `ITenantScoped`; added `TenantIsolationCoverageTests` as a permanent invariant guard. |
-| R6 | `TtsController` and `TtsConfigController` mapped the identical route (`AmbiguousMatchException`) | 🟠 High (defect) | Deleted the dead duplicate; gated the survivor. |
-| R7 | IRC chat send interpolated user text into the line → CRLF command injection | 🟡 Medium | `IrcLineSanitizer` strips CR/LF/NUL + length-caps both send paths. |
-| R8 | `PaginationParams.PageSize` unbounded → `pageSize=1000000` materialises a huge result set (DoS) | 🟡 Medium | Clamped to `[1, 100]` at the single chokepoint. |
-| R9 | Discord OAuth used an unsigned base64 state (CSRF) | 🟡 Medium | Switched to the single-use server-side nonce. |
-| R10 | Bot-account OAuth start endpoints were `[AllowAnonymous]` redirects — anyone could initiate (and on completion hijack) the bot identity | 🟠 High | A bot connection is an authenticated registration like Discord/Spotify: platform-shared bot → `[Authorize(Roles=admin)]` (iam:manage); white-label bot → `[Authorize]` + `channelbot:connect/read/disconnect` (new seeded keys); both return the authorize URL as JSON. |
-| R11 | Combined `PUT /stream` wrote title/game/tags with only Gate-1 → a Moderator bypassed the Editor-floor PATCH gates; Dashboard's route token wasn't `channelId` so its Gate-2 couldn't resolve the tenant; several writes (channel lifecycle, feature toggle, viewer trust) were ungated | 🟠 High | Full mutation-endpoint sweep: gated `UpdateStreamInfo` (channel:title:write); renamed Dashboard route token to `channelId` + dashboard:read; Channels writes → setup:write; added feature:read/write + community:trust:write keys. Every POST/PUT/DELETE/PATCH now gated (per-action key, class-level admin, in-code self/admin, or token/signature). |
+| # | Finding | Severity | Status | Resolution |
+|---|---------|----------|--------|------------|
+| R1 | `X-Forwarded-For` honoured from any caller (`KnownNetworks/Proxies.Clear()`) → per-IP rate limits bypassable + spoofed audit IPs | Critical | 🟢 RESOLVED | Trust XFF only from configured proxies; loopback-only default; blank-entry hardened; `ForwardLimit=1`. `TRUSTED_PROXY_NETWORKS` for containerised proxies. |
+| R2 | Orphaned bot OAuth callbacks (`/twitch/bot/callback`, `/channels/callback/bot`) parsed unsigned base64 state, skipped the CSRF nonce | Critical (surface) | 🟢 RESOLVED | Deleted — dead duplicates of the unified, nonce-validated `/twitch/callback`. |
+| R3 | Outbound-webhook `Path` of `@evil.com` hijacks the URL authority → signed payloads exfiltrate past the FQDN allowlist | High | 🟢 RESOLVED | `OutboundWebhookTargetUrl.TryBuild` pins the host; validated at creation + fail-closed on delivery. |
+| R4 | Tenant-scoped controllers had only class-level `[Authorize]` — any tenant-resolver (incl. mods) got full read/write (privilege escalation) | High | 🟢 RESOLVED | `[RequireAction]` Gate-2 applied across commands, pipelines, timers, event-responses, widgets, integrations, permissions, rewards, community, chat, music, stream, tts (seeded keys). |
+| R5 | Four entities (`ChatMessage`, `DiscordServerAuthorization`, `ChannelSubscription`, `WatchStreak`) had a non-nullable `BroadcasterId` but no `ITenantScoped` → no tenant filter → cross-tenant leak | High | 🟢 RESOLVED | Implemented `ITenantScoped`; added `TenantIsolationCoverageTests` as a permanent invariant guard. |
+| R6 | `TtsController` and `TtsConfigController` mapped the identical route (`AmbiguousMatchException`) | High (defect) | 🟢 RESOLVED | Deleted the dead duplicate; gated the survivor. |
+| R7 | IRC chat send interpolated user text into the line → CRLF command injection | Medium | 🟢 RESOLVED | `IrcLineSanitizer` strips CR/LF/NUL + length-caps both send paths. |
+| R8 | `PaginationParams.PageSize` unbounded → `pageSize=1000000` materialises a huge result set (DoS) | Medium | 🟢 RESOLVED | Clamped to `[1, 100]` at the single chokepoint. |
+| R9 | Discord OAuth used an unsigned base64 state (CSRF) | Medium | 🟢 RESOLVED | Switched to the single-use server-side nonce. |
+| R10 | Bot-account OAuth start endpoints were `[AllowAnonymous]` redirects — anyone could initiate (and on completion hijack) the bot identity | High | 🟢 RESOLVED | A bot connection is an authenticated registration like Discord/Spotify: platform-shared bot → `[Authorize(Roles=admin)]` (iam:manage); white-label bot → `[Authorize]` + `channelbot:connect/read/disconnect` (new seeded keys); both return the authorize URL as JSON. |
+| R11 | Combined `PUT /stream` wrote title/game/tags with only Gate-1 → a Moderator bypassed the Editor-floor PATCH gates; Dashboard's route token wasn't `channelId` so its Gate-2 couldn't resolve the tenant; several writes (channel lifecycle, feature toggle, viewer trust) were ungated | High | 🟢 RESOLVED | Full mutation-endpoint sweep: gated `UpdateStreamInfo` (channel:title:write); renamed Dashboard route token to `channelId` + dashboard:read; Channels writes → setup:write; added feature:read/write + community:trust:write keys. Every POST/PUT/DELETE/PATCH now gated (per-action key, class-level admin, in-code self/admin, or token/signature). |
 
 ### Gate-2 coverage — now complete (R10/R11 follow-up)
 
