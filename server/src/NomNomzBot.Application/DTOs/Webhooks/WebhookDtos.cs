@@ -28,6 +28,28 @@ public sealed record InboundWebhookEndpointDto(
     DateTime UpdatedAt
 );
 
+/// <summary>A buffered inbound webhook request the dispatcher hands to the adapter (webhooks.md §4). Raw bytes are exact.</summary>
+public sealed record InboundWebhookRequest
+{
+    public required string Token { get; init; }
+    public required string Method { get; init; }
+    public required string ContentType { get; init; }
+    public required IReadOnlyDictionary<string, string> Headers { get; init; }
+    public required ReadOnlyMemory<byte> RawBody { get; init; }
+    public required DateTime ReceivedAtUtc { get; init; }
+    public required string RemoteIpHash { get; init; }
+}
+
+/// <summary>The verdict of an adapter's signature/secret check.</summary>
+public sealed record WebhookVerification(bool IsValid, WebhookRejectReason? Reason);
+
+/// <summary>A normalized inbound event: the kind token, the dedupe id, and a flat variable bag (webhook.*/payload.*).</summary>
+public sealed record ParsedInboundEvent(
+    string Kind,
+    string ProviderEventId,
+    IReadOnlyDictionary<string, string> Variables
+);
+
 /// <summary>Generic / Standard-Webhooks adapter config (Zapier/IFTTT/Make/Stream Deck/custom).</summary>
 public sealed record GenericInboundConfig(
     string? SignatureHeaderName,
