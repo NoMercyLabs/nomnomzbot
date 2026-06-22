@@ -14,7 +14,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260622064454_Initial")]
+    [Migration("20260622071918_Initial")]
     partial class Initial
     {
         /// <inheritdoc />
@@ -989,6 +989,129 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.HasIndex("BroadcasterId");
 
                     b.ToTable("Timers");
+                });
+
+            modelBuilder.Entity("NomNomzBot.Domain.CustomCode.Entities.CodeScript", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("AuthorUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BroadcasterId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("CurrentVersionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<bool>("IsEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Language")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTime?>("LastRanAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastRuntimeError")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AuthorUserId");
+
+                    b.HasIndex("BroadcasterId");
+
+                    b.HasIndex("CurrentVersionId");
+
+                    b.HasIndex("IsEnabled");
+
+                    b.HasIndex("BroadcasterId", "Name");
+
+                    b.ToTable("CodeScripts");
+                });
+
+            modelBuilder.Entity("NomNomzBot.Domain.CustomCode.Entities.CodeScriptVersion", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("AuthorUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BroadcasterId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CodeScriptId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CompiledHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("CompiledJs")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DeclaredCapabilitiesJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("PublishedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("SourceCode")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("ValidationErrorsJson")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ValidationStatus")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BroadcasterId");
+
+                    b.HasIndex("CompiledHash");
+
+                    b.HasIndex("ValidationStatus");
+
+                    b.HasIndex("CodeScriptId", "Version")
+                        .IsUnique();
+
+                    b.ToTable("CodeScriptVersions");
                 });
 
             modelBuilder.Entity("NomNomzBot.Domain.Discord.Entities.DiscordServerAuthorization", b =>

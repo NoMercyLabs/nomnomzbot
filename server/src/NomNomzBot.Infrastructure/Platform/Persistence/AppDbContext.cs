@@ -213,6 +213,10 @@ public class AppDbContext : DbContext, IApplicationDbContext
         Set<NomNomzBot.Domain.Platform.Entities.FeatureFlag>();
     public DbSet<NomNomzBot.Domain.Platform.Entities.FeatureFlagOverride> FeatureFlagOverrides =>
         Set<NomNomzBot.Domain.Platform.Entities.FeatureFlagOverride>();
+    public DbSet<NomNomzBot.Domain.CustomCode.Entities.CodeScript> CodeScripts =>
+        Set<NomNomzBot.Domain.CustomCode.Entities.CodeScript>();
+    public DbSet<NomNomzBot.Domain.CustomCode.Entities.CodeScriptVersion> CodeScriptVersions =>
+        Set<NomNomzBot.Domain.CustomCode.Entities.CodeScriptVersion>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

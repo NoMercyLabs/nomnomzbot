@@ -126,6 +126,10 @@ internal sealed class EventStoreTestDbContext : DbContext, IApplicationDbContext
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Platform.Entities.FeatureFlagOverride> FeatureFlagOverrides =>
         throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.CustomCode.Entities.CodeScript> CodeScripts =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.CustomCode.Entities.CodeScriptVersion> CodeScriptVersions =>
+        throw new NotSupportedException();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -208,6 +212,8 @@ internal sealed class EventStoreTestDbContext : DbContext, IApplicationDbContext
         modelBuilder.Ignore<NomNomzBot.Domain.Analytics.Entities.ChannelAnalyticsDaily>();
         modelBuilder.Ignore<NomNomzBot.Domain.Platform.Entities.FeatureFlag>();
         modelBuilder.Ignore<NomNomzBot.Domain.Platform.Entities.FeatureFlagOverride>();
+        modelBuilder.Ignore<NomNomzBot.Domain.CustomCode.Entities.CodeScript>();
+        modelBuilder.Ignore<NomNomzBot.Domain.CustomCode.Entities.CodeScriptVersion>();
     }
 
     // ── Unused IApplicationDbContext surface — never reached by these tests ──

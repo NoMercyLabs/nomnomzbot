@@ -445,6 +445,92 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
             );
 
             migrationBuilder.CreateTable(
+                name: "CodeScripts",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    BroadcasterId = table.Column<Guid>(type: "uuid", nullable: false),
+                    Name = table.Column<string>(
+                        type: "character varying(100)",
+                        maxLength: 100,
+                        nullable: false
+                    ),
+                    Description = table.Column<string>(
+                        type: "character varying(500)",
+                        maxLength: 500,
+                        nullable: true
+                    ),
+                    Language = table.Column<string>(
+                        type: "character varying(20)",
+                        maxLength: 20,
+                        nullable: false
+                    ),
+                    CurrentVersionId = table.Column<Guid>(type: "uuid", nullable: true),
+                    IsEnabled = table.Column<bool>(type: "boolean", nullable: false),
+                    AuthorUserId = table.Column<Guid>(type: "uuid", nullable: true),
+                    LastRuntimeError = table.Column<string>(type: "text", nullable: true),
+                    LastRanAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: true
+                    ),
+                    CreatedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                    UpdatedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                    DeletedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: true
+                    ),
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_CodeScripts", x => x.Id);
+                }
+            );
+
+            migrationBuilder.CreateTable(
+                name: "CodeScriptVersions",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    CodeScriptId = table.Column<Guid>(type: "uuid", nullable: false),
+                    BroadcasterId = table.Column<Guid>(type: "uuid", nullable: false),
+                    Version = table.Column<int>(type: "integer", nullable: false),
+                    SourceCode = table.Column<string>(type: "text", nullable: false),
+                    CompiledJs = table.Column<string>(type: "text", nullable: true),
+                    CompiledHash = table.Column<string>(
+                        type: "character varying(64)",
+                        maxLength: 64,
+                        nullable: true
+                    ),
+                    ValidationStatus = table.Column<string>(
+                        type: "character varying(20)",
+                        maxLength: 20,
+                        nullable: false
+                    ),
+                    ValidationErrorsJson = table.Column<string>(type: "text", nullable: true),
+                    DeclaredCapabilitiesJson = table.Column<string>(type: "text", nullable: false),
+                    PublishedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: true
+                    ),
+                    AuthorUserId = table.Column<Guid>(type: "uuid", nullable: true),
+                    CreatedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_CodeScriptVersions", x => x.Id);
+                }
+            );
+
+            migrationBuilder.CreateTable(
                 name: "ConsentRecords",
                 columns: table => new
                 {
@@ -4733,6 +4819,61 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
             );
 
             migrationBuilder.CreateIndex(
+                name: "IX_CodeScripts_AuthorUserId",
+                table: "CodeScripts",
+                column: "AuthorUserId"
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_CodeScripts_BroadcasterId",
+                table: "CodeScripts",
+                column: "BroadcasterId"
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_CodeScripts_BroadcasterId_Name",
+                table: "CodeScripts",
+                columns: new[] { "BroadcasterId", "Name" }
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_CodeScripts_CurrentVersionId",
+                table: "CodeScripts",
+                column: "CurrentVersionId"
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_CodeScripts_IsEnabled",
+                table: "CodeScripts",
+                column: "IsEnabled"
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_CodeScriptVersions_BroadcasterId",
+                table: "CodeScriptVersions",
+                column: "BroadcasterId"
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_CodeScriptVersions_CodeScriptId_Version",
+                table: "CodeScriptVersions",
+                columns: new[] { "CodeScriptId", "Version" },
+                unique: true
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_CodeScriptVersions_CompiledHash",
+                table: "CodeScriptVersions",
+                column: "CompiledHash"
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_CodeScriptVersions_ValidationStatus",
+                table: "CodeScriptVersions",
+                column: "ValidationStatus"
+            );
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Command_BroadcasterId_IsEnabled",
                 table: "Commands",
                 columns: new[] { "BroadcasterId", "IsEnabled" }
@@ -5492,6 +5633,10 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
             migrationBuilder.DropTable(name: "ChannelSubscriptions");
 
             migrationBuilder.DropTable(name: "ChatMessages");
+
+            migrationBuilder.DropTable(name: "CodeScripts");
+
+            migrationBuilder.DropTable(name: "CodeScriptVersions");
 
             migrationBuilder.DropTable(name: "Commands");
 
