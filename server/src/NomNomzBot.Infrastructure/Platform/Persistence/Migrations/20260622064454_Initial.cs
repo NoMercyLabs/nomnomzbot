@@ -824,6 +824,86 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
             );
 
             migrationBuilder.CreateTable(
+                name: "FeatureFlagOverrides",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    FeatureFlagId = table.Column<Guid>(type: "uuid", nullable: false),
+                    BroadcasterId = table.Column<Guid>(type: "uuid", nullable: false),
+                    IsEnabled = table.Column<bool>(type: "boolean", nullable: false),
+                    Reason = table.Column<string>(
+                        type: "character varying(255)",
+                        maxLength: 255,
+                        nullable: true
+                    ),
+                    ExpiresAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: true
+                    ),
+                    CreatedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                    UpdatedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_FeatureFlagOverrides", x => x.Id);
+                }
+            );
+
+            migrationBuilder.CreateTable(
+                name: "FeatureFlags",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    Key = table.Column<string>(
+                        type: "character varying(100)",
+                        maxLength: 100,
+                        nullable: false
+                    ),
+                    Description = table.Column<string>(
+                        type: "character varying(500)",
+                        maxLength: 500,
+                        nullable: true
+                    ),
+                    IsEnabledGlobally = table.Column<bool>(type: "boolean", nullable: false),
+                    RolloutPercentage = table.Column<int>(type: "integer", nullable: false),
+                    MinTierId = table.Column<Guid>(type: "uuid", nullable: true),
+                    MinTierKey = table.Column<string>(
+                        type: "character varying(20)",
+                        maxLength: 20,
+                        nullable: true
+                    ),
+                    RequiresConsent = table.Column<string>(
+                        type: "character varying(50)",
+                        maxLength: 50,
+                        nullable: true
+                    ),
+                    DeploymentMode = table.Column<string>(
+                        type: "character varying(20)",
+                        maxLength: 20,
+                        nullable: true
+                    ),
+                    CreatedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                    UpdatedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_FeatureFlags", x => x.Id);
+                }
+            );
+
+            migrationBuilder.CreateTable(
                 name: "FederationPeerKeys",
                 columns: table => new
                 {
@@ -4798,6 +4878,32 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
             );
 
             migrationBuilder.CreateIndex(
+                name: "IX_FeatureFlagOverrides_BroadcasterId",
+                table: "FeatureFlagOverrides",
+                column: "BroadcasterId"
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_FeatureFlagOverrides_FeatureFlagId_BroadcasterId",
+                table: "FeatureFlagOverrides",
+                columns: new[] { "FeatureFlagId", "BroadcasterId" },
+                unique: true
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_FeatureFlags_Key",
+                table: "FeatureFlags",
+                column: "Key",
+                unique: true
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_FeatureFlags_MinTierId",
+                table: "FeatureFlags",
+                column: "MinTierId"
+            );
+
+            migrationBuilder.CreateIndex(
                 name: "IX_FederationPeerKeys_IsActive",
                 table: "FederationPeerKeys",
                 column: "IsActive"
@@ -5412,6 +5518,10 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
             migrationBuilder.DropTable(name: "EventSubConduitShards");
 
             migrationBuilder.DropTable(name: "EventSubSubscriptions");
+
+            migrationBuilder.DropTable(name: "FeatureFlagOverrides");
+
+            migrationBuilder.DropTable(name: "FeatureFlags");
 
             migrationBuilder.DropTable(name: "FederationPeerKeys");
 

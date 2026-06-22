@@ -122,6 +122,10 @@ internal sealed class EventStoreTestDbContext : DbContext, IApplicationDbContext
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Analytics.Entities.ChannelAnalyticsDaily> ChannelAnalyticsDailies =>
         throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Platform.Entities.FeatureFlag> FeatureFlags =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Platform.Entities.FeatureFlagOverride> FeatureFlagOverrides =>
+        throw new NotSupportedException();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -202,6 +206,8 @@ internal sealed class EventStoreTestDbContext : DbContext, IApplicationDbContext
         modelBuilder.Ignore<NomNomzBot.Domain.Analytics.Entities.MessageActivityDaily>();
         modelBuilder.Ignore<NomNomzBot.Domain.Analytics.Entities.ViewerEngagementDaily>();
         modelBuilder.Ignore<NomNomzBot.Domain.Analytics.Entities.ChannelAnalyticsDaily>();
+        modelBuilder.Ignore<NomNomzBot.Domain.Platform.Entities.FeatureFlag>();
+        modelBuilder.Ignore<NomNomzBot.Domain.Platform.Entities.FeatureFlagOverride>();
     }
 
     // ── Unused IApplicationDbContext surface — never reached by these tests ──

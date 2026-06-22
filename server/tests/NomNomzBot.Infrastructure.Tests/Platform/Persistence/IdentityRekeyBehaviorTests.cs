@@ -487,5 +487,9 @@ public sealed class IdentityRekeyBehaviorTests
             throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.Analytics.Entities.ChannelAnalyticsDaily> ChannelAnalyticsDailies =>
             throw new NotSupportedException();
+        public DbSet<NomNomzBot.Domain.Platform.Entities.FeatureFlag> FeatureFlags =>
+            throw new NotSupportedException();
+        public DbSet<NomNomzBot.Domain.Platform.Entities.FeatureFlagOverride> FeatureFlagOverrides =>
+            throw new NotSupportedException();
     }
 }

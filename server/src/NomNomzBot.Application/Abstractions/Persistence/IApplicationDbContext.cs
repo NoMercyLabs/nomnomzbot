@@ -124,6 +124,8 @@ public interface IApplicationDbContext
     DbSet<MessageActivityDaily> MessageActivityDailies { get; }
     DbSet<ViewerEngagementDaily> ViewerEngagementDailies { get; }
     DbSet<ChannelAnalyticsDaily> ChannelAnalyticsDailies { get; }
+    DbSet<FeatureFlag> FeatureFlags { get; }
+    DbSet<FeatureFlagOverride> FeatureFlagOverrides { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }
