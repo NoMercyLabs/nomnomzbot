@@ -155,6 +155,16 @@ public static class DependencyInjection
             ServiceLifetime.Transient
         );
 
+        // The single SSRF-hardened egress client (sandbox + outbound webhooks): resolve-then-pin + https-only.
+        services
+            .AddHttpClient(NomNomzBot.Infrastructure.Sandbox.EgressHttpClient.Name)
+            .ConfigurePrimaryHttpMessageHandler(
+                NomNomzBot.Infrastructure.Sandbox.EgressHttpClient.CreateHandler
+            )
+            .AddHttpMessageHandler(() =>
+                new NomNomzBot.Infrastructure.Sandbox.EgressSchemeHandler()
+            );
+
         // Event store — projections, post-commit hooks, and upcasters are pluggable multi-bindings discovered
         // by convention (drop a file → it is live next boot), mirroring ICommandAction. Projections + hooks
         // touch the DbContext (scoped); upcasters are pure/stateless (singleton).
