@@ -11,43 +11,135 @@
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Domain.Community.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Rewards.Events;
+using NomNomzBot.Domain.Stream.Events;
 using NomNomzBot.Domain.Widgets.Entities;
 
 namespace NomNomzBot.Api.Hubs.Broadcasters;
 
 /// <summary>
-/// Fans a subscription out to the channel's overlay widgets (OBS browser-sources). Each enabled widget that
-/// declares <c>subscription</c> in its event subscriptions receives a <c>WidgetEvent</c> over <c>OverlayHub</c> —
-/// the missing link that turns a domain event into an on-stream alert. Other alert types follow the same shape.
+/// Fans a channel domain event out to the overlay widgets (OBS browser-sources) that subscribe to it — the link
+/// from a domain event to an on-stream alert over <c>OverlayHub</c>. The routing decision lives in
+/// <see cref="WidgetAlertRouting"/>; this is the shared db-read + push the per-event handlers below reuse.
 /// </summary>
+internal static class WidgetAlertDispatch
+{
+    public static async Task RouteAsync(
+        IApplicationDbContext db,
+        IWidgetNotifier notifier,
+        Guid broadcasterId,
+        string eventType,
+        object data,
+        CancellationToken cancellationToken
+    )
+    {
+        if (broadcasterId == Guid.Empty)
+            return;
+
+        List<Widget> widgets = await db
+            .Widgets.Where(w => w.BroadcasterId == broadcasterId)
+            .ToListAsync(cancellationToken);
+
+        foreach (Widget widget in WidgetAlertRouting.Subscribers(widgets, eventType))
+            await notifier.SendWidgetEventAsync(
+                broadcasterId.ToString(),
+                widget.Id,
+                new WidgetEventDto(widget.Id, eventType, data),
+                cancellationToken
+            );
+    }
+}
+
+/// <summary>New subscriber → the <c>subscription</c> overlay alert.</summary>
 public sealed class WidgetSubscriptionAlertHandler(
     IApplicationDbContext db,
     IWidgetNotifier notifier
 ) : IEventHandler<NewSubscriptionEvent>
 {
-    private const string EventType = "subscription";
-
-    public async Task HandleAsync(
+    public Task HandleAsync(
         NewSubscriptionEvent @event,
         CancellationToken cancellationToken = default
-    )
-    {
-        if (@event.BroadcasterId == Guid.Empty)
-            return;
+    ) =>
+        WidgetAlertDispatch.RouteAsync(
+            db,
+            notifier,
+            @event.BroadcasterId,
+            "subscription",
+            new { user = @event.UserDisplayName, tier = @event.Tier },
+            cancellationToken
+        );
+}
 
-        List<Widget> widgets = await db
-            .Widgets.Where(w => w.BroadcasterId == @event.BroadcasterId)
-            .ToListAsync(cancellationToken);
+/// <summary>New follower → the <c>follow</c> overlay alert.</summary>
+public sealed class WidgetFollowAlertHandler(IApplicationDbContext db, IWidgetNotifier notifier)
+    : IEventHandler<FollowEvent>
+{
+    public Task HandleAsync(FollowEvent @event, CancellationToken cancellationToken = default) =>
+        WidgetAlertDispatch.RouteAsync(
+            db,
+            notifier,
+            @event.BroadcasterId,
+            "follow",
+            new { user = @event.UserDisplayName },
+            cancellationToken
+        );
+}
 
-        object data = new { user = @event.UserDisplayName, tier = @event.Tier };
-        foreach (Widget widget in WidgetAlertRouting.Subscribers(widgets, EventType))
-            await notifier.SendWidgetEventAsync(
-                @event.BroadcasterId.ToString(),
-                widget.Id,
-                new WidgetEventDto(widget.Id, EventType, data),
-                cancellationToken
-            );
-    }
+/// <summary>Bits cheer → the <c>cheer</c> overlay alert.</summary>
+public sealed class WidgetCheerAlertHandler(IApplicationDbContext db, IWidgetNotifier notifier)
+    : IEventHandler<CheerEvent>
+{
+    public Task HandleAsync(CheerEvent @event, CancellationToken cancellationToken = default) =>
+        WidgetAlertDispatch.RouteAsync(
+            db,
+            notifier,
+            @event.BroadcasterId,
+            "cheer",
+            new
+            {
+                user = @event.IsAnonymous ? "Anonymous" : @event.UserDisplayName,
+                amount = @event.Bits,
+            },
+            cancellationToken
+        );
+}
+
+/// <summary>Incoming raid → the <c>raid</c> overlay alert.</summary>
+public sealed class WidgetRaidAlertHandler(IApplicationDbContext db, IWidgetNotifier notifier)
+    : IEventHandler<RaidEvent>
+{
+    public Task HandleAsync(RaidEvent @event, CancellationToken cancellationToken = default) =>
+        WidgetAlertDispatch.RouteAsync(
+            db,
+            notifier,
+            @event.BroadcasterId,
+            "raid",
+            new { user = @event.FromDisplayName, viewers = @event.ViewerCount },
+            cancellationToken
+        );
+}
+
+/// <summary>Gifted subs → the <c>gift</c> overlay alert.</summary>
+public sealed class WidgetGiftAlertHandler(IApplicationDbContext db, IWidgetNotifier notifier)
+    : IEventHandler<GiftSubscriptionEvent>
+{
+    public Task HandleAsync(
+        GiftSubscriptionEvent @event,
+        CancellationToken cancellationToken = default
+    ) =>
+        WidgetAlertDispatch.RouteAsync(
+            db,
+            notifier,
+            @event.BroadcasterId,
+            "gift",
+            new
+            {
+                user = @event.IsAnonymous ? "Anonymous" : @event.GifterDisplayName,
+                tier = @event.Tier,
+                amount = @event.GiftCount,
+            },
+            cancellationToken
+        );
 }
