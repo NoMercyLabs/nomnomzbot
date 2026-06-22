@@ -410,19 +410,14 @@ Scalar API reference (`/scalar`) and OpenAPI spec (`/openapi/v1.json`) are alway
 
 ### Gaps & Vulnerabilities
 
-**🟠 HIGH — `AllowedHosts: "*"` enables host header injection**
-ASP.NET Core's `AllowedHosts` middleware filters requests by the `Host` header. Setting it to `*` disables this check. An attacker can forge a `Host` header to change how the application constructs absolute URLs (used in OAuth redirect URIs, email links). Set this to the actual production domain.
+**🟢 RESOLVED — Host-header filtering derived from `App:BaseUrl`**
+When `AllowedHosts` is still the permissive `"*"`, `Program.cs` derives it from `App:BaseUrl`'s host (plus `localhost`/`127.0.0.1` for container health checks), so filtering is on with the correct host for any deployment from the one domain the operator already configures. An explicit `AllowedHosts` still wins. Redirect URIs are independently built from `App:BaseUrl`, not the `Host` header.
 
-**🟠 HIGH — Scalar API docs exposed in production**
-`app.MapOpenApi()` and `app.MapScalarApiReference()` are always registered. In production, the full API schema — including all request/response shapes, parameter names, and error codes — is publicly browsable. This isn't a direct vulnerability, but it provides significant reconnaissance value.
+**🟢 RESOLVED — Scalar/OpenAPI gated out of production**
+`MapOpenApi()` + `MapScalarApiReference()` now register only in `Development`, or in production when an operator explicitly opts in with `Api:ExposeDocs=true`. A default production deploy no longer publishes the full schema for reconnaissance.
 
-**🟡 MEDIUM — No security headers middleware**
-The application does not set:
-- `Content-Security-Policy`
-- `X-Content-Type-Options: nosniff`
-- `X-Frame-Options: DENY`
-- `Referrer-Policy: no-referrer`
-- `Permissions-Policy`
+**🟢 RESOLVED — Security headers on every response**
+An early-pipeline middleware sets `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, and `Permissions-Policy: geolocation=(), microphone=(), camera=()` on every response (static pages included). CSP is deferred to the page layer until a client content-security model is finalized.
 
 **🟡 MEDIUM — JWT passed in query string for SignalR**
 The `OnMessageReceived` event extracts `?access_token=` from the URL for SignalR connections. Tokens in query strings are:
@@ -742,17 +737,17 @@ These must be resolved before the hosted version handles any real user data. Lis
 **Issue:** CSRF on the OAuth flow — attacker can force an admin to link a malicious Twitch account.
 **Fix:** Generate nonce, store in Redis, verify on callback. See §5 Fix 1.
 
-### 8. Configure `AllowedHosts` for production domain (🟠 HIGH)
+### 8. Configure `AllowedHosts` for production domain (🟢 RESOLVED)
 
-**File:** `appsettings.Production.json` (to be created)
-**Issue:** `AllowedHosts: "*"` enables host header injection affecting OAuth redirect URI construction.
-**Fix:** Set to actual production hostname. See §9 Fix 1.
+**File:** `Program.cs`
+**Issue:** `AllowedHosts: "*"` enabled host header injection.
+**Resolution:** Derived from `App:BaseUrl`'s host (+ loopback) when left as `"*"`; explicit value overrides. See §9.
 
-### 9. Gate Scalar/OpenAPI behind dev/admin (🟠 HIGH)
+### 9. Gate Scalar/OpenAPI behind dev/admin (🟢 RESOLVED)
 
 **File:** `Program.cs`
 **Issue:** Full API schema publicly browsable in production.
-**Fix:** Wrap in `if (app.Environment.IsDevelopment())`. See §9 Fix 2.
+**Resolution:** Registered only in Development, or in production behind opt-in `Api:ExposeDocs=true`. See §9.
 
 ### 10. Add bootstrap admin mechanism (🟠 HIGH)
 
@@ -777,8 +772,8 @@ These must be resolved before the hosted version handles any real user data. Lis
 | 9 | Redis password-protected | 🟢 | 🟢 | RESOLVED |
 | 10 | DB/Redis ports loopback-bound | 🟢 | 🟢 | RESOLVED |
 | 11 | API container non-root | 🟢 | 🟢 | RESOLVED |
-| 12 | AllowedHosts = "*" | 🟠 | 🟠 | HIGH |
-| 13 | Scalar/OpenAPI in production | 🟠 | 🟡 | HIGH |
+| 12 | Host filtering from App:BaseUrl | 🟢 | 🟢 | RESOLVED |
+| 13 | Scalar/OpenAPI gated out of prod | 🟢 | 🟢 | RESOLVED |
 | 14 | No bootstrap admin path | N/A | 🟠 | HIGH |
 | 15 | Rate limiter uses proxy IP | 🟠 | 🟡 | HIGH |
 | 16 | Unsigned channel-bot state | 🟠 | 🟠 | HIGH |
@@ -789,7 +784,7 @@ These must be resolved before the hosted version handles any real user data. Lis
 | 21 | No GDPR export/delete | 🟡 | 🟡 | MEDIUM |
 | 22 | JWT/refresh share signing key | 🟡 | 🟡 | MEDIUM |
 | 23 | Non-destructive key rotation | 🟢 | 🟢 | RESOLVED |
-| 24 | Security headers missing | 🟡 | 🟡 | MEDIUM |
+| 24 | Security headers present | 🟢 | 🟢 | RESOLVED |
 | 25 | HTTPS not enforced/documented | 🟡 | 🟠 | MEDIUM |
 | 26 | No audit log | 🟢 | 🟢 | LOW |
 | 27 | Fixed-window rate limiter burst | 🟢 | 🟢 | LOW |

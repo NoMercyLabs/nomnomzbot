@@ -119,6 +119,17 @@ try
         builder.Environment.IsDevelopment()
     );
 
+    // Host-header filtering: when AllowedHosts is still the permissive "*", derive it from App:BaseUrl's host
+    // (plus loopback for container health checks) so filtering is correct for any deployment from the single
+    // domain the operator already configures (§9). An explicit AllowedHosts value still wins.
+    if (
+        builder.Configuration["AllowedHosts"] is null or "*"
+        && Uri.TryCreate(builder.Configuration["App:BaseUrl"], UriKind.Absolute, out Uri? baseUri)
+    )
+    {
+        builder.Configuration["AllowedHosts"] = $"{baseUri.Host};localhost;127.0.0.1";
+    }
+
     builder
         .Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         .AddJwtBearer(options =>
@@ -327,6 +338,20 @@ try
     app.UseMiddleware<GlobalExceptionMiddleware>();
     app.UseMiddleware<RequestLoggingMiddleware>();
 
+    // Baseline security response headers on every response, static pages included (§9). CSP is intentionally
+    // left to the page layer once a client CSP model is finalized; these four are safe defaults for an API.
+    app.Use(
+        async (ctx, next) =>
+        {
+            IHeaderDictionary headers = ctx.Response.Headers;
+            headers["X-Content-Type-Options"] = "nosniff";
+            headers["X-Frame-Options"] = "DENY";
+            headers["Referrer-Policy"] = "no-referrer";
+            headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()";
+            await next();
+        }
+    );
+
     // ─── Public web pages (deployment-distribution.md §P5) ─────────────────────
     // The bot serves its own lightweight web/ pages: the song-request page (/sr), the OBS overlay/widget
     // browser-sources (/overlay), and the OAuth landing. Served pre-auth (public). A missing web/ dir is a
@@ -353,13 +378,18 @@ try
             .AllowAnonymous();
     }
 
-    // OpenAPI spec + Scalar UI — always available (self-hosted / local dev)
-    app.MapOpenApi();
-    app.MapScalarApiReference(options =>
+    // OpenAPI spec + Scalar UI — exposed in development, or in production only when an operator opts in
+    // (Api:ExposeDocs=true). Off by default in production so the full request/response schema is not public
+    // reconnaissance for an attacker (§9).
+    if (app.Environment.IsDevelopment() || app.Configuration.GetValue<bool>("Api:ExposeDocs"))
     {
-        options.Title = "NomNomzBot API";
-        options.Theme = ScalarTheme.DeepSpace;
-    });
+        app.MapOpenApi();
+        app.MapScalarApiReference(options =>
+        {
+            options.Title = "NomNomzBot API";
+            options.Theme = ScalarTheme.DeepSpace;
+        });
+    }
 
     if (!app.Environment.IsProduction())
     {
