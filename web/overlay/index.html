@@ -33,7 +33,7 @@
         border-radius: 16px;
         text-align: center;
         color: #fff;
-        background: linear-gradient(135deg, rgba(145, 70, 255, 0.96), rgba(99, 49, 175, 0.96));
+        background: linear-gradient(135deg, var(--accent), rgba(0, 0, 0, 0.32));
         box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
         text-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
         animation: pop 0.45s cubic-bezier(0.2, 0.9, 0.3, 1.4) both;
@@ -87,6 +87,15 @@
         gift: "Gift Subs!",
       };
 
+      let alertDurationMs = 5000;
+      function applySettings(settings) {
+        if (!settings) return;
+        const accent = get(settings, "accentColor");
+        if (accent) document.documentElement.style.setProperty("--accent", String(accent));
+        const dur = Number(get(settings, "durationMs"));
+        if (dur) alertDurationMs = Math.max(1000, Math.min(30000, dur));
+      }
+
       function updateNowPlaying(data) {
         const box = document.getElementById("nowplaying");
         const track = get(data, "track");
@@ -117,8 +126,8 @@
         el.className = "alert";
         el.innerHTML = `<p class="headline">${escapeHtml(headline)}</p><p class="detail who">${detail}</p>`;
         document.getElementById("stage").appendChild(el);
-        setTimeout(() => el.classList.add("out"), 5000);
-        setTimeout(() => el.remove(), 5600);
+        setTimeout(() => el.classList.add("out"), alertDurationMs);
+        setTimeout(() => el.remove(), alertDurationMs + 600);
       }
 
       function escapeHtml(s) {
@@ -139,7 +148,8 @@
 
         async function join() {
           try {
-            await connection.invoke("JoinWidget", widgetId);
+            const res = await connection.invoke("JoinWidget", widgetId);
+            applySettings(get(res, "initialState"));
           } catch {
             /* hub will retry on reconnect */
           }

@@ -16,6 +16,7 @@ using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
+using NomNomzBot.Domain.Widgets.Entities;
 
 namespace NomNomzBot.Api.Hubs;
 
@@ -79,7 +80,13 @@ public class OverlayHub : Hub<IOverlayClient>
             Context.ConnectionId,
             widgetId
         );
-        return new(true, null, null);
+
+        // Hand the browser-source its saved appearance settings up front, so it can style itself
+        // before the first event arrives (the page applies the keys it understands, ignores the rest).
+        Widget? widget = await _db
+            .Widgets.AsNoTracking()
+            .FirstOrDefaultAsync(w => w.Id == widgetId && w.BroadcasterId == broadcasterId);
+        return new(true, null, widget?.Settings);
     }
 
     public async Task LeaveWidget(string widgetId)
