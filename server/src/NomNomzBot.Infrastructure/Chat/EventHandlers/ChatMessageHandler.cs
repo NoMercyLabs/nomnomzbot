@@ -14,6 +14,8 @@ using NomNomzBot.Application.Abstractions.RateLimiting;
 using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Chat.Interfaces;
+using NomNomzBot.Domain.Identity;
+using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform.Interfaces;
 
 namespace NomNomzBot.Infrastructure.Chat.EventHandlers;
@@ -208,18 +210,15 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
 
     private static bool HasPermission(ChatMessageReceivedEvent @event, string requiredPermission)
     {
-        return requiredPermission.ToLowerInvariant() switch
-        {
-            "broadcaster" => @event.IsBroadcaster,
-            "moderator" or "mod" => @event.IsBroadcaster || @event.IsModerator,
-            "vip" => @event.IsBroadcaster || @event.IsModerator || @event.IsVip,
-            "subscriber" or "sub" => @event.IsBroadcaster
-                || @event.IsModerator
-                || @event.IsVip
-                || @event.IsSubscriber,
-            "viewer" or "everyone" or "" => true,
-            _ => true,
-        };
+        PermissionLevel required = ChatRole.Parse(requiredPermission);
+        PermissionLevel actual = ChatRole.Resolve(
+            @event.IsBroadcaster,
+            @event.IsModerator,
+            @event.IsVip,
+            @event.IsSubscriber,
+            @event.Badges
+        );
+        return actual.ToLevelValue() >= required.ToLevelValue();
     }
 
     private static string PickResponse(string[] responses)
@@ -256,16 +255,14 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
         return vars;
     }
 
-    private static string GetUserRole(ChatMessageReceivedEvent @event)
-    {
-        if (@event.IsBroadcaster)
-            return "broadcaster";
-        if (@event.IsModerator)
-            return "moderator";
-        if (@event.IsVip)
-            return "vip";
-        if (@event.IsSubscriber)
-            return "subscriber";
-        return "viewer";
-    }
+    private static string GetUserRole(ChatMessageReceivedEvent @event) =>
+        ChatRole.ToToken(
+            ChatRole.Resolve(
+                @event.IsBroadcaster,
+                @event.IsModerator,
+                @event.IsVip,
+                @event.IsSubscriber,
+                @event.Badges
+            )
+        );
 }

@@ -209,7 +209,11 @@ public sealed class ChannelChatMessageTranslator(IEventBus bus, TimeProvider clo
             Badges = badges,
             IsSubscriber = ChatPayload.HasBadge(badges, "subscriber", "founder"),
             IsVip = ChatPayload.HasBadge(badges, "vip"),
-            IsModerator = ChatPayload.HasBadge(badges, "moderator"),
+            // A lead moderator outranks a moderator and their badge can replace the "moderator" badge, so flag them
+            // as a moderator too (the role gate then promotes them to SuperMod via the lead_moderator badge).
+            IsModerator =
+                ChatPayload.HasBadge(badges, "moderator")
+                || NomNomzBot.Domain.Identity.ChatRole.IsLeadModerator(badges),
             IsBroadcaster = ChatPayload.HasBadge(badges, "broadcaster"),
             Bits = cheer is { } c ? c.GetInt("bits") : 0,
             ReplyParentMessageId = reply?.GetString("parent_message_id"),

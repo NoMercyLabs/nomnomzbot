@@ -10,11 +10,16 @@
 
 namespace NomNomzBot.Domain.Identity.Enums;
 
+/// <summary>
+/// A chatter's role as seen in chat. <c>SuperMod</c> is a Lead Moderator (Twitch's <c>lead_moderator</c> badge, which
+/// replaces the regular moderator badge). Editor is not chat-visible, so it is absent here — see <c>ChatRole</c>.
+/// </summary>
 public enum UserRole
 {
     Viewer,
     Subscriber,
     Vip,
     Moderator,
+    SuperMod,
     Broadcaster,
 }

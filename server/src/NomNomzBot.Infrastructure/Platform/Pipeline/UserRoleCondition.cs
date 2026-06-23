@@ -10,14 +10,16 @@
 
 using System.Text.Json;
 using NomNomzBot.Application.Abstractions.Pipeline;
+using NomNomzBot.Domain.Identity;
+using NomNomzBot.Domain.Identity.Enums;
 
 namespace NomNomzBot.Infrastructure.Platform.Pipeline;
 
 /// <summary>
-/// Condition: check if the triggering user has at least a given role.
-/// Roles (ascending): viewer, subscriber, vip, moderator, broadcaster
+/// Condition: check if the triggering user has at least a given role, on the unified authorization ladder
+/// (viewer &lt; subscriber &lt; vip &lt; artist &lt; moderator &lt; supermod &lt; editor &lt; broadcaster).
 /// Usage: { "type": "user_role", "min_role": "moderator" }
-///        { "type": "user_role", "role": "broadcaster" }
+///        { "type": "user_role", "role": "supermod" }
 /// </summary>
 public sealed class UserRoleCondition : ICommandCondition
 {
@@ -42,13 +44,7 @@ public sealed class UserRoleCondition : ICommandCondition
         return elem.ValueKind == System.Text.Json.JsonValueKind.String ? elem.GetString() : null;
     }
 
-    private static int RoleLevel(string role) =>
-        role.ToLowerInvariant() switch
-        {
-            "broadcaster" => 5,
-            "moderator" or "mod" => 4,
-            "vip" => 3,
-            "subscriber" or "sub" => 2,
-            _ => 1, // viewer / everyone
-        };
+    // Compare on the canonical ladder value so supermod/editor/artist all rank correctly (the same parser the chat
+    // command gate uses), rather than an ad-hoc local ordering.
+    private static int RoleLevel(string role) => ChatRole.Parse(role).ToLevelValue();
 }

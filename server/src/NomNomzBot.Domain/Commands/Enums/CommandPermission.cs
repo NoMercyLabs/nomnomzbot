@@ -10,11 +10,17 @@
 
 namespace NomNomzBot.Domain.Commands.Enums;
 
+/// <summary>
+/// The role a chat command requires, on the chat-visible rungs of the unified ladder. <c>SuperMod</c> is a Lead
+/// Moderator (Twitch's <c>lead_moderator</c> badge). Editor is intentionally absent — it is a management/dashboard role
+/// resolved from the Helix editors list, not a chat badge, so chat commands cannot gate on it.
+/// </summary>
 public enum CommandPermission
 {
     Everyone,
     Subscriber,
     Vip,
     Moderator,
+    SuperMod,
     Broadcaster,
 }
