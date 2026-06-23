@@ -109,7 +109,7 @@ public sealed class ChannelPollBeginTranslator(IEventBus bus, TimeProvider clock
         PollBeganEvent began = new()
         {
             BroadcasterId = notification.BroadcasterId,
-            Timestamp = Clock.GetUtcNow(),
+            OccurredAt = Clock.GetUtcNow(),
             PollId = payload.GetRequiredString("id"),
             Title = payload.GetRequiredString("title"),
             Choices = PollPredictionPayload.ReadPollChoices(payload),
@@ -147,7 +147,7 @@ public sealed class ChannelPollProgressTranslator(IEventBus bus, TimeProvider cl
         PollProgressEvent progress = new()
         {
             BroadcasterId = notification.BroadcasterId,
-            Timestamp = Clock.GetUtcNow(),
+            OccurredAt = Clock.GetUtcNow(),
             PollId = payload.GetRequiredString("id"),
             Title = payload.GetRequiredString("title"),
             Choices = PollPredictionPayload.ReadPollChoices(payload),
@@ -177,7 +177,7 @@ public sealed class ChannelPollEndTranslator(IEventBus bus, TimeProvider clock)
         PollEndedEvent ended = new()
         {
             BroadcasterId = notification.BroadcasterId,
-            Timestamp = Clock.GetUtcNow(),
+            OccurredAt = Clock.GetUtcNow(),
             PollId = payload.GetRequiredString("id"),
             Title = payload.GetRequiredString("title"),
             Status = payload.GetRequiredString("status"),
@@ -206,7 +206,7 @@ public sealed class ChannelPredictionBeginTranslator(IEventBus bus, TimeProvider
         PredictionBeganEvent began = new()
         {
             BroadcasterId = notification.BroadcasterId,
-            Timestamp = Clock.GetUtcNow(),
+            OccurredAt = Clock.GetUtcNow(),
             PredictionId = payload.GetRequiredString("id"),
             Title = payload.GetRequiredString("title"),
             Outcomes = PollPredictionPayload.ReadPredictionOutcomes(payload),
@@ -233,7 +233,7 @@ public sealed class ChannelPredictionProgressTranslator(IEventBus bus, TimeProvi
         PredictionProgressEvent progress = new()
         {
             BroadcasterId = notification.BroadcasterId,
-            Timestamp = Clock.GetUtcNow(),
+            OccurredAt = Clock.GetUtcNow(),
             PredictionId = payload.GetRequiredString("id"),
             Title = payload.GetRequiredString("title"),
             Outcomes = PollPredictionPayload.ReadPredictionOutcomes(payload),
@@ -259,7 +259,7 @@ public sealed class ChannelPredictionLockTranslator(IEventBus bus, TimeProvider 
         PredictionLockedEvent locked = new()
         {
             BroadcasterId = notification.BroadcasterId,
-            Timestamp = Clock.GetUtcNow(),
+            OccurredAt = Clock.GetUtcNow(),
             PredictionId = payload.GetRequiredString("id"),
             Title = payload.GetRequiredString("title"),
             Outcomes = PollPredictionPayload.ReadPredictionOutcomes(payload),
@@ -287,7 +287,7 @@ public sealed class ChannelPredictionEndTranslator(IEventBus bus, TimeProvider c
         PredictionEndedEvent ended = new()
         {
             BroadcasterId = notification.BroadcasterId,
-            Timestamp = Clock.GetUtcNow(),
+            OccurredAt = Clock.GetUtcNow(),
             PredictionId = payload.GetRequiredString("id"),
             Title = payload.GetRequiredString("title"),
             Status = payload.GetRequiredString("status"),

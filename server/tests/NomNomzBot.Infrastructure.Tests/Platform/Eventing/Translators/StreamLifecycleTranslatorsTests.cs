@@ -77,7 +77,7 @@ public sealed class StreamLifecycleTranslatorsTests
         published.FromDisplayName.Should().Be("Raiding_Streamer");
         published.FromLogin.Should().Be("raiding_streamer");
         published.ViewerCount.Should().Be(250);
-        published.Timestamp.Should().Be(Clock.GetUtcNow());
+        published.OccurredAt.Should().Be(Clock.GetUtcNow());
     }
 
     [Fact]
@@ -114,7 +114,7 @@ public sealed class StreamLifecycleTranslatorsTests
         published.BroadcasterDisplayName.Should().Be("Streamer");
         published.NewTitle.Should().Be("New title!");
         published.NewGameName.Should().Be("Just Chatting");
-        published.Timestamp.Should().Be(Clock.GetUtcNow());
+        published.OccurredAt.Should().Be(Clock.GetUtcNow());
     }
 
     [Fact]
@@ -157,7 +157,7 @@ public sealed class StreamLifecycleTranslatorsTests
             .StreamTitle.Should()
             .BeEmpty("stream.online carries no title — it hydrates from Helix/channel.update");
         published.GameName.Should().BeEmpty();
-        published.Timestamp.Should().Be(Clock.GetUtcNow());
+        published.OccurredAt.Should().Be(Clock.GetUtcNow());
     }
 
     [Fact]
@@ -219,6 +219,6 @@ public sealed class StreamLifecycleTranslatorsTests
                 TimeSpan.Zero,
                 "stream.offline carries no duration — uptime is computed downstream"
             );
-        published.Timestamp.Should().Be(Clock.GetUtcNow());
+        published.OccurredAt.Should().Be(Clock.GetUtcNow());
     }
 }

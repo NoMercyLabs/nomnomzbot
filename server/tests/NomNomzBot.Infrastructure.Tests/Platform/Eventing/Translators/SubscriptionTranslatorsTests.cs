@@ -77,7 +77,7 @@ public sealed class SubscriptionTranslatorsTests
         published.UserId.Should().Be("1234");
         published.UserDisplayName.Should().Be("Cool_User");
         published.Tier.Should().Be("1000");
-        published.Timestamp.Should().Be(Clock.GetUtcNow());
+        published.OccurredAt.Should().Be(Clock.GetUtcNow());
     }
 
     [Fact]
@@ -117,7 +117,7 @@ public sealed class SubscriptionTranslatorsTests
         published.CumulativeMonths.Should().Be(15);
         published.StreakMonths.Should().Be(3);
         published.Message.Should().Be("Love the stream!");
-        published.Timestamp.Should().Be(Clock.GetUtcNow());
+        published.OccurredAt.Should().Be(Clock.GetUtcNow());
     }
 
     [Fact]
@@ -188,7 +188,7 @@ public sealed class SubscriptionTranslatorsTests
         published.GiftCount.Should().Be(5);
         published.IsAnonymous.Should().BeFalse();
         published.Recipients.Should().BeEmpty("the gift event does not enumerate recipients");
-        published.Timestamp.Should().Be(Clock.GetUtcNow());
+        published.OccurredAt.Should().Be(Clock.GetUtcNow());
     }
 
     [Fact]
@@ -259,7 +259,7 @@ public sealed class SubscriptionTranslatorsTests
         published.UserDisplayName.Should().Be("Cool_User");
         published.Tier.Should().Be("3000");
         published.IsGift.Should().BeTrue();
-        published.Timestamp.Should().Be(Clock.GetUtcNow());
+        published.OccurredAt.Should().Be(Clock.GetUtcNow());
     }
 
     [Fact]
@@ -294,7 +294,7 @@ public sealed class SubscriptionTranslatorsTests
         published.Bits.Should().Be(100);
         published.Message.Should().Be("cheer100 nice stream");
         published.IsAnonymous.Should().BeFalse();
-        published.Timestamp.Should().Be(Clock.GetUtcNow());
+        published.OccurredAt.Should().Be(Clock.GetUtcNow());
     }
 
     [Fact]

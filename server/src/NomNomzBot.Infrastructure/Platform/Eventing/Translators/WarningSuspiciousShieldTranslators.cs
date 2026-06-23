@@ -33,7 +33,7 @@ public sealed class ChannelWarningAcknowledgeTranslator(IEventBus bus, TimeProvi
         WarningAcknowledgedEvent acknowledged = new()
         {
             BroadcasterId = notification.BroadcasterId,
-            Timestamp = Clock.GetUtcNow(),
+            OccurredAt = Clock.GetUtcNow(),
             UserId = payload.GetRequiredString("user_id"),
             UserDisplayName = payload.GetRequiredString("user_name"),
             UserLogin = payload.GetRequiredString("user_login"),
@@ -62,7 +62,7 @@ public sealed class ChannelWarningSendTranslator(IEventBus bus, TimeProvider clo
         WarningSentEvent sent = new()
         {
             BroadcasterId = notification.BroadcasterId,
-            Timestamp = Clock.GetUtcNow(),
+            OccurredAt = Clock.GetUtcNow(),
             UserId = payload.GetRequiredString("user_id"),
             UserDisplayName = payload.GetRequiredString("user_name"),
             UserLogin = payload.GetRequiredString("user_login"),
@@ -124,7 +124,7 @@ public sealed class ChannelSuspiciousUserMessageTranslator(IEventBus bus, TimePr
         SuspiciousUserMessageEvent suspicious = new()
         {
             BroadcasterId = notification.BroadcasterId,
-            Timestamp = Clock.GetUtcNow(),
+            OccurredAt = Clock.GetUtcNow(),
             UserId = payload.GetRequiredString("user_id"),
             UserDisplayName = payload.GetRequiredString("user_name"),
             UserLogin = payload.GetRequiredString("user_login"),
@@ -157,7 +157,7 @@ public sealed class ChannelSuspiciousUserUpdateTranslator(IEventBus bus, TimePro
         SuspiciousUserUpdatedEvent updated = new()
         {
             BroadcasterId = notification.BroadcasterId,
-            Timestamp = Clock.GetUtcNow(),
+            OccurredAt = Clock.GetUtcNow(),
             UserId = payload.GetRequiredString("user_id"),
             UserDisplayName = payload.GetRequiredString("user_name"),
             UserLogin = payload.GetRequiredString("user_login"),
@@ -188,7 +188,7 @@ public sealed class ChannelShieldModeBeginTranslator(IEventBus bus, TimeProvider
         ShieldModeBeganEvent began = new()
         {
             BroadcasterId = notification.BroadcasterId,
-            Timestamp = Clock.GetUtcNow(),
+            OccurredAt = Clock.GetUtcNow(),
             ModeratorId = payload.GetRequiredString("moderator_user_id"),
             ModeratorDisplayName = payload.GetRequiredString("moderator_user_name"),
             StartedAt = payload.GetDateTimeOffset("started_at") ?? Clock.GetUtcNow(),
@@ -216,7 +216,7 @@ public sealed class ChannelShieldModeEndTranslator(IEventBus bus, TimeProvider c
         ShieldModeEndedEvent ended = new()
         {
             BroadcasterId = notification.BroadcasterId,
-            Timestamp = Clock.GetUtcNow(),
+            OccurredAt = Clock.GetUtcNow(),
             ModeratorId = payload.GetRequiredString("moderator_user_id"),
             ModeratorDisplayName = payload.GetRequiredString("moderator_user_name"),
             EndedAt = payload.GetDateTimeOffset("ended_at") ?? Clock.GetUtcNow(),

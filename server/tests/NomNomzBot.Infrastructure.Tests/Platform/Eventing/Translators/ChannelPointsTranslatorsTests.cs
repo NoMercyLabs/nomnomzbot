@@ -95,7 +95,7 @@ public sealed class ChannelPointsTranslatorsTests
         published.RewardId.Should().Be("92af127c-7326-4483-a52b-b0da0be61c01");
         published.RewardTitle.Should().Be("title");
         published.Cost.Should().Be(100);
-        published.Timestamp.Should().Be(Clock.GetUtcNow());
+        published.OccurredAt.Should().Be(Clock.GetUtcNow());
     }
 
     [Fact]
@@ -173,7 +173,7 @@ public sealed class ChannelPointsTranslatorsTests
         published.Status.Should().Be("fulfilled");
         published.RewardId.Should().Be("92af127c-7326-4483-a52b-b0da0be61c01");
         published.RewardTitle.Should().Be("title");
-        published.Timestamp.Should().Be(Clock.GetUtcNow());
+        published.OccurredAt.Should().Be(Clock.GetUtcNow());
     }
 
     [Fact]
@@ -214,7 +214,7 @@ public sealed class ChannelPointsTranslatorsTests
         published.Title.Should().Be("Cool Reward");
         published.Cost.Should().Be(100);
         published.IsEnabled.Should().BeTrue();
-        published.Timestamp.Should().Be(Clock.GetUtcNow());
+        published.OccurredAt.Should().Be(Clock.GetUtcNow());
     }
 
     [Fact]
@@ -334,7 +334,7 @@ public sealed class ChannelPointsTranslatorsTests
         published.Cost.Should().Be(100);
         published.UnlockedEmoteId.Should().BeNull("the reward.emote was null for this reward type");
         published.Message.Should().Be("Hello world! VoHiYo");
-        published.Timestamp.Should().Be(Clock.GetUtcNow());
+        published.OccurredAt.Should().Be(Clock.GetUtcNow());
     }
 
     [Fact]
@@ -426,6 +426,6 @@ public sealed class ChannelPointsTranslatorsTests
         published.PowerUpId.Should().Be("92af127c-7326-4483-a52b-b0da0be61c01");
         published.PowerUpTitle.Should().Be("title");
         published.Bits.Should().Be(100);
-        published.Timestamp.Should().Be(Clock.GetUtcNow());
+        published.OccurredAt.Should().Be(Clock.GetUtcNow());
     }
 }

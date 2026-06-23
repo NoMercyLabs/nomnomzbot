@@ -84,7 +84,7 @@ public sealed class SharedChatTranslatorsTests
         published.HostBroadcasterDisplayName.Should().Be("Host_Streamer");
         published.HostBroadcasterLogin.Should().Be("host_streamer");
         published.Participants.Should().Equal("host-1", "guest-2");
-        published.Timestamp.Should().Be(Clock.GetUtcNow());
+        published.OccurredAt.Should().Be(Clock.GetUtcNow());
     }
 
     [Fact]
@@ -122,7 +122,7 @@ public sealed class SharedChatTranslatorsTests
         published.SessionId.Should().Be("session-abc");
         published.HostBroadcasterId.Should().Be("host-1");
         published.Participants.Should().Equal("host-1", "guest-2", "guest-3");
-        published.Timestamp.Should().Be(Clock.GetUtcNow());
+        published.OccurredAt.Should().Be(Clock.GetUtcNow());
     }
 
     [Fact]
@@ -178,6 +178,6 @@ public sealed class SharedChatTranslatorsTests
         published.BroadcasterId.Should().Be(tenant);
         published.SessionId.Should().Be("session-abc");
         published.HostBroadcasterId.Should().Be("host-1");
-        published.Timestamp.Should().Be(Clock.GetUtcNow());
+        published.OccurredAt.Should().Be(Clock.GetUtcNow());
     }
 }

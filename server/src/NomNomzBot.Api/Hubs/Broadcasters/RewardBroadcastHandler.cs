@@ -35,7 +35,7 @@ public sealed class RewardRedeemedBroadcastHandler : IEventHandler<RewardRedeeme
             UserDisplayName: @event.UserDisplayName,
             Cost: @event.Cost,
             UserInput: @event.UserInput,
-            Timestamp: @event.Timestamp.ToString("O")
+            Timestamp: @event.OccurredAt.ToString("O")
         );
 
         return _notifier.SendRewardRedeemedAsync(@event.BroadcasterId.ToString(), dto, ct);

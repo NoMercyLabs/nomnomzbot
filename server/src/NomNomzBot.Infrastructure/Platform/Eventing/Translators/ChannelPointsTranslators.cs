@@ -38,7 +38,7 @@ public sealed class ChannelPointsRewardRedemptionAddTranslator(IEventBus bus, Ti
         RewardRedeemedEvent redeemed = new()
         {
             BroadcasterId = notification.BroadcasterId,
-            Timestamp = Clock.GetUtcNow(),
+            OccurredAt = Clock.GetUtcNow(),
             RedemptionId = payload.GetRequiredString("id"),
             UserId = payload.GetRequiredString("user_id"),
             UserDisplayName = payload.GetRequiredString("user_name"),
@@ -74,7 +74,7 @@ public sealed class ChannelPointsRewardRedemptionUpdateTranslator(IEventBus bus,
         RewardRedemptionUpdatedEvent updated = new()
         {
             BroadcasterId = notification.BroadcasterId,
-            Timestamp = Clock.GetUtcNow(),
+            OccurredAt = Clock.GetUtcNow(),
             RedemptionId = payload.GetRequiredString("id"),
             UserId = payload.GetRequiredString("user_id"),
             UserDisplayName = payload.GetRequiredString("user_name"),
@@ -106,7 +106,7 @@ public sealed class ChannelPointsRewardAddTranslator(IEventBus bus, TimeProvider
         RewardCreatedEvent created = new()
         {
             BroadcasterId = notification.BroadcasterId,
-            Timestamp = Clock.GetUtcNow(),
+            OccurredAt = Clock.GetUtcNow(),
             TwitchRewardId = payload.GetRequiredString("id"),
             Title = payload.GetRequiredString("title"),
             Cost = payload.GetInt("cost"),
@@ -135,7 +135,7 @@ public sealed class ChannelPointsRewardUpdateTranslator(IEventBus bus, TimeProvi
         RewardUpdatedEvent updated = new()
         {
             BroadcasterId = notification.BroadcasterId,
-            Timestamp = Clock.GetUtcNow(),
+            OccurredAt = Clock.GetUtcNow(),
             TwitchRewardId = payload.GetRequiredString("id"),
             Title = payload.GetRequiredString("title"),
             Cost = payload.GetInt("cost"),
@@ -164,7 +164,7 @@ public sealed class ChannelPointsRewardRemoveTranslator(IEventBus bus, TimeProvi
         RewardRemovedEvent removed = new()
         {
             BroadcasterId = notification.BroadcasterId,
-            Timestamp = Clock.GetUtcNow(),
+            OccurredAt = Clock.GetUtcNow(),
             TwitchRewardId = payload.GetRequiredString("id"),
             Title = payload.GetRequiredString("title"),
         };
@@ -200,7 +200,7 @@ public sealed class ChannelPointsAutomaticRewardRedemptionAddTranslator(
         AutomaticRewardRedeemedEvent redeemed = new()
         {
             BroadcasterId = notification.BroadcasterId,
-            Timestamp = Clock.GetUtcNow(),
+            OccurredAt = Clock.GetUtcNow(),
             RedemptionId = payload.GetRequiredString("id"),
             UserId = payload.GetRequiredString("user_id"),
             UserLogin = payload.GetRequiredString("user_login"),
@@ -237,7 +237,7 @@ public sealed class ChannelCustomPowerUpRedemptionAddTranslator(IEventBus bus, T
         CustomPowerUpRedeemedEvent redeemed = new()
         {
             BroadcasterId = notification.BroadcasterId,
-            Timestamp = Clock.GetUtcNow(),
+            OccurredAt = Clock.GetUtcNow(),
             RedemptionId = payload.GetRequiredString("id"),
             UserId = payload.GetRequiredString("user_id"),
             UserLogin = payload.GetRequiredString("user_login"),

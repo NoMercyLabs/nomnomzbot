@@ -92,9 +92,9 @@ nomnomzbot/
 ├── app/                     # Frontend — Kotlin Multiplatform + Compose Multiplatform
 │   │                        #   (desktop-first dashboard; mobile later). Internal module
 │   │                        #   structure to be specified in the frontend spec phase.
-├── web/                     # Public pages (song-request, OBS overlays/widgets, OAuth landing)
-│   │                        #   + host for the Compose/Wasm dashboard build (same app as desktop)
-├── docker-compose.yml       # Root compose — references ./server and ./web
+│                            # Public surfaces (OBS overlays, song-request) = compiled widgets served by the
+│                            # bot + CDN-cached for SaaS (widgets-overlays); there is no static web/ folder.
+├── docker-compose.yml       # Root compose — references ./server
 ├── deploy.sh
 ├── deploy.ps1
 ├── .env.example
@@ -117,7 +117,7 @@ nomnomzbot/
 | Auth | JWT + Twitch OAuth (Authorization Code Flow) |
 | Logging | Serilog |
 | Frontend (dashboard) | Kotlin Multiplatform (KMP) + Compose Multiplatform — one codebase, **desktop + web (Wasm)** identical UI; mobile later |
-| Public web pages | Lightweight web (song-request page, OBS overlays/widgets, OAuth callback landing) — separate from the Compose/Wasm dashboard |
+| Public surfaces | Widget system (OBS overlays, song-request, OAuth landing) — compiled from source at build time, served by the bot, CDN-cached for SaaS; the build→serve→cache pipeline is being specced |
 | Backend comms (FE) | Typed shared KMP client over REST (v1 API) + SignalR (realtime) |
 
 ---
@@ -263,14 +263,15 @@ dotnet test tests/NomNomzBot.Domain.Tests      # one project
     bot's URL. The **native app is multi-origin** — it holds a list of saved server connections (the
     profile-menu switcher), fed by **mDNS LAN auto-discovery** + manual add; switching swaps the
     active backend + its keychain token and reconnects REST + SignalR.
-- **Web serves two things:** (1) the **Compose/Wasm dashboard** (same app as desktop, for
-  no-install / remote access), and (2) **lightweight public pages** that viewers/OBS hit without
-  any app:
+- **The bot serves two web surfaces:** (1) the **Compose/Wasm dashboard** (same app as desktop, for
+  no-install / remote access), and (2) the **public surfaces** that viewers/OBS hit without any app:
   - Song-request page (viewers)
   - Overlays / widgets (OBS browser source — the widget system)
   - OAuth callback landing
 
-  The public pages stay lightweight (plain / server-rendered); the dashboard is the Compose/Wasm build.
+  These public surfaces are **compiled widgets** — built from source at build time, served by the bot, and
+  CDN-cached for SaaS; **not** static files (there is no `web/` folder). The compiled-widget build→serve→cache
+  pipeline is being specced.
 
 ### Backend comms
 
@@ -548,4 +549,4 @@ After completion, lands on the dashboard home. Wizard navigation/route specifics
 - Main branch: `master` (never `main`)
 - Remotes: `origin` = `NoMercyLabs/nomnomzbot` (canonical, push here); `fork` = personal `StoneyEagle/nomnomzbot`
 - Feature branches: `feat/description` or `fix/description`
-- All code lives in this monorepo (`server/` backend, `app/` KMP + Compose frontend, `web/` public pages)
+- All code lives in this monorepo (`server/` backend, `app/` KMP + Compose frontend)

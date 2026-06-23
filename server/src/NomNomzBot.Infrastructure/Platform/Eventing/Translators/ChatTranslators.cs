@@ -196,7 +196,7 @@ public sealed class ChannelChatMessageTranslator(IEventBus bus, TimeProvider clo
         ChatMessageReceivedEvent received = new()
         {
             BroadcasterId = notification.BroadcasterId,
-            Timestamp = Clock.GetUtcNow(),
+            OccurredAt = Clock.GetUtcNow(),
             TwitchBroadcasterId = notification.TwitchBroadcasterUserId,
             MessageId = payload.GetRequiredString("message_id"),
             UserId = payload.GetRequiredString("chatter_user_id"),
@@ -244,7 +244,7 @@ public sealed class ChannelChatMessageDeleteTranslator(IEventBus bus, TimeProvid
         ChatMessageDeletedEvent deleted = new()
         {
             BroadcasterId = notification.BroadcasterId,
-            Timestamp = Clock.GetUtcNow(),
+            OccurredAt = Clock.GetUtcNow(),
             MessageId = payload.GetRequiredString("message_id"),
             TargetUserId = payload.GetRequiredString("target_user_id"),
             DeletedByUserId = string.Empty,
@@ -272,7 +272,7 @@ public sealed class ChannelChatClearTranslator(IEventBus bus, TimeProvider clock
         ChatClearedEvent cleared = new()
         {
             BroadcasterId = notification.BroadcasterId,
-            Timestamp = Clock.GetUtcNow(),
+            OccurredAt = Clock.GetUtcNow(),
             ClearedByUserId = string.Empty,
         };
 
@@ -298,7 +298,7 @@ public sealed class ChannelChatClearUserMessagesTranslator(IEventBus bus, TimePr
         ChatUserMessagesClearedEvent cleared = new()
         {
             BroadcasterId = notification.BroadcasterId,
-            Timestamp = Clock.GetUtcNow(),
+            OccurredAt = Clock.GetUtcNow(),
             TargetUserId = payload.GetRequiredString("target_user_id"),
             TargetUserDisplayName = payload.GetRequiredString("target_user_name"),
             TargetUserLogin = payload.GetRequiredString("target_user_login"),
@@ -330,7 +330,7 @@ public sealed class ChannelChatNotificationTranslator(IEventBus bus, TimeProvide
         ChatNotificationEvent notice = new()
         {
             BroadcasterId = notification.BroadcasterId,
-            Timestamp = Clock.GetUtcNow(),
+            OccurredAt = Clock.GetUtcNow(),
             ChatterUserId = payload.GetRequiredString("chatter_user_id"),
             ChatterDisplayName = payload.GetRequiredString("chatter_user_name"),
             ChatterLogin = payload.GetRequiredString("chatter_user_login"),
@@ -350,7 +350,7 @@ public sealed class ChannelChatNotificationTranslator(IEventBus bus, TimeProvide
                 new WatchStreakReceivedEvent
                 {
                     BroadcasterId = notification.BroadcasterId,
-                    Timestamp = Clock.GetUtcNow(),
+                    OccurredAt = Clock.GetUtcNow(),
                     UserId = notice.ChatterUserId,
                     UserLogin = notice.ChatterLogin,
                     UserDisplayName = notice.ChatterDisplayName,
@@ -383,7 +383,7 @@ public sealed class ChannelChatSettingsUpdateTranslator(IEventBus bus, TimeProvi
         ChatSettingsUpdatedEvent settings = new()
         {
             BroadcasterId = notification.BroadcasterId,
-            Timestamp = Clock.GetUtcNow(),
+            OccurredAt = Clock.GetUtcNow(),
             EmoteMode = payload.GetBool("emote_mode"),
             FollowerMode = followerMode,
             FollowerModeDurationMinutes = followerMode
@@ -417,7 +417,7 @@ public sealed class ChannelChatUserMessageHoldTranslator(IEventBus bus, TimeProv
         ChatUserMessageHeldEvent held = new()
         {
             BroadcasterId = notification.BroadcasterId,
-            Timestamp = Clock.GetUtcNow(),
+            OccurredAt = Clock.GetUtcNow(),
             UserId = payload.GetRequiredString("user_id"),
             UserDisplayName = payload.GetRequiredString("user_name"),
             UserLogin = payload.GetRequiredString("user_login"),
@@ -447,7 +447,7 @@ public sealed class ChannelChatUserMessageUpdateTranslator(IEventBus bus, TimePr
         ChatUserMessageUpdatedEvent updated = new()
         {
             BroadcasterId = notification.BroadcasterId,
-            Timestamp = Clock.GetUtcNow(),
+            OccurredAt = Clock.GetUtcNow(),
             UserId = payload.GetRequiredString("user_id"),
             UserDisplayName = payload.GetRequiredString("user_name"),
             UserLogin = payload.GetRequiredString("user_login"),

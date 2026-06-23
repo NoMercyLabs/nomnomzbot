@@ -16,14 +16,14 @@ namespace NomNomzBot.Domain.Platform;
 /// </summary>
 public abstract class DomainEventBase : IDomainEvent
 {
-    public string EventId { get; init; } = Guid.NewGuid().ToString();
+    public Guid EventId { get; init; } = Guid.CreateVersion7();
 
     // The single tolerated construction-time default for the clock (platform-conventions
     // §3.11): domain events are plain records built with `new` and have no DI seam, so the
     // initializer reads TimeProvider.System — the composition-root clock — rather than a bare
-    // DateTimeOffset.UtcNow. Publishers needing determinism (and all tests) override Timestamp
+    // DateTimeOffset.UtcNow. Publishers needing determinism (and all tests) override OccurredAt
     // from their injected TimeProvider.
-    public DateTimeOffset Timestamp { get; init; } = TimeProvider.System.GetUtcNow();
+    public DateTimeOffset OccurredAt { get; init; } = TimeProvider.System.GetUtcNow();
 
     // The tenant (channel) this event relates to. Guid.Empty is the platform-level sentinel
     // (platform-conventions §2.0) — NOT null. Tenant-scoped events set this to the owning channel id.

@@ -35,7 +35,7 @@ public sealed class ChannelFollowTranslator(IEventBus bus, TimeProvider clock)
         FollowEvent followed = new()
         {
             BroadcasterId = notification.BroadcasterId,
-            Timestamp = Clock.GetUtcNow(),
+            OccurredAt = Clock.GetUtcNow(),
             UserId = payload.GetRequiredString("user_id"),
             UserDisplayName = payload.GetRequiredString("user_name"),
             UserLogin = payload.GetRequiredString("user_login"),

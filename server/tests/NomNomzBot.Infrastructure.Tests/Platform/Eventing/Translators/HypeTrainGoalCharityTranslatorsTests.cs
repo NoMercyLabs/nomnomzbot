@@ -91,7 +91,7 @@ public sealed class HypeTrainGoalCharityTranslatorsTests
             .TopContributions[0]
             .Should()
             .Be(new HypeTrainContribution("u1", "alice", "Alice", "bits", 500));
-        published.Timestamp.Should().Be(Clock.GetUtcNow());
+        published.OccurredAt.Should().Be(Clock.GetUtcNow());
     }
 
     [Fact]

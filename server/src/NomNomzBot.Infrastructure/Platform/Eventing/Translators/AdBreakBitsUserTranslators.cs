@@ -39,7 +39,7 @@ public sealed class ChannelAdBreakBeginTranslator(IEventBus bus, TimeProvider cl
         AdBreakBeganEvent began = new()
         {
             BroadcasterId = notification.BroadcasterId,
-            Timestamp = Clock.GetUtcNow(),
+            OccurredAt = Clock.GetUtcNow(),
             DurationSeconds = ReadFlexibleInt(payload, "duration_seconds"),
             IsAutomatic = ReadFlexibleBool(payload, "is_automatic"),
             StartedAt = payload.GetDateTimeOffset("started_at") ?? Clock.GetUtcNow(),
@@ -113,7 +113,7 @@ public sealed class ChannelBitsUseTranslator(IEventBus bus, TimeProvider clock)
         BitsUsedEvent used = new()
         {
             BroadcasterId = notification.BroadcasterId,
-            Timestamp = Clock.GetUtcNow(),
+            OccurredAt = Clock.GetUtcNow(),
             UserId = payload.GetRequiredString("user_id"),
             UserDisplayName = payload.GetRequiredString("user_name"),
             UserLogin = payload.GetRequiredString("user_login"),
@@ -158,7 +158,7 @@ public sealed class UserUpdateTranslator(IEventBus bus, TimeProvider clock)
         UserUpdatedEvent updated = new()
         {
             BroadcasterId = notification.BroadcasterId,
-            Timestamp = Clock.GetUtcNow(),
+            OccurredAt = Clock.GetUtcNow(),
             UserId = payload.GetRequiredString("user_id"),
             UserLogin = payload.GetRequiredString("user_login"),
             UserDisplayName = payload.GetRequiredString("user_name"),
@@ -188,7 +188,7 @@ public sealed class UserWhisperMessageTranslator(IEventBus bus, TimeProvider clo
         WhisperReceivedEvent received = new()
         {
             BroadcasterId = notification.BroadcasterId,
-            Timestamp = Clock.GetUtcNow(),
+            OccurredAt = Clock.GetUtcNow(),
             WhisperId = payload.GetRequiredString("whisper_id"),
             FromUserId = payload.GetRequiredString("from_user_id"),
             FromUserDisplayName = payload.GetRequiredString("from_user_name"),

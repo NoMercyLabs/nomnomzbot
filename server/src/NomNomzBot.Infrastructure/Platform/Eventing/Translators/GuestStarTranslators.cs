@@ -30,7 +30,7 @@ public sealed class ChannelGuestStarSessionBeginTranslator(IEventBus bus, TimePr
         GuestStarSessionBeganEvent began = new()
         {
             BroadcasterId = notification.BroadcasterId,
-            Timestamp = Clock.GetUtcNow(),
+            OccurredAt = Clock.GetUtcNow(),
             SessionId = payload.GetRequiredString("session_id"),
             StartedAt = payload.GetDateTimeOffset("started_at") ?? Clock.GetUtcNow(),
         };
@@ -55,7 +55,7 @@ public sealed class ChannelGuestStarSessionEndTranslator(IEventBus bus, TimeProv
         GuestStarSessionEndedEvent ended = new()
         {
             BroadcasterId = notification.BroadcasterId,
-            Timestamp = Clock.GetUtcNow(),
+            OccurredAt = Clock.GetUtcNow(),
             SessionId = payload.GetRequiredString("session_id"),
             StartedAt = payload.GetDateTimeOffset("started_at") ?? endedAt,
             EndedAt = endedAt,
@@ -84,7 +84,7 @@ public sealed class ChannelGuestStarGuestUpdateTranslator(IEventBus bus, TimePro
         GuestStarGuestUpdatedEvent updated = new()
         {
             BroadcasterId = notification.BroadcasterId,
-            Timestamp = Clock.GetUtcNow(),
+            OccurredAt = Clock.GetUtcNow(),
             SessionId = payload.GetRequiredString("session_id"),
             ModeratorId = payload.GetString("moderator_user_id"),
             GuestUserId = payload.GetString("guest_user_id"),
@@ -116,7 +116,7 @@ public sealed class ChannelGuestStarSettingsUpdateTranslator(IEventBus bus, Time
         GuestStarSettingsUpdatedEvent updated = new()
         {
             BroadcasterId = notification.BroadcasterId,
-            Timestamp = Clock.GetUtcNow(),
+            OccurredAt = Clock.GetUtcNow(),
             IsModeratorSendLiveEnabled = payload.GetBool("is_moderator_send_live_enabled"),
             SlotCount = payload.GetInt("slot_count"),
             IsBrowserSourceAudioEnabled = payload.GetBool("is_browser_source_audio_enabled"),

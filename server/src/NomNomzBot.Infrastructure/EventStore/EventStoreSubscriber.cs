@@ -41,27 +41,18 @@ public sealed class EventStoreSubscriber : IEventStoreSubscriber
     {
         string eventType = typeof(TEvent).Name;
 
-        // DomainEventBase stamps EventId as a UUID string; the journal keys on Guid. A non-parseable id is a
-        // contract violation, not a recoverable runtime state — surface it as a failure rather than fabricate one.
-        if (!Guid.TryParse(@event.EventId, out Guid eventId))
-            return Task.FromResult(
-                Result.Failure<EventRecord>(
-                    $"Domain event '{eventType}' has a non-GUID EventId '{@event.EventId}'.",
-                    "INVALID_EVENT_ID"
-                )
-            );
-
+        // DomainEventBase stamps EventId as a UUIDv7 Guid — the journal keys on it directly (no parse).
         Guid? broadcasterId = @event.BroadcasterId == Guid.Empty ? null : @event.BroadcasterId;
 
         AppendEventRequest request = new(
-            EventId: eventId,
+            EventId: @event.EventId,
             BroadcasterId: broadcasterId,
             EventType: eventType,
             EventVersion: _upcasters.CurrentVersion(eventType),
             Source: "domain",
             PayloadJson: JsonConvert.SerializeObject(@event),
             MetadataJson: "{}",
-            OccurredAt: @event.Timestamp.UtcDateTime
+            OccurredAt: @event.OccurredAt.UtcDateTime
         );
 
         return _journal.AppendAsync(request, cancellationToken);

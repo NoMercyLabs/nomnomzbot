@@ -83,7 +83,7 @@ public sealed class ChannelHypeTrainBeginTranslator(IEventBus bus, TimeProvider 
         HypeTrainBeganEvent began = new()
         {
             BroadcasterId = notification.BroadcasterId,
-            Timestamp = Clock.GetUtcNow(),
+            OccurredAt = Clock.GetUtcNow(),
             HypeTrainId = payload.GetRequiredString("id"),
             Level = payload.GetInt("level"),
             Total = payload.GetInt("total"),
@@ -112,7 +112,7 @@ public sealed class ChannelHypeTrainProgressTranslator(IEventBus bus, TimeProvid
         HypeTrainProgressEvent progress = new()
         {
             BroadcasterId = notification.BroadcasterId,
-            Timestamp = Clock.GetUtcNow(),
+            OccurredAt = Clock.GetUtcNow(),
             HypeTrainId = payload.GetRequiredString("id"),
             Level = payload.GetInt("level"),
             Total = payload.GetInt("total"),
@@ -141,7 +141,7 @@ public sealed class ChannelHypeTrainEndTranslator(IEventBus bus, TimeProvider cl
         HypeTrainEndedEvent ended = new()
         {
             BroadcasterId = notification.BroadcasterId,
-            Timestamp = Clock.GetUtcNow(),
+            OccurredAt = Clock.GetUtcNow(),
             HypeTrainId = payload.GetRequiredString("id"),
             Level = payload.GetInt("level"),
             Total = payload.GetInt("total"),
@@ -168,7 +168,7 @@ public sealed class ChannelGoalBeginTranslator(IEventBus bus, TimeProvider clock
         GoalBeganEvent began = new()
         {
             BroadcasterId = notification.BroadcasterId,
-            Timestamp = Clock.GetUtcNow(),
+            OccurredAt = Clock.GetUtcNow(),
             GoalId = payload.GetRequiredString("id"),
             Type = payload.GetRequiredString("type"),
             Description = payload.GetRequiredString("description"),
@@ -196,7 +196,7 @@ public sealed class ChannelGoalProgressTranslator(IEventBus bus, TimeProvider cl
         GoalProgressEvent progress = new()
         {
             BroadcasterId = notification.BroadcasterId,
-            Timestamp = Clock.GetUtcNow(),
+            OccurredAt = Clock.GetUtcNow(),
             GoalId = payload.GetRequiredString("id"),
             Type = payload.GetRequiredString("type"),
             Description = payload.GetRequiredString("description"),
@@ -224,7 +224,7 @@ public sealed class ChannelGoalEndTranslator(IEventBus bus, TimeProvider clock)
         GoalEndedEvent ended = new()
         {
             BroadcasterId = notification.BroadcasterId,
-            Timestamp = Clock.GetUtcNow(),
+            OccurredAt = Clock.GetUtcNow(),
             GoalId = payload.GetRequiredString("id"),
             Type = payload.GetRequiredString("type"),
             Description = payload.GetRequiredString("description"),
@@ -256,7 +256,7 @@ public sealed class ChannelCharityCampaignStartTranslator(IEventBus bus, TimePro
         CharityCampaignStartedEvent started = new()
         {
             BroadcasterId = notification.BroadcasterId,
-            Timestamp = Clock.GetUtcNow(),
+            OccurredAt = Clock.GetUtcNow(),
             CampaignId = payload.GetRequiredString("id"),
             CharityName = payload.GetRequiredString("charity_name"),
             Description = payload.GetString("charity_description"),
@@ -290,7 +290,7 @@ public sealed class ChannelCharityCampaignProgressTranslator(IEventBus bus, Time
         CharityCampaignProgressEvent progress = new()
         {
             BroadcasterId = notification.BroadcasterId,
-            Timestamp = Clock.GetUtcNow(),
+            OccurredAt = Clock.GetUtcNow(),
             CampaignId = payload.GetRequiredString("id"),
             CharityName = payload.GetRequiredString("charity_name"),
             Description = payload.GetString("charity_description"),
@@ -322,7 +322,7 @@ public sealed class ChannelCharityCampaignDonateTranslator(IEventBus bus, TimePr
         CharityDonationEvent donation = new()
         {
             BroadcasterId = notification.BroadcasterId,
-            Timestamp = Clock.GetUtcNow(),
+            OccurredAt = Clock.GetUtcNow(),
             CampaignId = payload.GetRequiredString("campaign_id"),
             CharityName = payload.GetRequiredString("charity_name"),
             UserId = payload.GetRequiredString("user_id"),
@@ -354,7 +354,7 @@ public sealed class ChannelCharityCampaignStopTranslator(IEventBus bus, TimeProv
         CharityCampaignStoppedEvent stopped = new()
         {
             BroadcasterId = notification.BroadcasterId,
-            Timestamp = Clock.GetUtcNow(),
+            OccurredAt = Clock.GetUtcNow(),
             CampaignId = payload.GetRequiredString("id"),
             CharityName = payload.GetRequiredString("charity_name"),
             Description = payload.GetString("charity_description"),

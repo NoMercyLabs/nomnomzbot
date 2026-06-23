@@ -48,7 +48,7 @@ public sealed class CommandExecutedBroadcastHandler : IEventHandler<AfterCommand
                 @event.CommandName,
                 @event.TriggeredByUserId,
                 @event.Succeeded,
-                @event.Timestamp.ToString("O")
+                @event.OccurredAt.ToString("O")
             ),
             ct
         );

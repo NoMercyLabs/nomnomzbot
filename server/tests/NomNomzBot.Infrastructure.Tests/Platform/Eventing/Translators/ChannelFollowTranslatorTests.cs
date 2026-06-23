@@ -81,7 +81,7 @@ public sealed class ChannelFollowTranslatorTests
                 "followed_at is parsed from the payload"
             );
         published
-            .Timestamp.Should()
+            .OccurredAt.Should()
             .Be(Clock.GetUtcNow(), "the publisher stamps the injected clock for determinism");
     }
 

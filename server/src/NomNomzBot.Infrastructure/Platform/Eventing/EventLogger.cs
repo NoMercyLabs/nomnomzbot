@@ -37,7 +37,7 @@ public sealed class EventLogger
             typeof(TEvent).Name,
             @event.EventId,
             @event.BroadcasterId == Guid.Empty ? "(platform)" : @event.BroadcasterId.ToString(),
-            @event.Timestamp
+            @event.OccurredAt
         );
     }
 }

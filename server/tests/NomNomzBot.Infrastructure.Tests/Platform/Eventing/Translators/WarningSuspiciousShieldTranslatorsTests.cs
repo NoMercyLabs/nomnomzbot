@@ -74,7 +74,7 @@ public sealed class WarningSuspiciousShieldTranslatorsTests
         published.UserId.Should().Be("141981764");
         published.UserLogin.Should().Be("twitchdev");
         published.UserDisplayName.Should().Be("TwitchDev");
-        published.Timestamp.Should().Be(Clock.GetUtcNow());
+        published.OccurredAt.Should().Be(Clock.GetUtcNow());
     }
 
     [Fact]
@@ -114,7 +114,7 @@ public sealed class WarningSuspiciousShieldTranslatorsTests
         published.ModeratorDisplayName.Should().Be("quotrok");
         published.Reason.Should().Be("cut it out");
         published.ChatRulesCited.Should().Equal("No spam", "Be kind");
-        published.Timestamp.Should().Be(Clock.GetUtcNow());
+        published.OccurredAt.Should().Be(Clock.GetUtcNow());
     }
 
     [Fact]
@@ -193,7 +193,7 @@ public sealed class WarningSuspiciousShieldTranslatorsTests
         published.BanEvasionEvaluation.Should().Be("likely");
         published.MessageId.Should().Be("101010", "the message id is read from the nested object");
         published.Text.Should().Be("bad stuff pogchamp", "the text is read from the nested object");
-        published.Timestamp.Should().Be(Clock.GetUtcNow());
+        published.OccurredAt.Should().Be(Clock.GetUtcNow());
     }
 
     [Fact]
@@ -230,7 +230,7 @@ public sealed class WarningSuspiciousShieldTranslatorsTests
         published.ModeratorId.Should().Be("1050263436");
         published.ModeratorDisplayName.Should().Be("29087e59dfc441968f6");
         published.LowTrustStatus.Should().Be("restricted");
-        published.Timestamp.Should().Be(Clock.GetUtcNow());
+        published.OccurredAt.Should().Be(Clock.GetUtcNow());
     }
 
     [Fact]
@@ -268,7 +268,7 @@ public sealed class WarningSuspiciousShieldTranslatorsTests
                 new DateTimeOffset(2026, 6, 20, 11, 0, 3, TimeSpan.Zero),
                 "started_at is parsed from the payload"
             );
-        published.Timestamp.Should().Be(Clock.GetUtcNow());
+        published.OccurredAt.Should().Be(Clock.GetUtcNow());
     }
 
     [Fact]
@@ -306,6 +306,6 @@ public sealed class WarningSuspiciousShieldTranslatorsTests
                 new DateTimeOffset(2026, 6, 20, 11, 30, 23, TimeSpan.Zero),
                 "ended_at is parsed from the payload"
             );
-        published.Timestamp.Should().Be(Clock.GetUtcNow());
+        published.OccurredAt.Should().Be(Clock.GetUtcNow());
     }
 }

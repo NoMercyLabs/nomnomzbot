@@ -160,7 +160,7 @@ public sealed class NotificationDispatcher : INotificationDispatcher
                 StreamPosition = record.StreamPosition,
                 EventType = notification.SubscriptionType,
                 WasDuplicate = wasDuplicate,
-                Timestamp = _clock.GetUtcNow(),
+                OccurredAt = _clock.GetUtcNow(),
             },
             ct
         );

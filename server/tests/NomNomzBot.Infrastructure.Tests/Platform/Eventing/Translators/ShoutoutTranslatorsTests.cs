@@ -80,7 +80,7 @@ public sealed class ShoutoutTranslatorsTests
             .Subject;
 
         published.BroadcasterId.Should().Be(Tenant, "the dispatcher resolved the tenant");
-        published.Timestamp.Should().Be(Clock.GetUtcNow());
+        published.OccurredAt.Should().Be(Clock.GetUtcNow());
         published.ToUserId.Should().Be("626");
         published.ToDisplayName.Should().Be("Friend_Streamer");
     }
@@ -113,7 +113,7 @@ public sealed class ShoutoutTranslatorsTests
             .Subject;
 
         published.BroadcasterId.Should().Be(Tenant, "the dispatcher resolved the tenant");
-        published.Timestamp.Should().Be(Clock.GetUtcNow());
+        published.OccurredAt.Should().Be(Clock.GetUtcNow());
         published.FromBroadcasterId.Should().Be("12345");
         published.FromBroadcasterLogin.Should().Be("big_streamer");
         published.FromBroadcasterDisplayName.Should().Be("Big_Streamer");

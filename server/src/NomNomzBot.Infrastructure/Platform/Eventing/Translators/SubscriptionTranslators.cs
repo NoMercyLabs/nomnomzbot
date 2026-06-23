@@ -34,7 +34,7 @@ public sealed class ChannelSubscribeTranslator(IEventBus bus, TimeProvider clock
         NewSubscriptionEvent subscribed = new()
         {
             BroadcasterId = notification.BroadcasterId,
-            Timestamp = Clock.GetUtcNow(),
+            OccurredAt = Clock.GetUtcNow(),
             UserId = payload.GetRequiredString("user_id"),
             UserDisplayName = payload.GetRequiredString("user_name"),
             Tier = payload.GetRequiredString("tier"),
@@ -64,7 +64,7 @@ public sealed class ChannelSubscriptionMessageTranslator(IEventBus bus, TimeProv
         ResubscriptionEvent resubscribed = new()
         {
             BroadcasterId = notification.BroadcasterId,
-            Timestamp = Clock.GetUtcNow(),
+            OccurredAt = Clock.GetUtcNow(),
             UserId = payload.GetRequiredString("user_id"),
             UserDisplayName = payload.GetRequiredString("user_name"),
             Tier = payload.GetRequiredString("tier"),
@@ -98,7 +98,7 @@ public sealed class ChannelSubscriptionGiftTranslator(IEventBus bus, TimeProvide
         GiftSubscriptionEvent gifted = new()
         {
             BroadcasterId = notification.BroadcasterId,
-            Timestamp = Clock.GetUtcNow(),
+            OccurredAt = Clock.GetUtcNow(),
             GifterUserId = payload.GetRequiredString("user_id"),
             GifterDisplayName = payload.GetRequiredString("user_name"),
             Tier = payload.GetRequiredString("tier"),
@@ -129,7 +129,7 @@ public sealed class ChannelSubscriptionEndTranslator(IEventBus bus, TimeProvider
         SubscriptionEndedEvent ended = new()
         {
             BroadcasterId = notification.BroadcasterId,
-            Timestamp = Clock.GetUtcNow(),
+            OccurredAt = Clock.GetUtcNow(),
             UserId = payload.GetRequiredString("user_id"),
             UserDisplayName = payload.GetRequiredString("user_name"),
             UserLogin = payload.GetRequiredString("user_login"),
@@ -160,7 +160,7 @@ public sealed class ChannelCheerTranslator(IEventBus bus, TimeProvider clock)
         CheerEvent cheered = new()
         {
             BroadcasterId = notification.BroadcasterId,
-            Timestamp = Clock.GetUtcNow(),
+            OccurredAt = Clock.GetUtcNow(),
             UserId = payload.GetRequiredString("user_id"),
             UserDisplayName = payload.GetRequiredString("user_name"),
             Bits = payload.GetInt("bits"),

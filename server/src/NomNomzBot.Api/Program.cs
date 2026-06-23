@@ -17,7 +17,6 @@ using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
-using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Primitives;
 using Microsoft.IdentityModel.Tokens;
 using NomNomzBot.Api.Configuration;
@@ -409,31 +408,9 @@ try
         }
     );
 
-    // ─── Public web pages (deployment-distribution.md §P5) ─────────────────────
-    // The bot serves its own lightweight web/ pages: the song-request page (/sr), the OBS overlay/widget
-    // browser-sources (/overlay), and the OAuth landing. Served pre-auth (public). A missing web/ dir is a
-    // no-op (API-only / test hosts). The dir is resolved from config or relative to the content root.
-    string webRoot =
-        app.Configuration["PublicWeb:RootPath"]
-        ?? Path.GetFullPath(Path.Combine(app.Environment.ContentRootPath, "..", "..", "..", "web"));
-    if (Directory.Exists(webRoot))
-    {
-        PhysicalFileProvider webFiles = new(webRoot);
-        app.UseDefaultFiles(new DefaultFilesOptions { FileProvider = webFiles });
-        app.UseStaticFiles(new StaticFileOptions { FileProvider = webFiles });
-
-        // Token-in-path public page: /sr/{token} resolves to the song-request shell; its JS reads the
-        // token from the URL and calls the public API. Static file hits (/sr/app.js, …) are served above.
-        string srShell = Path.Combine(webRoot, "sr", "index.html");
-        app.MapGet("/sr/{token}", () => Results.File(srShell, "text/html"))
-            .ExcludeFromDescription()
-            .AllowAnonymous();
-
-        string overlayShell = Path.Combine(webRoot, "overlay", "index.html");
-        app.MapGet("/overlay/{token}", () => Results.File(overlayShell, "text/html"))
-            .ExcludeFromDescription()
-            .AllowAnonymous();
-    }
+    // Public-facing pages (overlays, song-request) are delivered by the widget system — compiled bundles served
+    // by the bot and CDN-cached for SaaS (widgets-overlays.md), not the old static web/ folder, which is removed.
+    // The realtime channel to those surfaces is the OverlayHub (mapped below).
 
     // OpenAPI spec + Scalar UI — exposed in development, or in production only when an operator opts in
     // (Api:ExposeDocs=true). Off by default in production so the full request/response schema is not public

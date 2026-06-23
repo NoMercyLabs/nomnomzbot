@@ -48,7 +48,7 @@ public sealed class ChannelModerateTranslator(IEventBus bus, TimeProvider clock)
         ModerationActionTakenEvent moderated = new()
         {
             BroadcasterId = notification.BroadcasterId,
-            Timestamp = Clock.GetUtcNow(),
+            OccurredAt = Clock.GetUtcNow(),
             ChannelId = notification.TwitchBroadcasterUserId,
             ModeratorId = payload.GetRequiredString("moderator_user_id"),
             ActionType = action,

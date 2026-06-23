@@ -62,7 +62,7 @@ public sealed class ChannelSharedChatBeginTranslator(IEventBus bus, TimeProvider
         SharedChatBeganEvent began = new()
         {
             BroadcasterId = notification.BroadcasterId,
-            Timestamp = Clock.GetUtcNow(),
+            OccurredAt = Clock.GetUtcNow(),
             SessionId = payload.GetRequiredString("session_id"),
             HostBroadcasterId = payload.GetRequiredString("host_broadcaster_user_id"),
             HostBroadcasterDisplayName = payload.GetRequiredString("host_broadcaster_user_name"),
@@ -89,7 +89,7 @@ public sealed class ChannelSharedChatUpdateTranslator(IEventBus bus, TimeProvide
         SharedChatUpdatedEvent updated = new()
         {
             BroadcasterId = notification.BroadcasterId,
-            Timestamp = Clock.GetUtcNow(),
+            OccurredAt = Clock.GetUtcNow(),
             SessionId = payload.GetRequiredString("session_id"),
             HostBroadcasterId = payload.GetRequiredString("host_broadcaster_user_id"),
             Participants = SharedChatPayload.ReadParticipantIds(payload),
@@ -114,7 +114,7 @@ public sealed class ChannelSharedChatEndTranslator(IEventBus bus, TimeProvider c
         SharedChatEndedEvent ended = new()
         {
             BroadcasterId = notification.BroadcasterId,
-            Timestamp = Clock.GetUtcNow(),
+            OccurredAt = Clock.GetUtcNow(),
             SessionId = payload.GetRequiredString("session_id"),
             HostBroadcasterId = payload.GetRequiredString("host_broadcaster_user_id"),
         };

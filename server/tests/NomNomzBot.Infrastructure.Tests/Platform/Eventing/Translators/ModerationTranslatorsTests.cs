@@ -88,7 +88,7 @@ public sealed class ModerationTranslatorsTests
         published.TargetDisplayName.Should().Be("Cool_User");
         published.ModeratorUserId.Should().Be("mod-1");
         published.Reason.Should().Be("spamming");
-        published.Timestamp.Should().Be(Clock.GetUtcNow());
+        published.OccurredAt.Should().Be(Clock.GetUtcNow());
     }
 
     [Fact]
@@ -131,7 +131,7 @@ public sealed class ModerationTranslatorsTests
         published
             .DurationSeconds.Should()
             .Be(600, "the duration is derived from ends_at - banned_at");
-        published.Timestamp.Should().Be(Clock.GetUtcNow());
+        published.OccurredAt.Should().Be(Clock.GetUtcNow());
     }
 
     [Fact]
@@ -163,7 +163,7 @@ public sealed class ModerationTranslatorsTests
         published.BroadcasterId.Should().Be(tenant);
         published.TargetUserId.Should().Be("1234");
         published.ModeratorUserId.Should().Be("mod-1");
-        published.Timestamp.Should().Be(Clock.GetUtcNow());
+        published.OccurredAt.Should().Be(Clock.GetUtcNow());
     }
 
     [Fact]
@@ -200,7 +200,7 @@ public sealed class ModerationTranslatorsTests
         published.UserDisplayName.Should().Be("Not_Cool_User");
         published.UserLogin.Should().Be("not_cool_user");
         published.Text.Should().Be("unban me");
-        published.Timestamp.Should().Be(Clock.GetUtcNow());
+        published.OccurredAt.Should().Be(Clock.GetUtcNow());
     }
 
     [Fact]
@@ -241,7 +241,7 @@ public sealed class ModerationTranslatorsTests
         published.ModeratorDisplayName.Should().Be("Cool_User");
         published.Status.Should().Be("denied");
         published.ResolutionText.Should().Be("no");
-        published.Timestamp.Should().Be(Clock.GetUtcNow());
+        published.OccurredAt.Should().Be(Clock.GetUtcNow());
     }
 
     [Fact]
@@ -273,7 +273,7 @@ public sealed class ModerationTranslatorsTests
         published.UserId.Should().Be("141981764");
         published.UserLogin.Should().Be("twitchdev");
         published.UserDisplayName.Should().Be("TwitchDev");
-        published.Timestamp.Should().Be(Clock.GetUtcNow());
+        published.OccurredAt.Should().Be(Clock.GetUtcNow());
     }
 
     [Fact]
@@ -305,7 +305,7 @@ public sealed class ModerationTranslatorsTests
         published.UserId.Should().Be("141981764");
         published.UserLogin.Should().Be("twitchdev");
         published.UserDisplayName.Should().Be("TwitchDev");
-        published.Timestamp.Should().Be(Clock.GetUtcNow());
+        published.OccurredAt.Should().Be(Clock.GetUtcNow());
     }
 
     [Fact]
@@ -334,7 +334,7 @@ public sealed class ModerationTranslatorsTests
         published.UserId.Should().Be("1234");
         published.UserLogin.Should().Be("mod_user");
         published.UserDisplayName.Should().Be("Mod_User");
-        published.Timestamp.Should().Be(Clock.GetUtcNow());
+        published.OccurredAt.Should().Be(Clock.GetUtcNow());
     }
 
     [Fact]
@@ -366,6 +366,6 @@ public sealed class ModerationTranslatorsTests
         published.UserId.Should().Be("1234");
         published.UserLogin.Should().Be("mod_user");
         published.UserDisplayName.Should().Be("Mod_User");
-        published.Timestamp.Should().Be(Clock.GetUtcNow());
+        published.OccurredAt.Should().Be(Clock.GetUtcNow());
     }
 }

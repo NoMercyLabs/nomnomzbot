@@ -34,7 +34,7 @@ public sealed class ChannelShoutoutCreateTranslator(IEventBus bus, TimeProvider 
         ShoutoutSentEvent sent = new()
         {
             BroadcasterId = notification.BroadcasterId,
-            Timestamp = Clock.GetUtcNow(),
+            OccurredAt = Clock.GetUtcNow(),
             ToUserId = payload.GetRequiredString("to_broadcaster_user_id"),
             ToDisplayName = payload.GetRequiredString("to_broadcaster_user_name"),
         };
@@ -62,7 +62,7 @@ public sealed class ChannelShoutoutReceiveTranslator(IEventBus bus, TimeProvider
         ShoutoutReceivedEvent received = new()
         {
             BroadcasterId = notification.BroadcasterId,
-            Timestamp = Clock.GetUtcNow(),
+            OccurredAt = Clock.GetUtcNow(),
             FromBroadcasterId = payload.GetRequiredString("from_broadcaster_user_id"),
             FromBroadcasterDisplayName = payload.GetRequiredString("from_broadcaster_user_name"),
             FromBroadcasterLogin = payload.GetRequiredString("from_broadcaster_user_login"),

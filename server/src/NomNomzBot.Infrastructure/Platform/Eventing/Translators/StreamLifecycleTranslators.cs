@@ -34,7 +34,7 @@ public sealed class ChannelRaidTranslator(IEventBus bus, TimeProvider clock)
         RaidEvent raided = new()
         {
             BroadcasterId = notification.BroadcasterId,
-            Timestamp = Clock.GetUtcNow(),
+            OccurredAt = Clock.GetUtcNow(),
             FromUserId = payload.GetRequiredString("from_broadcaster_user_id"),
             FromDisplayName = payload.GetRequiredString("from_broadcaster_user_name"),
             FromLogin = payload.GetRequiredString("from_broadcaster_user_login"),
@@ -63,7 +63,7 @@ public sealed class ChannelUpdateTranslator(IEventBus bus, TimeProvider clock)
         ChannelUpdatedEvent updated = new()
         {
             BroadcasterId = notification.BroadcasterId,
-            Timestamp = Clock.GetUtcNow(),
+            OccurredAt = Clock.GetUtcNow(),
             BroadcasterDisplayName = payload.GetRequiredString("broadcaster_user_name"),
             NewTitle = payload.GetRequiredString("title"),
             NewGameName = payload.GetRequiredString("category_name"),
@@ -93,7 +93,7 @@ public sealed class StreamOnlineTranslator(IEventBus bus, TimeProvider clock)
         ChannelOnlineEvent online = new()
         {
             BroadcasterId = notification.BroadcasterId,
-            Timestamp = Clock.GetUtcNow(),
+            OccurredAt = Clock.GetUtcNow(),
             BroadcasterDisplayName = payload.GetRequiredString("broadcaster_user_name"),
             StreamTitle = payload.GetRequiredString("title"),
             GameName = payload.GetRequiredString("category_name"),
@@ -124,7 +124,7 @@ public sealed class StreamOfflineTranslator(IEventBus bus, TimeProvider clock)
         ChannelOfflineEvent offline = new()
         {
             BroadcasterId = notification.BroadcasterId,
-            Timestamp = Clock.GetUtcNow(),
+            OccurredAt = Clock.GetUtcNow(),
             BroadcasterDisplayName = payload.GetRequiredString("broadcaster_user_name"),
             StreamDuration = TimeSpan.Zero,
         };

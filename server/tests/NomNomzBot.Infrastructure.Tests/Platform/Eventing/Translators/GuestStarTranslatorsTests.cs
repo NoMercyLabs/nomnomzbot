@@ -75,7 +75,7 @@ public sealed class GuestStarTranslatorsTests
         published.BroadcasterId.Should().Be(tenant);
         published.SessionId.Should().Be("session-2KFRQbFtpmfyD3IevNRnCzOzhg1");
         published.StartedAt.Should().Be(new DateTimeOffset(2026, 6, 20, 11, 28, 0, TimeSpan.Zero));
-        published.Timestamp.Should().Be(Clock.GetUtcNow());
+        published.OccurredAt.Should().Be(Clock.GetUtcNow());
     }
 
     [Fact]
@@ -108,7 +108,7 @@ public sealed class GuestStarTranslatorsTests
         published.SessionId.Should().Be("session-abc");
         published.StartedAt.Should().Be(new DateTimeOffset(2026, 6, 20, 11, 28, 0, TimeSpan.Zero));
         published.EndedAt.Should().Be(new DateTimeOffset(2026, 6, 20, 11, 55, 0, TimeSpan.Zero));
-        published.Timestamp.Should().Be(Clock.GetUtcNow());
+        published.OccurredAt.Should().Be(Clock.GetUtcNow());
     }
 
     [Fact]
@@ -156,7 +156,7 @@ public sealed class GuestStarTranslatorsTests
             .State.Should()
             .Be("live", "the guest's slot state is parsed from the state field");
         published.SlotId.Should().Be("1");
-        published.Timestamp.Should().Be(Clock.GetUtcNow());
+        published.OccurredAt.Should().Be(Clock.GetUtcNow());
     }
 
     [Fact]
@@ -224,6 +224,6 @@ public sealed class GuestStarTranslatorsTests
         published.SlotCount.Should().Be(5);
         published.IsBrowserSourceAudioEnabled.Should().BeFalse();
         published.GroupLayout.Should().Be("tiled");
-        published.Timestamp.Should().Be(Clock.GetUtcNow());
+        published.OccurredAt.Should().Be(Clock.GetUtcNow());
     }
 }

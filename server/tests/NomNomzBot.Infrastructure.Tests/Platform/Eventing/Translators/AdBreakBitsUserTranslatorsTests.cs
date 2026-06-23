@@ -88,7 +88,7 @@ public sealed class AdBreakBitsUserTranslatorsTests
         published.StartedAt.Should().Be(new DateTimeOffset(2026, 6, 20, 11, 29, 0, TimeSpan.Zero));
         published.RequesterUserId.Should().Be("req-1");
         published.RequesterDisplayName.Should().Be("Mod_User");
-        published.Timestamp.Should().Be(Clock.GetUtcNow());
+        published.OccurredAt.Should().Be(Clock.GetUtcNow());
     }
 
     [Fact]
@@ -168,7 +168,7 @@ public sealed class AdBreakBitsUserTranslatorsTests
         published
             .MessageText.Should()
             .Be("Cheer100 take my bits!", "the chat text is read from the nested message object");
-        published.Timestamp.Should().Be(Clock.GetUtcNow());
+        published.OccurredAt.Should().Be(Clock.GetUtcNow());
     }
 
     [Fact]
@@ -237,7 +237,7 @@ public sealed class AdBreakBitsUserTranslatorsTests
             .Email.Should()
             .Be("user@example.com", "email is present with the user:read:email scope");
         published.Description.Should().Be("Just a streamer.");
-        published.Timestamp.Should().Be(Clock.GetUtcNow());
+        published.OccurredAt.Should().Be(Clock.GetUtcNow());
     }
 
     [Fact]
@@ -313,6 +313,6 @@ public sealed class AdBreakBitsUserTranslatorsTests
                 "I have a secret to tell you!",
                 "the body is read from the nested whisper.text field"
             );
-        published.Timestamp.Should().Be(Clock.GetUtcNow());
+        published.OccurredAt.Should().Be(Clock.GetUtcNow());
     }
 }

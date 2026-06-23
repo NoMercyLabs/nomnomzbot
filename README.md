@@ -44,8 +44,8 @@ Pre-1.0, under active development. Honest snapshot:
   the Twitch Helix + EventSub integration, moderation, channel-point rewards, the pipeline engine, timers,
   the economy, TTS, roles & permissions, server-side chat decoration (emotes, badges, cheermotes), webhooks,
   and the sandboxed custom-code action.
-- **Public web pages (`web/`)** — the viewer **song-request page** and the **OBS overlay** browser source
-  are built and served by the bot.
+- **Public surfaces (overlays + song-request)** — delivered by the **widget system**: widgets are compiled
+  from source at build time, served by the bot, and CDN-cached for SaaS (not static files). In development.
 - **Dashboard (`app/`)** — the **Kotlin Multiplatform + Compose** client (one codebase for desktop and web)
   that provides the guided setup described below is **in active development**. Until it ships, the same
   onboarding flow runs through the bot's self-describing REST API (interactive docs at `/scalar`).
@@ -84,10 +84,7 @@ What a connected channel gets:
 ┌─ server/  — .NET 10 backend (the bot)
 │   PostgreSQL + Redis · Twitch Helix + EventSub (WebSocket) + IRC · SignalR · Serilog
 │   Versioned REST API (v1)  ·  interactive docs at /scalar
-│
-├─ web/     — lightweight public pages the bot serves
-│   sr/       song-request page (viewers, token-based, no login)
-│   overlay/  OBS browser-source overlays (alerts + now-playing) over SignalR
+│   Public surfaces (OBS overlays, song-request) — compiled widgets served by the bot, CDN-cached for SaaS
 │
 └─ app/     — Kotlin Multiplatform + Compose dashboard (in active development)
 ```
@@ -207,16 +204,16 @@ Everything the dashboard surfaces is a versioned endpoint under `/api/v1/` (brow
 
 Responses use `StatusResponseDto<T>` or `PaginatedResponse<T>`; errors are RFC 7807 problem details.
 
-### Public pages (viewers + OBS)
+### Public surfaces (viewers + OBS)
 
-The bot serves two lightweight pages that need no app:
+Viewer/OBS-facing surfaces are delivered by the **widget system** — widgets are compiled from source at build
+time, served by the bot, and CDN-cached for SaaS (not static files):
 
-- **Song requests** (`web/sr`) — give viewers your channel's request-page URL (resolved by a rotatable
-  per-channel token); they queue tracks with no login.
-- **OBS overlay** (`web/overlay`) — add your channel's overlay URL as a **browser source** in OBS to show
-  subscription/follow/cheer/raid/gift alerts and a persistent now-playing bar, pushed live over SignalR.
+- **Song requests** — viewers open a token-based request page and queue tracks with no login.
+- **OBS overlays** — add your channel's overlay URL as a **browser source**; alerts and a now-playing bar are
+  pushed live over the `OverlayHub` (SignalR).
 
-The dashboard surfaces the exact tokenized URLs for your channel (today they're issued through the API).
+This is in development; the compiled-widget pipeline (build → serve → CDN cache) is being specced.
 
 ## Configuration
 
@@ -262,7 +259,6 @@ address (e.g. a containerised sidecar), set `TRUSTED_PROXY_NETWORKS` so the real
 ```
 nomnomzbot/
 ├── server/   .NET 10 backend (Domain → Application → Infrastructure → Api), tests, Docker
-├── web/      public pages served by the bot (song-request, OBS overlay)
 └── app/      Kotlin Multiplatform + Compose dashboard (in active development)
 ```
 

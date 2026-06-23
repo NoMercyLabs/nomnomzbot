@@ -105,7 +105,7 @@ public sealed class AutoModTranslatorsTests
             .HeldAt.Should()
             .Be(new DateTimeOffset(2026, 6, 20, 11, 29, 30, TimeSpan.Zero), "held_at is parsed");
         published
-            .Timestamp.Should()
+            .OccurredAt.Should()
             .Be(Clock.GetUtcNow(), "the publisher stamps the injected clock for determinism");
     }
 
@@ -180,7 +180,7 @@ public sealed class AutoModTranslatorsTests
         published.ModeratorId.Should().Be("mod-7");
         published.ModeratorDisplayName.Should().Be("Cool_Mod");
         published.Status.Should().Be("denied", "the moderator's verdict is carried verbatim");
-        published.Timestamp.Should().Be(Clock.GetUtcNow());
+        published.OccurredAt.Should().Be(Clock.GetUtcNow());
     }
 
     [Fact]
@@ -234,7 +234,7 @@ public sealed class AutoModTranslatorsTests
         published.RaceEthnicityOrReligion.Should().Be(6);
         published.SexBasedTerms.Should().Be(7);
         published.Swearing.Should().Be(0);
-        published.Timestamp.Should().Be(Clock.GetUtcNow());
+        published.OccurredAt.Should().Be(Clock.GetUtcNow());
     }
 
     [Fact]
@@ -317,7 +317,7 @@ public sealed class AutoModTranslatorsTests
         published.Action.Should().Be("add_blocked", "the raw Twitch action is carried verbatim");
         published.FromAutomod.Should().BeTrue("from_automod is parsed");
         published.Terms.Should().Equal("badword", "anotherword", "thirdword").And.HaveCount(3);
-        published.Timestamp.Should().Be(Clock.GetUtcNow());
+        published.OccurredAt.Should().Be(Clock.GetUtcNow());
     }
 
     [Fact]

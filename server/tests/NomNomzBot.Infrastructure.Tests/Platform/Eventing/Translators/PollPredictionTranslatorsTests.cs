@@ -80,7 +80,7 @@ public sealed class PollPredictionTranslatorsTests
         published.EndsAt.Should().Be(new DateTimeOffset(2026, 6, 20, 11, 32, 0, TimeSpan.Zero));
         published.Choices.Should().HaveCount(2);
         published.Choices[0].Should().Be(new PollChoice("c1", "Yes", 10, 10));
-        published.Timestamp.Should().Be(Clock.GetUtcNow());
+        published.OccurredAt.Should().Be(Clock.GetUtcNow());
     }
 
     [Fact]

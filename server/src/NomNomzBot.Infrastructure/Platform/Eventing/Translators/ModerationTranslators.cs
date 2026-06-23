@@ -44,7 +44,7 @@ public sealed class ChannelBanTranslator(IEventBus bus, TimeProvider clock)
             UserBannedEvent banned = new()
             {
                 BroadcasterId = notification.BroadcasterId,
-                Timestamp = Clock.GetUtcNow(),
+                OccurredAt = Clock.GetUtcNow(),
                 TargetUserId = targetUserId,
                 TargetDisplayName = targetDisplayName,
                 ModeratorUserId = moderatorUserId,
@@ -62,7 +62,7 @@ public sealed class ChannelBanTranslator(IEventBus bus, TimeProvider clock)
         UserTimedOutEvent timedOut = new()
         {
             BroadcasterId = notification.BroadcasterId,
-            Timestamp = Clock.GetUtcNow(),
+            OccurredAt = Clock.GetUtcNow(),
             TargetUserId = targetUserId,
             TargetDisplayName = targetDisplayName,
             ModeratorUserId = moderatorUserId,
@@ -92,7 +92,7 @@ public sealed class ChannelUnbanTranslator(IEventBus bus, TimeProvider clock)
         UserUnbannedEvent unbanned = new()
         {
             BroadcasterId = notification.BroadcasterId,
-            Timestamp = Clock.GetUtcNow(),
+            OccurredAt = Clock.GetUtcNow(),
             TargetUserId = payload.GetRequiredString("user_id"),
             ModeratorUserId = payload.GetRequiredString("moderator_user_id"),
         };
@@ -119,7 +119,7 @@ public sealed class ChannelUnbanRequestCreateTranslator(IEventBus bus, TimeProvi
         UnbanRequestCreatedEvent created = new()
         {
             BroadcasterId = notification.BroadcasterId,
-            Timestamp = Clock.GetUtcNow(),
+            OccurredAt = Clock.GetUtcNow(),
             RequestId = payload.GetRequiredString("id"),
             UserId = payload.GetRequiredString("user_id"),
             UserDisplayName = payload.GetRequiredString("user_name"),
@@ -150,7 +150,7 @@ public sealed class ChannelUnbanRequestResolveTranslator(IEventBus bus, TimeProv
         UnbanRequestResolvedEvent resolved = new()
         {
             BroadcasterId = notification.BroadcasterId,
-            Timestamp = Clock.GetUtcNow(),
+            OccurredAt = Clock.GetUtcNow(),
             RequestId = payload.GetRequiredString("id"),
             UserId = payload.GetRequiredString("user_id"),
             UserDisplayName = payload.GetRequiredString("user_name"),
@@ -182,7 +182,7 @@ public sealed class ChannelModeratorAddTranslator(IEventBus bus, TimeProvider cl
         ModeratorAddedEvent added = new()
         {
             BroadcasterId = notification.BroadcasterId,
-            Timestamp = Clock.GetUtcNow(),
+            OccurredAt = Clock.GetUtcNow(),
             UserId = payload.GetRequiredString("user_id"),
             UserDisplayName = payload.GetRequiredString("user_name"),
             UserLogin = payload.GetRequiredString("user_login"),
@@ -210,7 +210,7 @@ public sealed class ChannelModeratorRemoveTranslator(IEventBus bus, TimeProvider
         ModeratorRemovedEvent removed = new()
         {
             BroadcasterId = notification.BroadcasterId,
-            Timestamp = Clock.GetUtcNow(),
+            OccurredAt = Clock.GetUtcNow(),
             UserId = payload.GetRequiredString("user_id"),
             UserDisplayName = payload.GetRequiredString("user_name"),
             UserLogin = payload.GetRequiredString("user_login"),
@@ -238,7 +238,7 @@ public sealed class ChannelVipAddTranslator(IEventBus bus, TimeProvider clock)
         VipAddedEvent added = new()
         {
             BroadcasterId = notification.BroadcasterId,
-            Timestamp = Clock.GetUtcNow(),
+            OccurredAt = Clock.GetUtcNow(),
             UserId = payload.GetRequiredString("user_id"),
             UserDisplayName = payload.GetRequiredString("user_name"),
             UserLogin = payload.GetRequiredString("user_login"),
@@ -266,7 +266,7 @@ public sealed class ChannelVipRemoveTranslator(IEventBus bus, TimeProvider clock
         VipRemovedEvent removed = new()
         {
             BroadcasterId = notification.BroadcasterId,
-            Timestamp = Clock.GetUtcNow(),
+            OccurredAt = Clock.GetUtcNow(),
             UserId = payload.GetRequiredString("user_id"),
             UserDisplayName = payload.GetRequiredString("user_name"),
             UserLogin = payload.GetRequiredString("user_login"),

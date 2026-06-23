@@ -119,7 +119,7 @@ public sealed class AutoModMessageHoldTranslator(IEventBus bus, TimeProvider clo
         AutoModMessageHeldEvent held = new()
         {
             BroadcasterId = notification.BroadcasterId,
-            Timestamp = Clock.GetUtcNow(),
+            OccurredAt = Clock.GetUtcNow(),
             MessageId = payload.GetRequiredString("message_id"),
             UserId = payload.GetRequiredString("user_id"),
             UserDisplayName = payload.GetRequiredString("user_name"),
@@ -152,7 +152,7 @@ public sealed class AutoModMessageUpdateTranslator(IEventBus bus, TimeProvider c
         AutoModMessageUpdatedEvent updated = new()
         {
             BroadcasterId = notification.BroadcasterId,
-            Timestamp = Clock.GetUtcNow(),
+            OccurredAt = Clock.GetUtcNow(),
             MessageId = payload.GetRequiredString("message_id"),
             UserId = payload.GetRequiredString("user_id"),
             UserDisplayName = payload.GetRequiredString("user_name"),
@@ -185,7 +185,7 @@ public sealed class AutoModSettingsUpdateTranslator(IEventBus bus, TimeProvider 
         AutoModSettingsUpdatedEvent settings = new()
         {
             BroadcasterId = notification.BroadcasterId,
-            Timestamp = Clock.GetUtcNow(),
+            OccurredAt = Clock.GetUtcNow(),
             ModeratorId = payload.GetRequiredString("moderator_user_id"),
             ModeratorDisplayName = payload.GetRequiredString("moderator_user_name"),
             OverallLevel = AutoModPayload.ReadOverallLevel(payload),
@@ -237,7 +237,7 @@ public sealed class AutoModTermsUpdateTranslator(IEventBus bus, TimeProvider clo
         AutoModTermsUpdatedEvent terms = new()
         {
             BroadcasterId = notification.BroadcasterId,
-            Timestamp = Clock.GetUtcNow(),
+            OccurredAt = Clock.GetUtcNow(),
             ModeratorId = payload.GetRequiredString("moderator_user_id"),
             ModeratorDisplayName = payload.GetRequiredString("moderator_user_name"),
             Action = payload.GetRequiredString("action"),

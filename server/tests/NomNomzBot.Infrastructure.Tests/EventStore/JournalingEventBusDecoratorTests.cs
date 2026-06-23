@@ -53,10 +53,53 @@ public sealed class JournalingEventBusDecoratorTests
             where TEvent : class, IDomainEvent => Delivered.Add(@event);
     }
 
+    /// <summary>An IEventJournal whose append always fails — drives the capture-failure (best-effort) path.</summary>
+    private sealed class FailingEventJournal : IEventJournal
+    {
+        public Task<Result<EventRecord>> AppendAsync(
+            AppendEventRequest request,
+            CancellationToken cancellationToken = default
+        ) => Task.FromResult(Result.Failure<EventRecord>("append failed", "JOURNAL_DOWN"));
+
+        public Task<Result<IReadOnlyList<EventRecord>>> AppendBatchAsync(
+            IReadOnlyList<AppendEventRequest> requests,
+            CancellationToken cancellationToken = default
+        ) => throw new NotSupportedException();
+
+        public Task<Result<IReadOnlyList<EventRecord>>> ReadStreamAsync(
+            Guid? broadcasterId,
+            long afterPosition,
+            int limit,
+            CancellationToken cancellationToken = default
+        ) => throw new NotSupportedException();
+
+        public Task<Result<IReadOnlyList<EventRecord>>> ReadAllAsync(
+            long afterId,
+            int limit,
+            CancellationToken cancellationToken = default
+        ) => throw new NotSupportedException();
+
+        public Task<Result<EventRecord>> GetByEventIdAsync(
+            Guid eventId,
+            CancellationToken cancellationToken = default
+        ) => throw new NotSupportedException();
+
+        public Task<Result<long>> GetHeadPositionAsync(
+            Guid? broadcasterId,
+            CancellationToken cancellationToken = default
+        ) => throw new NotSupportedException();
+
+        public Task<Result<PagedList<EventRecord>>> QueryAsync(
+            EventJournalQuery query,
+            CancellationToken cancellationToken = default
+        ) => throw new NotSupportedException();
+    }
+
     // A provider whose scope yields the real journal-backed subscriber over a shared SQLite db, plus the hook.
     private static ServiceProvider BuildProvider(
         SqliteTestDatabase database,
-        RecordingPostCommitHook hook
+        RecordingPostCommitHook hook,
+        IEventJournal? journal = null
     )
     {
         ServiceCollection services = new();
@@ -69,12 +112,15 @@ public sealed class JournalingEventBusDecoratorTests
         ));
         services.AddSingleton<IEventUpcasterRegistry>(new EventUpcasterRegistry([]));
         services.AddSingleton<TimeProvider>(Clock);
-        services.AddScoped<IEventJournal>(sp => new EventJournalService(
-            sp.GetRequiredService<IApplicationDbContext>(),
-            sp.GetRequiredService<ITenantSequenceAllocator>(),
-            sp.GetRequiredService<IUnitOfWork>(),
-            sp.GetRequiredService<TimeProvider>()
-        ));
+        if (journal is not null)
+            services.AddScoped<IEventJournal>(_ => journal);
+        else
+            services.AddScoped<IEventJournal>(sp => new EventJournalService(
+                sp.GetRequiredService<IApplicationDbContext>(),
+                sp.GetRequiredService<ITenantSequenceAllocator>(),
+                sp.GetRequiredService<IUnitOfWork>(),
+                sp.GetRequiredService<TimeProvider>()
+            ));
         services.AddScoped<IEventStoreSubscriber>(sp => new EventStoreSubscriber(
             sp.GetRequiredService<IEventJournal>(),
             sp.GetRequiredService<IEventUpcasterRegistry>()
@@ -105,7 +151,7 @@ public sealed class JournalingEventBusDecoratorTests
         // 1. The hook fired for exactly the committed row (after a successful append).
         hook.Committed.Should().ContainSingle();
         EventRecord committed = hook.Committed.Single();
-        committed.EventId.Should().Be(Guid.Parse(@event.EventId));
+        committed.EventId.Should().Be(@event.EventId);
         committed.EventType.Should().Be(nameof(CapturableEvent));
         committed.BroadcasterId.Should().Be(tenant);
         committed.StreamPosition.Should().Be(1);
@@ -119,7 +165,7 @@ public sealed class JournalingEventBusDecoratorTests
             new EventStoreTestUnitOfWork(verify),
             Clock
         );
-        Result<EventRecord> stored = await journal.GetByEventIdAsync(Guid.Parse(@event.EventId));
+        Result<EventRecord> stored = await journal.GetByEventIdAsync(@event.EventId);
         stored.IsSuccess.Should().BeTrue();
         stored.Value.Note().Should().Be("hello");
 
@@ -134,15 +180,19 @@ public sealed class JournalingEventBusDecoratorTests
         RecordingPostCommitHook hook = new();
         RecordingInnerBus inner = new();
 
-        await using ServiceProvider provider = BuildProvider(database, hook);
+        await using ServiceProvider provider = BuildProvider(
+            database,
+            hook,
+            new FailingEventJournal()
+        );
         JournalingEventBusDecorator decorator = new(
             inner,
             provider,
             NullLogger<JournalingEventBusDecorator>.Instance
         );
 
-        // A bad EventId makes CaptureAsync fail → there is no committed row → no post-commit hook may fire.
-        CapturableEvent @event = new() { EventId = "not-a-guid", BroadcasterId = Guid.NewGuid() };
+        // The journal append fails → there is no committed row → no post-commit hook may fire.
+        CapturableEvent @event = new() { BroadcasterId = Guid.NewGuid() };
 
         await decorator.PublishAsync(@event);
 

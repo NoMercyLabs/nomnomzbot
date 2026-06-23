@@ -17,7 +17,7 @@ namespace NomNomzBot.Infrastructure.Platform.Eventing.Translators;
 
 /// <summary>
 /// Base for the per-subscription-type EventSub translators (twitch-eventsub §3.7). Supplies the injected clock
-/// (concrete translators stamp <c>Timestamp = Clock.GetUtcNow()</c> for determinism) and a small
+/// (concrete translators stamp <c>OccurredAt = Clock.GetUtcNow()</c> for determinism) and a small
 /// <see cref="PublishAsync{TEvent}"/> helper so a concrete translator is just "read the raw payload, build the
 /// typed event, publish". Publishing through this helper keeps the concrete event type at the call site, which
 /// is what lets the bus resolve <c>IEventHandler&lt;TConcrete&gt;</c> without reflection.

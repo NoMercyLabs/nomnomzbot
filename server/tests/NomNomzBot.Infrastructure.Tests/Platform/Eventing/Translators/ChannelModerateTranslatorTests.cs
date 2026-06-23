@@ -90,7 +90,7 @@ public sealed class ChannelModerateTranslatorTests
             .TargetUserId.Should()
             .Be("141981764", "the ban action's nested object names the target chatter");
         published.Reason.Should().Be("rule violation");
-        published.Timestamp.Should().Be(Clock.GetUtcNow());
+        published.OccurredAt.Should().Be(Clock.GetUtcNow());
     }
 
     [Fact]
@@ -131,7 +131,7 @@ public sealed class ChannelModerateTranslatorTests
             .TargetUserId.Should()
             .Be("141981764", "the delete action's nested object names the target chatter");
         published.Reason.Should().BeNull("the delete object carries no reason field");
-        published.Timestamp.Should().Be(Clock.GetUtcNow());
+        published.OccurredAt.Should().Be(Clock.GetUtcNow());
     }
 
     [Fact]

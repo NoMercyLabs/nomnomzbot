@@ -15,11 +15,11 @@ namespace NomNomzBot.Domain.Platform;
 /// </summary>
 public interface IDomainEvent
 {
-    /// <summary>Unique ID for this event instance. Used for deduplication and tracing.</summary>
-    string EventId { get; }
+    /// <summary>Unique ID for this event instance (UUIDv7). Used for deduplication and tracing.</summary>
+    Guid EventId { get; }
 
     /// <summary>When this event occurred (UTC).</summary>
-    DateTimeOffset Timestamp { get; }
+    DateTimeOffset OccurredAt { get; }
 
     /// <summary>The broadcaster channel (tenant) this event relates to, or <see cref="Guid.Empty"/> for platform-level events.</summary>
     Guid BroadcasterId { get; }

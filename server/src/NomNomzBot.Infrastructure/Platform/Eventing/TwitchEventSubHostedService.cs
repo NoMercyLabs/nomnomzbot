@@ -116,7 +116,7 @@ public sealed class TwitchEventSubHostedService
                 Transport = _transport.Kind,
                 SessionId = sessionId,
                 ActiveSubscriptionCount = active,
-                Timestamp = _clock.GetUtcNow(),
+                OccurredAt = _clock.GetUtcNow(),
             },
             ct
         );
@@ -217,7 +217,7 @@ public sealed class TwitchEventSubHostedService
                 TwitchSubscriptionId = twitchSubscriptionId,
                 EventType = subscriptionType,
                 Status = status,
-                Timestamp = _clock.GetUtcNow(),
+                OccurredAt = _clock.GetUtcNow(),
             },
             ct
         );
@@ -621,7 +621,7 @@ public sealed class TwitchEventSubHostedService
                 OldStatus = oldStatus,
                 NewStatus = newStatus,
                 Error = error,
-                Timestamp = _clock.GetUtcNow(),
+                OccurredAt = _clock.GetUtcNow(),
             },
             ct
         );

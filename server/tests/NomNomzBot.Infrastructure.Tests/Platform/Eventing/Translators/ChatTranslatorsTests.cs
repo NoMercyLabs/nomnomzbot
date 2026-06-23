@@ -91,7 +91,7 @@ public sealed class ChatTranslatorsTests
 
         published.BroadcasterId.Should().Be(Tenant, "the dispatcher resolved the tenant");
         published.TwitchBroadcasterId.Should().Be("broadcaster-99");
-        published.Timestamp.Should().Be(Clock.GetUtcNow());
+        published.OccurredAt.Should().Be(Clock.GetUtcNow());
         published.MessageId.Should().Be("abc-123");
         published.UserId.Should().Be("555");
         published.UserLogin.Should().Be("cool_user");
@@ -379,7 +379,7 @@ public sealed class ChatTranslatorsTests
             .Subject;
 
         published.BroadcasterId.Should().Be(Tenant);
-        published.Timestamp.Should().Be(Clock.GetUtcNow());
+        published.OccurredAt.Should().Be(Clock.GetUtcNow());
         published.MessageId.Should().Be("del-1");
         published.TargetUserId.Should().Be("321");
     }
@@ -403,7 +403,7 @@ public sealed class ChatTranslatorsTests
             .Subject;
 
         published.BroadcasterId.Should().Be(Tenant);
-        published.Timestamp.Should().Be(Clock.GetUtcNow());
+        published.OccurredAt.Should().Be(Clock.GetUtcNow());
     }
 
     [Fact]
@@ -432,7 +432,7 @@ public sealed class ChatTranslatorsTests
             .Subject;
 
         published.BroadcasterId.Should().Be(Tenant);
-        published.Timestamp.Should().Be(Clock.GetUtcNow());
+        published.OccurredAt.Should().Be(Clock.GetUtcNow());
         published.TargetUserId.Should().Be("777");
         published.TargetUserDisplayName.Should().Be("Spammer");
         published.TargetUserLogin.Should().Be("spammer");
@@ -472,7 +472,7 @@ public sealed class ChatTranslatorsTests
             .Subject;
 
         published.BroadcasterId.Should().Be(Tenant);
-        published.Timestamp.Should().Be(Clock.GetUtcNow());
+        published.OccurredAt.Should().Be(Clock.GetUtcNow());
         published.ChatterUserId.Should().Be("42");
         published.ChatterDisplayName.Should().Be("Loyal_Fan");
         published.ChatterLogin.Should().Be("loyal_fan");
@@ -621,7 +621,7 @@ public sealed class ChatTranslatorsTests
             .Subject;
 
         published.BroadcasterId.Should().Be(Tenant);
-        published.Timestamp.Should().Be(Clock.GetUtcNow());
+        published.OccurredAt.Should().Be(Clock.GetUtcNow());
         published.UserId.Should().Be("888");
         published.UserDisplayName.Should().Be("Held_User");
         published.UserLogin.Should().Be("held_user");
