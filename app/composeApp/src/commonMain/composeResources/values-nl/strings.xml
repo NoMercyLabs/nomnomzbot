@@ -18,6 +18,9 @@
     <string name="connect_connecting">Wachten op Twitch-aanmelding…</string>
     <string name="connect_error_invalid_url">Voer een geldige backend-URL in.</string>
     <string name="connect_error_auth">Aanmelden mislukt. Probeer het opnieuw.</string>
+    <string name="connect_discovered_title">Gevonden op je netwerk</string>
+    <string name="connect_discovered_searching">Bezig met zoeken naar bots op je netwerk…</string>
+    <string name="connect_discovered_manual_label">Of voer een backend-URL in</string>
     <string name="setup_title">Stel je bot in</string>
     <string name="setup_subtitle">Voer hieronder je app-gegevens in — geen configuratiebestanden nodig. Voltooi elke verplichte stap en ga daarna verder om je met Twitch aan te melden.</string>
     <string name="setup_step_done">Klaar</string>

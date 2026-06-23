@@ -11,6 +11,7 @@
 package bot.nomnomz.dashboard.feature.connect.state
 
 import bot.nomnomz.dashboard.core.connection.ConnectionProfile
+import bot.nomnomz.dashboard.core.connection.LanDiscovery
 import bot.nomnomz.dashboard.core.connection.OAuthFlow
 import bot.nomnomz.dashboard.core.connection.OAuthLauncher
 import bot.nomnomz.dashboard.core.connection.ProfileSource
@@ -40,11 +41,17 @@ import kotlinx.coroutines.flow.asStateFlow
 // ready, the controller pins the chosen profile and routes the gate to the first-run Setup wizard instead.
 // The wizard collects the credentials and, once ready, calls back into [signInStreamer] to run this same
 // streamer OAuth — which now works.
+//
+// Two ways into the same onboarding (frontend.md §6): the user TYPES a backend URL ([connect]), or CLICKS
+// a backend mDNS [LanDiscovery] surfaced on the LAN ([connectTo]). Both build a [ConnectionProfile] and
+// run the identical [beginOnboarding] — readiness probe → setup-or-OAuth. The only difference is where the
+// profile came from (Manual vs Discovered).
 class ConnectController(
     private val sessionStore: SessionStore,
     private val authApi: AuthApi,
     private val systemApi: SystemApi,
     private val oauthLauncher: OAuthLauncher,
+    private val lanDiscovery: LanDiscovery,
     private val profileIdFactory: () -> String = ::randomProfileId,
 ) {
     private val _baseUrl: MutableStateFlow<String> = MutableStateFlow(DEFAULT_BASE_URL)
@@ -60,16 +67,24 @@ class ConnectController(
     /** The current connect state the screen renders (idle / connecting / error). */
     val status: StateFlow<ConnectStatus> = _status.asStateFlow()
 
+    /** The live set of bots mDNS-discovered on the LAN, surfaced as click-to-connect rows (empty on web). */
+    val discovered: StateFlow<List<ConnectionProfile>> = lanDiscovery.discovered
+
+    /** Begin browsing the LAN — called when the Connect screen appears. */
+    fun startDiscovery() = lanDiscovery.start()
+
+    /** Stop browsing the LAN — called when the Connect screen leaves composition. */
+    fun stopDiscovery() = lanDiscovery.stop()
+
     fun onBaseUrlChange(value: String) {
         _baseUrl.value = value
         if (_status.value is ConnectStatus.Error) _status.value = ConnectStatus.Idle
     }
 
     /**
-     * Point the dashboard at the typed backend and start onboarding. Probes readiness first: if the bot
-     * is already configured the streamer OAuth runs immediately; if not, the chosen profile is pinned and
-     * the gate routes to the first-run Setup wizard (which collects the credentials, then calls back into
-     * [signInStreamer]). Errors surface on [status] and the gate stays on Connect.
+     * Point the dashboard at the TYPED backend and start onboarding. Validates the URL, then runs the
+     * shared [beginOnboarding]: probe readiness, and either run the streamer OAuth (configured) or route to
+     * the Setup wizard (fresh self-host). Errors surface on [status] and the gate stays on Connect.
      */
     suspend fun connect() {
         val normalized: String? = normalizeBaseUrl(_baseUrl.value)
@@ -78,8 +93,6 @@ class ConnectController(
             return
         }
 
-        _status.value = ConnectStatus.Connecting
-
         val profile =
             ConnectionProfile(
                 id = profileIdFactory(),
@@ -87,6 +100,25 @@ class ConnectController(
                 baseUrl = normalized,
                 source = ProfileSource.Manual,
             )
+        beginOnboarding(profile)
+    }
+
+    /**
+     * Onboard against a backend CLICKED from the mDNS-discovered list (frontend.md §6) — the zero-friction
+     * LAN path. Runs the identical [beginOnboarding] as the typed flow: the discovered profile already
+     * carries its base URL, so no URL validation is needed.
+     */
+    suspend fun connectTo(profile: ConnectionProfile) {
+        beginOnboarding(profile)
+    }
+
+    /**
+     * The single onboarding flow shared by the typed ([connect]) and discovered ([connectTo]) paths. Pins
+     * [profile], probes readiness, and either runs the streamer OAuth immediately (already configured) or
+     * leaves the gate on the Setup wizard (fresh self-host). A failed probe rolls back to Connect.
+     */
+    private suspend fun beginOnboarding(profile: ConnectionProfile) {
+        _status.value = ConnectStatus.Connecting
 
         // Pin the profile so the shared ApiClient targets the chosen backend for the anonymous status probe
         // (and the wizard's anonymous setup calls, if we route there). It carries no tokens yet.

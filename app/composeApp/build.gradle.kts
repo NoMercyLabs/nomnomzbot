@@ -76,6 +76,8 @@ kotlin {
             implementation(libs.kotlinx.coroutines.swing)
             // Desktop REST engine (frontend.md §2).
             implementation(libs.ktor.client.cio)
+            // Desktop mDNS LAN browse of `_nomnomz._tcp` (frontend.md §6) — jvm only.
+            implementation(libs.jmdns)
         }
 
         wasmJsMain.dependencies {

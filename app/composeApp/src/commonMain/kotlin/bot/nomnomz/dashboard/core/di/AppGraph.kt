@@ -11,9 +11,11 @@
 package bot.nomnomz.dashboard.core.di
 
 import bot.nomnomz.dashboard.core.connection.ConnectLauncher
+import bot.nomnomz.dashboard.core.connection.LanDiscovery
 import bot.nomnomz.dashboard.core.connection.OAuthConnectLauncher
 import bot.nomnomz.dashboard.core.connection.OAuthLauncher
 import bot.nomnomz.dashboard.core.connection.SessionStore
+import bot.nomnomz.dashboard.core.connection.lanDiscovery
 import bot.nomnomz.dashboard.core.network.ApiClient
 import bot.nomnomz.dashboard.core.network.AuthApi
 import bot.nomnomz.dashboard.core.network.BotAuthApi
@@ -52,12 +54,18 @@ class AppGraph {
     private val oauthLauncher: OAuthLauncher = OAuthLauncher()
     private val connectLauncher: ConnectLauncher = OAuthConnectLauncher(oauthLauncher)
 
+    // The per-target mDNS browse seam — jmDNS on desktop, a no-op on web (single-origin). Built via the
+    // platform [lanDiscovery] factory like the other per-target engines (OAuthLauncher / TokenVault) and
+    // handed to the Connect controller, which owns its start/stop lifecycle.
+    private val lanDiscovery: LanDiscovery = lanDiscovery()
+
     val connectController: ConnectController =
         ConnectController(
             sessionStore = sessionStore,
             authApi = authApi,
             systemApi = systemApi,
             oauthLauncher = oauthLauncher,
+            lanDiscovery = lanDiscovery,
         )
 
     // The first-run setup wizard's holder. On "continue to sign-in" it hands back to the connect
