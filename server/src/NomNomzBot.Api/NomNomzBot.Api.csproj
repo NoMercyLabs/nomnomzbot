@@ -70,12 +70,25 @@
       <GradleCommand Condition="'$(OS)' == 'Windows_NT'">.\gradlew.bat</GradleCommand>
       <GradleCommand Condition="'$(OS)' != 'Windows_NT'">./gradlew</GradleCommand>
     </PropertyGroup>
-    <Message Importance="high" Text="BundleWasmDashboard: building the wasmJs browser distribution…" />
-    <Exec Command="$(GradleCommand) :composeApp:wasmJsBrowserDistribution --console=plain" WorkingDirectory="$(FrontendDir)" />
+    <Message
+      Importance="high"
+      Text="BundleWasmDashboard: building the wasmJs browser distribution…"
+    />
+    <Exec
+      Command="$(GradleCommand) :composeApp:wasmJsBrowserDistribution --console=plain"
+      WorkingDirectory="$(FrontendDir)"
+    />
     <ItemGroup>
       <WasmDashboardFiles Include="$(WasmDistDir)\**\*" />
     </ItemGroup>
-    <Copy SourceFiles="@(WasmDashboardFiles)" DestinationFiles="@(WasmDashboardFiles-&gt;'$(PublishDir)wwwroot\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
-    <Message Importance="high" Text="BundleWasmDashboard: copied the dashboard into $(PublishDir)wwwroot." />
+    <Copy
+      SourceFiles="@(WasmDashboardFiles)"
+      DestinationFiles="@(WasmDashboardFiles-&gt;'$(PublishDir)wwwroot\%(RecursiveDir)%(Filename)%(Extension)')"
+      SkipUnchangedFiles="true"
+    />
+    <Message
+      Importance="high"
+      Text="BundleWasmDashboard: copied the dashboard into $(PublishDir)wwwroot."
+    />
   </Target>
 </Project>
