@@ -153,7 +153,7 @@ NomNomzBot.Domain          → Entities, domain events, value objects, no extern
 | `AuthService` | Infrastructure | JWT creation, Twitch token exchange, refresh |
 | `TwitchApiService` | Infrastructure | Helix API calls (channel info, followers, bans, etc.) |
 | `TwitchEventSubService` | Infrastructure | WebSocket EventSub lifecycle (`IHostedService`) |
-| `TwitchIrcService` | Infrastructure | IRC bot connection (TLS, reconnect, message send) |
+| `HelixChatProvider` | Infrastructure | Chat send (`IChatProvider`) via Helix Send Chat Message — every profile |
 | `SpotifyService` | Infrastructure | Now playing, queue, playback control |
 | `DiscordService` | Infrastructure | Guild sync, notifications |
 | `TtsService` | Infrastructure | Azure Cognitive Services + ElevenLabs provider |
@@ -164,7 +164,7 @@ NomNomzBot.Domain          → Entities, domain events, value objects, no extern
 - `AuthController` — Twitch OAuth login/callback, JWT refresh, logout
 - `ChannelBotController` — Bot account OAuth, bot config
 - `ChannelsController` — Channel CRUD, stream info, bot callback
-- `ChatController` — Chat messages (read via EventSub; send via `IChatTransport` — Helix on SaaS, IRC on self-host)
+- `ChatController` — Chat messages (read via EventSub `channel.chat.message`; send via `IChatProvider` → `HelixChatProvider` — Helix Send Chat Message, every profile)
 - `CommandsController` — Custom command CRUD, pipeline attachment
 - `CommunityController` — Viewer list from Twitch API (no seed data)
 - `DashboardController` — Stats aggregation for dashboard widgets
@@ -355,13 +355,12 @@ The bot uses `wss://eventsub.wss.twitch.tv/ws` — **no public HTTPS URL require
 - `channel.prediction.begin` / `channel.prediction.end`
 - `channel.chat.message` (requires bot `user:read:chat` scope)
 
-### IRC Bot
+### Chat Send & Read (Helix everywhere — IRC retired)
 
-- Bot connects via TLS to `irc.chat.twitch.tv:6697`
-- Uses bot account OAuth token (`chat:read` + `chat:edit`)
-- `TwitchIrcService` runs as `IHostedService`
-- Chat **send** via `IChatTransport`: **Helix Send Chat Message** (`user:write:chat`) on SaaS (stateless, no per-channel socket), **IRC** on self-host. Chat **read** is EventSub `channel.chat.message` on both (`spec/scaling-qos.md` §6).
-- **Note:** If `ENCRYPTION_KEY` changes, stored bot token becomes unreadable — bot needs to re-auth
+- Chat **send** via `IChatProvider` → `HelixChatProvider`: **Helix Send Chat Message** (`POST /helix/chat/messages`, `user:write:chat`) on **every** profile — stateless, no per-channel socket, no sharding. Whispers via `POST /helix/whispers`.
+- Chat **read** via EventSub `channel.chat.message` (bot `user:read:chat` scope) on every profile (`spec/scaling-qos.md` §6).
+- IRC is **fully retired** — there is no `TwitchIrcService` and no TLS IRC socket; no chat flows over IRC on any profile (decision: Helix everywhere). The bot OAuth still *requests* the legacy `chat:read`/`chat:edit` scopes (see Bot Account Scopes) — vestigial, pending removal.
+- **Note:** If `ENCRYPTION_KEY` changes, the stored bot token becomes unreadable — the bot needs to re-auth.
 
 ### Cloudflare Tunnel (for OAuth redirects)
 
@@ -513,7 +512,7 @@ All action blocks are compiled C# classes — no scripting engine.
 | No emote picker / FrankerFaceZ / BTTV | Not yet implemented |
 | Commands show 0 on existing installs | Channel join/registration flow may have skipped command seeding |
 | EventSub reconnects every ~5 min | Normal Twitch behavior — server sends a `reconnect` message |
-| IRC bot token invalid after key change | `ENCRYPTION_KEY` rotation requires bot re-auth |
+| Bot token invalid after key change | `ENCRYPTION_KEY` rotation requires bot re-auth |
 
 ---
 

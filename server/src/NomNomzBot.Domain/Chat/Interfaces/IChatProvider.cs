@@ -13,7 +13,7 @@ namespace NomNomzBot.Domain.Chat.Interfaces;
 /// <summary>
 /// Abstraction for sending chat messages and performing moderation actions.
 /// <c>broadcasterId</c> is the tenant (channel) <see cref="Guid"/>; the implementation resolves it to the
-/// Twitch channel string id before any Helix/IRC call (the invariant: Twitch never receives a Guid).
+/// Twitch channel string id before any Helix call (the invariant: Twitch never receives a Guid).
 /// <c>userId</c> targets are Twitch user string ids (they arrive from Twitch events / template vars).
 /// </summary>
 public interface IChatProvider
