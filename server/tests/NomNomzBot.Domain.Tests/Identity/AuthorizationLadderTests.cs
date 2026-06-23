@@ -29,7 +29,7 @@ public class AuthorizationLadderTests
     [InlineData(PermissionLevel.Vip, 4)]
     [InlineData(PermissionLevel.Artist, 6)]
     [InlineData(PermissionLevel.Moderator, 10)]
-    [InlineData(PermissionLevel.SuperMod, 20)]
+    [InlineData(PermissionLevel.LeadModerator, 20)]
     [InlineData(PermissionLevel.Editor, 30)]
     [InlineData(PermissionLevel.Broadcaster, 40)]
     public void PermissionLevel_maps_to_its_canonical_ladder_value(
@@ -50,7 +50,7 @@ public class AuthorizationLadderTests
             PermissionLevel.Vip.ToLevelValue(),
             PermissionLevel.Artist.ToLevelValue(),
             PermissionLevel.Moderator.ToLevelValue(),
-            PermissionLevel.SuperMod.ToLevelValue(),
+            PermissionLevel.LeadModerator.ToLevelValue(),
             PermissionLevel.Editor.ToLevelValue(),
             PermissionLevel.Broadcaster.ToLevelValue(),
         ];
@@ -60,7 +60,7 @@ public class AuthorizationLadderTests
 
     [Theory]
     [InlineData(ManagementRole.Moderator, 10)]
-    [InlineData(ManagementRole.SuperMod, 20)]
+    [InlineData(ManagementRole.LeadModerator, 20)]
     [InlineData(ManagementRole.Editor, 30)]
     [InlineData(ManagementRole.Broadcaster, 40)]
     public void ManagementRole_maps_to_its_plane_B_value(ManagementRole role, int expected)
@@ -100,7 +100,10 @@ public class AuthorizationLadderTests
         CommunityStanding.Artist.ToLevel().Should().Be(PermissionLevel.Artist.ToLevelValue());
 
         // The high management rungs align with the unified ladder one-for-one.
-        ManagementRole.SuperMod.ToLevel().Should().Be(PermissionLevel.SuperMod.ToLevelValue());
+        ManagementRole
+            .LeadModerator.ToLevel()
+            .Should()
+            .Be(PermissionLevel.LeadModerator.ToLevelValue());
         ManagementRole.Editor.ToLevel().Should().Be(PermissionLevel.Editor.ToLevelValue());
         ManagementRole
             .Broadcaster.ToLevel()

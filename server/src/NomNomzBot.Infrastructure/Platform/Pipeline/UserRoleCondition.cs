@@ -17,9 +17,9 @@ namespace NomNomzBot.Infrastructure.Platform.Pipeline;
 
 /// <summary>
 /// Condition: check if the triggering user has at least a given role, on the unified authorization ladder
-/// (viewer &lt; subscriber &lt; vip &lt; artist &lt; moderator &lt; supermod &lt; editor &lt; broadcaster).
+/// (viewer &lt; subscriber &lt; vip &lt; artist &lt; moderator &lt; lead_moderator &lt; editor &lt; broadcaster).
 /// Usage: { "type": "user_role", "min_role": "moderator" }
-///        { "type": "user_role", "role": "supermod" }
+///        { "type": "user_role", "role": "lead_moderator" }
 /// </summary>
 public sealed class UserRoleCondition : ICommandCondition
 {
@@ -44,7 +44,7 @@ public sealed class UserRoleCondition : ICommandCondition
         return elem.ValueKind == System.Text.Json.JsonValueKind.String ? elem.GetString() : null;
     }
 
-    // Compare on the canonical ladder value so supermod/editor/artist all rank correctly (the same parser the chat
+    // Compare on the canonical ladder value so lead_moderator/editor/artist all rank correctly (the same parser the chat
     // command gate uses), rather than an ad-hoc local ordering.
     private static int RoleLevel(string role) => ChatRole.Parse(role).ToLevelValue();
 }

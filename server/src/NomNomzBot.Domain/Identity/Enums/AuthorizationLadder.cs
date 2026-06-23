@@ -28,7 +28,7 @@ public static class AuthorizationLadder
             PermissionLevel.Vip => 4,
             PermissionLevel.Artist => 6,
             PermissionLevel.Moderator => 10,
-            PermissionLevel.SuperMod => 20,
+            PermissionLevel.LeadModerator => 20,
             PermissionLevel.Editor => 30,
             PermissionLevel.Broadcaster => 40,
             _ => 0,
@@ -39,7 +39,7 @@ public static class AuthorizationLadder
         role switch
         {
             ManagementRole.Moderator => 10,
-            ManagementRole.SuperMod => 20,
+            ManagementRole.LeadModerator => 20,
             ManagementRole.Editor => 30,
             ManagementRole.Broadcaster => 40,
             _ => 0,

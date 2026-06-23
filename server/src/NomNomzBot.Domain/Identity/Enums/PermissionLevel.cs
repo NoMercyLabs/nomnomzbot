@@ -14,7 +14,7 @@ namespace NomNomzBot.Domain.Identity.Enums;
 /// The single unified authorization ladder spanning the community plane (A) and the channel-management
 /// plane (B) (roles-permissions §0). The numeric <c>LevelValue</c> (via <see cref="AuthorizationLadder.ToLevelValue"/>)
 /// is the only thing the per-action gate compares — the ordinal of this enum is not. Order, low→high:
-/// <c>Everyone &lt; Subscriber &lt; Vip &lt; Artist &lt; Moderator &lt; SuperMod &lt; Editor &lt; Broadcaster</c>.
+/// <c>Everyone &lt; Subscriber &lt; Vip &lt; Artist &lt; Moderator &lt; LeadModerator &lt; Editor &lt; Broadcaster</c>.
 /// </summary>
 public enum PermissionLevel
 {
@@ -23,7 +23,7 @@ public enum PermissionLevel
     Vip,
     Artist,
     Moderator,
-    SuperMod,
+    LeadModerator,
     Editor,
     Broadcaster,
 }

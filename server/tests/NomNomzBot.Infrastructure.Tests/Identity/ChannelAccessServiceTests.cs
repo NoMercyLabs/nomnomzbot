@@ -18,7 +18,7 @@ namespace NomNomzBot.Infrastructure.Tests.Identity;
 /// <summary>
 /// Proves tenant-resolution access (the IDOR gate / roles-permissions Gate 1, §3.1): a caller may resolve a
 /// channel if they own it, hold a legacy moderator grant, OR — the new branch — hold a management membership
-/// (Moderator/SuperMod/Editor/Broadcaster); everyone else, and any malformed id, is denied.
+/// (Moderator/LeadModerator/Editor/Broadcaster); everyone else, and any malformed id, is denied.
 /// </summary>
 public sealed class ChannelAccessServiceTests
 {

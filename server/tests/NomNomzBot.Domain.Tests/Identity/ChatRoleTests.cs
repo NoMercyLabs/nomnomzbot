@@ -17,7 +17,7 @@ namespace NomNomzBot.Domain.Tests.Identity;
 
 /// <summary>
 /// Proves the chat role resolution (roles-permissions §0): a Lead Moderator (Twitch's <c>lead_moderator</c> badge,
-/// which replaces the regular moderator badge) resolves to SuperMod — above a plain moderator — whether the marker is
+/// which replaces the regular moderator badge) resolves to LeadModerator — above a plain moderator — whether the marker is
 /// carried as the badge set_id or its version id, and even if the moderator flag itself is absent.
 /// </summary>
 public sealed class ChatRoleTests
@@ -25,26 +25,26 @@ public sealed class ChatRoleTests
     private static ChatBadge Badge(string setId, string id) => new(setId, id);
 
     [Fact]
-    public void Lead_moderator_badge_resolves_to_super_mod_via_set_id()
+    public void Lead_moderator_badge_resolves_to_lead_moderator_via_set_id()
     {
         ChatRole
             .Resolve(false, true, false, false, [Badge("lead_moderator", "1")])
             .Should()
-            .Be(PermissionLevel.SuperMod);
+            .Be(PermissionLevel.LeadModerator);
     }
 
     [Fact]
-    public void Lead_moderator_badge_resolves_to_super_mod_via_version_id()
+    public void Lead_moderator_badge_resolves_to_lead_moderator_via_version_id()
     {
         // Twitch may carry the marker as the badge version id while set_id stays "moderator".
         ChatRole
             .Resolve(false, true, false, false, [Badge("moderator", "lead_moderator")])
             .Should()
-            .Be(PermissionLevel.SuperMod);
+            .Be(PermissionLevel.LeadModerator);
     }
 
     [Fact]
-    public void A_lead_mod_resolves_to_super_mod_even_when_the_moderator_flag_is_absent()
+    public void A_lead_mod_resolves_to_lead_moderator_even_when_the_moderator_flag_is_absent()
     {
         // Covers the badge fully replacing the moderator badge: the flag can be false, the badge still promotes.
         PermissionLevel level = ChatRole.Resolve(
@@ -55,7 +55,7 @@ public sealed class ChatRoleTests
             [Badge("lead_moderator", "1")]
         );
 
-        level.Should().Be(PermissionLevel.SuperMod);
+        level.Should().Be(PermissionLevel.LeadModerator);
         level.ToLevelValue().Should().BeGreaterThan(PermissionLevel.Moderator.ToLevelValue());
     }
 
@@ -85,19 +85,19 @@ public sealed class ChatRoleTests
     }
 
     [Fact]
-    public void A_lead_mod_passes_a_moderator_gate_but_a_moderator_fails_a_super_mod_gate()
+    public void A_lead_mod_passes_a_moderator_gate_but_a_moderator_fails_a_lead_moderator_gate()
     {
-        int leadMod = PermissionLevel.SuperMod.ToLevelValue();
+        int leadMod = PermissionLevel.LeadModerator.ToLevelValue();
         int moderator = PermissionLevel.Moderator.ToLevelValue();
 
         (leadMod >= ChatRole.Parse("moderator").ToLevelValue()).Should().BeTrue();
-        (leadMod >= ChatRole.Parse("supermod").ToLevelValue()).Should().BeTrue();
-        (moderator >= ChatRole.Parse("supermod").ToLevelValue()).Should().BeFalse();
+        (leadMod >= ChatRole.Parse("lead_moderator").ToLevelValue()).Should().BeTrue();
+        (moderator >= ChatRole.Parse("lead_moderator").ToLevelValue()).Should().BeFalse();
     }
 
     [Theory]
-    [InlineData("supermod", PermissionLevel.SuperMod)]
-    [InlineData("lead_moderator", PermissionLevel.SuperMod)]
+    [InlineData("lead_moderator", PermissionLevel.LeadModerator)]
+    [InlineData("leadmoderator", PermissionLevel.LeadModerator)]
     [InlineData("mod", PermissionLevel.Moderator)]
     [InlineData("editor", PermissionLevel.Editor)]
     [InlineData("broadcaster", PermissionLevel.Broadcaster)]

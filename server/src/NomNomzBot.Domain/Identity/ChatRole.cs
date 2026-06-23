@@ -17,7 +17,7 @@ namespace NomNomzBot.Domain.Identity;
 /// Resolves a chatter's authorization level from a chat message — the single mapping that the chat command gate,
 /// the pipeline <c>user_role</c> condition, and the <c>{{user.role}}</c> variable all share, onto the canonical
 /// <see cref="PermissionLevel"/> ladder (roles-permissions §0). A <b>Lead Moderator</b> (Twitch's <c>lead_moderator</c>
-/// badge, which replaces the regular moderator badge) resolves to <see cref="PermissionLevel.SuperMod"/> — checked
+/// badge, which replaces the regular moderator badge) resolves to <see cref="PermissionLevel.LeadModerator"/> — checked
 /// before plain moderator, since a lead mod outranks one. <b>Editor</b> is deliberately absent: it is not a chat badge
 /// (it comes from the Helix editors list), so it is a management/HTTP-plane role, never resolved from a chat message.
 /// </summary>
@@ -51,7 +51,7 @@ public static class ChatRole
         if (isBroadcaster)
             return PermissionLevel.Broadcaster;
         if (IsLeadModerator(badges))
-            return PermissionLevel.SuperMod;
+            return PermissionLevel.LeadModerator;
         if (isModerator)
             return PermissionLevel.Moderator;
         if (isVip)
@@ -68,8 +68,7 @@ public static class ChatRole
         {
             "broadcaster" => PermissionLevel.Broadcaster,
             "editor" => PermissionLevel.Editor,
-            "supermod" or "super_mod" or "lead_moderator" or "leadmoderator" =>
-                PermissionLevel.SuperMod,
+            "lead_moderator" or "leadmoderator" or "lead_mod" => PermissionLevel.LeadModerator,
             "moderator" or "mod" => PermissionLevel.Moderator,
             "artist" => PermissionLevel.Artist,
             "vip" => PermissionLevel.Vip,
@@ -83,7 +82,7 @@ public static class ChatRole
         {
             PermissionLevel.Broadcaster => "broadcaster",
             PermissionLevel.Editor => "editor",
-            PermissionLevel.SuperMod => "supermod",
+            PermissionLevel.LeadModerator => "lead_moderator",
             PermissionLevel.Moderator => "moderator",
             PermissionLevel.Artist => "artist",
             PermissionLevel.Vip => "vip",

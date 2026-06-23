@@ -14,11 +14,11 @@ namespace NomNomzBot.Domain.Identity.Enums;
 // name is the persisted token. Numeric ladder positions are mapped explicitly by AuthorizationLadder, never
 // by the enum ordinal, so members may be reordered without shifting any stored level.
 
-/// <summary>Plane B — channel-management ladder: <c>Moderator(10) &lt; SuperMod(20) &lt; Editor(30) &lt; Broadcaster(40)</c>.</summary>
+/// <summary>Plane B — channel-management ladder: <c>Moderator(10) &lt; LeadModerator(20) &lt; Editor(30) &lt; Broadcaster(40)</c>.</summary>
 public enum ManagementRole
 {
     Moderator,
-    SuperMod,
+    LeadModerator,
     Editor,
     Broadcaster,
 }

@@ -19,7 +19,7 @@ using NomNomzBot.Application.DTOs.Federation;
 namespace NomNomzBot.Api.Controllers.V1;
 
 /// <summary>
-/// A channel's federation opt-ins (federation-oidc.md §5). Default-deny + SuperMod-gated: enabling an opt-in is
+/// A channel's federation opt-ins (federation-oidc.md §5). Default-deny + LeadModerator-gated: enabling an opt-in is
 /// the explicit allow to share/accept a flow with peers. The acting user is bound from the caller, never the body.
 /// </summary>
 [ApiVersion("1.0")]

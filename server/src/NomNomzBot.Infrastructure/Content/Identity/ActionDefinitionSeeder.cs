@@ -32,7 +32,7 @@ public sealed class ActionDefinitionSeeder : ISeeder
 {
     private const int Everyone = 0;
     private const int Mod = 10;
-    private const int SuperMod = 20;
+    private const int LeadModerator = 20;
     private const int Editor = 30;
     private const int Broadcaster = 40;
 
@@ -107,12 +107,12 @@ public sealed class ActionDefinitionSeeder : ISeeder
 
         // Discord (not permit-grantable)
         M("discord:connection:read", Mod, grant: false);
-        M("discord:connection:write", SuperMod, grant: false);
+        M("discord:connection:write", LeadModerator, grant: false);
         M("discord:config:read", Mod, grant: false);
-        M("discord:config:write", SuperMod, grant: false);
+        M("discord:config:write", LeadModerator, grant: false);
         M("discord:role:read", Mod, grant: false);
-        M("discord:role:write", SuperMod, grant: false);
-        M("discord:optin:write", SuperMod, grant: false);
+        M("discord:role:write", LeadModerator, grant: false);
+        M("discord:optin:write", LeadModerator, grant: false);
         M("discord:dispatch:read", Mod, grant: false);
 
         // Bot identity — per-channel white-label bot connect/status/disconnect (identity-auth §5). Connecting
@@ -133,29 +133,29 @@ public sealed class ActionDefinitionSeeder : ISeeder
         M("moderation:warn", Mod);
         M("moderation:note:write", Mod);
         M("moderation:automod:read", Mod);
-        M("moderation:automod:write", SuperMod);
+        M("moderation:automod:write", LeadModerator);
         M("moderation:filter:read", Mod);
-        M("moderation:filter:write", SuperMod);
-        M("moderation:nuke", SuperMod, DangerTier.Critical, grant: false);
-        M("moderation:nuke:read", SuperMod);
-        M("moderation:sharedban:read", SuperMod);
-        M("moderation:sharedban:write", SuperMod, DangerTier.Critical, grant: false);
+        M("moderation:filter:write", LeadModerator);
+        M("moderation:nuke", LeadModerator, DangerTier.Critical, grant: false);
+        M("moderation:nuke:read", LeadModerator);
+        M("moderation:sharedban:read", LeadModerator);
+        M("moderation:sharedban:write", LeadModerator, DangerTier.Critical, grant: false);
         M("moderation:report:read", Mod);
-        M("moderation:report:triage", SuperMod);
+        M("moderation:report:triage", LeadModerator);
         M("moderation:evidence:build", Mod);
         M("moderation:usercontext:read", Mod);
         M("moderation:chat:settings:read", Mod);
         M("moderation:chat:settings:write", Mod);
         M("moderation:shieldmode:read", Mod);
-        M("moderation:shieldmode:write", SuperMod);
+        M("moderation:shieldmode:write", LeadModerator);
         M("moderation:announce", Mod);
         M("moderation:chatcolor:write", Editor);
         M("moderation:vip:write", Broadcaster);
         M("moderation:moderator:write", Broadcaster, DangerTier.Critical, grant: false);
         M("moderation:unbanrequest:read", Mod);
-        M("moderation:unbanrequest:resolve", SuperMod);
-        M("moderation:blocklist:write", SuperMod);
-        M("moderation:suspicioususer:write", SuperMod);
+        M("moderation:unbanrequest:resolve", LeadModerator);
+        M("moderation:blocklist:write", LeadModerator);
+        M("moderation:suspicioususer:write", LeadModerator);
 
         // TTS
         M("tts:config:read", Mod);
@@ -238,7 +238,7 @@ public sealed class ActionDefinitionSeeder : ISeeder
         M("economy:catalog:create", Editor);
         M("economy:catalog:update", Editor);
         M("economy:catalog:delete", Editor);
-        M("economy:catalog:refund", SuperMod);
+        M("economy:catalog:refund", LeadModerator);
         M("economy:catalog:purchases:read", Mod);
         M("economy:account:freeze", Mod);
         M("economy:account:adjust", Mod);
@@ -251,10 +251,10 @@ public sealed class ActionDefinitionSeeder : ISeeder
         M("billing:read", Broadcaster);
         M("billing:manage", Broadcaster);
 
-        // Federation opt-ins (cross-instance sharing — default-deny, SuperMod gated)
-        M("federation:optin:read", SuperMod);
-        M("federation:optin:write", SuperMod);
-        M("federation:optin:delete", SuperMod);
+        // Federation opt-ins (cross-instance sharing — default-deny, LeadModerator gated)
+        M("federation:optin:read", LeadModerator);
+        M("federation:optin:write", LeadModerator);
+        M("federation:optin:delete", LeadModerator);
 
         // Rewards
         M("reward:read", Mod);

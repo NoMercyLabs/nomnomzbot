@@ -15,7 +15,7 @@ namespace NomNomzBot.Application.Contracts.Authorization;
 
 /// <summary>
 /// Plane-B channel-management membership writes + Twitch sync (roles-permissions §3.4). Owns who holds a
-/// management role (Moderator / SuperMod / Editor / Broadcaster) in a channel and at what ladder level.
+/// management role (Moderator / LeadModerator / Editor / Broadcaster) in a channel and at what ladder level.
 /// </summary>
 public interface IMembershipService
 {
