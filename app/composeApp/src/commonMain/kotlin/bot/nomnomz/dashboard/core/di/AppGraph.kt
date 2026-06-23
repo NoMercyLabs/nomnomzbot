@@ -16,6 +16,8 @@ import bot.nomnomz.dashboard.core.connection.OAuthConnectLauncher
 import bot.nomnomz.dashboard.core.connection.OAuthLauncher
 import bot.nomnomz.dashboard.core.connection.SessionStore
 import bot.nomnomz.dashboard.core.connection.lanDiscovery
+import bot.nomnomz.dashboard.core.i18n.LanguagePreferenceStore
+import bot.nomnomz.dashboard.core.i18n.LanguageStore
 import bot.nomnomz.dashboard.core.network.ApiClient
 import bot.nomnomz.dashboard.core.network.AuthApi
 import bot.nomnomz.dashboard.core.network.BotAuthApi
@@ -28,6 +30,7 @@ import bot.nomnomz.dashboard.core.network.RestSystemApi
 import bot.nomnomz.dashboard.core.network.SystemApi
 import bot.nomnomz.dashboard.feature.connect.state.ConnectController
 import bot.nomnomz.dashboard.feature.integrations.state.IntegrationsController
+import bot.nomnomz.dashboard.feature.language.state.LanguageController
 import bot.nomnomz.dashboard.feature.setup.state.SetupController
 
 // The composition root for this slice — one instance of each engine singleton (frontend-structure.md
@@ -36,6 +39,13 @@ import bot.nomnomz.dashboard.feature.setup.state.SetupController
 // don't change. App.kt holds one AppGraph for the app lifetime.
 class AppGraph {
     val sessionStore: SessionStore = SessionStore()
+
+    // The display-language override — a per-install preference (LanguagePreferenceStore: file on desktop,
+    // localStorage on web) driving the LanguageController, which App.kt feeds into the AppEnvironment to
+    // force the UI language live, regardless of the OS/browser locale.
+    private val languageStore: LanguageStore = LanguagePreferenceStore()
+
+    val languageController: LanguageController = LanguageController(languageStore)
 
     // The single shared client reads base URL + token from the session on every request, so a
     // sign-in / connection switch re-targets the live client (frontend.md §3.1).

@@ -19,6 +19,22 @@
             background: #0a0a0a;
         }
     </style>
+    <!--
+      Display-language override hook. The Compose/Wasm app publishes the operator's forced UI language
+      to window.__customLocale; this makes navigator.languages return it so Compose resources resolve
+      against the chosen language. When unset (System default) the browser's own locale is used.
+    -->
+    <script>
+        var nnzBaseLanguages = Object.getOwnPropertyDescriptor(Navigator.prototype, "languages");
+        Object.defineProperty(Navigator.prototype, "languages", Object.assign({}, nnzBaseLanguages, {
+            get: function () {
+                if (window.__customLocale) {
+                    return [window.__customLocale];
+                }
+                return nnzBaseLanguages.get.apply(this);
+            }
+        }));
+    </script>
 </head>
 <body>
 <script src="composeApp.js"></script>

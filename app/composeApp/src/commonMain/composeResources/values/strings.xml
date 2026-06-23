@@ -24,6 +24,8 @@
     <string name="connect_discovered_title">Found on your network</string>
     <string name="connect_discovered_searching">Searching your network for bots…</string>
     <string name="connect_discovered_manual_label">Or enter a backend URL</string>
+    <string name="language_label">Language</string>
+    <string name="language_system_default">System default</string>
     <string name="setup_title">Set up your bot</string>
     <string name="setup_subtitle">Enter your app credentials below — no config files needed. Finish each required step, then continue to sign in with Twitch.</string>
     <string name="setup_step_done">Done</string>
