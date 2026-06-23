@@ -25,7 +25,14 @@ pluginManagement {
 }
 
 dependencyResolutionManagement {
-    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    // PREFER_PROJECT, not FAIL_ON_PROJECT_REPOS: building the Wasm browser distribution makes the Kotlin
+    // toolchain register the Node.js distribution server (nodejs.org/dist) as a project repository to download
+    // its bundled Node/webpack toolchain. Gradle 9 rejects that under both FAIL_ON_PROJECT_REPOS and
+    // PREFER_SETTINGS ("repository ... was added by unknown code"). PREFER_PROJECT tolerates the trusted
+    // Kotlin-plugin toolchain repos so the web (wasmJs) target can be bundled and served by the bot; the real
+    // dependency repos are still the settings-declared google + mavenCentral below. (Backend supply-chain is
+    // unaffected — server/ is a separate .NET build with no Gradle.)
+    repositoriesMode.set(RepositoriesMode.PREFER_PROJECT)
     repositories {
         google {
             content {

@@ -16,6 +16,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Primitives;
 using Microsoft.IdentityModel.Tokens;
@@ -582,6 +583,17 @@ try
     {
         app.UseHttpsRedirection();
     }
+    // Serve the compiled Wasm dashboard — the SAME app the desktop client runs — from the web root, so onboarding
+    // is identical in a browser at / (deployment-distribution §5). Single-origin: the served app talks to the
+    // origin (this bot) that served it. Static assets are public and unauthenticated (before auth + rate limiting);
+    // the API / hub / health routes below still match first, and anything unmatched falls through to the SPA entry
+    // (index.html) via MapFallbackToFile at the end. With no dashboard bundled (empty web root) this is a no-op and
+    // the API-only behavior is unchanged. The explicit ".wasm" mapping guarantees the correct MIME so the browser
+    // instantiates the module.
+    FileExtensionContentTypeProvider staticContentTypes = new();
+    staticContentTypes.Mappings[".wasm"] = "application/wasm";
+    app.UseStaticFiles(new StaticFileOptions { ContentTypeProvider = staticContentTypes });
+
     app.UseCors();
     app.UseRateLimiter();
     app.UseAuthentication();
@@ -686,6 +698,11 @@ try
 
     // Suppress browser-generated favicon requests from producing 500 errors
     app.MapGet("/favicon.ico", () => Results.NotFound()).ExcludeFromDescription();
+
+    // SPA fallback: any route not matched by an API / hub / health endpoint or a static file serves the dashboard's
+    // entry document, so a browser hitting / (or a client-side deep link) loads the Compose/Wasm app shell. Returns
+    // 404 when no dashboard is bundled (empty web root), preserving the API-only behavior.
+    app.MapFallbackToFile("index.html");
 
     app.Run();
 }
