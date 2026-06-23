@@ -25,11 +25,10 @@ package bot.nomnomz.dashboard.core.network
 //       The client opens this URL directly (no bearer needed); the backend redirects to Discord, vaults
 //       the bot token on callback, then redirects back to the frontend.
 //
-// Status: GET …/integrations/status reports the generic providers (Spotify/YouTube). Discord is reported
-// by the older IntegrationsController list and is folded into [status] here from that list, so the screen
-// gets one unified status set across all three. (Backend gap — see report.)
+// Status: GET …/integrations/status is the unified read model — one call reports all three providers
+// (Spotify/YouTube + Discord).
 interface IntegrationsApi {
-    /** Per-provider status across all three providers (Spotify/YouTube + Discord folded in). */
+    /** Per-provider status across all three providers (Spotify/YouTube + Discord), from the unified endpoint. */
     suspend fun status(channelId: String): ApiResult<List<IntegrationStatus>>
 
     /** Start the Spotify/YouTube connect: the authenticated POST returns the provider authorize URL. */
@@ -52,17 +51,8 @@ interface IntegrationsApi {
 
 class RestIntegrationsApi(private val client: ApiClient) : IntegrationsApi {
 
-    override suspend fun status(channelId: String): ApiResult<List<IntegrationStatus>> {
-        val generic: ApiResult<List<IntegrationStatus>> =
-            client.getEnvelope("api/v1/channels/$channelId/integrations/status")
-        if (generic is ApiResult.Failure) return generic
-
-        val base: List<IntegrationStatus> = (generic as ApiResult.Ok).value
-        // Fold in Discord from the legacy list (best-effort: a failure leaves Discord absent rather than
-        // failing the whole screen).
-        val discord: IntegrationStatus? = readDiscordStatus(channelId)
-        return ApiResult.Ok(if (discord != null) base + discord else base)
-    }
+    override suspend fun status(channelId: String): ApiResult<List<IntegrationStatus>> =
+        client.getEnvelope("api/v1/channels/$channelId/integrations/status")
 
     override suspend fun startGenericConnect(
         channelId: String,
@@ -83,20 +73,4 @@ class RestIntegrationsApi(private val client: ApiClient) : IntegrationsApi {
 
     override suspend fun disconnectDiscord(channelId: String): ApiResult<Unit> =
         client.deleteUnit("api/v1/channels/$channelId/integrations/discord")
-
-    // The legacy IntegrationsController list is the only surface that reports Discord connectivity. We
-    // read it solely to surface Discord; Spotify/YouTube come from the authoritative generic status.
-    private suspend fun readDiscordStatus(channelId: String): IntegrationStatus? {
-        val list: ApiResult<LegacyIntegrationsResponse> =
-            client.getEnvelope("api/v1/channels/$channelId/integrations")
-        if (list !is ApiResult.Ok) return null
-        val discord: LegacyIntegration =
-            list.value.integrations.firstOrNull { it.id.equals("discord", ignoreCase = true) }
-                ?: return null
-        return IntegrationStatus(
-            provider = "discord",
-            connected = discord.connected,
-            accountName = discord.connectedAs,
-        )
-    }
 }

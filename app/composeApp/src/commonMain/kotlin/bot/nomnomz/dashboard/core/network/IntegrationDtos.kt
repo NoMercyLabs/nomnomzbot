@@ -74,19 +74,3 @@ data class IntegrationStatus(
     val grantedScopeSets: List<String> = emptyList(),
     val needsReauth: Boolean = false,
 )
-
-/**
- * The legacy IntegrationsController list (`GET /channels/{channelId}/integrations` →
- * StatusResponseDto<IntegrationsResponse>). The only backend surface that reports Discord connectivity,
- * so it is read solely to fold Discord into the unified [IntegrationStatus] set.
- */
-@Serializable
-data class LegacyIntegrationsResponse(val integrations: List<LegacyIntegration> = emptyList())
-
-/** One row of the legacy integrations list. Only the fields the unified status needs are mapped. */
-@Serializable
-data class LegacyIntegration(
-    val id: String,
-    val connected: Boolean = false,
-    val connectedAs: String? = null,
-)
