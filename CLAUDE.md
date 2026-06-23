@@ -359,7 +359,7 @@ The bot uses `wss://eventsub.wss.twitch.tv/ws` — **no public HTTPS URL require
 
 - Chat **send** via `IChatProvider` → `HelixChatProvider`: **Helix Send Chat Message** (`POST /helix/chat/messages`, `user:write:chat`) on **every** profile — stateless, no per-channel socket, no sharding. Whispers via `POST /helix/whispers`.
 - Chat **read** via EventSub `channel.chat.message` (bot `user:read:chat` scope) on every profile (`spec/scaling-qos.md` §6).
-- IRC is **fully retired** — there is no `TwitchIrcService` and no TLS IRC socket; no chat flows over IRC on any profile (decision: Helix everywhere). The bot OAuth still *requests* the legacy `chat:read`/`chat:edit` scopes (see Bot Account Scopes) — vestigial, pending removal.
+- IRC is **fully retired** — there is no `TwitchIrcService` and no TLS IRC socket; no chat flows over IRC on any profile (decision: Helix everywhere). The bot **types** via Helix Send Chat Message on its own token (`user:write:chat`) and **reads** via EventSub (`user:read:chat`); the bot OAuth also still requests the legacy IRC `chat:read`/`chat:edit` scopes (see Bot Account Scopes), which the Helix path does not exercise.
 - **Note:** If `ENCRYPTION_KEY` changes, the stored bot token becomes unreadable — the bot needs to re-auth.
 
 ### Cloudflare Tunnel (for OAuth redirects)
