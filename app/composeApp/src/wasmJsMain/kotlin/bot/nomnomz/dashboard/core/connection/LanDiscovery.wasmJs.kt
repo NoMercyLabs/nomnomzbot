@@ -23,6 +23,9 @@ actual fun lanDiscovery(): LanDiscovery = NoOpLanDiscovery
 // discovered rows on web, exactly as intended.
 private object NoOpLanDiscovery : LanDiscovery {
 
+    // The web build cannot browse the LAN — the Connect screen hides the discovery section entirely.
+    override val isSupported: Boolean = false
+
     private val _discovered: MutableStateFlow<List<ConnectionProfile>> = MutableStateFlow(emptyList())
     override val discovered: StateFlow<List<ConnectionProfile>> = _discovered.asStateFlow()
 

@@ -70,6 +70,9 @@ class ConnectController(
     /** The live set of bots mDNS-discovered on the LAN, surfaced as click-to-connect rows (empty on web). */
     val discovered: StateFlow<List<ConnectionProfile>> = lanDiscovery.discovered
 
+    /** Whether LAN discovery works on this platform — false on web, where the Connect screen hides that section. */
+    val discoverySupported: Boolean = lanDiscovery.isSupported
+
     /** Begin browsing the LAN — called when the Connect screen appears. */
     fun startDiscovery() = lanDiscovery.start()
 

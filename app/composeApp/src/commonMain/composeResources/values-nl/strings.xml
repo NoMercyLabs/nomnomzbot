@@ -28,6 +28,8 @@
     <string name="setup_step_done">Klaar</string>
     <string name="setup_optional_badge">Optioneel</string>
     <string name="setup_action_save">Opslaan</string>
+    <string name="setup_secret_show">Tonen</string>
+    <string name="setup_secret_hide">Verbergen</string>
     <string name="setup_action_connect_bot">Botaccount autoriseren</string>
     <string name="setup_action_continue">Doorgaan naar Twitch-aanmelding</string>
     <string name="setup_action_retry">Opnieuw proberen</string>

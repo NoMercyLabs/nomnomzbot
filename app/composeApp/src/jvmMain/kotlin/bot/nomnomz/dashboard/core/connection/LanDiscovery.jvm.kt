@@ -33,6 +33,9 @@ actual fun lanDiscovery(): LanDiscovery = JmdnsLanDiscovery()
 // advertisement is caught and logged, never thrown — the worst case is an empty discovered list.
 class JmdnsLanDiscovery : LanDiscovery {
 
+    // Desktop can browse the LAN, so the Connect screen shows the discovery section.
+    override val isSupported: Boolean = true
+
     private val _discovered: MutableStateFlow<List<ConnectionProfile>> = MutableStateFlow(emptyList())
     override val discovered: StateFlow<List<ConnectionProfile>> = _discovered.asStateFlow()
 
@@ -146,18 +149,23 @@ class JmdnsLanDiscovery : LanDiscovery {
         override fun serviceResolved(event: ServiceEvent) {
             val profile: ConnectionProfile = mapServiceInfo(event.info) ?: return
             _discovered.update { current ->
-                // Dedupe by the connect target (baseUrl), not the id: the all-interface browse resolves the SAME bot
-                // via several network interfaces, and a re-announcement may arrive before its TXT instance id does, so
-                // ids can differ for one bot — but the host:port the user actually connects to is identical. Collapse
-                // entries that point at the same backend.
-                val without: List<ConnectionProfile> = current.filterNot { it.baseUrl == profile.baseUrl }
-                without + profile
+                // Dedupe by the bot's identity (its unique mDNS service name = displayName), not its address: one bot
+                // binds every interface and advertises a dozen addresses, so address-keying would list it a dozen
+                // times. Keep a single entry, upgrading its address only if a later resolution carries a more-routable
+                // one (so the real LAN address wins over a virtual-adapter one).
+                val existing: ConnectionProfile? = current.firstOrNull { it.displayName == profile.displayName }
+                when {
+                    existing == null -> current + profile
+                    addressRank(hostOf(profile.baseUrl)) > addressRank(hostOf(existing.baseUrl)) ->
+                        current.filterNot { it.displayName == profile.displayName } + profile
+                    else -> current
+                }
             }
         }
 
         override fun serviceRemoved(event: ServiceEvent) {
-            val goneBaseUrl: String = mapServiceInfo(event.info)?.baseUrl ?: return
-            _discovered.update { current -> current.filterNot { it.baseUrl == goneBaseUrl } }
+            val goneName: String = mapServiceInfo(event.info)?.displayName ?: return
+            _discovered.update { current -> current.filterNot { it.displayName == goneName } }
         }
     }
 
@@ -178,11 +186,16 @@ class JmdnsLanDiscovery : LanDiscovery {
  * has no usable address/port.
  */
 internal fun mapServiceInfo(info: ServiceInfo): ConnectionProfile? {
+    // One connectable IPv4 out of everything the bot advertises. A self-host bot binds every interface, so mDNS
+    // resolves it at the real LAN address AND every virtual adapter (Docker/Hyper-V/WSL), link-local, and IPv6
+    // address. Skip loopback + link-local (169.254), ignore IPv6 (the dashboard connects over http://host:port and
+    // fe80 addresses are unusable), and prefer a real LAN (192.168/10) over the likely-virtual 172.x ranges.
     val host: String =
-        info.inet4Addresses.firstOrNull()?.hostAddress
-            ?: info.inetAddresses.firstOrNull()?.hostAddress
-            ?: info.hostAddresses.firstOrNull()
-            ?: return null
+        info.inet4Addresses
+            .asSequence()
+            .filterNot { it.isLoopbackAddress || it.isLinkLocalAddress }
+            .maxByOrNull { addressRank(it.hostAddress) }
+            ?.hostAddress ?: return null
 
     val txt: Map<String, String> =
         info.propertyNames
@@ -197,3 +210,14 @@ internal fun mapServiceInfo(info: ServiceInfo): ConnectionProfile? {
         txt = txt,
     )
 }
+
+/** Rank an IPv4 as a connect target: a real home/office LAN beats the private ranges dev tooling claims. */
+internal fun addressRank(ip: String?): Int =
+    when {
+        ip == null -> 0
+        ip.startsWith("192.168.") || ip.startsWith("10.") -> 3
+        ip.startsWith("172.") -> 2
+        else -> 1
+    }
+
+private fun hostOf(baseUrl: String): String? = runCatching { java.net.URI(baseUrl).host }.getOrNull()

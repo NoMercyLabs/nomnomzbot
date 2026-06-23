@@ -219,6 +219,8 @@ private class FakeVault : SessionTokenStore {
 
 /** An in-memory [LanDiscovery] so the controller tests drive the discovered feed without any mDNS. */
 private class FakeLanDiscovery : LanDiscovery {
+    override val isSupported: Boolean = true
+
     private val _discovered: MutableStateFlow<List<ConnectionProfile>> = MutableStateFlow(emptyList())
     override val discovered: StateFlow<List<ConnectionProfile>> = _discovered.asStateFlow()
 

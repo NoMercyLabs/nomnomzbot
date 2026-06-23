@@ -26,6 +26,13 @@ import kotlinx.coroutines.flow.StateFlow
 // fake it without any mDNS) — the platform browse engine is supplied by the [lanDiscovery] expect factory
 // (jmDNS on desktop, a no-op on web), matching the OAuthLauncher / TokenVault per-target pattern.
 interface LanDiscovery {
+    /**
+     * Whether this platform can browse the LAN at all — true on desktop (jmDNS), false on web (single-origin, no
+     * browse primitive). The Connect screen hides the whole "found on your network" section when this is false, so
+     * the web build never shows a permanently-"searching" hint for something it can't do.
+     */
+    val isSupported: Boolean
+
     /** The live set of backends seen on the LAN, deduped by the advertised instance id. */
     val discovered: StateFlow<List<ConnectionProfile>>
 

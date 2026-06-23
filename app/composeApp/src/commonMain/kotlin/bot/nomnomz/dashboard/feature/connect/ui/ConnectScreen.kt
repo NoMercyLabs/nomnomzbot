@@ -14,6 +14,8 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -76,14 +78,21 @@ fun ConnectScreen(controller: ConnectController) {
     val discovered: List<ConnectionProfile> by controller.discovered.collectAsStateWithLifecycle()
     val connecting: Boolean = status is ConnectStatus.Connecting
 
-    // Browse the LAN only while the Connect screen is on-screen; release the browser on dispose.
-    DisposableEffect(controller) {
-        controller.startDiscovery()
-        onDispose { controller.stopDiscovery() }
+    // Browse the LAN only while the Connect screen is on-screen, and only where discovery actually works
+    // (desktop) — never on web, where it is a no-op; release the browser on dispose.
+    if (controller.discoverySupported) {
+        DisposableEffect(controller) {
+            controller.startDiscovery()
+            onDispose { controller.stopDiscovery() }
+        }
     }
 
     Box(
-        modifier = Modifier.fillMaxSize().background(tokens.background),
+        modifier =
+            Modifier.fillMaxSize()
+                .background(tokens.background)
+                .verticalScroll(rememberScrollState())
+                .padding(vertical = spacing.s8),
         contentAlignment = Alignment.Center,
     ) {
         Column(
@@ -104,11 +113,15 @@ fun ConnectScreen(controller: ConnectController) {
                 textAlign = TextAlign.Center,
             )
 
-            DiscoveredSection(
-                discovered = discovered,
-                enabled = !connecting,
-                onConnect = { profile -> scope.launch { controller.connectTo(profile) } },
-            )
+            // Discovery is desktop-only; the web build is single-origin and can't browse, so hide the whole
+            // "found on your network" section there rather than show a forever-"searching" hint.
+            if (controller.discoverySupported) {
+                DiscoveredSection(
+                    discovered = discovered,
+                    enabled = !connecting,
+                    onConnect = { profile -> scope.launch { controller.connectTo(profile) } },
+                )
+            }
 
             OutlinedTextField(
                 value = baseUrl,
