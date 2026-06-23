@@ -21,8 +21,26 @@
     <string name="shell_nav_dashboard">Dashboard</string>
     <string name="shell_nav_commands">Commando's</string>
     <string name="shell_nav_community">Community</string>
+    <string name="shell_nav_integrations">Integraties</string>
     <string name="shell_nav_settings">Instellingen</string>
     <string name="shell_topbar_title">Dashboard</string>
     <string name="shell_content_empty">Hier is nog niets — de dashboardwidgets komen in de volgende stap.</string>
     <string name="shell_action_disconnect">Verbinding verbreken</string>
+    <string name="integrations_title">Integraties</string>
+    <string name="integrations_subtitle">Verbind je botaccount en de diensten waarmee je streamt.</string>
+    <string name="integrations_bot_title">Botaccount</string>
+    <string name="integrations_bot_subtitle">Het account waarmee je bot chat.</string>
+    <string name="integrations_spotify_title">Spotify</string>
+    <string name="integrations_spotify_subtitle">Now-playing-overlays en songverzoeken.</string>
+    <string name="integrations_youtube_title">YouTube</string>
+    <string name="integrations_youtube_subtitle">YouTube-muziekprovider en streamstatistieken.</string>
+    <string name="integrations_discord_title">Discord</string>
+    <string name="integrations_discord_subtitle">Plaats meldingen en notificaties op je server.</string>
+    <string name="integrations_status_connected">Verbonden</string>
+    <string name="integrations_status_not_connected">Niet verbonden</string>
+    <string name="integrations_provider_connected_as">Verbonden als %1$s</string>
+    <string name="integrations_action_connect">Verbinden</string>
+    <string name="integrations_action_disconnect">Verbinding verbreken</string>
+    <string name="integrations_action_reauth">Opnieuw verbinden</string>
+    <string name="integrations_action_retry">Opnieuw proberen</string>
 </resources>

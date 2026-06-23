@@ -10,11 +10,20 @@
 
 package bot.nomnomz.dashboard.core.di
 
+import bot.nomnomz.dashboard.core.connection.ConnectLauncher
+import bot.nomnomz.dashboard.core.connection.OAuthConnectLauncher
 import bot.nomnomz.dashboard.core.connection.OAuthLauncher
 import bot.nomnomz.dashboard.core.connection.SessionStore
 import bot.nomnomz.dashboard.core.network.ApiClient
 import bot.nomnomz.dashboard.core.network.AuthApi
+import bot.nomnomz.dashboard.core.network.BotAuthApi
+import bot.nomnomz.dashboard.core.network.ChannelsApi
+import bot.nomnomz.dashboard.core.network.IntegrationsApi
+import bot.nomnomz.dashboard.core.network.RestBotAuthApi
+import bot.nomnomz.dashboard.core.network.RestChannelsApi
+import bot.nomnomz.dashboard.core.network.RestIntegrationsApi
 import bot.nomnomz.dashboard.feature.connect.state.ConnectController
+import bot.nomnomz.dashboard.feature.integrations.state.IntegrationsController
 
 // The composition root for this slice — one instance of each engine singleton (frontend-structure.md
 // F7: one HttpClient, one ConnectionStore), wired by explicit constructor injection. Koin replaces
@@ -32,13 +41,26 @@ class AppGraph {
         )
 
     val authApi: AuthApi = AuthApi(apiClient)
+    val channelsApi: ChannelsApi = RestChannelsApi(apiClient)
+    val botAuthApi: BotAuthApi = RestBotAuthApi(apiClient)
+    val integrationsApi: IntegrationsApi = RestIntegrationsApi(apiClient)
 
     private val oauthLauncher: OAuthLauncher = OAuthLauncher()
+    private val connectLauncher: ConnectLauncher = OAuthConnectLauncher(oauthLauncher)
 
     val connectController: ConnectController =
         ConnectController(
             sessionStore = sessionStore,
             authApi = authApi,
             oauthLauncher = oauthLauncher,
+        )
+
+    val integrationsController: IntegrationsController =
+        IntegrationsController(
+            sessionStore = sessionStore,
+            channelsApi = channelsApi,
+            botAuthApi = botAuthApi,
+            integrationsApi = integrationsApi,
+            connectLauncher = connectLauncher,
         )
 }

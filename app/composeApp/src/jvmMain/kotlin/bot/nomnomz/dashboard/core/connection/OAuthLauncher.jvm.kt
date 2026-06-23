@@ -25,15 +25,18 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 
 // Desktop OAuth — RFC-8252 loopback (frontend.md §6). Bind a transient listener on an OS-assigned
-// ephemeral port on 127.0.0.1, open the system browser to the backend streamer-login URL with
-// redirect pointed at the loopback, and capture the tokens the backend delivers there. No app-side
-// secret, no fixed port, no inbound firewall hole beyond the lifetime of the dance.
+// ephemeral port on 127.0.0.1, open the system browser to the authorize URL with its redirect pointed
+// at the loopback, and capture whatever the backend/provider delivers there. No app-side secret, no
+// fixed port, no inbound firewall hole beyond the lifetime of the dance.
 //
-// Backend contract this expects (see the report's "backend gap"): for a desktop client the backend
-// must (1) accept an http://127.0.0.1:<port>/cb loopback redirect (RFC-8252 §7.3 — today the
-// redirect predicate only allows the nomnomzbot:// scheme), and (2) deliver the session to that
-// redirect as query params `access_token` / `refresh_token` / `expires_in` — exactly the shape it
-// ALREADY emits for the mobile nomnomzbot:// deep-link redirect.
+// Two shapes share the one loopback:
+//   authorize()    — the streamer login: the callback carries `access_token` / `refresh_token` /
+//                    `expires_in` (the same shape the mobile nomnomzbot:// deep-link redirect emits),
+//                    which becomes a SessionTokens.
+//   awaitConnect() — the bot-account + integration connects: the token is vaulted SERVER-SIDE, so the
+//                    callback carries only a success marker (`bot_connected=true`, or a provider redirect
+//                    with no error) / an `error=…`. No tokens are captured; the caller confirms the
+//                    connection by re-polling its status endpoint.
 private const val LOOPBACK_HOST: String = "127.0.0.1"
 private const val CALLBACK_PATH: String = "/cb"
 private const val AUTH_TIMEOUT_MS: Long = 5 * 60 * 1000L
@@ -41,6 +44,31 @@ private const val AUTH_TIMEOUT_MS: Long = 5 * 60 * 1000L
 actual class OAuthLauncher {
 
     actual suspend fun authorize(baseUrl: String, flow: OAuthFlow): ApiResult<SessionTokens> =
+        runLoopback { redirect ->
+            ApiResult.Ok(buildStreamerStartUrl(baseUrl, flow, redirect))
+        } resolveWith { exchange ->
+            parseTokenCallback(exchange)
+        }
+
+    actual suspend fun awaitConnect(
+        authorizeUrlFor: suspend (redirect: String) -> ApiResult<String>
+    ): ApiResult<Unit> =
+        runLoopback(authorizeUrlFor) resolveWith { exchange ->
+            parseSignalCallback(exchange)
+        }
+
+    // ── Loopback core ────────────────────────────────────────────────────────────
+
+    /**
+     * Bind the loopback, resolve the authorize URL (with the loopback redirect injected), open the
+     * browser, and capture the callback exchange. The captured [HttpExchange] is mapped to the caller's
+     * result by the [resolveWith] continuation, so the same listener serves both the token-returning and
+     * the signal-only shapes.
+     */
+    private suspend fun <T> runLoopbackRaw(
+        authorizeUrlFor: suspend (redirect: String) -> ApiResult<String>,
+        map: (HttpExchange) -> ApiResult<T>,
+    ): ApiResult<T> =
         withContext(Dispatchers.IO) {
             val server: HttpServer =
                 try {
@@ -51,15 +79,23 @@ actual class OAuthLauncher {
 
             val port: Int = server.address.port
             val redirect = "http://$LOOPBACK_HOST:$port$CALLBACK_PATH"
-            val authorizeUrl: String = buildStartUrl(baseUrl, flow, redirect)
+
+            val authorizeUrl: String =
+                when (val url: ApiResult<String> = authorizeUrlFor(redirect)) {
+                    is ApiResult.Failure -> {
+                        server.stop(0)
+                        return@withContext ApiResult.Failure(url.error)
+                    }
+                    is ApiResult.Ok -> url.value
+                }
 
             try {
-                val captured: ApiResult<SessionTokens>? =
+                val captured: ApiResult<T>? =
                     withTimeoutOrNull(AUTH_TIMEOUT_MS) {
                         suspendCancellableCoroutine { continuation ->
                             server.createContext(CALLBACK_PATH) { exchange ->
-                                val result: ApiResult<SessionTokens> = parseCallback(exchange)
-                                respond(exchange, result)
+                                val result: ApiResult<T> = map(exchange)
+                                respond(exchange, result is ApiResult.Ok)
                                 if (continuation.isActive) continuation.resume(result)
                             }
                             server.start()
@@ -79,27 +115,43 @@ actual class OAuthLauncher {
                     }
 
                 captured
-                    ?: failure("OAUTH_TIMEOUT", "Timed out waiting for the Twitch sign-in to complete.")
+                    ?: failure("OAUTH_TIMEOUT", "Timed out waiting for the authorization to complete.")
             } finally {
                 server.stop(0)
             }
         }
 
-    private fun buildStartUrl(baseUrl: String, flow: OAuthFlow, redirect: String): String {
-        val base: String = baseUrl.trimEnd('/')
-        // Streamer login is the user flow; bot reuses the same launcher in the next slice.
-        val path: String = if (flow == OAuthFlow.Bot) "/api/v1/auth/twitch/bot" else "/api/v1/auth/twitch"
-        val encodedRedirect: String = URI(redirect).toString()
-        return "$base$path?client=desktop&redirect_uri=${encode(encodedRedirect)}"
+    // A tiny two-step builder so the two public flows read as one expression each: runLoopback { url }
+    // resolveWith { exchange -> result }. It only carries the authorize-URL provider until the mapper
+    // is supplied.
+    private fun runLoopback(
+        authorizeUrlFor: suspend (redirect: String) -> ApiResult<String>
+    ): LoopbackRun = LoopbackRun(authorizeUrlFor)
+
+    private inner class LoopbackRun(
+        private val authorizeUrlFor: suspend (redirect: String) -> ApiResult<String>
+    ) {
+        suspend infix fun <T> resolveWith(map: (HttpExchange) -> ApiResult<T>): ApiResult<T> =
+            runLoopbackRaw(authorizeUrlFor, map)
     }
 
-    private fun parseCallback(exchange: HttpExchange): ApiResult<SessionTokens> {
-        val query: String? = exchange.requestURI.rawQuery
-        val params: Map<String, String> = parseQuery(query)
+    // ── Authorize-URL builders ─────────────────────────────────────────────────────
+
+    private fun buildStreamerStartUrl(baseUrl: String, flow: OAuthFlow, redirect: String): String {
+        val base: String = baseUrl.trimEnd('/')
+        // Streamer login is the token-returning user flow. The bot flow is signal-only and goes through
+        // awaitConnect (it cannot return tokens), so it never reaches this builder.
+        val path: String = if (flow == OAuthFlow.Bot) "/api/v1/auth/twitch/bot" else "/api/v1/auth/twitch"
+        return "$base$path?client=desktop&redirect_uri=${encode(redirect)}"
+    }
+
+    // ── Callback parsers ───────────────────────────────────────────────────────────
+
+    private fun parseTokenCallback(exchange: HttpExchange): ApiResult<SessionTokens> {
+        val params: Map<String, String> = parseQuery(exchange.requestURI.rawQuery)
 
         params["error"]?.let { error ->
-            val description: String = params["error_description"] ?: error
-            return failure(error, description)
+            return failure(error, params["error_description"] ?: error)
         }
 
         val accessToken: String? = params["access_token"]
@@ -121,14 +173,26 @@ actual class OAuthLauncher {
         )
     }
 
-    private fun respond(exchange: HttpExchange, result: ApiResult<SessionTokens>) {
-        val ok: Boolean = result is ApiResult.Ok
-        val title: String = if (ok) "Signed in" else "Sign-in failed"
+    private fun parseSignalCallback(exchange: HttpExchange): ApiResult<Unit> {
+        val params: Map<String, String> = parseQuery(exchange.requestURI.rawQuery)
+        params["error"]?.let { error ->
+            return failure(error, params["error_description"] ?: error)
+        }
+        // Any non-error return to the loopback means the backend completed and vaulted the token
+        // server-side (`bot_connected=true` for the bot; the provider→backend→loopback hop for an
+        // integration). The caller re-polls status to surface the authoritative connected state.
+        return ApiResult.Ok(Unit)
+    }
+
+    // ── Browser + response ─────────────────────────────────────────────────────────
+
+    private fun respond(exchange: HttpExchange, ok: Boolean) {
+        val title: String = if (ok) "Done" else "Didn't complete"
         val body: String =
             if (ok) {
-                "You're signed in to NomNomzBot. You can close this tab and return to the app."
+                "You're all set. You can close this tab and return to NomNomzBot."
             } else {
-                "Sign-in didn't complete. Close this tab and try again from the app."
+                "That didn't complete. Close this tab and try again from the app."
             }
         val html: String =
             "<!DOCTYPE html><html><head><title>$title</title>" +

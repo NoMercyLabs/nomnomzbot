@@ -43,11 +43,17 @@ data class SessionTokens(
     val expiresAt: Long? = null,
 )
 
-/** Which Twitch OAuth dance to run — maps to the backend `state` flow (`user` / `channel_bot`). */
+/** Which Twitch OAuth dance to run — maps to the backend `state` flow (`user` / `bot`). */
 enum class OAuthFlow {
-    /** Streamer login — this slice. */
+    /** Streamer login — the callback returns the session tokens to the client. */
     Streamer,
 
-    /** Bot-account authorization — next slice, same launcher seam. */
+    /**
+     * Bot-account authorization. Unlike [Streamer], the bot dance keeps its Twitch token SERVER-SIDE:
+     * the callback returns only a `bot_connected=true` (or `error=…`) signal to the loopback, never an
+     * access token. The connect is therefore driven by [OAuthLauncher.awaitConnect] — open the
+     * backend-issued authorize URL, wait for that signal — and confirmed by polling the bot status
+     * endpoint, not by capturing tokens (see AuthController `GET /api/v1/auth/twitch/bot`).
+     */
     Bot,
 }

@@ -63,7 +63,10 @@ fun App(graph: AppGraph = remember { AppGraph() }) {
                 Destination.Splash -> SplashScreen()
                 Destination.Connect -> ConnectScreen(controller = graph.connectController)
                 Destination.Shell ->
-                    ShellScreen(onDisconnect = { scope.launch { graph.sessionStore.disconnect() } })
+                    ShellScreen(
+                        integrationsController = graph.integrationsController,
+                        onDisconnect = { scope.launch { graph.sessionStore.disconnect() } },
+                    )
             }
         }
     }

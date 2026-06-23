@@ -18,19 +18,23 @@ import kotlinx.browser.window
 import kotlinx.coroutines.CompletableDeferred
 
 // Web OAuth — standard same-origin redirect (frontend.md §6). The page navigates to the backend
-// streamer-login; the backend completes the dance and returns the session to the served origin.
+// authorize URL; the backend completes the dance and returns to the served origin.
 //
 // Two-phase, because a redirect tears down the page:
-//   1. On app load, [readReturnedSession] inspects the URL for a returned session and yields it
-//      (then strips it from the address bar) — this is the post-redirect arm.
-//   2. [authorize] is the pre-redirect arm: it navigates the page to the backend login and never
-//      completes (the document is unloading), so it returns a never-resolving result.
+//   1. On app load, [readReturnedSession] / [readReturnedConnect] inspect the URL for a returned
+//      session (streamer login — fragment tokens) or a connect marker (bot/integration — query flags)
+//      and yield it, then strip it from the address bar.
+//   2. [authorize] / [awaitConnect] are the pre-redirect arms: they navigate the page to the backend
+//      and never complete (the document is unloading).
 //
-// Backend contract this expects (see the report's "backend gap"): for the web flow the backend must
-// redirect back to the served origin with the session — the access token in the URL fragment
-// (`#access_token=…&expires_in=…`, kept out of the Referer/server logs) and the refresh token set as
-// an HttpOnly session cookie. Today the web callback returns JSON in the response body, which a
-// full-page redirect can't hand back to the app.
+// Backend contract this expects (see the report's "backend gap"):
+//   - Streamer login (token-returning): the web callback must redirect back to the served origin with
+//     the access token in the URL fragment (`#access_token=…&expires_in=…`) and the refresh token as an
+//     HttpOnly cookie. Today the web callback returns JSON in the body, which a full-page redirect can't
+//     hand back to the app.
+//   - Bot/integration connects (signal-only): the backend already redirects back to the frontend with a
+//     marker query (`?bot_connected=true`, `?discord_connected=true`, or `?provider=…&error=…`), which
+//     [readReturnedConnect] reads on reload.
 actual class OAuthLauncher {
 
     actual suspend fun authorize(baseUrl: String, flow: OAuthFlow): ApiResult<SessionTokens> {
@@ -41,17 +45,33 @@ actual class OAuthLauncher {
         // The page is unloading; this never resolves. The session arrives via readReturnedSession.
         return CompletableDeferred<ApiResult<SessionTokens>>().await()
     }
+
+    actual suspend fun awaitConnect(
+        authorizeUrlFor: suspend (redirect: String) -> ApiResult<String>
+    ): ApiResult<Unit> {
+        // Web is single-origin: the backend returns to the served origin itself, so the redirect the
+        // caller is handed is empty (no loopback).
+        return when (val url: ApiResult<String> = authorizeUrlFor("")) {
+            is ApiResult.Failure -> ApiResult.Failure(url.error)
+            is ApiResult.Ok -> {
+                window.location.assign(url.value)
+                // The page is unloading; this never resolves. The connect outcome arrives via
+                // readReturnedConnect on the next load, and the screen re-polls status.
+                CompletableDeferred<ApiResult<Unit>>().await()
+            }
+        }
+    }
 }
 
 /**
- * Post-redirect arm: read a session the backend handed back to the served origin via the URL
- * fragment, then strip it from the address bar. Returns null when the URL carries no session.
+ * Post-redirect arm for streamer login: read a session the backend handed back to the served origin via
+ * the URL fragment, then strip it from the address bar. Returns null when the URL carries no session.
  */
 fun readReturnedSession(): SessionTokens? {
     val fragment: String = window.location.hash.removePrefix("#")
     if (fragment.isBlank()) return null
 
-    val params: Map<String, String> = parseFragment(fragment)
+    val params: Map<String, String> = parsePairs(fragment)
     val accessToken: String = params["access_token"]?.takeIf { it.isNotBlank() } ?: return null
 
     val expiresAt: Long? =
@@ -69,8 +89,40 @@ fun readReturnedSession(): SessionTokens? {
     )
 }
 
-private fun parseFragment(fragment: String): Map<String, String> =
-    fragment
+/**
+ * Post-redirect arm for the bot/integration connects: read the marker the backend appended to the
+ * served-origin query (`bot_connected`, `custom_bot_connected`, `discord_connected`, or `provider` +
+ * `error`), then strip it from the address bar. Returns the outcome, or null when no marker is present.
+ */
+fun readReturnedConnect(): ConnectReturn? {
+    val query: String = window.location.search.removePrefix("?")
+    if (query.isBlank()) return null
+
+    val params: Map<String, String> = parsePairs(query)
+    val provider: String? = params["provider"]
+    val error: String? = params["error"]
+
+    val outcome: ConnectReturn? =
+        when {
+            error != null -> ConnectReturn(provider, connected = false, errorCode = error)
+            params["bot_connected"] == "true" || params["custom_bot_connected"] == "true" ->
+                ConnectReturn(provider = "bot", connected = true, errorCode = null)
+            params["discord_connected"] == "true" ->
+                ConnectReturn(provider = "discord", connected = true, errorCode = null)
+            else -> null
+        }
+
+    if (outcome != null) {
+        window.history.replaceState(null, "", window.location.pathname)
+    }
+    return outcome
+}
+
+/** A connect outcome the backend handed back to the served origin after a bot/integration connect. */
+data class ConnectReturn(val provider: String?, val connected: Boolean, val errorCode: String?)
+
+private fun parsePairs(raw: String): Map<String, String> =
+    raw
         .split('&')
         .mapNotNull { pair ->
             val idx: Int = pair.indexOf('=')

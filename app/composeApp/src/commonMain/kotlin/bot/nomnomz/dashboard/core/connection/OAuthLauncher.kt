@@ -22,9 +22,21 @@ import bot.nomnomz.dashboard.core.network.ApiResult
 //            the dance and returns the session to the served origin.
 expect class OAuthLauncher() {
     /**
-     * Run the OAuth dance for [flow] against [baseUrl] and return the captured [SessionTokens].
-     * On desktop this suspends until the loopback callback fires (or the user cancels / it times
-     * out); on web it triggers the redirect and the captured session is read after reload.
+     * Run the token-returning OAuth dance for [flow] against [baseUrl] and return the captured
+     * [SessionTokens]. On desktop this suspends until the loopback callback fires (or the user cancels
+     * / it times out); on web it triggers the redirect and the captured session is read after reload.
      */
     suspend fun authorize(baseUrl: String, flow: OAuthFlow): ApiResult<SessionTokens>
+
+    /**
+     * Run a token-LESS connect dance and resolve when the provider returns. Used for the bot-account
+     * and integration connects, where the resulting token is stored SERVER-SIDE and only a
+     * success/error signal returns to the client (no [SessionTokens]).
+     *
+     * [authorizeUrlFor] is handed the redirect the client wants the backend to return to (the desktop
+     * loopback URL; on web, an empty string — the served origin is implicit) and must yield the
+     * provider/backend authorize URL to open. On desktop the loopback callback resolves this; on web
+     * the page navigates away and never resolves (the caller confirms by re-polling status on reload).
+     */
+    suspend fun awaitConnect(authorizeUrlFor: suspend (redirect: String) -> ApiResult<String>): ApiResult<Unit>
 }

@@ -12,9 +12,11 @@ package bot.nomnomz.dashboard
 
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.window.ComposeViewport
+import bot.nomnomz.dashboard.core.connection.ConnectReturn
 import bot.nomnomz.dashboard.core.connection.ConnectionProfile
 import bot.nomnomz.dashboard.core.connection.ProfileSource
 import bot.nomnomz.dashboard.core.connection.SessionTokens
+import bot.nomnomz.dashboard.core.connection.readReturnedConnect
 import bot.nomnomz.dashboard.core.connection.readReturnedSession
 import bot.nomnomz.dashboard.core.di.AppGraph
 import kotlinx.browser.document
@@ -43,6 +45,15 @@ fun main() {
             )
         CoroutineScope(Dispatchers.Main).launch {
             graph.connectController.completeWithSession(profile, returned)
+        }
+    } else {
+        // A bot/integration connect that completed on web redirects back here with a marker query. The
+        // session was already restored from the vault, so the shell is shown; consume the marker (it
+        // strips it from the address bar) — the integrations screen re-reads the authoritative status
+        // when it mounts. The full nav slice will route straight to the integrations section.
+        val connect: ConnectReturn? = readReturnedConnect()
+        if (connect != null) {
+            CoroutineScope(Dispatchers.Main).launch { graph.integrationsController.refresh() }
         }
     }
 
