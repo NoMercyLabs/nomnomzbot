@@ -74,6 +74,34 @@ public sealed class ListenPortBootstrapTests
     }
 
     [Fact]
+    public void First_boot_with_no_urls_configured_defaults_to_5080_and_locks_it()
+    {
+        // appsettings (and its Urls) was not found from this launch directory. The bootstrap must NOT leave the
+        // binding unset — that lets Kestrel fall back to its reserved port 5000 and crash (WSAEACCES) — but resolve
+        // from the self-host default port instead.
+        IConfiguration configuration = Config(); // no Urls at all
+        FakeLockedPortStore store = new();
+        FakeResolver resolver = new(Decide(5080, PortResolution.PreferredFree, 5080));
+
+        int? resolved = ListenPortBootstrap.ResolveAndApply(
+            configuration,
+            DeploymentMode.SelfHostLite,
+            NullLogger.Instance,
+            store,
+            resolver
+        );
+
+        resolved.Should().Be(5080);
+        resolver.Called.Should().BeTrue();
+        resolver
+            .ReceivedPreferredPort.Should()
+            .Be(5080, "with no Urls the bootstrap falls back to the self-host default port");
+        configuration["Urls"].Should().Be("http://localhost:5080");
+        configuration["App:BaseUrl"].Should().Be("http://localhost:5080");
+        store.Written.Should().Be(5080);
+    }
+
+    [Fact]
     public void Self_host_without_a_loopback_url_leaves_the_binding_untouched()
     {
         IConfiguration configuration = Config(("Urls", "http://0.0.0.0:5080"));
@@ -296,11 +324,13 @@ public sealed class ListenPortBootstrapTests
         public FakeResolver(ListenPortDecision decision) => _decision = decision;
 
         public bool Called { get; private set; }
+        public int ReceivedPreferredPort { get; private set; }
         public int? ReceivedLockedPort { get; private set; }
 
         public ListenPortDecision Resolve(int preferredPort, int? lockedPort)
         {
             Called = true;
+            ReceivedPreferredPort = preferredPort;
             ReceivedLockedPort = lockedPort;
             return _decision;
         }

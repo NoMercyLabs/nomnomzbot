@@ -38,7 +38,29 @@ Log.Logger = new LoggerConfiguration().WriteTo.Console().CreateBootstrapLogger()
 
 try
 {
-    WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
+    // Self-contained single-exe robustness: the host's default ContentRoot is the current working directory, so
+    // appsettings.json (which carries the listen Urls) is only found when the exe is launched from its own folder.
+    // A double-click does that, but a shortcut, a Task Scheduler entry, or any other cwd would silently fall back to
+    // config defaults — and with no Urls, Kestrel binds its hardcoded port 5000, which is reserved on many Windows
+    // machines (Hyper-V/WSL/Docker excluded ranges) and crashes the bind (WSAEACCES 10013). Anchor the ContentRoot to
+    // the binary's own directory whenever the current directory lacks appsettings.json but the binary's directory has
+    // it, so config loads from any launch location. Dev (`dotnet run`, cwd = project) and a same-folder launch are
+    // unaffected (cwd already has appsettings.json → default resolution).
+    string binaryDirectory = AppContext.BaseDirectory;
+    bool currentDirectoryHasSettings = File.Exists(
+        Path.Combine(Directory.GetCurrentDirectory(), "appsettings.json")
+    );
+    bool binaryDirectoryHasSettings = File.Exists(
+        Path.Combine(binaryDirectory, "appsettings.json")
+    );
+    WebApplicationBuilder builder = WebApplication.CreateBuilder(
+        new WebApplicationOptions
+        {
+            Args = args,
+            ContentRootPath =
+                !currentDirectoryHasSettings && binaryDirectoryHasSettings ? binaryDirectory : null,
+        }
+    );
 
     // Fail fast on a broken DI graph: validate that every registered service can be
     // constructed (ValidateOnBuild) and that no singleton captures a scoped dependency

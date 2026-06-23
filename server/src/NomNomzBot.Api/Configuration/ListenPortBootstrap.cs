@@ -25,6 +25,9 @@ namespace NomNomzBot.Api.Configuration;
 /// </summary>
 public static class ListenPortBootstrap
 {
+    /// <summary>The self-host default listen port, used when no loopback <c>Urls</c> is configured (deployment-distribution §6).</summary>
+    private const int DefaultSelfHostPort = 5080;
+
     /// <summary>
     /// Resolve and apply the self-host listen port. Returns the resolved port (or <c>null</c> on SaaS / when no
     /// loopback <c>Urls</c> port is configured, meaning the binding is left exactly as-is). The bootstrap logger is
@@ -48,10 +51,23 @@ public static class ListenPortBootstrap
             return null;
 
         string? urls = configuration["Urls"] ?? configuration["urls"];
-        if (!TryGetLoopbackPort(urls, out int preferredPort))
+        int preferredPort;
+        if (TryGetLoopbackPort(urls, out int parsedPort))
         {
-            // No simple loopback Urls port (e.g. bound to a domain/0.0.0.0 or ASPNETCORE_URLS set elsewhere) — leave
-            // the binding untouched; smart shifting only applies to the local self-host loopback listener.
+            preferredPort = parsedPort;
+        }
+        else if (string.IsNullOrWhiteSpace(urls))
+        {
+            // No Urls configured at all (e.g. appsettings.json was not found from this launch directory). Rather than
+            // let Kestrel fall back to its hardcoded port 5000 — reserved on many Windows machines and a guaranteed
+            // bind crash — pick the self-host default and resolve from it, so a self-host launch always binds a sane
+            // (and lockable) port instead of crashing.
+            preferredPort = DefaultSelfHostPort;
+        }
+        else
+        {
+            // Urls is set to a non-loopback bind (a domain or 0.0.0.0/wildcard, e.g. Docker/SaaS) — a deliberate
+            // operator choice; leave it untouched. Smart shifting only applies to the local loopback listener.
             return null;
         }
 
