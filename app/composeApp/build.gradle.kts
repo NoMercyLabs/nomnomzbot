@@ -98,6 +98,13 @@ compose.desktop {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
             packageName = "NomNomzBot"
             packageVersion = "1.0.0"
+
+            // Bundle the FULL JDK module set into the packaged runtime. jpackage otherwise ships only the
+            // jlink-detected modules, which drops anything loaded reflectively / via com.sun.* — e.g.
+            // `jdk.httpserver` (the OAuth loopback's HttpServer, used by the bot/integration connect) and the
+            // TLS crypto providers the Twitch HTTPS calls need. Trimming those crashes the bundled app at
+            // runtime ("com/sun/net/httpserver/HttpExchange") even though `gradlew run` (full JDK) works.
+            includeAllModules = true
         }
     }
 }
