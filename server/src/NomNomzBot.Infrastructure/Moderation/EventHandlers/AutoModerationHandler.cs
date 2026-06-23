@@ -17,6 +17,8 @@ using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Domain.Chat.Events;
+using NomNomzBot.Domain.Identity;
+using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform;
 using NomNomzBot.Domain.Platform.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
@@ -190,23 +192,24 @@ public sealed partial class AutoModerationHandler : IEventHandler<ChatMessageRec
 
     private static bool ShouldApply(AutoModRule rule, ChatMessageReceivedEvent @event)
     {
-        // Check exempt roles
         if (rule.ExemptRoles.Count == 0)
             return true;
 
+        // Exempt the sender if they are at or above any listed role on the unified ladder — the same resolution the
+        // chat command gate uses, so a Lead Moderator is exempt wherever a Moderator is, never silently missed.
+        int senderLevel = ChatRole
+            .Resolve(
+                @event.IsBroadcaster,
+                @event.IsModerator,
+                @event.IsVip,
+                @event.IsSubscriber,
+                @event.Badges
+            )
+            .ToLevelValue();
+
         foreach (string role in rule.ExemptRoles)
-        {
-            bool exempt = role.ToLowerInvariant() switch
-            {
-                "subscriber" or "sub" => @event.IsSubscriber,
-                "vip" => @event.IsVip,
-                "moderator" or "mod" => @event.IsModerator,
-                "broadcaster" => @event.IsBroadcaster,
-                _ => false,
-            };
-            if (exempt)
+            if (senderLevel >= ChatRole.Parse(role).ToLevelValue())
                 return false;
-        }
 
         return true;
     }

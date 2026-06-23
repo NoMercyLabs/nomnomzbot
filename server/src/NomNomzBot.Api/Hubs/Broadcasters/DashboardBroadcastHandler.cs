@@ -13,6 +13,7 @@ using NomNomzBot.Application.Chat.Decoration;
 using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Chat.ValueObjects;
+using NomNomzBot.Domain.Identity;
 using NomNomzBot.Domain.Platform.Interfaces;
 
 namespace NomNomzBot.Api.Hubs.Broadcasters;
@@ -41,12 +42,16 @@ public sealed class ChatMessageBroadcastHandler : IEventHandler<ChatMessageRecei
 
     public async Task HandleAsync(ChatMessageReceivedEvent evt, CancellationToken ct = default)
     {
-        string userType =
-            evt.IsBroadcaster ? "broadcaster"
-            : evt.IsModerator ? "moderator"
-            : evt.IsVip ? "vip"
-            : evt.IsSubscriber ? "subscriber"
-            : "viewer";
+        // One resolution for the chatter's role (Lead Moderator included) — the same mapping the command gate uses.
+        string userType = ChatRole.ToToken(
+            ChatRole.Resolve(
+                evt.IsBroadcaster,
+                evt.IsModerator,
+                evt.IsVip,
+                evt.IsSubscriber,
+                evt.Badges
+            )
+        );
 
         DecoratedChatMessage decorated = await _decorator.DecorateAsync(evt, ct);
 

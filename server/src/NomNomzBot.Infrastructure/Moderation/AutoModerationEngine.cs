@@ -11,6 +11,8 @@
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.RateLimiting;
+using NomNomzBot.Domain.Identity;
+using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Moderation.Interfaces;
 
 namespace NomNomzBot.Infrastructure.Moderation;
@@ -132,9 +134,16 @@ public sealed class AutoModerationEngine : IAutoModerationEngine
     {
         HashSet<string> roles = new(userRoles, StringComparer.OrdinalIgnoreCase);
 
-        // Exempt users bypass all checks
-        if (settings.ExemptRoles.Count > 0 && settings.ExemptRoles.Overlaps(roles))
-            return new(false, AutoModAction.None, 0, string.Empty);
+        // Exempt users bypass all checks — exempt if the user's highest role is at or above the lowest exempt role
+        // on the unified ladder (so a Lead Moderator is exempt wherever a Moderator is), not a brittle exact match.
+        if (settings.ExemptRoles.Count > 0)
+        {
+            int userLevel =
+                roles.Count == 0 ? 0 : roles.Max(role => ChatRole.Parse(role).ToLevelValue());
+            int exemptLevel = settings.ExemptRoles.Min(role => ChatRole.Parse(role).ToLevelValue());
+            if (userLevel >= exemptLevel)
+                return new(false, AutoModAction.None, 0, string.Empty);
+        }
 
         // 1. Slow mode
         if (settings.SlowModeSeconds > 0)
