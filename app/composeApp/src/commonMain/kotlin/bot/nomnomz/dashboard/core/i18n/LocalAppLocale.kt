@@ -31,9 +31,16 @@ expect object LocalAppLocale {
     infix fun provides(value: String?): ProvidedValue<*>
 }
 
-// Wraps the whole app tree so a language change re-renders every `stringResource` with no restart. The
-// `key(tag)` forces the subtree to recompose when the override flips, so resources re-resolve against the
+// Wraps the string-reading UI so a language change re-renders every `stringResource` with no restart. The
+// `key(tag)` forces this subtree to recompose when the override flips, so resources re-resolve against the
 // new locale immediately. [tag] is the BCP-47-ish language tag (`null` = follow the platform locale).
+//
+// `key(tag)` is REQUIRED, not incidental: Compose Resources resolves `stringResource` against the platform
+// "current locale" via an UNTRACKED path (CMP 1.9.0's `LocalComposeEnvironment` is a `staticCompositionLocalOf`,
+// and the default environment reads `Locale.getCurrent()`), so a locale flip records no read and triggers no
+// recomposition on its own — `key` is what re-resolves the strings. There is no tracked resource-environment
+// local in this version that would avoid it. To keep the freeze it causes small, the CALLER must wrap only the
+// content that actually reads strings (see App.kt) — never the theme, DI graph, or heavy derived state.
 @Composable
 fun AppEnvironment(tag: String?, content: @Composable () -> Unit) {
     CompositionLocalProvider(LocalAppLocale provides tag) {

@@ -55,30 +55,35 @@ private const val SPLASH_HOLD_MS: Long = 1_200L
 @Composable
 fun App(graph: AppGraph = remember { AppGraph() }) {
     // The display-language override (frontend.md i18n) — resolve the operator's chosen language to a
-    // locale tag and wrap the whole app in AppEnvironment, so every `stringResource` re-renders live in
-    // the chosen language regardless of the OS/browser locale. `null` (System default) follows the
-    // platform locale.
+    // locale tag and wrap ONLY the string-reading UI in AppEnvironment, so every `stringResource`
+    // re-renders live in the chosen language regardless of the OS/browser locale. `null` (System default)
+    // follows the platform locale.
     val language: AppLanguage by graph.languageController.current.collectAsStateWithLifecycle()
 
-    AppEnvironment(tag = language.tag) {
-        NomNomzTheme(scheme = Scheme.Dark) {
-            val phase: SessionPhase by graph.sessionStore.phase.collectAsStateWithLifecycle()
-            val spacing = LocalSpacing.current
-            val scope = rememberCoroutineScope()
+    // The theme, the boot/session gate, and the resolved Destination read NO `stringResource`, so they
+    // live OUTSIDE AppEnvironment. A language switch then disposes only the keyed string-reading content
+    // below — not the theme tokens, the splash-hold state, or the session phase — which avoids rebuilding
+    // (and GC-churning) the whole subtree on every locale flip while still re-rendering every visible
+    // string live. `LocalSpacing` (from NomNomzTheme) stays in scope for the content beneath it.
+    NomNomzTheme(scheme = Scheme.Dark) {
+        val phase: SessionPhase by graph.sessionStore.phase.collectAsStateWithLifecycle()
+        val spacing = LocalSpacing.current
+        val scope = rememberCoroutineScope()
 
-            var booting: Boolean by remember { mutableStateOf(true) }
-            LaunchedEffect(Unit) {
-                delay(SPLASH_HOLD_MS)
-                booting = false
-            }
+        var booting: Boolean by remember { mutableStateOf(true) }
+        LaunchedEffect(Unit) {
+            delay(SPLASH_HOLD_MS)
+            booting = false
+        }
 
-            val destination: Destination = when {
-                booting -> Destination.Splash
-                phase == SessionPhase.Connected -> Destination.Shell
-                phase == SessionPhase.NeedsSetup -> Destination.Setup
-                else -> Destination.Connect
-            }
+        val destination: Destination = when {
+            booting -> Destination.Splash
+            phase == SessionPhase.Connected -> Destination.Shell
+            phase == SessionPhase.NeedsSetup -> Destination.Setup
+            else -> Destination.Connect
+        }
 
+        AppEnvironment(tag = language.tag) {
             // Stack the destination under a persistent top-end language picker — one placement that's
             // reachable across the whole app: during onboarding (splash/connect/setup, so a Dutch-system
             // streamer can pin English before signing in) AND in the authenticated shell.
