@@ -16,10 +16,11 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.connection.SessionPhase
-import bot.nomnomz.dashboard.core.connection.SessionStore
+import bot.nomnomz.dashboard.core.di.AppGraph
 import bot.nomnomz.dashboard.core.designsystem.theme.NomNomzTheme
 import bot.nomnomz.dashboard.core.designsystem.theme.Scheme
 import bot.nomnomz.dashboard.core.navigation.Destination
@@ -27,6 +28,7 @@ import bot.nomnomz.dashboard.feature.connect.ui.ConnectScreen
 import bot.nomnomz.dashboard.feature.shell.ui.ShellScreen
 import bot.nomnomz.dashboard.feature.splash.ui.SplashScreen
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 private const val SPLASH_HOLD_MS: Long = 1_200L
 
@@ -34,13 +36,15 @@ private const val SPLASH_HOLD_MS: Long = 1_200L
 // Destination from a one-shot boot splash and the session phase:
 //   Splash (booting) -> Connect (no session) -> Shell (session established).
 //
-// Next slice swaps this state-driven gate for the Navigation Compose NavHost + the
-// Setup-wizard rung, and injects the SessionStore via Koin instead of remember.
+// The Connect screen now drives the REAL Twitch streamer onboarding through the injected
+// AppGraph (ConnectController → OAuthLauncher → SessionStore → AuthApi.me). Next slice swaps this
+// state-driven gate for the Navigation Compose NavHost + the Setup-wizard rung, and injects the
+// graph via Koin instead of remember.
 @Composable
-fun App() {
+fun App(graph: AppGraph = remember { AppGraph() }) {
     NomNomzTheme(scheme = Scheme.Dark) {
-        val sessionStore: SessionStore = remember { SessionStore() }
-        val phase: SessionPhase by sessionStore.phase.collectAsStateWithLifecycle()
+        val phase: SessionPhase by graph.sessionStore.phase.collectAsStateWithLifecycle()
+        val scope = rememberCoroutineScope()
 
         var booting: Boolean by remember { mutableStateOf(true) }
         LaunchedEffect(Unit) {
@@ -57,8 +61,9 @@ fun App() {
         Crossfade(targetState = destination) { target ->
             when (target) {
                 Destination.Splash -> SplashScreen()
-                Destination.Connect -> ConnectScreen(onConnect = sessionStore::connect)
-                Destination.Shell -> ShellScreen(onDisconnect = sessionStore::disconnect)
+                Destination.Connect -> ConnectScreen(controller = graph.connectController)
+                Destination.Shell ->
+                    ShellScreen(onDisconnect = { scope.launch { graph.sessionStore.disconnect() } })
             }
         }
     }

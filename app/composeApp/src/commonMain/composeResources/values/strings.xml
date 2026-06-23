@@ -13,8 +13,14 @@
     <string name="app_name">NomNomzBot</string>
     <string name="splash_loading">Starting up…</string>
     <string name="connect_title">Connect to your bot</string>
-    <string name="connect_subtitle">Point the dashboard at a backend to get started.</string>
+    <string name="connect_subtitle">Point the dashboard at a backend, then sign in with Twitch to get started.</string>
     <string name="connect_action">Connect</string>
+    <string name="connect_url_label">Backend URL</string>
+    <string name="connect_url_placeholder">http://localhost:5080</string>
+    <string name="connect_action_twitch">Connect with Twitch</string>
+    <string name="connect_connecting">Waiting for Twitch sign-in…</string>
+    <string name="connect_error_invalid_url">Enter a valid backend URL.</string>
+    <string name="connect_error_auth">Sign-in failed. Please try again.</string>
     <string name="shell_nav_dashboard">Dashboard</string>
     <string name="shell_nav_commands">Commands</string>
     <string name="shell_nav_community">Community</string>

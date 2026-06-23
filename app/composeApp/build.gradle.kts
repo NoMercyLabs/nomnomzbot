@@ -20,6 +20,13 @@ plugins {
 }
 
 kotlin {
+    // The expect/actual seams (TokenVault, OAuthLauncher — frontend.md §6) use expect/actual
+    // CLASSES, which are stable-in-practice but flagged Beta; opt in to silence the warning
+    // (the project treats warnings as noise to keep build output clean).
+    compilerOptions {
+        freeCompilerArgs.add("-Xexpect-actual-classes")
+    }
+
     // JVM desktop target.
     jvm {
         compilerOptions {
@@ -50,21 +57,32 @@ kotlin {
             implementation(libs.androidx.lifecycle.viewmodel.compose)
             implementation(libs.kotlinx.coroutines.core)
             implementation(libs.kotlinx.serialization.json)
+            // Typed shared REST client (frontend.md §3) — one HttpClient configured in
+            // commonMain; the engine is the only per-target piece (jvmMain/wasmJsMain).
+            implementation(libs.ktor.client.core)
+            implementation(libs.ktor.client.content.negotiation)
+            implementation(libs.ktor.serialization.kotlinx.json)
         }
 
         commonTest.dependencies {
             implementation(kotlin("test"))
+            implementation(libs.kotlinx.coroutines.core)
+            implementation(libs.kotlinx.coroutines.test)
         }
 
         jvmMain.dependencies {
             implementation(compose.desktop.currentOs)
             // Desktop main dispatcher (frontend.md §10).
             implementation(libs.kotlinx.coroutines.swing)
+            // Desktop REST engine (frontend.md §2).
+            implementation(libs.ktor.client.cio)
         }
 
         wasmJsMain.dependencies {
             // `kotlinx.browser` (document/window) for the wasmJs ComposeViewport mount.
             implementation(libs.kotlinx.browser)
+            // Web REST engine — Fetch-backed (frontend.md §2).
+            implementation(libs.ktor.client.js)
         }
     }
 }
