@@ -10,11 +10,11 @@
 
 using System.Net.Http;
 using System.Text;
-using NomNomzBot.Application.Abstractions.Transport;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Application.Economy.Services;
 using NomNomzBot.Application.Music.Services;
+using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Infrastructure.Sandbox;
 
 namespace NomNomzBot.Infrastructure.CustomCode;
@@ -23,15 +23,15 @@ namespace NomNomzBot.Infrastructure.CustomCode;
 /// The per-execution host-dispatch bridge (custom-code.md §3.1/§6.2) — the only path from a granted <c>bot.*</c>
 /// import to host code. Bound to exactly one <c>BroadcasterId</c> (host-side; never readable by the guest); each
 /// resolved delegate is primitive-in / primitive-out and tenant-scoped to that channel. <c>chat.send</c>/
-/// <c>chat.reply</c> dispatch to the channel's chat transport (bot token host-side, never in the guest);
-/// <c>economy.read</c> reads this channel's ledger; <c>music.queue</c> enqueues a request; <c>http.fetch</c> does a
-/// capped GET through the SSRF-hardened egress client. Every dispatch fails closed (returns a safe primitive).
+/// <c>chat.reply</c> dispatch to the channel's Helix chat provider (bot token host-side, never in the guest; the
+/// provider resolves the tenant Guid → Twitch id internally); <c>economy.read</c> reads this channel's ledger;
+/// <c>music.queue</c> enqueues a request; <c>http.fetch</c> does a capped GET through the SSRF-hardened egress
+/// client. Every dispatch fails closed (returns a safe primitive).
 /// </summary>
 public sealed class ScriptHostBridge(
     Guid broadcasterId,
     string triggeringUserId,
-    ITwitchChatService chatService,
-    ITwitchIdentityResolver identityResolver,
+    IChatProvider chatProvider,
     ICurrencyAccountService currencyService,
     IMusicService musicService,
     IHttpClientFactory httpClientFactory
@@ -129,15 +129,8 @@ public sealed class ScriptHostBridge(
         if (args.Count == 0 || string.IsNullOrWhiteSpace(args[0]))
             return null;
 
-        // The guest holds only the Guid; the Twitch channel id + bot token are resolved host-side.
-        string? channelId = identityResolver
-            .GetTwitchChannelIdAsync(broadcasterId, ct)
-            .GetAwaiter()
-            .GetResult();
-        if (channelId is null)
-            return null;
-
-        chatService.SendMessageAsync(channelId, args[0], ct).GetAwaiter().GetResult();
+        // The guest holds only the Guid; the Helix provider resolves the Twitch channel id + bot token host-side.
+        chatProvider.SendMessageAsync(broadcasterId, args[0], ct).GetAwaiter().GetResult();
         return null;
     }
 }

@@ -11,10 +11,10 @@
 using System.Net;
 using System.Net.Http;
 using FluentAssertions;
-using NomNomzBot.Application.Abstractions.Transport;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Economy.Services;
 using NomNomzBot.Application.Music.Services;
+using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Infrastructure.CustomCode;
 using NomNomzBot.Infrastructure.Sandbox;
 using NSubstitute;
@@ -22,9 +22,9 @@ using NSubstitute;
 namespace NomNomzBot.Infrastructure.Tests.CustomCode;
 
 /// <summary>
-/// Proves the per-execution host bridge (custom-code.md §3.1/§6.2): chat.send dispatches to the channel's chat
-/// transport with the host-resolved Twitch channel id (the guest only holds the Guid); economy.read reads the
-/// channel ledger for the trigger user; a granted-but-unwired capability resolves to a no-op.
+/// Proves the per-execution host bridge (custom-code.md §3.1/§6.2): chat.send dispatches to the channel's Helix
+/// chat provider with the tenant Guid (the guest only holds the Guid; the provider resolves the Twitch id);
+/// economy.read reads the channel ledger for the trigger user; a granted-but-unwired capability resolves to a no-op.
 /// </summary>
 public sealed class ScriptHostBridgeTests
 {
@@ -32,8 +32,7 @@ public sealed class ScriptHostBridgeTests
     private static readonly Guid Viewer = Guid.Parse("0192a000-0000-7000-8000-00000000e0a2");
 
     private static ScriptHostBridge Build(
-        ITwitchChatService? chat = null,
-        ITwitchIdentityResolver? resolver = null,
+        IChatProvider? chat = null,
         ICurrencyAccountService? currency = null,
         IMusicService? music = null,
         IHttpClientFactory? http = null
@@ -41,8 +40,7 @@ public sealed class ScriptHostBridgeTests
         new(
             Channel,
             Viewer.ToString(),
-            chat ?? Substitute.For<ITwitchChatService>(),
-            resolver ?? Substitute.For<ITwitchIdentityResolver>(),
+            chat ?? Substitute.For<IChatProvider>(),
             currency ?? Substitute.For<ICurrencyAccountService>(),
             music ?? Substitute.For<IMusicService>(),
             http ?? Substitute.For<IHttpClientFactory>()
@@ -60,12 +58,10 @@ public sealed class ScriptHostBridgeTests
     }
 
     [Fact]
-    public async Task Chat_send_dispatches_to_the_chat_transport_with_the_resolved_channel()
+    public async Task Chat_send_dispatches_to_the_chat_provider_with_the_tenant_guid()
     {
-        ITwitchChatService chat = Substitute.For<ITwitchChatService>();
-        ITwitchIdentityResolver resolver = Substitute.For<ITwitchIdentityResolver>();
-        resolver.GetTwitchChannelIdAsync(Channel, Arg.Any<CancellationToken>()).Returns("chan123");
-        ScriptHostBridge bridge = Build(chat, resolver);
+        IChatProvider chat = Substitute.For<IChatProvider>();
+        ScriptHostBridge bridge = Build(chat);
 
         string? result = bridge.Resolve("chat.send")(
             "chat.send",
@@ -75,7 +71,7 @@ public sealed class ScriptHostBridgeTests
 
         result.Should().BeNull();
         await chat.Received()
-            .SendMessageAsync("chan123", "hello world", Arg.Any<CancellationToken>());
+            .SendMessageAsync(Channel, "hello world", Arg.Any<CancellationToken>());
     }
 
     [Fact]

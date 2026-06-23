@@ -27,8 +27,8 @@ namespace NomNomzBot.Infrastructure.Chat;
 /// the chat-send owner the moderation sub-client deliberately leaves the plain send to); chat enforcement
 /// delegates to <see cref="ITwitchModerationApi"/>, which resolves the tenant Guid → Twitch id internally.
 ///
-/// This is the EventSub-first path. IRC (<c>TwitchIrcService</c>) is only a thin fallback for features not
-/// yet available in Helix (e.g. watch streaks).
+/// This is the sole chat path: chat is read via EventSub (<c>channel.chat.message</c>) and sent via Helix here
+/// — there is no IRC connection.
 /// </summary>
 public sealed class HelixChatProvider : IChatProvider
 {

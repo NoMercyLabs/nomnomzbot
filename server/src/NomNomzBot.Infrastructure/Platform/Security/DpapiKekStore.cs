@@ -16,9 +16,9 @@ namespace NomNomzBot.Infrastructure.Platform.Security;
 
 /// <summary>
 /// Windows OS-native KEK custody backend. The root KEK is a 32-byte AES key generated once on first run and
-/// persisted DPAPI-protected (machine scope) under the app data dir, so it is bound to the machine and never
-/// stored in plaintext. Subsequent boots DPAPI-unprotect the same KEK, keeping wrapped DEKs unwrappable.
-/// Windows-only — gated by <see cref="OperatingSystem.IsWindows"/> at the call site.
+/// persisted DPAPI-protected (current-user scope) under the user's profile data dir, so it is bound to the
+/// account that runs the bot and never stored in plaintext. Subsequent boots DPAPI-unprotect the same KEK,
+/// keeping wrapped DEKs unwrappable. Windows-only — gated by <see cref="OperatingSystem.IsWindows"/> at the call site.
 /// </summary>
 [SupportedOSPlatform("windows")]
 internal static class DpapiKekStore
@@ -56,12 +56,12 @@ internal static class DpapiKekStore
             return ProtectedData.Unprotect(
                 protectedBytes,
                 Entropy,
-                DataProtectionScope.LocalMachine
+                DataProtectionScope.CurrentUser
             );
         }
 
         byte[] kek = RandomNumberGenerator.GetBytes(KekSizeBytes);
-        byte[] sealedBytes = ProtectedData.Protect(kek, Entropy, DataProtectionScope.LocalMachine);
+        byte[] sealedBytes = ProtectedData.Protect(kek, Entropy, DataProtectionScope.CurrentUser);
 
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         File.WriteAllBytes(path, sealedBytes);

@@ -12,6 +12,11 @@
        Docker image (UseAppHost=false) are unaffected. -->
   <PropertyGroup Condition="'$(SelfContained)' == 'true' and '$(RuntimeIdentifier)' != ''">
     <PublishSingleFile>true</PublishSingleFile>
+    <!-- Windows GUI subsystem so the self-host single binary runs WITHOUT a console window (the operator wanted no
+         console for self-hosting). The bot is a background server: it logs to the data folder and surfaces a fatal
+         startup error in a dialog (StartupErrorNotifier). No-op on Linux/macOS. Docker (UseAppHost=false) + dev are
+         unaffected — they never hit this condition. -->
+    <OutputType>WinExe</OutputType>
     <AssemblyName>nomnomz</AssemblyName>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <!-- SQLitePCLRaw needs the e_sqlite3 native present; keep it as a bundled native, not trimmed/inlined. -->

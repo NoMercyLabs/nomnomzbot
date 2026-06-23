@@ -11,6 +11,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Domain.Platform.Interfaces;
 
 namespace NomNomzBot.Infrastructure.Chat.Jobs;
@@ -22,6 +23,12 @@ namespace NomNomzBot.Infrastructure.Chat.Jobs;
 /// failures are logged and retried next tick — they never tear the worker (or the host) down. Auto-discovered by
 /// <c>AddHostedWorkers</c>; a channel going live is warmed immediately by <c>StreamWentLiveEmoteWarmer</c>. The badge
 /// warmer is scoped (it uses the scoped Helix client), so it is resolved inside a per-iteration scope.
+/// <para>
+/// The Helix-backed warming (badges + cheermotes) needs the platform bot token, so it stays dormant until onboarding
+/// completes — gated on <see cref="IPlatformBotReadinessGate"/>, re-checked each tick so it activates without a restart
+/// and never spams "No bot token is configured" on a fresh install. The third-party emote warming (BTTV/FFZ/7TV) has no
+/// Twitch dependency, so it runs regardless.
+/// </para>
 /// </summary>
 public sealed class ChatDecorationRefreshService : BackgroundService
 {
@@ -32,6 +39,9 @@ public sealed class ChatDecorationRefreshService : BackgroundService
     private readonly IChannelRegistry _channels;
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<ChatDecorationRefreshService> _logger;
+
+    // Latches the single "waiting for onboarding" log so the dormant Helix path logs once, not on every tick.
+    private int _waitingLogged;
 
     public ChatDecorationRefreshService(
         ChatEmoteCacheWarmer warmer,
@@ -136,6 +146,8 @@ public sealed class ChatDecorationRefreshService : BackgroundService
     }
 
     // Runs Helix-backed warming (badges, cheermotes) inside its own scope — those warmers use the scoped Helix client.
+    // Dormant until onboarding: the Helix warmers need the platform bot token, so this no-ops (logging once) until the
+    // readiness gate opens. Re-checking per call means an onboarding completed at runtime resumes warming with no restart.
     private async Task InScopeAsync(
         Func<IServiceProvider, Task> work,
         string scope,
@@ -145,6 +157,19 @@ public sealed class ChatDecorationRefreshService : BackgroundService
         try
         {
             using IServiceScope serviceScope = _scopeFactory.CreateScope();
+
+            IPlatformBotReadinessGate gate =
+                serviceScope.ServiceProvider.GetRequiredService<IPlatformBotReadinessGate>();
+            if (!await gate.IsPlatformBotConfiguredAsync(ct))
+            {
+                if (Interlocked.Exchange(ref _waitingLogged, 1) == 0)
+                    _logger.LogInformation(
+                        "Chat decoration: waiting for onboarding before warming Helix assets."
+                    );
+                return;
+            }
+
+            Interlocked.Exchange(ref _waitingLogged, 0);
             await work(serviceScope.ServiceProvider);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)

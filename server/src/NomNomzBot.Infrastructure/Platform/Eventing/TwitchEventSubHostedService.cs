@@ -54,6 +54,15 @@ public sealed class TwitchEventSubHostedService
     private DateTimeOffset? _lastEventAt;
     private volatile int _activeSubscriptionCount;
 
+    // Set once the transport has actually been started (after the readiness gate opened), so the dormancy
+    // waiter never double-starts and so it stops re-checking once it has handed off to the receive loop.
+    private volatile bool _transportStarted;
+    private CancellationTokenSource? _dormancyCts;
+    private Task? _dormancyWaiter;
+
+    // How often the dormancy waiter re-checks the readiness gate while waiting for onboarding to complete.
+    private static readonly TimeSpan ReadinessPollInterval = TimeSpan.FromSeconds(20);
+
     public TwitchEventSubHostedService(
         IServiceScopeFactory scopeFactory,
         IEventSubTransport transport,
@@ -80,19 +89,99 @@ public sealed class TwitchEventSubHostedService
 
     public async Task StartAsync(CancellationToken cancellationToken)
     {
-        Result<EventSubTransportHandle> started = await _transport.StartAsync(cancellationToken);
+        // Dormant until onboarding: a fresh, un-onboarded self-host has no platform bot token, so connecting
+        // the EventSub transport would only reconnect-loop against Twitch (no subscriptions to keep it alive).
+        // Stay quiet until a bot account is authorized — the waiter re-checks the gate and starts it then, so an
+        // onboarding completed at runtime activates EventSub without a process restart. The full/SaaS path has a
+        // configured bot, so the gate is already open and the transport starts immediately on this first check.
+        if (!await IsPlatformBotConfiguredAsync(cancellationToken))
+        {
+            _logger.LogInformation("EventSub: waiting for onboarding before connecting to Twitch.");
+            _dormancyCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            _dormancyWaiter = Task.Run(
+                () => WaitForReadinessThenStartAsync(_dormancyCts.Token),
+                _dormancyCts.Token
+            );
+            return;
+        }
+
+        await StartTransportAsync(cancellationToken);
+    }
+
+    public async Task StopAsync(CancellationToken cancellationToken)
+    {
+        if (_dormancyCts is not null)
+        {
+            await _dormancyCts.CancelAsync();
+            _dormancyCts.Dispose();
+            _dormancyCts = null;
+        }
+
+        if (_dormancyWaiter is not null)
+        {
+            try
+            {
+                await _dormancyWaiter;
+            }
+            catch (OperationCanceledException) { }
+        }
+
+        await _transport.StopAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// Starts the transport and records the handle. Idempotent against the dormancy waiter via
+    /// <see cref="_transportStarted"/>, so onboarding completing exactly as the host stops cannot double-start.
+    /// </summary>
+    private async Task StartTransportAsync(CancellationToken ct)
+    {
+        if (_transportStarted)
+            return;
+
+        Result<EventSubTransportHandle> started = await _transport.StartAsync(ct);
         if (started.IsFailure)
         {
             _logger.LogWarning("EventSub transport failed to start: {Error}", started.ErrorMessage);
             return;
         }
 
+        _transportStarted = true;
         _handle = started.Value;
         _logger.LogInformation("EventSub transport started ({Kind})", _transport.Kind);
     }
 
-    public Task StopAsync(CancellationToken cancellationToken) =>
-        _transport.StopAsync(cancellationToken);
+    /// <summary>
+    /// While dormant, re-checks the readiness gate every <see cref="ReadinessPollInterval"/> and starts the
+    /// transport the first time the platform bot is configured (onboarding completed). No per-tick logging — the
+    /// single "waiting" line was logged once at startup; the next line is the steady-state "transport started".
+    /// </summary>
+    private async Task WaitForReadinessThenStartAsync(CancellationToken ct)
+    {
+        try
+        {
+            using PeriodicTimer timer = new(ReadinessPollInterval);
+            while (await timer.WaitForNextTickAsync(ct))
+            {
+                if (!await IsPlatformBotConfiguredAsync(ct))
+                    continue;
+
+                await StartTransportAsync(ct);
+                return;
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Host is shutting down before onboarding completed — end the waiter quietly.
+        }
+    }
+
+    private async Task<bool> IsPlatformBotConfiguredAsync(CancellationToken ct)
+    {
+        await using AsyncServiceScope scope = _scopeFactory.CreateAsyncScope();
+        IPlatformBotReadinessGate gate =
+            scope.ServiceProvider.GetRequiredService<IPlatformBotReadinessGate>();
+        return await gate.IsPlatformBotConfiguredAsync(ct);
+    }
 
     // ── IEventSubNotificationSink (called by the transport receive loop) ────
 

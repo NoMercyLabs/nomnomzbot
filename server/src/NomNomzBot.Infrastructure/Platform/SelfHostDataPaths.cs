@@ -13,9 +13,11 @@ namespace NomNomzBot.Infrastructure.Platform;
 /// <summary>
 /// The single on-disk home for a self-host install's runtime data — the SQLite database, the rolling logs, and
 /// the OS-vault key files — so everything lives in one discoverable, backup-able folder instead of scattered
-/// relative to whatever directory the executable happened to be launched from. Defaults to the machine app-data
-/// dir (<c>%ProgramData%\NomNomzBot</c> on Windows); a container or operator overrides it with the
-/// <c>NOMNOMZ_DATA_DIR</c> environment variable (the Docker image points it at a mounted volume).
+/// relative to whatever directory the executable happened to be launched from. Defaults to the current user's
+/// per-platform profile data directory — <c>%LOCALAPPDATA%\NomNomzBot</c> (Windows), <c>~/.local/share/NomNomzBot</c>
+/// (Linux, XDG), <c>~/Library/Application Support/NomNomzBot</c> (macOS) — so a self-host install keeps its data
+/// with the user that runs it. A container or operator overrides it with the <c>NOMNOMZ_DATA_DIR</c> environment
+/// variable (the Docker image points it at a mounted volume).
 /// </summary>
 public static class SelfHostDataPaths
 {
@@ -37,7 +39,7 @@ public static class SelfHostDataPaths
             ? overrideDir
             : Path.Combine(
                 Environment.GetFolderPath(
-                    Environment.SpecialFolder.CommonApplicationData,
+                    Environment.SpecialFolder.LocalApplicationData,
                     Environment.SpecialFolderOption.Create
                 ),
                 "NomNomzBot"

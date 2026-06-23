@@ -348,7 +348,6 @@ public static class DependencyInjection
             typeof(ICacheService), // deployment-variant: Redis vs in-memory (ambiguity)
             typeof(ITrustService), // singleton
             typeof(ITtsService), // singleton — stateful TTS queues
-            typeof(ITwitchChatService), // singleton + hosted (shared TwitchIrcService instance)
             typeof(ITwitchEventSubService), // singleton + hosted (shared TwitchEventSubHostedService instance)
             typeof(ISubjectKeyService), // crypto envelope — wired explicitly below
             typeof(IDeploymentProfileService) // singleton — boot detector + Current accessor (wired explicitly above)
@@ -360,12 +359,11 @@ public static class DependencyInjection
             ServiceLifetime.Scoped
         );
 
-        // Hosted workers (singleton — long-lived BackgroundService/IHostedService). The three
+        // Hosted workers (singleton — long-lived BackgroundService/IHostedService). The two
         // singleton+hosted services below share one instance with their service interface, so
         // they are wired explicitly and excluded here. This auto-wires TokenRefreshService.
         services.AddHostedWorkers(
             infrastructure,
-            typeof(TwitchIrcService),
             typeof(TwitchEventSubHostedService),
             typeof(ChannelRegistry)
         );
@@ -575,6 +573,11 @@ public static class DependencyInjection
         // Token resolver (scoped — reads Services via the scoped DbContext, refreshes via the auth layer).
         services.AddScoped<ITwitchTokenResolver, TwitchTokenResolver>();
 
+        // Platform-bot readiness gate (scoped — rides the resolver's DbContext + vault). The single fact the
+        // Twitch-dependent background work (EventSub transport, IRC, Helix warmers) checks so it stays dormant
+        // on a fresh, un-onboarded install and activates the moment a bot account is authorized — no restart.
+        services.AddScoped<IPlatformBotReadinessGate, PlatformBotReadinessGate>();
+
         // The DTO-agnostic Helix send pipeline every codegen-fed per-endpoint method rides on (scoped).
         services.AddScoped<ITwitchHelixTransport, TwitchHelixTransport>();
 
@@ -672,11 +675,6 @@ public static class DependencyInjection
         // Chat provider (Helix-first, used by pipeline actions and background services).
         // IChatProvider is not an I<X>Service, so it is registered explicitly.
         services.AddScoped<IChatProvider, HelixChatProvider>();
-
-        // Twitch IRC chat service (singleton + hosted service — persistent WebSocket connection)
-        services.AddSingleton<TwitchIrcService>();
-        services.AddSingleton<ITwitchChatService>(sp => sp.GetRequiredService<TwitchIrcService>());
-        services.AddHostedService(sp => sp.GetRequiredService<TwitchIrcService>());
 
         // ── Twitch EventSub (twitch-eventsub §7) ─────────────────────────────
         // Per-topic create facts (condition/version/token-owner) — pure, singleton.

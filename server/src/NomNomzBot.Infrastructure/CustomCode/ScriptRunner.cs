@@ -12,11 +12,11 @@ using System.Net.Http;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
 using NomNomzBot.Application.Abstractions.Persistence;
-using NomNomzBot.Application.Abstractions.Transport;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Application.Economy.Services;
 using NomNomzBot.Application.Music.Services;
+using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.CustomCode.Entities;
 using NomNomzBot.Domain.CustomCode.Enums;
 
@@ -34,8 +34,7 @@ public sealed class ScriptRunner(
     IScriptExecutor executor,
     IScriptCapabilityBroker broker,
     IScriptExecutionMeter meter,
-    ITwitchChatService chatService,
-    ITwitchIdentityResolver identityResolver,
+    IChatProvider chatProvider,
     ICurrencyAccountService currencyService,
     IMusicService musicService,
     IHttpClientFactory httpClientFactory,
@@ -128,8 +127,7 @@ public sealed class ScriptRunner(
         ScriptHostBridge bridge = new(
             script.BroadcasterId,
             invocation.TriggeredByUserId,
-            chatService,
-            identityResolver,
+            chatProvider,
             currencyService,
             musicService,
             httpClientFactory

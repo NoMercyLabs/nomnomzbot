@@ -13,17 +13,16 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
-using NomNomzBot.Application.Abstractions.Transport;
 using NomNomzBot.Application.Contracts.Twitch;
-using NomNomzBot.Domain.Identity.Entities;
 
 namespace NomNomzBot.Infrastructure.BackgroundServices;
 
 /// <summary>
-/// Manages the bot's chat connections per channel.
-/// On startup: joins all enabled, onboarded channels via IRC and subscribes
-/// to EventSub events for each channel.
-/// Monitors for channels that are enabled/disabled at runtime (polls every 5 minutes).
+/// Manages the bot's per-channel EventSub presence. On startup it subscribes to the per-channel topics for
+/// every enabled, onboarded channel; chat is read via EventSub (<c>channel.chat.message</c>) and sent via the
+/// Helix chat provider, so there is no IRC join — "active in a channel" is "subscribed to its topics".
+/// Channels enabled/disabled at runtime are reconciled on a 5-minute poll: a newly-active channel is subscribed,
+/// a no-longer-active channel has its subscriptions torn down.
 /// </summary>
 public sealed class BotLifecycleService : BackgroundService
 {
@@ -85,12 +84,10 @@ public sealed class BotLifecycleService : BackgroundService
         using IServiceScope scope = _serviceProvider.CreateScope();
         IApplicationDbContext db =
             scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
-        ITwitchChatService chatService =
-            scope.ServiceProvider.GetRequiredService<ITwitchChatService>();
         ITwitchEventSubService eventSub =
             scope.ServiceProvider.GetRequiredService<ITwitchEventSubService>();
 
-        // Get all currently enabled channels
+        // Get all currently enabled, onboarded channels.
         var activeChannels = await db
             .Channels.Where(c => c.Enabled && c.IsOnboarded)
             .Select(c => new { c.Id, c.Name })
@@ -98,29 +95,27 @@ public sealed class BotLifecycleService : BackgroundService
 
         HashSet<Guid> activeIds = activeChannels.Select(c => c.Id).ToHashSet();
 
-        HashSet<Guid> toJoin;
-        HashSet<Guid> toLeave;
+        HashSet<Guid> toSubscribe;
+        HashSet<Guid> toUnsubscribe;
 
         lock (_channelLock)
         {
-            toJoin = activeIds.Except(_joinedChannels).ToHashSet();
-            toLeave = _joinedChannels.Except(activeIds).ToHashSet();
+            toSubscribe = activeIds.Except(_joinedChannels).ToHashSet();
+            toUnsubscribe = _joinedChannels.Except(activeIds).ToHashSet();
         }
 
-        // Join new channels
-        foreach (var channel in activeChannels.Where(c => toJoin.Contains(c.Id)))
+        // Subscribe newly-active channels to their EventSub topics (chat is read via channel.chat.message).
+        foreach (var channel in activeChannels.Where(c => toSubscribe.Contains(c.Id)))
         {
             try
             {
-                await chatService.JoinChannelAsync(channel.Name, ct);
-
                 // Declaratively reconcile this channel's EventSub subscription set to the desired topics.
                 await eventSub.EnsureSubscribedAsync(channel.Id, ChannelEventTypes, ct);
 
                 lock (_channelLock)
                     _joinedChannels.Add(channel.Id);
                 _logger.LogInformation(
-                    "BotLifecycleService: Joined channel #{ChannelName} ({Id})",
+                    "BotLifecycleService: Subscribed channel #{ChannelName} ({Id})",
                     channel.Name,
                     channel.Id
                 );
@@ -129,30 +124,31 @@ public sealed class BotLifecycleService : BackgroundService
             {
                 _logger.LogError(
                     ex,
-                    "BotLifecycleService: Failed to join channel #{ChannelName}",
+                    "BotLifecycleService: Failed to subscribe channel #{ChannelName}",
                     channel.Name
                 );
             }
         }
 
-        // Leave channels that are no longer active
-        foreach (Guid channelId in toLeave)
+        // Tear down subscriptions for channels that are no longer active.
+        foreach (Guid channelId in toUnsubscribe)
         {
             try
             {
-                Channel? channel = await db.Channels.FindAsync([channelId], ct);
-                if (channel is not null)
-                    await chatService.LeaveChannelAsync(channel.Name, ct);
+                await eventSub.UnsubscribeAllAsync(channelId, ct);
 
                 lock (_channelLock)
                     _joinedChannels.Remove(channelId);
-                _logger.LogInformation("BotLifecycleService: Left channel {ChannelId}", channelId);
+                _logger.LogInformation(
+                    "BotLifecycleService: Unsubscribed channel {ChannelId}",
+                    channelId
+                );
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 _logger.LogError(
                     ex,
-                    "BotLifecycleService: Failed to leave channel {ChannelId}",
+                    "BotLifecycleService: Failed to unsubscribe channel {ChannelId}",
                     channelId
                 );
             }

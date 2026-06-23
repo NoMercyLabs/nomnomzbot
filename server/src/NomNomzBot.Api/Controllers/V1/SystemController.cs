@@ -175,10 +175,11 @@ public class SystemController : BaseController
         bool hasDiscord = await _credentials.GetAsync("discord", ct) is not null;
         bool hasYouTube = await _credentials.GetAsync("youtube", ct) is not null;
 
-        bool hasPlatformBot = await _db.Services.AnyAsync(
-            s => s.Name == "twitch_bot" && s.BroadcasterId == null && s.AccessToken != null,
-            ct
-        );
+        // The platform bot is "configured" exactly when its account is authorized and the vaulted token still
+        // decrypts — the same fact the bot's Twitch calls depend on. GetBotStatusAsync reads the canonical
+        // BotAccount + token vault (the rebuild's source of truth), not the retired flat Service table.
+        Result<BotStatusDto> botStatus = await _authService.GetBotStatusAsync(ct);
+        bool hasPlatformBot = botStatus is { IsSuccess: true, Value.Connected: true };
 
         return new SetupState(hasTwitch, hasPlatformBot, hasSpotify, hasDiscord, hasYouTube);
     }

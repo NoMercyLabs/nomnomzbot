@@ -16,9 +16,9 @@ namespace NomNomzBot.Infrastructure.Platform.Security;
 /// <summary>
 /// First-run self-host custody for platform secrets the operator should never have to set — today the JWT
 /// signing secret. On first boot a strong value is generated once and persisted OS-natively (Windows DPAPI,
-/// machine scope; a user-only file elsewhere), beside the root KEK under the machine app-data dir. Subsequent
-/// boots reload the same value, so the single executable runs on a clean launch and issued tokens survive
-/// restarts. SaaS deployments supply their own secret and never reach this.
+/// current-user scope; a user-only file elsewhere), beside the root KEK under the user's profile data dir.
+/// Subsequent boots reload the same value, so the single executable runs on a clean launch and issued tokens
+/// survive restarts. SaaS deployments supply their own secret and never reach this.
 /// </summary>
 public static class SelfHostSecretStore
 {
@@ -52,7 +52,7 @@ public static class SelfHostSecretStore
         {
             File.WriteAllBytes(
                 path,
-                ProtectedData.Protect(plaintext, Entropy, DataProtectionScope.LocalMachine)
+                ProtectedData.Protect(plaintext, Entropy, DataProtectionScope.CurrentUser)
             );
             return;
         }
@@ -65,7 +65,7 @@ public static class SelfHostSecretStore
     private static string Decode(byte[] sealedBytes) =>
         OperatingSystem.IsWindows()
             ? Encoding.UTF8.GetString(
-                ProtectedData.Unprotect(sealedBytes, Entropy, DataProtectionScope.LocalMachine)
+                ProtectedData.Unprotect(sealedBytes, Entropy, DataProtectionScope.CurrentUser)
             )
             : Encoding.UTF8.GetString(sealedBytes);
 
