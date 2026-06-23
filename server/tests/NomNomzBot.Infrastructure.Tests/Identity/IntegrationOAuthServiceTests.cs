@@ -18,6 +18,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Caching;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Discord;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Integrations.Dtos;
@@ -207,6 +208,80 @@ public sealed class IntegrationOAuthServiceTests
         result.ErrorCode.Should().Be("PROVIDER_ERROR");
     }
 
+    // ─── GetStatus: Discord folded into the unified read model ─────────────────
+
+    [Fact]
+    public async Task GetStatus_NoDiscordConnection_ReportsDiscordDisconnected_AlongsideGenericProviders()
+    {
+        // No Discord connection seeded; Spotify/YouTube also unconnected (vault empty).
+        (IntegrationOAuthService service, _, _, _) = Build(
+            new StubHandler(),
+            new FakeDiscordGuildService()
+        );
+
+        Result<IReadOnlyList<IntegrationStatusDto>> status = await service.GetStatusAsync(Tenant);
+
+        status.IsSuccess.Should().BeTrue();
+        IReadOnlyList<IntegrationStatusDto> rows = status.Value;
+
+        // The one status surface carries every provider: the generic registry pair + Discord.
+        rows.Select(r => r.Provider)
+            .Should()
+            .BeEquivalentTo([
+                AuthEnums.IntegrationProvider.Spotify,
+                AuthEnums.IntegrationProvider.YouTube,
+                AuthEnums.IntegrationProvider.Discord,
+            ]);
+
+        IntegrationStatusDto discord = rows.Single(r =>
+            r.Provider == AuthEnums.IntegrationProvider.Discord
+        );
+        discord.Connected.Should().BeFalse();
+        discord.AccountName.Should().BeNull();
+        discord.NeedsReauth.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task GetStatus_WithDiscordConnection_ReportsDiscordConnectedWithGuildName()
+    {
+        DiscordGuildConnectionDto link = new(
+            Id: Guid.Parse("0192a000-0000-7000-8000-0000000000d1"),
+            BroadcasterId: Tenant,
+            GuildId: "987654321",
+            GuildName: "Test Guild",
+            BotInstalled: true,
+            ServerConsentStatus: "approved",
+            ApprovedByDiscordUserId: "111",
+            ApprovedAt: DateTime.UtcNow,
+            StreamerEnabled: true,
+            IsLinkActive: true,
+            CreatedAt: DateTime.UtcNow,
+            UpdatedAt: DateTime.UtcNow
+        );
+        (IntegrationOAuthService service, _, _, _) = Build(
+            new StubHandler(),
+            new FakeDiscordGuildService(link)
+        );
+
+        Result<IReadOnlyList<IntegrationStatusDto>> status = await service.GetStatusAsync(Tenant);
+
+        status.IsSuccess.Should().BeTrue();
+        IntegrationStatusDto discord = status.Value.Single(r =>
+            r.Provider == AuthEnums.IntegrationProvider.Discord
+        );
+        discord.Connected.Should().BeTrue();
+        discord.AccountName.Should().Be("Test Guild");
+
+        // Folding Discord in does not drop the generic providers from the same surface.
+        status
+            .Value.Select(r => r.Provider)
+            .Should()
+            .Contain([
+                AuthEnums.IntegrationProvider.Spotify,
+                AuthEnums.IntegrationProvider.YouTube,
+            ]);
+    }
+
     // ─── scaffolding ───────────────────────────────────────────────────────────
 
     private static (
@@ -214,7 +289,14 @@ public sealed class IntegrationOAuthServiceTests
         AuthDbContext Db,
         IIntegrationTokenVault Vault,
         FakeCache Cache
-    ) Build(StubHandler handler)
+    ) Build(StubHandler handler) => Build(handler, new FakeDiscordGuildService());
+
+    private static (
+        IntegrationOAuthService Service,
+        AuthDbContext Db,
+        IIntegrationTokenVault Vault,
+        FakeCache Cache
+    ) Build(StubHandler handler, IDiscordGuildService discord)
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
         ITokenProtector protector = AuthTestBuilder.RealTokenProtector(out ISubjectKeyService keys);
@@ -244,6 +326,7 @@ public sealed class IntegrationOAuthServiceTests
         IntegrationOAuthService service = new(
             registry,
             vault,
+            discord,
             cache,
             new SingleClientFactory(handler),
             config,
@@ -334,5 +417,68 @@ public sealed class IntegrationOAuthServiceTests
             IReadOnlyList<string> actualScopes,
             CancellationToken cancellationToken = default
         ) => Task.FromResult(Result.Success<IReadOnlyList<string>>([]));
+    }
+
+    /// <summary>
+    /// A Discord guild service double at the <see cref="IDiscordGuildService"/> seam: it returns exactly the
+    /// connection list it is seeded with, so a status test can prove how <c>GetStatusAsync</c> folds Discord into
+    /// the unified read model (the real DB→DTO mapping is covered by <c>DiscordGuildServiceTests</c>). Only the
+    /// read path the status surface uses is implemented.
+    /// </summary>
+    private sealed class FakeDiscordGuildService : IDiscordGuildService
+    {
+        private readonly IReadOnlyList<DiscordGuildConnectionDto> _connections;
+
+        public FakeDiscordGuildService(params DiscordGuildConnectionDto[] connections) =>
+            _connections = connections;
+
+        public Task<Result<IReadOnlyList<DiscordGuildConnectionDto>>> GetConnectionsAsync(
+            Guid broadcasterId,
+            CancellationToken ct = default
+        ) => Task.FromResult(Result.Success(_connections));
+
+        public Task<Result<DiscordGuildConnectionDto>> GetConnectionAsync(
+            Guid broadcasterId,
+            Guid connectionId,
+            CancellationToken ct = default
+        ) => throw new NotSupportedException();
+
+        public Task<Result<DiscordGuildConnectionDto>> UpsertFromOAuthAsync(
+            Guid broadcasterId,
+            DiscordGuildOAuthResult oauth,
+            CancellationToken ct = default
+        ) => throw new NotSupportedException();
+
+        public Task<Result> ApproveServerConsentAsync(
+            Guid broadcasterId,
+            Guid connectionId,
+            string approvedByDiscordUserId,
+            CancellationToken ct = default
+        ) => throw new NotSupportedException();
+
+        public Task<Result> RevokeServerConsentAsync(
+            Guid broadcasterId,
+            Guid connectionId,
+            CancellationToken ct = default
+        ) => throw new NotSupportedException();
+
+        public Task<Result> SetStreamerEnabledAsync(
+            Guid broadcasterId,
+            Guid connectionId,
+            bool enabled,
+            CancellationToken ct = default
+        ) => throw new NotSupportedException();
+
+        public Task<Result> DisconnectAsync(
+            Guid broadcasterId,
+            Guid connectionId,
+            CancellationToken ct = default
+        ) => throw new NotSupportedException();
+
+        public Task<Result<bool>> IsLinkActiveAsync(
+            Guid broadcasterId,
+            Guid connectionId,
+            CancellationToken ct = default
+        ) => throw new NotSupportedException();
     }
 }

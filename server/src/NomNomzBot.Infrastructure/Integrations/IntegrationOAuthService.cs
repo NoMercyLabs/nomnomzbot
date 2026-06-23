@@ -16,6 +16,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Caching;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Discord;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Integrations.Dtos;
@@ -37,6 +38,7 @@ public sealed class IntegrationOAuthService : IIntegrationOAuthService
 
     private readonly IOAuthProviderRegistry _registry;
     private readonly IIntegrationTokenVault _vault;
+    private readonly IDiscordGuildService _discord;
     private readonly ICacheService _cache;
     private readonly HttpClient _http;
     private readonly TimeProvider _timeProvider;
@@ -46,6 +48,7 @@ public sealed class IntegrationOAuthService : IIntegrationOAuthService
     public IntegrationOAuthService(
         IOAuthProviderRegistry registry,
         IIntegrationTokenVault vault,
+        IDiscordGuildService discord,
         ICacheService cache,
         IHttpClientFactory httpClientFactory,
         IConfiguration configuration,
@@ -55,6 +58,7 @@ public sealed class IntegrationOAuthService : IIntegrationOAuthService
     {
         _registry = registry;
         _vault = vault;
+        _discord = discord;
         _cache = cache;
         _http = httpClientFactory.CreateClient("integration-oauth");
         _timeProvider = timeProvider;
@@ -284,6 +288,27 @@ public sealed class IntegrationOAuthService : IIntegrationOAuthService
                 )
             );
         }
+
+        // Discord lives outside the descriptor registry (its connect carries a guild authorization, not an
+        // ordinary user-resource grant — discord.md §0), so it is reported here from its own connection table,
+        // consistently with IntegrationsController.ListIntegrations: connected iff any non-deleted
+        // DiscordGuildConnection exists for the tenant. This keeps /integrations/status the one status surface.
+        Result<IReadOnlyList<DiscordGuildConnectionDto>> discordConnections =
+            await _discord.GetConnectionsAsync(broadcasterId, cancellationToken);
+        if (discordConnections.IsFailure)
+            return discordConnections.WithValue<IReadOnlyList<IntegrationStatusDto>>(null!);
+
+        DiscordGuildConnectionDto? discord = discordConnections.Value.FirstOrDefault();
+        statuses.Add(
+            new IntegrationStatusDto(
+                AuthEnums.IntegrationProvider.Discord,
+                Connected: discord is not null,
+                AccountName: discord?.GuildName,
+                GrantedScopeSets: [],
+                Capabilities: new Dictionary<string, bool>(),
+                NeedsReauth: false
+            )
+        );
 
         return Result.Success<IReadOnlyList<IntegrationStatusDto>>(statuses);
     }

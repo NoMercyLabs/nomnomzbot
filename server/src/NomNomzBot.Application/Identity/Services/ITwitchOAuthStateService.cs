@@ -32,10 +32,14 @@ public interface ITwitchOAuthStateService
 /// <summary>
 /// The server-side OAuth flow payload. <paramref name="Flow"/> routes the single callback
 /// (<c>user</c> / <c>bot</c> / <c>channel_bot</c>); <paramref name="RedirectUri"/> is the optional mobile
-/// deep-link; <paramref name="ChannelId"/> is the tenant for the channel-bot flow.
+/// deep-link; <paramref name="ChannelId"/> is the tenant for the channel-bot flow; <paramref name="Client"/>
+/// is the optional client class that started the flow (e.g. <c>web</c>) — the served-web dashboard navigates
+/// the whole page to Twitch, so a JSON body can't reach it; the callback uses this to instead 302 back to the
+/// served origin with the access token in the URL fragment + the refresh token in an HttpOnly cookie.
 /// </summary>
 public sealed record TwitchOAuthFlowState(
     string Flow,
     string? RedirectUri = null,
-    string? ChannelId = null
+    string? ChannelId = null,
+    string? Client = null
 );

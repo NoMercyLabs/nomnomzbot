@@ -13,10 +13,10 @@ using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using NomNomzBot.Api.Authorization;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Discord;
-using NomNomzBot.Application.Identity.Services;
 
 namespace NomNomzBot.Api.Controllers.V1;
 
@@ -41,7 +41,7 @@ public class DiscordOAuthController : BaseController
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<DiscordOAuthController> _logger;
     private readonly TimeProvider _timeProvider;
-    private readonly ITwitchOAuthStateService _oauthState;
+    private readonly IDiscordOAuthStateService _oauthState;
     private readonly IDiscordGuildService _discord;
 
     public DiscordOAuthController(
@@ -50,7 +50,7 @@ public class DiscordOAuthController : BaseController
         IHttpClientFactory httpClientFactory,
         ILogger<DiscordOAuthController> logger,
         TimeProvider timeProvider,
-        ITwitchOAuthStateService oauthState,
+        IDiscordOAuthStateService oauthState,
         IDiscordGuildService discord
     )
     {
@@ -63,11 +63,25 @@ public class DiscordOAuthController : BaseController
         _discord = discord;
     }
 
-    /// <summary>Start the Discord OAuth flow — redirects to Discord's authorization page with bot + guilds scopes.</summary>
+    /// <summary>
+    /// Start the Discord OAuth flow — redirects to Discord's authorization page with bot + guilds scopes.
+    /// Pass <paramref name="redirect_uri"/> for the desktop client's loopback listener (RFC-8252): the callback
+    /// then redirects there with a success/error marker so the listener completes. The web/SPA client omits it
+    /// and gets the frontend redirect instead.
+    /// </summary>
     [HttpGet("channels/{channelId}/integrations/discord/callback/start")]
     [AllowAnonymous]
-    public async Task<IActionResult> StartDiscordOAuth(string channelId, CancellationToken ct)
+    public async Task<IActionResult> StartDiscordOAuth(
+        string channelId,
+        [FromQuery] string? redirect_uri,
+        CancellationToken ct
+    )
     {
+        // Bound the post-auth redirect to the open-redirect policy (blank / app scheme / loopback only) so a
+        // crafted link cannot bounce the connect result to an attacker-controlled host.
+        if (!ClientRedirectPolicy.IsAllowed(redirect_uri))
+            return BadRequestResponse("Disallowed redirect_uri.");
+
         string? clientId = await GetConfigValueAsync("discord.client_id", ct);
         if (string.IsNullOrEmpty(clientId))
             return BadRequestResponse(
@@ -77,10 +91,11 @@ public class DiscordOAuthController : BaseController
         string baseUrl = _config["App:BaseUrl"] ?? $"{Request.Scheme}://{Request.Host}";
         string redirectUri = $"{baseUrl}/api/v1/integrations/discord/callback";
 
-        // Single-use, server-side CSRF state nonce (the channel id is held server-side, never in the query
-        // string) so a forged callback cannot bind a Discord guild to a channel the caller did not choose.
+        // Single-use, server-side CSRF state nonce (the channel id + optional loopback redirect are held
+        // server-side, never in the query string) so a forged callback cannot bind a Discord guild to a
+        // channel the caller did not choose, nor bounce the result to an unvetted target.
         string state = await _oauthState.IssueAsync(
-            new TwitchOAuthFlowState("discord", ChannelId: channelId),
+            new DiscordOAuthFlowState(channelId, redirect_uri),
             ct
         );
 
@@ -108,10 +123,11 @@ public class DiscordOAuthController : BaseController
         CancellationToken ct
     )
     {
-        // Consume the single-use nonce; a missing, expired, or forged state is rejected, and the channel id
-        // comes only from the server-side payload, never the query string.
-        TwitchOAuthFlowState? flowState = await _oauthState.ConsumeAsync(state, ct);
+        // Consume the single-use nonce; a missing, expired, or forged state is rejected, and the channel id +
+        // optional loopback redirect come only from the server-side payload, never the query string.
+        DiscordOAuthFlowState? flowState = await _oauthState.ConsumeAsync(state, ct);
         string? channelId = flowState?.ChannelId;
+        string? loopbackRedirect = flowState?.RedirectUri;
         if (string.IsNullOrEmpty(channelId))
             return BadRequestResponse("Invalid or expired OAuth state.");
 
@@ -122,7 +138,11 @@ public class DiscordOAuthController : BaseController
         string? clientSecret = await GetConfigSecureValueAsync("discord.client_secret", ct);
 
         if (string.IsNullOrEmpty(clientId) || string.IsNullOrEmpty(clientSecret))
-            return BadRequestResponse("Discord client credentials are not configured.");
+            return FailureResult(
+                loopbackRedirect,
+                "credentials_unconfigured",
+                () => BadRequestResponse("Discord client credentials are not configured.")
+            );
 
         string baseUrl = _config["App:BaseUrl"] ?? $"{Request.Scheme}://{Request.Host}";
         string redirectUri = $"{baseUrl}/api/v1/integrations/discord/callback";
@@ -152,7 +172,11 @@ public class DiscordOAuthController : BaseController
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to exchange Discord authorization code");
-            return InternalServerErrorResponse("Failed to contact Discord token endpoint.");
+            return FailureResult(
+                loopbackRedirect,
+                "token_endpoint_unreachable",
+                () => InternalServerErrorResponse("Failed to contact Discord token endpoint.")
+            );
         }
 
         if (!response.IsSuccessStatusCode)
@@ -163,7 +187,11 @@ public class DiscordOAuthController : BaseController
                 response.StatusCode,
                 errorBody
             );
-            return InternalServerErrorResponse("Discord token exchange failed.");
+            return FailureResult(
+                loopbackRedirect,
+                "token_exchange_failed",
+                () => InternalServerErrorResponse("Discord token exchange failed.")
+            );
         }
 
         using JsonDocument tokenDoc = JsonDocument.Parse(
@@ -175,7 +203,11 @@ public class DiscordOAuthController : BaseController
             ? atProp.GetString()
             : null;
         if (string.IsNullOrEmpty(accessToken))
-            return BadRequestResponse("Discord did not return an access token.");
+            return FailureResult(
+                loopbackRedirect,
+                "no_access_token",
+                () => BadRequestResponse("Discord did not return an access token.")
+            );
 
         string? refreshToken = root.TryGetProperty("refresh_token", out JsonElement rtProp)
             ? rtProp.GetString()
@@ -195,8 +227,13 @@ public class DiscordOAuthController : BaseController
                 : null;
 
         if (string.IsNullOrEmpty(guildId))
-            return BadRequestResponse(
-                "Discord did not return a guild — the bot was not installed."
+            return FailureResult(
+                loopbackRedirect,
+                "no_guild",
+                () =>
+                    BadRequestResponse(
+                        "Discord did not return a guild — the bot was not installed."
+                    )
             );
 
         // Parse the token response into the spec's DiscordGuildOAuthResult and hand ALL persistence to the
@@ -223,7 +260,11 @@ public class DiscordOAuthController : BaseController
                 channelId,
                 upsert.ErrorMessage
             );
-            return InternalServerErrorResponse("Failed to record the Discord guild link.");
+            return FailureResult(
+                loopbackRedirect,
+                "guild_link_failed",
+                () => InternalServerErrorResponse("Failed to record the Discord guild link.")
+            );
         }
 
         _logger.LogInformation(
@@ -232,12 +273,35 @@ public class DiscordOAuthController : BaseController
             guildId
         );
 
+        // Desktop client: bounce back to its loopback listener with the success marker so the connect completes.
+        if (!string.IsNullOrWhiteSpace(loopbackRedirect))
+            return Redirect(AppendQuery(loopbackRedirect, "discord_connected=true"));
+
+        // Web/SPA client: no loopback listener — land on the integrations screen.
         string frontendUrl =
             _config["App:FrontendUrl"]
             ?? _config["App:BaseUrl"]
             ?? $"{Request.Scheme}://{Request.Host}";
         return Redirect($"{frontendUrl}/(dashboard)/integrations?discord_connected=true");
     }
+
+    /// <summary>
+    /// Routes a callback failure: when a desktop loopback <c>redirect_uri</c> was supplied (already vetted by
+    /// <see cref="ClientRedirectPolicy"/> at start), bounce there with <c>?error=&lt;reason&gt;</c> so the
+    /// loopback listener completes (failure path); otherwise return the supplied web/API error response.
+    /// </summary>
+    private IActionResult FailureResult(
+        string? loopbackRedirect,
+        string reason,
+        Func<IActionResult> webResponse
+    ) =>
+        string.IsNullOrWhiteSpace(loopbackRedirect)
+            ? webResponse()
+            : Redirect(AppendQuery(loopbackRedirect, $"error={Uri.EscapeDataString(reason)}"));
+
+    /// <summary>Appends <paramref name="query"/> to <paramref name="url"/>, choosing <c>?</c> or <c>&amp;</c>.</summary>
+    private static string AppendQuery(string url, string query) =>
+        url + (url.Contains('?') ? '&' : '?') + query;
 
     /// <summary>Read a plain-text Configuration value (platform-scoped) from the database, falling back to config/env.</summary>
     private async Task<string?> GetConfigValueAsync(string key, CancellationToken ct)

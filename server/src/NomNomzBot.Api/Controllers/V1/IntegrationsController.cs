@@ -239,30 +239,15 @@ public class IntegrationsController : BaseController
         return NoContent();
     }
 
-    // ── Get OAuth connect URL ─────────────────────────────────────────────────
-
-    [RequireAction("integration:read")]
-    [HttpGet("{integrationId}/connect")]
-    [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
-    public IActionResult GetConnectUrl(string channelId, string integrationId)
-    {
-        string id = integrationId.ToLower();
-        string? url = BuildOauthUrl(id, channelId);
-
-        if (url is null)
-        {
-            return BadRequestResponse(
-                id == "obs"
-                    ? "OBS uses WebSocket — install the OBS WebSocket plugin and configure it in your OBS settings."
-                    : $"OAuth is not available for '{integrationId}'."
-            );
-        }
-
-        return Ok(new StatusResponseDto<object> { Data = new { oauthUrl = url } });
-    }
-
     // ── Helpers ───────────────────────────────────────────────────────────────
 
+    /// <summary>
+    /// The browser-openable connect-start URL for the providers that expose one directly: the per-channel
+    /// custom-bot OAuth, and Discord's bespoke bot-install start (both real, anonymous redirect routes). Spotify
+    /// and YouTube are NOT here — they use the generic <c>POST …/integrations/{provider}/connect</c>
+    /// (authenticated, returns the provider authorize URL via <see cref="IntegrationOAuthController"/>), so a
+    /// GET start URL would point at a route that does not exist. Twitch/OBS have no OAuth-start.
+    /// </summary>
     private string? BuildOauthUrl(string integrationId, string channelId)
     {
         string baseUrl = _config["App:BaseUrl"] ?? $"{Request.Scheme}://{Request.Host}";
@@ -271,9 +256,7 @@ public class IntegrationsController : BaseController
         return integrationId switch
         {
             "custom_bot" => $"{baseUrl}/api/v1/channels/{channelId}/bot/connect",
-            "spotify" => $"{apiBase}/channels/{channelId}/integrations/spotify/callback/start",
             "discord" => $"{apiBase}/channels/{channelId}/integrations/discord/callback/start",
-            "youtube" => $"{apiBase}/channels/{channelId}/integrations/youtube/callback/start",
             _ => null,
         };
     }

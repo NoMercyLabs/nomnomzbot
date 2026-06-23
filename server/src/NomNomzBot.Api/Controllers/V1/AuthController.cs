@@ -100,23 +100,28 @@ public class AuthController : BaseController
 
     /// <summary>
     /// Start the Twitch OAuth flow. Redirects the browser to Twitch's authorization page.
-    /// Pass <c>redirect_uri</c> for mobile deep-link callbacks (e.g. <c>nomnomzbot://callback</c>).
+    /// Pass <c>redirect_uri</c> for mobile / desktop-loopback deep-link callbacks (e.g.
+    /// <c>nomnomzbot://callback</c>). Pass <c>client=web</c> for the served-web dashboard: a full-page redirect
+    /// can't receive a JSON token body, so the callback returns the tokens in the URL fragment + an HttpOnly
+    /// cookie instead.
     /// </summary>
     [HttpGet("twitch")]
     [AllowAnonymous]
     [EnableRateLimiting("auth")]
     public async Task<IActionResult> StartTwitchOAuth(
         [FromQuery] string? redirect_uri,
+        [FromQuery] string? client,
         CancellationToken ct
     )
     {
         if (!ClientRedirectPolicy.IsAllowed(redirect_uri))
             return BadRequest("Disallowed redirect_uri.");
 
-        // Issue a single-use, server-side CSRF state nonce; only the opaque nonce travels through Twitch,
-        // and the flow + optional mobile redirect are held server-side so the callback can route safely.
+        // Issue a single-use, server-side CSRF state nonce; only the opaque nonce travels through Twitch, and
+        // the flow + optional mobile redirect + client class are held server-side so the callback can route
+        // safely (the client class can't be tampered with in the query string on the way back).
         string state = await _oauthState.IssueAsync(
-            new TwitchOAuthFlowState("user", redirect_uri),
+            new TwitchOAuthFlowState("user", redirect_uri, Client: client),
             ct
         );
 
@@ -150,6 +155,7 @@ public class AuthController : BaseController
         string flow = flowState.Flow;
         string? mobileRedirectUri = flowState.RedirectUri;
         string? channelId = flowState.ChannelId;
+        string? client = flowState.Client;
 
         if (flow == "bot")
         {
@@ -256,6 +262,19 @@ public class AuthController : BaseController
             return Redirect(qs.ToString());
         }
 
+        // Served-web dashboard: the page navigated the whole window to Twitch, so it can't read a JSON body on
+        // the way back. Hand the access token to the SPA in the URL fragment (never sent to the server, so it
+        // stays out of logs/Referer) and keep the long-lived refresh token in an HttpOnly + Secure + Lax cookie
+        // the SPA's JS can't read — defeating token exfiltration via XSS.
+        if (string.Equals(client, "web", StringComparison.OrdinalIgnoreCase))
+        {
+            SetRefreshTokenCookie(auth.RefreshToken);
+
+            string fragment =
+                $"#access_token={Uri.EscapeDataString(auth.AccessToken)}&expires_in={expiresIn}";
+            return Redirect($"{GetPublicBaseUrl()}/{fragment}");
+        }
+
         return Ok(
             new StatusResponseDto<object>
             {
@@ -269,6 +288,25 @@ public class AuthController : BaseController
             }
         );
     }
+
+    /// <summary>
+    /// Stores the refresh token in a hardened cookie for the served-web flow: <c>HttpOnly</c> (JS can't read it,
+    /// so XSS can't exfiltrate it), <c>Secure</c> (HTTPS only), <c>SameSite=Lax</c> (sent on the top-level
+    /// OAuth-return navigation but not on cross-site sub-requests), scoped to the refresh endpoint path.
+    /// </summary>
+    private void SetRefreshTokenCookie(string refreshToken) =>
+        Response.Cookies.Append(
+            "nnz_refresh_token",
+            refreshToken,
+            new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = true,
+                SameSite = SameSiteMode.Lax,
+                Path = "/api/v1/auth",
+                Expires = _timeProvider.GetUtcNow().AddDays(30),
+            }
+        );
 
     /// <summary>
     /// Exchange an OAuth authorization code for platform tokens (mobile / SPA flow).
