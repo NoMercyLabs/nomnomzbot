@@ -38,14 +38,12 @@ fun main() = application {
         state = windowState,
         title = "NomNomzBot",
     ) {
-        // Force the window to the foreground + focus on launch. When the app is started from a launcher/tool the OS
-        // leaves it behind the active window, so the operator never sees the splash come up. The brief always-on-top
-        // toggle defeats Windows' focus-stealing prevention, then releases so it behaves like a normal window.
+        // Raise the window so a launcher-started app isn't left behind the active window. Deliberately ONLY
+        // toFront() — calling window.requestFocus()/isAlwaysOnTop here manipulates the AWT focus owner and left
+        // Compose's text fields unable to receive keyboard input (a regression), while toFront() alone is enough
+        // to surface the window.
         LaunchedEffect(Unit) {
-            window.isAlwaysOnTop = true
             window.toFront()
-            window.requestFocus()
-            window.isAlwaysOnTop = false
         }
 
         // A Surface painted with the theme background so the window has no white flash
