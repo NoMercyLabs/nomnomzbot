@@ -214,7 +214,7 @@ public sealed class IntegrationOAuthService : IIntegrationOAuthService
                 accountName,
                 grantedScopes,
                 app.ClientId,
-                descriptor.Credentials.IsByok,
+                descriptor.IsByok,
                 entry.ActingUserId,
                 SettingsJson: null
             ),

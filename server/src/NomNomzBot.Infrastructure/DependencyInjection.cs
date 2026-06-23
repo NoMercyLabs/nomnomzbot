@@ -653,17 +653,6 @@ public static class DependencyInjection
         // named-accessor surface for discoverability. Pure passthrough, scoped to share their lifetime.
         services.AddScoped<ITwitchHelixClient, Platform.Transport.Helix.TwitchHelixClient>();
 
-        services
-            .AddHttpClient("twitch-eventsub")
-            .ConfigureHttpClient(
-                (sp, client) =>
-                {
-                    TwitchOptions opts = sp.GetRequiredService<IOptions<TwitchOptions>>().Value;
-                    if (!string.IsNullOrEmpty(opts.ClientId))
-                        client.DefaultRequestHeaders.Add("Client-Id", opts.ClientId);
-                }
-            );
-
         // ITwitchAuthService → TwitchAuthService is a scoped single-impl service discovered by
         // AddServicesByConvention above. (The legacy ITwitchApiService has been retired — every caller now
         // targets the granular Helix sub-clients / ITwitchHelixClient façade.)

@@ -70,7 +70,7 @@ public sealed class OAuthProviderRegistry : IOAuthProviderRegistry
                     "user-library-modify",
                 ],
             },
-            Credentials: ResolveCredentials(AuthEnums.IntegrationProvider.Spotify, "Spotify")
+            IsByok: ResolveIsByok("Spotify")
         );
 
     private OAuthProviderDescriptor YouTube() =>
@@ -86,20 +86,14 @@ public sealed class OAuthProviderRegistry : IOAuthProviderRegistry
                 ["youtube.manage"] = ["https://www.googleapis.com/auth/youtube"],
                 ["youtube.readonly"] = ["https://www.googleapis.com/auth/youtube.readonly"],
             },
-            Credentials: ResolveCredentials(AuthEnums.IntegrationProvider.YouTube, "YouTube")
+            IsByok: ResolveIsByok("YouTube")
         );
 
     /// <summary>
-    /// Resolves credentials per deployment profile: a self-host operator's own
-    /// <c>{Provider}:ClientId/ClientSecret</c> is BYOK; otherwise the platform (SaaS) app credentials from
-    /// the same config keys. (Per-tenant BYOK overrides ride <c>IntegrationConnection.IsByok</c>, fed at
-    /// connect time; the registry resolves the deployment default here.)
+    /// The deployment BYOK flag: a self-host operator's own <c>{Provider}:Byok</c> marks bring-your-own-key.
+    /// The client_id/secret themselves are resolved per request by <c>ISystemCredentialsProvider</c> (vaulted
+    /// store → config); per-tenant BYOK overrides ride <c>IntegrationConnection.IsByok</c> at connect time.
     /// </summary>
-    private OAuthCredentials ResolveCredentials(string provider, string configSection)
-    {
-        string? clientId = _configuration[$"{configSection}:ClientId"];
-        string? clientSecret = _configuration[$"{configSection}:ClientSecret"];
-        bool isByok = !string.IsNullOrWhiteSpace(_configuration[$"{configSection}:Byok"]);
-        return new OAuthCredentials(clientId ?? string.Empty, clientSecret, isByok);
-    }
+    private bool ResolveIsByok(string configSection) =>
+        !string.IsNullOrWhiteSpace(_configuration[$"{configSection}:Byok"]);
 }

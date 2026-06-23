@@ -14,8 +14,8 @@ namespace NomNomzBot.Application.Integrations.Services;
 /// The single place a provider's OAuth specifics live (integrations-oauth §3.2). Adding a provider = adding
 /// one descriptor; the connect flow (<c>IIntegrationOAuthService</c>) is generic over it. Scope sets
 /// enumerate the FULL manageable surface (external-API-coverage rule); a feature requests only the subset
-/// it needs. Credentials are resolved per deployment profile (BYOK self-host vs platform SaaS) by the
-/// registry, so the descriptor already carries the concrete <see cref="OAuthCredentials"/>.
+/// it needs. The client_id/secret are resolved per request from <c>ISystemCredentialsProvider</c> (vaulted
+/// store → config), so the descriptor only carries the deployment BYOK flag.
 /// </summary>
 public sealed record OAuthProviderDescriptor(
     string Provider,
@@ -25,8 +25,5 @@ public sealed record OAuthProviderDescriptor(
     string AccountIdentityEndpoint,
     bool UsesPkce,
     IReadOnlyDictionary<string, IReadOnlyList<string>> ScopeSets,
-    OAuthCredentials Credentials
+    bool IsByok
 );
-
-/// <summary>Resolved client credentials for a provider connect (integrations-oauth §3.2).</summary>
-public sealed record OAuthCredentials(string ClientId, string? ClientSecret, bool IsByok);
