@@ -88,7 +88,11 @@ public sealed class ChatDecorationRefreshService : BackgroundService
             );
         }
 
-        await WarmBadgesAsync(badges => badges.WarmGlobalAsync(ct), "global", ct);
+        await InScopeAsync(
+            services => services.GetRequiredService<ChatBadgeCacheWarmer>().WarmGlobalAsync(ct),
+            "global badges",
+            ct
+        );
     }
 
     private async Task WarmLiveChannelsAsync(CancellationToken ct)
@@ -114,20 +118,26 @@ public sealed class ChatDecorationRefreshService : BackgroundService
             );
         }
 
-        await WarmBadgesAsync(
-            async badges =>
+        await InScopeAsync(
+            async services =>
             {
+                ChatBadgeCacheWarmer badges = services.GetRequiredService<ChatBadgeCacheWarmer>();
+                ChatCheermoteCacheWarmer cheermotes =
+                    services.GetRequiredService<ChatCheermoteCacheWarmer>();
                 foreach (ChannelContext channel in live)
+                {
                     await badges.WarmChannelAsync(channel.BroadcasterId, ct);
+                    await cheermotes.WarmChannelAsync(channel.BroadcasterId, ct);
+                }
             },
-            "live-channel",
+            "live-channel badges + cheermotes",
             ct
         );
     }
 
-    // Resolves the scoped badge warmer inside its own scope (it uses the scoped Helix client) and runs the given work.
-    private async Task WarmBadgesAsync(
-        Func<ChatBadgeCacheWarmer, Task> work,
+    // Runs Helix-backed warming (badges, cheermotes) inside its own scope — those warmers use the scoped Helix client.
+    private async Task InScopeAsync(
+        Func<IServiceProvider, Task> work,
         string scope,
         CancellationToken ct
     )
@@ -135,15 +145,13 @@ public sealed class ChatDecorationRefreshService : BackgroundService
         try
         {
             using IServiceScope serviceScope = _scopeFactory.CreateScope();
-            ChatBadgeCacheWarmer badges =
-                serviceScope.ServiceProvider.GetRequiredService<ChatBadgeCacheWarmer>();
-            await work(badges);
+            await work(serviceScope.ServiceProvider);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             _logger.LogError(
                 ex,
-                "Badge refresh iteration ({Scope}) failed; retrying at the next interval.",
+                "Helix asset refresh iteration ({Scope}) failed; retrying at the next interval.",
                 scope
             );
         }

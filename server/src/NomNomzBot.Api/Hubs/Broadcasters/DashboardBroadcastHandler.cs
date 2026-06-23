@@ -104,7 +104,10 @@ public sealed class ChatMessageBroadcastHandler : IEventHandler<ChatMessageRecei
                 ? new ChatCheermoteDto(
                     Prefix: f.CheermotePrefix,
                     Bits: f.CheermoteBits ?? 0,
-                    Tier: f.CheermoteTier ?? 1
+                    Tier: f.CheermoteTier ?? 1,
+                    Urls: f.CheermoteImage?.Urls,
+                    Animated: f.CheermoteImage?.Animated ?? false,
+                    ColorHex: f.CheermoteImage?.ColorHex
                 )
                 : null,
             Mention: f.MentionUserId is not null

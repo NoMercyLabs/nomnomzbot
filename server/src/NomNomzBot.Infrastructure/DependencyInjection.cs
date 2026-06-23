@@ -151,8 +151,9 @@ public static class DependencyInjection
         // Warms the third-party emote cache the decoration pipeline reads; driven by ChatDecorationRefreshService
         // (auto-discovered as a hosted worker). Stateless → singleton.
         services.AddSingleton<NomNomzBot.Infrastructure.Chat.Jobs.ChatEmoteCacheWarmer>();
-        // Warms the Helix badge cache; scoped because it uses the scoped Helix client (the worker resolves it per scope).
+        // Warms the Helix badge + cheermote caches; scoped (they use the scoped Helix client — resolved per worker scope).
         services.AddScoped<NomNomzBot.Infrastructure.Chat.Jobs.ChatBadgeCacheWarmer>();
+        services.AddScoped<NomNomzBot.Infrastructure.Chat.Jobs.ChatCheermoteCacheWarmer>();
 
         // Chat-decoration pipeline: the ordered adapters (multi-binding, discovered) + the thin orchestrator that runs
         // them per message. Stateless → singleton; adapters read only cache on the hot path (chat-decoration §0).
@@ -160,10 +161,14 @@ public static class DependencyInjection
             infrastructure,
             ServiceLifetime.Singleton
         );
-        // Badge resolver (cache-only; not name-convention "*Service", so registered explicitly). Stateless → singleton.
+        // Badge + cheermote resolvers (cache-only; not name-convention "*Service", so registered explicitly). Singleton.
         services.AddSingleton<
             NomNomzBot.Application.Chat.Services.IChatBadgeResolver,
             NomNomzBot.Infrastructure.Chat.ChatBadgeResolver
+        >();
+        services.AddSingleton<
+            NomNomzBot.Application.Chat.Services.ICheermoteResolver,
+            NomNomzBot.Infrastructure.Chat.ChatCheermoteResolver
         >();
         // Scoped: it resolves the channel's feature toggles through the scoped IFeatureService (cache-backed, so the
         // hot path stays cheap). Consumes the singleton adapters + cache fine.

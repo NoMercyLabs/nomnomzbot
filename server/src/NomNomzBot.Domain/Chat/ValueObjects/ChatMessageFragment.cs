@@ -60,6 +60,12 @@ public sealed class ChatMessageFragment
     /// <summary>Cheer tier (1, 2, 3, 4, or 5) — determines animation and color.</summary>
     public int? CheermoteTier { get; init; }
 
+    /// <summary>
+    /// The resolved cheermote image (scale-keyed urls + animated flag + tier colour), filled in place by the cheermote
+    /// decoration step from the cached Helix cheermotes (chat-decoration spec §4). Null until resolved, or on a miss.
+    /// </summary>
+    public CheermoteImage? CheermoteImage { get; set; }
+
     // ─── Mention fields (when Type == "mention") ──────────────────────────────
 
     /// <summary>Twitch user ID of the mentioned user.</summary>

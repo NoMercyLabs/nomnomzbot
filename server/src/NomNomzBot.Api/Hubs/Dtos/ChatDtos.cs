@@ -68,8 +68,19 @@ public record ChatEmoteDto(
     bool ZeroWidth
 );
 
-/// <summary>Cheermote fragment data.</summary>
-public record ChatCheermoteDto(string Prefix, int Bits, int Tier);
+/// <summary>
+/// Cheermote fragment data — the raw prefix/bits/tier plus the resolved tier image (chat-decoration spec §3.4):
+/// scale-keyed <c>Urls</c>, whether animated, and the tier <c>ColorHex</c>. The image fields are null/empty until the
+/// channel's cheermotes are warmed in cache.
+/// </summary>
+public record ChatCheermoteDto(
+    string Prefix,
+    int Bits,
+    int Tier,
+    IReadOnlyDictionary<string, string>? Urls,
+    bool Animated,
+    string? ColorHex
+);
 
 /// <summary>Mention fragment data (@user).</summary>
 public record ChatMentionDto(string UserId, string Username, string DisplayName);
