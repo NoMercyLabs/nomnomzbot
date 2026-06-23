@@ -25,6 +25,7 @@ import bot.nomnomz.dashboard.core.designsystem.theme.NomNomzTheme
 import bot.nomnomz.dashboard.core.designsystem.theme.Scheme
 import bot.nomnomz.dashboard.core.navigation.Destination
 import bot.nomnomz.dashboard.feature.connect.ui.ConnectScreen
+import bot.nomnomz.dashboard.feature.setup.ui.SetupWizardScreen
 import bot.nomnomz.dashboard.feature.shell.ui.ShellScreen
 import bot.nomnomz.dashboard.feature.splash.ui.SplashScreen
 import kotlinx.coroutines.delay
@@ -36,10 +37,12 @@ private const val SPLASH_HOLD_MS: Long = 1_200L
 // Destination from a one-shot boot splash and the session phase:
 //   Splash (booting) -> Connect (no session) -> Shell (session established).
 //
-// The Connect screen now drives the REAL Twitch streamer onboarding through the injected
-// AppGraph (ConnectController → OAuthLauncher → SessionStore → AuthApi.me). Next slice swaps this
-// state-driven gate for the Navigation Compose NavHost + the Setup-wizard rung, and injects the
-// graph via Koin instead of remember.
+// The Connect screen drives the REAL Twitch streamer onboarding through the injected AppGraph
+// (ConnectController → status probe → OAuthLauncher → SessionStore → AuthApi.me). A fresh self-host bot
+// has no Twitch app credentials yet, so the probe routes the gate to the first-run Setup wizard
+// (NeedsSetup → Setup) where the user enters every secret through proper inputs — never a config file —
+// before the streamer OAuth runs. Next slice swaps this state-driven gate for the Navigation Compose
+// NavHost and injects the graph via Koin instead of remember.
 @Composable
 fun App(graph: AppGraph = remember { AppGraph() }) {
     NomNomzTheme(scheme = Scheme.Dark) {
@@ -55,6 +58,7 @@ fun App(graph: AppGraph = remember { AppGraph() }) {
         val destination: Destination = when {
             booting -> Destination.Splash
             phase == SessionPhase.Connected -> Destination.Shell
+            phase == SessionPhase.NeedsSetup -> Destination.Setup
             else -> Destination.Connect
         }
 
@@ -62,6 +66,7 @@ fun App(graph: AppGraph = remember { AppGraph() }) {
             when (target) {
                 Destination.Splash -> SplashScreen()
                 Destination.Connect -> ConnectScreen(controller = graph.connectController)
+                Destination.Setup -> SetupWizardScreen(controller = graph.setupController)
                 Destination.Shell ->
                     ShellScreen(
                         integrationsController = graph.integrationsController,

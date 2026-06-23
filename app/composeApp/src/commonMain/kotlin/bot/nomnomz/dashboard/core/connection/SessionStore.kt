@@ -45,6 +45,18 @@ class SessionStore(private val tokenVault: SessionTokenStore = TokenVault()) {
     fun accessToken(): String? = tokens?.accessToken
 
     /**
+     * Enter first-run setup against [profile]: pin the active profile (so the shared [ApiClient] can
+     * reach the chosen backend for the anonymous setup calls) but hold NO tokens, and flip the gate to
+     * [SessionPhase.NeedsSetup] so it shows the wizard. The wizard runs the anonymous credential saves,
+     * then drives the streamer OAuth — which calls [connect] and advances to the shell.
+     */
+    fun enterSetup(profile: ConnectionProfile) {
+        _activeProfile.value = profile
+        tokens = null
+        _phase.value = SessionPhase.NeedsSetup
+    }
+
+    /**
      * Establish the real session: pin the active profile, hold its tokens, persist them to the
      * vault, and flip the gate to Connected. The signed-in [user] is attached separately once the
      * `/me` probe resolves (so the gate can advance immediately and the shell fills in the identity).

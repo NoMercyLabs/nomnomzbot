@@ -20,6 +20,8 @@ import bot.nomnomz.dashboard.core.connection.SessionUser
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.AuthApi
 import bot.nomnomz.dashboard.core.network.CurrentUser
+import bot.nomnomz.dashboard.core.network.SystemApi
+import bot.nomnomz.dashboard.core.network.SystemStatus
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -32,14 +34,25 @@ import kotlinx.coroutines.flow.asStateFlow
 //   → AuthApi.me() to resolve the signed-in streamer → SessionStore.setUser() → gate flips to Shell.
 //
 // No mock: the gate moves to Connected only after a real token is captured and /me proves it valid.
+//
+// Before the OAuth dance, the controller probes system readiness (SystemApi.status). A fresh self-host bot
+// has no Twitch app credentials yet, so its OAuth can't even start — when the backend reports it isn't
+// ready, the controller pins the chosen profile and routes the gate to the first-run Setup wizard instead.
+// The wizard collects the credentials and, once ready, calls back into [signInStreamer] to run this same
+// streamer OAuth — which now works.
 class ConnectController(
     private val sessionStore: SessionStore,
     private val authApi: AuthApi,
+    private val systemApi: SystemApi,
     private val oauthLauncher: OAuthLauncher,
     private val profileIdFactory: () -> String = ::randomProfileId,
 ) {
     private val _baseUrl: MutableStateFlow<String> = MutableStateFlow(DEFAULT_BASE_URL)
     private val _status: MutableStateFlow<ConnectStatus> = MutableStateFlow(ConnectStatus.Idle)
+
+    // The profile the user is onboarding against, pinned when the flow routes to setup so [signInStreamer]
+    // can run the streamer OAuth against the same backend once the wizard finishes.
+    private var pendingProfile: ConnectionProfile? = null
 
     /** The editable backend-URL field (frontend-structure.md §8 — default localhost, editable). */
     val baseUrl: StateFlow<String> = _baseUrl.asStateFlow()
@@ -53,9 +66,10 @@ class ConnectController(
     }
 
     /**
-     * Drive the real streamer OAuth flow against the typed backend URL. Suspends through the browser
-     * dance; on success the session is live and the gate advances. Errors surface on [status] and
-     * the gate stays on Connect.
+     * Point the dashboard at the typed backend and start onboarding. Probes readiness first: if the bot
+     * is already configured the streamer OAuth runs immediately; if not, the chosen profile is pinned and
+     * the gate routes to the first-run Setup wizard (which collects the credentials, then calls back into
+     * [signInStreamer]). Errors surface on [status] and the gate stays on Connect.
      */
     suspend fun connect() {
         val normalized: String? = normalizeBaseUrl(_baseUrl.value)
@@ -74,13 +88,50 @@ class ConnectController(
                 source = ProfileSource.Manual,
             )
 
-        when (val authResult: ApiResult<SessionTokens> = oauthLauncher.authorize(normalized, OAuthFlow.Streamer)) {
-            is ApiResult.Failure ->
+        // Pin the profile so the shared ApiClient targets the chosen backend for the anonymous status probe
+        // (and the wizard's anonymous setup calls, if we route there). It carries no tokens yet.
+        sessionStore.enterSetup(profile)
+        pendingProfile = profile
+
+        when (val statusResult: ApiResult<SystemStatus> = systemApi.status()) {
+            is ApiResult.Failure -> {
+                // Couldn't reach / read the backend — roll back to Connect and surface the failure.
+                sessionStore.disconnect()
+                pendingProfile = null
+                _status.value = ConnectStatus.Error(ConnectError.Auth(statusResult.error.message))
+            }
+
+            is ApiResult.Ok ->
+                if (statusResult.value.ready) {
+                    // Configured already — run the streamer OAuth straight away.
+                    runStreamerOAuth(profile)
+                } else {
+                    // Not configured — the gate is already on NeedsSetup (enterSetup); the wizard takes over.
+                    _status.value = ConnectStatus.Idle
+                }
+        }
+    }
+
+    /**
+     * Run the streamer OAuth for the pinned onboarding profile once the setup wizard reports the bot is
+     * ready. Returns true when the session is established (the gate advances to the shell). Called by the
+     * [SetupController] from the wizard's "continue to Twitch sign-in" action.
+     */
+    suspend fun signInStreamer(): Boolean {
+        val profile: ConnectionProfile = pendingProfile ?: return false
+        return runStreamerOAuth(profile)
+    }
+
+    /** Run the streamer OAuth dance against [profile] and establish the session on success. */
+    private suspend fun runStreamerOAuth(profile: ConnectionProfile): Boolean =
+        when (val authResult: ApiResult<SessionTokens> = oauthLauncher.authorize(profile.baseUrl, OAuthFlow.Streamer)) {
+            is ApiResult.Failure -> {
                 _status.value = ConnectStatus.Error(ConnectError.Auth(authResult.error.message))
+                false
+            }
 
             is ApiResult.Ok -> establishSession(profile, authResult.value)
         }
-    }
 
     /**
      * Complete a session from tokens captured outside the in-app launcher — the web post-redirect
@@ -91,20 +142,26 @@ class ConnectController(
         establishSession(profile, tokens)
     }
 
-    /** Commit the session, point + arm the shared ApiClient, then prove the JWT via /me. */
-    private suspend fun establishSession(profile: ConnectionProfile, tokens: SessionTokens) {
+    /**
+     * Commit the session, point + arm the shared ApiClient, then prove the JWT via /me. Returns true when
+     * the session is live (the gate advances to the shell); false when the token didn't validate.
+     */
+    private suspend fun establishSession(profile: ConnectionProfile, tokens: SessionTokens): Boolean {
         sessionStore.connect(profile, tokens)
 
-        when (val me: ApiResult<CurrentUser> = authApi.me()) {
+        return when (val me: ApiResult<CurrentUser> = authApi.me()) {
             is ApiResult.Ok -> {
                 sessionStore.setUser(me.value.toSessionUser())
                 _status.value = ConnectStatus.Idle
+                pendingProfile = null
+                true
             }
 
             is ApiResult.Failure -> {
                 // Token didn't validate — roll the session back so the gate stays on Connect.
                 sessionStore.disconnect()
                 _status.value = ConnectStatus.Error(ConnectError.Auth(me.error.message))
+                false
             }
         }
     }

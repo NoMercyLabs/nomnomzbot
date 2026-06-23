@@ -10,14 +10,14 @@
 
 package bot.nomnomz.dashboard.core.navigation
 
-// The three top-level destinations of the FOUNDATION spine. The gate in App.kt resolves
-// these from the boot timer + the session phase.
+// The top-level destinations of the FOUNDATION spine. The gate in App.kt resolves these
+// from the boot timer + the session phase, in the order Splash -> Connect -> Setup -> Shell.
 //
 // Next slice replaces this with the full type-safe `@Serializable sealed interface Route`
-// graph + Navigation Compose NavHost (frontend.md §5); the gate ORDER (Connect -> Setup ->
-// Main) is seeded here as Splash -> Connect -> Shell.
+// graph + Navigation Compose NavHost (frontend.md §5).
 enum class Destination {
     Splash,
     Connect,
+    Setup,
     Shell,
 }

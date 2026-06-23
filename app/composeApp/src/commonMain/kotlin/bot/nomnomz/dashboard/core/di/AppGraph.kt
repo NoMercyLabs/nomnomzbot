@@ -22,8 +22,11 @@ import bot.nomnomz.dashboard.core.network.IntegrationsApi
 import bot.nomnomz.dashboard.core.network.RestBotAuthApi
 import bot.nomnomz.dashboard.core.network.RestChannelsApi
 import bot.nomnomz.dashboard.core.network.RestIntegrationsApi
+import bot.nomnomz.dashboard.core.network.RestSystemApi
+import bot.nomnomz.dashboard.core.network.SystemApi
 import bot.nomnomz.dashboard.feature.connect.state.ConnectController
 import bot.nomnomz.dashboard.feature.integrations.state.IntegrationsController
+import bot.nomnomz.dashboard.feature.setup.state.SetupController
 
 // The composition root for this slice — one instance of each engine singleton (frontend-structure.md
 // F7: one HttpClient, one ConnectionStore), wired by explicit constructor injection. Koin replaces
@@ -44,6 +47,7 @@ class AppGraph {
     val channelsApi: ChannelsApi = RestChannelsApi(apiClient)
     val botAuthApi: BotAuthApi = RestBotAuthApi(apiClient)
     val integrationsApi: IntegrationsApi = RestIntegrationsApi(apiClient)
+    val systemApi: SystemApi = RestSystemApi(apiClient)
 
     private val oauthLauncher: OAuthLauncher = OAuthLauncher()
     private val connectLauncher: ConnectLauncher = OAuthConnectLauncher(oauthLauncher)
@@ -52,7 +56,17 @@ class AppGraph {
         ConnectController(
             sessionStore = sessionStore,
             authApi = authApi,
+            systemApi = systemApi,
             oauthLauncher = oauthLauncher,
+        )
+
+    // The first-run setup wizard's holder. On "continue to sign-in" it hands back to the connect
+    // controller's streamer OAuth (signInStreamer), which establishes the session and advances the gate.
+    val setupController: SetupController =
+        SetupController(
+            systemApi = systemApi,
+            connectLauncher = connectLauncher,
+            onReadyToSignIn = connectController::signInStreamer,
         )
 
     val integrationsController: IntegrationsController =
