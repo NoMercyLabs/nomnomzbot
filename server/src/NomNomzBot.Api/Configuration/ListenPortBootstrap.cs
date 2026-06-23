@@ -96,7 +96,13 @@ public static class ListenPortBootstrap
         else
             logger.LogWarning("{Message}", decision.Describe());
 
-        configuration["Urls"] = $"http://localhost:{decision.Port}";
+        // Bind ALL interfaces, not just loopback, so the bot is reachable at the address it advertises over mDNS:
+        // the desktop/native app discovers the bot by its LAN address and connects there, which a loopback-only
+        // bind refuses (deployment-distribution §6 — discovery is pointless if the advertised address isn't
+        // listening). Both stacks (IPv4 0.0.0.0 incl. 127.0.0.1 + LAN, IPv6 [::] incl. ::1). The API is JWT-gated,
+        // and this runs self-host only (SaaS keeps its proxy binding). OAuth callbacks still use the loopback
+        // App:BaseUrl below for the same-machine flow.
+        configuration["Urls"] = BindUrls(decision.Port);
 
         // Point the OAuth redirect URLs at the actual bound port, unless an explicit external base URL (a domain or
         // tunnel the operator fronts the bot with) is configured — that one owns the public URL and must win.
@@ -111,6 +117,13 @@ public static class ListenPortBootstrap
 
         return decision.Port;
     }
+
+    /// <summary>
+    /// The Kestrel <c>Urls</c> value that binds <paramref name="port"/> on every interface, both stacks — IPv4 any
+    /// (<c>0.0.0.0</c>, which includes loopback and the LAN) and IPv6 any (<c>[::]</c>, which includes <c>::1</c>) —
+    /// so the bot is reachable both at <c>localhost</c> and at the LAN address it advertises over mDNS.
+    /// </summary>
+    public static string BindUrls(int port) => $"http://0.0.0.0:{port};http://[::]:{port}";
 
     /// <summary>True if <paramref name="url"/> parses to a loopback host (<c>localhost</c> / <c>127.0.0.1</c>).</summary>
     private static bool IsLoopback(string url) =>

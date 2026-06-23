@@ -96,7 +96,7 @@ public sealed class ListenPortBootstrapTests
         resolver
             .ReceivedPreferredPort.Should()
             .Be(5080, "with no Urls the bootstrap falls back to the self-host default port");
-        configuration["Urls"].Should().Be("http://localhost:5080");
+        configuration["Urls"].Should().Be(ListenPortBootstrap.BindUrls(5080));
         configuration["App:BaseUrl"].Should().Be("http://localhost:5080");
         store.Written.Should().Be(5080);
     }
@@ -139,7 +139,7 @@ public sealed class ListenPortBootstrapTests
 
         resolved.Should().Be(5080);
         resolver.ReceivedLockedPort.Should().BeNull("a first boot has no committed port to honor");
-        configuration["Urls"].Should().Be("http://localhost:5080");
+        configuration["Urls"].Should().Be(ListenPortBootstrap.BindUrls(5080));
         configuration["App:BaseUrl"]
             .Should()
             .Be("http://localhost:5080", "OAuth callbacks must target the bound port");
@@ -163,7 +163,7 @@ public sealed class ListenPortBootstrapTests
         );
 
         resolved.Should().Be(51234);
-        configuration["Urls"].Should().Be("http://localhost:51234");
+        configuration["Urls"].Should().Be(ListenPortBootstrap.BindUrls(51234));
         configuration["App:BaseUrl"].Should().Be("http://localhost:51234");
         store
             .Written.Should()
@@ -189,7 +189,7 @@ public sealed class ListenPortBootstrapTests
         resolver
             .ReceivedLockedPort.Should()
             .Be(51999, "the committed port is passed to the resolver to honor");
-        configuration["Urls"].Should().Be("http://localhost:51999");
+        configuration["Urls"].Should().Be(ListenPortBootstrap.BindUrls(51999));
         configuration["App:BaseUrl"].Should().Be("http://localhost:51999");
         store.WriteCalled.Should().BeFalse("an already-locked port must not be re-committed");
     }
@@ -246,7 +246,7 @@ public sealed class ListenPortBootstrapTests
                 "https://bot.example.com",
                 "an explicit external base URL must win over the loopback default"
             );
-        configuration["Urls"].Should().Be("http://localhost:5080");
+        configuration["Urls"].Should().Be(ListenPortBootstrap.BindUrls(5080));
     }
 
     [Fact]
@@ -288,7 +288,7 @@ public sealed class ListenPortBootstrapTests
         );
 
         resolved.Should().Be(freePort);
-        configuration["Urls"].Should().Be($"http://localhost:{freePort}");
+        configuration["Urls"].Should().Be(ListenPortBootstrap.BindUrls(freePort));
         store.Written.Should().Be(freePort);
     }
 
