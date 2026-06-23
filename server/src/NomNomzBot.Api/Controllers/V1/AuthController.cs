@@ -14,6 +14,7 @@ using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Identity.Dtos;
@@ -47,13 +48,6 @@ public class AuthController : BaseController
         _timeProvider = timeProvider;
         _oauthState = oauthState;
     }
-
-    // Mobile deep-link callbacks may only target the app's own custom scheme — never an arbitrary URL — so a
-    // phishing link cannot redirect the post-auth response (and its tokens) to an attacker (§5). A blank value
-    // is the normal web flow (JSON response, no redirect).
-    private static bool IsAllowedMobileRedirect(string? redirectUri) =>
-        string.IsNullOrWhiteSpace(redirectUri)
-        || redirectUri.StartsWith("nomnomzbot://", StringComparison.OrdinalIgnoreCase);
 
     private string GetPublicBaseUrl()
     {
@@ -116,7 +110,7 @@ public class AuthController : BaseController
         CancellationToken ct
     )
     {
-        if (!IsAllowedMobileRedirect(redirect_uri))
+        if (!ClientRedirectPolicy.IsAllowed(redirect_uri))
             return BadRequest("Disallowed redirect_uri.");
 
         // Issue a single-use, server-side CSRF state nonce; only the opaque nonce travels through Twitch,
@@ -397,7 +391,7 @@ public class AuthController : BaseController
         CancellationToken ct
     )
     {
-        if (!IsAllowedMobileRedirect(redirect_uri))
+        if (!ClientRedirectPolicy.IsAllowed(redirect_uri))
             return BadRequest("Disallowed redirect_uri.");
 
         string state = await _oauthState.IssueAsync(
