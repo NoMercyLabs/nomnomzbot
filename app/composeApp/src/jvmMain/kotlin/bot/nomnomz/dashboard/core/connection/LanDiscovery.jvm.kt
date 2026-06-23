@@ -67,13 +67,20 @@ class JmdnsLanDiscovery : LanDiscovery {
             instances = emptyList()
             listener = null
         }
-        active?.let { l ->
-            toClose.forEach { dns ->
-                runCatching { dns.removeServiceListener(LanServiceTxt.SERVICE_TYPE, l) }
-            }
-        }
-        toClose.forEach { dns -> runCatching { dns.close() } }
         _discovered.value = emptyList()
+
+        // CRITICAL: jmDNS.close() does blocking network teardown. stop() is called from Compose onDispose — the UI
+        // thread — on EVERY screen change and language switch, so closing a dozen interface instances synchronously
+        // here freezes the whole UI (frozen spinner, dead input) for seconds. Tear them down on a background thread.
+        if (toClose.isEmpty()) return
+        thread(name = "nnz-lan-discovery-stop", isDaemon = true) {
+            active?.let { l ->
+                toClose.forEach { dns ->
+                    runCatching { dns.removeServiceListener(LanServiceTxt.SERVICE_TYPE, l) }
+                }
+            }
+            toClose.forEach { dns -> runCatching { dns.close() } }
+        }
     }
 
     private fun runBrowser() {
@@ -132,7 +139,11 @@ class JmdnsLanDiscovery : LanDiscovery {
             val addresses: List<InetAddress> =
                 runCatching { iface.inetAddresses?.toList() }.getOrNull() ?: continue
             for (address in addresses) {
-                if (address is Inet4Address && !address.isLoopbackAddress) result.add(address)
+                // Skip loopback + link-local (169.254) interfaces: the bot never announces meaningfully there, so
+                // browsing them just spawns extra jmDNS instances (more threads/sockets to create and tear down).
+                if (address is Inet4Address && !address.isLoopbackAddress && !address.isLinkLocalAddress) {
+                    result.add(address)
+                }
             }
         }
         return result
