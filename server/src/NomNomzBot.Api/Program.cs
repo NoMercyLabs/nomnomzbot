@@ -592,7 +592,18 @@ try
     // instantiates the module.
     FileExtensionContentTypeProvider staticContentTypes = new();
     staticContentTypes.Mappings[".wasm"] = "application/wasm";
-    app.UseStaticFiles(new StaticFileOptions { ContentTypeProvider = staticContentTypes });
+    app.UseStaticFiles(
+        new StaticFileOptions
+        {
+            ContentTypeProvider = staticContentTypes,
+            // The Compose resource bundle ships files with no registered MIME type (e.g. the .cvr string tables the
+            // dashboard's i18n loads). Static files refuses unknown extensions by default, which 404s them and breaks
+            // the app's resource loading; serve them as octet-stream instead. Safe because the web root holds only
+            // the public dashboard bundle.
+            ServeUnknownFileTypes = true,
+            DefaultContentType = "application/octet-stream",
+        }
+    );
 
     app.UseCors();
     app.UseRateLimiter();
