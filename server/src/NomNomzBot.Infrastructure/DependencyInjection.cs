@@ -156,10 +156,11 @@ public static class DependencyInjection
         services.AddScoped<NomNomzBot.Infrastructure.Chat.Jobs.ChatCheermoteCacheWarmer>();
 
         // Chat-decoration pipeline: the ordered adapters (multi-binding, discovered) + the thin orchestrator that runs
-        // them per message. Stateless → singleton; adapters read only cache on the hot path (chat-decoration §0).
+        // them per message. Scoped to match the per-message orchestrator and the scoped services some adapters use
+        // (the link-preview adapter resolves the scoped ILinkPreviewService); the adapters are stateless.
         services.AddImplementationsOf<NomNomzBot.Application.Chat.Services.IChatDecorationAdapter>(
             infrastructure,
-            ServiceLifetime.Singleton
+            ServiceLifetime.Scoped
         );
         // Badge + cheermote resolvers (cache-only; not name-convention "*Service", so registered explicitly). Singleton.
         services.AddSingleton<

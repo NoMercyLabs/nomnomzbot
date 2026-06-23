@@ -39,6 +39,9 @@ public sealed class ChatDecorationContext
     /// <summary>The badges resolved to image urls — filled by <c>BadgeAdapter</c>, surfaced on the decorated message.</summary>
     public IReadOnlyList<ResolvedChatBadge> ResolvedBadges { get; set; } = [];
 
+    /// <summary>Whether the message's sender meets the standing (subscriber and above) required to trigger a link preview fetch.</summary>
+    public bool SenderHasPreviewStanding { get; init; }
+
     /// <summary>
     /// The channel's enabled decoration feature keys (<c>use_bttv</c> / <c>use_ffz</c> / <c>use_7tv</c> /
     /// <c>use_link_preview</c>), resolved once by the orchestrator from the channel's rules so every adapter can gate

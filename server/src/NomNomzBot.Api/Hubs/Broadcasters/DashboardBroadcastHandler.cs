@@ -117,6 +117,15 @@ public sealed class ChatMessageBroadcastHandler : IEventHandler<ChatMessageRecei
                     DisplayName: f.MentionUserName ?? string.Empty,
                     Color: f.MentionColorHex
                 )
+                : null,
+            LinkUrl: f.LinkUrl,
+            LinkPreview: f.LinkPreview is not null
+                ? new ChatLinkPreviewDto(
+                    Host: f.LinkPreview.Host,
+                    Title: f.LinkPreview.Title,
+                    Description: f.LinkPreview.Description,
+                    ImageUrl: f.LinkPreview.ImageUrl
+                )
                 : null
         );
 }

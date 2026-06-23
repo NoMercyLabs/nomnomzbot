@@ -38,6 +38,7 @@ public sealed class ChatMessageDecorator : IChatMessageDecorator
         ("use_7tv", true),
         ("use_bttv", true),
         ("use_ffz", true),
+        ("use_link_preview", false), // opt-in: link previews make an outbound fetch, so off by default
     ];
 
     // The channel's resolved decoration rules are cached briefly so the chat hot path does not hit the feature store
@@ -74,6 +75,11 @@ public sealed class ChatMessageDecorator : IChatMessageDecorator
             EnabledFeatures = await ResolveEnabledFeaturesAsync(message.BroadcasterId, ct),
             Fragments = message.Fragments.Select(Clone).ToList(),
             Badges = message.Badges,
+            SenderHasPreviewStanding =
+                message.IsSubscriber
+                || message.IsVip
+                || message.IsModerator
+                || message.IsBroadcaster,
         };
 
         foreach (IChatDecorationAdapter adapter in _adapters)

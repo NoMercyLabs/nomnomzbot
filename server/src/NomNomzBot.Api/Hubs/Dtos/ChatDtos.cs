@@ -45,14 +45,19 @@ public record DashboardChatMessageDto(
     string Timestamp
 );
 
-/// <summary>A single fragment of a chat message.</summary>
+/// <summary>A single fragment of a chat message: text | emote | cheermote | mention | link.</summary>
 public record ChatFragmentDto(
     string Type,
     string Text,
     ChatEmoteDto? Emote,
     ChatCheermoteDto? Cheermote,
-    ChatMentionDto? Mention
+    ChatMentionDto? Mention,
+    string? LinkUrl,
+    ChatLinkPreviewDto? LinkPreview
 );
+
+/// <summary>OpenGraph link-preview data (chat-decoration spec §3.5); fields are null when the page exposes no tags.</summary>
+public record ChatLinkPreviewDto(string Host, string? Title, string? Description, string? ImageUrl);
 
 /// <summary>
 /// Emote fragment data — the unified, render-ready shape covering Twitch and third-party (BTTV/FFZ/7TV) emotes

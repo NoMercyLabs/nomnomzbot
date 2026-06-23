@@ -82,4 +82,15 @@ public sealed class ChatMessageFragment
     /// colour memory (chat-decoration spec §3.1). Null until resolved, or when that user has not been seen recently.
     /// </summary>
     public string? MentionColorHex { get; set; }
+
+    // ─── Link fields (when Type == "link") ────────────────────────────────────
+
+    /// <summary>The shared url, when this fragment is a standalone link (chat-decoration spec §4).</summary>
+    public string? LinkUrl { get; init; }
+
+    /// <summary>
+    /// The OpenGraph preview for <see cref="LinkUrl"/>, filled by the (opt-in, gated) link step. Null until resolved,
+    /// when previews are off, or when the page exposes no OpenGraph tags — the link still renders with its url.
+    /// </summary>
+    public LinkPreview? LinkPreview { get; set; }
 }
