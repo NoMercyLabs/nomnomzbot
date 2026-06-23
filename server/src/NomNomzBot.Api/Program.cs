@@ -30,6 +30,7 @@ using NomNomzBot.Infrastructure;
 using NomNomzBot.Infrastructure.Platform;
 using NomNomzBot.Infrastructure.Platform.Deployment;
 using NomNomzBot.Infrastructure.Platform.Persistence;
+using NomNomzBot.Infrastructure.Platform.Security;
 using Scalar.AspNetCore;
 using Serilog;
 
@@ -117,9 +118,21 @@ try
     // Register event handlers declared in the API layer (e.g. ChatMessageBroadcastHandler)
     builder.Services.AddEventHandlersFromAssembly(typeof(Program).Assembly);
 
-    // JWT Auth
+    // JWT Auth. The self-host single executable must run on a clean first launch — the operator never edits a
+    // config file — so when no strong Jwt:Secret was supplied we generate one and persist it OS-natively
+    // (SelfHostSecretStore: DPAPI / user-only file) so tokens survive restarts. A strong configured value always
+    // wins; SaaS must supply its own (left as-is so the guard below rejects a weak one).
+    string? configuredJwtSecret = builder.Configuration["Jwt:Secret"];
+    bool isSaas = string.Equals(
+        builder.Configuration["Deployment:Mode"]?.Replace("_", string.Empty),
+        "saas",
+        StringComparison.OrdinalIgnoreCase
+    );
     string jwtSecret =
-        builder.Configuration["Jwt:Secret"] ?? "change-me-in-production-at-least-32-chars!";
+        !isSaas && StartupSecretGuard.IsWeakOrDefaultJwtSecret(configuredJwtSecret)
+            ? SelfHostSecretStore.LoadOrCreateJwtSecret()
+            : configuredJwtSecret ?? "change-me-in-production-at-least-32-chars!";
+    builder.Configuration["Jwt:Secret"] = jwtSecret;
 
     // Fail fast in production rather than silently run with publicly-known default secrets (§2/§3).
     StartupSecretGuard.Validate(

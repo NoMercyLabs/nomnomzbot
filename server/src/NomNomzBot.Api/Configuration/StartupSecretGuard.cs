@@ -28,6 +28,16 @@ public static class StartupSecretGuard
     ];
 
     /// <summary>
+    /// True when a JWT signing secret is missing, shorter than 32 chars, or one of the bundled development
+    /// defaults — i.e. unfit for production. The self-host boot uses this to decide whether to auto-generate a
+    /// persisted secret (<c>SelfHostSecretStore</c>) before <see cref="Validate"/> runs.
+    /// </summary>
+    public static bool IsWeakOrDefaultJwtSecret(string? jwtSecret) =>
+        string.IsNullOrWhiteSpace(jwtSecret)
+        || jwtSecret.Length < 32
+        || DevJwtSecrets.Contains(jwtSecret);
+
+    /// <summary>
     /// Throws <see cref="InvalidOperationException"/> when, outside development, the JWT secret is a known
     /// default or shorter than 32 chars, or the encryption key is the bundled development key. No-op in
     /// development, where the defaults are expected.
@@ -37,7 +47,7 @@ public static class StartupSecretGuard
         if (isDevelopment)
             return;
 
-        if (jwtSecret.Length < 32 || DevJwtSecrets.Contains(jwtSecret))
+        if (IsWeakOrDefaultJwtSecret(jwtSecret))
             throw new InvalidOperationException(
                 "Jwt:Secret must be a strong, non-default value (>= 32 chars) in production. "
                     + "Generate one with: openssl rand -base64 32"
