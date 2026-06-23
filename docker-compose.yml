@@ -1,0 +1,147 @@
+# -----------------------------------------------------------------------------
+#  Copyright (c) NoMercy Labs.
+#
+#  This file is part of NomNomzBot, free software licensed under the GNU Affero
+#  General Public License v3.0 or later. You may redistribute and/or modify it
+#  under those terms. Distributed WITHOUT ANY WARRANTY. See LICENSE for details.
+#
+#  SPDX-License-Identifier: AGPL-3.0-or-later
+# -----------------------------------------------------------------------------
+
+# NomNomzBot — self_host_full quickstart stack (deployment-distribution.md §1.1 / §2).
+#
+# One command brings up the whole bot: Postgres + Redis (the durable data tier) and the API
+# container, with Adminer for DB inspection. The same image runs self_host_full here and saas
+# in a fleet — the boot probe (Deployment__Mode) decides which adapters wake up, not this file.
+#
+#   1. cp .env.example .env   (or run ./deploy.sh / .\deploy.ps1)
+#   2. fill in TWITCH_CLIENT_ID / TWITCH_CLIENT_SECRET / TWITCH_BOT_USERNAME
+#   3. docker compose up -d --build
+#
+# The api container auto-migrates Postgres on boot under the run-once guard — no separate
+# migration step. Every secret is read from .env; nothing is hardcoded here.
+
+services:
+  api:
+    # Build from server/ for self-host. To pull the published image instead of building, set
+    #   API_IMAGE=ghcr.io/nomercylabs/nomnomzbot:latest
+    # in .env and run `docker compose up -d` (no --build needed).
+    image: ${API_IMAGE:-nomnomzbot-api:local}
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: nomnomzbot-api
+    ports:
+      - "${API_HTTP_PORT:-5080}:5000"
+      - "${API_HTTPS_PORT:-5081}:5001"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:5000
+      # Force the full profile — Postgres + Redis are reachable on this network so the probe would
+      # pick it anyway, but stating it makes the boot deterministic (deployment-distribution §1).
+      - Deployment__Mode=self_host_full
+      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=${POSTGRES_DB:-nomnomzbot};Username=${POSTGRES_USER:-nomnomzbot};Password=${POSTGRES_PASSWORD:-nomnomzbot_dev}
+      # StackExchange.Redis syntax (host:port[,password=...]) — NOT a redis:// URI, which it can't parse.
+      - ConnectionStrings__Redis=redis:6379${REDIS_PASSWORD:+,password=${REDIS_PASSWORD}}
+      - Jwt__Secret=${JWT_SECRET}
+      - Jwt__Issuer=${JWT_ISSUER:-nomnomzbot}
+      - Jwt__Audience=${JWT_AUDIENCE:-nomnomzbot}
+      - Encryption__Key=${ENCRYPTION_KEY}
+      - App__BaseUrl=${API_BASE_URL:-http://localhost:5080}
+      - App__InitialAdminTwitchId=${INITIAL_ADMIN_TWITCH_ID:-}
+      # Trust X-Forwarded-* only from the proxy in front of the API. Leave TRUSTED_PROXY_NETWORKS
+      # blank when a proxy runs on the host (loopback is trusted by default); set it to the proxy's
+      # docker network when the proxy reaches the API over the bridge (e.g. 172.16.0.0/12).
+      - ForwardedHeaders__KnownNetworks__0=${TRUSTED_PROXY_NETWORKS:-}
+      - Twitch__ClientId=${TWITCH_CLIENT_ID}
+      - Twitch__ClientSecret=${TWITCH_CLIENT_SECRET}
+      - Twitch__BotUsername=${TWITCH_BOT_USERNAME}
+      - Spotify__ClientId=${SPOTIFY_CLIENT_ID:-}
+      - Spotify__ClientSecret=${SPOTIFY_CLIENT_SECRET:-}
+      - Discord__ClientId=${DISCORD_CLIENT_ID:-}
+      - Discord__ClientSecret=${DISCORD_CLIENT_SECRET:-}
+      - YouTube__ClientId=${YOUTUBE_CLIENT_ID:-}
+      - YouTube__ClientSecret=${YOUTUBE_CLIENT_SECRET:-}
+      - Azure__Tts__ApiKey=${AZURE_TTS_API_KEY:-}
+      - Azure__Tts__Region=${AZURE_TTS_REGION:-westeurope}
+      - ElevenLabs__ApiKey=${ELEVENLABS_API_KEY:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5000/health/live || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+    networks:
+      - nomnomzbot
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: nomnomzbot-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-nomnomzbot}
+      POSTGRES_USER: ${POSTGRES_USER:-nomnomzbot}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-nomnomzbot_dev}
+    # Bound to loopback only — Postgres is reached over the compose network, never from outside the host.
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-nomnomzbot} -d ${POSTGRES_DB:-nomnomzbot}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - nomnomzbot
+
+  redis:
+    image: redis:7-alpine
+    container_name: nomnomzbot-redis
+    # When REDIS_PASSWORD is set, require it; otherwise start unauthenticated (the port is loopback-only).
+    command: ["sh", "-c", "redis-server ${REDIS_PASSWORD:+--requirepass \"$$REDIS_PASSWORD\"}"]
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+    # Bound to loopback only — Redis is reached over the compose network, never from outside the host.
+    ports:
+      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ${REDIS_PASSWORD:+-a \"$$REDIS_PASSWORD\"} ping | grep -q PONG"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
+    networks:
+      - nomnomzbot
+
+  adminer:
+    image: adminer:latest
+    container_name: nomnomzbot-adminer
+    # Loopback only — the DB GUI grants full database access behind only the Postgres credentials,
+    # so it is never exposed on a public interface. Drop this service for a hardened deployment.
+    ports:
+      - "127.0.0.1:${ADMINER_PORT:-8082}:8080"
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres
+      ADMINER_DESIGN: dracula
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - nomnomzbot
+
+volumes:
+  postgres_data:
+
+networks:
+  nomnomzbot:
+    driver: bridge
