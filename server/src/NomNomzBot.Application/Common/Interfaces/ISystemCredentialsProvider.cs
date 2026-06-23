@@ -34,6 +34,14 @@ public interface ISystemCredentialsProvider
     );
 
     /// <summary>
+    /// The resolved client id for <paramref name="provider"/> alone — no secret — DB-vaulted
+    /// (<c>"{provider}.client_id"</c>) first, then <c>{Provider}:ClientId</c> from config. This is the no-secret
+    /// path: NomNomzBot ships its own public client id as the config default (zero-setup Device Code Flow), and a
+    /// self-host operator's own app (BYOC) is a DB row that overrides it. Null only when neither source sets it.
+    /// </summary>
+    Task<string?> GetClientIdAsync(string provider, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// A single non-secret system value (e.g. <c>twitch.bot_username</c>), resolved DB-first then config
     /// fallback (<c>{Provider}:{Field}</c> with the field PascalCased). Returns null when unset by either
     /// source. Use for the non-secret config the wizard also captures; secrets go through <see cref="GetAsync"/>.

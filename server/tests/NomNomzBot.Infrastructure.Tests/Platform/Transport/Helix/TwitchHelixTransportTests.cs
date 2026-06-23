@@ -86,6 +86,11 @@ public class TwitchHelixTransportTests
             string field,
             CancellationToken cancellationToken = default
         ) => Task.FromResult(clientId);
+
+        public Task<string?> GetClientIdAsync(
+            string provider,
+            CancellationToken cancellationToken = default
+        ) => Task.FromResult(clientId);
     }
 
     [Fact]

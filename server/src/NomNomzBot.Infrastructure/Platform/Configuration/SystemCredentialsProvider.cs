@@ -38,9 +38,7 @@ public sealed class SystemCredentialsProvider(
     {
         string section = ConfigSectionFor(provider);
 
-        string? clientId =
-            await ReadConfigAsync($"{provider}.client_id", cancellationToken)
-            ?? configuration[$"{section}:ClientId"];
+        string? clientId = await GetClientIdAsync(provider, cancellationToken);
         string? clientSecret =
             await ReadConfigAsync($"{provider}.client_secret", cancellationToken)
             ?? configuration[$"{section}:ClientSecret"];
@@ -50,6 +48,13 @@ public sealed class SystemCredentialsProvider(
 
         return new SystemAppCredentials(clientId, clientSecret);
     }
+
+    public async Task<string?> GetClientIdAsync(
+        string provider,
+        CancellationToken cancellationToken = default
+    ) =>
+        await ReadConfigAsync($"{provider}.client_id", cancellationToken)
+        ?? configuration[$"{ConfigSectionFor(provider)}:ClientId"];
 
     public async Task<string?> GetValueAsync(
         string provider,
