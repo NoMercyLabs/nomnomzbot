@@ -23,8 +23,12 @@ using NomNomzBot.Api.Configuration;
 using NomNomzBot.Api.Hubs;
 using NomNomzBot.Api.Middleware;
 using NomNomzBot.Application;
+using NomNomzBot.Application.Common.Interfaces;
+using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Domain.Enums.Deployment;
 using NomNomzBot.Infrastructure;
 using NomNomzBot.Infrastructure.Platform;
+using NomNomzBot.Infrastructure.Platform.Deployment;
 using NomNomzBot.Infrastructure.Platform.Persistence;
 using Scalar.AspNetCore;
 using Serilog;
@@ -297,79 +301,164 @@ try
         });
     });
 
-    // Health checks
-    builder
-        .Services.AddHealthChecks()
-        .AddNpgSql(
-            builder.Configuration.GetConnectionString("DefaultConnection")
-                ?? "Host=localhost;Database=nomnomzbot;Username=postgres;Password=postgres",
-            name: "postgresql",
-            tags: ["db", "ready"]
-        )
-        .AddCheck(
-            "redis",
-            () =>
-            {
-                string? redisCs =
-                    builder.Configuration.GetConnectionString("Redis")
-                    ?? builder.Configuration["Redis:ConnectionString"];
-                if (string.IsNullOrWhiteSpace(redisCs))
-                    return Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Healthy(
-                        "Redis not configured — using in-memory cache"
-                    );
-                try
+    // Health checks — profile-selected (platform-conventions §7). The DB readiness probe is the resolved
+    // provider's: AddDbContextCheck<AppDbContext> on SQLite (lite — no Npgsql probe, no Postgres dependency),
+    // the Npgsql probe on Postgres (full/SaaS). The Redis check is present only when the cache provider is Redis.
+    (DeploymentMode bootMode, bool _) = DeploymentModeResolver.Resolve(builder.Configuration);
+    bool bootUsesDurableTier =
+        DeploymentModeResolver.DbProviderFor(bootMode) == DbProviderKind.Postgres;
+
+    Microsoft.Extensions.DependencyInjection.IHealthChecksBuilder healthChecks =
+        builder.Services.AddHealthChecks();
+
+    if (bootUsesDurableTier)
+    {
+        healthChecks
+            .AddNpgSql(
+                builder.Configuration.GetConnectionString("DefaultConnection")
+                    ?? "Host=localhost;Database=nomnomzbot;Username=postgres;Password=postgres",
+                name: "postgresql",
+                tags: ["db", "ready"]
+            )
+            .AddCheck(
+                "redis",
+                () =>
                 {
-                    using StackExchange.Redis.ConnectionMultiplexer conn =
-                        StackExchange.Redis.ConnectionMultiplexer.Connect(
-                            redisCs + ",connectTimeout=2000,syncTimeout=2000"
+                    string? redisCs =
+                        builder.Configuration.GetConnectionString("Redis")
+                        ?? builder.Configuration["Redis:ConnectionString"];
+                    if (string.IsNullOrWhiteSpace(redisCs))
+                        return Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Healthy(
+                            "Redis not configured — using in-memory cache"
                         );
-                    conn.GetDatabase().Ping();
-                    return Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Healthy();
-                }
-                catch (Exception ex)
-                {
-                    return Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Unhealthy(
-                        ex.Message
-                    );
-                }
-            },
-            tags: ["cache", "ready"]
-        );
+                    try
+                    {
+                        using StackExchange.Redis.ConnectionMultiplexer conn =
+                            StackExchange.Redis.ConnectionMultiplexer.Connect(
+                                redisCs + ",connectTimeout=2000,syncTimeout=2000"
+                            );
+                        conn.GetDatabase().Ping();
+                        return Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Healthy();
+                    }
+                    catch (Exception ex)
+                    {
+                        return Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Unhealthy(
+                            ex.Message
+                        );
+                    }
+                },
+                tags: ["cache", "ready"]
+            );
+    }
+    else
+    {
+        // Lite: the readiness DB probe is a SQLite reachability check via the bound AppDbContext, and the
+        // cache/bus are in-process (always healthy — nothing external to reach).
+        healthChecks
+            .AddDbContextCheck<NomNomzBot.Infrastructure.Platform.Persistence.AppDbContext>(
+                name: "sqlite",
+                tags: ["db", "ready"]
+            )
+            .AddCheck(
+                "cache",
+                () =>
+                    Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Healthy(
+                        "In-process cache/bus (no external dependency)"
+                    ),
+                tags: ["cache", "ready"]
+            );
+    }
 
     WebApplication app = builder.Build();
 
-    // Wait for infrastructure dependencies before doing anything else
-    try
+    // ── Boot pipeline (deployment-distribution §2) ───────────────────────────────────────────
+    // The deployment mode was already resolved at registration time (bootMode) and every provider-specific
+    // adapter bound from it. The boot order: wait for the durable tier (full/SaaS only) → migrate the resolved
+    // provider's set under IRunOnceGuard → persist the DeploymentProfile row + emit the resolved event (after
+    // migration, so its table exists) → seed → serve.
+    bool usesDurableTier = bootUsesDurableTier;
+
+    // On full/SaaS, wait for the durable data tier. On lite there is NO Postgres and NO Redis — skip entirely.
+    if (usesDurableTier)
     {
-        Log.Information("Waiting for PostgreSQL and Redis to be ready...");
-        await using AsyncServiceScope readinessScope = app.Services.CreateAsyncScope();
-        StartupReadinessChecker checker =
-            readinessScope.ServiceProvider.GetRequiredService<StartupReadinessChecker>();
-        await checker.WaitForPostgresAsync();
-        await checker.WaitForRedisAsync();
+        try
+        {
+            Log.Information("Waiting for PostgreSQL and Redis to be ready...");
+            await using AsyncServiceScope readinessScope = app.Services.CreateAsyncScope();
+            StartupReadinessChecker checker =
+                readinessScope.ServiceProvider.GetRequiredService<StartupReadinessChecker>();
+            await checker.WaitForPostgresAsync();
+            await checker.WaitForRedisAsync();
+        }
+        catch (Exception ex)
+        {
+            Log.Fatal(
+                ex,
+                "Infrastructure dependency not available. "
+                    + "Run 'docker-compose up -d' or configure connection strings in your .env file."
+            );
+            throw;
+        }
     }
-    catch (Exception ex)
+    else
     {
-        Log.Fatal(
-            ex,
-            "Infrastructure dependency not available. "
-                + "Run 'docker-compose up -d' or configure connection strings in your .env file."
+        Log.Information(
+            "Deployment mode is {Mode} (SQLite + in-process cache/bus) — running zero-dependency, no Postgres/Redis wait.",
+            bootMode
         );
-        throw;
     }
 
-    // Run database migrations on startup
+    // Migrate, once, against the resolved provider's migration set (SQLite on lite, Postgres on full/SaaS).
+    // Guarded by IRunOnceGuard: a no-op on self-host (single process), a pg advisory lock on SaaS so exactly one
+    // replica migrates while the others wait. The DbContext was bound to the right provider + migration assembly
+    // at registration time, so MigrateAsync resolves the correct set.
     try
     {
-        Log.Information("Running database migrations...");
+        Log.Information(
+            "Running database migrations ({Provider})...",
+            DeploymentModeResolver.DbProviderFor(bootMode)
+        );
         await using AsyncServiceScope migrationScope = app.Services.CreateAsyncScope();
-        IDatabaseMigrator migrator =
-            migrationScope.ServiceProvider.GetRequiredService<IDatabaseMigrator>();
-        await migrator.MigrateAsync(CancellationToken.None);
+        IRunOnceGuard runOnceGuard =
+            migrationScope.ServiceProvider.GetRequiredService<IRunOnceGuard>();
+        await using IAsyncDisposable? lease = await runOnceGuard.TryAcquireAsync(
+            "db:migrate",
+            TimeSpan.FromMinutes(5)
+        );
+        if (lease is not null)
+        {
+            IDatabaseMigrator migrator =
+                migrationScope.ServiceProvider.GetRequiredService<IDatabaseMigrator>();
+            await migrator.MigrateAsync(CancellationToken.None);
+        }
+        else
+        {
+            Log.Information("Another instance is migrating; waiting for the migrated schema.");
+        }
     }
     catch (Exception ex)
     {
         Log.Fatal(ex, "Database migration failed");
+        throw;
+    }
+
+    // Persist the single-row DeploymentProfile (P.12), probe host capabilities, set the runtime Current accessor,
+    // and emit DeploymentProfileResolvedEvent — AFTER migration, so the DeploymentProfiles table (and the event
+    // journal) exist. The mode this records is re-resolved here and must match the registration-time bootMode.
+    try
+    {
+        await using AsyncServiceScope profileScope = app.Services.CreateAsyncScope();
+        IDeploymentProfileService profileService =
+            profileScope.ServiceProvider.GetRequiredService<IDeploymentProfileService>();
+        Result<DeploymentProfileSnapshot> resolved = await profileService.DetectAndPersistAsync();
+        if (resolved.IsFailure)
+            throw new InvalidOperationException(
+                $"Deployment profile persistence failed: {resolved.ErrorMessage}"
+            );
+    }
+    catch (Exception ex)
+    {
+        Log.Fatal(ex, "Deployment profile persistence failed");
         throw;
     }
 

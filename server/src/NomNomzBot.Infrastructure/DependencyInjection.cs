@@ -22,11 +22,13 @@ using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.RateLimiting;
 using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Abstractions.Transport;
+using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Services;
 using NomNomzBot.Application.Tts.Services;
 using NomNomzBot.Domain.Chat.Interfaces;
+using NomNomzBot.Domain.Enums.Deployment;
 using NomNomzBot.Domain.Music.Interfaces;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Tts.Interfaces;
@@ -38,6 +40,7 @@ using NomNomzBot.Infrastructure.Music;
 using NomNomzBot.Infrastructure.Platform;
 using NomNomzBot.Infrastructure.Platform.Auth;
 using NomNomzBot.Infrastructure.Platform.Caching;
+using NomNomzBot.Infrastructure.Platform.Deployment;
 using NomNomzBot.Infrastructure.Platform.Eventing;
 using NomNomzBot.Infrastructure.Platform.Persistence;
 using NomNomzBot.Infrastructure.Platform.Persistence.Interceptors;
@@ -65,21 +68,52 @@ public static class DependencyInjection
         services.AddScoped<SoftDeleteInterceptor>();
         services.AddScoped<TenantStampInterceptor>();
 
-        // DbContext with Npgsql and interceptors
+        // ── Deployment profile (platform-conventions §3.3, deployment-distribution §2) ────────
+        // Resolve the deployment mode ONCE, here at registration time (before the host is built), so every
+        // provider-specific adapter below is DI-selected from it — the DB provider, cache, bus, KEK, run-once
+        // guard, and rate-limiter store. The mode is forced by config/env (Deployment:Mode / App:DeploymentMode)
+        // or auto-detected by probing Postgres + Redis reachability (both up ⇒ full, else lite). The single-row
+        // DeploymentProfile (P.12) is persisted + the resolved event emitted at boot by DeploymentProfileService.
+        (DeploymentMode mode, bool _) = DeploymentModeResolver.Resolve(configuration);
+        DbProviderKind dbProvider = DeploymentModeResolver.DbProviderFor(mode);
+        CacheProviderKind cacheProvider = DeploymentModeResolver.CacheProviderFor(mode);
+
+        services.AddSingleton<IInfraReachabilityProbe, InfraReachabilityProbe>();
+        services.AddSingleton<IDeploymentProfileService, DeploymentProfileService>();
+
+        // DbContext provider — SQLite (lite, a file beside the binary) or Npgsql (full/SaaS). The interceptors +
+        // the query-filter warning suppression are identical on both; only the provider + its migration set differ.
         string? connectionString =
             configuration.GetConnectionString("DefaultConnection")
             ?? configuration.GetSection("Database:ConnectionString").Value;
+        string sqliteConnectionString =
+            configuration.GetConnectionString("SqliteConnection") ?? "Data Source=./nomnomz.db";
 
         services.AddDbContext<AppDbContext>(
             (serviceProvider, options) =>
             {
-                options.UseNpgsql(
-                    connectionString,
-                    npgsqlOptions =>
-                    {
-                        npgsqlOptions.MigrationsAssembly(typeof(AppDbContext).Assembly.FullName);
-                    }
-                );
+                if (dbProvider == DbProviderKind.Sqlite)
+                {
+                    options.UseSqlite(
+                        sqliteConnectionString,
+                        sqliteOptions =>
+                        {
+                            sqliteOptions.MigrationsAssembly("NomNomzBot.Migrations.Sqlite");
+                        }
+                    );
+                }
+                else
+                {
+                    options.UseNpgsql(
+                        connectionString,
+                        npgsqlOptions =>
+                        {
+                            npgsqlOptions.MigrationsAssembly(
+                                typeof(AppDbContext).Assembly.FullName
+                            );
+                        }
+                    );
+                }
 
                 options.AddInterceptors(
                     serviceProvider.GetRequiredService<AuditableEntityInterceptor>(),
@@ -106,6 +140,13 @@ public static class DependencyInjection
         services.AddScoped<IApplicationDbContext>(provider =>
             provider.GetRequiredService<AppDbContext>()
         );
+
+        // Run-once guard (platform-conventions §3.8) — no-op on self-host (single process), pg advisory lock on
+        // SaaS. Rate-limiter counter store (§3.7) — in-memory per-instance on lite, Redis cluster-wide on full/SaaS.
+        if (mode == DeploymentMode.Saas)
+            services.AddSingleton<IRunOnceGuard, PostgresRunOnceGuard>();
+        else
+            services.AddSingleton<IRunOnceGuard, NoOpRunOnceGuard>();
 
         // EventBus (singleton -- resolves scoped handlers internally via IServiceProvider).
         // IEventBus is the JournalingEventBusDecorator over the concrete EventBus: every publish is captured to
@@ -308,7 +349,8 @@ public static class DependencyInjection
             typeof(ITtsService), // singleton — stateful TTS queues
             typeof(ITwitchChatService), // singleton + hosted (shared TwitchIrcService instance)
             typeof(ITwitchEventSubService), // singleton + hosted (shared TwitchEventSubHostedService instance)
-            typeof(ISubjectKeyService) // crypto envelope — wired explicitly below
+            typeof(ISubjectKeyService), // crypto envelope — wired explicitly below
+            typeof(IDeploymentProfileService) // singleton — boot detector + Current accessor (wired explicitly above)
         );
 
         // Repositories (scoped — concrete GenericRepository<T> subclasses, consumed by type).
@@ -368,10 +410,16 @@ public static class DependencyInjection
         // ISessionService, IScopeGrantService, IIntegrationOAuthService, IAuthService follow the
         // I<X>Service single-impl convention and are bound scoped by AddServicesByConvention above.
 
-        // Caching — use Redis if configured, otherwise fall back to in-memory
+        // Caching — profile-selected (platform-conventions §3.10). Full/SaaS bind the Redis-backed distributed
+        // cache + the cross-node rate-limiter store; lite binds the in-process memory cache + a per-instance
+        // rate-limiter store. The IEventBus stays the in-process bus on every profile today (the cross-node
+        // RedisEventBus is an additive adapter that lands with the SaaS conduit subsystem).
         string? redisConnectionString =
             configuration.GetConnectionString("Redis") ?? configuration["Redis:ConnectionString"];
-        if (!string.IsNullOrWhiteSpace(redisConnectionString))
+        if (
+            cacheProvider == CacheProviderKind.Redis
+            && !string.IsNullOrWhiteSpace(redisConnectionString)
+        )
         {
             services.AddStackExchangeRedisCache(options =>
             {
@@ -379,12 +427,19 @@ public static class DependencyInjection
                 options.InstanceName = "nomnomzbot:";
             });
             services.AddSingleton<ICacheService, DistributedCacheService>();
+
+            // One shared multiplexer backs the distributed rate-limiter counter store.
+            services.AddSingleton<StackExchange.Redis.IConnectionMultiplexer>(_ =>
+                StackExchange.Redis.ConnectionMultiplexer.Connect(redisConnectionString)
+            );
+            services.AddSingleton<IRateLimiterPartitionStore, RedisRateLimiterPartitionStore>();
         }
         else
         {
             services.AddMemoryCache();
             services.AddDistributedMemoryCache();
             services.AddSingleton<ICacheService, MemoryCacheService>();
+            services.AddSingleton<IRateLimiterPartitionStore, InMemoryRateLimiterPartitionStore>();
         }
 
         // The single clock (platform-conventions §3.11): every service / handler /

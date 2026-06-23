@@ -781,6 +781,69 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
             );
 
             migrationBuilder.CreateTable(
+                name: "DeploymentProfiles",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    InstanceId = table.Column<Guid>(type: "uuid", nullable: false),
+                    Mode = table.Column<string>(
+                        type: "character varying(20)",
+                        maxLength: 20,
+                        nullable: false
+                    ),
+                    WasAutoDetected = table.Column<bool>(type: "boolean", nullable: false),
+                    DbProvider = table.Column<string>(
+                        type: "character varying(20)",
+                        maxLength: 20,
+                        nullable: false
+                    ),
+                    CacheProvider = table.Column<string>(
+                        type: "character varying(20)",
+                        maxLength: 20,
+                        nullable: false
+                    ),
+                    EventSubTransport = table.Column<string>(
+                        type: "character varying(20)",
+                        maxLength: 20,
+                        nullable: false
+                    ),
+                    CodeExecutor = table.Column<string>(
+                        type: "character varying(20)",
+                        maxLength: 20,
+                        nullable: false
+                    ),
+                    TokenVault = table.Column<string>(
+                        type: "character varying(20)",
+                        maxLength: 20,
+                        nullable: false
+                    ),
+                    ExposureModel = table.Column<string>(
+                        type: "character varying(20)",
+                        maxLength: 20,
+                        nullable: false
+                    ),
+                    RlsEnabled = table.Column<bool>(type: "boolean", nullable: false),
+                    DefaultGuidanceLevel = table.Column<string>(
+                        type: "character varying(20)",
+                        maxLength: 20,
+                        nullable: false
+                    ),
+                    CreatedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                    UpdatedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_DeploymentProfiles", x => x.Id);
+                }
+            );
+
+            migrationBuilder.CreateTable(
                 name: "EarningRules",
                 columns: table => new
                 {
@@ -5238,6 +5301,13 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
             );
 
             migrationBuilder.CreateIndex(
+                name: "IX_DeploymentProfiles_InstanceId",
+                table: "DeploymentProfiles",
+                column: "InstanceId",
+                unique: true
+            );
+
+            migrationBuilder.CreateIndex(
                 name: "IX_DiscordGuildConnections_BroadcasterId_GuildId",
                 table: "DiscordGuildConnections",
                 columns: new[] { "BroadcasterId", "GuildId" },
@@ -6097,6 +6167,8 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
             migrationBuilder.DropTable(name: "CurrencyLedgerEntries");
 
             migrationBuilder.DropTable(name: "DeletionAuditLogs");
+
+            migrationBuilder.DropTable(name: "DeploymentProfiles");
 
             migrationBuilder.DropTable(name: "DiscordMemberOptIns");
 

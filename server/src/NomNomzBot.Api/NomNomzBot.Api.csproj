@@ -3,9 +3,32 @@
     <RootNamespace>NomNomzBot.Api</RootNamespace>
   </PropertyGroup>
 
+  <!-- Self-host `lite` single-file binary (deployment-distribution §1.1). Publish per-OS with, e.g.:
+         dotnet publish src/NomNomzBot.Api -c Release -r win-x64   (or linux-x64 / linux-arm64 / osx-x64 / osx-arm64)
+       PublishSingleFile + SelfContained are set here so the published artifact is ONE self-contained file named
+       `nomnomz` — no .NET runtime install, no Docker. The native SQLite library (e_sqlite3) is bundled and
+       self-extracted at first run; the embedded SQLite migration set ships via the Migrations.Sqlite project
+       reference. These apply only on a self-contained RID publish, so framework-dependent Debug builds / the
+       Docker image (UseAppHost=false) are unaffected. -->
+  <PropertyGroup Condition="'$(SelfContained)' == 'true' and '$(RuntimeIdentifier)' != ''">
+    <PublishSingleFile>true</PublishSingleFile>
+    <AssemblyName>nomnomz</AssemblyName>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <!-- SQLitePCLRaw needs the e_sqlite3 native present; keep it as a bundled native, not trimmed/inlined. -->
+    <PublishTrimmed>false</PublishTrimmed>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <!-- Globalization-invariant keeps the binary small and ICU-free; the bot's user-facing i18n is the frontend's,
+         and the backend does no culture-sensitive formatting on the hot path. -->
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+  </PropertyGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\NomNomzBot.Application\NomNomzBot.Application.csproj" />
     <ProjectReference Include="..\NomNomzBot.Infrastructure\NomNomzBot.Infrastructure.csproj" />
+    <!-- The SQLite migration set must ship in the api artifact (esp. the lite single-file binary) so
+         IHost.MigrateAsync() can apply it at runtime. Referenced for deployment, not compile-time use. -->
+    <ProjectReference Include="..\NomNomzBot.Migrations.Sqlite\NomNomzBot.Migrations.Sqlite.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -19,6 +42,7 @@
     <PackageReference Include="Serilog.Sinks.Console" />
     <PackageReference Include="Serilog.Sinks.File" />
     <PackageReference Include="AspNetCore.HealthChecks.NpgSql" />
+    <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>

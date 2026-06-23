@@ -217,6 +217,8 @@ public class AppDbContext : DbContext, IApplicationDbContext
         Set<NomNomzBot.Domain.Analytics.Entities.ViewerEngagementDaily>();
     public DbSet<NomNomzBot.Domain.Analytics.Entities.ChannelAnalyticsDaily> ChannelAnalyticsDailies =>
         Set<NomNomzBot.Domain.Analytics.Entities.ChannelAnalyticsDaily>();
+    public DbSet<NomNomzBot.Domain.Platform.Entities.DeploymentProfile> DeploymentProfiles =>
+        Set<NomNomzBot.Domain.Platform.Entities.DeploymentProfile>();
     public DbSet<NomNomzBot.Domain.Platform.Entities.FeatureFlag> FeatureFlags =>
         Set<NomNomzBot.Domain.Platform.Entities.FeatureFlag>();
     public DbSet<NomNomzBot.Domain.Platform.Entities.FeatureFlagOverride> FeatureFlagOverrides =>
@@ -226,12 +228,37 @@ public class AppDbContext : DbContext, IApplicationDbContext
     public DbSet<NomNomzBot.Domain.CustomCode.Entities.CodeScriptVersion> CodeScriptVersions =>
         Set<NomNomzBot.Domain.CustomCode.Entities.CodeScriptVersion>();
 
+    protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
+    {
+        base.ConfigureConventions(configurationBuilder);
+
+        // On SQLite (the lite profile), pre-claim the model's complex collection/dictionary CLR types as scalar
+        // JSON BEFORE relationship discovery runs, or EF treats them as navigations to owned entities and fails.
+        // On Postgres the Npgsql provider already maps them (jsonb/hstore) — this is never invoked there.
+        if (Database.ProviderName == "Microsoft.EntityFrameworkCore.Sqlite")
+            configurationBuilder.ConfigureSqliteJsonConventions();
+    }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
 
+        bool isSqlite = Database.ProviderName == "Microsoft.EntityFrameworkCore.Sqlite";
+
+        // On SQLite, pre-empt relationship discovery for Dictionary<string,object> members (Widget.Settings) by
+        // mapping them as scalar JSON before configs/finalization. Must precede ApplyConfigurationsFromAssembly.
+        if (isSqlite)
+            modelBuilder.ApplyScalarJsonProperties();
+
         // Apply all IEntityTypeConfiguration<T> from this assembly
         modelBuilder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());
+
+        // One provider-agnostic model, two providers (deployment-profile). The model is authored Postgres-first;
+        // on SQLite (the lite profile) the Npgsql-native column shapes (jsonb / hstore / text[]) and CLR
+        // collection/dictionary properties are rewritten to a portable TEXT-as-JSON mapping so the same model
+        // migrates and runs on SQLite. No-op on Postgres.
+        if (isSqlite)
+            modelBuilder.ApplySqliteCompatibility();
 
         // Composing tenant + soft-delete global query filters (schema §1.2). Applied after the
         // per-entity configurations so it is the single authoritative filter per entity; the

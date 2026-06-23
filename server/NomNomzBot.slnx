@@ -3,6 +3,7 @@
     <Project Path="src/NomNomzBot.Domain/NomNomzBot.Domain.csproj" />
     <Project Path="src/NomNomzBot.Application/NomNomzBot.Application.csproj" />
     <Project Path="src/NomNomzBot.Infrastructure/NomNomzBot.Infrastructure.csproj" />
+    <Project Path="src/NomNomzBot.Migrations.Sqlite/NomNomzBot.Migrations.Sqlite.csproj" />
     <Project Path="src/NomNomzBot.Api/NomNomzBot.Api.csproj" />
   </Folder>
   <Folder Name="/tests/">
