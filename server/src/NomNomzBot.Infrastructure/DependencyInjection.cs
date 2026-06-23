@@ -81,6 +81,18 @@ public static class DependencyInjection
         services.AddSingleton<IInfraReachabilityProbe, InfraReachabilityProbe>();
         services.AddSingleton<IDeploymentProfileService, DeploymentProfileService>();
 
+        // The bound-listen-port carrier (deployment-distribution §6): the Api host resolves the actual port (smart
+        // self-host port handling) before binding and publishes it here; the self-host mDNS advertiser reads it so
+        // the LAN announcement carries the real port. Always registered (the Api sets it on every profile); only the
+        // advertiser that consumes it is self-host-gated below.
+        services.AddSingleton<IListenEndpointAccessor, ListenEndpointAccessor>();
+
+        // mDNS / DNS-SD LAN advertiser (deployment-distribution §6) — SELF-HOST ONLY. A cloud bot has no LAN to be
+        // discovered on, so on SaaS the service is simply not added (no no-op shim). It is excluded from the hosted
+        // worker auto-scan below so this profile gate is the single place that decides whether it runs.
+        if (mode is DeploymentMode.SelfHostLite or DeploymentMode.SelfHostFull)
+            services.AddHostedService<MdnsAdvertiserHostedService>();
+
         // DbContext provider — SQLite (lite, a file beside the binary) or Npgsql (full/SaaS). The interceptors +
         // the query-filter warning suppression are identical on both; only the provider + its migration set differ.
         string? connectionString =
@@ -365,7 +377,9 @@ public static class DependencyInjection
         services.AddHostedWorkers(
             infrastructure,
             typeof(TwitchEventSubHostedService),
-            typeof(ChannelRegistry)
+            typeof(ChannelRegistry),
+            // Profile-gated above (self-host only) — must not be picked up unconditionally by the worker scan.
+            typeof(MdnsAdvertiserHostedService)
         );
 
         // Security — envelope encryption (gdpr-crypto spec). Field cipher = AES-256-GCM + AAD over a

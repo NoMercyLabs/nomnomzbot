@@ -382,7 +382,26 @@ try
             );
     }
 
+    // ── Smart self-host port handling (deployment-distribution §6) ───────────────────────────
+    // Before the host binds, resolve the actual listen port so a port conflict never crashes the bot: prefer the
+    // configured port; if a stale/duplicate NomNomzBot holds it, replace that (one canonical bot); if another app
+    // holds it, step aside onto a free ephemeral port (the UI discovers the real port over the LAN via mDNS). SaaS
+    // is left untouched (it binds behind a proxy on a fixed port). The bootstrap logger is used because this runs
+    // before the DI logger exists; the resolved port is published to IListenEndpointAccessor after Build() so the
+    // self-host mDNS advertiser announces the real port.
+    Microsoft.Extensions.Logging.ILogger listenPortLogger =
+        new Serilog.Extensions.Logging.SerilogLoggerFactory(Log.Logger).CreateLogger("ListenPort");
+    int? resolvedListenPort = ListenPortBootstrap.ResolveAndApply(
+        builder.Configuration,
+        bootMode,
+        listenPortLogger
+    );
+
     WebApplication app = builder.Build();
+
+    // Publish the bound port so the self-host mDNS advertiser advertises the actual port (deployment-distribution §6).
+    if (resolvedListenPort is { } boundPort)
+        app.Services.GetRequiredService<IListenEndpointAccessor>().SetPort(boundPort);
 
     // ── Boot pipeline (deployment-distribution §2) ───────────────────────────────────────────
     // The deployment mode was already resolved at registration time (bootMode) and every provider-specific

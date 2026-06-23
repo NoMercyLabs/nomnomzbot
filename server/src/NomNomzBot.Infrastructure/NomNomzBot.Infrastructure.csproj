@@ -40,5 +40,14 @@
     <PackageReference Include="Polly.Core" />
     <PackageReference Include="Microsoft.Data.Sqlite" />
     <PackageReference Include="Wasmtime" />
+    <!-- mDNS / DNS-SD advertiser for `_nomnomz._tcp` (deployment-distribution §6); used only by
+         MdnsAdvertiserHostedService, registered only on self-host. Makaretu transitively pulls the legacy
+         IPNetwork2 package whose System.Net.IPNetwork collides with .NET 10's built-in System.Net.IPNetwork.
+         PrivateAssets=compile stops those transitive *compile-time* references leaking into the Api project (which
+         references Infrastructure and uses the BCL System.Net.IPNetwork in its ForwardedHeaders config) while still
+         flowing the runtime assemblies so the advertiser works at runtime. -->
+    <PackageReference Include="Makaretu.Dns.Multicast">
+      <PrivateAssets>compile</PrivateAssets>
+    </PackageReference>
   </ItemGroup>
 </Project>

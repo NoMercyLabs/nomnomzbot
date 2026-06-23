@@ -32,6 +32,13 @@ public static class SelfHostDataPaths
 
     public static string KeysDirectory => Ensure(Path.Combine(BaseDirectory, "keys"));
 
+    /// <summary>
+    /// The file that records the TCP port this install has committed to (deployment-distribution §6). Written the
+    /// first time the bot binds a self-host loopback port; read on every later boot so the port — and therefore the
+    /// OAuth redirect URLs registered against it — stays stable. Delete it to let the bot re-pick its port.
+    /// </summary>
+    public static string ListenPortFile => Path.Combine(BaseDirectory, "listen-port");
+
     private static string ResolveBaseDirectory()
     {
         string? overrideDir = Environment.GetEnvironmentVariable("NOMNOMZ_DATA_DIR");

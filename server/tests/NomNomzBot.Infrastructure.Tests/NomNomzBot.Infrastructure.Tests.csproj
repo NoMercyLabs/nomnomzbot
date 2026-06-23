@@ -16,6 +16,11 @@
     <PackageReference Include="NSubstitute" />
     <PackageReference Include="xunit" />
     <PackageReference Include="xunit.runner.visualstudio" />
+    <!-- The mDNS advertiser test asserts the constructed ServiceProfile (service type, port, TXT records). The
+         Infrastructure project marks Makaretu PrivateAssets=compile (so it does not leak its IPNetwork2 transitive
+         into Api), which means consumers don't inherit the compile-time reference — the test project references it
+         directly to read the ServiceProfile shape. -->
+    <PackageReference Include="Makaretu.Dns.Multicast" />
   </ItemGroup>
 
   <ItemGroup>
