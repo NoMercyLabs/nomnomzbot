@@ -269,6 +269,7 @@ internal sealed class GdprTestDbContext : DbContext, IApplicationDbContext
         b.Ignore<ChannelModerator>();
         b.Ignore<Channel>();
         b.Ignore<Reward>();
+        b.Ignore<NomNomzBot.Domain.Quotes.Entities.Quote>();
         b.Ignore<Widget>();
         b.Ignore<EventSubSubscription>();
         b.Ignore<EventSubConduit>();
@@ -306,6 +307,8 @@ internal sealed class GdprTestDbContext : DbContext, IApplicationDbContext
     public DbSet<ChannelModerator> ChannelModerators => Set<ChannelModerator>();
     public DbSet<Channel> Channels => Set<Channel>();
     public DbSet<Reward> Rewards => Set<Reward>();
+    public DbSet<NomNomzBot.Domain.Quotes.Entities.Quote> Quotes =>
+        Set<NomNomzBot.Domain.Quotes.Entities.Quote>();
     public DbSet<Widget> Widgets => Set<Widget>();
     public DbSet<EventSubSubscription> EventSubSubscriptions => Set<EventSubSubscription>();
     public DbSet<EventSubConduit> EventSubConduits => Set<EventSubConduit>();

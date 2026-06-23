@@ -264,6 +264,10 @@ public sealed class ActionDefinitionSeeder : ISeeder
         M("reward:redemption:fulfill", Mod);
         M("reward:redemption:refund", Mod);
 
+        // Quotes (quotes.md §5) — read at Moderator, write at Moderator (mods curate the quote library).
+        M("quotes:read", Mod);
+        M("quotes:write", Mod);
+
         // ── Community plane (Default = Floor = Everyone(0), Tier = Low, Grant = true) ──
         void C(string key) =>
             s.Add(

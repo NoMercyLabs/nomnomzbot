@@ -21,6 +21,7 @@ using NomNomzBot.Domain.Federation.Entities;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Integrations.Entities;
 using NomNomzBot.Domain.Platform.Entities;
+using NomNomzBot.Domain.Quotes.Entities;
 using NomNomzBot.Domain.Rewards.Entities;
 using NomNomzBot.Domain.Tts.Entities;
 using NomNomzBot.Domain.Webhooks.Entities;
@@ -37,6 +38,7 @@ public interface IApplicationDbContext
     DbSet<Service> Services { get; }
     DbSet<Command> Commands { get; }
     DbSet<Reward> Rewards { get; }
+    DbSet<Quote> Quotes { get; }
     DbSet<Widget> Widgets { get; }
     DbSet<EventSubSubscription> EventSubSubscriptions { get; }
     DbSet<EventSubConduit> EventSubConduits { get; }

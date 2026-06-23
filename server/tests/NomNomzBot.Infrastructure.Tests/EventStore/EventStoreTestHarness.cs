@@ -231,6 +231,8 @@ internal sealed class EventStoreTestDbContext : DbContext, IApplicationDbContext
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Rewards.Entities.Reward> Rewards =>
         throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Quotes.Entities.Quote> Quotes =>
+        throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Widgets.Entities.Widget> Widgets =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Platform.Entities.EventSubSubscription> EventSubSubscriptions =>

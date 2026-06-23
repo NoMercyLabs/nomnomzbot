@@ -53,6 +53,8 @@ public class AppDbContext : DbContext, IApplicationDbContext
     // Bot features
     public DbSet<Command> Commands => Set<Command>();
     public DbSet<Reward> Rewards => Set<Reward>();
+    public DbSet<NomNomzBot.Domain.Quotes.Entities.Quote> Quotes =>
+        Set<NomNomzBot.Domain.Quotes.Entities.Quote>();
     public DbSet<Widget> Widgets => Set<Widget>();
 
     // EventSub — per-tenant subscription registry (F.7), app-global conduit + shards (F.8/F.9),

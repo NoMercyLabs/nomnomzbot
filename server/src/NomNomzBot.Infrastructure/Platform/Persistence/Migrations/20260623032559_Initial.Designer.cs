@@ -14,7 +14,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260622132105_Initial")]
+    [Migration("20260623032559_Initial")]
     partial class Initial
     {
         /// <inheritdoc />
@@ -4370,6 +4370,54 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.ToTable("Storages");
                 });
 
+            modelBuilder.Entity("NomNomzBot.Domain.Quotes.Entities.Quote", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BroadcasterId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ContextGame")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("CreatedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Number")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("QuotedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("QuotedDisplayName")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BroadcasterId", "Number")
+                        .IsUnique();
+
+                    b.ToTable("Quotes");
+                });
+
             modelBuilder.Entity("NomNomzBot.Domain.Rewards.Entities.Reward", b =>
                 {
                     b.Property<Guid>("Id")
@@ -5308,6 +5356,17 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         .WithMany()
                         .HasForeignKey("BroadcasterId")
                         .OnDelete(DeleteBehavior.Cascade);
+
+                    b.Navigation("Channel");
+                });
+
+            modelBuilder.Entity("NomNomzBot.Domain.Quotes.Entities.Quote", b =>
+                {
+                    b.HasOne("NomNomzBot.Domain.Identity.Entities.Channel", "Channel")
+                        .WithMany()
+                        .HasForeignKey("BroadcasterId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("Channel");
                 });

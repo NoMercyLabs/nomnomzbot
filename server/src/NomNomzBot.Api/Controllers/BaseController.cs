@@ -118,9 +118,8 @@ public abstract class BaseController : ControllerBase
             or "QUOTA_EXCEEDED"
             or "tier_limit_reached"
             or "EGRESS_NOT_ALLOWED" => UnauthorizedResponse(result.ErrorMessage),
-            "NOT_FOUND" or "CHANNEL_NOT_FOUND" or "CHANNEL_NOT_ONBOARDED" => NotFoundResponse(
-                result.ErrorMessage
-            ),
+            "NOT_FOUND" or "CHANNEL_NOT_FOUND" or "CHANNEL_NOT_ONBOARDED" or "QUOTES_EMPTY" =>
+                NotFoundResponse(result.ErrorMessage),
             "VALIDATION_FAILED" or "BET_OUT_OF_RANGE" => BadRequestResponse(result.ErrorMessage),
             "ALREADY_EXISTS"
             or "INSUFFICIENT_FUNDS"
@@ -158,9 +157,8 @@ public abstract class BaseController : ControllerBase
             or "QUOTA_EXCEEDED"
             or "tier_limit_reached"
             or "EGRESS_NOT_ALLOWED" => UnauthorizedResponse(result.ErrorMessage),
-            "NOT_FOUND" or "CHANNEL_NOT_FOUND" or "CHANNEL_NOT_ONBOARDED" => NotFoundResponse(
-                result.ErrorMessage
-            ),
+            "NOT_FOUND" or "CHANNEL_NOT_FOUND" or "CHANNEL_NOT_ONBOARDED" or "QUOTES_EMPTY" =>
+                NotFoundResponse(result.ErrorMessage),
             "VALIDATION_FAILED" or "BET_OUT_OF_RANGE" => BadRequestResponse(result.ErrorMessage),
             "ALREADY_EXISTS"
             or "INSUFFICIENT_FUNDS"
