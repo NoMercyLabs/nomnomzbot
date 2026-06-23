@@ -94,6 +94,10 @@ class ConnectController(
      * the Setup wizard (fresh self-host). Errors surface on [status] and the gate stays on Connect.
      */
     suspend fun connect() {
+        // Single-flight: never start a second device login while one is already in flight — a second poll loop
+        // would double the rate we hit the backend (and Twitch). The button is also disabled while busy.
+        if (loginInProgress()) return
+
         val normalized: String? = normalizeBaseUrl(_baseUrl.value)
         if (normalized == null) {
             _status.value = ConnectStatus.Error(ConnectError.InvalidUrl)
@@ -116,8 +120,13 @@ class ConnectController(
      * carries its base URL, so no URL validation is needed.
      */
     suspend fun connectTo(profile: ConnectionProfile) {
+        if (loginInProgress()) return
         beginOnboarding(profile)
     }
+
+    /** True while a device login is connecting or awaiting approval — used to refuse a second concurrent login. */
+    private fun loginInProgress(): Boolean =
+        _status.value is ConnectStatus.Connecting || _status.value is ConnectStatus.AwaitingApproval
 
     /**
      * The single onboarding flow shared by the typed ([connect]) and discovered ([connectTo]) paths: the

@@ -194,6 +194,25 @@ public sealed class TwitchDeviceCodeServiceTests
         outcome.Status.Should().Be(DevicePollStatus.Expired);
     }
 
+    [Fact]
+    public async Task PollOnceAsync_WhenPolledTooSoon_ReturnsPending_WithoutCallingTwitch()
+    {
+        // The etiquette guard: a second poll for the same code within Twitch's interval must be reported pending
+        // WITHOUT a Twitch round-trip, so a fast/duplicate client can't slam the device endpoint (slow_down).
+        (TwitchDeviceCodeService service, StubHandler wire) = Build(
+            ConfigWith("nomnomz-public-id"),
+            HttpStatusCode.BadRequest,
+            """{"status":400,"message":"authorization_pending"}"""
+        );
+
+        DevicePollOutcome first = await service.PollOnceAsync("DEV-ABC-123", Scopes);
+        DevicePollOutcome second = await service.PollOnceAsync("DEV-ABC-123", Scopes);
+
+        first.Status.Should().Be(DevicePollStatus.Pending); // Twitch said authorization_pending
+        second.Status.Should().Be(DevicePollStatus.Pending); // throttled — never reached Twitch
+        wire.CallCount.Should().Be(1); // only the first poll hit Twitch
+    }
+
     // ── harness ────────────────────────────────────────────────────────────────
 
     private static IConfiguration ConfigWith(string clientId) =>
@@ -220,6 +239,7 @@ public sealed class TwitchDeviceCodeServiceTests
         StubHandler wire = new(status, body);
         TwitchDeviceCodeService service = new(
             credentials,
+            new DeviceCodePollThrottle(TimeProvider.System),
             new SingleClientFactory(wire),
             NullLogger<TwitchDeviceCodeService>.Instance,
             TimeProvider.System

@@ -27,6 +27,7 @@ namespace NomNomzBot.Infrastructure.Platform.Auth;
 public sealed class TwitchDeviceCodeService : ITwitchDeviceCodeService
 {
     private readonly ISystemCredentialsProvider _credentials;
+    private readonly DeviceCodePollThrottle _throttle;
     private readonly HttpClient _http;
     private readonly ILogger<TwitchDeviceCodeService> _logger;
     private readonly TimeProvider _timeProvider;
@@ -36,14 +37,19 @@ public sealed class TwitchDeviceCodeService : ITwitchDeviceCodeService
     private const string DeviceCodeGrant = "urn:ietf:params:oauth:grant-type:device_code";
     private const string TwitchProvider = AuthEnums.IntegrationProvider.Twitch;
 
+    // Twitch's device-flow poll interval is 5s; never forward a poll to Twitch faster than this per code.
+    private static readonly TimeSpan MinPollInterval = TimeSpan.FromSeconds(5);
+
     public TwitchDeviceCodeService(
         ISystemCredentialsProvider credentials,
+        DeviceCodePollThrottle throttle,
         IHttpClientFactory httpClientFactory,
         ILogger<TwitchDeviceCodeService> logger,
         TimeProvider timeProvider
     )
     {
         _credentials = credentials;
+        _throttle = throttle;
         _http = httpClientFactory.CreateClient("twitch-auth");
         _logger = logger;
         _timeProvider = timeProvider;
@@ -96,6 +102,12 @@ public sealed class TwitchDeviceCodeService : ITwitchDeviceCodeService
         CancellationToken ct = default
     )
     {
+        // Etiquette guard: never forward a poll to Twitch faster than the device-flow interval for this code,
+        // however fast — or however many — clients call us; Twitch returns slow_down otherwise. A too-soon poll
+        // is reported as still pending, with no Twitch round-trip.
+        if (!_throttle.TryAcquire(deviceCode, MinPollInterval))
+            return new DevicePollOutcome(DevicePollStatus.Pending);
+
         string? clientId = await _credentials.GetClientIdAsync(TwitchProvider, ct);
         if (string.IsNullOrWhiteSpace(clientId))
             return new DevicePollOutcome(DevicePollStatus.Error);

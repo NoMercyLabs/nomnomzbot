@@ -578,6 +578,11 @@ public static class DependencyInjection
         // Twitch HTTP clients with resilience
         services.AddHttpClient("twitch-auth");
 
+        // Per-device-code poll rate limiter (singleton) — keeps the Device Code Flow poll within Twitch's
+        // interval no matter how fast/many clients call us. Shared state, so it must outlive the scoped auth
+        // services that consume it.
+        services.AddSingleton<Platform.Auth.DeviceCodePollThrottle>();
+
         // ── Helix transport plumbing (twitch-helix.md §3, §7) ────────────────
         // The named "twitch-helix" client carries the full Helix request pipeline:
         //   resilience (retry+breaker+timeout, no 4xx retry) → adaptive header-driven rate limiter →
