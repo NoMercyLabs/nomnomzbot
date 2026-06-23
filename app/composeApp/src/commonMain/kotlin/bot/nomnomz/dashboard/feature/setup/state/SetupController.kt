@@ -63,6 +63,24 @@ class SetupController(
         _state.value = current.copy(values = fieldValues.toMap(), error = null)
     }
 
+    /**
+     * Advance to the next step. Guarded by [SetupState.Steps.canAdvance] so a required step can't be skipped
+     * before the backend confirms it complete; on the last backend step the next position is the review
+     * step (still in range — see [SetupState.Steps.lastIndex]).
+     */
+    fun next() {
+        val current: SetupState.Steps = _state.value as? SetupState.Steps ?: return
+        if (!current.canAdvance || current.currentStep >= current.lastIndex) return
+        _state.value = current.copy(currentStep = current.currentStep + 1, error = null)
+    }
+
+    /** Move back to the previous step (no-op on the first), clearing any surfaced error. */
+    fun back() {
+        val current: SetupState.Steps = _state.value as? SetupState.Steps ?: return
+        if (current.currentStep <= 0) return
+        _state.value = current.copy(currentStep = current.currentStep - 1, error = null)
+    }
+
     /** The current value of a field (empty when untouched). */
     fun valueOf(stepKey: String, fieldKey: String): String = fieldValues[fieldKeyOf(stepKey, fieldKey)].orEmpty()
 
@@ -143,7 +161,8 @@ class SetupController(
     }
 
     // Re-read the wizard + readiness from the backend and rebuild the steps state. Preserves the user's
-    // in-progress field values (held in [fieldValues]) so a save/reload doesn't clear untouched inputs.
+    // in-progress field values (held in [fieldValues]) AND the current step index (so a save/reload — which
+    // replaces the wizard — keeps the user on the step they were filling in, never bouncing back to step 1).
     private suspend fun reload(busy: String?, error: SetupError?) {
         val wizard: SetupWizard =
             when (val result: ApiResult<SetupWizard> = systemApi.wizard()) {
@@ -160,6 +179,11 @@ class SetupController(
                 is ApiResult.Ok -> result.value.ready
             }
 
+        // Keep the user on their current step across a reload; clamp in case the step count shrank.
+        val priorStep: Int = (_state.value as? SetupState.Steps)?.currentStep ?: 0
+        val lastIndex: Int = wizard.steps.size // backend steps + 1 review step ⇒ last valid index == size
+        val currentStep: Int = priorStep.coerceIn(0, lastIndex)
+
         _state.value =
             SetupState.Steps(
                 steps = wizard.steps,
@@ -167,6 +191,7 @@ class SetupController(
                 ready = ready,
                 busy = busy,
                 error = error,
+                currentStep = currentStep,
             )
     }
 
@@ -202,7 +227,10 @@ sealed interface SetupState {
     /**
      * The wizard's steps rendered verbatim from the backend, plus the per-field [values] the user has
      * entered, the [ready] gate (true ⇒ the streamer sign-in is enabled), the [busy] step key (null when
-     * idle; the reserved sign-in token while signing in), and the current [error].
+     * idle; the reserved sign-in token while signing in), the current [error], and [currentStep] — the
+     * 0-based position in the multi-step flow. The flow is the backend [steps] followed by one trailing
+     * **review** step, so the valid index range is `0..steps.size` (the last index, [reviewIndex], is the
+     * review). The UI shows exactly one panel per index; this is the only "which screen" source.
      */
     data class Steps(
         val steps: List<SetupStep>,
@@ -210,7 +238,31 @@ sealed interface SetupState {
         val ready: Boolean,
         val busy: String?,
         val error: SetupError?,
-    ) : SetupState
+        val currentStep: Int = 0,
+    ) : SetupState {
+        /** The index of the trailing review/finish step (one past the last backend step). */
+        val reviewIndex: Int get() = steps.size
+
+        /** The last valid step index — equals [reviewIndex]. */
+        val lastIndex: Int get() = reviewIndex
+
+        /** True when the current position is the review/finish step rather than a backend step. */
+        val onReviewStep: Boolean get() = currentStep >= reviewIndex
+
+        /** The backend step at the current position, or null when on the review step. */
+        val currentBackendStep: SetupStep? get() = steps.getOrNull(currentStep)
+
+        /**
+         * Whether **Next** is allowed from the current step. A backend step advances only once it is
+         * `complete` (the backend's re-read truth — never an optimistic flip) or it is optional; the review
+         * step never "advances" (its Next is the finish action, gated separately by [ready]).
+         */
+        val canAdvance: Boolean
+            get() {
+                val step: SetupStep = currentBackendStep ?: return false
+                return step.complete || !step.required
+            }
+    }
 
     data class Error(val detail: String) : SetupState
 }

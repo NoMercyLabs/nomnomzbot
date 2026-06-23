@@ -26,6 +26,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -38,6 +39,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import bot.nomnomz.dashboard.core.designsystem.component.StepState
+import bot.nomnomz.dashboard.core.designsystem.component.Stepper
+import bot.nomnomz.dashboard.core.designsystem.component.StepperStep
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -57,18 +61,31 @@ import nomnomzbot.composeapp.generated.resources.setup_error_bot
 import nomnomzbot.composeapp.generated.resources.setup_error_missing_fields
 import nomnomzbot.composeapp.generated.resources.setup_error_save
 import nomnomzbot.composeapp.generated.resources.setup_error_signin
+import nomnomzbot.composeapp.generated.resources.setup_nav_back
+import nomnomzbot.composeapp.generated.resources.setup_nav_next
+import nomnomzbot.composeapp.generated.resources.setup_nav_skip
 import nomnomzbot.composeapp.generated.resources.setup_optional_badge
+import nomnomzbot.composeapp.generated.resources.setup_review_not_ready
+import nomnomzbot.composeapp.generated.resources.setup_review_status_done
+import nomnomzbot.composeapp.generated.resources.setup_review_status_pending
+import nomnomzbot.composeapp.generated.resources.setup_review_status_skipped
+import nomnomzbot.composeapp.generated.resources.setup_review_subtitle
+import nomnomzbot.composeapp.generated.resources.setup_review_title
 import nomnomzbot.composeapp.generated.resources.setup_signing_in
+import nomnomzbot.composeapp.generated.resources.setup_step_counter
 import nomnomzbot.composeapp.generated.resources.setup_step_done
 import nomnomzbot.composeapp.generated.resources.setup_subtitle
 import nomnomzbot.composeapp.generated.resources.setup_title
 import org.jetbrains.compose.resources.stringResource
 
-// The first-run Setup wizard (frontend.md §5; the setup rung between Connect and the shell). It renders
-// the entire flow from the backend's self-describing wizard (SetupState.Steps.steps) — each step's copy,
-// instructions, the exact redirect URI to register, its input fields, and its live completion state —
-// then runs the REAL credential saves + bot authorization through the injected controller. Nothing is
-// hardcoded about the steps; the backend is the source of truth, so the wizard stays in sync with it.
+// The first-run Setup wizard (frontend.md §5; the setup rung between Connect and the shell), reworked from
+// one overflowing screen into a multi-step stepper flow. The backend wizard is still the source of truth —
+// each backend SetupStep is ONE stepper step, followed by a trailing review/finish step — so the split
+// stays in sync if the backend adds/removes a provider step. The frame is fixed: a stepper header + a
+// Back/Next footer never scroll; only a step's content area scrolls IF that single step overflows. The
+// step's own Save/Authorize buttons run the REAL credential saves + bot authorization through the injected
+// controller; nothing about completion is hardcoded — a step is "complete" only when the backend's re-read
+// says so. The final step runs the existing finish() (streamer OAuth → POST …/setup/complete).
 private const val ACTION_SAVE_CREDENTIALS: String = "save_credentials"
 private const val ACTION_OAUTH_REDIRECT: String = "oauth_redirect"
 private const val FIELD_TYPE_PASSWORD: String = "password"
@@ -78,8 +95,6 @@ private const val SIGNING_IN: String = "__signing_in__"
 fun SetupWizardScreen(controller: SetupController) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
-    val typography = LocalTypography.current
-    val scope = rememberCoroutineScope()
 
     val state: SetupState by controller.state.collectAsStateWithLifecycle()
 
@@ -89,86 +104,104 @@ fun SetupWizardScreen(controller: SetupController) {
         modifier = Modifier.fillMaxSize().background(tokens.background),
         contentAlignment = Alignment.TopCenter,
     ) {
+        when (val current: SetupState = state) {
+            SetupState.Loading -> SetupCentered { CircularProgressIndicator(modifier = Modifier.size(spacing.s6)) }
+
+            is SetupState.Error -> SetupCentered { LoadError(detail = current.detail, controller = controller) }
+
+            is SetupState.Steps -> SetupStepsFrame(controller, current)
+        }
+    }
+}
+
+// The fixed wizard frame: a stepper header that never scrolls, a content area that takes the remaining
+// height (and scrolls only when a single step's own content overflows), and a Back/Next footer pinned at
+// the bottom. Width is constrained by the spacing scale so the form never sprawls.
+@Composable
+private fun SetupStepsFrame(controller: SetupController, state: SetupState.Steps) {
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+    val tokens = LocalTokens.current
+    val scope = rememberCoroutineScope()
+
+    Column(
+        modifier = Modifier
+            .widthIn(max = spacing.s24 * 6)
+            .fillMaxSize()
+            .padding(spacing.s6),
+        verticalArrangement = Arrangement.spacedBy(spacing.s4),
+    ) {
+        // ── Fixed header ────────────────────────────────────────────────────────
+        Text(text = stringResource(Res.string.setup_title), style = typography.xl2, color = tokens.foreground)
+        Text(text = stringResource(Res.string.setup_subtitle), style = typography.sm, color = tokens.mutedForeground)
+        Stepper(steps = stepperModel(state), modifier = Modifier.fillMaxWidth())
+        Text(
+            text = stringResource(Res.string.setup_step_counter, state.currentStep + 1, state.steps.size + 1),
+            style = typography.xs,
+            color = tokens.mutedForeground,
+        )
+
+        // ── Scrolls only if THIS step overflows ─────────────────────────────────
         Column(
             modifier = Modifier
-                .widthIn(max = spacing.s24 * 6)
                 .fillMaxWidth()
-                .verticalScroll(rememberScrollState())
-                .padding(spacing.s6),
-            verticalArrangement = Arrangement.spacedBy(spacing.s4),
+                .weight(1f)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(spacing.s3),
         ) {
-            Text(
-                text = stringResource(Res.string.setup_title),
-                style = typography.xl2,
-                color = tokens.foreground,
-            )
-            Text(
-                text = stringResource(Res.string.setup_subtitle),
-                style = typography.sm,
-                color = tokens.mutedForeground,
-            )
-
-            when (val current: SetupState = state) {
-                SetupState.Loading ->
-                    Box(modifier = Modifier.fillMaxWidth().padding(spacing.s8), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(modifier = Modifier.size(spacing.s6))
-                    }
-
-                is SetupState.Error ->
-                    Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
-                        Text(text = current.detail, style = typography.sm, color = tokens.destructive)
-                        TextButton(onClick = { scope.launch { controller.load() } }) {
-                            Text(stringResource(Res.string.setup_action_retry))
-                        }
-                    }
-
-                is SetupState.Steps -> SetupSteps(controller, current, scope)
-            }
-        }
-    }
-}
-
-@Composable
-private fun SetupSteps(
-    controller: SetupController,
-    state: SetupState.Steps,
-    scope: CoroutineScope,
-) {
-    val spacing = LocalSpacing.current
-
-    Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
-        state.steps.forEach { step ->
-            StepCard(
-                controller = controller,
-                step = step,
-                busy = state.busy == step.key,
-                error = state.error,
-                onValueChange = { fieldKey, value -> controller.onFieldChange(step.key, fieldKey, value) },
-                onSave = { scope.launch { controller.saveCredentials(step) } },
-                onConnectBot = { scope.launch { controller.connectBot() } },
-            )
-        }
-
-        Button(
-            onClick = { scope.launch { controller.finish() } },
-            enabled = state.ready && state.busy == null,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            if (state.busy == SIGNING_IN) {
-                Text(stringResource(Res.string.setup_signing_in))
+            val step: SetupStep? = state.currentBackendStep
+            if (step != null) {
+                StepPanel(
+                    controller = controller,
+                    step = step,
+                    busy = state.busy == step.key,
+                    error = state.error,
+                    onValueChange = { fieldKey, value -> controller.onFieldChange(step.key, fieldKey, value) },
+                    onSave = { scope.launch { controller.saveCredentials(step) } },
+                    onConnectBot = { scope.launch { controller.connectBot() } },
+                )
             } else {
-                Text(stringResource(Res.string.setup_action_continue))
+                ReviewPanel(state = state)
             }
         }
 
-        if (state.error is SetupError.SignIn) {
-            ErrorText(stringResource(Res.string.setup_error_signin))
-        }
+        // ── Fixed footer ────────────────────────────────────────────────────────
+        SetupFooter(controller = controller, state = state, scope = scope)
     }
 }
 
+// The backend steps + the trailing review step, each tagged with its visual state relative to the current
+// position. A backend step shows Completed once the backend's re-read marks it complete; the review step is
+// Completed only when the whole flow is ready (all required steps configured).
 @Composable
-private fun StepCard(
+private fun stepperModel(state: SetupState.Steps): List<StepperStep> {
+    val backend: List<StepperStep> =
+        state.steps.mapIndexed { index, step ->
+            StepperStep(
+                label = step.title,
+                state = stepStateFor(complete = step.complete, index = index, current = state.currentStep),
+            )
+        }
+    val review: StepperStep =
+        StepperStep(
+            label = stringResource(Res.string.setup_review_title),
+            state = stepStateFor(complete = state.ready, index = state.reviewIndex, current = state.currentStep),
+        )
+    return backend + review
+}
+
+private fun stepStateFor(complete: Boolean, index: Int, current: Int): StepState =
+    when {
+        complete -> StepState.Completed
+        index == current -> StepState.Current
+        else -> StepState.Upcoming
+    }
+
+// One backend step's panel — the same card the old screen rendered, minus the per-step header chrome that
+// the stepper now carries. Shows the step's copy + instructions, then the action (credential fields or the
+// bot authorize button). When already complete, the inputs collapse to the "Done" line.
+@Composable
+private fun StepPanel(
     controller: SetupController,
     step: SetupStep,
     busy: Boolean,
@@ -223,6 +256,137 @@ private fun StepCard(
                 ACTION_OAUTH_REDIRECT ->
                     BotConnect(busy = busy, error = error, onConnectBot = onConnectBot)
             }
+        }
+    }
+}
+
+// The review/finish step: a compact per-step status list, then the readiness hint when a required step is
+// still pending. The finish ACTION lives in the footer's Next button (gated by state.ready).
+@Composable
+private fun ReviewPanel(state: SetupState.Steps) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(tokens.card, RoundedCornerShape(tokens.radius.lg))
+            .border(width = spacing.s0_5 / 2, color = tokens.border, shape = RoundedCornerShape(tokens.radius.lg))
+            .padding(spacing.s4),
+        verticalArrangement = Arrangement.spacedBy(spacing.s2),
+    ) {
+        Text(text = stringResource(Res.string.setup_review_title), style = typography.lg, color = tokens.cardForeground)
+        Text(text = stringResource(Res.string.setup_review_subtitle), style = typography.sm, color = tokens.mutedForeground)
+
+        state.steps.forEach { step ->
+            ReviewRow(step = step)
+        }
+
+        if (!state.ready) {
+            ErrorText(stringResource(Res.string.setup_review_not_ready))
+        }
+        if (state.error is SetupError.SignIn) {
+            ErrorText(stringResource(Res.string.setup_error_signin))
+        }
+    }
+}
+
+// One review line: the step's title plus its outcome — configured, skipped (optional + not configured), or
+// pending (required + not configured). The status colour comes from the tokens, never a raw hex.
+@Composable
+private fun ReviewRow(step: SetupStep) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    val (label: String, color) =
+        when {
+            step.complete -> stringResource(Res.string.setup_review_status_done) to tokens.primary
+            !step.required -> stringResource(Res.string.setup_review_status_skipped) to tokens.mutedForeground
+            else -> stringResource(Res.string.setup_review_status_pending) to tokens.destructive
+        }
+
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(top = spacing.s0_5),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(text = step.title, style = typography.sm, color = tokens.cardForeground)
+        Text(text = label, style = typography.xs, color = color)
+    }
+}
+
+// The pinned footer: Back on the left (hidden on the first step), and on the right either Next (advance to
+// the next step), Skip (advance past an optional, not-yet-complete step), or Finish (on the review step —
+// runs the existing finish()). Next is disabled until the current step's required inputs are satisfied.
+@Composable
+private fun SetupFooter(
+    controller: SetupController,
+    state: SetupState.Steps,
+    scope: CoroutineScope,
+) {
+    val spacing = LocalSpacing.current
+    val signingIn: Boolean = state.busy == SIGNING_IN
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (state.currentStep > 0) {
+            OutlinedButton(
+                onClick = { controller.back() },
+                enabled = state.busy == null,
+                modifier = Modifier.weight(1f),
+            ) {
+                Text(stringResource(Res.string.setup_nav_back))
+            }
+        }
+
+        if (state.onReviewStep) {
+            Button(
+                onClick = { scope.launch { controller.finish() } },
+                enabled = state.ready && state.busy == null,
+                modifier = Modifier.weight(1f),
+            ) {
+                Text(stringResource(if (signingIn) Res.string.setup_signing_in else Res.string.setup_action_continue))
+            }
+        } else {
+            val skippable: Boolean = state.currentBackendStep?.let { !it.complete && !it.required } == true
+            Button(
+                onClick = { controller.next() },
+                enabled = state.canAdvance && state.busy == null,
+                modifier = Modifier.weight(1f),
+            ) {
+                Text(stringResource(if (skippable) Res.string.setup_nav_skip else Res.string.setup_nav_next))
+            }
+        }
+    }
+}
+
+@Composable
+private fun SetupCentered(content: @Composable () -> Unit) {
+    val spacing = LocalSpacing.current
+    Box(
+        modifier = Modifier.fillMaxSize().padding(spacing.s8),
+        contentAlignment = Alignment.Center,
+    ) {
+        content()
+    }
+}
+
+@Composable
+private fun LoadError(detail: String, controller: SetupController) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+    val scope = rememberCoroutineScope()
+
+    Column(verticalArrangement = Arrangement.spacedBy(spacing.s2), horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(text = detail, style = typography.sm, color = tokens.destructive)
+        TextButton(onClick = { scope.launch { controller.load() } }) {
+            Text(stringResource(Res.string.setup_action_retry))
         }
     }
 }

@@ -173,6 +173,148 @@ class SetupControllerTest {
         assertEquals(SetupError.SignIn, steps.error)
         assertFalse(api.setupCompleted)
     }
+
+    // ── Stepper navigation ──────────────────────────────────────────────────────
+
+    @Test
+    fun the_flow_starts_on_the_first_step_with_the_review_step_one_past_the_last_backend_step() = runTest {
+        val api = FakeSystemApi(wizard = wizard(twitch = false, bot = false), ready = false)
+        val controller = controller(api)
+        controller.load()
+
+        val steps: SetupState.Steps = controller.state.value as SetupState.Steps
+        // The flow opens on the first backend step…
+        assertEquals(0, steps.currentStep)
+        assertEquals("twitch_app", steps.currentBackendStep?.key)
+        assertFalse(steps.onReviewStep)
+        // …and the review step sits at index == backend-step count (3 steps ⇒ review at index 3).
+        assertEquals(3, steps.reviewIndex)
+        assertEquals(steps.reviewIndex, steps.lastIndex)
+    }
+
+    @Test
+    fun next_is_gated_by_per_step_validity_a_required_incomplete_step_cannot_advance() = runTest {
+        // twitch_app (required) is NOT complete ⇒ the step is invalid to advance from.
+        val api = FakeSystemApi(wizard = wizard(twitch = false, bot = true), ready = false)
+        val controller = controller(api)
+        controller.load()
+
+        val before: SetupState.Steps = controller.state.value as SetupState.Steps
+        assertFalse(before.canAdvance)
+
+        controller.next()
+
+        // The gate held: still on the first step (no silent skip past a required, unconfigured step).
+        val after: SetupState.Steps = controller.state.value as SetupState.Steps
+        assertEquals(0, after.currentStep)
+    }
+
+    @Test
+    fun next_advances_once_the_required_step_is_complete_and_back_returns_to_it() = runTest {
+        // twitch_app complete ⇒ valid to advance; platform_bot is the next step.
+        val api = FakeSystemApi(wizard = wizard(twitch = true, bot = false), ready = false)
+        val controller = controller(api)
+        controller.load()
+        assertTrue((controller.state.value as SetupState.Steps).canAdvance)
+
+        controller.next()
+
+        val advanced: SetupState.Steps = controller.state.value as SetupState.Steps
+        assertEquals(1, advanced.currentStep)
+        assertEquals("platform_bot", advanced.currentBackendStep?.key)
+
+        controller.back()
+
+        // Back returns to the prior step (index decremented, not reset).
+        val returned: SetupState.Steps = controller.state.value as SetupState.Steps
+        assertEquals(0, returned.currentStep)
+        assertEquals("twitch_app", returned.currentBackendStep?.key)
+    }
+
+    @Test
+    fun an_optional_incomplete_step_may_be_skipped_with_next() = runTest {
+        // Drive to the optional spotify step (index 2): both required steps complete.
+        val api = FakeSystemApi(wizard = wizard(twitch = true, bot = true), ready = true)
+        val controller = controller(api)
+        controller.load()
+        controller.next() // twitch_app → platform_bot
+        controller.next() // platform_bot → spotify (optional, not complete)
+
+        val onOptional: SetupState.Steps = controller.state.value as SetupState.Steps
+        assertEquals("spotify", onOptional.currentBackendStep?.key)
+        // Optional + incomplete is still advanceable — the step is skippable.
+        assertTrue(onOptional.canAdvance)
+
+        controller.next() // spotify → review
+
+        val onReview: SetupState.Steps = controller.state.value as SetupState.Steps
+        assertTrue(onReview.onReviewStep)
+        assertNull(onReview.currentBackendStep)
+        assertEquals(onReview.reviewIndex, onReview.currentStep)
+    }
+
+    @Test
+    fun next_does_not_advance_past_the_review_step() = runTest {
+        val api = FakeSystemApi(wizard = wizard(twitch = true, bot = true), ready = true)
+        val controller = controller(api)
+        controller.load()
+        controller.next() // → platform_bot
+        controller.next() // → spotify
+        controller.next() // → review
+        assertTrue((controller.state.value as SetupState.Steps).onReviewStep)
+
+        controller.next() // no-op: already at the last index
+
+        val steps: SetupState.Steps = controller.state.value as SetupState.Steps
+        assertEquals(steps.reviewIndex, steps.currentStep)
+    }
+
+    @Test
+    fun a_save_reload_keeps_the_user_on_the_step_they_were_filling_in() = runTest {
+        // Two required-incomplete steps: advancing past the first isn't possible, so we exercise the
+        // reload-preserves-index path on the optional flow — advance to spotify, then save it and confirm
+        // the reload doesn't bounce back to step 0.
+        val api = FakeSystemApi(wizard = wizard(twitch = true, bot = true), ready = true)
+        val controller = controller(api)
+        controller.load()
+        controller.next() // → platform_bot
+        controller.next() // → spotify
+        assertEquals(2, (controller.state.value as SetupState.Steps).currentStep)
+
+        controller.onFieldChange("spotify", "clientId", "spid")
+        controller.onFieldChange("spotify", "clientSecret", "spsecret")
+        val spotify: SetupStep = (controller.state.value as SetupState.Steps).steps.first { it.key == "spotify" }
+        api.wizardAfter = wizard(twitch = true, bot = true, spotify = true)
+        controller.saveCredentials(spotify)
+
+        // The save PUT the real Spotify credentials…
+        assertEquals("spid" to "spsecret", api.savedSpotify)
+        // …and the reload kept the user on the spotify step (index 2), not back at step 0.
+        val after: SetupState.Steps = controller.state.value as SetupState.Steps
+        assertEquals(2, after.currentStep)
+        assertTrue(after.steps.first { it.key == "spotify" }.complete)
+    }
+
+    @Test
+    fun finishing_from_the_review_step_runs_the_signin_then_marks_setup_complete() = runTest {
+        val api = FakeSystemApi(wizard = wizard(twitch = true, bot = true), ready = true)
+        var signedIn = false
+        val controller = controller(api, onReadyToSignIn = {
+            signedIn = true
+            true
+        })
+        controller.load()
+        controller.next() // → platform_bot
+        controller.next() // → spotify
+        controller.next() // → review
+        assertTrue((controller.state.value as SetupState.Steps).onReviewStep)
+
+        // The review step's Next is the finish action.
+        controller.finish()
+
+        assertTrue(signedIn)
+        assertTrue(api.setupCompleted)
+    }
 }
 
 // ── Fakes ─────────────────────────────────────────────────────────────────────
