@@ -143,6 +143,9 @@ public sealed partial class SystemTrayHostedService : IHostedService
         WNDCLASSEXW windowClass = new()
         {
             cbSize = (uint)Marshal.SizeOf<WNDCLASSEXW>(),
+            // CS_DBLCLKS so the tray's message window receives WM_LBUTTONDBLCLK — without it Windows never
+            // delivers double-click messages, so double-click-to-open would silently never fire.
+            style = CS_DBLCLKS,
             lpfnWndProc = Marshal.GetFunctionPointerForDelegate(_wndProc),
             hInstance = GetModuleHandleW(null),
             lpszClassName = WindowClassName,
@@ -227,9 +230,14 @@ public sealed partial class SystemTrayHostedService : IHostedService
         switch (msg)
         {
             case WM_TRAY_CALLBACK:
-                // The mouse event arrives in the low word of lParam.
+                // The mouse event arrives in the low word of lParam. Double-click opens the dashboard (the
+                // primary action); a right-click — or the keyboard context-menu key — raises the menu, which
+                // also lists "Open dashboard". A single left-click is intentionally a no-op so it can't fire
+                // mid double-click.
                 uint mouseMessage = (uint)(lParam.ToInt64() & 0xFFFF);
-                if (mouseMessage is WM_RBUTTONUP or WM_LBUTTONUP or WM_CONTEXTMENU)
+                if (mouseMessage == WM_LBUTTONDBLCLK)
+                    OpenDashboard();
+                else if (mouseMessage is WM_RBUTTONUP or WM_CONTEXTMENU)
                     ShowContextMenu(hwnd);
                 return IntPtr.Zero;
 
@@ -428,7 +436,10 @@ public sealed partial class SystemTrayHostedService : IHostedService
     private const uint WM_COMMAND = 0x0111;
     private const uint WM_CONTEXTMENU = 0x007B;
     private const uint WM_RBUTTONUP = 0x0205;
-    private const uint WM_LBUTTONUP = 0x0202;
+    private const uint WM_LBUTTONDBLCLK = 0x0203;
+
+    // CS_DBLCLKS: ask Windows to deliver double-click messages to this window class.
+    private const uint CS_DBLCLKS = 0x0008;
 
     private const uint NIM_ADD = 0x00000000;
     private const uint NIM_MODIFY = 0x00000001;
