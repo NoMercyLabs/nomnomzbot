@@ -43,6 +43,10 @@ TestResults/
 .claude/
 .fallow/
 
+# Scratch space for throwaway artifacts (screenshots, render-test dumps, scratch scripts).
+# Anything an agent generates that isn't a deliverable goes here and is cleaned up after use.
+.scratch/
+
 # Pre-restructure planning notes — kept on disk, out of the repo.
 # The current design corpus lives in .claude/docs/ (also gitignored).
 server/docs/
