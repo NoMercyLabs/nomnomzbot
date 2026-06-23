@@ -43,6 +43,7 @@ public sealed class AuthService : IAuthService
 
     private readonly IApplicationDbContext _db;
     private readonly ITwitchAuthService _twitchAuth;
+    private readonly ITwitchDeviceCodeService _deviceCode;
     private readonly IIntegrationTokenVault _vault;
     private readonly ISessionService _sessions;
     private readonly IEventBus _eventBus;
@@ -84,6 +85,7 @@ public sealed class AuthService : IAuthService
     public AuthService(
         IApplicationDbContext db,
         ITwitchAuthService twitchAuth,
+        ITwitchDeviceCodeService deviceCode,
         IIntegrationTokenVault vault,
         ISessionService sessions,
         IEventBus eventBus,
@@ -96,6 +98,7 @@ public sealed class AuthService : IAuthService
     {
         _db = db;
         _twitchAuth = twitchAuth;
+        _deviceCode = deviceCode;
         _vault = vault;
         _sessions = sessions;
         _eventBus = eventBus;
@@ -140,6 +143,22 @@ public sealed class AuthService : IAuthService
                 "TOKEN_EXCHANGE_FAILED"
             );
 
+        return await EstablishStreamerSessionAsync(tokens, context, cancellationToken);
+    }
+
+    /// <summary>
+    /// Turn already-acquired streamer tokens into a live session: fetch the Twitch user, upsert the User +
+    /// owning Channel, run the first-admin bootstrap, vault the tokens, fire the registration/onboarded events,
+    /// and open a session + issue the JWT. Shared by the auth-code callback and the Device Code Flow poll, so
+    /// both logins converge here. The connection is stamped with the client id alone — no secret, the only
+    /// credential the no-secret device login has.
+    /// </summary>
+    private async Task<Result<AuthResultDto>> EstablishStreamerSessionAsync(
+        TokenResult tokens,
+        AuthContextDto context,
+        CancellationToken cancellationToken
+    )
+    {
         TwitchUserInfo? twitchUser = await GetUserFromTokenAsync(
             tokens.AccessToken,
             cancellationToken
@@ -226,12 +245,12 @@ public sealed class AuthService : IAuthService
 
         Guid broadcasterId = channel.Id;
 
-        // The exchange above already proved the app is configured; resolve the client id to stamp the
-        // connection with the app that owns it.
-        SystemAppCredentials? app = await _credentials.GetAsync(TwitchProvider, cancellationToken);
-        if (app is null)
+        // Stamp the connection with the client id that owns it — read the id alone (the no-secret device login
+        // has no secret; this is the shipped public id or a BYOC override).
+        string? clientId = await _credentials.GetClientIdAsync(TwitchProvider, cancellationToken);
+        if (string.IsNullOrWhiteSpace(clientId))
             return Result.Failure<AuthResultDto>(
-                "Twitch app credentials are not configured.",
+                "Twitch client id is not configured.",
                 "TWITCH_NOT_CONFIGURED"
             );
 
@@ -243,7 +262,7 @@ public sealed class AuthService : IAuthService
                 twitchUser.Id,
                 twitchUser.Login,
                 tokens.Scopes,
-                app.ClientId,
+                clientId,
                 IsByok: false,
                 user.Id,
                 SettingsJson: null
@@ -300,6 +319,113 @@ public sealed class AuthService : IAuthService
         _logger.LogInformation("User {UserId} authenticated via Twitch OAuth", user.Id);
         return Result.Success(BuildAuthResult(session.Value, user));
     }
+
+    // ─── Device Code Flow login (no client secret) ─────────────────────────────
+
+    public Task<Result<DeviceCodeStartDto>> StartTwitchDeviceLoginAsync(
+        CancellationToken cancellationToken = default
+    ) => StartDeviceLoginAsync(RequiredScopes, cancellationToken);
+
+    public Task<Result<DeviceCodeStartDto>> StartBotDeviceLoginAsync(
+        CancellationToken cancellationToken = default
+    ) => StartDeviceLoginAsync(BotScopes, cancellationToken);
+
+    private async Task<Result<DeviceCodeStartDto>> StartDeviceLoginAsync(
+        string[] scopes,
+        CancellationToken cancellationToken
+    )
+    {
+        DeviceCodeResult? code = await _deviceCode.RequestDeviceCodeAsync(
+            scopes,
+            cancellationToken
+        );
+        if (code is null)
+            return Result.Failure<DeviceCodeStartDto>(
+                "Twitch client id is not configured.",
+                "TWITCH_NOT_CONFIGURED"
+            );
+
+        int expiresIn = (int)(code.ExpiresAt - _timeProvider.GetUtcNow().UtcDateTime).TotalSeconds;
+        return Result.Success(
+            new DeviceCodeStartDto(
+                code.DeviceCode,
+                code.UserCode,
+                code.VerificationUri,
+                code.Interval,
+                expiresIn
+            )
+        );
+    }
+
+    public async Task<Result<DeviceLoginPollDto>> PollTwitchDeviceLoginAsync(
+        string deviceCode,
+        AuthContextDto context,
+        CancellationToken cancellationToken = default
+    )
+    {
+        DevicePollOutcome outcome = await _deviceCode.PollOnceAsync(
+            deviceCode,
+            RequiredScopes,
+            cancellationToken
+        );
+        if (outcome.Status != DevicePollStatus.Authorized || outcome.Tokens is null)
+            return Result.Success(new DeviceLoginPollDto(MapPollStatus(outcome.Status)));
+
+        Result<AuthResultDto> session = await EstablishStreamerSessionAsync(
+            outcome.Tokens,
+            context,
+            cancellationToken
+        );
+        if (session.IsFailure)
+            return session.WithValue<DeviceLoginPollDto>(null!);
+
+        return Result.Success(new DeviceLoginPollDto(DeviceLoginStatus.Authorized, session.Value));
+    }
+
+    public async Task<Result<DeviceBotPollDto>> PollBotDeviceLoginAsync(
+        string deviceCode,
+        CancellationToken cancellationToken = default
+    )
+    {
+        DevicePollOutcome outcome = await _deviceCode.PollOnceAsync(
+            deviceCode,
+            BotScopes,
+            cancellationToken
+        );
+        if (outcome.Status != DevicePollStatus.Authorized || outcome.Tokens is null)
+            return Result.Success(new DeviceBotPollDto(MapPollStatus(outcome.Status)));
+
+        TwitchUserInfo? botUser = await GetUserFromTokenAsync(
+            outcome.Tokens.AccessToken,
+            cancellationToken
+        );
+        if (botUser is null)
+            return Result.Failure<DeviceBotPollDto>(
+                "Failed to fetch bot user info.",
+                "USER_FETCH_FAILED"
+            );
+
+        Result<BotStatusDto> bot = await EstablishSharedBotAsync(
+            botUser,
+            outcome.Tokens,
+            cancellationToken
+        );
+        if (bot.IsFailure)
+            return bot.WithValue<DeviceBotPollDto>(null!);
+
+        return Result.Success(new DeviceBotPollDto(DeviceLoginStatus.Authorized, bot.Value));
+    }
+
+    /// <summary>Map the transport's poll status to the wire string the client loops on.</summary>
+    private static string MapPollStatus(DevicePollStatus status) =>
+        status switch
+        {
+            DevicePollStatus.Pending => DeviceLoginStatus.Pending,
+            DevicePollStatus.SlowDown => DeviceLoginStatus.SlowDown,
+            DevicePollStatus.Expired => DeviceLoginStatus.Expired,
+            DevicePollStatus.Denied => DeviceLoginStatus.Denied,
+            _ => DeviceLoginStatus.Error,
+        };
 
     public async Task<Result<AuthResultDto>> RefreshTokenAsync(
         string refreshToken,
@@ -393,16 +519,30 @@ public sealed class AuthService : IAuthService
             return exchange.WithValue<BotStatusDto>(null!);
         (TwitchUserInfo botUser, TokenResult tokens) = exchange.Value;
 
+        return await EstablishSharedBotAsync(botUser, tokens, cancellationToken);
+    }
+
+    /// <summary>
+    /// Connect the shared platform bot from already-acquired bot tokens: upsert the BotAccount, vault the
+    /// platform connection (BroadcasterId=null), and fire the authorized event. Shared by the auth-code bot
+    /// callback and the Device Code Flow bot poll. Stamped with the client id alone (no secret).
+    /// </summary>
+    private async Task<Result<BotStatusDto>> EstablishSharedBotAsync(
+        TwitchUserInfo botUser,
+        TokenResult tokens,
+        CancellationToken cancellationToken
+    )
+    {
         BotAccount bot = await UpsertBotAccountAsync(
             AuthEnums.BotIdentityType.Shared,
             botUser,
             cancellationToken
         );
 
-        SystemAppCredentials? app = await _credentials.GetAsync(TwitchProvider, cancellationToken);
-        if (app is null)
+        string? clientId = await _credentials.GetClientIdAsync(TwitchProvider, cancellationToken);
+        if (string.IsNullOrWhiteSpace(clientId))
             return Result.Failure<BotStatusDto>(
-                "Twitch app credentials are not configured.",
+                "Twitch client id is not configured.",
                 "TWITCH_NOT_CONFIGURED"
             );
 
@@ -414,7 +554,7 @@ public sealed class AuthService : IAuthService
                 botUser.Id,
                 botUser.Login,
                 tokens.Scopes,
-                app.ClientId,
+                clientId,
                 IsByok: false,
                 ConnectedByUserId: null,
                 SettingsJson: null
@@ -828,16 +968,16 @@ public sealed class AuthService : IAuthService
         CancellationToken ct
     )
     {
-        SystemAppCredentials? app = await _credentials.GetAsync(TwitchProvider, ct);
-        if (app is null)
+        string? clientId = await _credentials.GetClientIdAsync(TwitchProvider, ct);
+        if (string.IsNullOrWhiteSpace(clientId))
         {
-            _logger.LogWarning("Cannot fetch Twitch user: app credentials are not configured.");
+            _logger.LogWarning("Cannot fetch Twitch user: no client id is configured.");
             return null;
         }
 
         HttpRequestMessage request = new(HttpMethod.Get, "https://api.twitch.tv/helix/users");
         request.Headers.Add("Authorization", $"Bearer {accessToken}");
-        request.Headers.Add("Client-Id", app.ClientId);
+        request.Headers.Add("Client-Id", clientId);
 
         try
         {

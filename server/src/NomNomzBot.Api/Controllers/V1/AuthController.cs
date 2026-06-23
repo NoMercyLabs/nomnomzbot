@@ -353,6 +353,43 @@ public class AuthController : BaseController
         );
     }
 
+    /// <summary>
+    /// Begin the no-secret streamer login (Device Code Flow). Returns a short user code + the
+    /// twitch.tv/activate URL to show the operator, plus the device code the client polls with. No Twitch app
+    /// registration and no client secret — NomNomzBot's shipped public client id drives it.
+    /// </summary>
+    [HttpPost("twitch/device")]
+    [AllowAnonymous]
+    [EnableRateLimiting("auth")]
+    [ProducesResponseType<StatusResponseDto<DeviceCodeStartDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> StartTwitchDeviceLogin(CancellationToken ct)
+    {
+        Result<DeviceCodeStartDto> result = await _authService.StartTwitchDeviceLoginAsync(ct);
+        return ResultResponse(result);
+    }
+
+    /// <summary>
+    /// Poll a streamer device login once. Until the operator approves, the status is <c>pending</c> /
+    /// <c>slow_down</c>; on <c>authorized</c> the session is opened and the response carries the platform
+    /// tokens + user, which the client establishes exactly as it would after the redirect callback.
+    /// </summary>
+    [HttpPost("twitch/device/poll")]
+    [AllowAnonymous]
+    [EnableRateLimiting("auth")]
+    [ProducesResponseType<StatusResponseDto<DeviceLoginPollDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> PollTwitchDeviceLogin(
+        [FromBody] DevicePollRequest body,
+        CancellationToken ct
+    )
+    {
+        Result<DeviceLoginPollDto> result = await _authService.PollTwitchDeviceLoginAsync(
+            body.DeviceCode,
+            BuildAuthContext(),
+            ct
+        );
+        return ResultResponse(result);
+    }
+
     /// <summary>Refresh an expired access token.</summary>
     [HttpPost("refresh")]
     [AllowAnonymous]
@@ -470,6 +507,38 @@ public class AuthController : BaseController
     public async Task<IActionResult> DisconnectBot(CancellationToken ct)
     {
         Result result = await _authService.DisconnectBotAsync(ct);
+        return ResultResponse(result);
+    }
+
+    /// <summary>
+    /// Begin the bot-account device login (no secret). The operator approves the bot's own Twitch account at
+    /// twitch.tv/activate and the client polls until connected. Admin-gated — the streamer is already signed in
+    /// when they add a bot account (Streamer.bot parity).
+    /// </summary>
+    [HttpPost("twitch/bot/device")]
+    [Authorize(Roles = "admin")]
+    [EnableRateLimiting("auth")]
+    [ProducesResponseType<StatusResponseDto<DeviceCodeStartDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> StartBotDeviceLogin(CancellationToken ct)
+    {
+        Result<DeviceCodeStartDto> result = await _authService.StartBotDeviceLoginAsync(ct);
+        return ResultResponse(result);
+    }
+
+    /// <summary>Poll a bot device login once; on <c>authorized</c> the shared bot account is connected + vaulted.</summary>
+    [HttpPost("twitch/bot/device/poll")]
+    [Authorize(Roles = "admin")]
+    [EnableRateLimiting("auth")]
+    [ProducesResponseType<StatusResponseDto<DeviceBotPollDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> PollBotDeviceLogin(
+        [FromBody] DevicePollRequest body,
+        CancellationToken ct
+    )
+    {
+        Result<DeviceBotPollDto> result = await _authService.PollBotDeviceLoginAsync(
+            body.DeviceCode,
+            ct
+        );
         return ResultResponse(result);
     }
 }

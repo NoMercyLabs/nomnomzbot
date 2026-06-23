@@ -41,6 +41,38 @@ public interface IAuthService
         CancellationToken cancellationToken = default
     );
 
+    // ── Device Code Flow login (no client secret) ────────────────────────────
+    // NomNomzBot ships its own public client id, so the streamer logs in by approving a short user code at
+    // twitch.tv/activate — no Twitch app registration. Start mints the code; the client polls until the
+    // operator approves (or it expires). On approval the streamer poll opens a session exactly like the
+    // callback path; the bot poll vaults the shared-bot tokens.
+
+    /// <summary>Begin a streamer device login: mint a user/device code for the streamer login scopes.</summary>
+    Task<Result<DeviceCodeStartDto>> StartTwitchDeviceLoginAsync(
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>
+    /// Poll a streamer device login once. On <c>authorized</c> the tokens are vaulted, the user/channel are
+    /// upserted, and a session is opened — the result carries the auth tokens; otherwise just the poll status.
+    /// </summary>
+    Task<Result<DeviceLoginPollDto>> PollTwitchDeviceLoginAsync(
+        string deviceCode,
+        AuthContextDto context,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>Begin a bot-account device login: mint a user/device code for the bot chat scopes.</summary>
+    Task<Result<DeviceCodeStartDto>> StartBotDeviceLoginAsync(
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>Poll a bot device login once. On <c>authorized</c> the shared bot account is connected + vaulted.</summary>
+    Task<Result<DeviceBotPollDto>> PollBotDeviceLoginAsync(
+        string deviceCode,
+        CancellationToken cancellationToken = default
+    );
+
     Task<Result<AuthResultDto>> RefreshTokenAsync(
         string refreshToken,
         AuthContextDto context,
