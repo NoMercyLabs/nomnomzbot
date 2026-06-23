@@ -146,15 +146,18 @@ class JmdnsLanDiscovery : LanDiscovery {
         override fun serviceResolved(event: ServiceEvent) {
             val profile: ConnectionProfile = mapServiceInfo(event.info) ?: return
             _discovered.update { current ->
-                // Replace any prior entry with the same dedupe id (re-announcement), else append.
-                val without: List<ConnectionProfile> = current.filterNot { it.id == profile.id }
+                // Dedupe by the connect target (baseUrl), not the id: the all-interface browse resolves the SAME bot
+                // via several network interfaces, and a re-announcement may arrive before its TXT instance id does, so
+                // ids can differ for one bot — but the host:port the user actually connects to is identical. Collapse
+                // entries that point at the same backend.
+                val without: List<ConnectionProfile> = current.filterNot { it.baseUrl == profile.baseUrl }
                 without + profile
             }
         }
 
         override fun serviceRemoved(event: ServiceEvent) {
-            val goneId: String = mapServiceInfo(event.info)?.id ?: return
-            _discovered.update { current -> current.filterNot { it.id == goneId } }
+            val goneBaseUrl: String = mapServiceInfo(event.info)?.baseUrl ?: return
+            _discovered.update { current -> current.filterNot { it.baseUrl == goneBaseUrl } }
         }
     }
 
