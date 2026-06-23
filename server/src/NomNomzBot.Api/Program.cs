@@ -641,6 +641,19 @@ try
 catch (Exception ex)
 {
     Log.Fatal(ex, "Application terminated unexpectedly");
+
+    // A double-clicked self-host exe would otherwise flash a console and vanish before the operator can read
+    // why. When running on a real interactive console (not a service, and not a redirected/automation run),
+    // surface a plain-language reason and hold the window open until acknowledged.
+    if (Environment.UserInteractive && !Console.IsOutputRedirected && !Console.IsInputRedirected)
+    {
+        Console.Error.WriteLine();
+        Console.Error.WriteLine($"NomNomzBot could not start: {ex.Message}");
+        Console.Error.WriteLine(
+            "Check the messages above (and the logs/ folder). Press any key to close this window..."
+        );
+        Console.ReadKey(intercept: true);
+    }
 }
 finally
 {
