@@ -170,6 +170,11 @@ public static class DependencyInjection
             NomNomzBot.Application.Chat.Services.ICheermoteResolver,
             NomNomzBot.Infrastructure.Chat.ChatCheermoteResolver
         >();
+        // Per-channel chat-colour memory backing the mention-colour step (cache-only). Stateless → singleton.
+        services.AddSingleton<
+            NomNomzBot.Application.Chat.Services.IChatColorMemory,
+            NomNomzBot.Infrastructure.Chat.ChatColorMemory
+        >();
         // Scoped: it resolves the channel's feature toggles through the scoped IFeatureService (cache-backed, so the
         // hot path stays cheap). Consumes the singleton adapters + cache fine.
         services.AddScoped<

@@ -82,8 +82,11 @@ public record ChatCheermoteDto(
     string? ColorHex
 );
 
-/// <summary>Mention fragment data (@user).</summary>
-public record ChatMentionDto(string UserId, string Username, string DisplayName);
+/// <summary>
+/// Mention fragment data (@user) plus the mentioned user's last-seen chat colour as #RRGGBB (chat-decoration spec §3.1),
+/// or null when that user has not been seen recently.
+/// </summary>
+public record ChatMentionDto(string UserId, string Username, string DisplayName, string? Color);
 
 /// <summary>
 /// A chat badge (subscriber, moderator, etc.) resolved to its scale-keyed image urls ("1"/"2"/"4") from the cached

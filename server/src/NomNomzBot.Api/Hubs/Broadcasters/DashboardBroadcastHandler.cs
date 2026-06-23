@@ -114,7 +114,8 @@ public sealed class ChatMessageBroadcastHandler : IEventHandler<ChatMessageRecei
                 ? new ChatMentionDto(
                     UserId: f.MentionUserId,
                     Username: f.MentionUserLogin ?? string.Empty,
-                    DisplayName: f.MentionUserName ?? string.Empty
+                    DisplayName: f.MentionUserName ?? string.Empty,
+                    Color: f.MentionColorHex
                 )
                 : null
         );

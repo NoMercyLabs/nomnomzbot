@@ -76,4 +76,10 @@ public sealed class ChatMessageFragment
 
     /// <summary>Display name of the mentioned user.</summary>
     public string? MentionUserName { get; init; }
+
+    /// <summary>
+    /// The mentioned user's chat colour as #RRGGBB, filled in place by the mention decoration step from the per-channel
+    /// colour memory (chat-decoration spec §3.1). Null until resolved, or when that user has not been seen recently.
+    /// </summary>
+    public string? MentionColorHex { get; set; }
 }
