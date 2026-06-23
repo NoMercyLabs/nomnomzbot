@@ -23,7 +23,7 @@ internal static class StartupErrorNotifier
     {
         // Only a human at an interactive desktop session should be interrupted — never a service, container, CI,
         // or a redirected/piped launch (which is how the boot is verified in automation).
-        if (!Environment.UserInteractive || Console.IsOutputRedirected || Console.IsInputRedirected)
+        if (!InteractiveDesktopGuard.IsInteractiveDesktopSession)
             return;
 
         string message =

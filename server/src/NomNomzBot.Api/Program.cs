@@ -397,6 +397,16 @@ try
         listenPortLogger
     );
 
+    // ── Windows system-tray icon (self-host single binary) ───────────────────────────────────
+    // The self-host binary is windowless (WinExe — no console, no main window), so a double-click leaves the
+    // operator with no visible sign it is running and no obvious way to open the dashboard or stop it. Register a
+    // tray icon ONLY when the gate passes: a self-host profile AND Windows AND an interactive desktop session
+    // (off for SaaS, Docker/headless, a Windows Service, CI, and any redirected/automation launch). On a non-Windows
+    // self-host it is simply not registered — no tray, no no-op shim. It reads the bound port from
+    // IListenEndpointAccessor (published below after Build) for its dashboard URL + tooltip.
+    if (SystemTrayGate.ShouldShowTray(bootMode))
+        builder.Services.AddHostedService<SystemTrayHostedService>();
+
     WebApplication app = builder.Build();
 
     // Publish the bound port so the self-host mDNS advertiser advertises the actual port (deployment-distribution §6).
