@@ -254,6 +254,19 @@ public static class DependencyInjection
             )
             .AddChatEmoteResilienceHandler();
 
+        // The alejo.io pronoun reference client — fetched once at boot by PronounSeeder to keep the seeded
+        // pronoun set current (the resilience pipeline owns the per-attempt 10s timeout + retries).
+        services.AddSingleton<
+            NomNomzBot.Application.Identity.Services.IAlejoPronounClient,
+            NomNomzBot.Infrastructure.Identity.Providers.AlejoPronounClient
+        >();
+        services
+            .AddHttpClient(
+                NomNomzBot.Infrastructure.Identity.AlejoHttpClient.Name,
+                client => client.Timeout = TimeSpan.FromSeconds(30)
+            )
+            .AddAlejoResilienceHandler();
+
         // Webhook HMAC primitives (stateless; not name-convention "*Service", so registered explicitly).
         services.AddSingleton<
             NomNomzBot.Application.Contracts.Webhooks.IInboundSignatureVerifier,

@@ -154,6 +154,55 @@ public static class ResiliencePolicies
     }
 
     /// <summary>
+    /// Adds resilience for the alejo.io pronoun client: 3 retries (transient 5xx / network) with exponential
+    /// backoff + jitter, a 10s per-attempt timeout, and a 50%/30s circuit breaker. Modelled on the chat-emote
+    /// handler — the fetch is best-effort (the seeder falls back to its bundled set on failure), so a rejected
+    /// call needs no domain event; it simply yields the fallback.
+    /// </summary>
+    public static IHttpClientBuilder AddAlejoResilienceHandler(this IHttpClientBuilder builder)
+    {
+        builder.AddResilienceHandler(
+            "alejo-resilience",
+            pipeline =>
+            {
+                pipeline.AddRetry(
+                    new HttpRetryStrategyOptions
+                    {
+                        MaxRetryAttempts = 3,
+                        BackoffType = DelayBackoffType.Exponential,
+                        UseJitter = true,
+                        Delay = TimeSpan.FromMilliseconds(500),
+                        ShouldHandle = args =>
+                            ValueTask.FromResult(
+                                RetryableStatuses.Contains(args.Outcome.Result?.StatusCode ?? 0)
+                                    || args.Outcome.Exception is HttpRequestException
+                            ),
+                    }
+                );
+
+                pipeline.AddTimeout(TimeSpan.FromSeconds(10));
+
+                pipeline.AddCircuitBreaker(
+                    new HttpCircuitBreakerStrategyOptions
+                    {
+                        FailureRatio = 0.5,
+                        SamplingDuration = TimeSpan.FromSeconds(30),
+                        MinimumThroughput = 5,
+                        BreakDuration = TimeSpan.FromSeconds(30),
+                        ShouldHandle = args =>
+                            ValueTask.FromResult(
+                                args.Outcome.Result?.StatusCode
+                                    >= HttpStatusCode.InternalServerError
+                                    || args.Outcome.Exception is HttpRequestException
+                            ),
+                    }
+                );
+            }
+        );
+        return builder;
+    }
+
+    /// <summary>
     /// Adds Discord REST API resilience (discord.md §8): 2 retries with exponential backoff + jitter on
     /// transient 5xx and 429, an 8s per-attempt timeout, and a 50%/60s circuit breaker. Honors Discord's
     /// <c>Retry-After</c> header on 429 (Discord returns it in seconds, fractional allowed) so the retry waits

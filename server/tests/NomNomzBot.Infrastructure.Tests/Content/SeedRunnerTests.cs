@@ -15,6 +15,7 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Content;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Infrastructure.Content.Commands;
 using NomNomzBot.Infrastructure.Content.Identity;
 using NomNomzBot.Infrastructure.Content.Platform;
@@ -51,16 +52,25 @@ public sealed class SeedRunnerTests
 
     private static SeedRunner BuildRunner(SeedTestDbContext context) =>
         new(
-            // The real production seeders, constructed against this context.
+            // The real production seeders, constructed against this context. PronounSeeder is given an
+            // offline alejo client (FetchAsync → null) so the runner exercises the bundled-fallback path —
+            // the deterministic set the pipeline-level reliability proofs assert on.
             [
                 new TtsVoiceSeeder(context),
-                new PronounSeeder(context),
+                new PronounSeeder(context, new OfflineAlejoClient()),
                 new ConfigSeeder(context),
                 new DefaultCommandsSeeder(context),
             ],
             new TestUnitOfWork(context),
             NullLogger<SeedRunner>.Instance
         );
+
+    /// <summary>A no-network alejo client — every fetch returns null, so PronounSeeder seeds its bundled fallback.</summary>
+    private sealed class OfflineAlejoClient : IAlejoPronounClient
+    {
+        public Task<IReadOnlyList<PronounRecord>?> FetchAsync(CancellationToken ct = default) =>
+            Task.FromResult<IReadOnlyList<PronounRecord>?>(null);
+    }
 
     // ── Discovery (§4 scan) ──────────────────────────────────────────────────
 
@@ -152,7 +162,9 @@ public sealed class SeedRunnerTests
         Counts afterFirst = await ReadCounts(db);
 
         afterFirst.TtsVoices.Should().Be(10, "the catalogue defines ten voices");
-        afterFirst.Pronouns.Should().Be(7, "the reference set defines seven pronouns");
+        afterFirst
+            .Pronouns.Should()
+            .Be(16, "the offline fallback (no-network alejo client) defines sixteen pronouns");
         afterFirst.GlobalConfigs.Should().Be(4, "four global config defaults are seeded");
 
         // Second run — every seeder is upsert-by-natural-key, so this must add nothing.
