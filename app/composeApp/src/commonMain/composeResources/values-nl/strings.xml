@@ -9,12 +9,13 @@
 <resources>
     <string name="app_name">NomNomzBot</string>
     <string name="splash_loading">Bezig met opstarten…</string>
-    <string name="connect_title">Verbind met je bot</string>
-    <string name="connect_subtitle">Richt het dashboard op een backend en log in met Twitch om te beginnen.</string>
+    <string name="connect_title">Aanmelden bij NomNomzBot</string>
+    <string name="connect_subtitle">Meld je aan met je eigen Twitch-account om te beginnen.</string>
+    <string name="connect_account_hint">Gebruik je eigen streameraccount — je kunt later een botaccount toevoegen via het dashboard.</string>
     <string name="connect_action">Verbinden</string>
     <string name="connect_url_label">Backend-URL</string>
     <string name="connect_url_placeholder">http://localhost:5080</string>
-    <string name="connect_action_twitch">Verbinden met Twitch</string>
+    <string name="connect_action_twitch">Aanmelden met je Twitch-account</string>
     <string name="connect_connecting">Wachten op Twitch-aanmelding…</string>
     <string name="connect_error_invalid_url">Voer een geldige backend-URL in.</string>
     <string name="connect_error_auth">Aanmelden mislukt. Probeer het opnieuw.</string>

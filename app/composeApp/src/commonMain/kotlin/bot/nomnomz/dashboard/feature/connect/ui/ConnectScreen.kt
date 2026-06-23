@@ -48,6 +48,7 @@ import bot.nomnomz.dashboard.feature.connect.state.ConnectError
 import bot.nomnomz.dashboard.feature.connect.state.ConnectStatus
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.connect_account_hint
 import nomnomzbot.composeapp.generated.resources.connect_action_twitch
 import nomnomzbot.composeapp.generated.resources.connect_connecting
 import nomnomzbot.composeapp.generated.resources.connect_device_instruction
@@ -158,6 +159,15 @@ fun ConnectScreen(controller: ConnectController) {
                 ) {
                     Text(text = stringResource(Res.string.connect_action_twitch))
                 }
+
+                // Make the account unambiguous: this is the streamer's OWN account, and the bot is a
+                // separate, optional account added later — never forced here.
+                Text(
+                    text = stringResource(Res.string.connect_account_hint),
+                    style = typography.xs,
+                    color = tokens.mutedForeground,
+                    textAlign = TextAlign.Center,
+                )
             }
 
             ConnectStatusRow(status = status)
@@ -300,6 +310,13 @@ private fun DeviceCodePanel(userCode: String, verificationUri: String) {
                 textAlign = TextAlign.Center,
             )
         }
+
+        Text(
+            text = stringResource(Res.string.connect_account_hint),
+            style = typography.xs,
+            color = tokens.mutedForeground,
+            textAlign = TextAlign.Center,
+        )
     }
 }
 
