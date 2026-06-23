@@ -20,9 +20,13 @@ import bot.nomnomz.dashboard.core.connection.SessionTokens
 import bot.nomnomz.dashboard.core.connection.SessionUser
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.AuthApi
+import bot.nomnomz.dashboard.core.network.AuthPayload
 import bot.nomnomz.dashboard.core.network.CurrentUser
+import bot.nomnomz.dashboard.core.network.DeviceCodeStart
+import bot.nomnomz.dashboard.core.network.DeviceLoginPoll
 import bot.nomnomz.dashboard.core.network.SystemApi
 import bot.nomnomz.dashboard.core.network.SystemStatus
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -116,35 +120,107 @@ class ConnectController(
     }
 
     /**
-     * The single onboarding flow shared by the typed ([connect]) and discovered ([connectTo]) paths. Pins
-     * [profile], probes readiness, and either runs the streamer OAuth immediately (already configured) or
-     * leaves the gate on the Setup wizard (fresh self-host). A failed probe rolls back to Connect.
+     * The single onboarding flow shared by the typed ([connect]) and discovered ([connectTo]) paths: the
+     * no-secret Device Code Flow login. Pins [profile] (gate stays on Connect), confirms the backend is
+     * reachable, then mints a user code and polls until the operator approves at twitch.tv/activate — at
+     * which point the session is established and the gate advances to the shell. A failed probe rolls back.
      */
     private suspend fun beginOnboarding(profile: ConnectionProfile) {
         _status.value = ConnectStatus.Connecting
 
-        // Pin the profile so the shared ApiClient targets the chosen backend for the anonymous status probe
-        // (and the wizard's anonymous setup calls, if we route there). It carries no tokens yet.
-        sessionStore.enterSetup(profile)
+        // Pin the profile so the shared ApiClient targets the chosen backend for the anonymous device
+        // calls, but DON'T flip the gate to setup — the user code renders here on Connect.
+        sessionStore.pin(profile)
         pendingProfile = profile
 
+        // Confirm the backend is reachable before showing a code (a clean "can't reach" beats a dead code).
         when (val statusResult: ApiResult<SystemStatus> = systemApi.status()) {
             is ApiResult.Failure -> {
-                // Couldn't reach / read the backend — roll back to Connect and surface the failure.
                 sessionStore.disconnect()
                 pendingProfile = null
                 _status.value = ConnectStatus.Error(ConnectError.Auth(statusResult.error.message))
             }
 
-            is ApiResult.Ok ->
-                if (statusResult.value.ready) {
-                    // Configured already — run the streamer OAuth straight away.
-                    runStreamerOAuth(profile)
-                } else {
-                    // Not configured — the gate is already on NeedsSetup (enterSetup); the wizard takes over.
-                    _status.value = ConnectStatus.Idle
-                }
+            is ApiResult.Ok -> runDeviceLogin(profile)
         }
+    }
+
+    /** Start the device authorization, then poll it to completion (or surface the failure). */
+    private suspend fun runDeviceLogin(profile: ConnectionProfile) {
+        when (val start: ApiResult<DeviceCodeStart> = authApi.startDeviceLogin()) {
+            is ApiResult.Failure -> {
+                sessionStore.disconnect()
+                pendingProfile = null
+                _status.value = ConnectStatus.Error(ConnectError.Auth(start.error.message))
+            }
+
+            is ApiResult.Ok -> pollDeviceLogin(profile, start.value)
+        }
+    }
+
+    /**
+     * Show the user code + verification link and poll the backend on the device interval until the operator
+     * approves (→ establish the session), declines, or the code expires. A transient poll failure is tolerated
+     * until the code's deadline so a network blip mid-approval doesn't abort the login. The delay is a
+     * coroutine suspend (never a thread block), so the Connect screen stays responsive.
+     */
+    private suspend fun pollDeviceLogin(profile: ConnectionProfile, start: DeviceCodeStart) {
+        _status.value = ConnectStatus.AwaitingApproval(start.userCode, start.verificationUri)
+
+        var intervalMs: Long = start.interval.toLong().coerceAtLeast(1) * 1_000
+        val deadlineSeconds: Int = start.expiresIn.coerceAtLeast(60)
+        var elapsedSeconds: Int = 0
+
+        while (elapsedSeconds <= deadlineSeconds) {
+            delay(intervalMs)
+            elapsedSeconds += (intervalMs / 1_000).toInt()
+
+            when (val poll: ApiResult<DeviceLoginPoll> = authApi.pollDeviceLogin(start.deviceCode)) {
+                is ApiResult.Failure -> {
+                    if (elapsedSeconds > deadlineSeconds) {
+                        _status.value = ConnectStatus.Error(ConnectError.Auth(poll.error.message))
+                        return
+                    }
+                }
+
+                is ApiResult.Ok ->
+                    when (poll.value.status) {
+                        STATUS_AUTHORIZED -> {
+                            val auth: AuthPayload? = poll.value.auth
+                            if (auth == null) {
+                                _status.value = ConnectStatus.Error(ConnectError.LoginFailed)
+                                return
+                            }
+                            establishSession(
+                                profile,
+                                SessionTokens(
+                                    accessToken = auth.accessToken,
+                                    refreshToken = auth.refreshToken,
+                                ),
+                            )
+                            return
+                        }
+
+                        STATUS_SLOW_DOWN -> intervalMs += 5_000
+                        STATUS_PENDING -> Unit
+                        STATUS_EXPIRED -> {
+                            _status.value = ConnectStatus.Error(ConnectError.LoginExpired)
+                            return
+                        }
+                        STATUS_DENIED -> {
+                            _status.value = ConnectStatus.Error(ConnectError.LoginDenied)
+                            return
+                        }
+                        else -> {
+                            _status.value = ConnectStatus.Error(ConnectError.LoginFailed)
+                            return
+                        }
+                    }
+            }
+        }
+
+        // Fell through the deadline without an authorize/deny — the code is dead.
+        _status.value = ConnectStatus.Error(ConnectError.LoginExpired)
     }
 
     /**
@@ -203,6 +279,13 @@ class ConnectController(
 
     private companion object {
         const val DEFAULT_BASE_URL: String = "http://localhost:5080"
+
+        // The device-login poll statuses the backend returns (server-side DeviceLoginStatus).
+        const val STATUS_AUTHORIZED: String = "authorized"
+        const val STATUS_PENDING: String = "pending"
+        const val STATUS_SLOW_DOWN: String = "slow_down"
+        const val STATUS_EXPIRED: String = "expired"
+        const val STATUS_DENIED: String = "denied"
     }
 }
 
@@ -220,6 +303,12 @@ sealed interface ConnectStatus {
 
     data object Connecting : ConnectStatus
 
+    /**
+     * The device login is live: show [userCode] for the operator to enter at [verificationUri]
+     * (twitch.tv/activate) while the controller polls for approval in the background.
+     */
+    data class AwaitingApproval(val userCode: String, val verificationUri: String) : ConnectStatus
+
     data class Error(val error: ConnectError) : ConnectStatus
 }
 
@@ -228,6 +317,15 @@ sealed interface ConnectError {
     data object InvalidUrl : ConnectError
 
     data class Auth(val detail: String) : ConnectError
+
+    /** The user code expired before it was approved. */
+    data object LoginExpired : ConnectError
+
+    /** The operator declined the authorization at Twitch. */
+    data object LoginDenied : ConnectError
+
+    /** The login failed for an unexpected reason (malformed/authorized-without-tokens). */
+    data object LoginFailed : ConnectError
 }
 
 /** Accept a host with or without a scheme; reject blanks. Returns the normalized `scheme://host[:port]`. */

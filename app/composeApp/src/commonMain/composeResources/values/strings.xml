@@ -24,6 +24,13 @@
     <string name="connect_discovered_title">Found on your network</string>
     <string name="connect_discovered_searching">Searching your network for bots…</string>
     <string name="connect_discovered_manual_label">Or enter a backend URL</string>
+    <string name="connect_device_title">Approve the login on Twitch</string>
+    <string name="connect_device_instruction">Open Twitch and enter this code at twitch.tv/activate:</string>
+    <string name="connect_device_open">Open Twitch to approve</string>
+    <string name="connect_device_waiting">Waiting for approval…</string>
+    <string name="connect_error_login_expired">The code expired before you approved it. Try again.</string>
+    <string name="connect_error_login_denied">The login was declined on Twitch.</string>
+    <string name="connect_error_login_failed">Login failed. Please try again.</string>
     <string name="language_label">Language</string>
     <string name="language_system_default">System default</string>
     <string name="setup_title">Set up your bot</string>

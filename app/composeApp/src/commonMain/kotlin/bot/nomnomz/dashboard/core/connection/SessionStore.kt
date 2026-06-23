@@ -57,6 +57,16 @@ class SessionStore(private val tokenVault: SessionTokenStore = TokenVault()) {
     }
 
     /**
+     * Pin the active profile WITHOUT changing the gate phase or holding tokens — so the shared
+     * [ApiClient] can reach the chosen backend for the anonymous device-login calls while the gate
+     * stays on Connect (the user-code + verification link render there, not the setup wizard). On
+     * approval [connect] flips to Connected; on cancel/failure [disconnect] clears it.
+     */
+    fun pin(profile: ConnectionProfile) {
+        _activeProfile.value = profile
+    }
+
+    /**
      * Establish the real session: pin the active profile, hold its tokens, persist them to the
      * vault, and flip the gate to Connected. The signed-in [user] is attached separately once the
      * `/me` probe resolves (so the gate can advance immediately and the shell fills in the identity).

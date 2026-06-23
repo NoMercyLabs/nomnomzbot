@@ -21,6 +21,13 @@
     <string name="connect_discovered_title">Gevonden op je netwerk</string>
     <string name="connect_discovered_searching">Bezig met zoeken naar bots op je netwerk…</string>
     <string name="connect_discovered_manual_label">Of voer een backend-URL in</string>
+    <string name="connect_device_title">Keur de aanmelding goed op Twitch</string>
+    <string name="connect_device_instruction">Open Twitch en voer deze code in op twitch.tv/activate:</string>
+    <string name="connect_device_open">Open Twitch om goed te keuren</string>
+    <string name="connect_device_waiting">Wachten op goedkeuring…</string>
+    <string name="connect_error_login_expired">De code is verlopen voordat je hem goedkeurde. Probeer het opnieuw.</string>
+    <string name="connect_error_login_denied">De aanmelding is op Twitch geweigerd.</string>
+    <string name="connect_error_login_failed">Aanmelden mislukt. Probeer het opnieuw.</string>
     <string name="language_label">Taal</string>
     <string name="language_system_default">Systeemstandaard</string>
     <string name="setup_title">Stel je bot in</string>

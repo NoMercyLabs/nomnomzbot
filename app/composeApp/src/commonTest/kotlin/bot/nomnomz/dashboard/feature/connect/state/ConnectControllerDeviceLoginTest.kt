@@ -18,15 +18,15 @@ import bot.nomnomz.dashboard.core.connection.SessionPhase
 import bot.nomnomz.dashboard.core.connection.SessionStore
 import bot.nomnomz.dashboard.core.connection.SessionTokenStore
 import bot.nomnomz.dashboard.core.connection.SessionTokens
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import bot.nomnomz.dashboard.core.network.ApiClient
 import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.AuthApi
+import bot.nomnomz.dashboard.core.network.AuthPayload
 import bot.nomnomz.dashboard.core.network.BotOAuthUrl
 import bot.nomnomz.dashboard.core.network.BotStatus
+import bot.nomnomz.dashboard.core.network.CurrentUser
+import bot.nomnomz.dashboard.core.network.DeviceCodeStart
+import bot.nomnomz.dashboard.core.network.DeviceLoginPoll
 import bot.nomnomz.dashboard.core.network.SetupWizard
 import bot.nomnomz.dashboard.core.network.SystemApi
 import bot.nomnomz.dashboard.core.network.SystemCheck
@@ -34,56 +34,85 @@ import bot.nomnomz.dashboard.core.network.SystemChecks
 import bot.nomnomz.dashboard.core.network.SystemStatus
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.test.runTest
 
-// Proves the routing decision that closes the gap: a fresh self-host bot has no Twitch app credentials, so
-// its OAuth can't start — the connect flow must probe readiness FIRST and route the gate to the Setup
-// wizard (NeedsSetup) instead of straight to Twitch OAuth. The phase transition IS the routing decision,
-// so asserting it proves the gate renders the wizard. The OAuth launcher is never invoked on these paths
-// (not-ready / unreachable), so a real launcher is safe and uncalled.
-class ConnectControllerSetupRoutingTest {
-
-    private fun controller(
-        systemApi: SystemApi,
-        lanDiscovery: LanDiscovery = FakeLanDiscovery(),
-    ): ConnectController {
-        val session = SessionStore(FakeVault())
-        val client = ApiClient(baseUrlProvider = session::baseUrl, tokenProvider = session::accessToken)
-        return ConnectController(
-            sessionStore = session,
-            authApi = AuthApi(client),
-            systemApi = systemApi,
-            oauthLauncher = OAuthLauncher(),
-            lanDiscovery = lanDiscovery,
-            profileIdFactory = { "test-profile" },
-        ).also { sessionByController[it] = session }
-    }
+// Proves the no-secret Device Code Flow login the Connect screen drives: clicking "Connect with Twitch"
+// confirms the backend is reachable, mints a user code, polls, and on approval establishes the real session
+// (gate → Connected) — or surfaces a clean error when declined / unreachable, leaving the gate on Connect.
+// The phase transition IS the observable outcome, so asserting it proves the gate renders the right screen.
+class ConnectControllerDeviceLoginTest {
 
     private val sessionByController: MutableMap<ConnectController, SessionStore> = mutableMapOf()
 
-    private fun sessionOf(controller: ConnectController): SessionStore = sessionByController.getValue(controller)
+    private fun controller(
+        systemApi: SystemApi,
+        authApi: AuthApi = FakeAuthApi(),
+        lanDiscovery: LanDiscovery = FakeLanDiscovery(),
+    ): ConnectController {
+        val session: SessionStore = SessionStore(FakeVault())
+        return ConnectController(
+                sessionStore = session,
+                authApi = authApi,
+                systemApi = systemApi,
+                oauthLauncher = OAuthLauncher(),
+                lanDiscovery = lanDiscovery,
+                profileIdFactory = { "test-profile" },
+            )
+            .also { sessionByController[it] = session }
+    }
+
+    private fun sessionOf(controller: ConnectController): SessionStore =
+        sessionByController.getValue(controller)
 
     @Test
-    fun not_ready_routes_the_gate_to_setup_and_pins_the_chosen_backend() = runTest {
-        val controller = controller(FakeSystemApi(ready = false))
+    fun connect_establishes_the_session_when_the_login_is_approved() = runTest {
+        val authApi =
+            FakeAuthApi(
+                poll =
+                    ApiResult.Ok(
+                        DeviceLoginPoll(
+                            "authorized",
+                            AuthPayload(accessToken = "acc", refreshToken = "ref"),
+                        )
+                    )
+            )
+        val controller = controller(FakeSystemApi(ready = true), authApi)
         controller.onBaseUrlChange("http://localhost:5080")
 
         controller.connect()
 
         val session: SessionStore = sessionOf(controller)
-        // The gate is on NeedsSetup ⇒ the App renders the Setup wizard, not the Twitch OAuth.
-        assertEquals(SessionPhase.NeedsSetup, session.phase.value)
-        // The chosen backend is pinned so the wizard's anonymous setup calls reach it.
-        assertEquals("http://localhost:5080", session.baseUrl())
-        // No tokens yet — the session isn't established until the wizard finishes the streamer OAuth.
-        assertEquals(null, session.accessToken())
-        // The connect screen is back to idle (it handed off to the wizard, no error).
+        // Approval establishes the real session: tokens held, gate on Connected, /me identity attached.
+        assertEquals(SessionPhase.Connected, session.phase.value)
+        assertEquals("acc", session.accessToken())
+        assertEquals("eagle", session.user.value?.username)
         assertEquals(ConnectStatus.Idle, controller.status.value)
     }
 
     @Test
+    fun connect_surfaces_an_error_when_the_login_is_declined() = runTest {
+        val authApi = FakeAuthApi(poll = ApiResult.Ok(DeviceLoginPoll("denied")))
+        val controller = controller(FakeSystemApi(ready = true), authApi)
+        controller.onBaseUrlChange("http://localhost:5080")
+
+        controller.connect()
+
+        // Declined ⇒ no session; the gate stays on Connect with the decline surfaced.
+        val session: SessionStore = sessionOf(controller)
+        assertEquals(SessionPhase.NotConnected, session.phase.value)
+        assertEquals(null, session.accessToken())
+        val status: ConnectStatus = controller.status.value
+        assertEquals(true, status is ConnectStatus.Error)
+        assertEquals(ConnectError.LoginDenied, (status as ConnectStatus.Error).error)
+    }
+
+    @Test
     fun an_unreachable_backend_rolls_back_to_connect_with_an_error() = runTest {
-        val controller = controller(FakeSystemApi(statusError = ApiError(0, "NETWORK", "Connection refused.")))
+        val controller =
+            controller(FakeSystemApi(statusError = ApiError(0, "NETWORK", "Connection refused.")))
         controller.onBaseUrlChange("http://localhost:5080")
 
         controller.connect()
@@ -92,14 +121,13 @@ class ConnectControllerSetupRoutingTest {
         // Couldn't read status ⇒ the gate is back on Connect, profile cleared, with the failure surfaced.
         assertEquals(SessionPhase.NotConnected, session.phase.value)
         assertEquals(null, session.baseUrl())
-        val status: ConnectStatus = controller.status.value
-        assertEquals(true, status is ConnectStatus.Error)
+        assertEquals(true, controller.status.value is ConnectStatus.Error)
     }
 
     @Test
     fun exposes_the_lan_discovered_list_and_drives_its_start_stop_lifecycle() = runTest {
         val discovery = FakeLanDiscovery()
-        val controller = controller(FakeSystemApi(ready = true), discovery)
+        val controller = controller(FakeSystemApi(ready = true), lanDiscovery = discovery)
 
         // The controller re-publishes the discovery feed verbatim, so the Connect screen renders it.
         val bot =
@@ -120,10 +148,17 @@ class ConnectControllerSetupRoutingTest {
     }
 
     @Test
-    fun connect_to_a_discovered_backend_runs_the_same_onboarding_and_routes_to_setup() = runTest {
-        // A discovered bot that isn't configured yet must route to Setup EXACTLY like the typed path —
-        // proving connectTo reuses beginOnboarding (probe → setup-or-OAuth), not a separate flow.
-        val controller = controller(FakeSystemApi(ready = false))
+    fun connect_to_a_discovered_backend_establishes_the_session_on_approval() = runTest {
+        // A discovered bot runs the SAME device login as the typed path — proving connectTo reuses
+        // beginOnboarding (probe → device login), not a separate flow, and binds the discovered profile.
+        val authApi =
+            FakeAuthApi(
+                poll =
+                    ApiResult.Ok(
+                        DeviceLoginPoll("authorized", AuthPayload(accessToken = "acc", refreshToken = "ref"))
+                    )
+            )
+        val controller = controller(FakeSystemApi(ready = true), authApi)
         val bot =
             ConnectionProfile(
                 id = "eagle-id",
@@ -135,13 +170,10 @@ class ConnectControllerSetupRoutingTest {
         controller.connectTo(bot)
 
         val session: SessionStore = sessionOf(controller)
-        // Same routing as the typed not-ready path: gate on NeedsSetup, backend pinned, no tokens, idle.
-        assertEquals(SessionPhase.NeedsSetup, session.phase.value)
-        assertEquals("http://192.168.1.42:5080", session.baseUrl())
-        // The pinned profile is the DISCOVERED one (its id/baseUrl), not a freshly minted manual profile.
+        assertEquals(SessionPhase.Connected, session.phase.value)
+        // The session binds the DISCOVERED profile (its id/baseUrl), not a freshly minted manual profile.
         assertEquals(bot, session.activeProfile.value)
-        assertEquals(null, session.accessToken())
-        assertEquals(ConnectStatus.Idle, controller.status.value)
+        assertEquals("acc", session.accessToken())
     }
 
     @Test
@@ -179,7 +211,8 @@ private class FakeSystemApi(
                     checks =
                         SystemChecks(
                             twitchApp = SystemCheck(ready, if (ready) "configured" else "missing"),
-                            platformBot = SystemCheck(ready, if (ready) "connected" else "disconnected"),
+                            platformBot =
+                                SystemCheck(ready, if (ready) "connected" else "disconnected"),
                         ),
                 )
             )
@@ -193,20 +226,51 @@ private class FakeSystemApi(
         botUsername: String?,
     ): ApiResult<Unit> = ApiResult.Ok(Unit)
 
-    override suspend fun saveSpotifyCredentials(clientId: String, clientSecret: String): ApiResult<Unit> =
-        ApiResult.Ok(Unit)
+    override suspend fun saveSpotifyCredentials(
+        clientId: String,
+        clientSecret: String,
+    ): ApiResult<Unit> = ApiResult.Ok(Unit)
 
-    override suspend fun saveYouTubeCredentials(clientId: String, clientSecret: String): ApiResult<Unit> =
-        ApiResult.Ok(Unit)
+    override suspend fun saveYouTubeCredentials(
+        clientId: String,
+        clientSecret: String,
+    ): ApiResult<Unit> = ApiResult.Ok(Unit)
 
-    override suspend fun saveDiscordCredentials(clientId: String, clientSecret: String): ApiResult<Unit> =
-        ApiResult.Ok(Unit)
+    override suspend fun saveDiscordCredentials(
+        clientId: String,
+        clientSecret: String,
+    ): ApiResult<Unit> = ApiResult.Ok(Unit)
 
-    override suspend fun botOAuthUrl(): ApiResult<BotOAuthUrl> = ApiResult.Ok(BotOAuthUrl("https://id.twitch.tv/authorize?bot"))
+    override suspend fun botOAuthUrl(): ApiResult<BotOAuthUrl> =
+        ApiResult.Ok(BotOAuthUrl("https://id.twitch.tv/authorize?bot"))
 
-    override suspend fun botStatus(): ApiResult<BotStatus> = ApiResult.Ok(BotStatus(connected = ready))
+    override suspend fun botStatus(): ApiResult<BotStatus> =
+        ApiResult.Ok(BotStatus(connected = ready))
 
     override suspend fun completeSetup(): ApiResult<Unit> = ApiResult.Ok(Unit)
+}
+
+/** An in-memory [AuthApi] so the controller tests drive the device-login outcomes without any HTTP. */
+private class FakeAuthApi(
+    private val start: ApiResult<DeviceCodeStart> =
+        ApiResult.Ok(
+            DeviceCodeStart(
+                deviceCode = "device-code",
+                userCode = "WXYZ-7890",
+                verificationUri = "https://www.twitch.tv/activate",
+                interval = 1,
+                expiresIn = 60,
+            )
+        ),
+    private val poll: ApiResult<DeviceLoginPoll> = ApiResult.Ok(DeviceLoginPoll("pending")),
+    private val me: ApiResult<CurrentUser> =
+        ApiResult.Ok(CurrentUser(id = "u1", username = "eagle", displayName = "Eagle")),
+) : AuthApi {
+    override suspend fun me(): ApiResult<CurrentUser> = me
+
+    override suspend fun startDeviceLogin(): ApiResult<DeviceCodeStart> = start
+
+    override suspend fun pollDeviceLogin(deviceCode: String): ApiResult<DeviceLoginPoll> = poll
 }
 
 private class FakeVault : SessionTokenStore {
@@ -221,7 +285,8 @@ private class FakeVault : SessionTokenStore {
 private class FakeLanDiscovery : LanDiscovery {
     override val isSupported: Boolean = true
 
-    private val _discovered: MutableStateFlow<List<ConnectionProfile>> = MutableStateFlow(emptyList())
+    private val _discovered: MutableStateFlow<List<ConnectionProfile>> =
+        MutableStateFlow(emptyList())
     override val discovered: StateFlow<List<ConnectionProfile>> = _discovered.asStateFlow()
 
     var startCount: Int = 0

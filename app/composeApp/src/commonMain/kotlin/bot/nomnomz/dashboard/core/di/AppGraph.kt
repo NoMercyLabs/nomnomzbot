@@ -23,6 +23,7 @@ import bot.nomnomz.dashboard.core.network.AuthApi
 import bot.nomnomz.dashboard.core.network.BotAuthApi
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.IntegrationsApi
+import bot.nomnomz.dashboard.core.network.RestAuthApi
 import bot.nomnomz.dashboard.core.network.RestBotAuthApi
 import bot.nomnomz.dashboard.core.network.RestChannelsApi
 import bot.nomnomz.dashboard.core.network.RestIntegrationsApi
@@ -55,7 +56,7 @@ class AppGraph {
             tokenProvider = sessionStore::accessToken,
         )
 
-    val authApi: AuthApi = AuthApi(apiClient)
+    val authApi: AuthApi = RestAuthApi(apiClient)
     val channelsApi: ChannelsApi = RestChannelsApi(apiClient)
     val botAuthApi: BotAuthApi = RestBotAuthApi(apiClient)
     val integrationsApi: IntegrationsApi = RestIntegrationsApi(apiClient)
