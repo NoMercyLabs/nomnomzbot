@@ -39,6 +39,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import bot.nomnomz.dashboard.core.designsystem.component.CopyValue
+import bot.nomnomz.dashboard.core.designsystem.component.LinkedText
 import bot.nomnomz.dashboard.core.designsystem.component.StepState
 import bot.nomnomz.dashboard.core.designsystem.component.Stepper
 import bot.nomnomz.dashboard.core.designsystem.component.StepperStep
@@ -57,6 +59,8 @@ import nomnomzbot.composeapp.generated.resources.setup_action_connect_bot
 import nomnomzbot.composeapp.generated.resources.setup_action_continue
 import nomnomzbot.composeapp.generated.resources.setup_action_retry
 import nomnomzbot.composeapp.generated.resources.setup_action_save
+import nomnomzbot.composeapp.generated.resources.setup_copy_action
+import nomnomzbot.composeapp.generated.resources.setup_copy_done
 import nomnomzbot.composeapp.generated.resources.setup_error_bot
 import nomnomzbot.composeapp.generated.resources.setup_error_missing_fields
 import nomnomzbot.composeapp.generated.resources.setup_error_save
@@ -76,6 +80,7 @@ import nomnomzbot.composeapp.generated.resources.setup_step_counter
 import nomnomzbot.composeapp.generated.resources.setup_step_done
 import nomnomzbot.composeapp.generated.resources.setup_subtitle
 import nomnomzbot.composeapp.generated.resources.setup_title
+import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 
 // The first-run Setup wizard (frontend.md §5; the setup rung between Connect and the shell), reworked from
@@ -178,7 +183,7 @@ private fun stepperModel(state: SetupState.Steps): List<StepperStep> {
     val backend: List<StepperStep> =
         state.steps.mapIndexed { index, step ->
             StepperStep(
-                label = step.title,
+                label = localizedOrBackend(SetupCopy.stepTitle(step.key), step.title),
                 state = stepStateFor(complete = step.complete, index = index, current = state.currentStep),
             )
         }
@@ -227,7 +232,11 @@ private fun StepPanel(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(text = step.title, style = typography.lg, color = tokens.cardForeground)
+            Text(
+                text = localizedOrBackend(SetupCopy.stepTitle(step.key), step.title),
+                style = typography.lg,
+                color = tokens.cardForeground,
+            )
             if (step.complete) {
                 Text(text = stringResource(Res.string.setup_step_done), style = typography.sm, color = tokens.primary)
             } else if (!step.required) {
@@ -235,10 +244,29 @@ private fun StepPanel(
             }
         }
 
-        Text(text = step.description, style = typography.sm, color = tokens.mutedForeground)
+        Text(
+            text = localizedOrBackend(SetupCopy.stepDescription(step.key), step.description),
+            style = typography.sm,
+            color = tokens.mutedForeground,
+        )
 
-        step.instructions.forEach { line ->
-            Text(text = line, style = typography.xs, color = tokens.mutedForeground)
+        // The redirect URI the operator registers on the external console — the same value an instruction
+        // line names — surfaced once as a copy-to-clipboard chip so it's pasted verbatim, never retyped.
+        val copyAffordance: CopyAffordance =
+            CopyAffordance(
+                copy = stringResource(Res.string.setup_copy_action),
+                copied = stringResource(Res.string.setup_copy_done),
+            )
+
+        step.instructions.forEachIndexed { index, backendLine ->
+            val line: String = localizedOrBackend(SetupCopy.instruction(step.key, index), backendLine)
+            // URLs in the localized line are clickable (open the external console). A redirect/callback URL
+            // the operator must PASTE gets its own copy chip — read from the BACKEND line (always carries the
+            // exact URI) so the chip stays correct even though the localized prose says "shown below".
+            LinkedText(text = line, style = typography.xs, color = tokens.mutedForeground)
+            copyableUrl(backendLine)?.let { url ->
+                CopyValue(value = url, copyLabel = copyAffordance.copy, copiedLabel = copyAffordance.copied)
+            }
         }
 
         if (!step.complete) {
@@ -405,6 +433,7 @@ private fun CredentialFields(
     Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
         step.fields.forEach { field ->
             CredentialField(
+                stepKey = step.key,
                 field = field,
                 value = controller.valueOf(step.key, field.key),
                 enabled = !busy,
@@ -431,23 +460,67 @@ private fun CredentialFields(
 
 @Composable
 private fun CredentialField(
+    stepKey: String,
     field: SetupField,
     value: String,
     enabled: Boolean,
     onValueChange: (String) -> Unit,
 ) {
+    val label: String = localizedOrBackend(SetupCopy.fieldLabel(stepKey, field.key), field.label)
+    // Help is nullable on both sides: prefer the localized help, then the backend's (itself nullable), then
+    // show none — so a field with no help anywhere simply renders without a supporting line.
+    val help: String? = SetupCopy.fieldHelp(stepKey, field.key)?.let { stringResource(it) } ?: field.help
+
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
         enabled = enabled,
         singleLine = true,
         modifier = Modifier.fillMaxWidth(),
-        label = { Text(field.label) },
-        supportingText = field.help?.let { { Text(it) } },
+        label = { Text(label) },
+        supportingText = help?.let { { Text(it) } },
         visualTransformation =
             if (field.type == FIELD_TYPE_PASSWORD) PasswordVisualTransformation() else VisualTransformation.None,
     )
 }
+
+// ── Localization + copy helpers ────────────────────────────────────────────────
+
+/** A step/field's localized copy when its i18n key exists, else the backend's English (the self-describing fallback). */
+@Composable
+private fun localizedOrBackend(key: StringResource?, backend: String): String =
+    if (key != null) stringResource(key) else backend
+
+/** The already-localized copy/copied labels a [CopyValue] flips between, resolved once per step. */
+private data class CopyAffordance(val copy: String, val copied: String)
+
+/**
+ * The single URL in [line] the operator must PASTE into an external console — a redirect/callback URI the
+ * bot owns — or null when the line only carries an external console URL to visit (which [LinkedText] already
+ * makes clickable). Matching on the callback path keeps "copy this" attached to the paste-value, never the
+ * "go here" links, with no hardcoded per-step knowledge.
+ */
+private fun copyableUrl(line: String): String? {
+    val start: Int = indexOfHttp(line)
+    if (start < 0) return null
+    var end: Int = start
+    while (end < line.length && !line[end].isWhitespace()) end++
+    while (end > start && line[end - 1] in COPY_TRAILING_PUNCTUATION) end--
+    val url: String = line.substring(start, end)
+    return if (url.contains("/callback")) url else null
+}
+
+private fun indexOfHttp(text: String): Int {
+    val https: Int = text.indexOf("https://")
+    val http: Int = text.indexOf("http://")
+    return when {
+        https < 0 -> http
+        http < 0 -> https
+        else -> minOf(https, http)
+    }
+}
+
+private val COPY_TRAILING_PUNCTUATION: Set<Char> = setOf('.', ',', ';', ':', ')', ']', '}', '!', '?', '"', '\'')
 
 @Composable
 private fun BotConnect(

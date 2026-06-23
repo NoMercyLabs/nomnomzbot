@@ -30,7 +30,7 @@ fun main() = application {
     val windowState =
         rememberWindowState(
             position = WindowPosition(Alignment.Center),
-            size = DpSize(1100.dp, 760.dp),
+            size = DpSize(1320.dp, 920.dp),
         )
 
     Window(
