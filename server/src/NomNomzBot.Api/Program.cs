@@ -62,7 +62,7 @@ try
                 // Cap rolling logs at 30 days so they do not grow without bound (§11). Paths/IDs in logs
                 // are covered by the retention note in the operational runbook.
                 .WriteTo.File(
-                    "logs/nomnomzbot-.log",
+                    Path.Combine(SelfHostDataPaths.LogsDirectory, "nomnomzbot-.log"),
                     rollingInterval: RollingInterval.Day,
                     retainedFileCountLimit: 30
                 )

@@ -87,7 +87,8 @@ public static class DependencyInjection
             configuration.GetConnectionString("DefaultConnection")
             ?? configuration.GetSection("Database:ConnectionString").Value;
         string sqliteConnectionString =
-            configuration.GetConnectionString("SqliteConnection") ?? "Data Source=./nomnomz.db";
+            configuration.GetConnectionString("SqliteConnection")
+            ?? SelfHostDataPaths.SqliteConnectionString;
 
         services.AddDbContext<AppDbContext>(
             (serviceProvider, options) =>

@@ -34,6 +34,9 @@ COPY --from=publish /app/publish .
 # The aspnet base image ships a pre-created non-root 'app' user (UID 1654). Own /app so the app can
 # still write its rolling logs under logs/, then drop to it — an RCE in the app or a dependency no
 # longer lands as container root (§10).
-RUN chown -R app:app /app
+# Runtime data (logs, SQLite for lite, OS-vault key files) lives in one folder; on Linux the default machine
+# app-data path (/usr/share) is not writable by the non-root 'app' user, so point it at a writable, mountable dir.
+ENV NOMNOMZ_DATA_DIR=/app/data
+RUN mkdir -p /app/data && chown -R app:app /app
 USER app
 ENTRYPOINT ["dotnet", "NomNomzBot.Api.dll"]

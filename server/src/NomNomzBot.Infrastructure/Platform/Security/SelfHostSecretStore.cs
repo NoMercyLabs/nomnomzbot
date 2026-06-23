@@ -69,13 +69,5 @@ public static class SelfHostSecretStore
             )
             : Encoding.UTF8.GetString(sealedBytes);
 
-    private static string DefaultKeysDirectory() =>
-        Path.Combine(
-            Environment.GetFolderPath(
-                Environment.SpecialFolder.CommonApplicationData,
-                Environment.SpecialFolderOption.Create
-            ),
-            "NomNomzBot",
-            "keys"
-        );
+    private static string DefaultKeysDirectory() => SelfHostDataPaths.KeysDirectory;
 }

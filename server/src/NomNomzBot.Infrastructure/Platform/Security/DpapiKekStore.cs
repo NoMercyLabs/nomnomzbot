@@ -70,12 +70,6 @@ internal static class DpapiKekStore
         return kek;
     }
 
-    private static string KekFilePath()
-    {
-        string baseDir = Environment.GetFolderPath(
-            Environment.SpecialFolder.CommonApplicationData,
-            Environment.SpecialFolderOption.Create
-        );
-        return Path.Combine(baseDir, "NomNomzBot", "keys", "root-kek.dpapi");
-    }
+    private static string KekFilePath() =>
+        Path.Combine(SelfHostDataPaths.KeysDirectory, "root-kek.dpapi");
 }
