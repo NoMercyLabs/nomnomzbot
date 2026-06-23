@@ -80,8 +80,14 @@ public sealed class SeedTestDbContext : DbContext, IApplicationDbContext
         Set<NomNomzBot.Domain.Integrations.Entities.IntegrationConnection>();
     public DbSet<NomNomzBot.Domain.Integrations.Entities.IntegrationToken> IntegrationTokens =>
         Set<NomNomzBot.Domain.Integrations.Entities.IntegrationToken>();
-    public DbSet<DiscordServerAuthorization> DiscordServerAuthorizations =>
-        Set<DiscordServerAuthorization>();
+    public DbSet<DiscordGuildConnection> DiscordGuildConnections => Set<DiscordGuildConnection>();
+    public DbSet<DiscordNotificationConfig> DiscordNotificationConfigs =>
+        Set<DiscordNotificationConfig>();
+    public DbSet<DiscordNotificationRole> DiscordNotificationRoles =>
+        Set<DiscordNotificationRole>();
+    public DbSet<DiscordMemberOptIn> DiscordMemberOptIns => Set<DiscordMemberOptIn>();
+    public DbSet<DiscordNotificationDispatch> DiscordNotificationDispatches =>
+        Set<DiscordNotificationDispatch>();
     public DbSet<ChannelSubscription> ChannelSubscriptions => Set<ChannelSubscription>();
     public DbSet<UserTtsVoice> UserTtsVoices => Set<UserTtsVoice>();
     public DbSet<TtsUsageRecord> TtsUsageRecords => Set<TtsUsageRecord>();
@@ -233,7 +239,11 @@ public sealed class SeedTestDbContext : DbContext, IApplicationDbContext
         modelBuilder.Ignore<IpcDevModeKey>();
         modelBuilder.Ignore<NomNomzBot.Domain.Integrations.Entities.IntegrationConnection>();
         modelBuilder.Ignore<NomNomzBot.Domain.Integrations.Entities.IntegrationToken>();
-        modelBuilder.Ignore<DiscordServerAuthorization>();
+        modelBuilder.Ignore<DiscordGuildConnection>();
+        modelBuilder.Ignore<DiscordNotificationConfig>();
+        modelBuilder.Ignore<DiscordNotificationRole>();
+        modelBuilder.Ignore<DiscordMemberOptIn>();
+        modelBuilder.Ignore<DiscordNotificationDispatch>();
         modelBuilder.Ignore<ChannelSubscription>();
         modelBuilder.Ignore<UserTtsVoice>();
         modelBuilder.Ignore<TtsUsageRecord>();

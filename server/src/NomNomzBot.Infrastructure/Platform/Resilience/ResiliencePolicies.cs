@@ -154,6 +154,86 @@ public static class ResiliencePolicies
     }
 
     /// <summary>
+    /// Adds Discord REST API resilience (discord.md §8): 2 retries with exponential backoff + jitter on
+    /// transient 5xx and 429, an 8s per-attempt timeout, and a 50%/60s circuit breaker. Honors Discord's
+    /// <c>Retry-After</c> header on 429 (Discord returns it in seconds, fractional allowed) so the retry waits
+    /// exactly the bucket reset rather than a blind backoff — the rate-limit contract the gateway relies on.
+    /// </summary>
+    public static IHttpClientBuilder AddDiscordResilienceHandler(this IHttpClientBuilder builder)
+    {
+        builder.AddResilienceHandler(
+            "discord-resilience",
+            pipeline =>
+            {
+                pipeline.AddRetry(
+                    new HttpRetryStrategyOptions
+                    {
+                        MaxRetryAttempts = 2,
+                        BackoffType = DelayBackoffType.Exponential,
+                        UseJitter = true,
+                        Delay = TimeSpan.FromSeconds(1),
+                        ShouldHandle = args =>
+                        {
+                            HttpStatusCode? status = args.Outcome.Result?.StatusCode;
+                            return ValueTask.FromResult(
+                                status == HttpStatusCode.TooManyRequests
+                                    || RetryableStatuses.Contains(status ?? 0)
+                                    || args.Outcome.Exception is HttpRequestException
+                            );
+                        },
+                        // Honor Discord's Retry-After (seconds, possibly fractional) on a 429.
+                        DelayGenerator = args =>
+                        {
+                            if (args.Outcome.Result?.StatusCode == HttpStatusCode.TooManyRequests)
+                            {
+                                if (
+                                    args.Outcome.Result.Headers.TryGetValues(
+                                        "Retry-After",
+                                        out IEnumerable<string>? values
+                                    )
+                                    && double.TryParse(
+                                        values.FirstOrDefault(),
+                                        System.Globalization.NumberStyles.Float,
+                                        System.Globalization.CultureInfo.InvariantCulture,
+                                        out double retryAfter
+                                    )
+                                )
+                                {
+                                    return ValueTask.FromResult<TimeSpan?>(
+                                        TimeSpan.FromSeconds(retryAfter)
+                                    );
+                                }
+                            }
+                            return ValueTask.FromResult<TimeSpan?>(null); // use default backoff
+                        },
+                    }
+                );
+
+                // Per-request timeout: 8s
+                pipeline.AddTimeout(TimeSpan.FromSeconds(8));
+
+                // Circuit breaker: 50% failure rate over 60s, min 3 requests, break for 60s.
+                pipeline.AddCircuitBreaker(
+                    new HttpCircuitBreakerStrategyOptions
+                    {
+                        FailureRatio = 0.5,
+                        SamplingDuration = TimeSpan.FromSeconds(60),
+                        MinimumThroughput = 3,
+                        BreakDuration = TimeSpan.FromSeconds(60),
+                        ShouldHandle = args =>
+                            ValueTask.FromResult(
+                                args.Outcome.Result?.StatusCode
+                                    >= HttpStatusCode.InternalServerError
+                                    || args.Outcome.Exception is HttpRequestException
+                            ),
+                    }
+                );
+            }
+        );
+        return builder;
+    }
+
+    /// <summary>
     /// Adds Spotify API resilience: 2 retries with exponential backoff + circuit breaker.
     /// Respects Retry-After header on 429.
     /// </summary>

@@ -393,7 +393,15 @@ public sealed class IdentityRekeyBehaviorTests
             throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.Integrations.Entities.IntegrationToken> IntegrationTokens =>
             throw new NotSupportedException();
-        public DbSet<NomNomzBot.Domain.Discord.Entities.DiscordServerAuthorization> DiscordServerAuthorizations =>
+        public DbSet<NomNomzBot.Domain.Discord.Entities.DiscordGuildConnection> DiscordGuildConnections =>
+            throw new NotSupportedException();
+        public DbSet<NomNomzBot.Domain.Discord.Entities.DiscordNotificationConfig> DiscordNotificationConfigs =>
+            throw new NotSupportedException();
+        public DbSet<NomNomzBot.Domain.Discord.Entities.DiscordNotificationRole> DiscordNotificationRoles =>
+            throw new NotSupportedException();
+        public DbSet<NomNomzBot.Domain.Discord.Entities.DiscordMemberOptIn> DiscordMemberOptIns =>
+            throw new NotSupportedException();
+        public DbSet<NomNomzBot.Domain.Discord.Entities.DiscordNotificationDispatch> DiscordNotificationDispatches =>
             throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.Identity.Entities.ChannelSubscription> ChannelSubscriptions =>
             throw new NotSupportedException();

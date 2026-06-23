@@ -14,7 +14,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260623032559_Initial")]
+    [Migration("20260623040732_Initial")]
     partial class Initial
     {
         /// <inheritdoc />
@@ -1114,25 +1114,29 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.ToTable("CodeScriptVersions");
                 });
 
-            modelBuilder.Entity("NomNomzBot.Domain.Discord.Entities.DiscordServerAuthorization", b =>
+            modelBuilder.Entity("NomNomzBot.Domain.Discord.Entities.DiscordGuildConnection", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                        .HasColumnType("uuid");
 
                     b.Property<DateTime?>("ApprovedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("ApprovedBy")
+                    b.Property<string>("ApprovedByDiscordUserId")
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
+
+                    b.Property<bool>("BotInstalled")
+                        .HasColumnType("boolean");
 
                     b.Property<Guid>("BroadcasterId")
                         .HasColumnType("uuid");
 
                     b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("GuildId")
@@ -1141,16 +1145,63 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         .HasColumnType("character varying(50)");
 
                     b.Property<string>("GuildName")
-                        .IsRequired()
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)");
 
-                    b.Property<string>("Status")
+                    b.Property<string>("ServerConsentStatus")
                         .IsRequired()
-                        .ValueGeneratedOnAdd()
                         .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
-                        .HasDefaultValue("pending");
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<bool>("StreamerEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GuildId");
+
+                    b.HasIndex("BroadcasterId", "GuildId")
+                        .IsUnique();
+
+                    b.ToTable("DiscordGuildConnections");
+                });
+
+            modelBuilder.Entity("NomNomzBot.Domain.Discord.Entities.DiscordMemberOptIn", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BroadcasterId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DiscordMemberId")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<Guid>("NotificationRoleId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("OptInSource")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTime>("OptedInAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("OptedOutAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -1159,7 +1210,201 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
 
                     b.HasIndex("BroadcasterId");
 
-                    b.ToTable("DiscordServerAuthorizations");
+                    b.HasIndex("DiscordMemberId");
+
+                    b.HasIndex("NotificationRoleId");
+
+                    b.HasIndex("NotificationRoleId", "DiscordMemberId")
+                        .IsUnique();
+
+                    b.ToTable("DiscordMemberOptIns");
+                });
+
+            modelBuilder.Entity("NomNomzBot.Domain.Discord.Entities.DiscordNotificationConfig", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BroadcasterId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("ConfigSchemaVersion")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1);
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("EmbedConfig")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("Enabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid>("GuildConnectionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("MessageTemplate")
+                        .HasColumnType("text");
+
+                    b.Property<int?>("MilestoneThreshold")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("MilestoneType")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<Guid?>("PingRoleId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("TargetChannelId")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("TriggerType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BroadcasterId");
+
+                    b.HasIndex("GuildConnectionId");
+
+                    b.HasIndex("PingRoleId");
+
+                    b.HasIndex("TriggerType");
+
+                    b.HasIndex("GuildConnectionId", "TriggerType")
+                        .IsUnique();
+
+                    b.ToTable("DiscordNotificationConfigs");
+                });
+
+            modelBuilder.Entity("NomNomzBot.Domain.Discord.Entities.DiscordNotificationDispatch", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BroadcasterId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DedupeKey")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<DateTime>("DispatchedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Error")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("NotificationConfigId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("PostedMessageId")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<Guid?>("StreamId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("TriggerType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BroadcasterId");
+
+                    b.HasIndex("DedupeKey");
+
+                    b.HasIndex("DispatchedAt");
+
+                    b.HasIndex("NotificationConfigId");
+
+                    b.HasIndex("StreamId");
+
+                    b.HasIndex("NotificationConfigId", "DedupeKey")
+                        .IsUnique();
+
+                    b.ToTable("DiscordNotificationDispatches");
+                });
+
+            modelBuilder.Entity("NomNomzBot.Domain.Discord.Entities.DiscordNotificationRole", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BroadcasterId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ButtonChannelId")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("ButtonMessageId")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DiscordRoleId")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<Guid>("GuildConnectionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("RoleName")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<bool>("SelfAssignEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BroadcasterId");
+
+                    b.HasIndex("DiscordRoleId");
+
+                    b.HasIndex("GuildConnectionId");
+
+                    b.HasIndex("GuildConnectionId", "DiscordRoleId")
+                        .IsUnique();
+
+                    b.ToTable("DiscordNotificationRoles");
                 });
 
             modelBuilder.Entity("NomNomzBot.Domain.Economy.Entities.CatalogItem", b =>
@@ -5102,7 +5347,7 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.Navigation("Channel");
                 });
 
-            modelBuilder.Entity("NomNomzBot.Domain.Discord.Entities.DiscordServerAuthorization", b =>
+            modelBuilder.Entity("NomNomzBot.Domain.Discord.Entities.DiscordGuildConnection", b =>
                 {
                     b.HasOne("NomNomzBot.Domain.Identity.Entities.Channel", "Channel")
                         .WithMany()
@@ -5111,6 +5356,89 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         .IsRequired();
 
                     b.Navigation("Channel");
+                });
+
+            modelBuilder.Entity("NomNomzBot.Domain.Discord.Entities.DiscordMemberOptIn", b =>
+                {
+                    b.HasOne("NomNomzBot.Domain.Identity.Entities.Channel", "Channel")
+                        .WithMany()
+                        .HasForeignKey("BroadcasterId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("NomNomzBot.Domain.Discord.Entities.DiscordNotificationRole", "NotificationRole")
+                        .WithMany()
+                        .HasForeignKey("NotificationRoleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Channel");
+
+                    b.Navigation("NotificationRole");
+                });
+
+            modelBuilder.Entity("NomNomzBot.Domain.Discord.Entities.DiscordNotificationConfig", b =>
+                {
+                    b.HasOne("NomNomzBot.Domain.Identity.Entities.Channel", "Channel")
+                        .WithMany()
+                        .HasForeignKey("BroadcasterId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("NomNomzBot.Domain.Discord.Entities.DiscordGuildConnection", "GuildConnection")
+                        .WithMany()
+                        .HasForeignKey("GuildConnectionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("NomNomzBot.Domain.Discord.Entities.DiscordNotificationRole", "PingRole")
+                        .WithMany()
+                        .HasForeignKey("PingRoleId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Channel");
+
+                    b.Navigation("GuildConnection");
+
+                    b.Navigation("PingRole");
+                });
+
+            modelBuilder.Entity("NomNomzBot.Domain.Discord.Entities.DiscordNotificationDispatch", b =>
+                {
+                    b.HasOne("NomNomzBot.Domain.Identity.Entities.Channel", "Channel")
+                        .WithMany()
+                        .HasForeignKey("BroadcasterId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("NomNomzBot.Domain.Discord.Entities.DiscordNotificationConfig", "NotificationConfig")
+                        .WithMany()
+                        .HasForeignKey("NotificationConfigId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Channel");
+
+                    b.Navigation("NotificationConfig");
+                });
+
+            modelBuilder.Entity("NomNomzBot.Domain.Discord.Entities.DiscordNotificationRole", b =>
+                {
+                    b.HasOne("NomNomzBot.Domain.Identity.Entities.Channel", "Channel")
+                        .WithMany()
+                        .HasForeignKey("BroadcasterId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("NomNomzBot.Domain.Discord.Entities.DiscordGuildConnection", "GuildConnection")
+                        .WithMany()
+                        .HasForeignKey("GuildConnectionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Channel");
+
+                    b.Navigation("GuildConnection");
                 });
 
             modelBuilder.Entity("NomNomzBot.Domain.Identity.Entities.AuthSession", b =>

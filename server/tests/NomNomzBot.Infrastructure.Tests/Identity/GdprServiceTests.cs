@@ -285,7 +285,11 @@ internal sealed class GdprTestDbContext : DbContext, IApplicationDbContext
         b.Ignore<AuthSession>();
         b.Ignore<RefreshToken>();
         b.Ignore<IpcDevModeKey>();
-        b.Ignore<NomNomzBot.Domain.Discord.Entities.DiscordServerAuthorization>();
+        b.Ignore<NomNomzBot.Domain.Discord.Entities.DiscordGuildConnection>();
+        b.Ignore<NomNomzBot.Domain.Discord.Entities.DiscordNotificationConfig>();
+        b.Ignore<NomNomzBot.Domain.Discord.Entities.DiscordNotificationRole>();
+        b.Ignore<NomNomzBot.Domain.Discord.Entities.DiscordMemberOptIn>();
+        b.Ignore<NomNomzBot.Domain.Discord.Entities.DiscordNotificationDispatch>();
         b.Ignore<ChannelSubscription>();
         b.Ignore<Configuration>();
         b.Ignore<Command>();
@@ -326,8 +330,16 @@ internal sealed class GdprTestDbContext : DbContext, IApplicationDbContext
     public DbSet<AuthSession> AuthSessions => Set<AuthSession>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<IpcDevModeKey> IpcDevModeKeys => Set<IpcDevModeKey>();
-    public DbSet<NomNomzBot.Domain.Discord.Entities.DiscordServerAuthorization> DiscordServerAuthorizations =>
-        Set<NomNomzBot.Domain.Discord.Entities.DiscordServerAuthorization>();
+    public DbSet<NomNomzBot.Domain.Discord.Entities.DiscordGuildConnection> DiscordGuildConnections =>
+        Set<NomNomzBot.Domain.Discord.Entities.DiscordGuildConnection>();
+    public DbSet<NomNomzBot.Domain.Discord.Entities.DiscordNotificationConfig> DiscordNotificationConfigs =>
+        Set<NomNomzBot.Domain.Discord.Entities.DiscordNotificationConfig>();
+    public DbSet<NomNomzBot.Domain.Discord.Entities.DiscordNotificationRole> DiscordNotificationRoles =>
+        Set<NomNomzBot.Domain.Discord.Entities.DiscordNotificationRole>();
+    public DbSet<NomNomzBot.Domain.Discord.Entities.DiscordMemberOptIn> DiscordMemberOptIns =>
+        Set<NomNomzBot.Domain.Discord.Entities.DiscordMemberOptIn>();
+    public DbSet<NomNomzBot.Domain.Discord.Entities.DiscordNotificationDispatch> DiscordNotificationDispatches =>
+        Set<NomNomzBot.Domain.Discord.Entities.DiscordNotificationDispatch>();
     public DbSet<ChannelSubscription> ChannelSubscriptions => Set<ChannelSubscription>();
     public DbSet<Configuration> Configurations => Set<Configuration>();
     public DbSet<Command> Commands => Set<Command>();

@@ -151,7 +151,11 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
         b.Ignore<NomNomzBot.Domain.Identity.Entities.ChannelBotAuthorization>();
         b.Ignore<NomNomzBot.Domain.Identity.Entities.BotAccount>();
         b.Ignore<NomNomzBot.Domain.Identity.Entities.IpcDevModeKey>();
-        b.Ignore<NomNomzBot.Domain.Discord.Entities.DiscordServerAuthorization>();
+        b.Ignore<NomNomzBot.Domain.Discord.Entities.DiscordGuildConnection>();
+        b.Ignore<NomNomzBot.Domain.Discord.Entities.DiscordNotificationConfig>();
+        b.Ignore<NomNomzBot.Domain.Discord.Entities.DiscordNotificationRole>();
+        b.Ignore<NomNomzBot.Domain.Discord.Entities.DiscordMemberOptIn>();
+        b.Ignore<NomNomzBot.Domain.Discord.Entities.DiscordNotificationDispatch>();
         b.Ignore<NomNomzBot.Domain.Identity.Entities.ChannelSubscription>();
         b.Ignore<NomNomzBot.Domain.Tts.Entities.TtsVoice>();
         b.Ignore<NomNomzBot.Domain.Tts.Entities.UserTtsVoice>();
@@ -211,7 +215,15 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Identity.Entities.IpcDevModeKey> IpcDevModeKeys =>
         throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Discord.Entities.DiscordServerAuthorization> DiscordServerAuthorizations =>
+    public DbSet<NomNomzBot.Domain.Discord.Entities.DiscordGuildConnection> DiscordGuildConnections =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Discord.Entities.DiscordNotificationConfig> DiscordNotificationConfigs =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Discord.Entities.DiscordNotificationRole> DiscordNotificationRoles =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Discord.Entities.DiscordMemberOptIn> DiscordMemberOptIns =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Discord.Entities.DiscordNotificationDispatch> DiscordNotificationDispatches =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Identity.Entities.ChannelSubscription> ChannelSubscriptions =>
         throw new NotSupportedException();

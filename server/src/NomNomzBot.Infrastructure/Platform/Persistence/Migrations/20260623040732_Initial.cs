@@ -3524,15 +3524,10 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
             );
 
             migrationBuilder.CreateTable(
-                name: "DiscordServerAuthorizations",
+                name: "DiscordGuildConnections",
                 columns: table => new
                 {
-                    Id = table
-                        .Column<int>(type: "integer", nullable: false)
-                        .Annotation(
-                            "Npgsql:ValueGenerationStrategy",
-                            NpgsqlValueGenerationStrategy.IdentityByDefaultColumn
-                        ),
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
                     BroadcasterId = table.Column<Guid>(type: "uuid", nullable: false),
                     GuildId = table.Column<string>(
                         type: "character varying(50)",
@@ -3542,15 +3537,15 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     GuildName = table.Column<string>(
                         type: "character varying(255)",
                         maxLength: 255,
-                        nullable: false
+                        nullable: true
                     ),
-                    Status = table.Column<string>(
+                    BotInstalled = table.Column<bool>(type: "boolean", nullable: false),
+                    ServerConsentStatus = table.Column<string>(
                         type: "character varying(20)",
                         maxLength: 20,
-                        nullable: false,
-                        defaultValue: "pending"
+                        nullable: false
                     ),
-                    ApprovedBy = table.Column<string>(
+                    ApprovedByDiscordUserId = table.Column<string>(
                         type: "character varying(50)",
                         maxLength: 50,
                         nullable: true
@@ -3559,6 +3554,7 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         type: "timestamp with time zone",
                         nullable: true
                     ),
+                    StreamerEnabled = table.Column<bool>(type: "boolean", nullable: false),
                     CreatedAt = table.Column<DateTime>(
                         type: "timestamp with time zone",
                         nullable: false
@@ -3567,12 +3563,16 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         type: "timestamp with time zone",
                         nullable: false
                     ),
+                    DeletedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: true
+                    ),
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_DiscordServerAuthorizations", x => x.Id);
+                    table.PrimaryKey("PK_DiscordGuildConnections", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_DiscordServerAuthorizations_Channels_BroadcasterId",
+                        name: "FK_DiscordGuildConnections_Channels_BroadcasterId",
                         column: x => x.BroadcasterId,
                         principalTable: "Channels",
                         principalColumn: "Id",
@@ -4509,6 +4509,67 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
             );
 
             migrationBuilder.CreateTable(
+                name: "DiscordNotificationRoles",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    BroadcasterId = table.Column<Guid>(type: "uuid", nullable: false),
+                    GuildConnectionId = table.Column<Guid>(type: "uuid", nullable: false),
+                    DiscordRoleId = table.Column<string>(
+                        type: "character varying(50)",
+                        maxLength: 50,
+                        nullable: false
+                    ),
+                    RoleName = table.Column<string>(
+                        type: "character varying(255)",
+                        maxLength: 255,
+                        nullable: true
+                    ),
+                    SelfAssignEnabled = table.Column<bool>(type: "boolean", nullable: false),
+                    ButtonMessageId = table.Column<string>(
+                        type: "character varying(50)",
+                        maxLength: 50,
+                        nullable: true
+                    ),
+                    ButtonChannelId = table.Column<string>(
+                        type: "character varying(50)",
+                        maxLength: 50,
+                        nullable: true
+                    ),
+                    CreatedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                    UpdatedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                    DeletedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: true
+                    ),
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_DiscordNotificationRoles", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_DiscordNotificationRoles_Channels_BroadcasterId",
+                        column: x => x.BroadcasterId,
+                        principalTable: "Channels",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade
+                    );
+                    table.ForeignKey(
+                        name: "FK_DiscordNotificationRoles_DiscordGuildConnections_GuildConne~",
+                        column: x => x.GuildConnectionId,
+                        principalTable: "DiscordGuildConnections",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade
+                    );
+                }
+            );
+
+            migrationBuilder.CreateTable(
                 name: "IntegrationTokens",
                 columns: table => new
                 {
@@ -4663,6 +4724,194 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         principalTable: "Streams",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.SetNull
+                    );
+                }
+            );
+
+            migrationBuilder.CreateTable(
+                name: "DiscordMemberOptIns",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    BroadcasterId = table.Column<Guid>(type: "uuid", nullable: false),
+                    NotificationRoleId = table.Column<Guid>(type: "uuid", nullable: false),
+                    DiscordMemberId = table.Column<string>(
+                        type: "character varying(50)",
+                        maxLength: 50,
+                        nullable: false
+                    ),
+                    OptInSource = table.Column<string>(
+                        type: "character varying(20)",
+                        maxLength: 20,
+                        nullable: false
+                    ),
+                    OptedInAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                    OptedOutAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: true
+                    ),
+                    CreatedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                    UpdatedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                    DeletedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: true
+                    ),
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_DiscordMemberOptIns", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_DiscordMemberOptIns_Channels_BroadcasterId",
+                        column: x => x.BroadcasterId,
+                        principalTable: "Channels",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade
+                    );
+                    table.ForeignKey(
+                        name: "FK_DiscordMemberOptIns_DiscordNotificationRoles_NotificationRo~",
+                        column: x => x.NotificationRoleId,
+                        principalTable: "DiscordNotificationRoles",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade
+                    );
+                }
+            );
+
+            migrationBuilder.CreateTable(
+                name: "DiscordNotificationConfigs",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    BroadcasterId = table.Column<Guid>(type: "uuid", nullable: false),
+                    GuildConnectionId = table.Column<Guid>(type: "uuid", nullable: false),
+                    TriggerType = table.Column<string>(
+                        type: "character varying(30)",
+                        maxLength: 30,
+                        nullable: false
+                    ),
+                    Enabled = table.Column<bool>(type: "boolean", nullable: false),
+                    TargetChannelId = table.Column<string>(
+                        type: "character varying(50)",
+                        maxLength: 50,
+                        nullable: false
+                    ),
+                    PingRoleId = table.Column<Guid>(type: "uuid", nullable: true),
+                    MessageTemplate = table.Column<string>(type: "text", nullable: true),
+                    EmbedConfig = table.Column<string>(type: "text", nullable: true),
+                    MilestoneType = table.Column<string>(
+                        type: "character varying(20)",
+                        maxLength: 20,
+                        nullable: true
+                    ),
+                    MilestoneThreshold = table.Column<int>(type: "integer", nullable: true),
+                    ConfigSchemaVersion = table.Column<int>(
+                        type: "integer",
+                        nullable: false,
+                        defaultValue: 1
+                    ),
+                    CreatedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                    UpdatedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                    DeletedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: true
+                    ),
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_DiscordNotificationConfigs", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_DiscordNotificationConfigs_Channels_BroadcasterId",
+                        column: x => x.BroadcasterId,
+                        principalTable: "Channels",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade
+                    );
+                    table.ForeignKey(
+                        name: "FK_DiscordNotificationConfigs_DiscordGuildConnections_GuildCon~",
+                        column: x => x.GuildConnectionId,
+                        principalTable: "DiscordGuildConnections",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade
+                    );
+                    table.ForeignKey(
+                        name: "FK_DiscordNotificationConfigs_DiscordNotificationRoles_PingRol~",
+                        column: x => x.PingRoleId,
+                        principalTable: "DiscordNotificationRoles",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict
+                    );
+                }
+            );
+
+            migrationBuilder.CreateTable(
+                name: "DiscordNotificationDispatches",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    BroadcasterId = table.Column<Guid>(type: "uuid", nullable: false),
+                    NotificationConfigId = table.Column<Guid>(type: "uuid", nullable: false),
+                    TriggerType = table.Column<string>(
+                        type: "character varying(30)",
+                        maxLength: 30,
+                        nullable: false
+                    ),
+                    DedupeKey = table.Column<string>(
+                        type: "character varying(255)",
+                        maxLength: 255,
+                        nullable: false
+                    ),
+                    StreamId = table.Column<Guid>(type: "uuid", nullable: true),
+                    PostedMessageId = table.Column<string>(
+                        type: "character varying(50)",
+                        maxLength: 50,
+                        nullable: true
+                    ),
+                    Status = table.Column<string>(
+                        type: "character varying(20)",
+                        maxLength: 20,
+                        nullable: false
+                    ),
+                    Error = table.Column<string>(type: "text", nullable: true),
+                    DispatchedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                    CreatedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_DiscordNotificationDispatches", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_DiscordNotificationDispatches_Channels_BroadcasterId",
+                        column: x => x.BroadcasterId,
+                        principalTable: "Channels",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade
+                    );
+                    table.ForeignKey(
+                        name: "FK_DiscordNotificationDispatches_DiscordNotificationConfigs_No~",
+                        column: x => x.NotificationConfigId,
+                        principalTable: "DiscordNotificationConfigs",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade
                     );
                 }
             );
@@ -4989,9 +5238,134 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
             );
 
             migrationBuilder.CreateIndex(
-                name: "IX_DiscordServerAuthorizations_BroadcasterId",
-                table: "DiscordServerAuthorizations",
+                name: "IX_DiscordGuildConnections_BroadcasterId_GuildId",
+                table: "DiscordGuildConnections",
+                columns: new[] { "BroadcasterId", "GuildId" },
+                unique: true
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_DiscordGuildConnections_GuildId",
+                table: "DiscordGuildConnections",
+                column: "GuildId"
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_DiscordMemberOptIns_BroadcasterId",
+                table: "DiscordMemberOptIns",
                 column: "BroadcasterId"
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_DiscordMemberOptIns_DiscordMemberId",
+                table: "DiscordMemberOptIns",
+                column: "DiscordMemberId"
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_DiscordMemberOptIns_NotificationRoleId",
+                table: "DiscordMemberOptIns",
+                column: "NotificationRoleId"
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_DiscordMemberOptIns_NotificationRoleId_DiscordMemberId",
+                table: "DiscordMemberOptIns",
+                columns: new[] { "NotificationRoleId", "DiscordMemberId" },
+                unique: true
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_DiscordNotificationConfigs_BroadcasterId",
+                table: "DiscordNotificationConfigs",
+                column: "BroadcasterId"
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_DiscordNotificationConfigs_GuildConnectionId",
+                table: "DiscordNotificationConfigs",
+                column: "GuildConnectionId"
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_DiscordNotificationConfigs_GuildConnectionId_TriggerType",
+                table: "DiscordNotificationConfigs",
+                columns: new[] { "GuildConnectionId", "TriggerType" },
+                unique: true
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_DiscordNotificationConfigs_PingRoleId",
+                table: "DiscordNotificationConfigs",
+                column: "PingRoleId"
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_DiscordNotificationConfigs_TriggerType",
+                table: "DiscordNotificationConfigs",
+                column: "TriggerType"
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_DiscordNotificationDispatches_BroadcasterId",
+                table: "DiscordNotificationDispatches",
+                column: "BroadcasterId"
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_DiscordNotificationDispatches_DedupeKey",
+                table: "DiscordNotificationDispatches",
+                column: "DedupeKey"
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_DiscordNotificationDispatches_DispatchedAt",
+                table: "DiscordNotificationDispatches",
+                column: "DispatchedAt"
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_DiscordNotificationDispatches_NotificationConfigId",
+                table: "DiscordNotificationDispatches",
+                column: "NotificationConfigId"
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_DiscordNotificationDispatches_NotificationConfigId_DedupeKey",
+                table: "DiscordNotificationDispatches",
+                columns: new[] { "NotificationConfigId", "DedupeKey" },
+                unique: true
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_DiscordNotificationDispatches_StreamId",
+                table: "DiscordNotificationDispatches",
+                column: "StreamId"
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_DiscordNotificationRoles_BroadcasterId",
+                table: "DiscordNotificationRoles",
+                column: "BroadcasterId"
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_DiscordNotificationRoles_DiscordRoleId",
+                table: "DiscordNotificationRoles",
+                column: "DiscordRoleId"
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_DiscordNotificationRoles_GuildConnectionId",
+                table: "DiscordNotificationRoles",
+                column: "GuildConnectionId"
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_DiscordNotificationRoles_GuildConnectionId_DiscordRoleId",
+                table: "DiscordNotificationRoles",
+                columns: new[] { "GuildConnectionId", "DiscordRoleId" },
+                unique: true
             );
 
             migrationBuilder.CreateIndex(
@@ -5724,7 +6098,9 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
 
             migrationBuilder.DropTable(name: "DeletionAuditLogs");
 
-            migrationBuilder.DropTable(name: "DiscordServerAuthorizations");
+            migrationBuilder.DropTable(name: "DiscordMemberOptIns");
+
+            migrationBuilder.DropTable(name: "DiscordNotificationDispatches");
 
             migrationBuilder.DropTable(name: "EarningRules");
 
@@ -5848,11 +6224,17 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
 
             migrationBuilder.DropTable(name: "Streams");
 
+            migrationBuilder.DropTable(name: "DiscordNotificationConfigs");
+
             migrationBuilder.DropTable(name: "EventSubConduits");
 
             migrationBuilder.DropTable(name: "IntegrationConnections");
 
             migrationBuilder.DropTable(name: "AuthSessions");
+
+            migrationBuilder.DropTable(name: "DiscordNotificationRoles");
+
+            migrationBuilder.DropTable(name: "DiscordGuildConnections");
 
             migrationBuilder.DropTable(name: "Channels");
 

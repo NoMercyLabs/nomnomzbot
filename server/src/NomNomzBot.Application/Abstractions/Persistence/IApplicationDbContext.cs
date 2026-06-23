@@ -59,7 +59,11 @@ public interface IApplicationDbContext
     DbSet<IpcDevModeKey> IpcDevModeKeys { get; }
     DbSet<IntegrationConnection> IntegrationConnections { get; }
     DbSet<IntegrationToken> IntegrationTokens { get; }
-    DbSet<DiscordServerAuthorization> DiscordServerAuthorizations { get; }
+    DbSet<DiscordGuildConnection> DiscordGuildConnections { get; }
+    DbSet<DiscordNotificationConfig> DiscordNotificationConfigs { get; }
+    DbSet<DiscordNotificationRole> DiscordNotificationRoles { get; }
+    DbSet<DiscordMemberOptIn> DiscordMemberOptIns { get; }
+    DbSet<DiscordNotificationDispatch> DiscordNotificationDispatches { get; }
     DbSet<ChannelSubscription> ChannelSubscriptions { get; }
     DbSet<TtsVoice> TtsVoices { get; }
     DbSet<UserTtsVoice> UserTtsVoices { get; }

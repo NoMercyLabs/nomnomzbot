@@ -14,25 +14,20 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Discord;
 using NomNomzBot.Application.Identity.Services;
-using NomNomzBot.Domain.Discord.Entities;
-using NomNomzBot.Domain.Platform.Entities;
 
 namespace NomNomzBot.Api.Controllers.V1;
 
 /// <summary>
-/// INTERIM Discord connect flow. Discord's real home is the bespoke guild/bot subsystem in <c>discord.md</c>
-/// (the both-opt-in handshake + encrypted bot-token storage owned by <c>IDiscordGuildService</c>), which is not
-/// built yet. Until it lands, this controller preserves the existing Discord OAuth behaviour unchanged so the
-/// integration does not regress — but it deliberately does NOT use the generic vaulted flow
-/// (<see cref="IntegrationOAuthController"/>): Discord is not an ordinary user-resource provider (it carries a
-/// guild authorization), so it is excluded from the descriptor-driven path by design (integrations-oauth §0).
-/// <para>
-/// KNOWN INTERIM DEBT (resolved when the discord.md subsystem is built): tokens land in the legacy
-/// <c>Service</c> entity in plaintext rather than the crypto vault. (The OAuth <c>state</c> is now a single-use
-/// server-side CSRF nonce via <c>ITwitchOAuthStateService</c>, not an unsigned base64 payload.) Do not extend
-/// this controller — fold it into <c>IDiscordGuildService</c> instead.
-/// </para>
+/// The Discord bot-install OAuth flow (discord.md §5). Discord is not an ordinary user-resource provider (it
+/// carries a guild authorization), so it is excluded from the generic descriptor-driven vaulted flow
+/// (<see cref="IntegrationOAuthController"/>) by design (integrations-oauth §0). This controller owns the
+/// <c>/connect</c> start + the anonymous callback; the callback parses the token response into a
+/// <see cref="DiscordGuildOAuthResult"/> and delegates ALL persistence to <see cref="IDiscordGuildService"/>,
+/// which vaults the bot token through <c>IIntegrationTokenVault</c> (no plaintext) and records the both-opt-in
+/// guild link. No persistence is done inline here.
 /// </summary>
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}")]
@@ -47,6 +42,7 @@ public class DiscordOAuthController : BaseController
     private readonly ILogger<DiscordOAuthController> _logger;
     private readonly TimeProvider _timeProvider;
     private readonly ITwitchOAuthStateService _oauthState;
+    private readonly IDiscordGuildService _discord;
 
     public DiscordOAuthController(
         IApplicationDbContext db,
@@ -54,7 +50,8 @@ public class DiscordOAuthController : BaseController
         IHttpClientFactory httpClientFactory,
         ILogger<DiscordOAuthController> logger,
         TimeProvider timeProvider,
-        ITwitchOAuthStateService oauthState
+        ITwitchOAuthStateService oauthState,
+        IDiscordGuildService discord
     )
     {
         _db = db;
@@ -63,6 +60,7 @@ public class DiscordOAuthController : BaseController
         _logger = logger;
         _timeProvider = timeProvider;
         _oauthState = oauthState;
+        _discord = discord;
     }
 
     /// <summary>Start the Discord OAuth flow — redirects to Discord's authorization page with bot + guilds scopes.</summary>
@@ -98,8 +96,9 @@ public class DiscordOAuthController : BaseController
     }
 
     /// <summary>
-    /// Handle the Discord OAuth callback. Exchanges the authorization code for tokens, stores them, and records
-    /// the guild authorization. (discord.md will move persistence behind <c>IDiscordGuildService</c>.)
+    /// Handle the Discord OAuth callback. Exchanges the authorization code for tokens, parses the response into
+    /// a <see cref="DiscordGuildOAuthResult"/>, and delegates persistence to <see cref="IDiscordGuildService"/>
+    /// (which vaults the bot token and records the guild link). No persistence is done inline.
     /// </summary>
     [HttpGet("integrations/discord/callback")]
     [AllowAnonymous]
@@ -172,7 +171,12 @@ public class DiscordOAuthController : BaseController
         );
         JsonElement root = tokenDoc.RootElement;
 
-        string? accessToken = root.GetProperty("access_token").GetString();
+        string? accessToken = root.TryGetProperty("access_token", out JsonElement atProp)
+            ? atProp.GetString()
+            : null;
+        if (string.IsNullOrEmpty(accessToken))
+            return BadRequestResponse("Discord did not return an access token.");
+
         string? refreshToken = root.TryGetProperty("refresh_token", out JsonElement rtProp)
             ? rtProp.GetString()
             : null;
@@ -190,57 +194,37 @@ public class DiscordOAuthController : BaseController
                 ? guildNameProp.GetString()
                 : null;
 
-        Service? service = await _db.Services.FirstOrDefaultAsync(
-            s => s.Name == "discord" && s.BroadcasterId == tenantId,
-            ct
+        if (string.IsNullOrEmpty(guildId))
+            return BadRequestResponse(
+                "Discord did not return a guild — the bot was not installed."
+            );
+
+        // Parse the token response into the spec's DiscordGuildOAuthResult and hand ALL persistence to the
+        // guild service: it vaults the bot token (no plaintext) and records the both-opt-in guild link.
+        DiscordGuildOAuthResult oauth = new(
+            guildId,
+            guildName,
+            accessToken,
+            refreshToken,
+            _timeProvider.GetUtcNow().UtcDateTime.AddSeconds(expiresIn),
+            DiscordScopes.Split(' '),
+            InstalledByDiscordUserId: null
         );
 
-        if (service is null)
+        Result<DiscordGuildConnectionDto> upsert = await _discord.UpsertFromOAuthAsync(
+            tenantId,
+            oauth,
+            ct
+        );
+        if (upsert.IsFailure)
         {
-            service = new Service
-            {
-                Name = "discord",
-                BroadcasterId = tenantId,
-                Enabled = true,
-            };
-            _db.Services.Add(service);
+            _logger.LogError(
+                "Discord guild link failed for channel {ChannelId}: {Error}",
+                channelId,
+                upsert.ErrorMessage
+            );
+            return InternalServerErrorResponse("Failed to record the Discord guild link.");
         }
-
-        service.AccessToken = accessToken;
-        service.RefreshToken = refreshToken;
-        service.TokenExpiry = _timeProvider.GetUtcNow().UtcDateTime.AddSeconds(expiresIn);
-        service.Scopes = DiscordScopes.Split(' ');
-        service.Enabled = true;
-
-        if (!string.IsNullOrEmpty(guildId))
-        {
-            DiscordServerAuthorization? discordAuth =
-                await _db.DiscordServerAuthorizations.FirstOrDefaultAsync(
-                    d => d.BroadcasterId == tenantId && d.GuildId == guildId,
-                    ct
-                );
-
-            if (discordAuth is null)
-            {
-                discordAuth = new DiscordServerAuthorization
-                {
-                    BroadcasterId = tenantId,
-                    GuildId = guildId,
-                    GuildName = guildName ?? "Unknown",
-                    Status = "active",
-                    ApprovedAt = _timeProvider.GetUtcNow().UtcDateTime,
-                };
-                _db.DiscordServerAuthorizations.Add(discordAuth);
-            }
-            else
-            {
-                discordAuth.GuildName = guildName ?? discordAuth.GuildName;
-                discordAuth.Status = "active";
-                discordAuth.ApprovedAt = _timeProvider.GetUtcNow().UtcDateTime;
-            }
-        }
-
-        await _db.SaveChangesAsync(ct);
 
         _logger.LogInformation(
             "Discord OAuth completed for channel {ChannelId}, guild {GuildId}",

@@ -87,8 +87,14 @@ public class AppDbContext : DbContext, IApplicationDbContext
     public DbSet<AuthSession> AuthSessions => Set<AuthSession>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<IpcDevModeKey> IpcDevModeKeys => Set<IpcDevModeKey>();
-    public DbSet<DiscordServerAuthorization> DiscordServerAuthorizations =>
-        Set<DiscordServerAuthorization>();
+    public DbSet<DiscordGuildConnection> DiscordGuildConnections => Set<DiscordGuildConnection>();
+    public DbSet<DiscordNotificationConfig> DiscordNotificationConfigs =>
+        Set<DiscordNotificationConfig>();
+    public DbSet<DiscordNotificationRole> DiscordNotificationRoles =>
+        Set<DiscordNotificationRole>();
+    public DbSet<DiscordMemberOptIn> DiscordMemberOptIns => Set<DiscordMemberOptIn>();
+    public DbSet<DiscordNotificationDispatch> DiscordNotificationDispatches =>
+        Set<DiscordNotificationDispatch>();
     public DbSet<ChannelSubscription> ChannelSubscriptions => Set<ChannelSubscription>();
 
     // Integrations (token vault — identity-auth Domain E)

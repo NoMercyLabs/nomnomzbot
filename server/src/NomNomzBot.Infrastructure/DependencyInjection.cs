@@ -449,6 +449,25 @@ public static class DependencyInjection
         services.AddHttpClient("spotify").AddSpotifyResilienceHandler();
         services.AddHttpClient("spotify-auth");
 
+        // ── Discord (discord.md §7) — guild link, notification rules, dispatch + dedupe ──
+        // IDiscordGuildService / IDiscordNotificationConfigService / IDiscordNotificationRoleService follow the
+        // I<X>Service convention and are bound scoped by AddServicesByConvention above. The dispatcher + gateway
+        // are not name-convention services, so they are registered explicitly (both scoped: DbContext + per-tenant
+        // token resolution per call). The DiscordGoLiveNotificationHandler + SendDiscordNotificationAction are
+        // auto-discovered (IEventHandler<> / ICommandAction scans). The 8 discord:* Gate-2 action keys are seeded
+        // by ActionDefinitionSeeder.
+        services.AddScoped<
+            NomNomzBot.Application.Contracts.Discord.IDiscordNotificationDispatcher,
+            NomNomzBot.Infrastructure.Discord.DiscordNotificationDispatcher
+        >();
+        // Discord REST/gateway adapter — the only thing that talks to Discord. The named "discord" typed
+        // HttpClient carries the resilience handler that honours Discord's 429 Retry-After (like Spotify/Twitch).
+        services.AddHttpClient("discord").AddDiscordResilienceHandler();
+        services.AddScoped<
+            NomNomzBot.Application.Contracts.Discord.IDiscordBotGateway,
+            NomNomzBot.Infrastructure.Discord.Gateway.DiscordRestBotGateway
+        >();
+
         // ChannelRegistry (singleton + hosted service — one instance serves IChannelRegistry
         // AND the hosted lifecycle, so it is wired explicitly and excluded from the worker scan).
         services.AddSingleton<

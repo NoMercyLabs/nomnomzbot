@@ -11,39 +11,45 @@
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
-using NomNomzBot.Domain.EventStore.Entities;
+using NomNomzBot.Domain.Discord.Entities;
 using NomNomzBot.Domain.Identity.Entities;
-using NomNomzBot.Domain.Quotes.Entities;
+using NomNomzBot.Domain.Integrations.Entities;
+using NomNomzBot.Infrastructure.Discord.Persistence;
 using NomNomzBot.Infrastructure.Platform.Persistence.Extensions;
 using NomNomzBot.Infrastructure.Platform.Persistence.Interceptors;
-using NomNomzBot.Infrastructure.Quotes.Persistence;
 
-namespace NomNomzBot.Infrastructure.Tests.Quotes;
+namespace NomNomzBot.Infrastructure.Tests.Discord;
 
 /// <summary>
-/// A focused <see cref="IApplicationDbContext"/> over ONLY the entities the quote service touches — quotes,
-/// the per-tenant sequence rows, and the channels it validates against — applying the REAL <see cref="Quote"/>
-/// configuration. Like <c>EventStoreTestDbContext</c>, it runs on a real relational SQLite connection so the
-/// unique <c>(BroadcasterId, Number)</c> constraint (the "never reuse a number" guarantee) is actually
-/// enforced and the add-under-transaction path exercises a true write transaction. The production
-/// <c>AppDbContext</c> is Npgsql-bound (jsonb complex types) and cannot host a test provider, so only the
-/// exercised slice is mapped; everything else throws.
+/// A focused <see cref="IApplicationDbContext"/> over ONLY the entities the Discord subsystem touches — the five
+/// P.10 tables, the integration vault tables the token custody rides on, and the channels it validates against —
+/// applying the REAL Discord <see cref="IEntityTypeConfiguration{T}"/>s. Runs on a real relational SQLite
+/// connection so the unique <c>(NotificationConfigId, DedupeKey)</c> dedupe constraint and the
+/// <c>(GuildConnectionId, TriggerType)</c> uniqueness are genuinely enforced and the <c>[VC:JSON]</c>
+/// <c>EmbedConfig</c> Newtonsoft round-trip is exercised end to end. The production <c>AppDbContext</c> is
+/// Npgsql-bound and cannot host a test provider, so only the exercised slice is mapped; everything else throws.
 /// </summary>
-internal sealed class QuoteTestDbContext : DbContext, IApplicationDbContext
+internal sealed class DiscordTestDbContext : DbContext, IApplicationDbContext
 {
-    public QuoteTestDbContext(DbContextOptions<QuoteTestDbContext> options)
+    public DiscordTestDbContext(DbContextOptions<DiscordTestDbContext> options)
         : base(options) { }
 
-    public DbSet<Quote> Quotes => Set<Quote>();
-    public DbSet<TenantSequence> TenantSequences => Set<TenantSequence>();
+    public DbSet<DiscordGuildConnection> DiscordGuildConnections => Set<DiscordGuildConnection>();
+    public DbSet<DiscordNotificationConfig> DiscordNotificationConfigs =>
+        Set<DiscordNotificationConfig>();
+    public DbSet<DiscordNotificationRole> DiscordNotificationRoles =>
+        Set<DiscordNotificationRole>();
+    public DbSet<DiscordMemberOptIn> DiscordMemberOptIns => Set<DiscordMemberOptIn>();
+    public DbSet<DiscordNotificationDispatch> DiscordNotificationDispatches =>
+        Set<DiscordNotificationDispatch>();
+    public DbSet<IntegrationConnection> IntegrationConnections => Set<IntegrationConnection>();
+    public DbSet<IntegrationToken> IntegrationTokens => Set<IntegrationToken>();
     public DbSet<Channel> Channels => Set<Channel>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        // Map Channel FIRST as a standalone key — minimal, only so the service's existence check works. It is
-        // configured before Quote so the Quote→Channel FK below binds to this minimal mapping and EF never
-        // walks Channel's real navigations (which would drag the chat/stream value-object graph that SQLite
-        // cannot host). Its jsonb List<string> columns are ignored.
+        // Map Channel FIRST as a minimal standalone key so the Discord→Channel FKs bind to it and EF never walks
+        // Channel's real navigations (which drag the chat/stream value-object graph SQLite cannot host).
         modelBuilder.Entity<Channel>(b =>
         {
             b.HasKey(c => c.Id);
@@ -55,29 +61,45 @@ internal sealed class QuoteTestDbContext : DbContext, IApplicationDbContext
             b.Ignore(c => c.Events);
         });
 
-        modelBuilder.ApplyConfiguration(new QuoteConfiguration());
-        modelBuilder.ApplyConfiguration(
-            new NomNomzBot.Infrastructure.EventStore.Persistence.TenantSequenceConfiguration()
-        );
+        // Minimal integration-vault mapping (the [VC:JSON] Scopes list is ignored — not exercised here).
+        modelBuilder.Entity<IntegrationConnection>(b =>
+        {
+            b.HasKey(c => c.Id);
+            b.Ignore(c => c.Scopes);
+            b.Ignore(c => c.Channel);
+            b.Ignore(c => c.Tokens);
+        });
+        modelBuilder.Entity<IntegrationToken>(b => b.HasKey(t => t.Id));
 
-        // EF discovers an entity type from EVERY DbSet<T> property on the context (an IApplicationDbContext
-        // requirement) — even the throwing ones — and would then try to map their jsonb-of-complex-type
-        // columns (e.g. ChatMessage's ChatEmote value objects), unsupported on SQLite. Ignore every entity
-        // this slice does not exercise so the model stays minimal and provider-agnostic (mirrors
-        // EventStoreTestDbContext).
+        modelBuilder.ApplyConfiguration(new DiscordGuildConnectionConfiguration());
+        modelBuilder.ApplyConfiguration(new DiscordNotificationConfigConfiguration());
+        modelBuilder.ApplyConfiguration(new DiscordNotificationRoleConfiguration());
+        modelBuilder.ApplyConfiguration(new DiscordMemberOptInConfiguration());
+        modelBuilder.ApplyConfiguration(new DiscordNotificationDispatchConfiguration());
+
         foreach (Type entity in UnmappedEntities)
             modelBuilder.Ignore(entity);
 
-        // The production soft-delete global filter (schema §1.2) so a deleted quote disappears from reads while
-        // its row + number survive — the behavior the "never reuse" and "random excludes deleted" tests prove.
-        modelBuilder.ApplySoftDeleteFilter<Quote>();
+        // The production soft-delete global filter so a disconnected/deleted row disappears from reads.
+        modelBuilder.ApplySoftDeleteFilter<DiscordGuildConnection>();
+        modelBuilder.ApplySoftDeleteFilter<DiscordNotificationConfig>();
+        modelBuilder.ApplySoftDeleteFilter<DiscordNotificationRole>();
+        modelBuilder.ApplySoftDeleteFilter<DiscordMemberOptIn>();
     }
 
-    /// <summary>
-    /// Every <see cref="IApplicationDbContext"/> entity NOT in the quote slice. Derived by reflection from the
-    /// interface's <c>DbSet&lt;T&gt;</c> members so it never silently drifts when the contract grows — only
-    /// <see cref="Quote"/>, <see cref="TenantSequence"/>, and <see cref="Channel"/> are mapped.
-    /// </summary>
+    private static readonly HashSet<Type> Mapped =
+    [
+        typeof(DiscordGuildConnection),
+        typeof(DiscordNotificationConfig),
+        typeof(DiscordNotificationRole),
+        typeof(DiscordMemberOptIn),
+        typeof(DiscordNotificationDispatch),
+        typeof(IntegrationConnection),
+        typeof(IntegrationToken),
+        typeof(Channel),
+    ];
+
+    /// <summary>Every <see cref="IApplicationDbContext"/> entity NOT in the Discord slice — derived by reflection.</summary>
     private static readonly IReadOnlyList<Type> UnmappedEntities = typeof(IApplicationDbContext)
         .GetProperties()
         .Where(p =>
@@ -85,7 +107,7 @@ internal sealed class QuoteTestDbContext : DbContext, IApplicationDbContext
             && p.PropertyType.GetGenericTypeDefinition() == typeof(DbSet<>)
         )
         .Select(p => p.PropertyType.GetGenericArguments()[0])
-        .Where(t => t != typeof(Quote) && t != typeof(TenantSequence) && t != typeof(Channel))
+        .Where(t => !Mapped.Contains(t))
         .ToList();
 
     // ── Unused IApplicationDbContext surface — never reached by these tests ──
@@ -97,6 +119,8 @@ internal sealed class QuoteTestDbContext : DbContext, IApplicationDbContext
     public DbSet<NomNomzBot.Domain.Commands.Entities.Command> Commands =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Rewards.Entities.Reward> Rewards =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Quotes.Entities.Quote> Quotes =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Widgets.Entities.Widget> Widgets =>
         throw new NotSupportedException();
@@ -129,20 +153,6 @@ internal sealed class QuoteTestDbContext : DbContext, IApplicationDbContext
     public DbSet<AuthSession> AuthSessions => throw new NotSupportedException();
     public DbSet<RefreshToken> RefreshTokens => throw new NotSupportedException();
     public DbSet<IpcDevModeKey> IpcDevModeKeys => throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Integrations.Entities.IntegrationConnection> IntegrationConnections =>
-        throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Integrations.Entities.IntegrationToken> IntegrationTokens =>
-        throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Discord.Entities.DiscordGuildConnection> DiscordGuildConnections =>
-        throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Discord.Entities.DiscordNotificationConfig> DiscordNotificationConfigs =>
-        throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Discord.Entities.DiscordNotificationRole> DiscordNotificationRoles =>
-        throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Discord.Entities.DiscordMemberOptIn> DiscordMemberOptIns =>
-        throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Discord.Entities.DiscordNotificationDispatch> DiscordNotificationDispatches =>
-        throw new NotSupportedException();
     public DbSet<ChannelSubscription> ChannelSubscriptions => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Tts.Entities.TtsVoice> TtsVoices =>
         throw new NotSupportedException();
@@ -152,7 +162,8 @@ internal sealed class QuoteTestDbContext : DbContext, IApplicationDbContext
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Tts.Entities.TtsCacheEntry> TtsCacheEntries =>
         throw new NotSupportedException();
-    public DbSet<Pronoun> Pronouns => throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Identity.Entities.Pronoun> Pronouns =>
+        throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Platform.Entities.DeletionAuditLog> DeletionAuditLogs =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Commands.Entities.Timer> Timers =>
@@ -163,21 +174,33 @@ internal sealed class QuoteTestDbContext : DbContext, IApplicationDbContext
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Commands.Entities.Pipeline> Pipelines =>
         throw new NotSupportedException();
-    public DbSet<EventJournal> EventJournals => throw new NotSupportedException();
-    public DbSet<ProjectionCheckpoint> ProjectionCheckpoints => throw new NotSupportedException();
-    public DbSet<ChannelMembership> ChannelMemberships => throw new NotSupportedException();
-    public DbSet<ChannelCommunityStanding> ChannelCommunityStandings =>
+    public DbSet<NomNomzBot.Domain.EventStore.Entities.EventJournal> EventJournals =>
         throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Identity.Entities.ActionDefinition> ActionDefinitions =>
+    public DbSet<NomNomzBot.Domain.EventStore.Entities.TenantSequence> TenantSequences =>
         throw new NotSupportedException();
-    public DbSet<ChannelActionOverride> ChannelActionOverrides => throw new NotSupportedException();
-    public DbSet<PermitGrant> PermitGrants => throw new NotSupportedException();
-    public DbSet<IamPermission> IamPermissions => throw new NotSupportedException();
-    public DbSet<IamRole> IamRoles => throw new NotSupportedException();
-    public DbSet<IamRolePermission> IamRolePermissions => throw new NotSupportedException();
-    public DbSet<IamPrincipal> IamPrincipals => throw new NotSupportedException();
-    public DbSet<IamRoleAssignment> IamRoleAssignments => throw new NotSupportedException();
-    public DbSet<IamAuditLog> IamAuditLogs => throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.EventStore.Entities.ProjectionCheckpoint> ProjectionCheckpoints =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Identity.Entities.ChannelMembership> ChannelMemberships =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Identity.Entities.ChannelCommunityStanding> ChannelCommunityStandings =>
+        throw new NotSupportedException();
+    public DbSet<ActionDefinition> ActionDefinitions => throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Identity.Entities.ChannelActionOverride> ChannelActionOverrides =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Identity.Entities.PermitGrant> PermitGrants =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Identity.Entities.IamPermission> IamPermissions =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Identity.Entities.IamRole> IamRoles =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Identity.Entities.IamRolePermission> IamRolePermissions =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Identity.Entities.IamPrincipal> IamPrincipals =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Identity.Entities.IamRoleAssignment> IamRoleAssignments =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Identity.Entities.IamAuditLog> IamAuditLogs =>
+        throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Economy.Entities.CurrencyConfig> CurrencyConfigs =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Economy.Entities.EarningRule> EarningRules =>
@@ -256,18 +279,13 @@ internal sealed class QuoteTestDbContext : DbContext, IApplicationDbContext
         throw new NotSupportedException();
 }
 
-/// <summary>
-/// The real <see cref="IUnitOfWork"/> contract over the SQLite test context. A SQLite write transaction is the
-/// stand-in for the production per-tenant row lock — <c>BEGIN IMMEDIATE</c> excludes concurrent writers, the
-/// same ambient-transaction contract the allocator and <see cref="NomNomzBot.Infrastructure.Quotes.QuoteService"/>
-/// rely on.
-/// </summary>
-internal sealed class QuoteTestUnitOfWork : IUnitOfWork
+/// <summary>The real <see cref="IUnitOfWork"/> contract over the SQLite test context (a write transaction).</summary>
+internal sealed class DiscordTestUnitOfWork : IUnitOfWork
 {
-    private readonly QuoteTestDbContext _db;
+    private readonly DiscordTestDbContext _db;
     private Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction? _transaction;
 
-    public QuoteTestUnitOfWork(QuoteTestDbContext db) => _db = db;
+    public DiscordTestUnitOfWork(DiscordTestDbContext db) => _db = db;
 
     public Task<int> SaveChangesAsync(CancellationToken ct = default) => _db.SaveChangesAsync(ct);
 
@@ -296,32 +314,30 @@ internal sealed class QuoteTestUnitOfWork : IUnitOfWork
 }
 
 /// <summary>Opens a fresh, isolated SQLite database (one connection kept open for the test's lifetime).</summary>
-internal sealed class QuoteSqliteTestDatabase : IDisposable
+internal sealed class DiscordSqliteTestDatabase : IDisposable
 {
     private readonly SqliteConnection _connection;
 
-    private QuoteSqliteTestDatabase(SqliteConnection connection) => _connection = connection;
+    private DiscordSqliteTestDatabase(SqliteConnection connection) => _connection = connection;
 
-    public static QuoteSqliteTestDatabase Open()
+    public static DiscordSqliteTestDatabase Open()
     {
         SqliteConnection connection = new("DataSource=:memory:");
         connection.Open();
-        QuoteSqliteTestDatabase db = new(connection);
-        using QuoteTestDbContext context = db.NewContext();
+        DiscordSqliteTestDatabase db = new(connection);
+        using DiscordTestDbContext context = db.NewContext();
         context.Database.EnsureCreated();
         return db;
     }
 
-    public QuoteTestDbContext NewContext()
+    public DiscordTestDbContext NewContext()
     {
-        // Register the production SoftDeleteInterceptor so Remove() becomes a soft delete (DeletedAt stamp),
-        // not a physical row delete — the test then proves the number is retained and never reused.
-        DbContextOptions<QuoteTestDbContext> options =
-            new DbContextOptionsBuilder<QuoteTestDbContext>()
+        DbContextOptions<DiscordTestDbContext> options =
+            new DbContextOptionsBuilder<DiscordTestDbContext>()
                 .UseSqlite(_connection)
                 .AddInterceptors(new SoftDeleteInterceptor(TimeProvider.System))
                 .Options;
-        return new QuoteTestDbContext(options);
+        return new DiscordTestDbContext(options);
     }
 
     public void Dispose() => _connection.Dispose();

@@ -15,7 +15,7 @@ using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Persistence;
-using NomNomzBot.Domain.Discord.Entities;
+using NomNomzBot.Application.Contracts.Discord;
 using NomNomzBot.Domain.Platform.Entities;
 
 namespace NomNomzBot.Api.Controllers.V1;
@@ -28,11 +28,17 @@ public class IntegrationsController : BaseController
 {
     private readonly IApplicationDbContext _db;
     private readonly IConfiguration _config;
+    private readonly IDiscordGuildService _discord;
 
-    public IntegrationsController(IApplicationDbContext db, IConfiguration config)
+    public IntegrationsController(
+        IApplicationDbContext db,
+        IConfiguration config,
+        IDiscordGuildService discord
+    )
     {
         _db = db;
         _config = config;
+        _discord = discord;
     }
 
     // ── DTOs ──────────────────────────────────────────────────────────────────
@@ -87,7 +93,7 @@ public class IntegrationsController : BaseController
             .Select(s => s.Name.ToLower())
             .ToListAsync(ct);
 
-        bool discordConnected = await _db.DiscordServerAuthorizations.AnyAsync(
+        bool discordConnected = await _db.DiscordGuildConnections.AnyAsync(
             d => d.BroadcasterId == tenantId,
             ct
         );
@@ -207,16 +213,16 @@ public class IntegrationsController : BaseController
 
         if (id == "discord")
         {
-            DiscordServerAuthorization? discordAuth =
-                await _db.DiscordServerAuthorizations.FirstOrDefaultAsync(
-                    d => d.BroadcasterId == tenantId,
-                    ct
-                );
-            if (discordAuth is not null)
-            {
-                _db.DiscordServerAuthorizations.Remove(discordAuth);
-                await _db.SaveChangesAsync(ct);
-            }
+            // Disconnect every linked guild for this tenant through the Discord subsystem, which
+            // soft-deletes the connection + its configs/roles and revokes the vaulted bot token.
+            List<Guid> connectionIds = await _db
+                .DiscordGuildConnections.Where(d => d.BroadcasterId == tenantId)
+                .Select(d => d.Id)
+                .ToListAsync(ct);
+
+            foreach (Guid connectionId in connectionIds)
+                await _discord.DisconnectAsync(tenantId, connectionId, ct);
+
             return NoContent();
         }
 
