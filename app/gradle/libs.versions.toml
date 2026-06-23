@@ -1,0 +1,32 @@
+# Version catalog for the NomNomzBot KMP + Compose Multiplatform dashboard.
+#
+# The locked stack (frontend.md §2/§10). This FOUNDATION slice pins only the core
+# UI/state/serialization/coroutines coordinates that the splash -> connect -> shell
+# spine needs; the typed REST/SignalR client (Ktor), Koin DI, and the OpenAPI
+# generator land in later slices on the proven spine (frontend-structure.md §8).
+#
+# Kotlin + Compose Multiplatform + Gradle versions mirror the proven nomercy-app-kmp
+# setup (Kotlin 2.2.21 / CMP 1.9.0 / Gradle 9.2.1).
+
+[versions]
+kotlin = "2.2.21"
+composeMultiplatform = "1.9.0"
+composeHotReload = "0.4.7"
+kotlinxCoroutines = "1.10.2"
+kotlinxSerializationJson = "1.9.0"
+kotlinxBrowser = "0.3"
+androidxLifecycle = "2.9.4"
+
+[libraries]
+kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinxCoroutines" }
+kotlinx-coroutines-swing = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-swing", version.ref = "kotlinxCoroutines" }
+kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinxSerializationJson" }
+kotlinx-browser = { module = "org.jetbrains.kotlinx:kotlinx-browser", version.ref = "kotlinxBrowser" }
+androidx-lifecycle-runtime-compose = { module = "org.jetbrains.androidx.lifecycle:lifecycle-runtime-compose", version.ref = "androidxLifecycle" }
+androidx-lifecycle-viewmodel-compose = { module = "org.jetbrains.androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "androidxLifecycle" }
+
+[plugins]
+kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
+kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+compose-multiplatform = { id = "org.jetbrains.compose", version.ref = "composeMultiplatform" }
+compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }

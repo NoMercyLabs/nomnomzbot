@@ -1,0 +1,14 @@
+# Gradle / KMP build artifacts for the app/ dashboard module.
+.gradle/
+build/
+**/build/
+.kotlin/
+local.properties
+
+# IDE
+.idea/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db

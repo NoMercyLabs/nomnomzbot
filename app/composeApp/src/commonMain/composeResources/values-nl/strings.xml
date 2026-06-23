@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Copyright (c) NoMercy Labs.
+  Part of NomNomzBot, licensed under the GNU AGPL v3.0 or later.
+  SPDX-License-Identifier: AGPL-3.0-or-later
+
+  Dutch (nl) translations. Mirrors values/strings.xml key-for-key.
+-->
+<resources>
+    <string name="app_name">NomNomzBot</string>
+    <string name="splash_loading">Bezig met opstarten…</string>
+    <string name="connect_title">Verbind met je bot</string>
+    <string name="connect_subtitle">Richt het dashboard op een backend om te beginnen.</string>
+    <string name="connect_action">Verbinden</string>
+    <string name="shell_nav_dashboard">Dashboard</string>
+    <string name="shell_nav_commands">Commando's</string>
+    <string name="shell_nav_community">Community</string>
+    <string name="shell_nav_settings">Instellingen</string>
+    <string name="shell_topbar_title">Dashboard</string>
+    <string name="shell_content_empty">Hier is nog niets — de dashboardwidgets komen in de volgende stap.</string>
+    <string name="shell_action_disconnect">Verbinding verbreken</string>
+</resources>

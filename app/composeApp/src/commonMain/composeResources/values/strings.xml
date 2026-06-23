@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Copyright (c) NoMercy Labs.
+  Part of NomNomzBot, licensed under the GNU AGPL v3.0 or later.
+  SPDX-License-Identifier: AGPL-3.0-or-later
+
+  English (default). Keys are namespaced by feature with underscores
+  (`feature_part` — Compose-resource accessors require identifier-legal names; the
+  spec's "dotted by feature" intent maps to this underscore form). No user-facing
+  string is ever hardcoded in a composable.
+-->
+<resources>
+    <string name="app_name">NomNomzBot</string>
+    <string name="splash_loading">Starting up…</string>
+    <string name="connect_title">Connect to your bot</string>
+    <string name="connect_subtitle">Point the dashboard at a backend to get started.</string>
+    <string name="connect_action">Connect</string>
+    <string name="shell_nav_dashboard">Dashboard</string>
+    <string name="shell_nav_commands">Commands</string>
+    <string name="shell_nav_community">Community</string>
+    <string name="shell_nav_settings">Settings</string>
+    <string name="shell_topbar_title">Dashboard</string>
+    <string name="shell_content_empty">Nothing here yet — the dashboard widgets land in the next slice.</string>
+    <string name="shell_action_disconnect">Disconnect</string>
+</resources>
