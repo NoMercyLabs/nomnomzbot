@@ -22,7 +22,14 @@ namespace NomNomzBot.Application.Identity.Services;
 public interface IAuthService
 {
     // ── User OAuth ──────────────────────────────────────────────────────────
-    Task<string> GetTwitchOAuthUrl(
+
+    /// <summary>
+    /// Builds the Twitch login authorize URL, resolving the platform's Twitch client id from the
+    /// configured app credentials (DB-vaulted first, then config). Fails <c>TWITCH_NOT_CONFIGURED</c> when no
+    /// credentials are set yet — so the dashboard tells the operator to finish setup instead of starting a
+    /// broken OAuth flow.
+    /// </summary>
+    Task<Result<string>> GetTwitchOAuthUrl(
         string? state = null,
         string? baseUrl = null,
         CancellationToken cancellationToken = default
@@ -49,7 +56,12 @@ public interface IAuthService
     Task<Result<int>> LogoutAllAsync(Guid userId, CancellationToken cancellationToken = default);
 
     // ── Platform bot (NomNomzBot) — IsPlatformPrincipal gate, BroadcasterId=null ──
-    Task<string> GetTwitchBotOAuthUrl(
+
+    /// <summary>
+    /// Builds the bot-account authorize URL. Fails <c>TWITCH_NOT_CONFIGURED</c> until the Twitch app
+    /// credentials are configured (the wizard's first step), so the bot step can't run before its prerequisite.
+    /// </summary>
+    Task<Result<string>> GetTwitchBotOAuthUrl(
         string? state = null,
         string? baseUrl = null,
         CancellationToken cancellationToken = default
@@ -65,7 +77,12 @@ public interface IAuthService
     Task<Result> DisconnectBotAsync(CancellationToken cancellationToken = default);
 
     // ── Custom (white-label) bot — per-channel, BroadcasterId=channelId ──
-    Task<string> GetTwitchChannelBotOAuthUrl(
+
+    /// <summary>
+    /// Builds the per-channel custom-bot authorize URL. Fails <c>TWITCH_NOT_CONFIGURED</c> until the Twitch
+    /// app credentials are configured.
+    /// </summary>
+    Task<Result<string>> GetTwitchChannelBotOAuthUrl(
         Guid broadcasterId,
         string? state = null,
         string? baseUrl = null,

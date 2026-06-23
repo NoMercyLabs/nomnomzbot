@@ -399,6 +399,14 @@ public static class DependencyInjection
             NomNomzBot.Infrastructure.Identity.IntegrationTokenVault
         >();
 
+        // System OAuth-app credential resolver (onboarding keystone) — the single DB-vaulted-first → config
+        // path the wizard saves to and the live OAuth flows read from. Scoped (DbContext + token protector);
+        // not I<X>Service-named, so explicit.
+        services.AddScoped<
+            NomNomzBot.Application.Common.Interfaces.ISystemCredentialsProvider,
+            NomNomzBot.Infrastructure.Platform.Configuration.SystemCredentialsProvider
+        >();
+
         // Generic OAuth connect (integrations-oauth §3.2) — provider descriptors registry (singleton, stateless).
         services.AddSingleton<
             NomNomzBot.Application.Integrations.Services.IOAuthProviderRegistry,

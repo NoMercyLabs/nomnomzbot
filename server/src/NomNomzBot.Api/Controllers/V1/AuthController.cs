@@ -125,8 +125,14 @@ public class AuthController : BaseController
             ct
         );
 
-        string authUrl = await _authService.GetTwitchOAuthUrl(state, GetPublicBaseUrl(), ct);
-        return Redirect(authUrl);
+        Result<string> authUrl = await _authService.GetTwitchOAuthUrl(
+            state,
+            GetPublicBaseUrl(),
+            ct
+        );
+        if (authUrl.IsFailure)
+            return ResultResponse(authUrl);
+        return Redirect(authUrl.Value);
     }
 
     /// <summary>
@@ -437,9 +443,15 @@ public class AuthController : BaseController
             ct
         );
 
-        string authUrl = await _authService.GetTwitchBotOAuthUrl(state, GetPublicBaseUrl(), ct);
+        Result<string> authUrl = await _authService.GetTwitchBotOAuthUrl(
+            state,
+            GetPublicBaseUrl(),
+            ct
+        );
+        if (authUrl.IsFailure)
+            return ResultResponse(authUrl);
         return Ok(
-            new StatusResponseDto<OAuthStartDto> { Data = new OAuthStartDto(authUrl, state) }
+            new StatusResponseDto<OAuthStartDto> { Data = new OAuthStartDto(authUrl.Value, state) }
         );
     }
 

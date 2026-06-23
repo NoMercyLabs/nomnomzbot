@@ -12,15 +12,14 @@ using System.Net.Http.Json;
 using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Integrations.Entities;
-using NomNomzBot.Infrastructure.Platform;
 
 namespace NomNomzBot.Infrastructure.Platform.Auth;
 
@@ -34,27 +33,28 @@ public sealed class TwitchAuthService : ITwitchAuthService
 {
     private readonly IApplicationDbContext _db;
     private readonly IIntegrationTokenVault _vault;
+    private readonly ISystemCredentialsProvider _credentials;
     private readonly HttpClient _http;
-    private readonly TwitchOptions _options;
     private readonly ILogger<TwitchAuthService> _logger;
     private readonly TimeProvider _timeProvider;
 
     private const string TokenEndpoint = "https://id.twitch.tv/oauth2/token";
     private const string RevokeEndpoint = "https://id.twitch.tv/oauth2/revoke";
+    private const string TwitchProvider = AuthEnums.IntegrationProvider.Twitch;
 
     public TwitchAuthService(
         IApplicationDbContext db,
         IIntegrationTokenVault vault,
+        ISystemCredentialsProvider credentials,
         IHttpClientFactory httpClientFactory,
-        IOptions<TwitchOptions> options,
         ILogger<TwitchAuthService> logger,
         TimeProvider timeProvider
     )
     {
         _db = db;
         _vault = vault;
+        _credentials = credentials;
         _http = httpClientFactory.CreateClient("twitch-auth");
-        _options = options.Value;
         _logger = logger;
         _timeProvider = timeProvider;
     }
@@ -69,11 +69,18 @@ public sealed class TwitchAuthService : ITwitchAuthService
         CancellationToken ct = default
     )
     {
+        SystemAppCredentials? app = await _credentials.GetAsync(TwitchProvider, ct);
+        if (app is null)
+        {
+            _logger.LogWarning("Code exchange skipped: Twitch app credentials are not configured.");
+            return null;
+        }
+
         FormUrlEncodedContent form = new(
             new Dictionary<string, string>
             {
-                ["client_id"] = _options.ClientId,
-                ["client_secret"] = _options.ClientSecret,
+                ["client_id"] = app.ClientId,
+                ["client_secret"] = app.ClientSecret,
                 ["code"] = code,
                 ["grant_type"] = "authorization_code",
                 ["redirect_uri"] = redirectUri,
@@ -131,11 +138,22 @@ public sealed class TwitchAuthService : ITwitchAuthService
             return null;
         }
 
+        SystemAppCredentials? app = await _credentials.GetAsync(TwitchProvider, ct);
+        if (app is null)
+        {
+            _logger.LogWarning(
+                "Token refresh skipped for {BroadcasterId}/{Provider}: Twitch app credentials are not configured.",
+                broadcasterId,
+                provider
+            );
+            return null;
+        }
+
         FormUrlEncodedContent form = new(
             new Dictionary<string, string>
             {
-                ["client_id"] = _options.ClientId,
-                ["client_secret"] = _options.ClientSecret,
+                ["client_id"] = app.ClientId,
+                ["client_secret"] = app.ClientSecret,
                 ["refresh_token"] = refresh.Value.Value,
                 ["grant_type"] = "refresh_token",
             }
@@ -245,12 +263,13 @@ public sealed class TwitchAuthService : ITwitchAuthService
             return;
 
         Result<DecryptedTokenDto> access = await _vault.GetAccessTokenAsync(connection.Id, ct);
-        if (access.IsSuccess)
+        SystemAppCredentials? app = await _credentials.GetAsync(TwitchProvider, ct);
+        if (access.IsSuccess && app is not null)
         {
             FormUrlEncodedContent form = new(
                 new Dictionary<string, string>
                 {
-                    ["client_id"] = _options.ClientId,
+                    ["client_id"] = app.ClientId,
                     ["token"] = access.Value.Value,
                 }
             );

@@ -266,14 +266,16 @@ public class ChannelBotController : BaseController
             ct
         );
 
-        string authUrl = await _authService.GetTwitchChannelBotOAuthUrl(
+        Result<string> authUrl = await _authService.GetTwitchChannelBotOAuthUrl(
             tenantId,
             state,
             baseUrl: GetPublicBaseUrl(),
             cancellationToken: ct
         );
+        if (authUrl.IsFailure)
+            return ResultResponse(authUrl);
         return Ok(
-            new StatusResponseDto<OAuthStartDto> { Data = new OAuthStartDto(authUrl, state) }
+            new StatusResponseDto<OAuthStartDto> { Data = new OAuthStartDto(authUrl.Value, state) }
         );
     }
 

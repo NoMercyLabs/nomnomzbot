@@ -10,15 +10,14 @@
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Options;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Integrations.Entities;
 using NomNomzBot.Domain.Integrations.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
-using NomNomzBot.Infrastructure.Platform;
 
 namespace NomNomzBot.Infrastructure.Identity;
 
@@ -33,19 +32,19 @@ public sealed class ScopeGrantService : IScopeGrantService
 {
     private readonly IApplicationDbContext _db;
     private readonly IEventBus _eventBus;
-    private readonly TwitchOptions _twitchOptions;
+    private readonly ISystemCredentialsProvider _credentials;
     private readonly string _baseUrl;
 
     public ScopeGrantService(
         IApplicationDbContext db,
         IEventBus eventBus,
-        IOptions<TwitchOptions> twitchOptions,
+        ISystemCredentialsProvider credentials,
         IConfiguration configuration
     )
     {
         _db = db;
         _eventBus = eventBus;
-        _twitchOptions = twitchOptions.Value;
+        _credentials = credentials;
         _baseUrl = configuration["App:BaseUrl"] ?? "http://localhost:5080";
     }
 
@@ -77,7 +76,17 @@ public sealed class ScopeGrantService : IScopeGrantService
         [
             .. granted.Union(required, StringComparer.OrdinalIgnoreCase),
         ];
-        string url = BuildAuthorizeUrl(union, baseUrl);
+        SystemAppCredentials? app = await _credentials.GetAsync(
+            AuthEnums.IntegrationProvider.Twitch,
+            cancellationToken
+        );
+        if (app is null)
+            return Result.Failure<ScopeGrantState>(
+                "Twitch app credentials are not configured.",
+                "TWITCH_NOT_CONFIGURED"
+            );
+
+        string url = BuildAuthorizeUrl(app.ClientId, union, baseUrl);
         return Result.Success(new ScopeGrantState(AlreadyGranted: false, url, missing));
     }
 
@@ -141,12 +150,16 @@ public sealed class ScopeGrantService : IScopeGrantService
                 cancellationToken
             );
 
-    private string BuildAuthorizeUrl(IReadOnlyList<string> scopes, string? baseUrl)
+    private string BuildAuthorizeUrl(
+        string appClientId,
+        IReadOnlyList<string> scopes,
+        string? baseUrl
+    )
     {
         string publicBaseUrl = (string.IsNullOrWhiteSpace(baseUrl) ? _baseUrl : baseUrl).TrimEnd(
             '/'
         );
-        string clientId = Uri.EscapeDataString(_twitchOptions.ClientId);
+        string clientId = Uri.EscapeDataString(appClientId);
         string scope = Uri.EscapeDataString(string.Join(' ', scopes));
         string redirectUri = Uri.EscapeDataString($"{publicBaseUrl}/api/v1/auth/twitch/callback");
 

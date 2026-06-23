@@ -22,6 +22,7 @@ internal static class HelixRequestOptions
     public static readonly HttpRequestOptionsKey<string> AccessToken = new(
         "twitch.helix.access_token"
     );
+    public static readonly HttpRequestOptionsKey<string> ClientId = new("twitch.helix.client_id");
     public static readonly HttpRequestOptionsKey<string> TokenBucketKey = new(
         "twitch.helix.token_bucket_key"
     );

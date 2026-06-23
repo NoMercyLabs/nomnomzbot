@@ -120,7 +120,8 @@ public abstract class BaseController : ControllerBase
             or "EGRESS_NOT_ALLOWED" => UnauthorizedResponse(result.ErrorMessage),
             "NOT_FOUND" or "CHANNEL_NOT_FOUND" or "CHANNEL_NOT_ONBOARDED" or "QUOTES_EMPTY" =>
                 NotFoundResponse(result.ErrorMessage),
-            "VALIDATION_FAILED" or "BET_OUT_OF_RANGE" => BadRequestResponse(result.ErrorMessage),
+            "VALIDATION_FAILED" or "BET_OUT_OF_RANGE" or "TWITCH_NOT_CONFIGURED" =>
+                BadRequestResponse(result.ErrorMessage),
             "ALREADY_EXISTS"
             or "INSUFFICIENT_FUNDS"
             or "ACCOUNT_FROZEN"
@@ -159,7 +160,8 @@ public abstract class BaseController : ControllerBase
             or "EGRESS_NOT_ALLOWED" => UnauthorizedResponse(result.ErrorMessage),
             "NOT_FOUND" or "CHANNEL_NOT_FOUND" or "CHANNEL_NOT_ONBOARDED" or "QUOTES_EMPTY" =>
                 NotFoundResponse(result.ErrorMessage),
-            "VALIDATION_FAILED" or "BET_OUT_OF_RANGE" => BadRequestResponse(result.ErrorMessage),
+            "VALIDATION_FAILED" or "BET_OUT_OF_RANGE" or "TWITCH_NOT_CONFIGURED" =>
+                BadRequestResponse(result.ErrorMessage),
             "ALREADY_EXISTS"
             or "INSUFFICIENT_FUNDS"
             or "ACCOUNT_FROZEN"

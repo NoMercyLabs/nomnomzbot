@@ -29,6 +29,7 @@ public sealed class SetupWizardTests
             false,
             false,
             false,
+            false,
             "https://bot.example"
         );
 
@@ -36,7 +37,7 @@ public sealed class SetupWizardTests
         wizard
             .Steps.Select(s => s.Key)
             .Should()
-            .Equal("twitch_app", "platform_bot", "spotify", "discord");
+            .Equal("twitch_app", "platform_bot", "spotify", "discord", "youtube");
         wizard
             .Steps.Where(s => s.Required)
             .Select(s => s.Key)
@@ -48,7 +49,7 @@ public sealed class SetupWizardTests
     public void Twitch_step_carries_the_exact_redirect_uri_and_credential_fields()
     {
         SetupStepDto twitch = SetupWizard
-            .Build(false, false, false, false, "https://bot.example")
+            .Build(false, false, false, false, false, "https://bot.example")
             .Steps.First(s => s.Key == "twitch_app");
 
         twitch
@@ -71,7 +72,14 @@ public sealed class SetupWizardTests
     [Fact]
     public void Build_reflects_live_completion_state()
     {
-        SetupWizardDto wizard = SetupWizard.Build(true, true, false, false, "https://bot.example");
+        SetupWizardDto wizard = SetupWizard.Build(
+            true,
+            true,
+            false,
+            false,
+            false,
+            "https://bot.example"
+        );
 
         wizard.Complete.Should().BeTrue(); // both required steps done
         wizard.Steps.Single(s => s.Key == "twitch_app").Complete.Should().BeTrue();
@@ -83,7 +91,7 @@ public sealed class SetupWizardTests
     public void Build_normalizes_a_trailing_slash_in_the_base_url()
     {
         SetupStepDto twitch = SetupWizard
-            .Build(false, false, false, false, "https://bot.example/")
+            .Build(false, false, false, false, false, "https://bot.example/")
             .Steps.First(s => s.Key == "twitch_app");
 
         twitch.Instructions.Should().Contain(i => i.Contains("https://bot.example/api/v1/auth"));

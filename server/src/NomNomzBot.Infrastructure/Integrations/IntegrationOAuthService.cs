@@ -15,6 +15,7 @@ using System.Text.Json.Serialization;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Caching;
+using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Discord;
 using NomNomzBot.Application.Identity.Dtos;
@@ -39,6 +40,7 @@ public sealed class IntegrationOAuthService : IIntegrationOAuthService
     private readonly IOAuthProviderRegistry _registry;
     private readonly IIntegrationTokenVault _vault;
     private readonly IDiscordGuildService _discord;
+    private readonly ISystemCredentialsProvider _credentials;
     private readonly ICacheService _cache;
     private readonly HttpClient _http;
     private readonly TimeProvider _timeProvider;
@@ -49,6 +51,7 @@ public sealed class IntegrationOAuthService : IIntegrationOAuthService
         IOAuthProviderRegistry registry,
         IIntegrationTokenVault vault,
         IDiscordGuildService discord,
+        ISystemCredentialsProvider credentials,
         ICacheService cache,
         IHttpClientFactory httpClientFactory,
         IConfiguration configuration,
@@ -59,6 +62,7 @@ public sealed class IntegrationOAuthService : IIntegrationOAuthService
         _registry = registry;
         _vault = vault;
         _discord = discord;
+        _credentials = credentials;
         _cache = cache;
         _http = httpClientFactory.CreateClient("integration-oauth");
         _timeProvider = timeProvider;
@@ -89,6 +93,13 @@ public sealed class IntegrationOAuthService : IIntegrationOAuthService
                 "UNKNOWN_SCOPE_SET"
             );
 
+        SystemAppCredentials? app = await _credentials.GetAsync(provider, cancellationToken);
+        if (app is null)
+            return Result.Failure<OAuthStartDto>(
+                $"{provider} app credentials are not configured.",
+                "PROVIDER_NOT_CONFIGURED"
+            );
+
         string state = Base64UrlBytes(RandomNumberGenerator.GetBytes(32));
         string codeVerifier = Base64UrlBytes(RandomNumberGenerator.GetBytes(32));
         string codeChallenge = Base64UrlBytes(
@@ -108,7 +119,7 @@ public sealed class IntegrationOAuthService : IIntegrationOAuthService
         string redirectUri = RedirectUriFor(provider);
         string authorizeUrl =
             descriptor.AuthorizeEndpoint
-            + $"?client_id={Uri.EscapeDataString(descriptor.Credentials.ClientId)}"
+            + $"?client_id={Uri.EscapeDataString(app.ClientId)}"
             + $"&redirect_uri={Uri.EscapeDataString(redirectUri)}"
             + "&response_type=code"
             + $"&scope={Uri.EscapeDataString(string.Join(' ', scopes))}"
@@ -167,8 +178,16 @@ public sealed class IntegrationOAuthService : IIntegrationOAuthService
             return descriptorResult.WithValue<OAuthCallbackResultDto>(null!);
         OAuthProviderDescriptor descriptor = descriptorResult.Value;
 
+        SystemAppCredentials? app = await _credentials.GetAsync(provider, cancellationToken);
+        if (app is null)
+            return Result.Failure<OAuthCallbackResultDto>(
+                $"{provider} app credentials are not configured.",
+                "PROVIDER_NOT_CONFIGURED"
+            );
+
         TokenExchangeResult? tokens = await ExchangeCodeAsync(
             descriptor,
+            app,
             callbackParams.Code,
             entry.CodeVerifier,
             cancellationToken
@@ -194,7 +213,7 @@ public sealed class IntegrationOAuthService : IIntegrationOAuthService
                 accountId,
                 accountName,
                 grantedScopes,
-                descriptor.Credentials.ClientId,
+                app.ClientId,
                 descriptor.Credentials.IsByok,
                 entry.ActingUserId,
                 SettingsJson: null
@@ -320,6 +339,7 @@ public sealed class IntegrationOAuthService : IIntegrationOAuthService
 
     private async Task<TokenExchangeResult?> ExchangeCodeAsync(
         OAuthProviderDescriptor descriptor,
+        SystemAppCredentials app,
         string code,
         string codeVerifier,
         CancellationToken cancellationToken
@@ -327,14 +347,13 @@ public sealed class IntegrationOAuthService : IIntegrationOAuthService
     {
         Dictionary<string, string> form = new()
         {
-            ["client_id"] = descriptor.Credentials.ClientId,
+            ["client_id"] = app.ClientId,
             ["code"] = code,
             ["grant_type"] = "authorization_code",
             ["redirect_uri"] = RedirectUriFor(descriptor.Provider),
             ["code_verifier"] = codeVerifier,
+            ["client_secret"] = app.ClientSecret,
         };
-        if (!string.IsNullOrEmpty(descriptor.Credentials.ClientSecret))
-            form["client_secret"] = descriptor.Credentials.ClientSecret;
 
         using FormUrlEncodedContent content = new(form);
         HttpResponseMessage response = await _http.PostAsync(

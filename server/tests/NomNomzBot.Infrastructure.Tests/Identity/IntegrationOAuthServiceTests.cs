@@ -16,6 +16,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Caching;
+using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Discord;
@@ -322,11 +323,17 @@ public sealed class IntegrationOAuthServiceTests
             .Build();
 
         OAuthProviderRegistry registry = new(config);
+        ISystemCredentialsProvider credentials = AuthTestBuilder.CredentialsProvider(
+            db,
+            protector,
+            config
+        );
         FakeCache cache = new();
         IntegrationOAuthService service = new(
             registry,
             vault,
             discord,
+            credentials,
             cache,
             new SingleClientFactory(handler),
             config,

@@ -12,6 +12,7 @@ using System.Net;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Domain.Twitch.Events;
@@ -40,11 +41,13 @@ public class TwitchHelixTransportTests
         RecordingHelixHandler Wire,
         FakeTwitchTokenResolver Resolver,
         CapturingEventBus Bus
-    ) Build(IEnumerable<Func<HttpResponseMessage>> responses)
+    ) Build(IEnumerable<Func<HttpResponseMessage>> responses, string? dbClientId = null)
     {
         RecordingHelixHandler wire = new(responses);
+        // The auth-handler config fallback is "config-client-id"; when the credentials provider supplies a
+        // (wizard-vaulted) id it must win — proving the Helix Client-Id is the dynamically-resolved one.
         TwitchAuthHeaderHandler auth = new(
-            Options.Create(new TwitchOptions { ClientId = "client-id" })
+            Options.Create(new TwitchOptions { ClientId = "config-client-id" })
         )
         {
             InnerHandler = wire,
@@ -56,10 +59,33 @@ public class TwitchHelixTransportTests
         TwitchHelixTransport transport = new(
             new SingleClientFactory(httpClient),
             resolver,
+            new StubCredentialsProvider(dbClientId),
             bus,
             NullLogger<TwitchHelixTransport>.Instance
         );
         return (transport, wire, resolver, bus);
+    }
+
+    /// <summary>
+    /// A credentials provider double at the resolution seam: it returns the seeded <c>client_id</c> from
+    /// <see cref="ISystemCredentialsProvider.GetValueAsync"/> (null = unconfigured → handler falls back to
+    /// config). The real DB→config resolution is covered by <c>SystemCredentialsProviderTests</c>.
+    /// </summary>
+    private sealed class StubCredentialsProvider(string? clientId) : ISystemCredentialsProvider
+    {
+        public Task<SystemAppCredentials?> GetAsync(
+            string provider,
+            CancellationToken cancellationToken = default
+        ) =>
+            Task.FromResult<SystemAppCredentials?>(
+                clientId is null ? null : new SystemAppCredentials(clientId, "secret")
+            );
+
+        public Task<string?> GetValueAsync(
+            string provider,
+            string field,
+            CancellationToken cancellationToken = default
+        ) => Task.FromResult(clientId);
     }
 
     [Fact]
@@ -122,6 +148,40 @@ public class TwitchHelixTransportTests
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().Be(1234);
+    }
+
+    [Fact]
+    public async Task SendCore_SendsTheDynamicallyResolvedClientId_OverConfig()
+    {
+        // The credentials provider supplies a wizard-vaulted client id; it must be the Client-Id on the wire,
+        // overriding the auth-handler's config fallback — proving Helix uses the dynamically-resolved app id.
+        (TwitchHelixTransport transport, RecordingHelixHandler wire, _, _) = Build(
+            [() => RecordingHelixHandler.Json(HttpStatusCode.OK, """{ "data": [] }""")],
+            dbClientId: "wizard-vaulted-client-id"
+        );
+
+        await transport.GetListAsync<Followers>(
+            new TwitchHelixRequest(HttpMethod.Get, "users", TwitchHelixAuth.App)
+        );
+
+        RecordedRequest sent = wire.Requests.Should().ContainSingle().Subject;
+        sent.ClientId.Should().Be("wizard-vaulted-client-id");
+    }
+
+    [Fact]
+    public async Task SendCore_FallsBackToConfigClientId_WhenNoVaultedIdResolves()
+    {
+        // No credentials provider value (e.g. a pure env/appsettings deployment): the config Client-Id stands.
+        (TwitchHelixTransport transport, RecordingHelixHandler wire, _, _) = Build([
+            () => RecordingHelixHandler.Json(HttpStatusCode.OK, """{ "data": [] }"""),
+        ]);
+
+        await transport.GetListAsync<Followers>(
+            new TwitchHelixRequest(HttpMethod.Get, "users", TwitchHelixAuth.App)
+        );
+
+        RecordedRequest sent = wire.Requests.Should().ContainSingle().Subject;
+        sent.ClientId.Should().Be("config-client-id");
     }
 
     [Fact]

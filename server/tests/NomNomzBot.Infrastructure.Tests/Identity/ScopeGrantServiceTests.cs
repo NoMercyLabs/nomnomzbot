@@ -11,14 +11,14 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Options;
+using NomNomzBot.Application.Common.Interfaces;
+using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Integrations.Entities;
 using NomNomzBot.Domain.Integrations.Events;
 using NomNomzBot.Infrastructure.Identity;
-using NomNomzBot.Infrastructure.Platform;
 
 namespace NomNomzBot.Infrastructure.Tests.Identity;
 
@@ -36,20 +36,25 @@ public sealed class ScopeGrantServiceTests
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
         RecordingEventBus bus = new();
+        ITokenProtector protector = AuthTestBuilder.RealTokenProtector(out _);
+        // No DB-vaulted credential row is seeded here, so the credentials provider falls back to these
+        // config values — proving the incremental authorize URL carries the resolved app client id.
         IConfiguration config = new ConfigurationBuilder()
             .AddInMemoryCollection(
-                new Dictionary<string, string?> { ["App:BaseUrl"] = "https://api.example.test" }
+                new Dictionary<string, string?>
+                {
+                    ["App:BaseUrl"] = "https://api.example.test",
+                    ["Twitch:ClientId"] = "client-xyz",
+                    ["Twitch:ClientSecret"] = "s",
+                }
             )
             .Build();
-        IOptions<TwitchOptions> twitch = Options.Create(
-            new TwitchOptions
-            {
-                ClientId = "client-xyz",
-                ClientSecret = "s",
-                BotUsername = "b",
-            }
+        ISystemCredentialsProvider credentials = AuthTestBuilder.CredentialsProvider(
+            db,
+            protector,
+            config
         );
-        ScopeGrantService service = new(db, bus, twitch, config);
+        ScopeGrantService service = new(db, bus, credentials, config);
         return (service, db, bus);
     }
 

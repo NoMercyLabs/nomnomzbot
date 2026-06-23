@@ -13,9 +13,9 @@ using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
@@ -24,7 +24,6 @@ using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Identity.Events;
 using NomNomzBot.Domain.Integrations.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
-using NomNomzBot.Infrastructure.Platform;
 
 namespace NomNomzBot.Infrastructure.Identity;
 
@@ -40,13 +39,15 @@ public sealed class AuthService : IAuthService
 {
     private const string PlatformBotProvider = AuthEnums.IntegrationProvider.Twitch + "_bot";
 
+    private const string TwitchProvider = AuthEnums.IntegrationProvider.Twitch;
+
     private readonly IApplicationDbContext _db;
     private readonly ITwitchAuthService _twitchAuth;
     private readonly IIntegrationTokenVault _vault;
     private readonly ISessionService _sessions;
     private readonly IEventBus _eventBus;
+    private readonly ISystemCredentialsProvider _credentials;
     private readonly HttpClient _http;
-    private readonly TwitchOptions _options;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<AuthService> _logger;
     private readonly string _baseUrl;
@@ -86,8 +87,8 @@ public sealed class AuthService : IAuthService
         IIntegrationTokenVault vault,
         ISessionService sessions,
         IEventBus eventBus,
+        ISystemCredentialsProvider credentials,
         IHttpClientFactory httpClientFactory,
-        IOptions<TwitchOptions> options,
         IConfiguration configuration,
         TimeProvider timeProvider,
         ILogger<AuthService> logger
@@ -98,8 +99,8 @@ public sealed class AuthService : IAuthService
         _vault = vault;
         _sessions = sessions;
         _eventBus = eventBus;
+        _credentials = credentials;
         _http = httpClientFactory.CreateClient("twitch-helix");
-        _options = options.Value;
         _timeProvider = timeProvider;
         _logger = logger;
         _baseUrl = configuration["App:BaseUrl"] ?? "http://localhost:5080";
@@ -108,11 +109,18 @@ public sealed class AuthService : IAuthService
 
     // ─── User OAuth ──────────────────────────────────────────────────────────
 
-    public Task<string> GetTwitchOAuthUrl(
+    public Task<Result<string>> GetTwitchOAuthUrl(
         string? state = null,
         string? baseUrl = null,
         CancellationToken cancellationToken = default
-    ) => Task.FromResult(BuildAuthorizeUrl(RequiredScopes, state, baseUrl, forceVerify: false));
+    ) =>
+        BuildAuthorizeUrlAsync(
+            RequiredScopes,
+            state,
+            baseUrl,
+            forceVerify: false,
+            cancellationToken
+        );
 
     public async Task<Result<AuthResultDto>> HandleTwitchCallbackAsync(
         OAuthCallbackDto callback,
@@ -218,6 +226,15 @@ public sealed class AuthService : IAuthService
 
         Guid broadcasterId = channel.Id;
 
+        // The exchange above already proved the app is configured; resolve the client id to stamp the
+        // connection with the app that owns it.
+        SystemAppCredentials? app = await _credentials.GetAsync(TwitchProvider, cancellationToken);
+        if (app is null)
+            return Result.Failure<AuthResultDto>(
+                "Twitch app credentials are not configured.",
+                "TWITCH_NOT_CONFIGURED"
+            );
+
         // Vault the user's Twitch tokens (replaces the flat Service row).
         Result<IntegrationConnectionDto> connection = await _vault.UpsertConnectionAsync(
             new UpsertConnectionDto(
@@ -226,7 +243,7 @@ public sealed class AuthService : IAuthService
                 twitchUser.Id,
                 twitchUser.Login,
                 tokens.Scopes,
-                _options.ClientId,
+                app.ClientId,
                 IsByok: false,
                 user.Id,
                 SettingsJson: null
@@ -357,11 +374,11 @@ public sealed class AuthService : IAuthService
 
     // ─── Platform (shared) bot ─────────────────────────────────────────────────
 
-    public Task<string> GetTwitchBotOAuthUrl(
+    public Task<Result<string>> GetTwitchBotOAuthUrl(
         string? state = null,
         string? baseUrl = null,
         CancellationToken cancellationToken = default
-    ) => Task.FromResult(BuildAuthorizeUrl(BotScopes, state, baseUrl, forceVerify: true));
+    ) => BuildAuthorizeUrlAsync(BotScopes, state, baseUrl, forceVerify: true, cancellationToken);
 
     public async Task<Result<BotStatusDto>> HandleTwitchBotCallbackAsync(
         OAuthCallbackDto callback,
@@ -382,6 +399,13 @@ public sealed class AuthService : IAuthService
             cancellationToken
         );
 
+        SystemAppCredentials? app = await _credentials.GetAsync(TwitchProvider, cancellationToken);
+        if (app is null)
+            return Result.Failure<BotStatusDto>(
+                "Twitch app credentials are not configured.",
+                "TWITCH_NOT_CONFIGURED"
+            );
+
         // Platform connection: BroadcasterId=null (shared across all channels).
         Result<IntegrationConnectionDto> connection = await _vault.UpsertConnectionAsync(
             new UpsertConnectionDto(
@@ -390,7 +414,7 @@ public sealed class AuthService : IAuthService
                 botUser.Id,
                 botUser.Login,
                 tokens.Scopes,
-                _options.ClientId,
+                app.ClientId,
                 IsByok: false,
                 ConnectedByUserId: null,
                 SettingsJson: null
@@ -495,12 +519,12 @@ public sealed class AuthService : IAuthService
 
     // ─── Custom (white-label) per-channel bot ──────────────────────────────────
 
-    public Task<string> GetTwitchChannelBotOAuthUrl(
+    public Task<Result<string>> GetTwitchChannelBotOAuthUrl(
         Guid broadcasterId,
         string? state = null,
         string? baseUrl = null,
         CancellationToken cancellationToken = default
-    ) => Task.FromResult(BuildAuthorizeUrl(BotScopes, state, baseUrl, forceVerify: true));
+    ) => BuildAuthorizeUrlAsync(BotScopes, state, baseUrl, forceVerify: true, cancellationToken);
 
     public async Task<Result<BotStatusDto>> HandleTwitchChannelBotCallbackAsync(
         Guid broadcasterId,
@@ -522,6 +546,13 @@ public sealed class AuthService : IAuthService
             cancellationToken
         );
 
+        SystemAppCredentials? app = await _credentials.GetAsync(TwitchProvider, cancellationToken);
+        if (app is null)
+            return Result.Failure<BotStatusDto>(
+                "Twitch app credentials are not configured.",
+                "TWITCH_NOT_CONFIGURED"
+            );
+
         Result<IntegrationConnectionDto> connection = await _vault.UpsertConnectionAsync(
             new UpsertConnectionDto(
                 broadcasterId,
@@ -529,7 +560,7 @@ public sealed class AuthService : IAuthService
                 botUser.Id,
                 botUser.Login,
                 tokens.Scopes,
-                _options.ClientId,
+                app.ClientId,
                 IsByok: false,
                 ConnectedByUserId: null,
                 SettingsJson: null
@@ -675,17 +706,25 @@ public sealed class AuthService : IAuthService
 
     // ─── Helpers ───────────────────────────────────────────────────────────────
 
-    private string BuildAuthorizeUrl(
+    private async Task<Result<string>> BuildAuthorizeUrlAsync(
         string[] scopes,
         string? state,
         string? baseUrl,
-        bool forceVerify
+        bool forceVerify,
+        CancellationToken cancellationToken
     )
     {
+        SystemAppCredentials? app = await _credentials.GetAsync(TwitchProvider, cancellationToken);
+        if (app is null)
+            return Result.Failure<string>(
+                "Twitch app credentials are not configured. Finish setup before starting an OAuth flow.",
+                "TWITCH_NOT_CONFIGURED"
+            );
+
         string publicBaseUrl = (string.IsNullOrWhiteSpace(baseUrl) ? _baseUrl : baseUrl).TrimEnd(
             '/'
         );
-        string clientId = Uri.EscapeDataString(_options.ClientId);
+        string clientId = Uri.EscapeDataString(app.ClientId);
         string scope = Uri.EscapeDataString(string.Join(' ', scopes));
         string redirectUri = Uri.EscapeDataString($"{publicBaseUrl}/api/v1/auth/twitch/callback");
         string stateParam = state is not null
@@ -693,13 +732,15 @@ public sealed class AuthService : IAuthService
             : string.Empty;
         string verify = forceVerify ? "&force_verify=true" : string.Empty;
 
-        return "https://id.twitch.tv/oauth2/authorize"
-            + $"?client_id={clientId}"
-            + $"&redirect_uri={redirectUri}"
-            + "&response_type=code"
-            + $"&scope={scope}"
-            + verify
-            + stateParam;
+        return Result.Success(
+            "https://id.twitch.tv/oauth2/authorize"
+                + $"?client_id={clientId}"
+                + $"&redirect_uri={redirectUri}"
+                + "&response_type=code"
+                + $"&scope={scope}"
+                + verify
+                + stateParam
+        );
     }
 
     private async Task<Result<(TwitchUserInfo, TokenResult)>> ExchangeBotCodeAsync(
@@ -787,9 +828,16 @@ public sealed class AuthService : IAuthService
         CancellationToken ct
     )
     {
+        SystemAppCredentials? app = await _credentials.GetAsync(TwitchProvider, ct);
+        if (app is null)
+        {
+            _logger.LogWarning("Cannot fetch Twitch user: app credentials are not configured.");
+            return null;
+        }
+
         HttpRequestMessage request = new(HttpMethod.Get, "https://api.twitch.tv/helix/users");
         request.Headers.Add("Authorization", $"Bearer {accessToken}");
-        request.Headers.Add("Client-Id", _options.ClientId);
+        request.Headers.Add("Client-Id", app.ClientId);
 
         try
         {

@@ -64,6 +64,7 @@ public static class SetupWizard
         bool hasPlatformBot,
         bool hasSpotify,
         bool hasDiscord,
+        bool hasYouTube,
         string baseUrl
     )
     {
@@ -169,6 +170,31 @@ public static class SetupWizard
                     "save_credentials",
                     "PUT",
                     "/api/v1/system/setup/credentials/discord",
+                    null
+                ),
+                Fields:
+                [
+                    new SetupFieldDto("clientId", "Client ID", "text", true, null),
+                    new SetupFieldDto("clientSecret", "Client Secret", "password", true, null),
+                ]
+            ),
+            new SetupStepDto(
+                "youtube",
+                "YouTube (optional)",
+                "Connect a Google app to enable the YouTube music provider.",
+                Required: false,
+                Complete: hasYouTube,
+                Status: hasYouTube ? "configured" : "not_configured",
+                Instructions:
+                [
+                    "Create OAuth credentials at https://console.cloud.google.com/apis/credentials.",
+                    $"Add the Authorized redirect URI: {root}/api/v1/integrations/youtube/callback",
+                    "Copy the Client ID and Client Secret.",
+                ],
+                Action: new SetupActionDto(
+                    "save_credentials",
+                    "PUT",
+                    "/api/v1/system/setup/credentials/youtube",
                     null
                 ),
                 Fields:

@@ -16,6 +16,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Hosting;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Identity.Services;
@@ -38,6 +39,7 @@ public class SystemController : BaseController
     private readonly IApplicationDbContext _db;
     private readonly IConfiguration _config;
     private readonly ITokenProtector _protector;
+    private readonly ISystemCredentialsProvider _credentials;
     private readonly IHostEnvironment _env;
     private readonly ITwitchOAuthStateService _oauthState;
 
@@ -46,6 +48,7 @@ public class SystemController : BaseController
         IApplicationDbContext db,
         IConfiguration config,
         ITokenProtector protector,
+        ISystemCredentialsProvider credentials,
         IHostEnvironment env,
         ITwitchOAuthStateService oauthState
     )
@@ -54,6 +57,7 @@ public class SystemController : BaseController
         _db = db;
         _config = config;
         _protector = protector;
+        _credentials = credentials;
         _env = env;
         _oauthState = oauthState;
     }
@@ -66,7 +70,8 @@ public class SystemController : BaseController
         CheckItem TwitchApp,
         CheckItem PlatformBot,
         CheckItem? Spotify,
-        CheckItem? Discord
+        CheckItem? Discord,
+        CheckItem? YouTube
     );
 
     public record CheckItem(bool Ok, string Status, string? Detail);
@@ -87,6 +92,7 @@ public class SystemController : BaseController
         bool hasPlatformBot = st.HasPlatformBot;
         bool hasSpotify = st.HasSpotify;
         bool hasDiscord = st.HasDiscord;
+        bool hasYouTube = st.HasYouTube;
 
         // System is ready when Twitch app and platform bot are both configured
         bool ready = hasTwitch && hasPlatformBot;
@@ -117,6 +123,13 @@ public class SystemController : BaseController
                 hasDiscord
                     ? "Client ID and secret are set"
                     : "Optional — configure to enable Discord integration"
+            ),
+            YouTube: new CheckItem(
+                hasYouTube,
+                hasYouTube ? "configured" : "not configured",
+                hasYouTube
+                    ? "Client ID and secret are set"
+                    : "Optional — configure to enable the YouTube music provider"
             )
         );
 
@@ -145,6 +158,7 @@ public class SystemController : BaseController
                     st.HasPlatformBot,
                     st.HasSpotify,
                     st.HasDiscord,
+                    st.HasYouTube,
                     baseUrl
                 ),
             }
@@ -153,49 +167,28 @@ public class SystemController : BaseController
 
     private async Task<SetupState> ComputeSetupStateAsync(CancellationToken ct)
     {
-        string? twitchClientId =
-            await GetSystemConfig("twitch.client_id", ct) ?? _config["Twitch:ClientId"];
-        string? twitchClientSecret =
-            await GetSystemConfig("twitch.client_secret", ct) ?? _config["Twitch:ClientSecret"];
-        bool hasTwitch =
-            !string.IsNullOrWhiteSpace(twitchClientId)
-            && !string.IsNullOrWhiteSpace(twitchClientSecret);
+        // One resolution path: the credentials provider reads the wizard-vaulted DB rows first, then the
+        // {Provider}:ClientId/Secret config fallback, returning a value only when BOTH fields are present —
+        // which is exactly the "configured" predicate each step needs.
+        bool hasTwitch = await _credentials.GetAsync("twitch", ct) is not null;
+        bool hasSpotify = await _credentials.GetAsync("spotify", ct) is not null;
+        bool hasDiscord = await _credentials.GetAsync("discord", ct) is not null;
+        bool hasYouTube = await _credentials.GetAsync("youtube", ct) is not null;
 
         bool hasPlatformBot = await _db.Services.AnyAsync(
             s => s.Name == "twitch_bot" && s.BroadcasterId == null && s.AccessToken != null,
             ct
         );
 
-        string? spotifyClientId =
-            await GetSystemConfig("spotify.client_id", ct)
-            ?? _config["Spotify:ClientId"]
-            ?? Environment.GetEnvironmentVariable("Spotify__ClientId");
-        string? spotifyClientSecret =
-            await GetSystemConfig("spotify.client_secret", ct)
-            ?? _config["Spotify:ClientSecret"]
-            ?? Environment.GetEnvironmentVariable("Spotify__ClientSecret");
-        bool hasSpotify =
-            !string.IsNullOrEmpty(spotifyClientId) && !string.IsNullOrEmpty(spotifyClientSecret);
-
-        string? discordClientId =
-            await GetSystemConfig("discord.client_id", ct)
-            ?? _config["Discord:ClientId"]
-            ?? Environment.GetEnvironmentVariable("Discord__ClientId");
-        string? discordClientSecret =
-            await GetSystemConfig("discord.client_secret", ct)
-            ?? _config["Discord:ClientSecret"]
-            ?? Environment.GetEnvironmentVariable("Discord__ClientSecret");
-        bool hasDiscord =
-            !string.IsNullOrEmpty(discordClientId) && !string.IsNullOrEmpty(discordClientSecret);
-
-        return new SetupState(hasTwitch, hasPlatformBot, hasSpotify, hasDiscord);
+        return new SetupState(hasTwitch, hasPlatformBot, hasSpotify, hasDiscord, hasYouTube);
     }
 
     private sealed record SetupState(
         bool HasTwitch,
         bool HasPlatformBot,
         bool HasSpotify,
-        bool HasDiscord
+        bool HasDiscord,
+        bool HasYouTube
     );
 
     // ── Platform bot OAuth ───────────────────────────────────────────────────
@@ -222,12 +215,14 @@ public class SystemController : BaseController
         // Issue a single-use bot-flow CSRF state nonce so the callback routes the setup-wizard bot auth
         // correctly and cannot be triggered by a forged state (§5).
         string state = await _oauthState.IssueAsync(new TwitchOAuthFlowState("bot"), ct);
-        string url = await _authService.GetTwitchBotOAuthUrl(
+        Result<string> url = await _authService.GetTwitchBotOAuthUrl(
             state,
             baseUrl: publicBaseUrl,
             cancellationToken: ct
         );
-        return Ok(new StatusResponseDto<object> { Data = new { oauthUrl = url } });
+        if (url.IsFailure)
+            return ResultResponse(url);
+        return Ok(new StatusResponseDto<object> { Data = new { oauthUrl = url.Value } });
     }
 
     /// <summary>Check the platform bot connection status.</summary>
@@ -321,6 +316,30 @@ public class SystemController : BaseController
         return Ok(new StatusResponseDto<object> { Message = "Discord credentials saved." });
     }
 
+    /// <summary>Save system-level YouTube (Google) app credentials.</summary>
+    [HttpPut("setup/credentials/youtube")]
+    [EnableRateLimiting("auth")]
+    [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> SaveYouTubeCredentials(
+        [FromBody] SaveCredentialRequest request,
+        CancellationToken ct
+    )
+    {
+        if (await IsSetupCompleteAsync(ct) && !User.IsInRole("admin"))
+            return Forbid();
+
+        await UpsertSystemConfig("youtube.client_id", request.ClientId, ct);
+        await UpsertSystemConfig(
+            "youtube.client_secret",
+            request.ClientSecret,
+            secure: true,
+            ct: ct
+        );
+        await _db.SaveChangesAsync(ct);
+
+        return Ok(new StatusResponseDto<object> { Message = "YouTube credentials saved." });
+    }
+
     /// <summary>
     /// Finalize first-run setup. Once called — or once the system is otherwise ready — the credential
     /// endpoints lock to platform admins, so anonymous callers can no longer repoint the platform's app
@@ -352,30 +371,11 @@ public class SystemController : BaseController
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
-    private async Task<string?> GetSystemConfig(string key, CancellationToken ct)
-    {
-        ConfigEntity? cfg = await _db.Configurations.FirstOrDefaultAsync(
-            c => c.BroadcasterId == null && c.Key == key,
-            ct
-        );
-        if (cfg is null)
-            return null;
-        return cfg.SecureValue is not null
-            ? await _protector.TryUnprotectAsync(cfg.SecureValue, ContextFor(key), ct)
-            : cfg.Value;
-    }
-
-    // System-level secrets share the "system" subject; the AAD binds each to its provider + field so a sealed
-    // value for twitch.client_secret can't be replayed as spotify's, and a raw DB read yields only sealed bytes.
-    private static TokenProtectionContext ContextFor(string key)
-    {
-        int dot = key.IndexOf('.');
-        return new TokenProtectionContext(
-            "system",
-            dot > 0 ? key[..dot] : "system",
-            dot > 0 ? key[(dot + 1)..] : key
-        );
-    }
+    // The credential reads (DB-vaulted, AAD-bound unprotect) live in ISystemCredentialsProvider — the one
+    // resolution path the live OAuth flows also read from. The controller reads through it so there is a
+    // single source of truth; the save endpoints below still own the write side.
+    private Task<string?> GetSystemConfig(string key, CancellationToken ct) =>
+        _credentials.GetValueAsync(KeyProvider(key), KeyField(key), ct);
 
     private async Task UpsertSystemConfig(
         string key,
@@ -395,9 +395,32 @@ public class SystemController : BaseController
             _db.Configurations.Add(cfg);
         }
 
+        // Secrets seal under the SAME AAD the provider opens them with ("system", provider, field), so the
+        // value the wizard saves is the value the OAuth flows decrypt back.
         if (secure)
-            cfg.SecureValue = await _protector.ProtectAsync(value, ContextFor(key), ct);
+            cfg.SecureValue = await _protector.ProtectAsync(
+                value,
+                SystemCredentialsProviderContext(key),
+                ct
+            );
         else
             cfg.Value = value;
     }
+
+    // The setup keys are "{provider}.{field}"; split them so the read delegates cleanly to the provider.
+    private static string KeyProvider(string key)
+    {
+        int dot = key.IndexOf('.');
+        return dot > 0 ? key[..dot] : "system";
+    }
+
+    private static string KeyField(string key)
+    {
+        int dot = key.IndexOf('.');
+        return dot > 0 ? key[(dot + 1)..] : key;
+    }
+
+    // Reuse the provider's AAD shape so seal (here) and open (provider) agree exactly — one definition.
+    private static TokenProtectionContext SystemCredentialsProviderContext(string key) =>
+        NomNomzBot.Infrastructure.Platform.Configuration.SystemCredentialsProvider.ContextFor(key);
 }

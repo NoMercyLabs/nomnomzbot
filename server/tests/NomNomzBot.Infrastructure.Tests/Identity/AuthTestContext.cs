@@ -9,9 +9,11 @@
 // -----------------------------------------------------------------------------
 
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Application.Services;
 using NomNomzBot.Domain.Identity.Entities;
@@ -19,6 +21,7 @@ using NomNomzBot.Domain.Integrations.Entities;
 using NomNomzBot.Domain.Platform;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Platform.Auth;
+using NomNomzBot.Infrastructure.Platform.Configuration;
 using NomNomzBot.Infrastructure.Platform.Security;
 
 namespace NomNomzBot.Infrastructure.Tests.Identity;
@@ -58,6 +61,16 @@ internal static class AuthTestBuilder
                 .UseInMemoryDatabase(Guid.NewGuid().ToString())
                 .Options
         );
+
+    /// <summary>
+    /// A real <see cref="ISystemCredentialsProvider"/> over the test context + REAL token protector, so a
+    /// test proves the DB-vaulted-first → config-fallback resolution and the AAD binding for real (no stub).
+    /// </summary>
+    public static ISystemCredentialsProvider CredentialsProvider(
+        AuthDbContext db,
+        ITokenProtector protector,
+        IConfiguration configuration
+    ) => new SystemCredentialsProvider(db, protector, configuration);
 }
 
 /// <summary>Records every published domain event so a test can assert the side effect actually fired.</summary>
@@ -121,6 +134,11 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
         b.Entity<IntegrationToken>().HasKey(e => e.Id);
         b.Entity<IntegrationToken>().Ignore(e => e.Connection).Ignore(e => e.Channel);
 
+        // System-config table (scalar Key/Value/SecureValue) — mapped so the system-credentials provider
+        // tests can seed wizard-vaulted rows and prove the DB-first resolution + AAD binding.
+        b.Entity<NomNomzBot.Domain.Platform.Entities.Configuration>().HasKey(e => e.Id);
+        b.Entity<NomNomzBot.Domain.Platform.Entities.Configuration>().Ignore(e => e.Channel);
+
         // Mapped standalone (navs ignored, Channel.Moderators already ignored above) so the
         // ChannelAccessService tests can exercise the moderator-grant branch of tenant resolution.
         b.Entity<NomNomzBot.Domain.Identity.Entities.ChannelModerator>()
@@ -143,7 +161,6 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
         b.Ignore<NomNomzBot.Domain.Chat.Entities.ChatMessage>();
         b.Ignore<NomNomzBot.Domain.Identity.Entities.ChannelEvent>();
         b.Ignore<NomNomzBot.Domain.Stream.Entities.Stream>();
-        b.Ignore<NomNomzBot.Domain.Platform.Entities.Configuration>();
         b.Ignore<NomNomzBot.Domain.Platform.Entities.Storage>();
         b.Ignore<NomNomzBot.Domain.Platform.Entities.Record>();
         b.Ignore<NomNomzBot.Domain.Identity.Entities.Permission>();
@@ -200,7 +217,7 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
     public DbSet<NomNomzBot.Domain.Stream.Entities.Stream> Streams =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Platform.Entities.Configuration> Configurations =>
-        throw new NotSupportedException();
+        Set<NomNomzBot.Domain.Platform.Entities.Configuration>();
     public DbSet<NomNomzBot.Domain.Platform.Entities.Storage> Storages =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Platform.Entities.Record> Records =>

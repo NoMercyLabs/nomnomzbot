@@ -14,8 +14,10 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.Logging;
+using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
+using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Twitch.Events;
 
@@ -38,6 +40,7 @@ namespace NomNomzBot.Infrastructure.Platform.Transport.Helix;
 public sealed class TwitchHelixTransport(
     IHttpClientFactory httpClientFactory,
     ITwitchTokenResolver tokenResolver,
+    ISystemCredentialsProvider credentials,
     IEventBus eventBus,
     ILogger<TwitchHelixTransport> logger
 ) : ITwitchHelixTransport
@@ -184,12 +187,21 @@ public sealed class TwitchHelixTransport(
         TwitchAccessContext context = tokenResult.Value;
         string url = BuildUrl(request);
 
+        // Resolve the app Client-Id the same DB-vaulted-first way the OAuth flows do, so a wizard-configured
+        // (config-less) deployment still sends the right Client-Id header. Null only on a wholly unconfigured
+        // system, in which case the token resolution above would already have failed.
+        string? clientId = await credentials.GetValueAsync(
+            AuthEnums.IntegrationProvider.Twitch,
+            "client_id",
+            ct
+        );
+
         for (int attempt = 0; attempt < 2; attempt++)
         {
             HttpResponseMessage response;
             try
             {
-                using HttpRequestMessage message = BuildMessage(request, url, context);
+                using HttpRequestMessage message = BuildMessage(request, url, context, clientId);
                 response = await _http.SendAsync(message, ct);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
@@ -240,13 +252,16 @@ public sealed class TwitchHelixTransport(
     private static HttpRequestMessage BuildMessage(
         TwitchHelixRequest request,
         string url,
-        TwitchAccessContext context
+        TwitchAccessContext context,
+        string? clientId
     )
     {
         HttpRequestMessage message = new(request.Method, url);
         message.Options.Set(HelixRequestOptions.AccessToken, context.AccessToken);
         message.Options.Set(HelixRequestOptions.TokenBucketKey, context.TokenBucketKey);
         message.Options.Set(HelixRequestOptions.BroadcasterId, context.BroadcasterId);
+        if (!string.IsNullOrEmpty(clientId))
+            message.Options.Set(HelixRequestOptions.ClientId, clientId);
 
         if (request.Body is not null)
             message.Content = JsonContent.Create(request.Body, options: WireJson);
