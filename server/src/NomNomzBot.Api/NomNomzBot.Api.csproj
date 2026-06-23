@@ -91,4 +91,35 @@
       Text="BundleWasmDashboard: copied the dashboard into $(PublishDir)wwwroot."
     />
   </Target>
+
+  <!-- Bundle the native desktop app into the published install so the self-host single-exe ships EVERYTHING for
+       the platform: the bot's system-tray double-click launches <publish>/desktop/NomNomzBot.exe. Same -p:BundleWasm
+       opt-in as the dashboard (the self-host release publish sets it). Builds the Compose desktop distributable
+       (jpackage app image with its own bundled Java runtime) through the frontend's Gradle wrapper, then copies it
+       under <publish>/desktop. Runs AfterTargets=Publish so it lands in the publish output directly. -->
+  <Target Name="BundleDesktopApp" AfterTargets="Publish" Condition="'$(BundleWasm)' == 'true'">
+    <PropertyGroup>
+      <FrontendDir>$(MSBuildThisFileDirectory)..\..\..\app</FrontendDir>
+      <DesktopAppDir>$(FrontendDir)\composeApp\build\compose\binaries\main\app\NomNomzBot</DesktopAppDir>
+      <GradleCommand Condition="'$(OS)' == 'Windows_NT'">.\gradlew.bat</GradleCommand>
+      <GradleCommand Condition="'$(OS)' != 'Windows_NT'">./gradlew</GradleCommand>
+    </PropertyGroup>
+    <Message Importance="high" Text="BundleDesktopApp: building the desktop app distributable…" />
+    <Exec
+      Command="$(GradleCommand) :composeApp:createDistributable --console=plain"
+      WorkingDirectory="$(FrontendDir)"
+    />
+    <ItemGroup>
+      <DesktopAppFiles Include="$(DesktopAppDir)\**\*" />
+    </ItemGroup>
+    <Copy
+      SourceFiles="@(DesktopAppFiles)"
+      DestinationFiles="@(DesktopAppFiles-&gt;'$(PublishDir)desktop\%(RecursiveDir)%(Filename)%(Extension)')"
+      SkipUnchangedFiles="true"
+    />
+    <Message
+      Importance="high"
+      Text="BundleDesktopApp: copied the desktop app into $(PublishDir)desktop."
+    />
+  </Target>
 </Project>

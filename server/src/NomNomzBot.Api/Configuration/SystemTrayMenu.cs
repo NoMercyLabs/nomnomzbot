@@ -16,6 +16,9 @@ namespace NomNomzBot.Api.Configuration;
 /// </summary>
 public enum TrayCommand
 {
+    /// <summary>Launch the bundled native desktop app — the primary action (double-click).</summary>
+    OpenApp,
+
     /// <summary>Open the local dashboard URL in the default browser.</summary>
     OpenDashboard,
 
@@ -46,6 +49,20 @@ public static class SystemTrayMenu
     /// <summary>Win32 command id for "Stop NomNomzBot".</summary>
     public const uint StopCommandId = 0x1002;
 
+    /// <summary>Win32 command id for "Open NomNomzBot" (the bundled desktop app).</summary>
+    public const uint OpenAppCommandId = 0x1003;
+
+    /// <summary>
+    /// The bundled desktop app's location relative to the bot executable: the self-host single-exe ships the
+    /// native desktop app under <c>desktop\</c> next to <c>nomnomz.exe</c>, so the tray launches
+    /// <c>&lt;botDir&gt;\desktop\NomNomzBot.exe</c>. Absent (e.g. the bare Docker image) ⇒ the tray falls back to the
+    /// web dashboard.
+    /// </summary>
+    public const string DesktopAppFolder = "desktop";
+
+    /// <summary>The bundled desktop app's executable name (matches the Compose <c>packageName</c>).</summary>
+    public const string DesktopAppExeName = "NomNomzBot.exe";
+
     /// <summary>The local dashboard URL for the bound port, e.g. <c>http://localhost:5080</c>.</summary>
     public static string DashboardUrl(int port) => $"http://localhost:{port}";
 
@@ -55,7 +72,8 @@ public static class SystemTrayMenu
     /// <summary>The actionable menu items, in display order. The header + separator are added by the renderer.</summary>
     public static IReadOnlyList<TrayMenuItem> Items { get; } =
     [
-        new(OpenDashboardCommandId, "Open dashboard", TrayCommand.OpenDashboard),
+        new(OpenAppCommandId, "Open NomNomzBot", TrayCommand.OpenApp),
+        new(OpenDashboardCommandId, "Open in browser", TrayCommand.OpenDashboard),
         new(StopCommandId, "Stop NomNomzBot", TrayCommand.StopApplication),
     ];
 

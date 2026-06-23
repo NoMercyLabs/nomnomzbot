@@ -39,15 +39,26 @@ public sealed class SystemTrayMenuTests
     }
 
     [Fact]
-    public void Items_are_open_dashboard_then_stop_in_order()
+    public void Items_are_open_app_then_open_in_browser_then_stop_in_order()
     {
         IReadOnlyList<TrayMenuItem> items = SystemTrayMenu.Items;
 
-        items.Should().HaveCount(2);
-        items[0].Command.Should().Be(TrayCommand.OpenDashboard);
-        items[0].Label.Should().Be("Open dashboard");
-        items[1].Command.Should().Be(TrayCommand.StopApplication);
-        items[1].Label.Should().Be("Stop NomNomzBot");
+        items.Should().HaveCount(3);
+        items[0].Command.Should().Be(TrayCommand.OpenApp);
+        items[0].Label.Should().Be("Open NomNomzBot");
+        items[1].Command.Should().Be(TrayCommand.OpenDashboard);
+        items[1].Label.Should().Be("Open in browser");
+        items[2].Command.Should().Be(TrayCommand.StopApplication);
+        items[2].Label.Should().Be("Stop NomNomzBot");
+    }
+
+    [Fact]
+    public void ResolveCommand_maps_open_app_id_to_open_app()
+    {
+        SystemTrayMenu
+            .ResolveCommand(SystemTrayMenu.OpenAppCommandId)
+            .Should()
+            .Be(TrayCommand.OpenApp);
     }
 
     [Fact]

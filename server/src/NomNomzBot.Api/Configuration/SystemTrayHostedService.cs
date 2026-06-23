@@ -236,7 +236,7 @@ public sealed partial class SystemTrayHostedService : IHostedService
                 // mid double-click.
                 uint mouseMessage = (uint)(lParam.ToInt64() & 0xFFFF);
                 if (mouseMessage == WM_LBUTTONDBLCLK)
-                    OpenDashboard();
+                    OpenDesktopApp();
                 else if (mouseMessage is WM_RBUTTONUP or WM_CONTEXTMENU)
                     ShowContextMenu(hwnd);
                 return IntPtr.Zero;
@@ -299,6 +299,9 @@ public sealed partial class SystemTrayHostedService : IHostedService
         TrayCommand? command = SystemTrayMenu.ResolveCommand(commandId);
         switch (command)
         {
+            case TrayCommand.OpenApp:
+                OpenDesktopApp();
+                break;
             case TrayCommand.OpenDashboard:
                 OpenDashboard();
                 break;
@@ -308,6 +311,52 @@ public sealed partial class SystemTrayHostedService : IHostedService
                 );
                 _lifetime.StopApplication();
                 break;
+        }
+    }
+
+    private void OpenDesktopApp()
+    {
+        // The self-host single-exe bundles the native desktop app under desktop\ next to the bot exe; launch it.
+        // When it isn't present (e.g. a bare Docker image with no GUI), degrade to opening the web dashboard so a
+        // double-click always does something useful.
+        string? botDir = System.IO.Path.GetDirectoryName(Environment.ProcessPath);
+        string? appPath = botDir is null
+            ? null
+            : System.IO.Path.Combine(
+                botDir,
+                SystemTrayMenu.DesktopAppFolder,
+                SystemTrayMenu.DesktopAppExeName
+            );
+
+        if (appPath is null || !System.IO.File.Exists(appPath))
+        {
+            _logger.LogInformation(
+                "System-tray: bundled desktop app not found at {AppPath}; opening the web dashboard instead.",
+                appPath
+            );
+            OpenDashboard();
+            return;
+        }
+
+        try
+        {
+            // UseShellExecute launches the packaged exe; its own folder is the working dir so it finds its runtime.
+            Process.Start(
+                new ProcessStartInfo(appPath)
+                {
+                    UseShellExecute = true,
+                    WorkingDirectory = System.IO.Path.GetDirectoryName(appPath),
+                }
+            );
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(
+                ex,
+                "System-tray: could not launch the desktop app {AppPath}; opening the web dashboard.",
+                appPath
+            );
+            OpenDashboard();
         }
     }
 
