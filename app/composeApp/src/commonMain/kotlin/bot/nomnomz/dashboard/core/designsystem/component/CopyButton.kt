@@ -94,6 +94,7 @@ fun CopyValue(
                 text = if (copied) copiedLabel else copyLabel,
                 style = typography.xs,
                 color = tokens.primary,
+                maxLines = 1,
             )
         }
     }

@@ -346,6 +346,7 @@ private fun RewardRow(
             Text(
                 text = stringResource(Res.string.rewards_edit_action_short),
                 color = tokens.primary,
+                maxLines = 1,
             )
         }
         TextButton(
@@ -355,6 +356,7 @@ private fun RewardRow(
             Text(
                 text = stringResource(Res.string.rewards_delete_action_short),
                 color = tokens.destructive,
+                maxLines = 1,
             )
         }
     }

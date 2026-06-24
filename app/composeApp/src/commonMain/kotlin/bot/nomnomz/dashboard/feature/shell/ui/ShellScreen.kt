@@ -52,6 +52,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import bot.nomnomz.dashboard.core.connection.SessionUser
@@ -343,8 +344,20 @@ private fun ProfileBlock(
         ) {
             Avatar(name = name)
             Column(modifier = Modifier.weight(1f)) {
-                Text(text = name, style = typography.sm, color = tokens.sidebarForeground)
-                Text(text = roleLabel, style = typography.xs, color = tokens.mutedForeground)
+                Text(
+                    text = name,
+                    style = typography.sm,
+                    color = tokens.sidebarForeground,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = roleLabel,
+                    style = typography.xs,
+                    color = tokens.mutedForeground,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
         }
 
@@ -419,11 +432,18 @@ private fun TopBar(title: String, channelName: String?, onMenu: (() -> Unit)?) {
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             Row(
+                modifier = Modifier.weight(1f),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(spacing.s3),
             ) {
                 if (onMenu != null) HamburgerButton(onClick = onMenu)
-                Text(text = title, style = typography.xl, color = tokens.foreground)
+                Text(
+                    text = title,
+                    style = typography.xl,
+                    color = tokens.foreground,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -478,7 +498,13 @@ private fun ChannelChip(name: String) {
             .semantics { contentDescription = description }
             .padding(horizontal = spacing.s2, vertical = spacing.s1),
     ) {
-        Text(text = name, style = typography.sm, color = tokens.mutedForeground)
+        Text(
+            text = name,
+            style = typography.sm,
+            color = tokens.mutedForeground,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 

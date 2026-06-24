@@ -344,6 +344,7 @@ private fun CommandRow(
             Text(
                 text = stringResource(Res.string.commands_edit_action_short),
                 color = tokens.primary,
+                maxLines = 1,
             )
         }
         TextButton(
@@ -353,6 +354,7 @@ private fun CommandRow(
             Text(
                 text = stringResource(Res.string.commands_delete_action_short),
                 color = tokens.destructive,
+                maxLines = 1,
             )
         }
     }

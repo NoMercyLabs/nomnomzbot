@@ -14,6 +14,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -332,6 +334,7 @@ private fun MaxLengthField(
     )
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun PermissionPicker(selected: String, onSelect: (String) -> Unit, enabled: Boolean) {
     val tokens = LocalTokens.current
@@ -344,14 +347,18 @@ private fun PermissionPicker(selected: String, onSelect: (String) -> Unit, enabl
             style = typography.sm,
             color = tokens.mutedForeground,
         )
-        Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
+        // Five chips never fit on one row at a phone width, so they wrap rather than clip off-screen.
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+            verticalArrangement = Arrangement.spacedBy(spacing.s2),
+        ) {
             for ((value: String, labelRes: StringResource) in PERMISSIONS) {
                 val label: String = stringResource(labelRes)
                 FilterChip(
                     selected = selected == value,
                     onClick = { onSelect(value) },
                     enabled = enabled,
-                    label = { Text(label) },
+                    label = { Text(label, maxLines = 1) },
                     modifier = Modifier.clearAndSetSemantics { contentDescription = label },
                 )
             }

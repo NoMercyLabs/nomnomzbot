@@ -44,12 +44,13 @@ fun ConfirmDialog(
                 Text(
                     text = confirmLabel,
                     color = if (destructive) tokens.destructive else tokens.primary,
+                    maxLines = 1,
                 )
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text(text = dismissLabel, color = tokens.mutedForeground)
+                Text(text = dismissLabel, color = tokens.mutedForeground, maxLines = 1)
             }
         },
     )

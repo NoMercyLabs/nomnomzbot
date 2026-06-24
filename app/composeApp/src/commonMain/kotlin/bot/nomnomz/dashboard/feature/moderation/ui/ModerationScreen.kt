@@ -36,6 +36,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
@@ -175,8 +176,20 @@ private fun BanRow(ban: BannedUser, onUnban: () -> Unit) {
                 },
             verticalArrangement = Arrangement.spacedBy(spacing.s1),
         ) {
-            Text(text = name, style = typography.base, color = tokens.cardForeground)
-            Text(text = reason, style = typography.sm, color = tokens.mutedForeground)
+            Text(
+                text = name,
+                style = typography.base,
+                color = tokens.cardForeground,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = reason,
+                style = typography.sm,
+                color = tokens.mutedForeground,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
             bannedOn?.let { on ->
                 Text(
                     text = stringResource(Res.string.moderation_banned_on, on),
@@ -200,6 +213,7 @@ private fun BanRow(ban: BannedUser, onUnban: () -> Unit) {
             Text(
                 text = stringResource(Res.string.moderation_unban_action_short),
                 color = tokens.primary,
+                maxLines = 1,
             )
         }
     }

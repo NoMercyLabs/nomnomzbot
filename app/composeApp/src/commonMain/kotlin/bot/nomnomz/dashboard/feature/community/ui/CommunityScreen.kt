@@ -42,6 +42,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
@@ -216,6 +217,8 @@ private fun MemberRow(
             text = name,
             style = typography.base,
             color = tokens.cardForeground,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
             // The identity reads as one node; the controls below carry their own action labels.
             modifier = Modifier
                 .weight(1f)
@@ -258,7 +261,7 @@ private fun TrustPicker(
             onClick = { expanded = true },
             modifier = Modifier.semantics { contentDescription = pickerLabel },
         ) {
-            Text(text = activeLabel, style = typography.sm, color = tokens.primary)
+            Text(text = activeLabel, style = typography.sm, color = tokens.primary, maxLines = 1)
         }
 
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
@@ -294,7 +297,11 @@ private fun BanButton(name: String, onBan: () -> Unit) {
             contentDescription = banLabel
         },
     ) {
-        Text(text = stringResource(Res.string.community_ban_action_short), color = tokens.destructive)
+        Text(
+            text = stringResource(Res.string.community_ban_action_short),
+            color = tokens.destructive,
+            maxLines = 1,
+        )
     }
 }
 
@@ -310,7 +317,11 @@ private fun UnbanButton(name: String, onUnban: () -> Unit) {
             contentDescription = unbanLabel
         },
     ) {
-        Text(text = stringResource(Res.string.community_unban_action_short), color = tokens.primary)
+        Text(
+            text = stringResource(Res.string.community_unban_action_short),
+            color = tokens.primary,
+            maxLines = 1,
+        )
     }
 }
 
@@ -330,7 +341,7 @@ private fun Badge(
             .background(background)
             .padding(horizontal = spacing.s2, vertical = spacing.s1),
     ) {
-        Text(text = label, style = typography.xs, color = foreground)
+        Text(text = label, style = typography.xs, color = foreground, maxLines = 1)
     }
 }
 

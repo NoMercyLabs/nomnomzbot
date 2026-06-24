@@ -41,6 +41,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.CopyValue
 import bot.nomnomz.dashboard.core.designsystem.component.LinkedText
@@ -241,11 +242,22 @@ private fun StepPanel(
                 text = localizedOrBackend(SetupCopy.stepTitle(step.key), step.title),
                 style = typography.lg,
                 color = tokens.cardForeground,
+                modifier = Modifier.weight(1f).padding(end = spacing.s2),
             )
             if (step.complete) {
-                Text(text = stringResource(Res.string.setup_step_done), style = typography.sm, color = tokens.primary)
+                Text(
+                    text = stringResource(Res.string.setup_step_done),
+                    style = typography.sm,
+                    color = tokens.primary,
+                    maxLines = 1,
+                )
             } else if (!step.required) {
-                Text(text = stringResource(Res.string.setup_optional_badge), style = typography.xs, color = tokens.mutedForeground)
+                Text(
+                    text = stringResource(Res.string.setup_optional_badge),
+                    style = typography.xs,
+                    color = tokens.mutedForeground,
+                    maxLines = 1,
+                )
             }
         }
 
@@ -345,8 +357,15 @@ private fun ReviewRow(step: SetupStep) {
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(text = step.title, style = typography.sm, color = tokens.cardForeground)
-        Text(text = label, style = typography.xs, color = color)
+        Text(
+            text = step.title,
+            style = typography.sm,
+            color = tokens.cardForeground,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f).padding(end = spacing.s2),
+        )
+        Text(text = label, style = typography.xs, color = color, maxLines = 1)
     }
 }
 

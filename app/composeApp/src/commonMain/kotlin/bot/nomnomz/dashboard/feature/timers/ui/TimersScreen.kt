@@ -276,13 +276,17 @@ private fun TimerRow(
             onClick = onEdit,
             modifier = Modifier.semantics { contentDescription = editLabel },
         ) {
-            Text(text = stringResource(Res.string.timers_edit_action))
+            Text(text = stringResource(Res.string.timers_edit_action), maxLines = 1)
         }
         TextButton(
             onClick = onDelete,
             modifier = Modifier.semantics { contentDescription = deleteLabel },
         ) {
-            Text(text = stringResource(Res.string.timers_delete_action), color = tokens.destructive)
+            Text(
+                text = stringResource(Res.string.timers_delete_action),
+                color = tokens.destructive,
+                maxLines = 1,
+            )
         }
     }
 }

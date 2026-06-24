@@ -217,7 +217,7 @@ private fun IntegrationCard(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
-        Column(modifier = Modifier.padding(end = spacing.s4), verticalArrangement = Arrangement.spacedBy(spacing.s0_5)) {
+        Column(modifier = Modifier.weight(1f).padding(end = spacing.s4), verticalArrangement = Arrangement.spacedBy(spacing.s0_5)) {
             Text(text = title, style = typography.base, color = tokens.cardForeground)
             Text(text = subtitle, style = typography.sm, color = tokens.mutedForeground)
             Text(
@@ -239,16 +239,18 @@ private fun IntegrationCard(
             Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2), verticalAlignment = Alignment.CenterVertically) {
                 if (connected && onDisconnect != null) {
                     OutlinedButton(onClick = onDisconnect) {
-                        Text(stringResource(Res.string.integrations_action_disconnect))
+                        Text(stringResource(Res.string.integrations_action_disconnect), maxLines = 1)
                     }
                 }
                 if (!connected || needsReauth) {
                     Button(onClick = onConnect) {
                         Text(
-                            stringResource(
-                                if (needsReauth) Res.string.integrations_action_reauth
-                                else Res.string.integrations_action_connect
-                            )
+                            text =
+                                stringResource(
+                                    if (needsReauth) Res.string.integrations_action_reauth
+                                    else Res.string.integrations_action_connect
+                                ),
+                            maxLines = 1,
                         )
                     }
                 }

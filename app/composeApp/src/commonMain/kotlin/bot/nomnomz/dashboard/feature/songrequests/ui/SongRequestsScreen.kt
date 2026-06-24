@@ -37,6 +37,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
@@ -186,7 +187,7 @@ private fun ControlButton(label: String, onClick: () -> Unit) {
         onClick = onClick,
         modifier = Modifier.clearAndSetSemantics { contentDescription = label },
     ) {
-        Text(text = label, color = tokens.primary)
+        Text(text = label, color = tokens.primary, maxLines = 1)
     }
 }
 
@@ -227,12 +228,30 @@ private fun QueueRow(song: QueuedSong, onRemove: () -> Unit) {
                 .clearAndSetSemantics { contentDescription = rowDescription },
             verticalArrangement = Arrangement.spacedBy(spacing.s1),
         ) {
-            Text(text = title, style = typography.base, color = tokens.cardForeground)
+            Text(
+                text = title,
+                style = typography.base,
+                color = tokens.cardForeground,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
             if (song.artist.isNotBlank()) {
-                Text(text = song.artist, style = typography.sm, color = tokens.mutedForeground)
+                Text(
+                    text = song.artist,
+                    style = typography.sm,
+                    color = tokens.mutedForeground,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
         }
-        Text(text = requestedLabel, style = typography.xs, color = tokens.mutedForeground)
+        Text(
+            text = requestedLabel,
+            style = typography.xs,
+            color = tokens.mutedForeground,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
         TextButton(
             onClick = onRemove,
             modifier = Modifier.clearAndSetSemantics { contentDescription = removeLabel },
@@ -240,6 +259,7 @@ private fun QueueRow(song: QueuedSong, onRemove: () -> Unit) {
             Text(
                 text = stringResource(Res.string.songrequests_remove_action_short),
                 color = tokens.destructive,
+                maxLines = 1,
             )
         }
     }
@@ -261,7 +281,7 @@ private fun Badge(
             .background(background)
             .padding(horizontal = spacing.s2, vertical = spacing.s1),
     ) {
-        Text(text = label, style = typography.xs, color = foreground)
+        Text(text = label, style = typography.xs, color = foreground, maxLines = 1)
     }
 }
 
