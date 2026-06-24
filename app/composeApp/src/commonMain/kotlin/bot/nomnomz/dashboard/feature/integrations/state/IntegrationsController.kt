@@ -12,6 +12,8 @@ package bot.nomnomz.dashboard.feature.integrations.state
 
 import bot.nomnomz.dashboard.core.connection.ConnectLauncher
 import bot.nomnomz.dashboard.core.connection.SessionStore
+import bot.nomnomz.dashboard.core.feedback.Feedback
+import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.AuthApi
 import bot.nomnomz.dashboard.core.network.BotAuthApi
@@ -30,6 +32,11 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.feedback_connect_failed
+import nomnomzbot.composeapp.generated.resources.feedback_disconnect_failed
+import nomnomzbot.composeapp.generated.resources.feedback_disconnected
+import org.jetbrains.compose.resources.StringResource
 
 // The integrations/onboarding screen's state-holder (frontend.md §4 — a plain holder, not a ViewModel).
 // It owns the bot-account connect and the Spotify / YouTube / Discord connects, all against the REAL
@@ -49,6 +56,7 @@ class IntegrationsController(
     private val connectLauncher: ConnectLauncher,
     private val diagnosticsApi: TwitchDiagnosticsApi,
     private val authApi: AuthApi,
+    private val feedback: Feedback = NoOpFeedback,
 ) {
     private val _state: MutableStateFlow<IntegrationsState> =
         MutableStateFlow(IntegrationsState.Loading)
@@ -148,10 +156,14 @@ class IntegrationsController(
         }
     }
 
-    /** Disconnect a provider (spotify/youtube/discord), then refresh. */
+    /** Disconnect a provider (spotify/youtube/discord), then refresh. Announces the outcome on the frame. */
     suspend fun disconnect(provider: String) {
         val id: String = channelId ?: return
-        withBusy(BusyTarget.Provider(provider)) {
+        withBusy(
+            target = BusyTarget.Provider(provider),
+            successMessage = Res.string.feedback_disconnected,
+            failureMessage = Res.string.feedback_disconnect_failed,
+        ) {
             if (provider.equals("discord", ignoreCase = true)) integrationsApi.disconnectDiscord(id)
             else integrationsApi.disconnectGeneric(id, provider)
         }
@@ -227,12 +239,24 @@ class IntegrationsController(
 
     /**
      * Mark a target busy, run [action], then re-read status regardless of outcome (the authoritative
-     * connected state always comes from the backend, never an optimistic local flip — no fakes).
+     * connected state always comes from the backend, never an optimistic local flip — no fakes). On the
+     * frame: a failed action emits [failureMessage] (carrying the backend's error detail); a successful one
+     * emits [successMessage] when given. Connect flows pass a null [successMessage] — their success is
+     * confirmed by the post-redirect return on web (announced from main()) / the re-read status on desktop —
+     * so they never claim "connected" before the backend says so.
      */
-    private suspend fun withBusy(target: BusyTarget, action: suspend () -> ApiResult<*>) {
+    private suspend fun withBusy(
+        target: BusyTarget,
+        successMessage: StringResource? = null,
+        failureMessage: StringResource = Res.string.feedback_connect_failed,
+        action: suspend () -> ApiResult<*>,
+    ) {
         val ready: IntegrationsState.Ready = _state.value as? IntegrationsState.Ready ?: return
         _state.value = ready.copy(busy = target)
-        action()
+        when (val result: ApiResult<*> = action()) {
+            is ApiResult.Ok -> successMessage?.let { feedback.success(it) }
+            is ApiResult.Failure -> feedback.error(failureMessage, result.error.message)
+        }
         refresh()
     }
 

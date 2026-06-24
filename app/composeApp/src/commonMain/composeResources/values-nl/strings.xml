@@ -447,4 +447,27 @@
     <string name="widgets_delete_message">%1$s verwijderen? De browserbron-URL werkt dan niet meer.</string>
     <string name="widgets_delete_confirm">Verwijderen</string>
     <string name="widgets_delete_cancel">Annuleren</string>
+    <string name="journal_section_title">Gebeurtenissenlogboek</string>
+    <string name="journal_section_description">Exporteer het volledige gebeurtenissenlogboek van je kanaal als bestand dat je kunt bewaren of naar een andere installatie kunt verplaatsen, of importeer een eerder geëxporteerd logboek. Bij het importeren worden alleen gebeurtenissen toegevoegd die er nog niet zijn.</string>
+    <string name="journal_export">Logboek exporteren</string>
+    <string name="journal_import">Logboek importeren</string>
+    <string name="journal_working">Bezig…</string>
+    <string name="journal_exported">Logboek geëxporteerd.</string>
+    <string name="journal_imported">%1$d geïmporteerd, %2$d duplicaten overgeslagen, %3$d bijgewerkt.</string>
+    <string name="journal_error">%1$s</string>
+    <string name="journal_dismiss">Sluiten</string>
+    <string name="journal_import_confirm_title">Gebeurtenissenlogboek importeren?</string>
+    <string name="journal_import_confirm_message">Hiermee worden de gebeurtenissen uit het bestand aan het logboek van je kanaal toegevoegd. Gebeurtenissen die er al zijn worden overgeslagen, dus er kunnen geen duplicaten ontstaan, maar dit kan niet ongedaan worden gemaakt. Doorgaan?</string>
+    <string name="journal_import_confirm_ok">Importeren</string>
+    <string name="journal_import_confirm_cancel">Annuleren</string>
+    <string name="feedback_dismiss">Sluiten</string>
+    <string name="feedback_connected">Verbonden</string>
+    <string name="feedback_connect_failed">Verbinden mislukt: %1$s</string>
+    <string name="feedback_disconnected">Verbinding verbroken</string>
+    <string name="feedback_disconnect_failed">Verbinding verbreken mislukt: %1$s</string>
+    <string name="feedback_command_saved">Commando opgeslagen</string>
+    <string name="feedback_command_deleted">Commando verwijderd</string>
+    <string name="feedback_command_save_failed">Commando opslaan mislukt: %1$s</string>
+    <string name="feedback_unbanned">Verbanning opgeheven</string>
+    <string name="feedback_unban_failed">Verbanning opheffen mislukt: %1$s</string>
 </resources>

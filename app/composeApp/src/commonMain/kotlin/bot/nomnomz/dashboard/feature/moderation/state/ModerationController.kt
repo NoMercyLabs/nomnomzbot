@@ -10,6 +10,8 @@
 
 package bot.nomnomz.dashboard.feature.moderation.state
 
+import bot.nomnomz.dashboard.core.feedback.Feedback
+import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.BannedUser
 import bot.nomnomz.dashboard.core.network.ChannelSummary
@@ -18,6 +20,9 @@ import bot.nomnomz.dashboard.core.network.ModerationApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.feedback_unban_failed
+import nomnomzbot.composeapp.generated.resources.feedback_unbanned
 
 // The Moderation page's state-holder: resolve the active channel, load its real list of currently-banned
 // viewers from the backend (no fabricated entries), and lift a ban on request. The screen renders [state];
@@ -25,6 +30,7 @@ import kotlinx.coroutines.flow.asStateFlow
 class ModerationController(
     private val channelsApi: ChannelsApi,
     private val moderationApi: ModerationApi,
+    private val feedback: Feedback = NoOpFeedback,
 ) {
     private val _state: MutableStateFlow<ModerationState> = MutableStateFlow(ModerationState.Loading)
 
@@ -67,8 +73,13 @@ class ModerationController(
         val channel: String = channelId ?: return
 
         when (val result: ApiResult<Unit> = moderationApi.unban(channel, userId)) {
-            is ApiResult.Ok -> load()
+            is ApiResult.Ok -> {
+                feedback.success(Res.string.feedback_unbanned)
+                load()
+            }
             is ApiResult.Failure -> {
+                // Announce the failure on the frame (persistent) AND keep the in-page banner over the list.
+                feedback.error(Res.string.feedback_unban_failed, result.error.message)
                 val current: ModerationState = _state.value
                 if (current is ModerationState.Ready) {
                     _state.value = current.copy(actionError = result.error.message)

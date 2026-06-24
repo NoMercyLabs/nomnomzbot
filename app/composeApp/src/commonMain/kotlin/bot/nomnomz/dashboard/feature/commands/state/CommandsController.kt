@@ -10,6 +10,8 @@
 
 package bot.nomnomz.dashboard.feature.commands.state
 
+import bot.nomnomz.dashboard.core.feedback.Feedback
+import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
@@ -20,6 +22,10 @@ import bot.nomnomz.dashboard.core.network.UpdateCommandBody
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.feedback_command_deleted
+import nomnomzbot.composeapp.generated.resources.feedback_command_saved
+import nomnomzbot.composeapp.generated.resources.feedback_command_save_failed
 
 // The Commands page's state-holder (frontend-ia.md §3 — the Chat group). Resolves the active channel, then
 // lists its real custom commands from the backend (no fabricated rows). It also drives the page's writes —
@@ -28,6 +34,7 @@ import kotlinx.coroutines.flow.asStateFlow
 class CommandsController(
     private val channelsApi: ChannelsApi,
     private val commandsApi: CommandsApi,
+    private val feedback: Feedback = NoOpFeedback,
 ) {
     private val _state: MutableStateFlow<CommandsState> = MutableStateFlow(CommandsState.Loading)
 
@@ -85,19 +92,29 @@ class CommandsController(
     /** Delete a command, addressed by its [name]. Reloads on success. Surfaces the error on failure. */
     suspend fun deleteCommand(name: String) {
         val channel: String = channelId ?: return failWrite(NoChannelError)
-        afterWrite(commandsApi.delete(channel, name))
+        afterWrite(commandsApi.delete(channel, name), success = Res.string.feedback_command_deleted)
     }
 
-    // A write either reloads the list (success) or surfaces its error over the current Ready list without
-    // losing it (failure) — so a failed toggle/delete leaves the page intact with a visible reason.
-    private suspend fun afterWrite(result: ApiResult<Unit>) {
+    // A write either reloads the list AND announces success on the frame, or surfaces its error over the
+    // current Ready list without losing it (failure) — so a failed toggle/delete leaves the page intact with
+    // a visible reason AND a frame-level error message. [success] lets a delete say "Deleted" while the rest
+    // default to "Saved".
+    private suspend fun afterWrite(
+        result: ApiResult<Unit>,
+        success: org.jetbrains.compose.resources.StringResource = Res.string.feedback_command_saved,
+    ) {
         when (result) {
-            is ApiResult.Ok -> load()
+            is ApiResult.Ok -> {
+                feedback.success(success)
+                load()
+            }
             is ApiResult.Failure -> failWrite(result.error.message)
         }
     }
 
     private fun failWrite(detail: String) {
+        // Announce the failure on the frame (persistent until dismissed) AND keep the in-page banner.
+        feedback.error(Res.string.feedback_command_save_failed, detail)
         val current: CommandsState = _state.value
         _state.value =
             if (current is CommandsState.Ready) current.copy(actionError = detail)

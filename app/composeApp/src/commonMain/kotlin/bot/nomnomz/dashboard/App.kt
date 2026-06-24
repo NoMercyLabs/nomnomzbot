@@ -30,6 +30,7 @@ import bot.nomnomz.dashboard.core.di.AppGraph
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.NomNomzTheme
 import bot.nomnomz.dashboard.core.designsystem.theme.Scheme
+import bot.nomnomz.dashboard.core.feedback.FeedbackHost
 import bot.nomnomz.dashboard.core.i18n.AppEnvironment
 import bot.nomnomz.dashboard.core.navigation.Destination
 import bot.nomnomz.dashboard.feature.connect.ui.ConnectScreen
@@ -123,6 +124,10 @@ fun App(graph: AppGraph = remember { AppGraph() }) {
                         }
                     }
                 }
+
+                // The single app-frame feedback host: one instance over the whole frame, so success/error
+                // messages persist across page navigation and show on every page (the app frame hosts the message).
+                FeedbackHost(controller = graph.feedbackController)
 
                 // The picker is a global top-end affordance ONLY during onboarding (splash/connect/setup),
                 // so a Dutch-system streamer can pin English before signing in. In the shell it lives in the

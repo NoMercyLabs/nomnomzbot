@@ -211,7 +211,11 @@ private fun ShellContent(selected: ShellRoute, graph: AppGraph) {
         ShellRoute.Tts -> TtsScreen(controller = graph.ttsController)
         ShellRoute.Games -> GamesScreen(controller = graph.gamesController)
         ShellRoute.Integrations -> IntegrationsScreen(controller = graph.integrationsController)
-        ShellRoute.Settings -> SettingsScreen(controller = graph.settingsController)
+        ShellRoute.Settings ->
+            SettingsScreen(
+                controller = graph.settingsController,
+                journalController = graph.journalPortabilityController,
+            )
         ShellRoute.Economy -> EconomyScreen(controller = graph.economyController)
         ShellRoute.Alerts -> AlertsScreen(controller = graph.alertsController)
         ShellRoute.Widgets -> WidgetsScreen(controller = graph.widgetsController)

@@ -10,6 +10,8 @@
 
 package bot.nomnomz.dashboard.feature.commands.state
 
+import bot.nomnomz.dashboard.core.feedback.FeedbackKind
+import bot.nomnomz.dashboard.core.feedback.RecordingFeedback
 import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
@@ -23,6 +25,10 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
+import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.feedback_command_deleted
+import nomnomzbot.composeapp.generated.resources.feedback_command_saved
+import nomnomzbot.composeapp.generated.resources.feedback_command_save_failed
 
 // Proves the Commands page state machine the screen renders: resolve the active channel, then surface the
 // channel's real commands — empty when there are none, error if either step fails. The screen is a pure
@@ -198,6 +204,64 @@ class CommandsControllerTest {
         assertTrue(state is CommandsState.Ready)
         assertEquals(1, (state as CommandsState.Ready).commands.size)
         assertEquals("no permission", state.actionError)
+    }
+
+    @Test
+    fun a_successful_toggle_announces_save_success_on_the_frame() = runTest {
+        val feedback = RecordingFeedback()
+        val controller =
+            CommandsController(
+                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                RecordingCommandsApi(ApiResult.Ok(listOf(CommandSummary(id = 1, name = "!hi", isEnabled = true)))),
+                feedback,
+            )
+        controller.load()
+
+        controller.toggleCommand(name = "!hi", enabled = false)
+
+        // The toggle (a save) announced exactly one success with the "saved" label.
+        assertEquals(FeedbackKind.Success, feedback.only.kind)
+        assertEquals(Res.string.feedback_command_saved, feedback.only.label)
+    }
+
+    @Test
+    fun a_successful_delete_announces_the_deleted_label() = runTest {
+        val feedback = RecordingFeedback()
+        val controller =
+            CommandsController(
+                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                RecordingCommandsApi(ApiResult.Ok(listOf(CommandSummary(id = 1, name = "!hi", isEnabled = true)))),
+                feedback,
+            )
+        controller.load()
+
+        controller.deleteCommand(name = "!hi")
+
+        // A delete says "deleted", not the generic "saved" — the success message is action-specific.
+        assertEquals(FeedbackKind.Success, feedback.only.kind)
+        assertEquals(Res.string.feedback_command_deleted, feedback.only.label)
+    }
+
+    @Test
+    fun a_failed_write_announces_an_error_carrying_the_backend_detail() = runTest {
+        val feedback = RecordingFeedback()
+        val controller =
+            CommandsController(
+                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                RecordingCommandsApi(
+                    ApiResult.Ok(listOf(CommandSummary(id = 1, name = "!hi", isEnabled = true))),
+                    writeResult = ApiResult.Failure(ApiError(403, "FORBIDDEN", "no permission")),
+                ),
+                feedback,
+            )
+        controller.load()
+
+        controller.deleteCommand(name = "!hi")
+
+        // The failure path emits an ERROR (never a success), carrying the backend message as the detail arg.
+        assertEquals(FeedbackKind.Error, feedback.only.kind)
+        assertEquals(Res.string.feedback_command_save_failed, feedback.only.label)
+        assertEquals(listOf<Any>("no permission"), feedback.only.formatArgs)
     }
 }
 

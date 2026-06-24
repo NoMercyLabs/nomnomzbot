@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -42,14 +43,30 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.network.StreamInfo
+import bot.nomnomz.dashboard.feature.settings.state.JournalPortabilityController
+import bot.nomnomz.dashboard.feature.settings.state.JournalPortabilityState
 import bot.nomnomz.dashboard.feature.settings.state.SettingsController
 import bot.nomnomz.dashboard.feature.settings.state.SettingsState
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.journal_dismiss
+import nomnomzbot.composeapp.generated.resources.journal_error
+import nomnomzbot.composeapp.generated.resources.journal_export
+import nomnomzbot.composeapp.generated.resources.journal_exported
+import nomnomzbot.composeapp.generated.resources.journal_import
+import nomnomzbot.composeapp.generated.resources.journal_import_confirm_cancel
+import nomnomzbot.composeapp.generated.resources.journal_import_confirm_message
+import nomnomzbot.composeapp.generated.resources.journal_import_confirm_ok
+import nomnomzbot.composeapp.generated.resources.journal_import_confirm_title
+import nomnomzbot.composeapp.generated.resources.journal_imported
+import nomnomzbot.composeapp.generated.resources.journal_section_description
+import nomnomzbot.composeapp.generated.resources.journal_section_title
+import nomnomzbot.composeapp.generated.resources.journal_working
 import nomnomzbot.composeapp.generated.resources.settings_error
 import nomnomzbot.composeapp.generated.resources.settings_label_category
 import nomnomzbot.composeapp.generated.resources.settings_label_tags
@@ -67,34 +84,46 @@ import nomnomzbot.composeapp.generated.resources.settings_title_invalid
 import org.jetbrains.compose.resources.stringResource
 
 // The Settings page: an editable form over the channel's stream metadata — the live status plus the editable
-// broadcast title, category/game, and tags, all real data from [SettingsController]. The screen seeds a local
-// form from the controller's loaded info; Save persists the editable fields (a real, non-destructive Helix
-// write) and the controller echoes the saved values back. It loads on first composition and offers a retry on
-// failure.
+// broadcast title, category/game, and tags, all real data from [SettingsController] — followed by the Event
+// Journal export/import section ([JournalPortabilityController]). The screen seeds a local form from the
+// controller's loaded info; Save persists the editable fields (a real, non-destructive Helix write) and the
+// controller echoes the saved values back. It loads on first composition and offers a retry on failure. The
+// journal section is independent of the stream-info load state, so it renders even when the form is loading/errored.
 @Composable
-fun SettingsScreen(controller: SettingsController) {
+fun SettingsScreen(
+    controller: SettingsController,
+    journalController: JournalPortabilityController,
+) {
     val state: SettingsState by controller.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val spacing = LocalSpacing.current
 
     LaunchedEffect(Unit) { controller.load() }
 
-    Box(modifier = Modifier.fillMaxSize().padding(spacing.s6)) {
-        when (val current: SettingsState = state) {
-            is SettingsState.Loading -> CenteredMessage(stringResource(Res.string.settings_loading))
-            is SettingsState.Error ->
-                ErrorContent(
-                    detail = current.detail,
-                    onRetry = { scope.launch { controller.load() } },
-                )
-            is SettingsState.Ready ->
-                ReadyContent(
-                    state = current,
-                    onSave = { title, gameName, tags ->
-                        scope.launch { controller.save(title, gameName, tags) }
-                    },
-                )
+    Column(
+        modifier = Modifier.fillMaxSize().padding(spacing.s6),
+        verticalArrangement = Arrangement.spacedBy(spacing.s6),
+    ) {
+        Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
+            when (val current: SettingsState = state) {
+                is SettingsState.Loading ->
+                    CenteredMessage(stringResource(Res.string.settings_loading))
+                is SettingsState.Error ->
+                    ErrorContent(
+                        detail = current.detail,
+                        onRetry = { scope.launch { controller.load() } },
+                    )
+                is SettingsState.Ready ->
+                    ReadyContent(
+                        state = current,
+                        onSave = { title, gameName, tags ->
+                            scope.launch { controller.save(title, gameName, tags) }
+                        },
+                    )
+            }
         }
+
+        EventJournalSection(controller = journalController)
     }
 }
 
@@ -348,5 +377,137 @@ private fun CenteredMessage(text: String) {
 
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Text(text = text, style = typography.base, color = tokens.mutedForeground)
+    }
+}
+
+// The Event Journal export/import card: Export pulls the channel's whole ledger to an OS-saved file; Import picks
+// a file and uploads it behind a ConfirmDialog (it mutates the journal). The last action's outcome — exported,
+// the import counts, or an error — shows as a status line the user can dismiss.
+@Composable
+private fun EventJournalSection(controller: JournalPortabilityController) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+    val scope = rememberCoroutineScope()
+
+    val state: JournalPortabilityState by controller.state.collectAsStateWithLifecycle()
+    var confirmImport: Boolean by remember { mutableStateOf(false) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(tokens.radius.lg))
+            .background(tokens.card)
+            .padding(spacing.s4),
+        verticalArrangement = Arrangement.spacedBy(spacing.s4),
+    ) {
+        Text(
+            text = stringResource(Res.string.journal_section_title),
+            style = typography.xl,
+            color = tokens.cardForeground,
+        )
+        Text(
+            text = stringResource(Res.string.journal_section_description),
+            style = typography.sm,
+            color = tokens.mutedForeground,
+        )
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(spacing.s4),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Button(
+                onClick = { scope.launch { controller.export() } },
+                enabled = !state.busy,
+                modifier = Modifier.wrapContentWidth(),
+            ) {
+                Text(stringResource(Res.string.journal_export))
+            }
+            TextButton(
+                onClick = { confirmImport = true },
+                enabled = !state.busy,
+                modifier = Modifier.wrapContentWidth(),
+            ) {
+                Text(stringResource(Res.string.journal_import))
+            }
+
+            JournalStatus(state = state, onDismiss = { controller.dismiss() })
+        }
+    }
+
+    if (confirmImport) {
+        ConfirmDialog(
+            title = stringResource(Res.string.journal_import_confirm_title),
+            message = stringResource(Res.string.journal_import_confirm_message),
+            confirmLabel = stringResource(Res.string.journal_import_confirm_ok),
+            dismissLabel = stringResource(Res.string.journal_import_confirm_cancel),
+            destructive = true,
+            onConfirm = {
+                confirmImport = false
+                scope.launch { controller.import() }
+            },
+            onDismiss = { confirmImport = false },
+        )
+    }
+}
+
+// The journal section's status line: a spinner while busy, then the export confirmation, the import counts, or an
+// error — each dismissible. Mirrors the SaveBar feedback pattern so the page reads consistently.
+@Composable
+private fun RowScope.JournalStatus(state: JournalPortabilityState, onDismiss: () -> Unit) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    when {
+        state.busy -> {
+            val workingLabel: String = stringResource(Res.string.journal_working)
+            CircularProgressIndicator(
+                modifier = Modifier
+                    .size(spacing.s6)
+                    .clearAndSetSemantics { contentDescription = workingLabel },
+            )
+            Box(modifier = Modifier.weight(1f))
+        }
+        state.error != null -> {
+            Text(
+                text = stringResource(Res.string.journal_error, state.error),
+                style = typography.sm,
+                color = tokens.destructive,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            TextButton(onClick = onDismiss) { Text(stringResource(Res.string.journal_dismiss)) }
+        }
+        state.imported != null -> {
+            Text(
+                text = stringResource(
+                    Res.string.journal_imported,
+                    state.imported.imported,
+                    state.imported.skippedDuplicate,
+                    state.imported.upcast,
+                ),
+                style = typography.sm,
+                color = tokens.mutedForeground,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            TextButton(onClick = onDismiss) { Text(stringResource(Res.string.journal_dismiss)) }
+        }
+        state.exported -> {
+            Text(
+                text = stringResource(Res.string.journal_exported),
+                style = typography.sm,
+                color = tokens.mutedForeground,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            TextButton(onClick = onDismiss) { Text(stringResource(Res.string.journal_dismiss)) }
+        }
+        else -> Box(modifier = Modifier.weight(1f))
     }
 }

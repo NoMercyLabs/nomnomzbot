@@ -16,6 +16,7 @@ import bot.nomnomz.dashboard.core.connection.OAuthConnectLauncher
 import bot.nomnomz.dashboard.core.connection.OAuthLauncher
 import bot.nomnomz.dashboard.core.connection.SessionStore
 import bot.nomnomz.dashboard.core.connection.lanDiscovery
+import bot.nomnomz.dashboard.core.feedback.FeedbackController
 import bot.nomnomz.dashboard.core.i18n.LanguagePreferenceStore
 import bot.nomnomz.dashboard.core.i18n.LanguageStore
 import bot.nomnomz.dashboard.core.network.ApiClient
@@ -28,13 +29,16 @@ import bot.nomnomz.dashboard.core.network.CommandsApi
 import bot.nomnomz.dashboard.core.network.CommunityApi
 import bot.nomnomz.dashboard.core.network.DashboardApi
 import bot.nomnomz.dashboard.core.network.EconomyApi
+import bot.nomnomz.dashboard.core.network.EventStoreApi
 import bot.nomnomz.dashboard.core.network.IntegrationsApi
 import bot.nomnomz.dashboard.core.network.ModerationApi
 import bot.nomnomz.dashboard.core.network.RestAlertsApi
 import bot.nomnomz.dashboard.core.network.RestAnalyticsApi
+import bot.nomnomz.dashboard.core.io.JournalFileBridge
 import bot.nomnomz.dashboard.core.network.RestCommandsApi
 import bot.nomnomz.dashboard.core.network.RestCommunityApi
 import bot.nomnomz.dashboard.core.network.RestEconomyApi
+import bot.nomnomz.dashboard.core.network.RestEventStoreApi
 import bot.nomnomz.dashboard.core.network.GamesApi
 import bot.nomnomz.dashboard.core.network.RestGamesApi
 import bot.nomnomz.dashboard.core.network.RestModerationApi
@@ -70,6 +74,7 @@ import bot.nomnomz.dashboard.feature.integrations.state.IntegrationsController
 import bot.nomnomz.dashboard.feature.games.state.GamesController
 import bot.nomnomz.dashboard.feature.moderation.state.ModerationController
 import bot.nomnomz.dashboard.feature.rewards.state.RewardsController
+import bot.nomnomz.dashboard.feature.settings.state.JournalPortabilityController
 import bot.nomnomz.dashboard.feature.settings.state.SettingsController
 import bot.nomnomz.dashboard.feature.songrequests.state.SongRequestsController
 import bot.nomnomz.dashboard.feature.timers.state.TimersController
@@ -84,6 +89,11 @@ import bot.nomnomz.dashboard.feature.setup.state.SetupController
 // don't change. App.kt holds one AppGraph for the app lifetime.
 class AppGraph {
     val sessionStore: SessionStore = SessionStore()
+
+    // The process-wide feedback bus: feature controllers emit success/error outcomes here and the single
+    // shell-level FeedbackHost (App.kt) renders them on whatever page is mounted, so a result is visible
+    // from one place and survives a page navigation / post-OAuth rebuild (replay).
+    val feedbackController: FeedbackController = FeedbackController()
 
     // The display-language override — a per-install preference (LanguagePreferenceStore: file on desktop,
     // localStorage on web) driving the LanguageController, which App.kt feeds into the AppEnvironment to
@@ -120,6 +130,7 @@ class AppGraph {
     val economyApi: EconomyApi = RestEconomyApi(apiClient)
     val alertsApi: AlertsApi = RestAlertsApi(apiClient)
     val widgetsApi: WidgetsApi = RestWidgetsApi(apiClient)
+    val eventStoreApi: EventStoreApi = RestEventStoreApi(apiClient)
 
     private val oauthLauncher: OAuthLauncher = OAuthLauncher()
     private val connectLauncher: ConnectLauncher = OAuthConnectLauncher(oauthLauncher)
@@ -156,6 +167,7 @@ class AppGraph {
             connectLauncher = connectLauncher,
             diagnosticsApi = twitchDiagnosticsApi,
             authApi = authApi,
+            feedback = feedbackController,
         )
 
     val homeController: HomeController =
@@ -165,13 +177,13 @@ class AppGraph {
         CommunityController(channelsApi = channelsApi, communityApi = communityApi)
 
     val commandsController: CommandsController =
-        CommandsController(channelsApi = channelsApi, commandsApi = commandsApi)
+        CommandsController(channelsApi = channelsApi, commandsApi = commandsApi, feedback = feedbackController)
 
     val timersController: TimersController =
         TimersController(channelsApi = channelsApi, timersApi = timersApi)
 
     val moderationController: ModerationController =
-        ModerationController(channelsApi = channelsApi, moderationApi = moderationApi)
+        ModerationController(channelsApi = channelsApi, moderationApi = moderationApi, feedback = feedbackController)
 
     val analyticsController: AnalyticsController =
         AnalyticsController(channelsApi = channelsApi, analyticsApi = analyticsApi)
@@ -189,6 +201,16 @@ class AppGraph {
 
     val settingsController: SettingsController =
         SettingsController(channelsApi = channelsApi, streamApi = streamApi)
+
+    // The per-target OS file save/pick seam for journal export/import, built like the other platform engines.
+    private val journalFileBridge: JournalFileBridge = JournalFileBridge()
+
+    val journalPortabilityController: JournalPortabilityController =
+        JournalPortabilityController(
+            channelsApi = channelsApi,
+            eventStoreApi = eventStoreApi,
+            fileBridge = journalFileBridge,
+        )
 
     val economyController: EconomyController =
         EconomyController(channelsApi = channelsApi, economyApi = economyApi)

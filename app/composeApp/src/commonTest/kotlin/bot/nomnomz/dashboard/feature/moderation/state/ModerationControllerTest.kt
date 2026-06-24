@@ -10,6 +10,8 @@
 
 package bot.nomnomz.dashboard.feature.moderation.state
 
+import bot.nomnomz.dashboard.core.feedback.FeedbackKind
+import bot.nomnomz.dashboard.core.feedback.RecordingFeedback
 import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.BannedUser
@@ -21,6 +23,9 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
+import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.feedback_unban_failed
+import nomnomzbot.composeapp.generated.resources.feedback_unbanned
 
 // Proves the Moderation page state machine the read-only screen renders: resolve the active channel, then
 // surface the real banned-viewer list — Empty when there are none, or Error if either step fails. The screen
@@ -154,6 +159,48 @@ class ModerationControllerTest {
         assertEquals("Missing scope.", state.actionError)
         // Only the initial load fetched bans; the failed unban did not trigger a reload.
         assertEquals(1, moderationApi.bansCalls)
+    }
+
+    @Test
+    fun a_successful_unban_announces_success_on_the_frame() = runTest {
+        val trolly = BannedUser(id = "u1", username = "trolly", displayName = "Trolly", reason = "Spam")
+        val feedback = RecordingFeedback()
+        val controller =
+            ModerationController(
+                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                FakeModerationApi(bansResults = listOf(ApiResult.Ok(listOf(trolly)), ApiResult.Ok(emptyList()))),
+                feedback,
+            )
+
+        controller.load()
+        controller.unban("u1")
+
+        // Exactly one frame message, a success, with the "ban lifted" label.
+        assertEquals(FeedbackKind.Success, feedback.only.kind)
+        assertEquals(Res.string.feedback_unbanned, feedback.only.label)
+    }
+
+    @Test
+    fun a_failed_unban_announces_an_error_carrying_the_backend_detail() = runTest {
+        val trolly = BannedUser(id = "u1", username = "trolly", displayName = "Trolly", reason = "Spam")
+        val feedback = RecordingFeedback()
+        val controller =
+            ModerationController(
+                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                FakeModerationApi(
+                    bansResults = listOf(ApiResult.Ok(listOf(trolly))),
+                    unbanResult = ApiResult.Failure(ApiError(403, "FORBIDDEN", "Missing scope.")),
+                ),
+                feedback,
+            )
+
+        controller.load()
+        controller.unban("u1")
+
+        // It announced an ERROR (not a success), carrying the backend's message as the detail arg.
+        assertEquals(FeedbackKind.Error, feedback.only.kind)
+        assertEquals(Res.string.feedback_unban_failed, feedback.only.label)
+        assertEquals(listOf<Any>("Missing scope."), feedback.only.formatArgs)
     }
 }
 

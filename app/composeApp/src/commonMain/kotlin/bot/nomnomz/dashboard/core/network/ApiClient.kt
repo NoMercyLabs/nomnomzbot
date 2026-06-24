@@ -15,6 +15,8 @@ import io.ktor.client.call.body
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.defaultRequest
 import io.ktor.client.request.delete
+import io.ktor.client.request.forms.MultiPartFormDataContent
+import io.ktor.client.request.forms.formData
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.post
@@ -23,6 +25,7 @@ import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
+import io.ktor.http.Headers
 import io.ktor.http.HttpHeaders
 import io.ktor.http.contentType
 import io.ktor.http.isSuccess
@@ -145,6 +148,65 @@ class ApiClient(
     /** DELETEs a path and treats any 2xx (including 204 No Content) as success. */
     internal suspend fun deleteUnit(path: String): ApiResult<Unit> =
         unit(path) { url -> httpClient.delete(url) }
+
+    /**
+     * POSTs to a file-download endpoint and returns the whole raw response body as bytes (no envelope unwrap) —
+     * for the event-journal export, which streams a JSONL file rather than a `StatusResponseDto<T>`.
+     */
+    internal suspend fun postBytes(path: String): ApiResult<ByteArray> {
+        val base: String = baseUrl() ?: return noConnection()
+        val response: HttpResponse =
+            try {
+                httpClient.post("$base/$path")
+            } catch (cause: Throwable) {
+                return networkFailure(cause)
+            }
+        if (!response.status.isSuccess()) return ApiResult.Failure(parseError(response))
+        return try {
+            ApiResult.Ok(response.body<ByteArray>())
+        } catch (cause: Throwable) {
+            ApiResult.Failure(
+                ApiError(
+                    status = response.status.value,
+                    code = "READ_BODY",
+                    message = cause.message ?: "Could not read the response body.",
+                )
+            )
+        }
+    }
+
+    /**
+     * POSTs a single file part as `multipart/form-data` (field name [fieldName]) to a `StatusResponseDto<T>`
+     * endpoint, unwrapping `data` — for the event-journal import upload.
+     */
+    internal suspend inline fun <reified T> postMultipartFile(
+        path: String,
+        fieldName: String,
+        fileName: String,
+        bytes: ByteArray,
+        contentType: ContentType,
+    ): ApiResult<T> =
+        envelope(path) { url ->
+            httpClient.post(url) {
+                setBody(
+                    MultiPartFormDataContent(
+                        formData {
+                            append(
+                                fieldName,
+                                bytes,
+                                Headers.build {
+                                    append(HttpHeaders.ContentType, contentType.toString())
+                                    append(
+                                        HttpHeaders.ContentDisposition,
+                                        "filename=\"$fileName\"",
+                                    )
+                                },
+                            )
+                        }
+                    )
+                )
+            }
+        }
 
     // The shared core: resolve the base URL, run the request guarded against transport failures, and map
     // a non-2xx to a problem-details [ApiError]. `send` builds the URL itself so verb-specific options

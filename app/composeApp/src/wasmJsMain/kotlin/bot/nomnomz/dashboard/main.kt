@@ -19,6 +19,7 @@ import bot.nomnomz.dashboard.core.connection.SessionTokens
 import bot.nomnomz.dashboard.core.connection.readReturnedConnect
 import bot.nomnomz.dashboard.core.connection.readReturnedSession
 import bot.nomnomz.dashboard.core.di.AppGraph
+import bot.nomnomz.dashboard.core.feedback.connectReturnFeedback
 import kotlinx.browser.document
 import kotlinx.browser.window
 import kotlinx.coroutines.CoroutineScope
@@ -53,6 +54,10 @@ fun main() {
         // when it mounts. The full nav slice will route straight to the integrations section.
         val connect: ConnectReturn? = readReturnedConnect()
         if (connect != null) {
+            // The flow returned to the served origin in the shell — surface the outcome on the app frame so
+            // the user sees "Connected" / "Couldn't connect: …" instead of a silent return. The bus replays
+            // it to the FeedbackHost once the shell rebuilds after this redirect.
+            graph.feedbackController.emit(connectReturnFeedback(connect.connected, connect.errorCode))
             CoroutineScope(Dispatchers.Main).launch { graph.integrationsController.refresh() }
         }
     }

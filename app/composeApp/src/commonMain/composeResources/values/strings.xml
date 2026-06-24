@@ -50,7 +50,7 @@
     <string name="setup_nav_skip">Skip</string>
     <string name="setup_step_counter">Step %1$d of %2$d</string>
     <string name="setup_review_title">Review &amp; finish</string>
-    <string name="setup_review_subtitle">Here\'s what you set up. Finish to sign in with your Twitch account.</string>
+    <string name="setup_review_subtitle">Here's what you set up. Finish to sign in with your Twitch account.</string>
     <string name="setup_review_status_done">Configured</string>
     <string name="setup_review_status_skipped">Skipped (optional)</string>
     <string name="setup_review_status_pending">Not configured</string>
@@ -68,7 +68,7 @@
     <string name="setup_step_twitch_app_instruction_3">Choose the "Chat Bot" category, create it, then copy the Client ID and generate a Client Secret.</string>
     <string name="setup_step_platform_bot_title">Authorize the bot account</string>
     <string name="setup_step_platform_bot_description">Sign in as the Twitch account the bot posts chat from, and approve its chat permissions.</string>
-    <string name="setup_step_platform_bot_instruction_1">Log into Twitch as the bot\'s own account in this browser first.</string>
+    <string name="setup_step_platform_bot_instruction_1">Log into Twitch as the bot's own account in this browser first.</string>
     <string name="setup_step_platform_bot_instruction_2">Start the authorization, then approve the requested chat scopes.</string>
     <string name="setup_step_spotify_title">Spotify (optional)</string>
     <string name="setup_step_spotify_description">Connect a Spotify app to enable song requests.</string>
@@ -86,7 +86,7 @@
     <string name="setup_step_youtube_instruction_2">Add the Authorized redirect URI shown below.</string>
     <string name="setup_step_youtube_instruction_3">Copy the Client ID and Client Secret.</string>
     <string name="setup_field_twitch_app_clientId_label">Client ID</string>
-    <string name="setup_field_twitch_app_clientId_help">From your Twitch app\'s settings page.</string>
+    <string name="setup_field_twitch_app_clientId_help">From your Twitch app's settings page.</string>
     <string name="setup_field_twitch_app_clientSecret_label">Client Secret</string>
     <string name="setup_field_twitch_app_clientSecret_help">Generated on the Twitch app page — shown only once.</string>
     <string name="setup_field_spotify_clientId_label">Client ID</string>
@@ -450,4 +450,27 @@
     <string name="widgets_delete_message">Delete %1$s? Its browser-source URL will stop working.</string>
     <string name="widgets_delete_confirm">Delete</string>
     <string name="widgets_delete_cancel">Cancel</string>
+    <string name="journal_section_title">Event journal</string>
+    <string name="journal_section_description">Export your channel's full event ledger as a file you can back up or move to another deployment, or import a ledger you exported before. Importing only adds events that aren't already there.</string>
+    <string name="journal_export">Export ledger</string>
+    <string name="journal_import">Import ledger</string>
+    <string name="journal_working">Working…</string>
+    <string name="journal_exported">Ledger exported.</string>
+    <string name="journal_imported">Imported %1$d, skipped %2$d duplicates, upgraded %3$d.</string>
+    <string name="journal_error">%1$s</string>
+    <string name="journal_dismiss">Dismiss</string>
+    <string name="journal_import_confirm_title">Import event ledger?</string>
+    <string name="journal_import_confirm_message">This adds the file's events to your channel's ledger. Events already present are skipped, so it can't make duplicates, but it can't be undone. Continue?</string>
+    <string name="journal_import_confirm_ok">Import</string>
+    <string name="journal_import_confirm_cancel">Cancel</string>
+    <string name="feedback_dismiss">Dismiss</string>
+    <string name="feedback_connected">Connected</string>
+    <string name="feedback_connect_failed">Couldn't connect: %1$s</string>
+    <string name="feedback_disconnected">Disconnected</string>
+    <string name="feedback_disconnect_failed">Couldn't disconnect: %1$s</string>
+    <string name="feedback_command_saved">Command saved</string>
+    <string name="feedback_command_deleted">Command deleted</string>
+    <string name="feedback_command_save_failed">Couldn't save the command: %1$s</string>
+    <string name="feedback_unbanned">Ban lifted</string>
+    <string name="feedback_unban_failed">Couldn't lift the ban: %1$s</string>
 </resources>
