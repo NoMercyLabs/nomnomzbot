@@ -239,8 +239,14 @@ try
     // cloudflared/nginx sidecar on the docker bridge network.
     builder.Services.Configure<ForwardedHeadersOptions>(options =>
     {
+        // Trust X-Forwarded-Host too (in addition to For + Proto) so Request.Host reflects the public domain a
+        // reverse proxy / Cloudflare tunnel fronts the bot with — every OAuth redirect_uri (Twitch, Discord,
+        // Spotify, YouTube, bot) and the credential-card "register this URL" copy are built from that host, so the
+        // owner registers and the bot sends the exact same URL.
         options.ForwardedHeaders =
-            ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+            ForwardedHeaders.XForwardedFor
+            | ForwardedHeaders.XForwardedProto
+            | ForwardedHeaders.XForwardedHost;
         options.ForwardLimit =
             builder.Configuration.GetValue<int?>("ForwardedHeaders:ForwardLimit") ?? 1;
 

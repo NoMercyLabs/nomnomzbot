@@ -14,6 +14,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Api.Authorization;
+using NomNomzBot.Api.Extensions;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Discord;
@@ -88,7 +89,7 @@ public class DiscordOAuthController : BaseController
                 "Discord client ID is not configured. Add a Configuration row with Key='discord.client_id'."
             );
 
-        string baseUrl = _config["App:BaseUrl"] ?? $"{Request.Scheme}://{Request.Host}";
+        string baseUrl = Request.ResolvePublicOrigin(_config);
         string redirectUri = $"{baseUrl}/api/v1/integrations/discord/callback";
 
         // Single-use, server-side CSRF state nonce (the channel id + optional loopback redirect are held
@@ -144,7 +145,9 @@ public class DiscordOAuthController : BaseController
                 () => BadRequestResponse("Discord client credentials are not configured.")
             );
 
-        string baseUrl = _config["App:BaseUrl"] ?? $"{Request.Scheme}://{Request.Host}";
+        // The token exchange's redirect_uri must match, byte for byte, the one sent at /start. Discord redirects
+        // back through the same proxy/tunnel, so the same shared resolver yields the same public origin here.
+        string baseUrl = Request.ResolvePublicOrigin(_config);
         string redirectUri = $"{baseUrl}/api/v1/integrations/discord/callback";
 
         using HttpClient client = _httpClientFactory.CreateClient();

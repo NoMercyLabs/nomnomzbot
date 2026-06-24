@@ -14,6 +14,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Hosting;
+using NomNomzBot.Api.Extensions;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Interfaces;
@@ -175,7 +176,9 @@ public class SystemController : BaseController
     public async Task<IActionResult> GetWizard(CancellationToken ct)
     {
         SetupState st = await ComputeSetupStateAsync(ct);
-        string baseUrl = _config["App:BaseUrl"] ?? $"{Request.Scheme}://{Request.Host}";
+        // The credential card shows the EXACT redirect URI the bot will send (every provider), so what the owner
+        // registers matches byte-for-byte. Same shared resolver every OAuth controller uses.
+        string baseUrl = Request.ResolvePublicOrigin(_config);
 
         return Ok(
             new StatusResponseDto<SetupWizardDto>
@@ -247,18 +250,7 @@ public class SystemController : BaseController
     [EnableRateLimiting("auth")]
     public async Task<IActionResult> GetBotOAuthUrl(CancellationToken ct)
     {
-        string forwardedHost = Request.Headers["X-Forwarded-Host"].ToString();
-        string forwardedProto = Request.Headers["X-Forwarded-Proto"].ToString();
-        string? host = !string.IsNullOrWhiteSpace(forwardedHost)
-            ? forwardedHost.Split(',')[0].Trim()
-            : Request.Host.Value;
-        string? scheme = !string.IsNullOrWhiteSpace(forwardedProto)
-            ? forwardedProto.Split(',')[0].Trim()
-            : Request.Scheme;
-        string publicBaseUrl =
-            !string.IsNullOrWhiteSpace(host) && !string.IsNullOrWhiteSpace(scheme)
-                ? $"{scheme}://{host}"
-                : (_config["App:BaseUrl"] ?? "http://localhost:5080").TrimEnd('/');
+        string publicBaseUrl = Request.ResolvePublicOrigin(_config);
 
         // Issue a single-use bot-flow CSRF state nonce so the callback routes the setup-wizard bot auth
         // correctly and cannot be triggered by a forged state (§5).

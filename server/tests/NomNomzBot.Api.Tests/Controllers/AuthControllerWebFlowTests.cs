@@ -119,14 +119,16 @@ public sealed class AuthControllerWebFlowTests
         IUserService userService = Substitute.For<IUserService>();
         IAuthService authService = Substitute.For<IAuthService>();
         ITwitchOAuthStateService state = Substitute.For<ITwitchOAuthStateService>();
+        // No explicit (non-loopback) App:BaseUrl, so the public origin resolves from the request host — the
+        // served-web flow must land back on the exact origin the dashboard was served from (the tunnel/domain).
         IConfiguration config = new ConfigurationBuilder()
             .AddInMemoryCollection(
-                new Dictionary<string, string?> { ["App:BaseUrl"] = "https://api.example.test" }
+                new Dictionary<string, string?> { ["App:BaseUrl"] = "http://localhost:5080" }
             )
             .Build();
 
         DefaultHttpContext http = new();
-        // GetPublicBaseUrl() resolves from the request host when no X-Forwarded-* headers are present.
+        // ResolvePublicOrigin() falls to the request host when App:BaseUrl is loopback (the auto-set default).
         http.Request.Scheme = "https";
         http.Request.Host = new HostString("dash.example.test");
 

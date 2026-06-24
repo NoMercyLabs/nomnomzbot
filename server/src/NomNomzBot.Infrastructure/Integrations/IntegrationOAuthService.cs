@@ -76,6 +76,7 @@ public sealed class IntegrationOAuthService : IIntegrationOAuthService
         string scopeSetKey,
         string? returnUrl,
         Guid actingUserId,
+        string publicOrigin,
         CancellationToken cancellationToken = default
     )
     {
@@ -106,17 +107,22 @@ public sealed class IntegrationOAuthService : IIntegrationOAuthService
             SHA256.HashData(Encoding.ASCII.GetBytes(codeVerifier))
         );
 
+        // Build the redirect_uri from the request's public origin (the tunnel/domain the dashboard was served
+        // from) and persist it in the state: the callback's token exchange reuses this exact value so the two
+        // requests match byte-for-byte, no matter what host the provider's redirect arrives on.
+        string redirectUri = RedirectUriFor(publicOrigin, provider);
+
         OAuthStateEntry entry = new(
             broadcasterId,
             provider,
             scopeSetKey,
             actingUserId,
             returnUrl,
-            codeVerifier
+            codeVerifier,
+            redirectUri
         );
         await _cache.SetAsync(StateCachePrefix + state, entry, StateTtl, cancellationToken);
 
-        string redirectUri = RedirectUriFor(provider);
         string authorizeUrl =
             descriptor.AuthorizeEndpoint
             + $"?client_id={Uri.EscapeDataString(app.ClientId)}"
@@ -190,6 +196,7 @@ public sealed class IntegrationOAuthService : IIntegrationOAuthService
             app,
             callbackParams.Code,
             entry.CodeVerifier,
+            entry.RedirectUri,
             cancellationToken
         );
         if (tokens is null)
@@ -334,14 +341,15 @@ public sealed class IntegrationOAuthService : IIntegrationOAuthService
 
     // ─── Helpers ───────────────────────────────────────────────────────────────
 
-    private string RedirectUriFor(string provider) =>
-        $"{_baseUrl.TrimEnd('/')}/api/v1/integrations/{provider}/callback";
+    private static string RedirectUriFor(string publicOrigin, string provider) =>
+        $"{publicOrigin.TrimEnd('/')}/api/v1/integrations/{provider}/callback";
 
     private async Task<TokenExchangeResult?> ExchangeCodeAsync(
         OAuthProviderDescriptor descriptor,
         SystemAppCredentials app,
         string code,
         string codeVerifier,
+        string redirectUri,
         CancellationToken cancellationToken
     )
     {
@@ -350,7 +358,7 @@ public sealed class IntegrationOAuthService : IIntegrationOAuthService
             ["client_id"] = app.ClientId,
             ["code"] = code,
             ["grant_type"] = "authorization_code",
-            ["redirect_uri"] = RedirectUriFor(descriptor.Provider),
+            ["redirect_uri"] = redirectUri,
             ["code_verifier"] = codeVerifier,
             ["client_secret"] = app.ClientSecret,
         };
@@ -447,7 +455,8 @@ public sealed class IntegrationOAuthService : IIntegrationOAuthService
         string ScopeSetKey,
         Guid ActingUserId,
         string? ReturnUrl,
-        string CodeVerifier
+        string CodeVerifier,
+        string RedirectUri
     );
 
     private sealed record TokenExchangeResult(

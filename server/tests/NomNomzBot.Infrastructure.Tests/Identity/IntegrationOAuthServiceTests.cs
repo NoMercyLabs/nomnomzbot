@@ -83,7 +83,8 @@ public sealed class IntegrationOAuthServiceTests
             AuthEnums.IntegrationProvider.Spotify,
             "spotify.playback",
             returnUrl: "https://dash.example/return",
-            Actor
+            Actor,
+            publicOrigin: "https://bot-dev.nomercy.tv"
         );
 
         start.IsSuccess.Should().BeTrue();
@@ -94,6 +95,15 @@ public sealed class IntegrationOAuthServiceTests
         url.Should().Contain("code_challenge_method=S256");
         url.Should().Contain($"state={start.Value.State}");
         Uri.UnescapeDataString(url).Should().Contain("user-modify-playback-state");
+
+        // The redirect_uri is built from the request's public origin (the tunnel/domain) — NEVER localhost, which
+        // Spotify rejects outright. It is what the owner registers and what the bot sends, identically.
+        Uri.UnescapeDataString(url)
+            .Should()
+            .Contain(
+                "redirect_uri=https://bot-dev.nomercy.tv/api/v1/integrations/spotify/callback"
+            );
+        Uri.UnescapeDataString(url).Should().NotContain("localhost");
 
         // The verifier + binding were stashed single-use under the state key.
         cache.Contains($"oauth:state:{start.Value.State}").Should().BeTrue();
@@ -109,7 +119,8 @@ public sealed class IntegrationOAuthServiceTests
             AuthEnums.IntegrationProvider.Spotify,
             "spotify.bogus",
             null,
-            Actor
+            Actor,
+            publicOrigin: "https://bot-dev.nomercy.tv"
         );
 
         start.ErrorCode.Should().Be("UNKNOWN_SCOPE_SET");
@@ -134,7 +145,8 @@ public sealed class IntegrationOAuthServiceTests
             AuthEnums.IntegrationProvider.Spotify,
             "spotify.playback",
             null,
-            Actor
+            Actor,
+            publicOrigin: "https://bot-dev.nomercy.tv"
         );
 
         Result<OAuthCallbackResultDto> callback = await service.HandleCallbackAsync(
@@ -162,6 +174,14 @@ public sealed class IntegrationOAuthServiceTests
         handler.LastTokenRequestBody.Should().Contain("code=the-auth-code");
         handler.LastTokenRequestBody.Should().Contain("grant_type=authorization_code");
         handler.LastTokenRequestBody.Should().Contain("code_verifier=");
+
+        // The token exchange's redirect_uri is the public-origin URL persisted at /connect — matching the
+        // authorize request byte-for-byte (OAuth requires it), and never the loopback Spotify would reject.
+        Uri.UnescapeDataString(handler.LastTokenRequestBody!)
+            .Should()
+            .Contain(
+                "redirect_uri=https://bot-dev.nomercy.tv/api/v1/integrations/spotify/callback"
+            );
     }
 
     [Fact]
@@ -180,7 +200,8 @@ public sealed class IntegrationOAuthServiceTests
             AuthEnums.IntegrationProvider.Spotify,
             "spotify.playback",
             null,
-            Actor
+            Actor,
+            publicOrigin: "https://bot-dev.nomercy.tv"
         );
 
         OAuthCallbackParams cb = new("code", start.Value.State, null, null);

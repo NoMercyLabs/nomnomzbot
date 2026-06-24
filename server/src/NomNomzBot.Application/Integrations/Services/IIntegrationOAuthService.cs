@@ -26,6 +26,12 @@ public interface IIntegrationOAuthService
     /// Builds the authorize URL (PKCE challenge + signed state bound to broadcaster/provider/scopeSet/
     /// returnUrl) and stashes the verifier + state single-use in the cache. Fails on unknown provider,
     /// invalid scope-set, or a disallowed tier-gated connect.
+    /// <para>
+    /// <paramref name="publicOrigin"/> is the public <c>scheme://host</c> the request arrived on (the tunnel /
+    /// domain the dashboard was served from, resolved by the API layer) — the <c>redirect_uri</c> is built from
+    /// it and persisted in the state so the callback's token exchange reuses the exact same value (OAuth requires
+    /// a byte-for-byte match). Spotify rejects loopback callbacks, so this must be the https public origin.
+    /// </para>
     /// </summary>
     Task<Result<OAuthStartDto>> StartConnectAsync(
         Guid broadcasterId,
@@ -33,6 +39,7 @@ public interface IIntegrationOAuthService
         string scopeSetKey,
         string? returnUrl,
         Guid actingUserId,
+        string publicOrigin,
         CancellationToken cancellationToken = default
     );
 
@@ -40,7 +47,8 @@ public interface IIntegrationOAuthService
     /// Handles the callback: validates+consumes state, exchanges code (+PKCE verifier) for tokens, reads the
     /// provider account identity, then persists via <c>IIntegrationTokenVault</c> (upsert + vault) and
     /// reconciles granted vs requested scopes. Fail-closed on state/PKCE/exchange failure (no partial
-    /// connection persisted).
+    /// connection persisted). The token exchange's <c>redirect_uri</c> is the one persisted at connect-start, so
+    /// it matches the authorize request exactly regardless of the callback request's host.
     /// </summary>
     Task<Result<OAuthCallbackResultDto>> HandleCallbackAsync(
         string provider,

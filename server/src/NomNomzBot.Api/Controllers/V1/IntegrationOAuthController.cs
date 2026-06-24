@@ -94,6 +94,7 @@ public class IntegrationOAuthController : BaseController
             request.ScopeSetKey,
             request.ReturnUrl,
             actingUserId,
+            Request.ResolvePublicOrigin(_config),
             ct
         );
 

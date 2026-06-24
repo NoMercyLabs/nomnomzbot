@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using NomNomzBot.Api.Authorization;
+using NomNomzBot.Api.Extensions;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Identity.Dtos;
@@ -52,24 +53,7 @@ public class ChannelBotController : BaseController
         _oauthState = oauthState;
     }
 
-    private string GetPublicBaseUrl()
-    {
-        string forwardedHost = Request.Headers["X-Forwarded-Host"].ToString();
-        string forwardedProto = Request.Headers["X-Forwarded-Proto"].ToString();
-
-        string? host = !string.IsNullOrWhiteSpace(forwardedHost)
-            ? forwardedHost.Split(',')[0].Trim()
-            : Request.Host.Value;
-
-        string? scheme = !string.IsNullOrWhiteSpace(forwardedProto)
-            ? forwardedProto.Split(',')[0].Trim()
-            : Request.Scheme;
-
-        if (!string.IsNullOrWhiteSpace(host) && !string.IsNullOrWhiteSpace(scheme))
-            return $"{scheme}://{host}";
-
-        return (_config["App:BaseUrl"] ?? "http://localhost:5080").TrimEnd('/');
-    }
+    private string GetPublicBaseUrl() => Request.ResolvePublicOrigin(_config);
 
     public record ScopeDto(
         string Scope,
