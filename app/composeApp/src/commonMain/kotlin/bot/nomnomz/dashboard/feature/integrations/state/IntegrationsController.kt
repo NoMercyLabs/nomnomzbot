@@ -30,6 +30,8 @@ import bot.nomnomz.dashboard.core.network.MissingScopes
 import bot.nomnomz.dashboard.core.network.OAuthStart
 import bot.nomnomz.dashboard.core.network.ScopeRegrantStart
 import bot.nomnomz.dashboard.core.network.SystemApi
+import bot.nomnomz.dashboard.core.network.SystemCheck
+import bot.nomnomz.dashboard.core.network.SystemChecks
 import bot.nomnomz.dashboard.core.network.SystemStatus
 import bot.nomnomz.dashboard.core.network.TwitchDiagnosticsApi
 import kotlinx.coroutines.delay
@@ -38,6 +40,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.feedback_connect_failed
+import nomnomzbot.composeapp.generated.resources.feedback_credentials_saved
 import nomnomzbot.composeapp.generated.resources.feedback_disconnect_failed
 import nomnomzbot.composeapp.generated.resources.feedback_disconnected
 import org.jetbrains.compose.resources.StringResource
@@ -115,6 +118,17 @@ class IntegrationsController(
                 is ApiResult.Failure -> emptyList()
             }
 
+        // The per-provider APP-CREDENTIAL (client) registration signal, read off the same system status the
+        // bot-connect method picks from. This drives the register-client-then-login flow: a provider whose
+        // client is NOT yet registered must collect the operator's own BYOC credentials before OAuth can run.
+        // A status failure leaves it null — every provider then reads "unknown", so the flow safely routes
+        // through the credential card rather than launching an OAuth that can't succeed.
+        val checks: SystemChecks? =
+            when (val result: ApiResult<SystemStatus> = systemApi.status()) {
+                is ApiResult.Ok -> result.value.checks
+                is ApiResult.Failure -> null
+            }
+
         // Preserve any in-flight panels across a refresh (their poll loops refresh mid-flow).
         val ready: IntegrationsState.Ready? = _state.value as? IntegrationsState.Ready
         _state.value =
@@ -122,10 +136,80 @@ class IntegrationsController(
                 bot = bot,
                 providers = providers,
                 missingScopes = missingScopes,
+                checks = checks,
                 busy = null,
                 regrant = ready?.regrant,
                 botDevice = ready?.botDevice,
             )
+    }
+
+    /**
+     * Whether the app CLIENT (BYOC credentials) for [provider] is registered, so the connect can go straight
+     * to OAuth. `true` = registered (proceed to OAuth); `false` = not registered (collect credentials first);
+     * `null` = UNKNOWN, because the backend system status exposes no client check for this provider yet (e.g.
+     * YouTube — see the SystemChecks gap note). The caller treats `null` like `false` (route through the
+     * credential card) so a connect is never launched against a client the bot can't prove is configured.
+     */
+    fun clientRegistered(provider: String): Boolean? {
+        val checks: SystemChecks = (_state.value as? IntegrationsState.Ready)?.checks ?: return null
+        val check: SystemCheck? =
+            when (provider.lowercase()) {
+                "spotify" -> checks.spotify
+                "discord" -> checks.discord
+                // BACKEND GAP: SystemChecks carries no `youtube` field, so YouTube's client registration can't
+                // be read. Until the backend adds it, YouTube reports unknown and always routes through the
+                // credential card (a save is idempotent, so re-registering an already-set client is harmless).
+                else -> null
+            }
+        return check?.ok
+    }
+
+    /**
+     * The exact OAuth redirect URL the operator pastes into the provider's developer console when registering
+     * their BYOC app — the generic IntegrationOAuthController callback (`/api/v1/integrations/{provider}/callback`),
+     * rooted at the ACTIVE backend base so the address is correct for THIS connection (self-host localhost vs a
+     * remote operator URL). Null when no backend is active. Discord shares the same callback shape.
+     */
+    fun integrationRedirectUrl(provider: String): String? {
+        val base: String = sessionStore.baseUrl()?.trimEnd('/') ?: return null
+        return "$base/api/v1/integrations/${provider.lowercase()}/callback"
+    }
+
+    /**
+     * Register the operator's own BYOC app credentials for [provider] (Spotify/YouTube/Discord) through the
+     * wizard's per-provider credential endpoint, then re-read status so [clientRegistered] reflects the
+     * backend. The client id is required (a blank id is a client-side guard); the secret rides as typed. On
+     * success the feedback host announces it and the caller proceeds to OAuth; a failure surfaces on the host
+     * and leaves the screen on the credential step. Returns whether the save succeeded.
+     */
+    suspend fun saveProviderCredentials(
+        provider: String,
+        clientId: String,
+        clientSecret: String,
+    ): Boolean {
+        val id: String = clientId.trim()
+        if (id.isEmpty()) return false
+
+        val result: ApiResult<Unit> =
+            when (provider.lowercase()) {
+                "spotify" -> systemApi.saveSpotifyCredentials(id, clientSecret.trim())
+                "youtube" -> systemApi.saveYouTubeCredentials(id, clientSecret.trim())
+                "discord" -> systemApi.saveDiscordCredentials(id, clientSecret.trim())
+                else -> return false
+            }
+
+        return when (result) {
+            is ApiResult.Failure -> {
+                feedback.error(Res.string.feedback_connect_failed, result.error.message)
+                false
+            }
+            is ApiResult.Ok -> {
+                feedback.success(Res.string.feedback_credentials_saved)
+                // Re-read status so the registered signal reflects the backend, not an optimistic flip.
+                refresh()
+                true
+            }
+        }
     }
 
     /**
@@ -386,6 +470,10 @@ sealed interface IntegrationsState {
         val bot: BotConnection,
         val providers: List<ProviderConnection>,
         val missingScopes: List<MissingScope>,
+        // The per-provider system readiness checks, source of the app-client registration signal the
+        // register-then-login flow reads (null when the status read failed — every provider then reads
+        // "unknown" and routes through the credential card).
+        val checks: SystemChecks? = null,
         val busy: BusyTarget?,
         val regrant: RegrantState?,
         // The in-flight secret-free bot device login (null unless one is awaiting approval at twitch.tv/activate).

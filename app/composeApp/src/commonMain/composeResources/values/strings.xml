@@ -495,6 +495,7 @@
     <string name="feedback_connect_failed">Couldn't connect: %1$s</string>
     <string name="feedback_disconnected">Disconnected</string>
     <string name="feedback_disconnect_failed">Couldn't disconnect: %1$s</string>
+    <string name="feedback_credentials_saved">App credentials saved</string>
     <string name="feedback_command_saved">Command saved</string>
     <string name="feedback_command_deleted">Command deleted</string>
     <string name="feedback_command_save_failed">Couldn't save the command: %1$s</string>
@@ -526,6 +527,19 @@
     <string name="twitch_app_overwrite_message">Saving new credentials replaces the current ones. The bot may need to re-authenticate.</string>
     <string name="twitch_app_overwrite_confirm">Replace</string>
     <string name="twitch_app_overwrite_cancel">Cancel</string>
+
+    <!-- Generic provider BYOC app-credential card (Spotify / YouTube / Discord connect flow). The provider
+         name is filled at runtime so one set of copy serves all three. -->
+    <string name="provider_credentials_title">Register your %1$s app</string>
+    <string name="provider_credentials_description">%1$s needs its own app credentials before you can connect. Create an app on the %1$s developer console and paste its Client ID and Secret.</string>
+    <string name="provider_credentials_redirect_label">OAuth Redirect URL</string>
+    <string name="provider_credentials_clientId_label">Client ID</string>
+    <string name="provider_credentials_clientSecret_label">Client Secret</string>
+    <string name="provider_credentials_clientSecret_help">From the %1$s developer console.</string>
+    <string name="provider_credentials_missing_client_id">Enter a Client ID.</string>
+    <string name="provider_credentials_save">Save and continue</string>
+    <string name="provider_credentials_saving">Saving…</string>
+    <string name="provider_credentials_save_error">Couldn't save the credentials: %1$s</string>
 
     <!-- Frame-level feedback for the new pages. -->
     <string name="feedback_quote_saved">Quote saved</string>

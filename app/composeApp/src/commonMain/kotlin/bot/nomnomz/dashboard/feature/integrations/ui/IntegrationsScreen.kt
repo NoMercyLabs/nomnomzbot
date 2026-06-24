@@ -104,6 +104,32 @@ private const val YOUTUBE_SCOPE_SET: String = "youtube.manage"
 // the three brand-described providers route through the modal; the bot account connects inline.
 private enum class ConnectModalProvider { Spotify, YouTube, Discord }
 
+// The open connect modal's stage: the branded intro (tap "Continue with X") or, when the provider's app
+// client is not yet registered, the BYOC credential step (register the client, then proceed to OAuth).
+private sealed interface ConnectStage {
+    data object Intro : ConnectStage
+
+    data class Credentials(val saving: Boolean = false, val missingClientId: Boolean = false) : ConnectStage
+}
+
+// The stable provider key (snake-free lowercase, matching the backend) for a modal provider.
+private fun ConnectModalProvider.providerKey(): String =
+    when (this) {
+        ConnectModalProvider.Spotify -> SPOTIFY
+        ConnectModalProvider.YouTube -> YOUTUBE
+        ConnectModalProvider.Discord -> DISCORD
+    }
+
+// The human, brand-cased display name woven into the BYOC credential copy ("Register your Spotify app").
+// These are proper nouns (brand names), identical across locales, so they are NOT translated — deriving the
+// name here keeps it correct regardless of how a locale phrases the logo's accessibility label.
+private fun ConnectModalProvider.displayName(): String =
+    when (this) {
+        ConnectModalProvider.Spotify -> "Spotify"
+        ConnectModalProvider.YouTube -> "YouTube"
+        ConnectModalProvider.Discord -> "Discord"
+    }
+
 @Composable
 fun IntegrationsScreen(controller: IntegrationsController) {
     val tokens = LocalTokens.current
@@ -115,9 +141,25 @@ fun IntegrationsScreen(controller: IntegrationsController) {
 
     LaunchedEffect(Unit) { controller.load() }
 
-    // The open per-provider connect modal, if any. Tapping a provider row's Connect opens it; the modal's
-    // brand CTA runs the SAME controller action and then dismisses; Back dismisses without connecting.
+    // The open per-provider connect modal, if any, and its stage. Tapping a provider row's Connect opens it
+    // at the branded Intro; the brand CTA then either proceeds straight to OAuth (client already registered)
+    // or advances to the BYOC credential step (client not registered yet) before OAuth. Back/dismiss closes it.
     var openModal: ConnectModalProvider? by remember { mutableStateOf(null) }
+    var stage: ConnectStage by remember { mutableStateOf(ConnectStage.Intro) }
+
+    // Launch the real OAuth connect for the modal's provider, then close the modal. The controller re-reads the
+    // authoritative status; nothing is faked here.
+    val launchOAuth: (ConnectModalProvider) -> Unit = { which: ConnectModalProvider ->
+        openModal = null
+        stage = ConnectStage.Intro
+        scope.launch {
+            when (which) {
+                ConnectModalProvider.Spotify -> controller.connectProvider(SPOTIFY, SPOTIFY_SCOPE_SET)
+                ConnectModalProvider.YouTube -> controller.connectProvider(YOUTUBE, YOUTUBE_SCOPE_SET)
+                ConnectModalProvider.Discord -> controller.connectDiscord()
+            }
+        }
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
     Column(
@@ -184,8 +226,8 @@ fun IntegrationsScreen(controller: IntegrationsController) {
                         subtitle = Res.string.integrations_spotify_subtitle,
                         connection = current.providers.forProvider(SPOTIFY),
                         busy = current.busy.isProvider(SPOTIFY),
-                        // Open the branded connect modal rather than connecting inline.
-                        onConnect = { openModal = ConnectModalProvider.Spotify },
+                        // Open the branded connect modal (at the Intro stage) rather than connecting inline.
+                        onConnect = { openModal = ConnectModalProvider.Spotify; stage = ConnectStage.Intro },
                         onDisconnect = { scope.launch { controller.disconnect(SPOTIFY) } },
                     )
                     ProviderRow(
@@ -193,7 +235,7 @@ fun IntegrationsScreen(controller: IntegrationsController) {
                         subtitle = Res.string.integrations_youtube_subtitle,
                         connection = current.providers.forProvider(YOUTUBE),
                         busy = current.busy.isProvider(YOUTUBE),
-                        onConnect = { openModal = ConnectModalProvider.YouTube },
+                        onConnect = { openModal = ConnectModalProvider.YouTube; stage = ConnectStage.Intro },
                         onDisconnect = { scope.launch { controller.disconnect(YOUTUBE) } },
                     )
                     ProviderRow(
@@ -201,7 +243,7 @@ fun IntegrationsScreen(controller: IntegrationsController) {
                         subtitle = Res.string.integrations_discord_subtitle,
                         connection = current.providers.forProvider(DISCORD),
                         busy = current.busy.isProvider(DISCORD),
-                        onConnect = { openModal = ConnectModalProvider.Discord },
+                        onConnect = { openModal = ConnectModalProvider.Discord; stage = ConnectStage.Intro },
                         onDisconnect = { scope.launch { controller.disconnect(DISCORD) } },
                     )
                 }
@@ -209,7 +251,10 @@ fun IntegrationsScreen(controller: IntegrationsController) {
     }
 
         // The per-provider branded connect modal, overlaid over the list when a provider's Connect is tapped.
-        // Its CTA runs the SAME controller action (no behaviour change) and dismisses; Back dismisses only.
+        // The register-then-login flow: the brand CTA first ensures the provider's app client is registered —
+        // if it is, it proceeds straight to OAuth; if not (Spotify/Discord with no shared client, or YouTube
+        // whose client status is unknown), it advances to the in-modal BYOC credential card, which saves the
+        // operator's own client and THEN proceeds to OAuth. Back/dismiss closes the modal without connecting.
         openModal?.let { which: ConnectModalProvider ->
             val descriptor: ConnectProvider =
                 when (which) {
@@ -217,22 +262,59 @@ fun IntegrationsScreen(controller: IntegrationsController) {
                     ConnectModalProvider.YouTube -> ConnectProviders.YouTube
                     ConnectModalProvider.Discord -> ConnectProviders.Discord
                 }
-            ConnectModal(
-                provider = descriptor,
-                onCta = {
-                    openModal = null
-                    scope.launch {
-                        when (which) {
-                            ConnectModalProvider.Spotify ->
-                                controller.connectProvider(SPOTIFY, SPOTIFY_SCOPE_SET)
-                            ConnectModalProvider.YouTube ->
-                                controller.connectProvider(YOUTUBE, YOUTUBE_SCOPE_SET)
-                            ConnectModalProvider.Discord -> controller.connectDiscord()
-                        }
+            val providerKey: String = which.providerKey()
+            val displayName: String = which.displayName()
+
+            when (val current: ConnectStage = stage) {
+                ConnectStage.Intro ->
+                    ConnectModal(
+                        provider = descriptor,
+                        // The CTA branches on client registration: registered → OAuth now; not registered (or
+                        // unknown) → advance to the credential step in the SAME card.
+                        onCta = {
+                            if (controller.clientRegistered(providerKey) == true) {
+                                launchOAuth(which)
+                            } else {
+                                stage = ConnectStage.Credentials()
+                            }
+                        },
+                        onBack = { openModal = null; stage = ConnectStage.Intro },
+                    )
+
+                is ConnectStage.Credentials ->
+                    ConnectModal(
+                        provider = descriptor,
+                        // No brand CTA on the credential step — the card's own "Save and continue" drives it.
+                        onCta = null,
+                        onBack = { stage = ConnectStage.Intro },
+                    ) {
+                        ProviderCredentialsCard(
+                            providerDisplayName = displayName,
+                            redirectUrl = controller.integrationRedirectUrl(providerKey),
+                            saving = current.saving,
+                            missingClientId = current.missingClientId,
+                            onSave = { clientId: String, clientSecret: String ->
+                                if (clientId.trim().isEmpty()) {
+                                    stage = ConnectStage.Credentials(missingClientId = true)
+                                } else {
+                                    stage = ConnectStage.Credentials(saving = true)
+                                    scope.launch {
+                                        val saved: Boolean =
+                                            controller.saveProviderCredentials(
+                                                provider = providerKey,
+                                                clientId = clientId,
+                                                clientSecret = clientSecret,
+                                            )
+                                        // On success the client is registered server-side → proceed to OAuth;
+                                        // on failure stay on the step (the feedback host carries the detail).
+                                        if (saved) launchOAuth(which)
+                                        else stage = ConnectStage.Credentials()
+                                    }
+                                }
+                            },
+                        )
                     }
-                },
-                onBack = { openModal = null },
-            )
+            }
         }
     }
 }

@@ -298,6 +298,107 @@ class IntegrationsControllerTest {
     }
 
     @Test
+    fun client_registered_reflects_the_backend_per_provider_check() = runTest {
+        // Spotify's client IS registered server-side; Discord's is NOT; YouTube has no check field at all.
+        val controller =
+            controller(
+                channels = FakeChannelsApi(ApiResult.Ok(channel)),
+                bot = FakeBotAuthApi(BotStatus(connected = false)),
+                integrations = FakeIntegrationsApi(emptyList()),
+                launcher = FakeConnectLauncher(),
+                system =
+                    FakeSystemApi(
+                        twitchSecretConfigured = true,
+                        spotifyClientConfigured = true,
+                        discordClientConfigured = false,
+                    ),
+            )
+        controller.load()
+
+        // Spotify → registered (proceed straight to OAuth); Discord → not registered (collect credentials);
+        // YouTube → unknown (no backend check), so the flow treats it like "not registered" too.
+        assertEquals(true, controller.clientRegistered("spotify"))
+        assertEquals(false, controller.clientRegistered("discord"))
+        assertNull(controller.clientRegistered("youtube"))
+    }
+
+    @Test
+    fun save_provider_credentials_registers_the_client_then_flips_registered() = runTest {
+        val system =
+            FakeSystemApi(
+                twitchSecretConfigured = true,
+                discordClientConfigured = false, // Discord client not registered yet.
+            )
+        val controller =
+            controller(
+                channels = FakeChannelsApi(ApiResult.Ok(channel)),
+                bot = FakeBotAuthApi(BotStatus(connected = false)),
+                integrations = FakeIntegrationsApi(emptyList()),
+                launcher = FakeConnectLauncher(),
+                system = system,
+            )
+        controller.load()
+        // Precondition: the client isn't registered, so a connect would route through the credential step.
+        assertEquals(false, controller.clientRegistered("discord"))
+
+        val saved: Boolean =
+            controller.saveProviderCredentials("discord", clientId = "disc-id", clientSecret = "disc-secret")
+
+        // The save succeeded and hit the RIGHT endpoint with the typed credentials (the side effect that
+        // registers the operator's own client) — not the Spotify/YouTube ones.
+        assertTrue(saved)
+        assertEquals("disc-id" to "disc-secret", system.savedDiscord)
+        assertNull(system.savedSpotify)
+        assertNull(system.savedYouTube)
+        // The post-save status re-read now reports the client registered (proven by the re-read, not a flip).
+        assertEquals(true, controller.clientRegistered("discord"))
+    }
+
+    @Test
+    fun save_provider_credentials_returns_false_and_keeps_unregistered_on_backend_failure() = runTest {
+        val system =
+            FakeSystemApi(twitchSecretConfigured = true, spotifyClientConfigured = false, saveSucceeds = false)
+        val controller =
+            controller(
+                channels = FakeChannelsApi(ApiResult.Ok(channel)),
+                bot = FakeBotAuthApi(BotStatus(connected = false)),
+                integrations = FakeIntegrationsApi(emptyList()),
+                launcher = FakeConnectLauncher(),
+                system = system,
+            )
+        controller.load()
+
+        val saved: Boolean =
+            controller.saveProviderCredentials("spotify", clientId = "id", clientSecret = "secret")
+
+        // A backend rejection returns false (the host stays on the credential step), records no save, and the
+        // client stays unregistered — the flow never proceeds to an OAuth it can't complete.
+        assertFalse(saved)
+        assertNull(system.savedSpotify)
+        assertEquals(false, controller.clientRegistered("spotify"))
+    }
+
+    @Test
+    fun save_provider_credentials_rejects_a_blank_client_id() = runTest {
+        val system = FakeSystemApi(twitchSecretConfigured = true)
+        val controller =
+            controller(
+                channels = FakeChannelsApi(ApiResult.Ok(channel)),
+                bot = FakeBotAuthApi(BotStatus(connected = false)),
+                integrations = FakeIntegrationsApi(emptyList()),
+                launcher = FakeConnectLauncher(),
+                system = system,
+            )
+        controller.load()
+
+        val saved: Boolean = controller.saveProviderCredentials("spotify", clientId = "   ", clientSecret = "s")
+
+        // A blank id never reaches the backend (client-side guard) and reports failure.
+        assertFalse(saved)
+        assertNull(system.savedSpotify)
+    }
+
+    @Test
     fun load_surfaces_the_missing_twitch_scopes_into_the_ready_state() = runTest {
         val diagnostics =
             FakeTwitchDiagnosticsApi(
@@ -456,9 +557,25 @@ private class FakeBotAuthApi(
     override suspend fun status(): ApiResult<BotStatus> = ApiResult.Ok(status)
 }
 
-// A minimal [SystemApi] for the integrations tests — only [status] is read (the bot-connect method choice
-// keys off twitchApp.ok). Everything else returns a benign default; these tests never call it.
-private class FakeSystemApi(private val twitchSecretConfigured: Boolean) : SystemApi {
+// A configurable [SystemApi] for the integrations tests. [status] drives the bot-connect method choice
+// (twitchApp.ok) AND the per-provider app-client registration signal the register-then-login flow reads
+// (spotify/discord checks). It records the credential saves so the flow's side effect — the operator's own
+// client being registered through the right endpoint — can be asserted. A save flips the matching provider
+// check to ok (modeling the backend now reporting the client configured), so the post-save re-read proves the
+// registration via the status re-read, not an optimistic flip.
+private class FakeSystemApi(
+    private val twitchSecretConfigured: Boolean,
+    spotifyClientConfigured: Boolean = false,
+    discordClientConfigured: Boolean = false,
+    private val saveSucceeds: Boolean = true,
+) : SystemApi {
+    private var spotifyOk: Boolean = spotifyClientConfigured
+    private var discordOk: Boolean = discordClientConfigured
+
+    var savedSpotify: Pair<String, String>? = null
+    var savedYouTube: Pair<String, String>? = null
+    var savedDiscord: Pair<String, String>? = null
+
     override suspend fun status(): ApiResult<SystemStatus> =
         ApiResult.Ok(
             SystemStatus(
@@ -472,6 +589,8 @@ private class FakeSystemApi(private val twitchSecretConfigured: Boolean) : Syste
                                 status = if (twitchSecretConfigured) "ready_redirect" else "ready_device",
                             ),
                         platformBot = SystemCheck(ok = true, ready = true, status = "connected"),
+                        spotify = SystemCheck(ok = spotifyOk, ready = spotifyOk, status = if (spotifyOk) "configured" else "missing"),
+                        discord = SystemCheck(ok = discordOk, ready = discordOk, status = if (discordOk) "configured" else "missing"),
                     ),
             )
         )
@@ -484,14 +603,25 @@ private class FakeSystemApi(private val twitchSecretConfigured: Boolean) : Syste
         botUsername: String?,
     ): ApiResult<Unit> = ApiResult.Ok(Unit)
 
-    override suspend fun saveSpotifyCredentials(clientId: String, clientSecret: String): ApiResult<Unit> =
-        ApiResult.Ok(Unit)
+    override suspend fun saveSpotifyCredentials(clientId: String, clientSecret: String): ApiResult<Unit> {
+        if (!saveSucceeds) return ApiResult.Failure(ApiError(403, "FORBIDDEN", "Not allowed."))
+        savedSpotify = clientId to clientSecret
+        spotifyOk = true
+        return ApiResult.Ok(Unit)
+    }
 
-    override suspend fun saveYouTubeCredentials(clientId: String, clientSecret: String): ApiResult<Unit> =
-        ApiResult.Ok(Unit)
+    override suspend fun saveYouTubeCredentials(clientId: String, clientSecret: String): ApiResult<Unit> {
+        if (!saveSucceeds) return ApiResult.Failure(ApiError(403, "FORBIDDEN", "Not allowed."))
+        savedYouTube = clientId to clientSecret
+        return ApiResult.Ok(Unit)
+    }
 
-    override suspend fun saveDiscordCredentials(clientId: String, clientSecret: String): ApiResult<Unit> =
-        ApiResult.Ok(Unit)
+    override suspend fun saveDiscordCredentials(clientId: String, clientSecret: String): ApiResult<Unit> {
+        if (!saveSucceeds) return ApiResult.Failure(ApiError(403, "FORBIDDEN", "Not allowed."))
+        savedDiscord = clientId to clientSecret
+        discordOk = true
+        return ApiResult.Ok(Unit)
+    }
 
     override suspend fun botOAuthUrl(): ApiResult<BotOAuthUrl> =
         ApiResult.Ok(BotOAuthUrl("https://id.twitch.tv/authorize?bot"))

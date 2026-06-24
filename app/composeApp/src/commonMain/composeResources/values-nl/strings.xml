@@ -492,6 +492,7 @@
     <string name="feedback_connect_failed">Verbinden mislukt: %1$s</string>
     <string name="feedback_disconnected">Verbinding verbroken</string>
     <string name="feedback_disconnect_failed">Verbinding verbreken mislukt: %1$s</string>
+    <string name="feedback_credentials_saved">App-gegevens opgeslagen</string>
     <string name="feedback_command_saved">Commando opgeslagen</string>
     <string name="feedback_command_deleted">Commando verwijderd</string>
     <string name="feedback_command_save_failed">Commando opslaan mislukt: %1$s</string>
@@ -523,6 +524,19 @@
     <string name="twitch_app_overwrite_message">Nieuwe gegevens opslaan vervangt de huidige. De bot moet zich mogelijk opnieuw aanmelden.</string>
     <string name="twitch_app_overwrite_confirm">Vervangen</string>
     <string name="twitch_app_overwrite_cancel">Annuleren</string>
+
+    <!-- Generic provider BYOC app-credential card (Spotify / YouTube / Discord connect flow). De
+         providernaam wordt op runtime ingevuld zodat één set teksten voor alle drie volstaat. -->
+    <string name="provider_credentials_title">Registreer je %1$s-app</string>
+    <string name="provider_credentials_description">%1$s heeft een eigen app-registratie nodig voordat je kunt verbinden. Maak een app aan in de %1$s-ontwikkelaarsconsole en plak de Client ID en het Secret.</string>
+    <string name="provider_credentials_redirect_label">OAuth-redirect-URL</string>
+    <string name="provider_credentials_clientId_label">Client ID</string>
+    <string name="provider_credentials_clientSecret_label">Client Secret</string>
+    <string name="provider_credentials_clientSecret_help">Uit de %1$s-ontwikkelaarsconsole.</string>
+    <string name="provider_credentials_missing_client_id">Vul een Client ID in.</string>
+    <string name="provider_credentials_save">Opslaan en doorgaan</string>
+    <string name="provider_credentials_saving">Opslaan…</string>
+    <string name="provider_credentials_save_error">Opslaan van de gegevens mislukt: %1$s</string>
 
     <!-- Frame-level feedback for the new pages. -->
     <string name="feedback_quote_saved">Quote opgeslagen</string>
