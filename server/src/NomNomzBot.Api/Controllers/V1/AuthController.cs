@@ -307,7 +307,9 @@ public class AuthController : BaseController
             new CookieOptions
             {
                 HttpOnly = true,
-                Secure = true,
+                // Secure when actually served over HTTPS (production / the dev tunnel); relaxed for a plain
+                // http://localhost self-host so the cookie still works there. localhost is a trusted origin.
+                Secure = Request.IsHttps,
                 SameSite = SameSiteMode.Lax,
                 Path = "/api/v1/auth",
                 Expires = _timeProvider.GetUtcNow().AddDays(30),
@@ -375,10 +377,11 @@ public class AuthController : BaseController
     /// </summary>
     [HttpPost("twitch/device/poll")]
     [AllowAnonymous]
-    [EnableRateLimiting("auth")]
+    [EnableRateLimiting("device-poll")]
     [ProducesResponseType<StatusResponseDto<DeviceLoginPollDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> PollTwitchDeviceLogin(
         [FromBody] DevicePollRequest body,
+        [FromQuery] string? client,
         CancellationToken ct
     )
     {
@@ -387,6 +390,30 @@ public class AuthController : BaseController
             BuildAuthContext(),
             ct
         );
+
+        if (result.IsFailure)
+            return ResultResponse(result);
+
+        // Served-web dashboard: on approval, keep the long-lived refresh token in an HttpOnly + Secure cookie
+        // the SPA's JS can never read (XSS can't exfiltrate it) and strip it from the JSON body. The browser
+        // attaches the cookie automatically on the same-origin refresh call. Native clients keep the
+        // token-in-body custody (a file/keychain vault — no browser XSS surface).
+        DeviceLoginPollDto poll = result.Value;
+        if (
+            string.Equals(client, "web", StringComparison.OrdinalIgnoreCase)
+            && poll.Status == DeviceLoginStatus.Authorized
+            && poll.Auth is not null
+        )
+        {
+            SetRefreshTokenCookie(poll.Auth.RefreshToken);
+            return Ok(
+                new StatusResponseDto<DeviceLoginPollDto>
+                {
+                    Data = poll with { Auth = poll.Auth with { RefreshToken = string.Empty } },
+                }
+            );
+        }
+
         return ResultResponse(result);
     }
 
@@ -395,12 +422,22 @@ public class AuthController : BaseController
     [AllowAnonymous]
     [EnableRateLimiting("auth")]
     public async Task<IActionResult> RefreshToken(
-        [FromBody] RefreshTokenRequest request,
+        [FromBody] RefreshTokenRequest? request,
+        [FromQuery] string? client,
         CancellationToken ct
     )
     {
+        // Web sends no body token — its refresh token rides an HttpOnly cookie the browser attaches
+        // automatically; native sends the token it holds in its own vault. Prefer the body, fall back to the
+        // cookie, and reject when neither is present.
+        string? refreshToken = request?.RefreshToken;
+        if (string.IsNullOrWhiteSpace(refreshToken))
+            refreshToken = Request.Cookies["nnz_refresh_token"];
+        if (string.IsNullOrWhiteSpace(refreshToken))
+            return UnauthenticatedResponse();
+
         Result<AuthResultDto> result = await _authService.RefreshTokenAsync(
-            request.RefreshToken,
+            refreshToken,
             BuildAuthContext(),
             ct
         );
@@ -410,6 +447,23 @@ public class AuthController : BaseController
 
         AuthResultDto auth = result.Value;
         int expiresIn = (int)(auth.ExpiresAt - _timeProvider.GetUtcNow().UtcDateTime).TotalSeconds;
+
+        // Web: rotate the HttpOnly cookie and DON'T hand the refresh token back in the JS-readable body.
+        if (string.Equals(client, "web", StringComparison.OrdinalIgnoreCase))
+        {
+            SetRefreshTokenCookie(auth.RefreshToken);
+            return Ok(
+                new StatusResponseDto<object>
+                {
+                    Data = new
+                    {
+                        accessToken = auth.AccessToken,
+                        expiresIn,
+                        user = auth.User,
+                    },
+                }
+            );
+        }
 
         return Ok(
             new StatusResponseDto<object>
@@ -528,7 +582,7 @@ public class AuthController : BaseController
     /// <summary>Poll a bot device login once; on <c>authorized</c> the shared bot account is connected + vaulted.</summary>
     [HttpPost("twitch/bot/device/poll")]
     [Authorize(Roles = "admin")]
-    [EnableRateLimiting("auth")]
+    [EnableRateLimiting("device-poll")]
     [ProducesResponseType<StatusResponseDto<DeviceBotPollDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> PollBotDeviceLogin(
         [FromBody] DevicePollRequest body,

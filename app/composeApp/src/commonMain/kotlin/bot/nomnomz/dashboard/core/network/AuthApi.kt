@@ -21,6 +21,7 @@ import kotlinx.serialization.Serializable
 //   GET  /api/v1/auth/me                  →  StatusResponseDto<CurrentUserDto>   (requires Authorization: Bearer)
 //   POST /api/v1/auth/twitch/device       →  StatusResponseDto<DeviceCodeStart>  (anonymous)
 //   POST /api/v1/auth/twitch/device/poll  →  StatusResponseDto<DeviceLoginPoll>  (anonymous)
+//   POST /api/v1/auth/refresh             →  StatusResponseDto<AuthPayload>      (anonymous; renew a stale access token)
 interface AuthApi {
     /** The signed-in streamer for the active session, proving the captured JWT is valid. */
     suspend fun me(): ApiResult<CurrentUser>
@@ -36,6 +37,14 @@ interface AuthApi {
      * `pending` / `slow_down`; on `authorized` the session tokens ride [DeviceLoginPoll.auth].
      */
     suspend fun pollDeviceLogin(deviceCode: String): ApiResult<DeviceLoginPoll>
+
+    /**
+     * Renew the session — the "remembered" restore path on boot when the persisted access token has expired.
+     * Native passes the refresh token it holds; web passes null and the backend reads its HttpOnly cookie
+     * instead. The backend rotates the refresh token (returned in the body for native, kept in the cookie for
+     * web), so a native caller persists whatever [AuthPayload.refreshToken] comes back.
+     */
+    suspend fun refresh(refreshToken: String?): ApiResult<AuthPayload>
 }
 
 class RestAuthApi(private val client: ApiClient) : AuthApi {
@@ -46,8 +55,15 @@ class RestAuthApi(private val client: ApiClient) : AuthApi {
         client.postEnvelope("api/v1/auth/twitch/device")
 
     override suspend fun pollDeviceLogin(deviceCode: String): ApiResult<DeviceLoginPoll> =
-        client.postEnvelope("api/v1/auth/twitch/device/poll", DevicePollBody(deviceCode))
+        client.postEnvelope("api/v1/auth/twitch/device/poll${clientQuery()}", DevicePollBody(deviceCode))
+
+    override suspend fun refresh(refreshToken: String?): ApiResult<AuthPayload> =
+        client.postEnvelope("api/v1/auth/refresh${clientQuery()}", RefreshBody(refreshToken))
 }
+
+// Advertise the client class to the cookie-sensitive auth endpoints (device poll, refresh) so the backend
+// applies browser HttpOnly-cookie custody on web and token-in-body custody on native. Empty on native.
+private fun clientQuery(): String = authClientClass()?.let { "?client=$it" } ?: ""
 
 /** A started device authorization — the user code to show + the verification URL + the poll handle/interval. */
 @Serializable
@@ -66,3 +82,10 @@ data class DeviceLoginPoll(val status: String, val auth: AuthPayload? = null)
 /** The poll request body — the opaque device code from [DeviceCodeStart]. */
 @Serializable
 private data class DevicePollBody(val deviceCode: String)
+
+/**
+ * The refresh request body — the stored refresh token to exchange. Null on web (the token rides the HttpOnly
+ * cookie, not the body); the client's JSON omits nulls, so web sends `{}` and the backend reads the cookie.
+ */
+@Serializable
+private data class RefreshBody(val refreshToken: String?)

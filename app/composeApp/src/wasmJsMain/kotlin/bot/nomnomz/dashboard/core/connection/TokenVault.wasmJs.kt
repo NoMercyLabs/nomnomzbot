@@ -10,32 +10,18 @@
 
 package bot.nomnomz.dashboard.core.connection
 
-import kotlinx.browser.window
-import kotlinx.serialization.json.Json
-
-// Web token custody — the short-lived access token in sessionStorage, cleared on tab close
-// (frontend.md §6). The build is served first-party by its own bot (single origin), and the
-// refresh token rides the backend session/HttpOnly cookie set on callback, so the app never
-// persists a long-lived secret in JS. Documented XSS caveat, acceptable for a first-party origin.
+// Web token custody — DELIBERATELY persists nothing in JS-readable storage (frontend.md §6). On the browser
+// build the long-lived refresh token lives in an HttpOnly + Secure cookie the backend sets, which JS can't
+// read (so XSS can't steal it — localStorage/sessionStorage would be exfiltratable); the short-lived access
+// token lives only in memory (the SessionStore) for the session. A relaunch therefore holds no token: it
+// restores the session by calling /auth/refresh, which the browser answers by attaching that cookie
+// automatically. The non-secret active profile is what persists (localStorage, via ActiveProfileVault), not
+// any token. (Native keeps a real file/keychain vault — there is no browser XSS surface there.)
 actual class TokenVault : SessionTokenStore {
 
-    private val json: Json = Json { ignoreUnknownKeys = true }
+    actual override suspend fun read(profileId: String): SessionTokens? = null
 
-    private fun keyFor(profileId: String): String = "nnz.tokens.$profileId"
+    actual override suspend fun write(profileId: String, tokens: SessionTokens) = Unit
 
-    actual override suspend fun read(profileId: String): SessionTokens? {
-        val raw: String = window.sessionStorage.getItem(keyFor(profileId)) ?: return null
-        return runCatching { json.decodeFromString(SessionTokens.serializer(), raw) }.getOrNull()
-    }
-
-    actual override suspend fun write(profileId: String, tokens: SessionTokens) {
-        window.sessionStorage.setItem(
-            keyFor(profileId),
-            json.encodeToString(SessionTokens.serializer(), tokens),
-        )
-    }
-
-    actual override suspend fun clear(profileId: String) {
-        window.sessionStorage.removeItem(keyFor(profileId))
-    }
+    actual override suspend fun clear(profileId: String) = Unit
 }

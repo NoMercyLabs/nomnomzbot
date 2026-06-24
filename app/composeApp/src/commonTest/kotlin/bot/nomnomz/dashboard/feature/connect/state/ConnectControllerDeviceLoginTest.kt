@@ -10,6 +10,7 @@
 
 package bot.nomnomz.dashboard.feature.connect.state
 
+import bot.nomnomz.dashboard.core.connection.ActiveProfileStore
 import bot.nomnomz.dashboard.core.connection.ConnectionProfile
 import bot.nomnomz.dashboard.core.connection.LanDiscovery
 import bot.nomnomz.dashboard.core.connection.OAuthLauncher
@@ -42,6 +43,8 @@ import kotlinx.coroutines.test.runTest
 // Proves the no-secret Device Code Flow login the Connect screen drives: clicking "Connect with Twitch"
 // confirms the backend is reachable, mints a user code, polls, and on approval establishes the real session
 // (gate → Connected) — or surfaces a clean error when declined / unreachable, leaving the gate on Connect.
+// It also proves the "remembered" tier (frontend.md §6): restoreSession() signs a returning operator
+// straight in from custody (refreshing an expired token), and purges a session it can't restore.
 // The phase transition IS the observable outcome, so asserting it proves the gate renders the right screen.
 class ConnectControllerDeviceLoginTest {
 
@@ -51,8 +54,10 @@ class ConnectControllerDeviceLoginTest {
         systemApi: SystemApi,
         authApi: AuthApi = FakeAuthApi(),
         lanDiscovery: LanDiscovery = FakeLanDiscovery(),
+        vault: SessionTokenStore = InMemoryVault(),
+        profiles: ActiveProfileStore = InMemoryProfileStore(),
     ): ConnectController {
-        val session: SessionStore = SessionStore(FakeVault())
+        val session: SessionStore = SessionStore(vault, profiles)
         return ConnectController(
                 sessionStore = session,
                 authApi = authApi,
@@ -195,6 +200,150 @@ class ConnectControllerDeviceLoginTest {
         assertEquals(null, session.baseUrl())
         assertEquals(true, controller.status.value is ConnectStatus.Error)
     }
+
+    // ── Remembered tier (restore-on-boot) ─────────────────────────────────────
+
+    private val rememberedProfile =
+        ConnectionProfile(
+            id = "p1",
+            displayName = "self-host",
+            baseUrl = "http://localhost:5080",
+            source = ProfileSource.Manual,
+        )
+
+    @Test
+    fun restore_session_signs_a_returning_operator_straight_in_when_the_stored_token_is_valid() = runTest {
+        val vault = InMemoryVault()
+        val profiles = InMemoryProfileStore()
+        vault.write("p1", SessionTokens(accessToken = "stored-acc", refreshToken = "stored-ref"))
+        profiles.write(rememberedProfile)
+        val controller =
+            controller(
+                FakeSystemApi(ready = true),
+                FakeAuthApi(meResults = listOf(ApiResult.Ok(CurrentUser("u1", "eagle", "Eagle")))),
+                vault = vault,
+                profiles = profiles,
+            )
+
+        val restored: Boolean = controller.restoreSession()
+
+        val session: SessionStore = sessionOf(controller)
+        // The remembered session is live: gate on the shell, riding the stored token, identity attached.
+        assertEquals(true, restored)
+        assertEquals(SessionPhase.Connected, session.phase.value)
+        assertEquals("stored-acc", session.accessToken())
+        assertEquals("eagle", session.user.value?.username)
+        // No device-code dance, and no error flashed on the Connect screen.
+        assertEquals(ConnectStatus.Idle, controller.status.value)
+    }
+
+    @Test
+    fun restore_session_refreshes_an_expired_access_token_then_signs_in() = runTest {
+        val vault = InMemoryVault()
+        val profiles = InMemoryProfileStore()
+        vault.write("p1", SessionTokens(accessToken = "stale-acc", refreshToken = "good-ref"))
+        profiles.write(rememberedProfile)
+        val authApi =
+            FakeAuthApi(
+                // /me rejects the stored token, then accepts the refreshed one.
+                meResults =
+                    listOf(
+                        ApiResult.Failure(ApiError(401, "EXPIRED", "token expired")),
+                        ApiResult.Ok(CurrentUser("u1", "eagle", "Eagle")),
+                    ),
+                refreshResult =
+                    ApiResult.Ok(AuthPayload(accessToken = "fresh-acc", refreshToken = "rotated-ref")),
+            )
+        val controller =
+            controller(FakeSystemApi(ready = true), authApi, vault = vault, profiles = profiles)
+
+        val restored: Boolean = controller.restoreSession()
+
+        val session: SessionStore = sessionOf(controller)
+        assertEquals(true, restored)
+        assertEquals(SessionPhase.Connected, session.phase.value)
+        // The session now rides the REFRESHED access token, and the rotated refresh token was re-persisted.
+        assertEquals("fresh-acc", session.accessToken())
+        assertEquals(
+            SessionTokens(accessToken = "fresh-acc", refreshToken = "rotated-ref"),
+            vault.stored["p1"],
+        )
+    }
+
+    @Test
+    fun restore_session_refreshes_against_the_cookie_when_no_token_is_stored_in_js() = runTest {
+        // The web build holds no JS token — only the profile (its refresh token is an HttpOnly cookie). restore
+        // must still recover the session by refreshing (the browser attaches the cookie), with the controller
+        // passing a null token to the refresh call.
+        val vault = InMemoryVault()
+        val profiles = InMemoryProfileStore()
+        profiles.write(rememberedProfile) // profile only; vault deliberately empty (no JS token on web)
+        val authApi =
+            FakeAuthApi(
+                meResults = listOf(ApiResult.Ok(CurrentUser("u1", "eagle", "Eagle"))),
+                refreshResult =
+                    ApiResult.Ok(AuthPayload(accessToken = "cookie-acc", refreshToken = null)),
+            )
+        val controller =
+            controller(FakeSystemApi(ready = true), authApi, vault = vault, profiles = profiles)
+        // Watch the base URL the shared client would target the instant refresh runs: on a fresh boot the
+        // store has no active profile, so restore MUST pin it first or the real client short-circuits to
+        // "no connection" and the cookie refresh never reaches the network.
+        authApi.baseUrlProbe = sessionOf(controller)::baseUrl
+
+        val restored: Boolean = controller.restoreSession()
+
+        val session: SessionStore = sessionOf(controller)
+        assertEquals(true, restored)
+        assertEquals(SessionPhase.Connected, session.phase.value)
+        assertEquals("cookie-acc", session.accessToken())
+        assertEquals("eagle", session.user.value?.username)
+        assertEquals(ConnectStatus.Idle, controller.status.value)
+        // The client was aimed at the remembered backend before the cookie refresh — the regression guard.
+        assertEquals("http://localhost:5080", authApi.baseUrlAtRefresh)
+    }
+
+    @Test
+    fun restore_session_falls_to_connect_without_wiping_custody_when_it_cant_restore() = runTest {
+        val vault = InMemoryVault()
+        val profiles = InMemoryProfileStore()
+        vault.write("p1", SessionTokens(accessToken = "stale-acc", refreshToken = "dead-ref"))
+        profiles.write(rememberedProfile)
+        val authApi =
+            FakeAuthApi(
+                meResults = listOf(ApiResult.Failure(ApiError(401, "EXPIRED", "token expired"))),
+                refreshResult = ApiResult.Failure(ApiError(401, "REFRESH", "refresh rejected")),
+            )
+        val controller =
+            controller(FakeSystemApi(ready = true), authApi, vault = vault, profiles = profiles)
+
+        val restored: Boolean = controller.restoreSession()
+
+        val session: SessionStore = sessionOf(controller)
+        assertEquals(false, restored)
+        // The gate falls to Connect — the in-memory session is dropped...
+        assertEquals(SessionPhase.NotConnected, session.phase.value)
+        assertEquals(null, session.accessToken())
+        // ...but the remembered backend is KEPT. A transient failure (or a momentarily-down backend) must not
+        // forget the user's connection and force a re-login; only an explicit logout wipes custody.
+        assertEquals(
+            SessionTokens(accessToken = "stale-acc", refreshToken = "dead-ref"),
+            vault.stored["p1"],
+        )
+        assertEquals(rememberedProfile, profiles.stored)
+        // And nothing is flashed on the Connect screen; it simply shows the sign-in.
+        assertEquals(ConnectStatus.Idle, controller.status.value)
+    }
+
+    @Test
+    fun restore_session_is_a_no_op_when_no_session_was_remembered() = runTest {
+        val controller = controller(FakeSystemApi(ready = true))
+
+        val restored: Boolean = controller.restoreSession()
+
+        assertEquals(false, restored)
+        assertEquals(SessionPhase.NotConnected, sessionOf(controller).phase.value)
+    }
 }
 
 private class FakeSystemApi(
@@ -250,7 +399,7 @@ private class FakeSystemApi(
     override suspend fun completeSetup(): ApiResult<Unit> = ApiResult.Ok(Unit)
 }
 
-/** An in-memory [AuthApi] so the controller tests drive the device-login outcomes without any HTTP. */
+/** An in-memory [AuthApi] so the controller tests drive the device-login + restore outcomes without HTTP. */
 private class FakeAuthApi(
     private val start: ApiResult<DeviceCodeStart> =
         ApiResult.Ok(
@@ -263,22 +412,66 @@ private class FakeAuthApi(
             )
         ),
     private val poll: ApiResult<DeviceLoginPoll> = ApiResult.Ok(DeviceLoginPoll("pending")),
-    private val me: ApiResult<CurrentUser> =
-        ApiResult.Ok(CurrentUser(id = "u1", username = "eagle", displayName = "Eagle")),
+    // Successive /me results — restore calls /me once per token it tries (stored, then refreshed); the last
+    // entry repeats. Defaults to a single signed-in streamer, which the device-login tests read once.
+    private val meResults: List<ApiResult<CurrentUser>> =
+        listOf(ApiResult.Ok(CurrentUser(id = "u1", username = "eagle", displayName = "Eagle"))),
+    private val refreshResult: ApiResult<AuthPayload> =
+        ApiResult.Failure(ApiError(401, "REFRESH", "no refresh configured")),
 ) : AuthApi {
-    override suspend fun me(): ApiResult<CurrentUser> = me
+    private var meCall: Int = 0
+
+    /** Wired by a test to the session's base-URL provider, to prove the client was aimed before [refresh]. */
+    var baseUrlProbe: (() -> String?)? = null
+
+    /** The base URL the (real) shared client WOULD target at the moment [refresh] ran — null ⇒ "no connection". */
+    var baseUrlAtRefresh: String? = null
+        private set
+
+    override suspend fun me(): ApiResult<CurrentUser> {
+        val index: Int = minOf(meCall, meResults.lastIndex)
+        meCall++
+        return meResults[index]
+    }
 
     override suspend fun startDeviceLogin(): ApiResult<DeviceCodeStart> = start
 
     override suspend fun pollDeviceLogin(deviceCode: String): ApiResult<DeviceLoginPoll> = poll
+
+    override suspend fun refresh(refreshToken: String?): ApiResult<AuthPayload> {
+        baseUrlAtRefresh = baseUrlProbe?.invoke()
+        return refreshResult
+    }
 }
 
-private class FakeVault : SessionTokenStore {
-    override suspend fun read(profileId: String): SessionTokens? = null
+/** An in-memory [SessionTokenStore] the restore tests seed + assert against, without any OS vault. */
+private class InMemoryVault : SessionTokenStore {
+    val stored: MutableMap<String, SessionTokens> = mutableMapOf()
 
-    override suspend fun write(profileId: String, tokens: SessionTokens) = Unit
+    override suspend fun read(profileId: String): SessionTokens? = stored[profileId]
 
-    override suspend fun clear(profileId: String) = Unit
+    override suspend fun write(profileId: String, tokens: SessionTokens) {
+        stored[profileId] = tokens
+    }
+
+    override suspend fun clear(profileId: String) {
+        stored.remove(profileId)
+    }
+}
+
+/** An in-memory [ActiveProfileStore] the restore tests seed + assert against, without any OS file. */
+private class InMemoryProfileStore : ActiveProfileStore {
+    var stored: ConnectionProfile? = null
+
+    override suspend fun read(): ConnectionProfile? = stored
+
+    override suspend fun write(profile: ConnectionProfile) {
+        stored = profile
+    }
+
+    override suspend fun clear() {
+        stored = null
+    }
 }
 
 /** An in-memory [LanDiscovery] so the controller tests drive the discovered feed without any mDNS. */

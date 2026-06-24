@@ -15,7 +15,8 @@ package bot.nomnomz.dashboard.core.connection
 //
 //   Desktop: persisted under the OS app-data dir (this slice); the OS keychain (DPAPI/Keychain/
 //            libsecret) replaces the file store in the secret-custody slice — same interface.
-//   Web:     sessionStorage (cleared on tab close); the refresh token rides the backend session.
+//   Web:     persists NOTHING — the refresh token lives in an HttpOnly cookie the backend sets (JS can't
+//            read it) and the access token stays in memory; a relaunch restores via /auth/refresh (cookie).
 expect class TokenVault() : SessionTokenStore {
     override suspend fun read(profileId: String): SessionTokens?
 

@@ -31,8 +31,12 @@ public sealed record OAuthCallbackDto
     public string? RedirectUri { get; init; }
 }
 
-/// <summary>Token refresh request.</summary>
-public sealed record RefreshTokenRequest(string RefreshToken);
+/// <summary>
+/// Token refresh request. The refresh token is optional in the body: the served-web dashboard sends none and
+/// relies on the HttpOnly cookie the browser attaches automatically, while native clients send the token they
+/// hold in their own vault.
+/// </summary>
+public sealed record RefreshTokenRequest(string? RefreshToken);
 
 /// <summary>The request fingerprint captured for a login session (identity-auth §4).</summary>
 public sealed record AuthContextDto(string ClientType, string? IpAddress, string? UserAgent);

@@ -15,15 +15,14 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
-// Proves the real session state machine that drives the App gate (frontend.md §5/§6). The gate
-// renders Connect while NotConnected and the Main shell while Connected, so these phase transitions
-// ARE the routing decision — if they break, the gate routes wrong. A connect must:
-//   (1) flip the phase to Connected, (2) pin the active profile, (3) persist tokens to the vault,
-//   (4) expose the base URL + bearer the shared ApiClient reads.
-// A disconnect must undo all of that and clear the vault entry.
+// Proves the real session state machine that drives the App gate (frontend.md §5/§6). The gate renders
+// Connect while NotConnected and the Main shell while Connected, so these phase transitions ARE the routing
+// decision — if they break, the gate routes wrong. A connect must: (1) flip the phase to Connected,
+// (2) pin the active profile, (3) persist BOTH the tokens (vault) and the profile (so a relaunch knows the
+// vault key + base URL), (4) expose the base URL + bearer the shared ApiClient reads. A disconnect undoes
+// all of that. And the remembered session must read back exactly through [loadPersisted] / [arm] so the
+// boot restore path can validate it before committing the gate.
 class SessionStoreTest {
-
-    private fun store(vault: TokenVault = TokenVault()): SessionStore = SessionStore(vault)
 
     private val profile =
         ConnectionProfile(
@@ -42,7 +41,7 @@ class SessionStoreTest {
 
     @Test
     fun starts_not_connected_with_no_profile_or_token() {
-        val store: SessionStore = store()
+        val store: SessionStore = SessionStore(FakeTokenVault(), FakeProfileStore())
         assertEquals(SessionPhase.NotConnected, store.phase.value)
         assertNull(store.activeProfile.value)
         assertNull(store.baseUrl())
@@ -50,9 +49,10 @@ class SessionStoreTest {
     }
 
     @Test
-    fun connect_flips_to_connected_and_exposes_profile_url_and_bearer() = runTest {
+    fun connect_flips_to_connected_and_persists_profile_and_tokens() = runTest {
         val vault = FakeTokenVault()
-        val store: SessionStore = SessionStore(vault)
+        val profiles = FakeProfileStore()
+        val store: SessionStore = SessionStore(vault, profiles)
 
         store.connect(profile, tokens)
 
@@ -61,13 +61,14 @@ class SessionStoreTest {
         // The shared ApiClient reads exactly these to target + authorize requests.
         assertEquals("http://localhost:5080", store.baseUrl())
         assertEquals("jwt-access-token", store.accessToken())
-        // Tokens were persisted for restore-on-relaunch.
-        assertEquals(tokens, vault.stored["profile-1"])
+        // Both halves of the remembered session are persisted for restore-on-relaunch:
+        assertEquals(tokens, vault.stored["profile-1"]) // the secret tokens, keyed by profile id
+        assertEquals(profile, profiles.stored) // the profile itself (the vault key + base URL)
     }
 
     @Test
     fun set_user_surfaces_the_signed_in_streamer_to_the_shell() = runTest {
-        val store: SessionStore = SessionStore(FakeTokenVault())
+        val store: SessionStore = SessionStore(FakeTokenVault(), FakeProfileStore())
         store.connect(profile, tokens)
 
         store.setUser(
@@ -85,9 +86,10 @@ class SessionStoreTest {
     }
 
     @Test
-    fun disconnect_clears_session_user_and_vault_then_returns_to_connect() = runTest {
+    fun disconnect_clears_user_profile_and_vault_then_returns_to_connect() = runTest {
         val vault = FakeTokenVault()
-        val store: SessionStore = SessionStore(vault)
+        val profiles = FakeProfileStore()
+        val store: SessionStore = SessionStore(vault, profiles)
         store.connect(profile, tokens)
         store.setUser(SessionUser("1", "u", "U", null))
 
@@ -98,8 +100,60 @@ class SessionStoreTest {
         assertNull(store.user.value)
         assertNull(store.baseUrl())
         assertNull(store.accessToken())
-        // The vault entry is gone — a relaunch finds no session to restore.
+        // Nothing remains for a relaunch to restore — both halves are gone.
         assertNull(vault.stored["profile-1"])
+        assertNull(profiles.stored)
+    }
+
+    @Test
+    fun arm_exposes_profile_and_bearer_without_committing_the_gate_or_persisting() = runTest {
+        val vault = FakeTokenVault()
+        val profiles = FakeProfileStore()
+        val store: SessionStore = SessionStore(vault, profiles)
+
+        store.arm(profile, tokens)
+
+        // The shared ApiClient can now reach + authorize (so restore can call /me), but the gate has NOT
+        // advanced and nothing was persisted — a rejected /me must be able to roll back cleanly.
+        assertEquals("http://localhost:5080", store.baseUrl())
+        assertEquals("jwt-access-token", store.accessToken())
+        assertEquals(SessionPhase.NotConnected, store.phase.value)
+        assertNull(vault.stored["profile-1"])
+        assertNull(profiles.stored)
+    }
+
+    @Test
+    fun load_persisted_returns_the_remembered_profile_and_tokens_after_connect() = runTest {
+        val vault = FakeTokenVault()
+        val profiles = FakeProfileStore()
+        SessionStore(vault, profiles).connect(profile, tokens)
+
+        // A FRESH store over the same custody (i.e. a relaunch) reads back exactly what connect persisted.
+        val remembered: RestorableSession? = SessionStore(vault, profiles).loadPersisted()
+
+        assertEquals(profile, remembered?.profile)
+        assertEquals(tokens, remembered?.tokens)
+    }
+
+    @Test
+    fun load_persisted_is_null_when_nothing_was_remembered() = runTest {
+        val store: SessionStore = SessionStore(FakeTokenVault(), FakeProfileStore())
+        assertNull(store.loadPersisted())
+    }
+
+    @Test
+    fun load_persisted_returns_the_profile_with_null_tokens_when_no_token_is_stored() = runTest {
+        // The web build persists the profile (localStorage) but NO token — its refresh token is an HttpOnly
+        // cookie. loadPersisted must still surface the profile (with null tokens) so restore can refresh
+        // against that cookie, rather than reporting "nothing remembered".
+        val profiles = FakeProfileStore()
+        profiles.stored = profile
+
+        val store: SessionStore = SessionStore(FakeTokenVault(), profiles)
+        val remembered: RestorableSession? = store.loadPersisted()
+
+        assertEquals(profile, remembered?.profile)
+        assertNull(remembered?.tokens)
     }
 }
 
@@ -115,5 +169,20 @@ private class FakeTokenVault : SessionTokenStore {
 
     override suspend fun clear(profileId: String) {
         stored.remove(profileId)
+    }
+}
+
+/** An in-memory [ActiveProfileStore] so the session tests run without touching the OS file/localStorage. */
+private class FakeProfileStore : ActiveProfileStore {
+    var stored: ConnectionProfile? = null
+
+    override suspend fun read(): ConnectionProfile? = stored
+
+    override suspend fun write(profile: ConnectionProfile) {
+        stored = profile
+    }
+
+    override suspend fun clear() {
+        stored = null
     }
 }

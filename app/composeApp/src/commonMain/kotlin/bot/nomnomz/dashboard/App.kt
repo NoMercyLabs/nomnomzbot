@@ -37,6 +37,7 @@ import bot.nomnomz.dashboard.feature.language.ui.LanguagePicker
 import bot.nomnomz.dashboard.feature.setup.ui.SetupWizardScreen
 import bot.nomnomz.dashboard.feature.shell.ui.ShellScreen
 import bot.nomnomz.dashboard.feature.splash.ui.SplashScreen
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -72,7 +73,18 @@ fun App(graph: AppGraph = remember { AppGraph() }) {
 
         var booting: Boolean by remember { mutableStateOf(true) }
         LaunchedEffect(Unit) {
+            // Restore a remembered session (frontend.md §6) under the splash, so a returning operator lands
+            // straight on the shell instead of re-running the device-code login. Run it concurrently with the
+            // splash hold and join before lifting the gate, so the destination resolves once (no Connect→Shell
+            // flash). Skip when a session is already in flight (e.g. the web post-OAuth redirect arm in main()).
+            val restore: Job? =
+                if (graph.sessionStore.phase.value == SessionPhase.NotConnected) {
+                    launch { graph.connectController.restoreSession() }
+                } else {
+                    null
+                }
             delay(SPLASH_HOLD_MS)
+            restore?.join()
             booting = false
         }
 

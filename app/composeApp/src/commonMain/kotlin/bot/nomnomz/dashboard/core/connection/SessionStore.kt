@@ -21,7 +21,10 @@ import kotlinx.coroutines.flow.asStateFlow
 //
 // This slice is single-profile (the Connect screen sets one active profile and signs in against it);
 // the multi-origin saved-list switcher (native) layers on this same store in the connection slice.
-class SessionStore(private val tokenVault: SessionTokenStore = TokenVault()) {
+class SessionStore(
+    private val tokenVault: SessionTokenStore = TokenVault(),
+    private val profileStore: ActiveProfileStore = ActiveProfileVault(),
+) {
 
     private val _phase: MutableStateFlow<SessionPhase> = MutableStateFlow(SessionPhase.NotConnected)
     private val _activeProfile: MutableStateFlow<ConnectionProfile?> = MutableStateFlow(null)
@@ -75,7 +78,32 @@ class SessionStore(private val tokenVault: SessionTokenStore = TokenVault()) {
         _activeProfile.value = profile
         tokens = sessionTokens
         tokenVault.write(profile.id, sessionTokens)
+        // Remember the profile too, so a relaunch knows which backend + vault key to restore from.
+        profileStore.write(profile)
         _phase.value = SessionPhase.Connected
+    }
+
+    /**
+     * Stage a candidate [profile] + [sessionTokens] onto the store WITHOUT persisting them or flipping the
+     * gate to Connected — so restore-on-boot can arm the shared [ApiClient] (base URL + bearer) and prove
+     * the token via `/me` before committing. On success the caller follows with [connect] (which persists +
+     * advances the gate); on failure with [disconnect] (which clears the stale session).
+     */
+    fun arm(profile: ConnectionProfile, sessionTokens: SessionTokens) {
+        _activeProfile.value = profile
+        tokens = sessionTokens
+    }
+
+    /**
+     * Read the remembered session — the persisted active profile and (if any) its vaulted tokens — for
+     * restore on boot. Returns null only when NO profile was remembered (fresh install / after a logout). The
+     * tokens may be null even with a profile present: the web build keeps no token in JS (its refresh token
+     * rides an HttpOnly cookie), so restore proves the session by refreshing against that cookie.
+     */
+    suspend fun loadPersisted(): RestorableSession? {
+        val profile: ConnectionProfile = profileStore.read() ?: return null
+        val saved: SessionTokens? = tokenVault.read(profile.id)
+        return RestorableSession(profile, saved)
     }
 
     /** Attach the signed-in identity resolved from `/me` after [connect]. */
@@ -83,15 +111,37 @@ class SessionStore(private val tokenVault: SessionTokenStore = TokenVault()) {
         _user.value = sessionUser
     }
 
+    /**
+     * Drop ONLY the in-memory session — active profile, tokens, signed-in user — and return the gate to
+     * Connect, WITHOUT clearing persistent custody (the vault + remembered profile + the HttpOnly cookie stay).
+     * Used when a boot restore can't complete (e.g. an expired token, an unreachable backend): a transient
+     * failure must not forget the remembered backend and force a fresh sign-in. An explicit [disconnect]
+     * (logout) is what wipes custody.
+     */
+    fun clearActiveSession() {
+        _activeProfile.value = null
+        tokens = null
+        _user.value = null
+        _phase.value = SessionPhase.NotConnected
+    }
+
     /** Drop the session — clear the vault entry, forget the profile, return the gate to Connect. */
     suspend fun disconnect() {
         _activeProfile.value?.let { tokenVault.clear(it.id) }
+        profileStore.clear()
         tokens = null
         _user.value = null
         _activeProfile.value = null
         _phase.value = SessionPhase.NotConnected
     }
 }
+
+/**
+ * A remembered session read back from custody on boot — the active profile and its persisted tokens, if any.
+ * [tokens] is null on the web build (no JS-readable token store; the refresh token is an HttpOnly cookie),
+ * so restore refreshes against the cookie rather than a stored token.
+ */
+data class RestorableSession(val profile: ConnectionProfile, val tokens: SessionTokens?)
 
 /** The signed-in streamer identity surfaced to the shell (frontend.md §6). */
 data class SessionUser(

@@ -309,6 +309,30 @@ try
             }
         );
 
+        // Device-login polling: the Device Code Flow legitimately polls every ~5s (≈12 req/min) until the
+        // operator approves, for up to the code's lifetime — far above the brute-force "auth" budget, so it
+        // gets its own generous per-IP allowance. 60 req/min (1/s) still bounds a flood (real polling never
+        // exceeds it, even with a concurrent streamer + bot login) while never throttling a legitimate login.
+        // The backend's own DeviceCodePollThrottle separately caps how often each code reaches Twitch.
+        options.AddPolicy(
+            "device-poll",
+            context =>
+            {
+                string ip = context.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
+                return RateLimitPartition.GetSlidingWindowLimiter(
+                    $"device-poll:{ip}",
+                    _ =>
+                        new()
+                        {
+                            PermitLimit = 60,
+                            Window = TimeSpan.FromMinutes(1),
+                            SegmentsPerWindow = 6,
+                            QueueLimit = 0,
+                        }
+                );
+            }
+        );
+
         options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
     });
 

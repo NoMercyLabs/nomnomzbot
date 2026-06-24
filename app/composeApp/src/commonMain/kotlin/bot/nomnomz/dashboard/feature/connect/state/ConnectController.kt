@@ -15,7 +15,9 @@ import bot.nomnomz.dashboard.core.connection.LanDiscovery
 import bot.nomnomz.dashboard.core.connection.OAuthFlow
 import bot.nomnomz.dashboard.core.connection.OAuthLauncher
 import bot.nomnomz.dashboard.core.connection.ProfileSource
+import bot.nomnomz.dashboard.core.connection.RestorableSession
 import bot.nomnomz.dashboard.core.connection.SessionStore
+import bot.nomnomz.dashboard.core.connection.servedOriginProfile
 import bot.nomnomz.dashboard.core.connection.SessionTokens
 import bot.nomnomz.dashboard.core.connection.SessionUser
 import bot.nomnomz.dashboard.core.network.ApiResult
@@ -260,6 +262,71 @@ class ConnectController(
     suspend fun completeWithSession(profile: ConnectionProfile, tokens: SessionTokens) {
         _status.value = ConnectStatus.Connecting
         establishSession(profile, tokens)
+    }
+
+    /**
+     * Restore a remembered session on boot (frontend.md §6 — the "remembered" tier): read the persisted
+     * profile + tokens, arm the shared client, and prove the access token via `/me`. If that token has
+     * expired, exchange the stored refresh token once for a fresh pair and re-prove. On success the gate
+     * advances straight to the shell — no device-code dance for a returning operator. On any failure the
+     * stale session is purged and the gate stays on Connect. Deliberately never sets an error on [status]:
+     * a failed restore is a silent fall-through to sign-in, not a visible error on the Connect screen.
+     */
+    suspend fun restoreSession(): Boolean {
+        val remembered: RestorableSession? = sessionStore.loadPersisted()
+        // Web's backend is always the serving origin, so it restores from the HttpOnly cookie even with no
+        // persisted profile (e.g. localStorage was cleared); native relies on the saved profile.
+        val profile: ConnectionProfile = remembered?.profile ?: servedOriginProfile() ?: return false
+        val stored: SessionTokens? = remembered?.tokens
+
+        // Point the shared client at the backend BEFORE any call: both the stored-token probe and the cookie
+        // refresh need its base URL, and on a fresh boot the store has no active profile yet — so without this
+        // the ApiClient short-circuits to "no connection" and refresh never reaches the network.
+        sessionStore.pin(profile)
+
+        // 1. A stored access token (the native vault, or a same-tab web reload) — prove it first.
+        if (stored != null && attachSession(profile, stored)) return true
+
+        // 2. Renew — native sends the refresh token it holds; web sends null and the backend reads its
+        //    HttpOnly cookie. Either way this gets a fresh access token without another device-code dance.
+        when (val refreshed: ApiResult<AuthPayload> = authApi.refresh(stored?.refreshToken)) {
+            is ApiResult.Ok -> {
+                val renewed: SessionTokens =
+                    SessionTokens(
+                        accessToken = refreshed.value.accessToken,
+                        // The backend rotates the refresh token (web keeps it in the cookie, so the body
+                        // carries none); keep the prior one only if nothing came back.
+                        refreshToken = refreshed.value.refreshToken ?: stored?.refreshToken,
+                    )
+                if (attachSession(profile, renewed)) return true
+            }
+
+            is ApiResult.Failure -> Unit
+        }
+
+        // Couldn't restore (expired/absent token or an unreachable backend) — drop only the in-memory session
+        // but KEEP the remembered backend + cookie, so a transient failure never forces a re-login. The gate
+        // falls to Connect; an explicit logout is what clears custody.
+        sessionStore.clearActiveSession()
+        return false
+    }
+
+    /**
+     * Arm [tokens] onto the session (so the shared client sends them), prove them via `/me`, and commit the
+     * session (gate → Connected, tokens persisted) on success. Returns false WITHOUT touching [status] when
+     * the token doesn't validate, leaving the caller to try a refresh or fall through to Connect.
+     */
+    private suspend fun attachSession(profile: ConnectionProfile, tokens: SessionTokens): Boolean {
+        sessionStore.arm(profile, tokens)
+        return when (val me: ApiResult<CurrentUser> = authApi.me()) {
+            is ApiResult.Ok -> {
+                sessionStore.connect(profile, tokens)
+                sessionStore.setUser(me.value.toSessionUser())
+                true
+            }
+
+            is ApiResult.Failure -> false
+        }
     }
 
     /**
