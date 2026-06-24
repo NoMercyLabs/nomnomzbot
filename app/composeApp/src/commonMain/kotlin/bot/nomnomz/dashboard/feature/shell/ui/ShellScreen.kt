@@ -14,6 +14,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -28,14 +29,20 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.DrawerState
+import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.ModalDrawerSheet
+import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -45,6 +52,8 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import bot.nomnomz.dashboard.core.connection.SessionUser
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
@@ -58,6 +67,8 @@ import bot.nomnomz.dashboard.feature.shell.nav.NavGroup
 import bot.nomnomz.dashboard.feature.shell.nav.NavPage
 import bot.nomnomz.dashboard.feature.shell.nav.ShellNav
 import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.app_name
 import nomnomzbot.composeapp.generated.resources.language_label
@@ -77,6 +88,7 @@ import nomnomzbot.composeapp.generated.resources.shell_nav_dashboard
 import nomnomzbot.composeapp.generated.resources.shell_nav_economy
 import nomnomzbot.composeapp.generated.resources.shell_nav_games
 import nomnomzbot.composeapp.generated.resources.shell_nav_integrations
+import nomnomzbot.composeapp.generated.resources.shell_nav_menu_open
 import nomnomzbot.composeapp.generated.resources.shell_nav_moderation
 import nomnomzbot.composeapp.generated.resources.shell_nav_overlays
 import nomnomzbot.composeapp.generated.resources.shell_nav_rewards
@@ -99,6 +111,11 @@ import org.jetbrains.compose.resources.stringResource
 // sidebar is rendered from the single [ShellNav] inventory filtered by the caller's [ManagementRole] — to
 // move or re-gate a page you edit that one list, never this file. Only the Integrations page hosts its real
 // screen today; the rest show a labelled placeholder until their slice lands.
+// Below this width the persistent sidebar would crowd the content, so the shell switches to a mobile layout:
+// the sidebar becomes a hamburger-toggled overlay drawer. A layout breakpoint (a window concern), not a
+// design-system spacing token.
+private val CompactBreakpoint: Dp = 720.dp
+
 @Composable
 fun ShellScreen(
     integrationsController: IntegrationsController,
@@ -110,22 +127,66 @@ fun ShellScreen(
     val tokens = LocalTokens.current
     var selected: ShellRoute by remember { mutableStateOf(ShellRoute.Dashboard) }
 
-    Row(modifier = Modifier.fillMaxSize().background(tokens.background)) {
-        Sidebar(
-            role = role,
-            selected = selected,
-            onSelect = { selected = it },
-            user = user,
-            languageController = languageController,
-            onLogout = onLogout,
-        )
-        Column(modifier = Modifier.fillMaxSize()) {
-            TopBar(title = selected.label(), channelName = user?.displayName)
-            when (selected) {
-                ShellRoute.Integrations -> IntegrationsScreen(controller = integrationsController)
-                else -> PagePlaceholder(title = selected.label())
+    BoxWithConstraints(modifier = Modifier.fillMaxSize().background(tokens.background)) {
+        val compact: Boolean = maxWidth < CompactBreakpoint
+
+        if (compact) {
+            // Mobile: the sidebar is an overlay drawer behind a hamburger; picking a page closes it.
+            val drawerState: DrawerState = rememberDrawerState(DrawerValue.Closed)
+            val scope: CoroutineScope = rememberCoroutineScope()
+
+            ModalNavigationDrawer(
+                drawerState = drawerState,
+                drawerContent = {
+                    ModalDrawerSheet(drawerContainerColor = tokens.sidebar) {
+                        Sidebar(
+                            role = role,
+                            selected = selected,
+                            onSelect = {
+                                selected = it
+                                scope.launch { drawerState.close() }
+                            },
+                            user = user,
+                            languageController = languageController,
+                            onLogout = onLogout,
+                        )
+                    }
+                },
+            ) {
+                Column(modifier = Modifier.fillMaxSize()) {
+                    TopBar(
+                        title = selected.label(),
+                        channelName = user?.displayName,
+                        onMenu = { scope.launch { drawerState.open() } },
+                    )
+                    ShellContent(selected = selected, integrationsController = integrationsController)
+                }
+            }
+        } else {
+            // Desktop / wide: persistent sidebar beside the content.
+            Row(modifier = Modifier.fillMaxSize()) {
+                Sidebar(
+                    role = role,
+                    selected = selected,
+                    onSelect = { selected = it },
+                    user = user,
+                    languageController = languageController,
+                    onLogout = onLogout,
+                )
+                Column(modifier = Modifier.fillMaxSize()) {
+                    TopBar(title = selected.label(), channelName = user?.displayName, onMenu = null)
+                    ShellContent(selected = selected, integrationsController = integrationsController)
+                }
             }
         }
+    }
+}
+
+@Composable
+private fun ShellContent(selected: ShellRoute, integrationsController: IntegrationsController) {
+    when (selected) {
+        ShellRoute.Integrations -> IntegrationsScreen(controller = integrationsController)
+        else -> PagePlaceholder(title = selected.label())
     }
 }
 
@@ -322,7 +383,7 @@ private fun Avatar(name: String) {
 }
 
 @Composable
-private fun TopBar(title: String, channelName: String?) {
+private fun TopBar(title: String, channelName: String?, onMenu: (() -> Unit)?) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
@@ -337,7 +398,13 @@ private fun TopBar(title: String, channelName: String?) {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            Text(text = title, style = typography.xl, color = tokens.foreground)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(spacing.s3),
+            ) {
+                if (onMenu != null) HamburgerButton(onClick = onMenu)
+                Text(text = title, style = typography.xl, color = tokens.foreground)
+            }
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(spacing.s3),
@@ -347,6 +414,32 @@ private fun TopBar(title: String, channelName: String?) {
             }
         }
         HorizontalDivider(color = tokens.border)
+    }
+}
+
+@Composable
+private fun HamburgerButton(onClick: () -> Unit) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val label: String = stringResource(Res.string.shell_nav_menu_open)
+
+    Column(
+        modifier = Modifier
+            .clip(RoundedCornerShape(tokens.radius.md))
+            .clickable(onClick = onClick)
+            .semantics { contentDescription = label }
+            .padding(spacing.s2),
+        verticalArrangement = Arrangement.spacedBy(spacing.s1),
+    ) {
+        repeat(3) {
+            Box(
+                modifier = Modifier
+                    .width(spacing.s4)
+                    .height(spacing.s0_5)
+                    .clip(RoundedCornerShape(tokens.radius.sm))
+                    .background(tokens.foreground),
+            )
+        }
     }
 }
 
