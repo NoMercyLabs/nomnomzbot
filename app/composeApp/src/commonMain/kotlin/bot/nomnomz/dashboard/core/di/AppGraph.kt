@@ -94,6 +94,7 @@ import bot.nomnomz.dashboard.feature.rewards.state.RewardsController
 import bot.nomnomz.dashboard.feature.roles.state.RolesController
 import bot.nomnomz.dashboard.feature.settings.state.JournalPortabilityController
 import bot.nomnomz.dashboard.feature.settings.state.SettingsController
+import bot.nomnomz.dashboard.feature.shell.state.ShellAccessController
 import bot.nomnomz.dashboard.feature.settings.state.TwitchAppCredentialsController
 import bot.nomnomz.dashboard.feature.songrequests.state.SongRequestsController
 import bot.nomnomz.dashboard.feature.timers.state.TimersController
@@ -265,6 +266,11 @@ class AppGraph {
 
     val rolesController: RolesController =
         RolesController(channelsApi = channelsApi, rolesApi = rolesApi)
+
+    // The shell's role resolver — fetches the caller's own /effective/me on session establish so the sidebar and
+    // every write affordance gate by the REAL Plane-B ManagementRole, replacing the old broadcaster hardcode.
+    val shellAccessController: ShellAccessController =
+        ShellAccessController(channelsApi = channelsApi, rolesApi = rolesApi)
 
     val musicController: MusicController =
         MusicController(channelsApi = channelsApi, musicApi = musicApi)

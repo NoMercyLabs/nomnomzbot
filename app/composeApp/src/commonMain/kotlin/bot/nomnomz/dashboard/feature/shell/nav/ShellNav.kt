@@ -93,7 +93,25 @@ object ShellNav {
             NavPage(ShellRoute.Settings, NavGroup.Pinned, ManagementRole.Moderator, null),
         )
 
-    /** The pages a caller of [role] may see — those whose read floor the role clears (frontend-ia.md §7). */
-    fun visiblePagesFor(role: ManagementRole): List<NavPage> =
-        pages.filter { role.level >= it.readFloor.level }
+    /**
+     * The pages a caller of [role] may see — those whose read floor the role clears (frontend-ia.md §7). A
+     * `null` [role] is a **viewer** (no Plane-B management role): Plane A "never renders a dashboard"
+     * (frontend-ia.md §1/§3), and every shell page floors at Moderator+, so a viewer sees **no** management
+     * pages — the shell routes them to the participation-only surface instead.
+     */
+    fun visiblePagesFor(role: ManagementRole?): List<NavPage> =
+        if (role == null) emptyList()
+        else pages.filter { role.level >= it.readFloor.level }
+
+    /**
+     * Whether a caller of [role] may MUTATE the [route]'s page — its write affordances (frontend-ia.md §7,
+     * "disable-with-reason for actions below the manage floor"). True iff the page has a manage floor and the
+     * role clears it; a read-only page (`manageFloor == null`) and a viewer (`role == null`) can manage
+     * nothing. The screen disables its write controls when this is false; the backend re-checks every write.
+     */
+    fun canManage(role: ManagementRole?, route: ShellRoute): Boolean {
+        if (role == null) return false
+        val floor: ManagementRole = pages.first { it.route == route }.manageFloor ?: return false
+        return role.level >= floor.level
+    }
 }

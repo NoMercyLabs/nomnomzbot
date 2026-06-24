@@ -26,8 +26,11 @@ namespace NomNomzBot.Api.Controllers.V1;
 [Route("api/v{version:apiVersion}/channels/{channelId}/roles")]
 [Authorize]
 [Tags("Roles")]
-public class RolesController(IMembershipService memberships, ICurrentUserService currentUser)
-    : BaseController
+public class RolesController(
+    IMembershipService memberships,
+    IRoleResolver roleResolver,
+    ICurrentUserService currentUser
+) : BaseController
 {
     public record SetRoleBody(Guid UserId, ManagementRole Role);
 
@@ -82,6 +85,37 @@ public class RolesController(IMembershipService memberships, ICurrentUserService
         return ResultResponse(
             await memberships.RemoveManagementRoleAsync(broadcasterId, userId, caller, ct)
         );
+    }
+
+    /// <summary>
+    /// The authenticated caller's own resolved access on this channel (roles-permissions §5.1). The shell calls
+    /// this on session establish to learn the caller's effective <see cref="ManagementRole"/> and drive the
+    /// role-correct sidebar + write affordances. Self-introspection, so it is gated by entry (Gate 1) only — a
+    /// pure viewer with no management role must be able to learn they have none (and so be routed to the
+    /// participation-only surface), which a <c>roles:read</c> (Moderator) floor would forbid.
+    /// </summary>
+    [HttpGet("effective/me")]
+    public async Task<IActionResult> EffectiveMe(string channelId, CancellationToken ct)
+    {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
+        if (!TryGetCaller(out Guid caller))
+            return UnauthenticatedResponse();
+        return ResultResponse(await roleResolver.ResolveAccessAsync(caller, broadcasterId, ct));
+    }
+
+    /// <summary>
+    /// A channel member's resolved access (roles-permissions §5.1). Floors at <c>roles:read</c> (Moderator) —
+    /// inspecting another user's access is a management read; <see cref="EffectiveMe"/> is the unfloored
+    /// self-introspection sibling.
+    /// </summary>
+    [HttpGet("effective/{userId:guid}")]
+    [RequireAction("roles:read")]
+    public async Task<IActionResult> Effective(string channelId, Guid userId, CancellationToken ct)
+    {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
+        return ResultResponse(await roleResolver.ResolveAccessAsync(userId, broadcasterId, ct));
     }
 
     private bool TryGetCaller(out Guid caller) => Guid.TryParse(currentUser.UserId, out caller);

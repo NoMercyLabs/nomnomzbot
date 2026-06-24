@@ -11,6 +11,7 @@
 using FluentAssertions;
 using Microsoft.AspNetCore.Mvc;
 using NomNomzBot.Api.Controllers.V1;
+using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Authorization;
@@ -33,10 +34,34 @@ public sealed class RolesControllerTests
     private static (RolesController Controller, IMembershipService Service) Build()
     {
         IMembershipService service = Substitute.For<IMembershipService>();
+        IRoleResolver resolver = Substitute.For<IRoleResolver>();
         ICurrentUserService user = Substitute.For<ICurrentUserService>();
         user.UserId.Returns(Caller.ToString());
-        return (new RolesController(service, user), service);
+        return (new RolesController(service, resolver, user), service);
     }
+
+    private static (RolesController Controller, IRoleResolver Resolver) BuildWithResolver()
+    {
+        IMembershipService service = Substitute.For<IMembershipService>();
+        IRoleResolver resolver = Substitute.For<IRoleResolver>();
+        ICurrentUserService user = Substitute.For<ICurrentUserService>();
+        user.UserId.Returns(Caller.ToString());
+        return (new RolesController(service, resolver, user), resolver);
+    }
+
+    private static ResolvedAccessDto AccessFor(Guid userId, ManagementRole? role, int level) =>
+        new(
+            userId,
+            Channel,
+            level,
+            CommunityStanding.Everyone,
+            0,
+            role,
+            role?.ToLevel() ?? 0,
+            null,
+            [],
+            level == 0 ? "community" : "management"
+        );
 
     [Fact]
     public async Task SetRole_passes_caller_and_botgrant_source_and_returns_ok()
@@ -91,5 +116,74 @@ public sealed class RolesControllerTests
         IActionResult result = await controller.List("not-a-guid", 1, 25, default);
 
         result.Should().BeOfType<BadRequestObjectResult>();
+    }
+
+    [Fact]
+    public async Task EffectiveMe_resolves_the_authenticated_caller_not_an_arbitrary_user()
+    {
+        // /effective/me is the shell's self-introspection on session establish — it must resolve the CALLER's
+        // own access, so the resolver is asked about the authenticated caller (never a path-supplied id).
+        (RolesController controller, IRoleResolver resolver) = BuildWithResolver();
+        ResolvedAccessDto access = AccessFor(Caller, ManagementRole.Editor, 30);
+        resolver
+            .ResolveAccessAsync(Caller, Channel, Arg.Any<CancellationToken>())
+            .Returns(Result.Success(access));
+
+        IActionResult result = await controller.EffectiveMe(Channel.ToString(), default);
+
+        result.Should().BeOfType<OkObjectResult>();
+        StatusResponseDto<ResolvedAccessDto> body =
+            (StatusResponseDto<ResolvedAccessDto>)((OkObjectResult)result).Value!;
+        body.Data!.UserId.Should().Be(Caller);
+        body.Data!.ManagementRole.Should().Be(ManagementRole.Editor);
+        body.Data!.EffectiveLevel.Should().Be(30);
+        await resolver
+            .Received(1)
+            .ResolveAccessAsync(Caller, Channel, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task EffectiveMe_returns_a_viewer_with_no_management_role_for_a_role_less_caller()
+    {
+        // A pure viewer (no Plane-B role) must be able to learn they have NO management access — the shell
+        // routes them to the participation-only surface off this exact result.
+        (RolesController controller, IRoleResolver resolver) = BuildWithResolver();
+        resolver
+            .ResolveAccessAsync(Caller, Channel, Arg.Any<CancellationToken>())
+            .Returns(Result.Success(AccessFor(Caller, null, 0)));
+
+        IActionResult result = await controller.EffectiveMe(Channel.ToString(), default);
+
+        StatusResponseDto<ResolvedAccessDto> body =
+            (StatusResponseDto<ResolvedAccessDto>)((OkObjectResult)result).Value!;
+        body.Data!.ManagementRole.Should().BeNull();
+        body.Data!.EffectiveLevel.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task EffectiveMe_rejects_a_malformed_channel_id()
+    {
+        (RolesController controller, _) = BuildWithResolver();
+
+        IActionResult result = await controller.EffectiveMe("not-a-guid", default);
+
+        result.Should().BeOfType<BadRequestObjectResult>();
+    }
+
+    [Fact]
+    public async Task Effective_resolves_the_path_user_on_the_channel()
+    {
+        // The sibling /effective/{userId} (roles:read floor) resolves an arbitrary channel member's access.
+        (RolesController controller, IRoleResolver resolver) = BuildWithResolver();
+        resolver
+            .ResolveAccessAsync(Target, Channel, Arg.Any<CancellationToken>())
+            .Returns(Result.Success(AccessFor(Target, ManagementRole.Moderator, 10)));
+
+        IActionResult result = await controller.Effective(Channel.ToString(), Target, default);
+
+        result.Should().BeOfType<OkObjectResult>();
+        await resolver
+            .Received(1)
+            .ResolveAccessAsync(Target, Channel, Arg.Any<CancellationToken>());
     }
 }

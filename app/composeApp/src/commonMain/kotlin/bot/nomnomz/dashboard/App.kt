@@ -38,7 +38,7 @@ import bot.nomnomz.dashboard.feature.connect.ui.ConnectScreen
 import bot.nomnomz.dashboard.feature.language.state.AppLanguage
 import bot.nomnomz.dashboard.feature.language.ui.LanguagePicker
 import bot.nomnomz.dashboard.feature.setup.ui.SetupWizardScreen
-import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
+import bot.nomnomz.dashboard.feature.shell.state.ShellAccess
 import bot.nomnomz.dashboard.feature.shell.ui.ShellScreen
 import bot.nomnomz.dashboard.feature.splash.ui.SplashScreen
 import kotlinx.coroutines.Job
@@ -113,17 +113,27 @@ fun App(graph: AppGraph = remember { AppGraph() }) {
                         Destination.Shell -> {
                             val user: SessionUser? by
                                 graph.sessionStore.user.collectAsStateWithLifecycle()
-                            ShellScreen(
-                                graph = graph,
-                                languageController = graph.languageController,
-                                routeStore = routeStore,
-                                user = user,
-                                // Self-host: the signed-in owner manages their OWN channel, so they ARE the
-                                // Broadcaster. Delegated Mod/SuperMod/Editor roles come from channel
-                                // membership in a later slice.
-                                role = ManagementRole.Broadcaster,
-                                onLogout = { scope.launch { graph.sessionStore.disconnect() } },
-                            )
+                            // Resolve the caller's REAL Plane-B role from the backend (/effective/me) once per
+                            // shell entry, then gate the sidebar + write affordances off it (frontend-ia.md §7).
+                            // This replaces the old `role = Broadcaster` hardcode: a delegated Mod/Editor sees
+                            // only their surface, and a viewer (null role) gets the participation-only surface.
+                            val access: ShellAccess by
+                                graph.shellAccessController.state.collectAsStateWithLifecycle()
+                            LaunchedEffect(Unit) { graph.shellAccessController.load() }
+                            when (val resolved: ShellAccess = access) {
+                                // Hold the splash under the one-shot role probe so the shell never flashes the
+                                // wrong (over-granted) surface before the real role lands.
+                                ShellAccess.Loading -> SplashScreen()
+                                is ShellAccess.Resolved ->
+                                    ShellScreen(
+                                        graph = graph,
+                                        languageController = graph.languageController,
+                                        routeStore = routeStore,
+                                        user = user,
+                                        role = resolved.role,
+                                        onLogout = { scope.launch { graph.sessionStore.disconnect() } },
+                                    )
+                            }
                         }
                     }
                 }

@@ -148,6 +148,9 @@
     <string name="shell_role_broadcaster">Broadcaster</string>
     <string name="shell_profile_open">Open account menu</string>
     <string name="shell_profile_logout">Log out</string>
+    <string name="shell_role_viewer">Viewer</string>
+    <string name="viewer_surface_title">You're signed in as a viewer</string>
+    <string name="viewer_surface_body">This account has no management role on this channel, so there's no dashboard to show. You can still take part from chat and the channel's public pages. If you should have access, ask the streamer to add you.</string>
     <string name="home_status_live">Live</string>
     <string name="home_status_offline">Offline</string>
     <string name="home_no_title">No stream title set</string>

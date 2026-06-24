@@ -130,6 +130,9 @@ import nomnomzbot.composeapp.generated.resources.shell_role_broadcaster
 import nomnomzbot.composeapp.generated.resources.shell_role_editor
 import nomnomzbot.composeapp.generated.resources.shell_role_moderator
 import nomnomzbot.composeapp.generated.resources.shell_role_supermod
+import nomnomzbot.composeapp.generated.resources.shell_role_viewer
+import nomnomzbot.composeapp.generated.resources.viewer_surface_body
+import nomnomzbot.composeapp.generated.resources.viewer_surface_title
 import nomnomzbot.composeapp.generated.resources.shell_topbar_channel_label
 import nomnomzbot.composeapp.generated.resources.shell_topbar_hub_label
 import org.jetbrains.compose.resources.stringResource
@@ -150,9 +153,16 @@ fun ShellScreen(
     languageController: LanguageController,
     routeStore: RouteStore,
     user: SessionUser?,
-    role: ManagementRole,
+    role: ManagementRole?,
     onLogout: () -> Unit,
 ) {
+    // A viewer (no Plane-B management role) gets the participation-only surface, never the management shell —
+    // Plane A "never renders a dashboard" (frontend-ia.md §1/§3). The shell below is for managers only.
+    if (role == null) {
+        ViewerSurface(user = user, languageController = languageController, onLogout = onLogout)
+        return
+    }
+
     val tokens = LocalTokens.current
     var selected: ShellRoute by remember { mutableStateOf(routeStore.initialRoute()) }
     LaunchedEffect(selected) { routeStore.save(selected) }
@@ -220,6 +230,50 @@ fun ShellScreen(
                     )
                 }
             }
+        }
+    }
+}
+
+// The participation-only surface for a signed-in viewer (no Plane-B management role). Plane A "never renders a
+// dashboard" (frontend-ia.md §1/§3), so instead of the management shell a viewer sees a clear explanation plus the
+// same profile block (language + log out) — they can still take part from chat and the channel's public pages.
+@Composable
+private fun ViewerSurface(
+    user: SessionUser?,
+    languageController: LanguageController,
+    onLogout: () -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    Box(modifier = Modifier.fillMaxSize().background(tokens.background)) {
+        Column(
+            modifier = Modifier
+                .align(Alignment.Center)
+                .width(spacing.s24 * 4f)
+                .clip(RoundedCornerShape(tokens.radius.lg))
+                .background(tokens.card)
+                .padding(spacing.s6),
+            verticalArrangement = Arrangement.spacedBy(spacing.s3),
+        ) {
+            Text(
+                text = stringResource(Res.string.viewer_surface_title),
+                style = typography.xl,
+                color = tokens.cardForeground,
+            )
+            Text(
+                text = stringResource(Res.string.viewer_surface_body),
+                style = typography.sm,
+                color = tokens.mutedForeground,
+            )
+            HorizontalDivider(color = tokens.border, modifier = Modifier.padding(top = spacing.s2))
+            ProfileBlock(
+                user = user,
+                role = null,
+                languageController = languageController,
+                onLogout = onLogout,
+            )
         }
     }
 }
@@ -367,7 +421,7 @@ private fun NavItem(route: ShellRoute, selected: Boolean, onClick: () -> Unit) {
 @Composable
 private fun ProfileBlock(
     user: SessionUser?,
-    role: ManagementRole,
+    role: ManagementRole?,
     languageController: LanguageController,
     onLogout: () -> Unit,
 ) {
@@ -617,13 +671,14 @@ private fun NavGroup.label(): String =
     }
 
 @Composable
-private fun ManagementRole.label(): String =
+private fun ManagementRole?.label(): String =
     stringResource(
         when (this) {
             ManagementRole.Moderator -> Res.string.shell_role_moderator
             ManagementRole.SuperMod -> Res.string.shell_role_supermod
             ManagementRole.Editor -> Res.string.shell_role_editor
             ManagementRole.Broadcaster -> Res.string.shell_role_broadcaster
+            null -> Res.string.shell_role_viewer
         }
     )
 

@@ -145,6 +145,9 @@
     <string name="shell_role_broadcaster">Streamer</string>
     <string name="shell_profile_open">Accountmenu openen</string>
     <string name="shell_profile_logout">Afmelden</string>
+    <string name="shell_role_viewer">Kijker</string>
+    <string name="viewer_surface_title">Je bent aangemeld als kijker</string>
+    <string name="viewer_surface_body">Dit account heeft geen beheerrol op dit kanaal, dus er is geen dashboard om te tonen. Je kunt nog steeds meedoen vanuit de chat en de openbare pagina's van het kanaal. Vraag de streamer om je toe te voegen als je wel toegang zou moeten hebben.</string>
     <string name="home_status_live">Live</string>
     <string name="home_status_offline">Offline</string>
     <string name="home_no_title">Geen streamtitel ingesteld</string>

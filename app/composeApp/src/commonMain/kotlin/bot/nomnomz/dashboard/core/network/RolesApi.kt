@@ -31,6 +31,8 @@ import kotlinx.serialization.Serializable
 //     DELETE /permits/{userId}?actionKeyOrRole=…         →  StatusResponseDto (revoke)
 //   ActionPermissionsController (api/v1/channels/{channelId}/action-permissions)
 //     GET    /action-permissions               →  StatusResponseDto<List<ActionPermissionDto>>
+//   RolesController            (api/v1/channels/{channelId}/roles)
+//     GET    /roles/effective/me               →  StatusResponseDto<ResolvedAccessDto>  (the caller's own access)
 //
 // The roles list is a `PaginatedResponse<T>` (a flat `{ data: [...] }`), read with getDirect like the channel
 // list. The permits list and the action matrix are `StatusResponseDto<List<T>>` envelopes, read with
@@ -38,6 +40,14 @@ import kotlinx.serialization.Serializable
 // so the writes go through putEnvelope/postEnvelope/deleteUnit and the returned body is only used to confirm
 // success. `userId` everywhere is the platform User GUID (the backend keys roles on User.Id, not the Twitch id).
 interface RolesApi {
+    /**
+     * The authenticated caller's own resolved access on [channelId] (`GET /roles/effective/me`). The shell calls
+     * this on session establish to learn the caller's effective [ManagementRole] (null = a viewer with no Plane-B
+     * role) and drive the role-correct sidebar + write affordances. Self-introspection, so the backend gates it by
+     * entry only — a viewer can call it to learn they have no management access.
+     */
+    suspend fun effectiveMe(channelId: String): ApiResult<ResolvedAccess>
+
     /** The channel's management members — who holds a [ManagementRole] and at what ladder level. */
     suspend fun members(channelId: String): ApiResult<List<ChannelMembership>>
 
@@ -73,6 +83,9 @@ interface RolesApi {
 }
 
 class RestRolesApi(private val client: ApiClient) : RolesApi {
+
+    override suspend fun effectiveMe(channelId: String): ApiResult<ResolvedAccess> =
+        client.getEnvelope("api/v1/channels/$channelId/roles/effective/me")
 
     override suspend fun members(channelId: String): ApiResult<List<ChannelMembership>> =
         when (
@@ -145,6 +158,27 @@ enum class ManagementRole(val wire: Int, val level: Int) {
         /** Resolve a wire ordinal to its rung, failing closed to [Moderator] on an unknown value. */
         fun fromWire(wire: Int): ManagementRole = entries.firstOrNull { it.wire == wire } ?: Moderator
     }
+}
+
+/**
+ * The caller's resolved access on a channel (backend `ResolvedAccessDto`) — the shell's role source. The backend
+ * folds the three planes into one [effectiveLevel]; the shell gates on [managementRole], the Plane-B rung that
+ * arrives as a **nullable** integer ordinal (the OpenAPI declares `ManagementRole` as `{"type":"integer"}`, and a
+ * pure viewer with no management role has it null). A subset of the backend fields — the page reads only what it
+ * gates on; `ApiClient`'s JSON ignores the rest (community standing, permit breakdown).
+ */
+@Serializable
+data class ResolvedAccess(
+    val userId: String,
+    val broadcasterId: String,
+    val effectiveLevel: Int = 0,
+    val managementRole: Int? = null,
+    val managementLevel: Int = 0,
+    val winningSource: String = "",
+) {
+    /** The Plane-B rung the shell gates on, or null when the caller holds no management role (a viewer). */
+    val role: ManagementRole?
+        get() = managementRole?.let { ManagementRole.fromWire(it) }
 }
 
 /** How a management membership was sourced (backend `MembershipSource`) — an integer ordinal on the wire. */

@@ -19,6 +19,7 @@ import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.ManagementRole
 import bot.nomnomz.dashboard.core.network.PermitGrant
 import bot.nomnomz.dashboard.core.network.PermitGrantType
+import bot.nomnomz.dashboard.core.network.ResolvedAccess
 import bot.nomnomz.dashboard.core.network.RolesApi
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -418,6 +419,11 @@ private class FakeRolesApi(
     val removeCalls: MutableList<Pair<String, String>> = mutableListOf()
     val grantCalls: MutableList<GrantCall> = mutableListOf()
     val revokeCalls: MutableList<Triple<String, String, String?>> = mutableListOf()
+
+    override suspend fun effectiveMe(channelId: String): ApiResult<ResolvedAccess> =
+        ApiResult.Ok(
+            ResolvedAccess(userId = "caller", broadcasterId = channelId, managementRole = null)
+        )
 
     override suspend fun members(channelId: String): ApiResult<List<ChannelMembership>> {
         val index: Int = minOf(membersCalls, membersResults.lastIndex)
