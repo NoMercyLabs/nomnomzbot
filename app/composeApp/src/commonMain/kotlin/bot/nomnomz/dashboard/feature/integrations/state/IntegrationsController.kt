@@ -20,6 +20,8 @@ import bot.nomnomz.dashboard.core.network.BotAuthApi
 import bot.nomnomz.dashboard.core.network.BotStatus
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
+import bot.nomnomz.dashboard.core.network.DeviceBotPoll
+import bot.nomnomz.dashboard.core.network.DeviceCodeStart
 import bot.nomnomz.dashboard.core.network.DeviceLoginPoll
 import bot.nomnomz.dashboard.core.network.IntegrationStatus
 import bot.nomnomz.dashboard.core.network.IntegrationsApi
@@ -27,6 +29,8 @@ import bot.nomnomz.dashboard.core.network.MissingScope
 import bot.nomnomz.dashboard.core.network.MissingScopes
 import bot.nomnomz.dashboard.core.network.OAuthStart
 import bot.nomnomz.dashboard.core.network.ScopeRegrantStart
+import bot.nomnomz.dashboard.core.network.SystemApi
+import bot.nomnomz.dashboard.core.network.SystemStatus
 import bot.nomnomz.dashboard.core.network.TwitchDiagnosticsApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -56,6 +60,10 @@ class IntegrationsController(
     private val connectLauncher: ConnectLauncher,
     private val diagnosticsApi: TwitchDiagnosticsApi,
     private val authApi: AuthApi,
+    // Read to choose the bot connect method off the SAME secret-present signal the streamer login uses
+    // (twitchApp.ok): a configured client secret unlocks the one-tap redirect bot flow; without one, the
+    // bot connects via the secret-free device-code flow. A Twitch client secret is optional throughout.
+    private val systemApi: SystemApi,
     private val feedback: Feedback = NoOpFeedback,
 ) {
     private val _state: MutableStateFlow<IntegrationsState> =
@@ -107,25 +115,111 @@ class IntegrationsController(
                 is ApiResult.Failure -> emptyList()
             }
 
-        // Preserve any in-flight re-grant panel across a refresh (the poll loop refreshes mid-flow).
-        val regrant: RegrantState? = (_state.value as? IntegrationsState.Ready)?.regrant
+        // Preserve any in-flight panels across a refresh (their poll loops refresh mid-flow).
+        val ready: IntegrationsState.Ready? = _state.value as? IntegrationsState.Ready
         _state.value =
             IntegrationsState.Ready(
                 bot = bot,
                 providers = providers,
                 missingScopes = missingScopes,
                 busy = null,
-                regrant = regrant,
+                regrant = ready?.regrant,
+                botDevice = ready?.botDevice,
             )
     }
 
-    /** Run the bot-account connect, then refresh. */
+    /**
+     * Connect the platform-shared bot account, picking the method off the SAME secret-present signal the
+     * streamer login uses (frontend.md §6 — a Twitch client secret is OPTIONAL). With a secret configured
+     * (twitchApp.ok) the one-tap redirect bot flow runs — a clean tap → Twitch → loopback. Without one (the
+     * shared public client / BYOC client id), only the device-code flow can authorize the bot, so it is used:
+     * the operator approves a short user code at twitch.tv/activate and the controller polls until connected.
+     * A failed readiness probe falls back to the redirect attempt, which surfaces a clean backend error.
+     */
     suspend fun connectBot() {
+        val redirectAvailable: Boolean =
+            when (val status: ApiResult<SystemStatus> = systemApi.status()) {
+                is ApiResult.Ok -> status.value.checks.twitchApp.ok
+                is ApiResult.Failure -> false // no secret signal ⇒ take the always-available device path
+            }
+
+        if (redirectAvailable) connectBotViaRedirect() else connectBotViaDevice()
+    }
+
+    /** The one-tap redirect bot connect (a client secret is configured): open the authorize URL, then refresh. */
+    private suspend fun connectBotViaRedirect() {
         withBusy(BusyTarget.Bot) {
             connectLauncher.awaitConnect { redirect ->
                 botAuthApi.start(redirect).mapToAuthorizeUrl()
             }
         }
+    }
+
+    /**
+     * The secret-free bot connect: mint a device code, surface it (the screen opens twitch.tv/activate), and
+     * poll until the operator approves (→ the shared bot is connected + vaulted server-side, panel dismissed),
+     * declines, or the code expires. Single-flight: never start a second device login while one is in flight.
+     */
+    suspend fun connectBotViaDevice() {
+        val ready: IntegrationsState.Ready = _state.value as? IntegrationsState.Ready ?: return
+        if (ready.botDevice != null) return // a bot device login is already in progress.
+
+        when (val start: ApiResult<DeviceCodeStart> = botAuthApi.startDeviceLogin()) {
+            is ApiResult.Failure -> feedback.error(Res.string.feedback_connect_failed, start.error.message)
+            is ApiResult.Ok -> {
+                _state.value =
+                    ready.copy(
+                        botDevice = BotDeviceState(
+                            userCode = start.value.userCode,
+                            verificationUri = start.value.verificationUri,
+                        )
+                    )
+                pollBotDevice(start.value)
+            }
+        }
+    }
+
+    /** Dismiss the bot device-login panel without waiting (the user closed it). */
+    fun cancelBotDevice() {
+        val ready: IntegrationsState.Ready = _state.value as? IntegrationsState.Ready ?: return
+        _state.value = ready.copy(botDevice = null)
+    }
+
+    /**
+     * Poll the bot device endpoint on its interval until the operator approves (→ refresh + dismiss the panel),
+     * declines, or the code expires. A transient poll failure is tolerated until the deadline so a blip
+     * mid-approval doesn't abort the connect. The delay is a coroutine suspend, never a thread block.
+     */
+    private suspend fun pollBotDevice(start: DeviceCodeStart) {
+        val intervalMs: Long = start.interval.coerceAtLeast(1).toLong() * 1000L
+        val deadlineMs: Long = start.expiresIn.coerceAtLeast(1).toLong() * 1000L
+        var elapsedMs: Long = 0
+
+        while (elapsedMs < deadlineMs && (_state.value as? IntegrationsState.Ready)?.botDevice != null) {
+            delay(intervalMs)
+            elapsedMs += intervalMs
+
+            when (val poll: ApiResult<DeviceBotPoll> = botAuthApi.pollDeviceLogin(start.deviceCode)) {
+                is ApiResult.Failure -> Unit // tolerate transient failures until the code's deadline.
+                is ApiResult.Ok ->
+                    when (poll.value.status) {
+                        DEVICE_AUTHORIZED -> {
+                            // The shared bot is vaulted server-side; re-read the authoritative status (no fakes).
+                            cancelBotDevice()
+                            refresh()
+                            return
+                        }
+                        DEVICE_EXPIRED, DEVICE_DENIED, DEVICE_ERROR -> {
+                            cancelBotDevice()
+                            feedback.error(Res.string.feedback_connect_failed, poll.value.status)
+                            return
+                        }
+                        else -> Unit // pending / slow_down — keep polling.
+                    }
+            }
+        }
+        // Timed out without approval — drop the panel; the bot is simply still disconnected.
+        cancelBotDevice()
     }
 
     /** Run a Spotify/YouTube connect for [provider] with [scopeSetKey], then refresh. */
@@ -294,6 +388,8 @@ sealed interface IntegrationsState {
         val missingScopes: List<MissingScope>,
         val busy: BusyTarget?,
         val regrant: RegrantState?,
+        // The in-flight secret-free bot device login (null unless one is awaiting approval at twitch.tv/activate).
+        val botDevice: BotDeviceState? = null,
     ) : IntegrationsState
 
     data class Error(val detail: String) : IntegrationsState
@@ -312,6 +408,9 @@ data class ProviderConnection(
 
 /** The in-flight re-grant panel: the user code to enter and the Twitch URL to open. */
 data class RegrantState(val userCode: String, val verificationUri: String)
+
+/** The in-flight secret-free bot device login: the user code to enter and the Twitch URL to open. */
+data class BotDeviceState(val userCode: String, val verificationUri: String)
 
 /** Which row is mid-operation, so the screen can disable just that row's actions. */
 sealed interface BusyTarget {

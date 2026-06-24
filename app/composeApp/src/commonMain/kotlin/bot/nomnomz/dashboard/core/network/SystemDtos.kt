@@ -37,10 +37,17 @@ data class SystemChecks(
     val discord: SystemCheck? = null,
 )
 
-/** One readiness check: a pass/fail plus a short status word and optional human detail. */
+/**
+ * One readiness check. [ready] means the area is USABLE NOW; [ok] means the FULL credential set is present.
+ * For Twitch the two diverge: a client id alone makes the bot fully functional via the secret-free device-code
+ * flow ([ready] = true), while a client secret is the pure enhancement that also unlocks the one-tap redirect
+ * sign-in ([ok] = true). For every other area they coincide. Onboarding routes off both: [ready] gates whether
+ * the flow can start; [ok] picks the smoother redirect login over the device-code dance.
+ */
 @Serializable
 data class SystemCheck(
     val ok: Boolean,
+    val ready: Boolean = false,
     val status: String,
     val detail: String? = null,
 )

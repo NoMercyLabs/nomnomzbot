@@ -52,6 +52,7 @@ import bot.nomnomz.dashboard.feature.settings.state.JournalPortabilityController
 import bot.nomnomz.dashboard.feature.settings.state.JournalPortabilityState
 import bot.nomnomz.dashboard.feature.settings.state.SettingsController
 import bot.nomnomz.dashboard.feature.settings.state.SettingsState
+import bot.nomnomz.dashboard.feature.settings.state.TwitchAppCredentialsController
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.journal_dismiss
@@ -93,6 +94,7 @@ import org.jetbrains.compose.resources.stringResource
 fun SettingsScreen(
     controller: SettingsController,
     journalController: JournalPortabilityController,
+    twitchAppController: TwitchAppCredentialsController,
 ) {
     val state: SettingsState by controller.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
@@ -104,6 +106,8 @@ fun SettingsScreen(
         modifier = Modifier.fillMaxSize().padding(spacing.s6),
         verticalArrangement = Arrangement.spacedBy(spacing.s6),
     ) {
+        TwitchAppCredentialsCard(controller = twitchAppController)
+
         Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
             when (val current: SettingsState = state) {
                 is SettingsState.Loading ->

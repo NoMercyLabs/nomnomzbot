@@ -373,8 +373,16 @@ private fun wizard(twitch: Boolean, bot: Boolean, spotify: Boolean = false): Set
 
 private fun checks(twitch: Boolean, bot: Boolean): SystemChecks =
     SystemChecks(
-        twitchApp = SystemCheck(twitch, if (twitch) "configured" else "missing"),
-        platformBot = SystemCheck(bot, if (bot) "connected" else "disconnected"),
+        // `twitch` here models the client-id-present / configured signal: usable (ready) and, in these tests,
+        // also secret-configured (ok) so the readiness gate the wizard routes on is satisfied.
+        twitchApp =
+            SystemCheck(
+                ok = twitch,
+                ready = twitch,
+                status = if (twitch) "ready_redirect" else "missing",
+            ),
+        platformBot =
+            SystemCheck(ok = bot, ready = bot, status = if (bot) "connected" else "disconnected"),
     )
 
 private class FakeSystemApi(

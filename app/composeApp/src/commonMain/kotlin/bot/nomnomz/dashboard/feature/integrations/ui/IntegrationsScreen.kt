@@ -29,7 +29,10 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
@@ -38,6 +41,10 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.network.MissingScope
+import bot.nomnomz.dashboard.feature.connect.ui.ConnectModal
+import bot.nomnomz.dashboard.feature.connect.ui.ConnectProvider
+import bot.nomnomz.dashboard.feature.connect.ui.ConnectProviders
+import bot.nomnomz.dashboard.feature.integrations.state.BotDeviceState
 import bot.nomnomz.dashboard.feature.integrations.state.BusyTarget
 import bot.nomnomz.dashboard.feature.integrations.state.IntegrationsController
 import bot.nomnomz.dashboard.feature.integrations.state.IntegrationsState
@@ -51,6 +58,11 @@ import nomnomzbot.composeapp.generated.resources.integrations_action_connect
 import nomnomzbot.composeapp.generated.resources.integrations_action_disconnect
 import nomnomzbot.composeapp.generated.resources.integrations_action_reauth
 import nomnomzbot.composeapp.generated.resources.integrations_action_retry
+import nomnomzbot.composeapp.generated.resources.integrations_bot_device_cancel
+import nomnomzbot.composeapp.generated.resources.integrations_bot_device_instruction
+import nomnomzbot.composeapp.generated.resources.integrations_bot_device_open
+import nomnomzbot.composeapp.generated.resources.integrations_bot_device_title
+import nomnomzbot.composeapp.generated.resources.integrations_bot_device_waiting
 import nomnomzbot.composeapp.generated.resources.integrations_bot_subtitle
 import nomnomzbot.composeapp.generated.resources.integrations_bot_title
 import nomnomzbot.composeapp.generated.resources.integrations_discord_subtitle
@@ -88,6 +100,10 @@ private const val DISCORD: String = "discord"
 private const val SPOTIFY_SCOPE_SET: String = "spotify.playback"
 private const val YOUTUBE_SCOPE_SET: String = "youtube.manage"
 
+// Which provider's branded connect modal is currently open over the integrations list (null = none). Only
+// the three brand-described providers route through the modal; the bot account connects inline.
+private enum class ConnectModalProvider { Spotify, YouTube, Discord }
+
 @Composable
 fun IntegrationsScreen(controller: IntegrationsController) {
     val tokens = LocalTokens.current
@@ -99,6 +115,11 @@ fun IntegrationsScreen(controller: IntegrationsController) {
 
     LaunchedEffect(Unit) { controller.load() }
 
+    // The open per-provider connect modal, if any. Tapping a provider row's Connect opens it; the modal's
+    // brand CTA runs the SAME controller action and then dismisses; Back dismisses without connecting.
+    var openModal: ConnectModalProvider? by remember { mutableStateOf(null) }
+
+    Box(modifier = Modifier.fillMaxSize()) {
     Column(
         modifier = Modifier.fillMaxSize().background(tokens.background).padding(spacing.s6),
         verticalArrangement = Arrangement.spacedBy(spacing.s4),
@@ -145,10 +166,17 @@ fun IntegrationsScreen(controller: IntegrationsController) {
                         )
                     }
 
+                    // The secret-free bot device login panel while one is awaiting approval at twitch.tv/activate.
+                    current.botDevice?.let { device: BotDeviceState ->
+                        BotDevicePanel(
+                            device = device,
+                            onCancel = { controller.cancelBotDevice() },
+                        )
+                    }
                     BotRow(
                         connected = current.bot.connected,
                         accountName = current.bot.accountName,
-                        busy = current.busy is BusyTarget.Bot,
+                        busy = current.busy is BusyTarget.Bot || current.botDevice != null,
                         onConnect = { scope.launch { controller.connectBot() } },
                     )
                     ProviderRow(
@@ -156,7 +184,8 @@ fun IntegrationsScreen(controller: IntegrationsController) {
                         subtitle = Res.string.integrations_spotify_subtitle,
                         connection = current.providers.forProvider(SPOTIFY),
                         busy = current.busy.isProvider(SPOTIFY),
-                        onConnect = { scope.launch { controller.connectProvider(SPOTIFY, SPOTIFY_SCOPE_SET) } },
+                        // Open the branded connect modal rather than connecting inline.
+                        onConnect = { openModal = ConnectModalProvider.Spotify },
                         onDisconnect = { scope.launch { controller.disconnect(SPOTIFY) } },
                     )
                     ProviderRow(
@@ -164,7 +193,7 @@ fun IntegrationsScreen(controller: IntegrationsController) {
                         subtitle = Res.string.integrations_youtube_subtitle,
                         connection = current.providers.forProvider(YOUTUBE),
                         busy = current.busy.isProvider(YOUTUBE),
-                        onConnect = { scope.launch { controller.connectProvider(YOUTUBE, YOUTUBE_SCOPE_SET) } },
+                        onConnect = { openModal = ConnectModalProvider.YouTube },
                         onDisconnect = { scope.launch { controller.disconnect(YOUTUBE) } },
                     )
                     ProviderRow(
@@ -172,10 +201,38 @@ fun IntegrationsScreen(controller: IntegrationsController) {
                         subtitle = Res.string.integrations_discord_subtitle,
                         connection = current.providers.forProvider(DISCORD),
                         busy = current.busy.isProvider(DISCORD),
-                        onConnect = { scope.launch { controller.connectDiscord() } },
+                        onConnect = { openModal = ConnectModalProvider.Discord },
                         onDisconnect = { scope.launch { controller.disconnect(DISCORD) } },
                     )
                 }
+        }
+    }
+
+        // The per-provider branded connect modal, overlaid over the list when a provider's Connect is tapped.
+        // Its CTA runs the SAME controller action (no behaviour change) and dismisses; Back dismisses only.
+        openModal?.let { which: ConnectModalProvider ->
+            val descriptor: ConnectProvider =
+                when (which) {
+                    ConnectModalProvider.Spotify -> ConnectProviders.Spotify
+                    ConnectModalProvider.YouTube -> ConnectProviders.YouTube
+                    ConnectModalProvider.Discord -> ConnectProviders.Discord
+                }
+            ConnectModal(
+                provider = descriptor,
+                onCta = {
+                    openModal = null
+                    scope.launch {
+                        when (which) {
+                            ConnectModalProvider.Spotify ->
+                                controller.connectProvider(SPOTIFY, SPOTIFY_SCOPE_SET)
+                            ConnectModalProvider.YouTube ->
+                                controller.connectProvider(YOUTUBE, YOUTUBE_SCOPE_SET)
+                            ConnectModalProvider.Discord -> controller.connectDiscord()
+                        }
+                    }
+                },
+                onBack = { openModal = null },
+            )
         }
     }
 }
@@ -365,6 +422,54 @@ private fun RegrantPanel(regrant: RegrantState, onCancel: () -> Unit) {
             }
             TextButton(onClick = onCancel) {
                 Text(stringResource(Res.string.permissions_regrant_cancel), maxLines = 1)
+            }
+        }
+    }
+}
+
+// The secret-free bot device-login panel: show the user code + the link to twitch.tv/activate while the
+// controller polls for approval. Mirrors [RegrantPanel] — the same shadcn card/primitives, its own copy.
+@Composable
+private fun BotDevicePanel(device: BotDeviceState, onCancel: () -> Unit) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+    val uriHandler = LocalUriHandler.current
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(tokens.card, RoundedCornerShape(tokens.radius.lg))
+            .border(width = spacing.s0_5 / 2, color = tokens.primary, shape = RoundedCornerShape(tokens.radius.lg))
+            .padding(spacing.s4),
+        verticalArrangement = Arrangement.spacedBy(spacing.s2),
+    ) {
+        Text(
+            text = stringResource(Res.string.integrations_bot_device_title),
+            style = typography.base,
+            color = tokens.cardForeground,
+        )
+        Text(
+            text = stringResource(Res.string.integrations_bot_device_instruction),
+            style = typography.sm,
+            color = tokens.mutedForeground,
+        )
+        Text(
+            text = device.userCode,
+            style = typography.xl2,
+            color = tokens.primary,
+        )
+        Text(
+            text = stringResource(Res.string.integrations_bot_device_waiting),
+            style = typography.xs,
+            color = tokens.mutedForeground,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2), verticalAlignment = Alignment.CenterVertically) {
+            Button(onClick = { uriHandler.openUri(device.verificationUri) }) {
+                Text(stringResource(Res.string.integrations_bot_device_open), maxLines = 1)
+            }
+            TextButton(onClick = onCancel) {
+                Text(stringResource(Res.string.integrations_bot_device_cancel), maxLines = 1)
             }
         }
     }

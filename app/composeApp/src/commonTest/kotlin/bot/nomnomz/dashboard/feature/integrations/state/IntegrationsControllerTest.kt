@@ -21,6 +21,8 @@ import bot.nomnomz.dashboard.core.network.BotStatus
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.CurrentUser
+import bot.nomnomz.dashboard.core.network.DeviceBotPoll
+import bot.nomnomz.dashboard.core.network.DeviceCodeStart
 import bot.nomnomz.dashboard.core.network.DeviceLoginPoll
 import bot.nomnomz.dashboard.core.network.IntegrationStatus
 import bot.nomnomz.dashboard.core.network.IntegrationsApi
@@ -28,7 +30,13 @@ import bot.nomnomz.dashboard.core.network.MissingScope
 import bot.nomnomz.dashboard.core.network.MissingScopes
 import bot.nomnomz.dashboard.core.network.OAuthStart
 import bot.nomnomz.dashboard.core.network.ScopeRegrantStart
+import bot.nomnomz.dashboard.core.network.SetupWizard
+import bot.nomnomz.dashboard.core.network.SystemApi
+import bot.nomnomz.dashboard.core.network.SystemCheck
+import bot.nomnomz.dashboard.core.network.SystemChecks
+import bot.nomnomz.dashboard.core.network.SystemStatus
 import bot.nomnomz.dashboard.core.network.TwitchDiagnosticsApi
+import bot.nomnomz.dashboard.core.network.BotOAuthUrl
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -52,9 +60,22 @@ class IntegrationsControllerTest {
         launcher: ConnectLauncher,
         diagnostics: TwitchDiagnosticsApi = FakeTwitchDiagnosticsApi(),
         auth: AuthApi = FakeAuthApi(),
+        // Whether the backend reports a Twitch client SECRET configured (twitchApp.ok) — drives the bot
+        // connect's redirect-vs-device choice. Defaults to secret configured so the redirect-path tests
+        // (the prior behavior) keep passing without each restating it.
+        system: SystemApi = FakeSystemApi(twitchSecretConfigured = true),
     ): IntegrationsController {
         val session = SessionStore(FakeVault())
-        return IntegrationsController(session, channels, bot, integrations, launcher, diagnostics, auth)
+        return IntegrationsController(
+            session,
+            channels,
+            bot,
+            integrations,
+            launcher,
+            diagnostics,
+            auth,
+            system,
+        )
     }
 
     @Test
@@ -108,7 +129,7 @@ class IntegrationsControllerTest {
     }
 
     @Test
-    fun connect_bot_opens_the_backend_authorize_url_then_reflects_connected() = runTest {
+    fun connect_bot_uses_the_redirect_flow_when_a_secret_is_configured() = runTest {
         val bot = FakeBotAuthApi(status = BotStatus(connected = false), authorizeUrl = "https://id.twitch.tv/authorize?bot")
         val launcher = FakeConnectLauncher()
         val controller =
@@ -117,6 +138,8 @@ class IntegrationsControllerTest {
                 bot = bot,
                 integrations = FakeIntegrationsApi(emptyList()),
                 launcher = launcher,
+                // A secret is configured ⇒ the one-tap redirect bot flow.
+                system = FakeSystemApi(twitchSecretConfigured = true),
             )
         controller.load()
         assertFalse((controller.state.value as IntegrationsState.Ready).bot.connected)
@@ -126,14 +149,97 @@ class IntegrationsControllerTest {
         bot.status = BotStatus(connected = true, displayName = "NomNomzBot")
         controller.connectBot()
 
-        // The launcher was driven to open the exact URL the backend issued for the loopback redirect.
+        // The redirect path ran: the launcher opened the exact URL the backend issued; no device login started.
         assertEquals("https://id.twitch.tv/authorize?bot", launcher.openedUrl)
         assertEquals("http://127.0.0.1:5757/cb", bot.startedWithRedirect)
+        assertFalse(bot.deviceStartCalled)
         // The row now reflects the backend's connected status (re-read, not optimistic).
         val ready: IntegrationsState.Ready = controller.state.value as IntegrationsState.Ready
         assertTrue(ready.bot.connected)
         assertEquals("NomNomzBot", ready.bot.accountName)
         assertNull(ready.busy)
+        assertNull(ready.botDevice)
+    }
+
+    @Test
+    fun connect_bot_uses_the_device_flow_when_no_secret_is_configured() = runTest {
+        // No secret ⇒ the redirect bot URL would 400, so the bot connects via the secret-free device flow:
+        // mint a code, surface it, poll until the operator approves, then re-read the connected status.
+        val bot =
+            FakeBotAuthApi(
+                status = BotStatus(connected = false),
+                devicePollStatuses = listOf("pending", "authorized"),
+            )
+        val launcher = FakeConnectLauncher()
+        val controller =
+            controller(
+                channels = FakeChannelsApi(ApiResult.Ok(channel)),
+                bot = bot,
+                integrations = FakeIntegrationsApi(emptyList()),
+                launcher = launcher,
+                system = FakeSystemApi(twitchSecretConfigured = false),
+            )
+        controller.load()
+        assertFalse((controller.state.value as IntegrationsState.Ready).bot.connected)
+
+        // The backend connects the shared bot server-side once the device login is approved (status re-read).
+        bot.status = BotStatus(connected = true, displayName = "NomNomzBot")
+        controller.connectBot()
+
+        // The DEVICE path ran (a code was minted + polled), and the redirect launcher was never opened.
+        assertTrue(bot.deviceStartCalled)
+        assertEquals("BOT-DEV-1", bot.polledDeviceCode)
+        assertNull(launcher.openedUrl)
+        assertNull(bot.startedWithRedirect)
+        // On approval the panel is dismissed and the row reflects the backend's connected status (re-read).
+        val ready: IntegrationsState.Ready = controller.state.value as IntegrationsState.Ready
+        assertNull(ready.botDevice)
+        assertTrue(ready.bot.connected)
+        assertEquals("NomNomzBot", ready.bot.accountName)
+    }
+
+    @Test
+    fun connect_bot_via_device_surfaces_the_user_code_for_the_operator_to_approve() = runTest {
+        // While the operator approves, the screen shows the user code + verify URL — the panel data the UI
+        // renders, proving the device login is surfaced, not silent. The fake records the LIVE panel state at
+        // the moment of the first poll (mid-flow), then authorizes so the loop ends deterministically.
+        var panelAtFirstPoll: BotDeviceState? = null
+        val bot =
+            FakeBotAuthApi(
+                status = BotStatus(connected = true, displayName = "NomNomzBot"),
+                deviceStart =
+                    ApiResult.Ok(
+                        DeviceCodeStart(
+                            deviceCode = "BOT-DEV-9",
+                            userCode = "ABCD-1234",
+                            verificationUri = "https://www.twitch.tv/activate",
+                            interval = 1,
+                            expiresIn = 600,
+                        )
+                    ),
+                devicePollStatuses = listOf("authorized"),
+            )
+        val controller =
+            controller(
+                channels = FakeChannelsApi(ApiResult.Ok(channel)),
+                bot = bot,
+                integrations = FakeIntegrationsApi(emptyList()),
+                launcher = FakeConnectLauncher(),
+                system = FakeSystemApi(twitchSecretConfigured = false),
+            )
+        controller.load()
+        // Capture the panel the controller published, observed from inside the very first poll (mid-flow).
+        bot.onPoll = { panelAtFirstPoll = (controller.state.value as? IntegrationsState.Ready)?.botDevice }
+
+        controller.connectBotViaDevice()
+
+        // The panel WAS live while awaiting approval, carrying the exact code + verify URL the screen renders.
+        assertEquals("ABCD-1234", panelAtFirstPoll?.userCode)
+        assertEquals("https://www.twitch.tv/activate", panelAtFirstPoll?.verificationUri)
+        // After approval the panel is dismissed and the bot reflects the re-read connected status.
+        val ready: IntegrationsState.Ready = controller.state.value as IntegrationsState.Ready
+        assertNull(ready.botDevice)
+        assertTrue(ready.bot.connected)
     }
 
     @Test
@@ -306,15 +412,93 @@ private class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : C
 private class FakeBotAuthApi(
     var status: BotStatus,
     private val authorizeUrl: String = "https://id.twitch.tv/authorize?bot",
+    // The device login the secret-free path drives: a started code, then the poll statuses to walk through.
+    private val deviceStart: ApiResult<DeviceCodeStart> =
+        ApiResult.Ok(
+            DeviceCodeStart(
+                deviceCode = "BOT-DEV-1",
+                userCode = "WXYZ-7890",
+                verificationUri = "https://www.twitch.tv/activate",
+                interval = 1,
+                expiresIn = 60,
+            )
+        ),
+    private val devicePollStatuses: List<String> = listOf("authorized"),
 ) : BotAuthApi {
     var startedWithRedirect: String? = null
+    var deviceStartCalled: Boolean = false
+    var polledDeviceCode: String? = null
+    // Invoked at the start of each poll, so a test can observe the controller's live panel state mid-flow.
+    var onPoll: (() -> Unit)? = null
+    private var pollIndex: Int = 0
 
     override suspend fun start(loopbackRedirect: String): ApiResult<OAuthStart> {
         startedWithRedirect = loopbackRedirect
         return ApiResult.Ok(OAuthStart(authorizeUrl = authorizeUrl, state = "state-nonce"))
     }
 
+    override suspend fun startDeviceLogin(): ApiResult<DeviceCodeStart> {
+        deviceStartCalled = true
+        return deviceStart
+    }
+
+    override suspend fun pollDeviceLogin(deviceCode: String): ApiResult<DeviceBotPoll> {
+        onPoll?.invoke()
+        polledDeviceCode = deviceCode
+        val pollStatus: String = devicePollStatuses.getOrElse(pollIndex) { "pending" }
+        pollIndex++
+        val bot: BotStatus? =
+            if (pollStatus == "authorized") BotStatus(connected = true, displayName = "NomNomzBot")
+            else null
+        return ApiResult.Ok(DeviceBotPoll(status = pollStatus, bot = bot))
+    }
+
     override suspend fun status(): ApiResult<BotStatus> = ApiResult.Ok(status)
+}
+
+// A minimal [SystemApi] for the integrations tests — only [status] is read (the bot-connect method choice
+// keys off twitchApp.ok). Everything else returns a benign default; these tests never call it.
+private class FakeSystemApi(private val twitchSecretConfigured: Boolean) : SystemApi {
+    override suspend fun status(): ApiResult<SystemStatus> =
+        ApiResult.Ok(
+            SystemStatus(
+                ready = true,
+                checks =
+                    SystemChecks(
+                        twitchApp =
+                            SystemCheck(
+                                ok = twitchSecretConfigured,
+                                ready = true,
+                                status = if (twitchSecretConfigured) "ready_redirect" else "ready_device",
+                            ),
+                        platformBot = SystemCheck(ok = true, ready = true, status = "connected"),
+                    ),
+            )
+        )
+
+    override suspend fun wizard(): ApiResult<SetupWizard> = ApiResult.Ok(SetupWizard(complete = true))
+
+    override suspend fun saveTwitchCredentials(
+        clientId: String,
+        clientSecret: String,
+        botUsername: String?,
+    ): ApiResult<Unit> = ApiResult.Ok(Unit)
+
+    override suspend fun saveSpotifyCredentials(clientId: String, clientSecret: String): ApiResult<Unit> =
+        ApiResult.Ok(Unit)
+
+    override suspend fun saveYouTubeCredentials(clientId: String, clientSecret: String): ApiResult<Unit> =
+        ApiResult.Ok(Unit)
+
+    override suspend fun saveDiscordCredentials(clientId: String, clientSecret: String): ApiResult<Unit> =
+        ApiResult.Ok(Unit)
+
+    override suspend fun botOAuthUrl(): ApiResult<BotOAuthUrl> =
+        ApiResult.Ok(BotOAuthUrl("https://id.twitch.tv/authorize?bot"))
+
+    override suspend fun botStatus(): ApiResult<BotStatus> = ApiResult.Ok(BotStatus(connected = true))
+
+    override suspend fun completeSetup(): ApiResult<Unit> = ApiResult.Ok(Unit)
 }
 
 private class FakeIntegrationsApi(

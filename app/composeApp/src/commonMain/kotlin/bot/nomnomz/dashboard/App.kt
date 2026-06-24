@@ -33,6 +33,7 @@ import bot.nomnomz.dashboard.core.designsystem.theme.Scheme
 import bot.nomnomz.dashboard.core.feedback.FeedbackHost
 import bot.nomnomz.dashboard.core.i18n.AppEnvironment
 import bot.nomnomz.dashboard.core.navigation.Destination
+import bot.nomnomz.dashboard.core.navigation.RouteStore
 import bot.nomnomz.dashboard.feature.connect.ui.ConnectScreen
 import bot.nomnomz.dashboard.feature.language.state.AppLanguage
 import bot.nomnomz.dashboard.feature.language.ui.LanguagePicker
@@ -73,6 +74,7 @@ fun App(graph: AppGraph = remember { AppGraph() }) {
         val phase: SessionPhase by graph.sessionStore.phase.collectAsStateWithLifecycle()
         val spacing = LocalSpacing.current
         val scope = rememberCoroutineScope()
+        val routeStore: RouteStore = remember { RouteStore() }
 
         var booting: Boolean by remember { mutableStateOf(true) }
         LaunchedEffect(Unit) {
@@ -114,6 +116,7 @@ fun App(graph: AppGraph = remember { AppGraph() }) {
                             ShellScreen(
                                 graph = graph,
                                 languageController = graph.languageController,
+                                routeStore = routeStore,
                                 user = user,
                                 // Self-host: the signed-in owner manages their OWN channel, so they ARE the
                                 // Broadcaster. Delegated Mod/SuperMod/Editor roles come from channel

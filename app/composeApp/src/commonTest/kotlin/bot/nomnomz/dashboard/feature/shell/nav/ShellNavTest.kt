@@ -31,16 +31,21 @@ class ShellNavTest {
     }
 
     @Test
-    fun moderator_sees_every_page_except_the_broadcaster_floored_integrations() {
+    fun moderator_sees_every_page_except_the_broadcaster_floored_pages() {
         val visible: List<NavPage> = ShellNav.visiblePagesFor(ManagementRole.Moderator)
 
-        // Integrations' read floor is Broadcaster — a Mod must not see it.
+        // The Broadcaster-floored pages (Integrations, Discord, Roles) must be hidden from a Mod.
         assertFalse(visible.any { it.route == ShellRoute.Integrations })
+        assertFalse(visible.any { it.route == ShellRoute.Discord })
+        assertFalse(visible.any { it.route == ShellRoute.Roles })
         // Everything else (incl. the Moderator-floored Settings) stays visible.
         assertTrue(visible.any { it.route == ShellRoute.Dashboard })
         assertTrue(visible.any { it.route == ShellRoute.Moderation })
         assertTrue(visible.any { it.route == ShellRoute.Settings })
-        assertEquals(ShellNav.pages.size - 1, visible.size)
+        // Exactly the Broadcaster-floored pages are dropped — no more, no fewer.
+        val broadcasterFloored: Int =
+            ShellNav.pages.count { it.readFloor == ManagementRole.Broadcaster }
+        assertEquals(ShellNav.pages.size - broadcasterFloored, visible.size)
     }
 
     @Test
@@ -63,6 +68,7 @@ class ShellNavTest {
                 NavGroup.Loyalty,
                 NavGroup.Media,
                 NavGroup.Stream,
+                NavGroup.Automation,
                 NavGroup.Community,
                 NavGroup.Pinned,
             ),

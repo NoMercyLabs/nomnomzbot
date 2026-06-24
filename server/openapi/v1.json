@@ -33012,12 +33012,16 @@
       "CheckItem": {
         "required": [
           "ok",
+          "ready",
           "status",
           "detail"
         ],
         "type": "object",
         "properties": {
           "ok": {
+            "type": "boolean"
+          },
+          "ready": {
             "type": "boolean"
           },
           "status": {

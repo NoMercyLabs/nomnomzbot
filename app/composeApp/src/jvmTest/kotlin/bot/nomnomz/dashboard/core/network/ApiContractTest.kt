@@ -43,6 +43,7 @@ class ApiContractTest {
             DashboardStats.serializer() to "DashboardStatsDto",
             DeviceCodeStart.serializer() to "DeviceCodeStartDto",
             DeviceLoginPoll.serializer() to "DeviceLoginPollDto",
+            DeviceBotPoll.serializer() to "DeviceBotPollDto",
             IntegrationStatus.serializer() to "IntegrationStatusDto",
             OAuthStart.serializer() to "OAuthStartDto",
             SystemChecks.serializer() to "SystemChecks",

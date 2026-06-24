@@ -421,11 +421,16 @@ private class FakeSystemApi(
                         SystemChecks(
                             twitchApp =
                                 SystemCheck(
-                                    twitchConfigured,
-                                    if (twitchConfigured) "configured" else "missing",
+                                    ok = twitchConfigured,
+                                    ready = true,
+                                    status = if (twitchConfigured) "ready_redirect" else "ready_device",
                                 ),
                             platformBot =
-                                SystemCheck(ready, if (ready) "connected" else "disconnected"),
+                                SystemCheck(
+                                    ok = ready,
+                                    ready = ready,
+                                    status = if (ready) "connected" else "disconnected",
+                                ),
                         ),
                 )
             )

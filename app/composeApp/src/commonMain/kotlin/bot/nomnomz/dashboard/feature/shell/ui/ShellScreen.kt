@@ -39,6 +39,7 @@ import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -51,7 +52,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -60,16 +60,23 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.di.AppGraph
+import bot.nomnomz.dashboard.core.navigation.RouteStore
 import bot.nomnomz.dashboard.feature.alerts.ui.AlertsScreen
 import bot.nomnomz.dashboard.feature.analytics.ui.AnalyticsScreen
+import bot.nomnomz.dashboard.feature.chat.ui.ChatScreen
 import bot.nomnomz.dashboard.feature.commands.ui.CommandsScreen
 import bot.nomnomz.dashboard.feature.community.ui.CommunityScreen
+import bot.nomnomz.dashboard.feature.discord.ui.DiscordScreen
 import bot.nomnomz.dashboard.feature.economy.ui.EconomyScreen
 import bot.nomnomz.dashboard.feature.games.ui.GamesScreen
 import bot.nomnomz.dashboard.feature.home.ui.HomeScreen
 import bot.nomnomz.dashboard.feature.integrations.ui.IntegrationsScreen
 import bot.nomnomz.dashboard.feature.moderation.ui.ModerationScreen
+import bot.nomnomz.dashboard.feature.music.ui.MusicScreen
+import bot.nomnomz.dashboard.feature.pipelines.ui.PipelinesScreen
+import bot.nomnomz.dashboard.feature.quotes.ui.QuotesScreen
 import bot.nomnomz.dashboard.feature.rewards.ui.RewardsScreen
+import bot.nomnomz.dashboard.feature.roles.ui.RolesScreen
 import bot.nomnomz.dashboard.feature.settings.ui.SettingsScreen
 import bot.nomnomz.dashboard.feature.songrequests.ui.SongRequestsScreen
 import bot.nomnomz.dashboard.feature.timers.ui.TimersScreen
@@ -88,7 +95,7 @@ import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.app_name
 import nomnomzbot.composeapp.generated.resources.language_label
 import nomnomzbot.composeapp.generated.resources.language_system_default
-import nomnomzbot.composeapp.generated.resources.shell_content_placeholder
+import nomnomzbot.composeapp.generated.resources.shell_group_automation
 import nomnomzbot.composeapp.generated.resources.shell_group_chat
 import nomnomzbot.composeapp.generated.resources.shell_group_community
 import nomnomzbot.composeapp.generated.resources.shell_group_home
@@ -97,16 +104,22 @@ import nomnomzbot.composeapp.generated.resources.shell_group_media
 import nomnomzbot.composeapp.generated.resources.shell_group_stream
 import nomnomzbot.composeapp.generated.resources.shell_nav_alerts
 import nomnomzbot.composeapp.generated.resources.shell_nav_analytics
+import nomnomzbot.composeapp.generated.resources.shell_nav_chat
 import nomnomzbot.composeapp.generated.resources.shell_nav_commands
 import nomnomzbot.composeapp.generated.resources.shell_nav_community
 import nomnomzbot.composeapp.generated.resources.shell_nav_dashboard
+import nomnomzbot.composeapp.generated.resources.shell_nav_discord
 import nomnomzbot.composeapp.generated.resources.shell_nav_economy
 import nomnomzbot.composeapp.generated.resources.shell_nav_games
 import nomnomzbot.composeapp.generated.resources.shell_nav_integrations
 import nomnomzbot.composeapp.generated.resources.shell_nav_menu_open
 import nomnomzbot.composeapp.generated.resources.shell_nav_moderation
+import nomnomzbot.composeapp.generated.resources.shell_nav_music
 import nomnomzbot.composeapp.generated.resources.shell_nav_overlays
+import nomnomzbot.composeapp.generated.resources.shell_nav_pipelines
+import nomnomzbot.composeapp.generated.resources.shell_nav_quotes
 import nomnomzbot.composeapp.generated.resources.shell_nav_rewards
+import nomnomzbot.composeapp.generated.resources.shell_nav_roles
 import nomnomzbot.composeapp.generated.resources.shell_nav_settings
 import nomnomzbot.composeapp.generated.resources.shell_nav_song_requests
 import nomnomzbot.composeapp.generated.resources.shell_nav_timers
@@ -135,12 +148,15 @@ private val CompactBreakpoint: Dp = 720.dp
 fun ShellScreen(
     graph: AppGraph,
     languageController: LanguageController,
+    routeStore: RouteStore,
     user: SessionUser?,
     role: ManagementRole,
     onLogout: () -> Unit,
 ) {
     val tokens = LocalTokens.current
-    var selected: ShellRoute by remember { mutableStateOf(ShellRoute.Dashboard) }
+    var selected: ShellRoute by remember { mutableStateOf(routeStore.initialRoute()) }
+    LaunchedEffect(selected) { routeStore.save(selected) }
+    LaunchedEffect(routeStore) { routeStore.externalChanges.collect { selected = it } }
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize().background(tokens.background)) {
         val compact: Boolean = maxWidth < CompactBreakpoint
@@ -201,25 +217,31 @@ fun ShellScreen(
 private fun ShellContent(selected: ShellRoute, graph: AppGraph) {
     when (selected) {
         ShellRoute.Dashboard -> HomeScreen(controller = graph.homeController)
+        ShellRoute.Chat -> ChatScreen(controller = graph.chatController)
         ShellRoute.Community -> CommunityScreen(controller = graph.communityController)
         ShellRoute.Commands -> CommandsScreen(controller = graph.commandsController)
+        ShellRoute.Quotes -> QuotesScreen(controller = graph.quotesController)
         ShellRoute.Timers -> TimersScreen(controller = graph.timersController)
         ShellRoute.Moderation -> ModerationScreen(controller = graph.moderationController)
         ShellRoute.Analytics -> AnalyticsScreen(controller = graph.analyticsController)
         ShellRoute.Rewards -> RewardsScreen(controller = graph.rewardsController)
         ShellRoute.SongRequests -> SongRequestsScreen(controller = graph.songRequestsController)
+        ShellRoute.Music -> MusicScreen(controller = graph.musicController)
         ShellRoute.Tts -> TtsScreen(controller = graph.ttsController)
         ShellRoute.Games -> GamesScreen(controller = graph.gamesController)
+        ShellRoute.Discord -> DiscordScreen(controller = graph.discordController)
+        ShellRoute.Pipelines -> PipelinesScreen(controller = graph.pipelinesController)
+        ShellRoute.Roles -> RolesScreen(controller = graph.rolesController)
         ShellRoute.Integrations -> IntegrationsScreen(controller = graph.integrationsController)
         ShellRoute.Settings ->
             SettingsScreen(
                 controller = graph.settingsController,
                 journalController = graph.journalPortabilityController,
+                twitchAppController = graph.twitchAppCredentialsController,
             )
         ShellRoute.Economy -> EconomyScreen(controller = graph.economyController)
         ShellRoute.Alerts -> AlertsScreen(controller = graph.alertsController)
         ShellRoute.Widgets -> WidgetsScreen(controller = graph.widgetsController)
-        else -> PagePlaceholder(title = selected.label())
     }
 }
 
@@ -536,31 +558,6 @@ private fun HubDot() {
     )
 }
 
-@Composable
-private fun PagePlaceholder(title: String) {
-    val tokens = LocalTokens.current
-    val spacing = LocalSpacing.current
-    val typography = LocalTypography.current
-
-    Box(
-        modifier = Modifier.fillMaxSize().padding(spacing.s6),
-        contentAlignment = Alignment.Center,
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(spacing.s2),
-        ) {
-            Text(text = title, style = typography.lg, color = tokens.foreground)
-            Text(
-                text = stringResource(Res.string.shell_content_placeholder),
-                style = typography.sm,
-                color = tokens.mutedForeground,
-                textAlign = TextAlign.Center,
-            )
-        }
-    }
-}
-
 // ── Label mappings (the single place each route/group/role/language maps to its localized string) ──────────
 
 @Composable
@@ -568,18 +565,24 @@ private fun ShellRoute.label(): String =
     stringResource(
         when (this) {
             ShellRoute.Dashboard -> Res.string.shell_nav_dashboard
+            ShellRoute.Chat -> Res.string.shell_nav_chat
             ShellRoute.Commands -> Res.string.shell_nav_commands
+            ShellRoute.Quotes -> Res.string.shell_nav_quotes
             ShellRoute.Timers -> Res.string.shell_nav_timers
             ShellRoute.Moderation -> Res.string.shell_nav_moderation
             ShellRoute.Rewards -> Res.string.shell_nav_rewards
             ShellRoute.Economy -> Res.string.shell_nav_economy
             ShellRoute.Games -> Res.string.shell_nav_games
             ShellRoute.SongRequests -> Res.string.shell_nav_song_requests
+            ShellRoute.Music -> Res.string.shell_nav_music
             ShellRoute.Tts -> Res.string.shell_nav_tts
             ShellRoute.Widgets -> Res.string.shell_nav_overlays
             ShellRoute.Alerts -> Res.string.shell_nav_alerts
+            ShellRoute.Discord -> Res.string.shell_nav_discord
             ShellRoute.Analytics -> Res.string.shell_nav_analytics
+            ShellRoute.Pipelines -> Res.string.shell_nav_pipelines
             ShellRoute.Community -> Res.string.shell_nav_community
+            ShellRoute.Roles -> Res.string.shell_nav_roles
             ShellRoute.Integrations -> Res.string.shell_nav_integrations
             ShellRoute.Settings -> Res.string.shell_nav_settings
         }
@@ -593,6 +596,7 @@ private fun NavGroup.label(): String =
         NavGroup.Loyalty -> stringResource(Res.string.shell_group_loyalty)
         NavGroup.Media -> stringResource(Res.string.shell_group_media)
         NavGroup.Stream -> stringResource(Res.string.shell_group_stream)
+        NavGroup.Automation -> stringResource(Res.string.shell_group_automation)
         NavGroup.Community -> stringResource(Res.string.shell_group_community)
         NavGroup.Pinned -> "" // pinned items render without a group header
     }

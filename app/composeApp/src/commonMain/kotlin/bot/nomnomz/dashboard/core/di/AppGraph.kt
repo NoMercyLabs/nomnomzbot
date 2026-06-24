@@ -25,30 +25,42 @@ import bot.nomnomz.dashboard.core.network.BotAuthApi
 import bot.nomnomz.dashboard.core.network.AlertsApi
 import bot.nomnomz.dashboard.core.network.AnalyticsApi
 import bot.nomnomz.dashboard.core.network.ChannelsApi
+import bot.nomnomz.dashboard.core.network.ChatApi
 import bot.nomnomz.dashboard.core.network.CommandsApi
 import bot.nomnomz.dashboard.core.network.CommunityApi
 import bot.nomnomz.dashboard.core.network.DashboardApi
+import bot.nomnomz.dashboard.core.network.DiscordApi
 import bot.nomnomz.dashboard.core.network.EconomyApi
 import bot.nomnomz.dashboard.core.network.EventStoreApi
 import bot.nomnomz.dashboard.core.network.IntegrationsApi
 import bot.nomnomz.dashboard.core.network.ModerationApi
+import bot.nomnomz.dashboard.core.network.MusicApi
+import bot.nomnomz.dashboard.core.network.PipelinesApi
+import bot.nomnomz.dashboard.core.network.QuotesApi
 import bot.nomnomz.dashboard.core.network.RestAlertsApi
 import bot.nomnomz.dashboard.core.network.RestAnalyticsApi
 import bot.nomnomz.dashboard.core.io.JournalFileBridge
+import bot.nomnomz.dashboard.core.network.RestChatApi
 import bot.nomnomz.dashboard.core.network.RestCommandsApi
 import bot.nomnomz.dashboard.core.network.RestCommunityApi
+import bot.nomnomz.dashboard.core.network.RestDiscordApi
 import bot.nomnomz.dashboard.core.network.RestEconomyApi
 import bot.nomnomz.dashboard.core.network.RestEventStoreApi
 import bot.nomnomz.dashboard.core.network.GamesApi
 import bot.nomnomz.dashboard.core.network.RestGamesApi
 import bot.nomnomz.dashboard.core.network.RestModerationApi
+import bot.nomnomz.dashboard.core.network.RestMusicApi
+import bot.nomnomz.dashboard.core.network.RestPipelinesApi
+import bot.nomnomz.dashboard.core.network.RestQuotesApi
 import bot.nomnomz.dashboard.core.network.RestRewardsApi
+import bot.nomnomz.dashboard.core.network.RestRolesApi
 import bot.nomnomz.dashboard.core.network.RestSongRequestsApi
 import bot.nomnomz.dashboard.core.network.RestStreamApi
 import bot.nomnomz.dashboard.core.network.RestTimersApi
 import bot.nomnomz.dashboard.core.network.RestTtsApi
 import bot.nomnomz.dashboard.core.network.RestWidgetsApi
 import bot.nomnomz.dashboard.core.network.RewardsApi
+import bot.nomnomz.dashboard.core.network.RolesApi
 import bot.nomnomz.dashboard.core.network.SongRequestsApi
 import bot.nomnomz.dashboard.core.network.StreamApi
 import bot.nomnomz.dashboard.core.network.TimersApi
@@ -65,17 +77,24 @@ import bot.nomnomz.dashboard.core.network.SystemApi
 import bot.nomnomz.dashboard.core.network.TwitchDiagnosticsApi
 import bot.nomnomz.dashboard.feature.alerts.state.AlertsController
 import bot.nomnomz.dashboard.feature.analytics.state.AnalyticsController
+import bot.nomnomz.dashboard.feature.chat.state.ChatController
 import bot.nomnomz.dashboard.feature.commands.state.CommandsController
 import bot.nomnomz.dashboard.feature.community.state.CommunityController
 import bot.nomnomz.dashboard.feature.connect.state.ConnectController
+import bot.nomnomz.dashboard.feature.discord.state.DiscordController
 import bot.nomnomz.dashboard.feature.economy.state.EconomyController
 import bot.nomnomz.dashboard.feature.home.state.HomeController
 import bot.nomnomz.dashboard.feature.integrations.state.IntegrationsController
 import bot.nomnomz.dashboard.feature.games.state.GamesController
 import bot.nomnomz.dashboard.feature.moderation.state.ModerationController
+import bot.nomnomz.dashboard.feature.music.state.MusicController
+import bot.nomnomz.dashboard.feature.pipelines.state.PipelinesController
+import bot.nomnomz.dashboard.feature.quotes.state.QuotesController
 import bot.nomnomz.dashboard.feature.rewards.state.RewardsController
+import bot.nomnomz.dashboard.feature.roles.state.RolesController
 import bot.nomnomz.dashboard.feature.settings.state.JournalPortabilityController
 import bot.nomnomz.dashboard.feature.settings.state.SettingsController
+import bot.nomnomz.dashboard.feature.settings.state.TwitchAppCredentialsController
 import bot.nomnomz.dashboard.feature.songrequests.state.SongRequestsController
 import bot.nomnomz.dashboard.feature.timers.state.TimersController
 import bot.nomnomz.dashboard.feature.tts.state.TtsController
@@ -131,6 +150,12 @@ class AppGraph {
     val alertsApi: AlertsApi = RestAlertsApi(apiClient)
     val widgetsApi: WidgetsApi = RestWidgetsApi(apiClient)
     val eventStoreApi: EventStoreApi = RestEventStoreApi(apiClient)
+    val chatApi: ChatApi = RestChatApi(apiClient)
+    val quotesApi: QuotesApi = RestQuotesApi(apiClient)
+    val discordApi: DiscordApi = RestDiscordApi(apiClient)
+    val rolesApi: RolesApi = RestRolesApi(apiClient)
+    val musicApi: MusicApi = RestMusicApi(apiClient)
+    val pipelinesApi: PipelinesApi = RestPipelinesApi(apiClient)
 
     private val oauthLauncher: OAuthLauncher = OAuthLauncher()
     private val connectLauncher: ConnectLauncher = OAuthConnectLauncher(oauthLauncher)
@@ -167,6 +192,7 @@ class AppGraph {
             connectLauncher = connectLauncher,
             diagnosticsApi = twitchDiagnosticsApi,
             authApi = authApi,
+            systemApi = systemApi,
             feedback = feedbackController,
         )
 
@@ -202,6 +228,13 @@ class AppGraph {
     val settingsController: SettingsController =
         SettingsController(channelsApi = channelsApi, streamApi = streamApi)
 
+    val twitchAppCredentialsController: TwitchAppCredentialsController =
+        TwitchAppCredentialsController(
+            systemApi = systemApi,
+            baseUrlProvider = sessionStore::baseUrl,
+            feedback = feedbackController,
+        )
+
     // The per-target OS file save/pick seam for journal export/import, built like the other platform engines.
     private val journalFileBridge: JournalFileBridge = JournalFileBridge()
 
@@ -220,4 +253,22 @@ class AppGraph {
 
     val widgetsController: WidgetsController =
         WidgetsController(channelsApi = channelsApi, widgetsApi = widgetsApi)
+
+    val chatController: ChatController =
+        ChatController(channelsApi = channelsApi, chatApi = chatApi)
+
+    val quotesController: QuotesController =
+        QuotesController(quotesApi = quotesApi, feedback = feedbackController)
+
+    val discordController: DiscordController =
+        DiscordController(channelsApi = channelsApi, discordApi = discordApi)
+
+    val rolesController: RolesController =
+        RolesController(channelsApi = channelsApi, rolesApi = rolesApi)
+
+    val musicController: MusicController =
+        MusicController(channelsApi = channelsApi, musicApi = musicApi)
+
+    val pipelinesController: PipelinesController =
+        PipelinesController(channelsApi = channelsApi, pipelinesApi = pipelinesApi, feedback = feedbackController)
 }

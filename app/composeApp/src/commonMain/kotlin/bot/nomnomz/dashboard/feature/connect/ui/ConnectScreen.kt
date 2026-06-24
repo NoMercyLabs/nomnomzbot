@@ -14,16 +14,11 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -37,6 +32,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.platform.UriHandler
 import androidx.compose.ui.text.style.TextAlign
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.connection.ConnectionProfile
@@ -49,7 +45,6 @@ import bot.nomnomz.dashboard.feature.connect.state.ConnectStatus
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.connect_account_hint
-import nomnomzbot.composeapp.generated.resources.connect_action_twitch
 import nomnomzbot.composeapp.generated.resources.connect_connecting
 import nomnomzbot.composeapp.generated.resources.connect_device_instruction
 import nomnomzbot.composeapp.generated.resources.connect_device_open
@@ -63,23 +58,23 @@ import nomnomzbot.composeapp.generated.resources.connect_error_invalid_url
 import nomnomzbot.composeapp.generated.resources.connect_error_login_denied
 import nomnomzbot.composeapp.generated.resources.connect_error_login_expired
 import nomnomzbot.composeapp.generated.resources.connect_error_login_failed
-import nomnomzbot.composeapp.generated.resources.connect_subtitle
-import nomnomzbot.composeapp.generated.resources.connect_title
+import nomnomzbot.composeapp.generated.resources.connect_modal_heading_first_login
 import nomnomzbot.composeapp.generated.resources.connect_url_label
 import nomnomzbot.composeapp.generated.resources.connect_url_placeholder
 import org.jetbrains.compose.resources.stringResource
 
-// The real direct-connect gate (frontend.md §5/§6). Two ways onboard against a backend:
-//   1. CLICK a bot mDNS-discovered on the LAN (zero-friction onboarding) — rendered above the field.
-//   2. TYPE a backend URL and hit "Connect with Twitch".
+// The real direct-connect gate (frontend.md §5/§6), restyled as the branded Twitch [ConnectModal] (the
+// first-login variant: "Welcome to NomNomzBot", Twitch-purple ambient backdrop + CTA, Terms/Privacy
+// footer). Two ways onboard against a backend — UNCHANGED behaviour, purely presentational:
+//   1. CLICK a bot mDNS-discovered on the LAN (zero-friction onboarding) — rendered inside the card.
+//   2. TYPE a backend URL and hit the brand CTA ("Connect with twitch").
 // Either way the controller runs the live OAuth dance (desktop loopback / web redirect) → captures the
 // JWT → validates it via /me → the App gate flips to the shell. No mock. The discovered list is empty on
-// web (single-origin, served by its own bot), so that section simply renders nothing there.
+// web (single-origin, served by its own bot), so that section simply renders nothing there. When the
+// device-code path is used, the live "enter this code" panel renders inside the SAME card (the modal's
+// content slot) and the CTA is suppressed while approval is pending.
 @Composable
 fun ConnectScreen(controller: ConnectController) {
-    val tokens = LocalTokens.current
-    val spacing = LocalSpacing.current
-    val typography = LocalTypography.current
     val scope = rememberCoroutineScope()
 
     val baseUrl: String by controller.baseUrl.collectAsStateWithLifecycle()
@@ -97,36 +92,28 @@ fun ConnectScreen(controller: ConnectController) {
         }
     }
 
-    Box(
-        modifier =
-            Modifier.fillMaxSize()
-                .background(tokens.background)
-                .verticalScroll(rememberScrollState())
-                .padding(vertical = spacing.s8),
-        contentAlignment = Alignment.Center,
+    val awaiting: ConnectStatus.AwaitingApproval? = status as? ConnectStatus.AwaitingApproval
+
+    ConnectModal(
+        provider = ConnectProviders.Twitch,
+        // First Twitch login → the welcome heading rather than the generic "Link your Twitch account".
+        heading = Res.string.connect_modal_heading_first_login,
+        // The brand CTA IS the "Connect with twitch" action; suppressed once a device login is awaiting
+        // approval (the in-card device panel drives it from there) and while a connect is in flight.
+        onCta = if (busy) null else { { scope.launch { controller.connect() } } },
+        // First login: no Back (this is the entry point), and the Terms/Privacy footer is shown.
+        onBack = null,
+        showTerms = true,
     ) {
+        val spacing = LocalSpacing.current
+
         Column(
-            modifier = Modifier.widthIn(max = spacing.s24 * 4),
+            modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(spacing.s4),
         ) {
-            Text(
-                text = stringResource(Res.string.connect_title),
-                style = typography.xl2,
-                color = tokens.foreground,
-                textAlign = TextAlign.Center,
-            )
-            Text(
-                text = stringResource(Res.string.connect_subtitle),
-                style = typography.sm,
-                color = tokens.mutedForeground,
-                textAlign = TextAlign.Center,
-            )
-
-            val awaiting: ConnectStatus.AwaitingApproval? =
-                status as? ConnectStatus.AwaitingApproval
             if (awaiting != null) {
-                // The login is live — focus the screen on the code to approve at twitch.tv/activate.
+                // The login is live — focus the card on the code to approve at twitch.tv/activate.
                 DeviceCodePanel(
                     userCode = awaiting.userCode,
                     verificationUri = awaiting.verificationUri,
@@ -152,27 +139,27 @@ fun ConnectScreen(controller: ConnectController) {
                     placeholder = { Text(stringResource(Res.string.connect_url_placeholder)) },
                 )
 
-                Button(
-                    onClick = { scope.launch { controller.connect() } },
-                    enabled = !busy,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text(text = stringResource(Res.string.connect_action_twitch))
-                }
-
                 // Make the account unambiguous: this is the streamer's OWN account, and the bot is a
                 // separate, optional account added later — never forced here.
-                Text(
-                    text = stringResource(Res.string.connect_account_hint),
-                    style = typography.xs,
-                    color = tokens.mutedForeground,
-                    textAlign = TextAlign.Center,
-                )
+                AccountHint()
             }
 
             ConnectStatusRow(status = status)
         }
     }
+}
+
+// The streamer-account clarification line, shown under the URL field and in the device panel.
+@Composable
+private fun AccountHint() {
+    val tokens = LocalTokens.current
+    val typography = LocalTypography.current
+    Text(
+        text = stringResource(Res.string.connect_account_hint),
+        style = typography.xs,
+        color = tokens.mutedForeground,
+        textAlign = TextAlign.Center,
+    )
 }
 
 // The mDNS-discovered backends, each a click-to-connect row, with a subtle searching/empty hint and the
@@ -258,7 +245,7 @@ private fun DiscoveredRow(
 // The live device-login panel: the user code to enter at twitch.tv/activate, a button that opens Twitch
 // (the verification URL comes pre-filled with the code), and a "waiting for approval" indicator while the
 // controller polls. Opening the link uses the platform UriHandler — the system browser on desktop, a new
-// tab on web.
+// tab on web. Rendered inside the modal card (its content slot).
 @Composable
 private fun DeviceCodePanel(userCode: String, verificationUri: String) {
     val tokens = LocalTokens.current
@@ -271,7 +258,7 @@ private fun DeviceCodePanel(userCode: String, verificationUri: String) {
         modifier = Modifier
             .fillMaxWidth()
             .clip(shape)
-            .background(tokens.card)
+            .background(tokens.background)
             .border(BorderStroke(spacing.s0_5 / 2, tokens.border), shape)
             .padding(spacing.s4),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -295,12 +282,7 @@ private fun DeviceCodePanel(userCode: String, verificationUri: String) {
             color = tokens.primary,
             textAlign = TextAlign.Center,
         )
-        Button(
-            onClick = { uriHandler.openUri(verificationUri) },
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text(text = stringResource(Res.string.connect_device_open))
-        }
+        DeviceOpenButton(verificationUri = verificationUri, uriHandler = uriHandler)
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             CircularProgressIndicator(modifier = Modifier.size(spacing.s6))
             Text(
@@ -311,12 +293,19 @@ private fun DeviceCodePanel(userCode: String, verificationUri: String) {
             )
         }
 
-        Text(
-            text = stringResource(Res.string.connect_account_hint),
-            style = typography.xs,
-            color = tokens.mutedForeground,
-            textAlign = TextAlign.Center,
-        )
+        AccountHint()
+    }
+}
+
+// The "open Twitch to approve" action of the device panel — the Twitch-branded CTA opening the pre-filled
+// verification URL in the system browser / a new tab.
+@Composable
+private fun DeviceOpenButton(verificationUri: String, uriHandler: UriHandler) {
+    Button(
+        onClick = { uriHandler.openUri(verificationUri) },
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Text(text = stringResource(Res.string.connect_device_open))
     }
 }
 
