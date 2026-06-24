@@ -152,13 +152,16 @@ public class StreamController : BaseController
 
         ChannelDto channel = result.Value;
 
-        DateTime? lastStreamedAtFallback = channel.IsLive
-            ? null
+        // SQLite cannot ORDER BY a DateTimeOffset; materialize the ended-at values and take the latest
+        // client-side so the query is provider-agnostic (Postgres + SQLite).
+        List<DateTimeOffset> endedAtValues = channel.IsLive
+            ? new List<DateTimeOffset>()
             : await _db
                 .Streams.Where(s => s.ChannelId == tenantId && s.EndedAt != null)
-                .OrderByDescending(s => s.EndedAt)
-                .Select(s => (DateTime?)s.EndedAt!.Value.UtcDateTime)
-                .FirstOrDefaultAsync(ct);
+                .Select(s => s.EndedAt!.Value)
+                .ToListAsync(ct);
+        DateTime? lastStreamedAtFallback =
+            endedAtValues.Count == 0 ? null : endedAtValues.Max().UtcDateTime;
 
         StreamInfoDto fallback = new StreamInfoDto(
             twitchChannel?.Title ?? channel.Title,

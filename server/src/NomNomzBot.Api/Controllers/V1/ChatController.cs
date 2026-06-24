@@ -16,6 +16,7 @@ using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Chat.ValueObjects;
 using ConfigEntity = NomNomzBot.Domain.Platform.Entities.Configuration;
 
@@ -28,10 +29,12 @@ namespace NomNomzBot.Api.Controllers.V1;
 public class ChatController : BaseController
 {
     private readonly IApplicationDbContext _db;
+    private readonly IChatProvider _chat;
 
-    public ChatController(IApplicationDbContext db)
+    public ChatController(IApplicationDbContext db, IChatProvider chat)
     {
         _db = db;
+        _chat = chat;
     }
 
     // ── DTOs ──────────────────────────────────────────────────────────────────
@@ -54,6 +57,8 @@ public class ChatController : BaseController
         string? ReplyToMessageId,
         string Timestamp
     );
+
+    public record SendChatMessageRequest(string Message);
 
     public record ChatSettingsDto(
         bool SlowMode,
@@ -121,6 +126,52 @@ public class ChatController : BaseController
         messages.Reverse();
 
         return Ok(new StatusResponseDto<List<ChatMessageDto>> { Data = messages });
+    }
+
+    // ── POST message (send as the bot) ─────────────────────────────────────────
+    // The dashboard's REST send path — the same Helix Send Chat Message that DashboardHub.SendChatMessage
+    // performs, exposed over REST so the chat page can send without holding a hub connection.
+
+    [HttpPost("messages")]
+    [ProducesResponseType<StatusResponseDto<bool>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> SendMessage(
+        string channelId,
+        [FromBody] SendChatMessageRequest request,
+        CancellationToken ct = default
+    )
+    {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
+
+        string message = request.Message?.Trim() ?? string.Empty;
+        if (message.Length == 0)
+            return BadRequestResponse("Message cannot be empty.");
+        if (message.Length > 500)
+            return BadRequestResponse("Message exceeds the 500-character limit.");
+
+        await _chat.SendMessageAsync(broadcasterId, message, ct);
+        return Ok(new StatusResponseDto<bool> { Data = true });
+    }
+
+    // ── DELETE message (moderation quick-action) ───────────────────────────────
+
+    [RequireAction("moderation:delete_message")]
+    [HttpDelete("messages/{messageId}")]
+    [ProducesResponseType<StatusResponseDto<bool>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> DeleteMessage(
+        string channelId,
+        string messageId,
+        CancellationToken ct = default
+    )
+    {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
+
+        if (string.IsNullOrWhiteSpace(messageId))
+            return BadRequestResponse("Missing message id.");
+
+        await _chat.DeleteMessageAsync(broadcasterId, messageId, ct);
+        return Ok(new StatusResponseDto<bool> { Data = true });
     }
 
     // ── GET settings ─────────────────────────────────────────────────────────

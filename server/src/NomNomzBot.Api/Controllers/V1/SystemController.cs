@@ -74,7 +74,15 @@ public class SystemController : BaseController
         CheckItem? YouTube
     );
 
-    public record CheckItem(bool Ok, string Status, string? Detail);
+    /// <summary>
+    /// One readiness check. <see cref="Ready"/> means the area is <em>usable now</em>; <see cref="Ok"/> means the
+    /// <em>full</em> credential set is present. For Twitch the two diverge: a client id alone makes the bot fully
+    /// functional via the secret-free Device Code Flow (<see cref="Ready"/> = true), while a client secret is the
+    /// pure enhancement that <em>also</em> unlocks the one-tap redirect sign-in (<see cref="Ok"/> = true). For
+    /// every other area the two coincide. The frontend routes onboarding off these: <see cref="Ready"/> gates
+    /// whether the flow can start at all; <see cref="Ok"/> picks the smoother redirect login over device-code.
+    /// </summary>
+    public record CheckItem(bool Ok, bool Ready, string Status, string? Detail);
 
     public record SaveCredentialRequest(string ClientId, string ClientSecret);
 
@@ -88,46 +96,65 @@ public class SystemController : BaseController
     public async Task<IActionResult> GetStatus(CancellationToken ct)
     {
         SetupState st = await ComputeSetupStateAsync(ct);
-        bool hasTwitch = st.HasTwitch;
+        bool hasTwitchClientId = st.HasTwitchClientId;
+        bool hasTwitchSecret = st.HasTwitchSecret;
         bool hasPlatformBot = st.HasPlatformBot;
         bool hasSpotify = st.HasSpotify;
         bool hasDiscord = st.HasDiscord;
         bool hasYouTube = st.HasYouTube;
 
-        // System is ready when Twitch app and platform bot are both configured
-        bool ready = hasTwitch && hasPlatformBot;
+        // The system is ready once Twitch is USABLE (a client id — the bot logs in and talks via the secret-free
+        // Device Code Flow) and the platform bot is authorized. A client secret is NOT required for readiness; it
+        // only adds the one-tap redirect sign-in. A missing client id is still not-ready; a missing secret is not.
+        bool ready = hasTwitchClientId && hasPlatformBot;
 
         SystemChecks checks = new SystemChecks(
+            // Ok = redirect-capable (secret present); Ready = usable now (client id present → device-code works).
             TwitchApp: new CheckItem(
-                hasTwitch,
-                hasTwitch ? "configured" : "missing",
-                hasTwitch ? "Client ID and secret are set"
-                    : _env.IsDevelopment() ? "Set TWITCH_CLIENT_ID and TWITCH_CLIENT_SECRET in .env"
-                    : "Not configured"
+                Ok: hasTwitchSecret,
+                Ready: hasTwitchClientId,
+                Status: !hasTwitchClientId ? "missing"
+                    : hasTwitchSecret ? "ready_redirect"
+                    : "ready_device",
+                Detail: !hasTwitchClientId
+                        ? (
+                            _env.IsDevelopment()
+                                ? "Set TWITCH_CLIENT_ID in .env (a client secret is optional)"
+                                : "Not configured"
+                        )
+                    : hasTwitchSecret
+                        ? "Client ID and secret are set — one-tap redirect sign-in is available"
+                    : "Ready via the secret-free device-code flow — add a client secret to also enable one-tap redirect sign-in"
             ),
             PlatformBot: new CheckItem(
-                hasPlatformBot,
-                hasPlatformBot ? "connected" : "disconnected",
-                hasPlatformBot ? "Bot account is authorized" : "Authorize the bot's Twitch account"
+                Ok: hasPlatformBot,
+                Ready: hasPlatformBot,
+                Status: hasPlatformBot ? "connected" : "disconnected",
+                Detail: hasPlatformBot
+                    ? "Bot account is authorized"
+                    : "Authorize the bot's Twitch account"
             ),
             Spotify: new CheckItem(
-                hasSpotify,
-                hasSpotify ? "configured" : "not configured",
-                hasSpotify
+                Ok: hasSpotify,
+                Ready: hasSpotify,
+                Status: hasSpotify ? "configured" : "not configured",
+                Detail: hasSpotify
                     ? "Client ID and secret are set"
                     : "Optional — configure to enable song requests"
             ),
             Discord: new CheckItem(
-                hasDiscord,
-                hasDiscord ? "configured" : "not configured",
-                hasDiscord
+                Ok: hasDiscord,
+                Ready: hasDiscord,
+                Status: hasDiscord ? "configured" : "not configured",
+                Detail: hasDiscord
                     ? "Client ID and secret are set"
                     : "Optional — configure to enable Discord integration"
             ),
             YouTube: new CheckItem(
-                hasYouTube,
-                hasYouTube ? "configured" : "not configured",
-                hasYouTube
+                Ok: hasYouTube,
+                Ready: hasYouTube,
+                Status: hasYouTube ? "configured" : "not configured",
+                Detail: hasYouTube
                     ? "Client ID and secret are set"
                     : "Optional — configure to enable the YouTube music provider"
             )
@@ -154,7 +181,11 @@ public class SystemController : BaseController
             new StatusResponseDto<SetupWizardDto>
             {
                 Data = SetupWizard.Build(
-                    st.HasTwitch,
+                    // The Twitch step is complete once a client id is present — a secret is optional, so id-only
+                    // is a finished, fully-functional configuration (device-code login). Without a secret the
+                    // step stays complete but the status flags the redirect enhancement as still available.
+                    st.HasTwitchClientId,
+                    st.HasTwitchSecret,
                     st.HasPlatformBot,
                     st.HasSpotify,
                     st.HasDiscord,
@@ -167,10 +198,18 @@ public class SystemController : BaseController
 
     private async Task<SetupState> ComputeSetupStateAsync(CancellationToken ct)
     {
-        // One resolution path: the credentials provider reads the wizard-vaulted DB rows first, then the
-        // {Provider}:ClientId/Secret config fallback, returning a value only when BOTH fields are present —
-        // which is exactly the "configured" predicate each step needs.
-        bool hasTwitch = await _credentials.GetAsync("twitch", ct) is not null;
+        // Two Twitch facts the onboarding hinges on, kept distinct because a secret is OPTIONAL:
+        //   • a client id alone makes the bot fully functional via the secret-free Device Code Flow, so it is
+        //     what "Twitch is ready" actually means (the shipped public client or a BYOC override);
+        //   • a client SECRET (both fields present) is the pure enhancement that additionally unlocks the
+        //     one-tap redirect sign-in. GetAsync returns non-null only when BOTH fields resolve.
+        bool hasTwitchClientId = !string.IsNullOrWhiteSpace(
+            await _credentials.GetClientIdAsync("twitch", ct)
+        );
+        bool hasTwitchSecret = await _credentials.GetAsync("twitch", ct) is not null;
+
+        // The optional providers stay "configured = both fields" — they have no device-code path, so a secret
+        // is genuinely required to use them at all.
         bool hasSpotify = await _credentials.GetAsync("spotify", ct) is not null;
         bool hasDiscord = await _credentials.GetAsync("discord", ct) is not null;
         bool hasYouTube = await _credentials.GetAsync("youtube", ct) is not null;
@@ -181,11 +220,19 @@ public class SystemController : BaseController
         Result<BotStatusDto> botStatus = await _authService.GetBotStatusAsync(ct);
         bool hasPlatformBot = botStatus is { IsSuccess: true, Value.Connected: true };
 
-        return new SetupState(hasTwitch, hasPlatformBot, hasSpotify, hasDiscord, hasYouTube);
+        return new SetupState(
+            hasTwitchClientId,
+            hasTwitchSecret,
+            hasPlatformBot,
+            hasSpotify,
+            hasDiscord,
+            hasYouTube
+        );
     }
 
     private sealed record SetupState(
-        bool HasTwitch,
+        bool HasTwitchClientId,
+        bool HasTwitchSecret,
         bool HasPlatformBot,
         bool HasSpotify,
         bool HasDiscord,
@@ -359,15 +406,15 @@ public class SystemController : BaseController
         return Ok(new StatusResponseDto<object> { Message = "Setup marked complete." });
     }
 
-    // Setup is "complete" once explicitly finalized, or once the system is ready (Twitch app + platform
-    // bot both configured). After that, credential overwrites require a platform admin — closing the
-    // standing hosted-mode hole where anyone could repoint the platform's Twitch app.
+    // Setup is "complete" once explicitly finalized, or once the system is ready (a Twitch client id — the
+    // secret is optional — plus the platform bot authorized). After that, credential overwrites require a
+    // platform admin — closing the standing hosted-mode hole where anyone could repoint the platform's app.
     private async Task<bool> IsSetupCompleteAsync(CancellationToken ct)
     {
         if (await GetSystemConfig("system.setup_complete", ct) == "true")
             return true;
         SetupState st = await ComputeSetupStateAsync(ct);
-        return st.HasTwitch && st.HasPlatformBot;
+        return st.HasTwitchClientId && st.HasPlatformBot;
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

@@ -60,7 +60,8 @@ public sealed record SetupFieldDto(
 public static class SetupWizard
 {
     public static SetupWizardDto Build(
-        bool hasTwitch,
+        bool hasTwitchClientId,
+        bool hasTwitchSecret,
         bool hasPlatformBot,
         bool hasSpotify,
         bool hasDiscord,
@@ -74,15 +75,20 @@ public static class SetupWizard
             new SetupStepDto(
                 "twitch_app",
                 "Connect your Twitch application",
-                "The bot talks to Twitch through your own Twitch app. Create one and paste its credentials.",
+                "The bot talks to Twitch through a Twitch app. Paste a Client ID to get going — a Client Secret is optional and only adds one-tap redirect sign-in.",
                 Required: true,
-                Complete: hasTwitch,
-                Status: hasTwitch ? "configured" : "missing",
+                // Complete once a Client ID is present: that alone fully runs the bot via the secret-free
+                // device-code login. A missing secret leaves the step done but flags the redirect enhancement.
+                Complete: hasTwitchClientId,
+                Status: !hasTwitchClientId ? "missing"
+                    : hasTwitchSecret ? "ready_redirect"
+                    : "ready_device",
                 Instructions:
                 [
                     "Open the Twitch Developer Console at https://dev.twitch.tv/console/apps and register a new application.",
                     $"Set the OAuth Redirect URL to exactly: {root}/api/v1/auth/twitch/callback",
-                    "Choose the \"Chat Bot\" category, create it, then copy the Client ID and generate a Client Secret.",
+                    "Choose the \"Chat Bot\" category, create it, then copy the Client ID.",
+                    "A Client Secret is optional — the bot signs in with the secret-free device-code flow without one. Add it only if you want the smoother one-tap redirect sign-in.",
                 ],
                 Action: new SetupActionDto(
                     "save_credentials",
@@ -101,10 +107,10 @@ public static class SetupWizard
                     ),
                     new SetupFieldDto(
                         "clientSecret",
-                        "Client Secret",
+                        "Client Secret (optional)",
                         "password",
-                        true,
-                        "Generated on the Twitch app page — shown only once."
+                        false,
+                        "Optional — only needed for one-tap redirect sign-in. Generated on the Twitch app page, shown only once."
                     ),
                 ]
             ),
@@ -205,6 +211,6 @@ public static class SetupWizard
             ),
         ];
 
-        return new SetupWizardDto(hasTwitch && hasPlatformBot, steps);
+        return new SetupWizardDto(hasTwitchClientId && hasPlatformBot, steps);
     }
 }
