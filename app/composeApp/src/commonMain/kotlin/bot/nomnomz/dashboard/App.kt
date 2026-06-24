@@ -111,6 +111,7 @@ fun App(graph: AppGraph = remember { AppGraph() }) {
                             val user: SessionUser? by
                                 graph.sessionStore.user.collectAsStateWithLifecycle()
                             ShellScreen(
+                                homeController = graph.homeController,
                                 integrationsController = graph.integrationsController,
                                 languageController = graph.languageController,
                                 user = user,

@@ -58,6 +58,8 @@ import bot.nomnomz.dashboard.core.connection.SessionUser
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
+import bot.nomnomz.dashboard.feature.home.state.HomeController
+import bot.nomnomz.dashboard.feature.home.ui.HomeScreen
 import bot.nomnomz.dashboard.feature.integrations.state.IntegrationsController
 import bot.nomnomz.dashboard.feature.integrations.ui.IntegrationsScreen
 import bot.nomnomz.dashboard.feature.language.state.AppLanguage
@@ -118,6 +120,7 @@ private val CompactBreakpoint: Dp = 720.dp
 
 @Composable
 fun ShellScreen(
+    homeController: HomeController,
     integrationsController: IntegrationsController,
     languageController: LanguageController,
     user: SessionUser?,
@@ -159,7 +162,11 @@ fun ShellScreen(
                         channelName = user?.displayName,
                         onMenu = { scope.launch { drawerState.open() } },
                     )
-                    ShellContent(selected = selected, integrationsController = integrationsController)
+                    ShellContent(
+                        selected = selected,
+                        homeController = homeController,
+                        integrationsController = integrationsController,
+                    )
                 }
             }
         } else {
@@ -175,7 +182,11 @@ fun ShellScreen(
                 )
                 Column(modifier = Modifier.fillMaxSize()) {
                     TopBar(title = selected.label(), channelName = user?.displayName, onMenu = null)
-                    ShellContent(selected = selected, integrationsController = integrationsController)
+                    ShellContent(
+                        selected = selected,
+                        homeController = homeController,
+                        integrationsController = integrationsController,
+                    )
                 }
             }
         }
@@ -183,8 +194,13 @@ fun ShellScreen(
 }
 
 @Composable
-private fun ShellContent(selected: ShellRoute, integrationsController: IntegrationsController) {
+private fun ShellContent(
+    selected: ShellRoute,
+    homeController: HomeController,
+    integrationsController: IntegrationsController,
+) {
     when (selected) {
+        ShellRoute.Dashboard -> HomeScreen(controller = homeController)
         ShellRoute.Integrations -> IntegrationsScreen(controller = integrationsController)
         else -> PagePlaceholder(title = selected.label())
     }

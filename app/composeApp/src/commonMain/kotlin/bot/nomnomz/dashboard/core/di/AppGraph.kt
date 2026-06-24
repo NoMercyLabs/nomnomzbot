@@ -22,14 +22,17 @@ import bot.nomnomz.dashboard.core.network.ApiClient
 import bot.nomnomz.dashboard.core.network.AuthApi
 import bot.nomnomz.dashboard.core.network.BotAuthApi
 import bot.nomnomz.dashboard.core.network.ChannelsApi
+import bot.nomnomz.dashboard.core.network.DashboardApi
 import bot.nomnomz.dashboard.core.network.IntegrationsApi
 import bot.nomnomz.dashboard.core.network.RestAuthApi
 import bot.nomnomz.dashboard.core.network.RestBotAuthApi
 import bot.nomnomz.dashboard.core.network.RestChannelsApi
+import bot.nomnomz.dashboard.core.network.RestDashboardApi
 import bot.nomnomz.dashboard.core.network.RestIntegrationsApi
 import bot.nomnomz.dashboard.core.network.RestSystemApi
 import bot.nomnomz.dashboard.core.network.SystemApi
 import bot.nomnomz.dashboard.feature.connect.state.ConnectController
+import bot.nomnomz.dashboard.feature.home.state.HomeController
 import bot.nomnomz.dashboard.feature.integrations.state.IntegrationsController
 import bot.nomnomz.dashboard.feature.language.state.LanguageController
 import bot.nomnomz.dashboard.feature.setup.state.SetupController
@@ -61,6 +64,7 @@ class AppGraph {
     val botAuthApi: BotAuthApi = RestBotAuthApi(apiClient)
     val integrationsApi: IntegrationsApi = RestIntegrationsApi(apiClient)
     val systemApi: SystemApi = RestSystemApi(apiClient)
+    val dashboardApi: DashboardApi = RestDashboardApi(apiClient)
 
     private val oauthLauncher: OAuthLauncher = OAuthLauncher()
     private val connectLauncher: ConnectLauncher = OAuthConnectLauncher(oauthLauncher)
@@ -96,4 +100,7 @@ class AppGraph {
             integrationsApi = integrationsApi,
             connectLauncher = connectLauncher,
         )
+
+    val homeController: HomeController =
+        HomeController(channelsApi = channelsApi, dashboardApi = dashboardApi)
 }
