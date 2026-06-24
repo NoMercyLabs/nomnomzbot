@@ -59,7 +59,11 @@ class ConnectController(
     private val lanDiscovery: LanDiscovery,
     private val profileIdFactory: () -> String = ::randomProfileId,
 ) {
-    private val _baseUrl: MutableStateFlow<String> = MutableStateFlow(DEFAULT_BASE_URL)
+    // The web build is single-origin: default the backend URL to the SERVED ORIGIN so it matches wherever the
+    // dashboard is opened (localhost, the LAN, or the public tunnel) instead of a hardcoded localhost. Native
+    // (multi-origin) keeps the editable localhost default.
+    private val _baseUrl: MutableStateFlow<String> =
+        MutableStateFlow(servedOriginProfile()?.baseUrl ?: DEFAULT_BASE_URL)
     private val _status: MutableStateFlow<ConnectStatus> = MutableStateFlow(ConnectStatus.Idle)
 
     // The profile the user is onboarding against, pinned when the flow routes to setup so [signInStreamer]
