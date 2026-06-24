@@ -35,6 +35,7 @@ import bot.nomnomz.dashboard.core.network.EventStoreApi
 import bot.nomnomz.dashboard.core.network.IntegrationsApi
 import bot.nomnomz.dashboard.core.network.ModerationApi
 import bot.nomnomz.dashboard.core.network.MusicApi
+import bot.nomnomz.dashboard.core.network.ParticipantApi
 import bot.nomnomz.dashboard.core.network.PipelinesApi
 import bot.nomnomz.dashboard.core.network.QuotesApi
 import bot.nomnomz.dashboard.core.network.RestAlertsApi
@@ -50,6 +51,7 @@ import bot.nomnomz.dashboard.core.network.GamesApi
 import bot.nomnomz.dashboard.core.network.RestGamesApi
 import bot.nomnomz.dashboard.core.network.RestModerationApi
 import bot.nomnomz.dashboard.core.network.RestMusicApi
+import bot.nomnomz.dashboard.core.network.RestParticipantApi
 import bot.nomnomz.dashboard.core.network.RestPipelinesApi
 import bot.nomnomz.dashboard.core.network.RestQuotesApi
 import bot.nomnomz.dashboard.core.network.RestRewardsApi
@@ -88,6 +90,8 @@ import bot.nomnomz.dashboard.feature.integrations.state.IntegrationsController
 import bot.nomnomz.dashboard.feature.games.state.GamesController
 import bot.nomnomz.dashboard.feature.moderation.state.ModerationController
 import bot.nomnomz.dashboard.feature.music.state.MusicController
+import bot.nomnomz.dashboard.feature.participant.state.ParticipantController
+import bot.nomnomz.dashboard.feature.shell.nav.ParticipantStanding
 import bot.nomnomz.dashboard.feature.pipelines.state.PipelinesController
 import bot.nomnomz.dashboard.feature.quotes.state.QuotesController
 import bot.nomnomz.dashboard.feature.rewards.state.RewardsController
@@ -156,6 +160,7 @@ class AppGraph {
     val discordApi: DiscordApi = RestDiscordApi(apiClient)
     val rolesApi: RolesApi = RestRolesApi(apiClient)
     val musicApi: MusicApi = RestMusicApi(apiClient)
+    val participantApi: ParticipantApi = RestParticipantApi(apiClient)
     val pipelinesApi: PipelinesApi = RestPipelinesApi(apiClient)
 
     private val oauthLauncher: OAuthLauncher = OAuthLauncher()
@@ -277,4 +282,25 @@ class AppGraph {
 
     val pipelinesController: PipelinesController =
         PipelinesController(channelsApi = channelsApi, pipelinesApi = pipelinesApi, feedback = feedbackController)
+
+    // The PARTICIPANT rung's controller is built PER resolved access (channel + caller's own user GUID + community
+    // standing + permit capabilities), which the shell resolves at entry via /effective/me — unlike the management
+    // controllers it needs that context up front, so it is a factory rather than a singleton. The shell calls this
+    // once the access resolves and remembers the result for the participant surface's lifetime.
+    fun participantController(
+        channelId: String,
+        userId: String?,
+        standing: ParticipantStanding,
+        capabilities: List<String>,
+    ): ParticipantController =
+        ParticipantController(
+            channelId = channelId,
+            userId = userId,
+            standing = standing,
+            capabilities = capabilities,
+            participantApi = participantApi,
+            dashboardApi = dashboardApi,
+            economyApi = economyApi,
+            musicApi = musicApi,
+        )
 }

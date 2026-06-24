@@ -13,9 +13,11 @@ package bot.nomnomz.dashboard.feature.shell.state
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
+import bot.nomnomz.dashboard.core.network.CommunityStanding as WireStanding
 import bot.nomnomz.dashboard.core.network.ResolvedAccess
 import bot.nomnomz.dashboard.core.network.RolesApi
 import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
+import bot.nomnomz.dashboard.feature.shell.nav.ParticipantStanding
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -37,12 +39,22 @@ class ShellAccessController(
     /** The shell's role state: loading until the first resolve, then the caller's effective management role. */
     val state: StateFlow<ShellAccess> = _state.asStateFlow()
 
-    /** Resolve the active channel, then the caller's own effective access. Fails closed to a viewer. */
+    /** Resolve the active channel, then the caller's own effective access. Fails closed to a participant. */
     suspend fun load() {
         val channel: ChannelSummary =
             when (val result: ApiResult<ChannelSummary> = channelsApi.primaryChannel()) {
+                // No channel resolves (none onboarded / transient blip): fail closed to a role-less participant at
+                // the lowest standing with no channel context — the shell renders the participant rung, whose
+                // screens surface the "no channel" error rather than ever flashing a management surface.
                 is ApiResult.Failure -> {
-                    _state.value = ShellAccess.Resolved(role = null)
+                    _state.value =
+                        ShellAccess.Resolved(
+                            channelId = "",
+                            userId = null,
+                            role = null,
+                            standing = ParticipantStanding.Everyone,
+                            capabilities = emptyList(),
+                        )
                     return
                 }
                 is ApiResult.Ok -> result.value
@@ -50,19 +62,61 @@ class ShellAccessController(
 
         _state.value =
             when (val result: ApiResult<ResolvedAccess> = rolesApi.effectiveMe(channel.id)) {
-                is ApiResult.Failure -> ShellAccess.Resolved(role = null)
-                is ApiResult.Ok -> ShellAccess.Resolved(role = result.value.role.toShellRole())
+                // A failed resolve fails closed to a participant at the LOWEST standing (Everyone): the base
+                // participation surface, never an over-granted management or sub-only view.
+                is ApiResult.Failure ->
+                    ShellAccess.Resolved(
+                        channelId = channel.id,
+                        userId = null,
+                        role = null,
+                        standing = ParticipantStanding.Everyone,
+                        capabilities = emptyList(),
+                    )
+                is ApiResult.Ok ->
+                    ShellAccess.Resolved(
+                        channelId = channel.id,
+                        userId = result.value.userId,
+                        role = result.value.role.toShellRole(),
+                        standing = result.value.standing.toShellStanding(),
+                        capabilities = result.value.permitCapabilities,
+                    )
             }
     }
 }
 
-/** The shell's resolved-role state — Loading under the boot probe, then the caller's effective management role. */
+/** The shell's resolved-access state — Loading under the boot probe, then the caller's effective access. */
 sealed interface ShellAccess {
     data object Loading : ShellAccess
 
-    /** The resolved Plane-B [role] the shell gates on; null = a viewer (no management role). */
-    data class Resolved(val role: ManagementRole?) : ShellAccess
+    /**
+     * The caller's resolved access on [channelId]. The shell gates the MANAGEMENT rung on [role] (null = a
+     * participant with no Plane-B role) and the PARTICIPANT rung on [standing] (the Plane-A community rung the
+     * participant surface unlocks from — always present, even for a role-less viewer). [userId] is the caller's
+     * platform GUID the participant self-service addresses its own records by; [capabilities] are the per-user
+     * permit action keys that light up capability-gated affordances (e.g. `economy:transfer:write`).
+     */
+    data class Resolved(
+        val channelId: String,
+        val userId: String?,
+        val role: ManagementRole?,
+        val standing: ParticipantStanding,
+        val capabilities: List<String>,
+    ) : ShellAccess
 }
+
+/**
+ * Map the network [WireStanding] to the shell's participant standing by ladder [level] (shared by both), so the
+ * rung the network layer calls `Subscriber` lands on the shell's `Subscriber`. An unknown level fails closed to
+ * `Everyone` (the least-privileged) rather than over-unlocking.
+ */
+private fun WireStanding.toShellStanding(): ParticipantStanding =
+    when (this.level) {
+        WireStanding.Subscriber.level -> ParticipantStanding.Subscriber
+        WireStanding.Vip.level -> ParticipantStanding.Vip
+        WireStanding.Artist.level -> ParticipantStanding.Artist
+        WireStanding.Moderator.level -> ParticipantStanding.Moderator
+        else -> ParticipantStanding.Everyone
+    }
 
 /**
  * Map the network [bot.nomnomz.dashboard.core.network.ManagementRole]? to the shell's gate enum by ladder [level]

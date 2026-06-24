@@ -164,21 +164,51 @@ enum class ManagementRole(val wire: Int, val level: Int) {
  * The caller's resolved access on a channel (backend `ResolvedAccessDto`) — the shell's role source. The backend
  * folds the three planes into one [effectiveLevel]; the shell gates on [managementRole], the Plane-B rung that
  * arrives as a **nullable** integer ordinal (the OpenAPI declares `ManagementRole` as `{"type":"integer"}`, and a
- * pure viewer with no management role has it null). A subset of the backend fields — the page reads only what it
- * gates on; `ApiClient`'s JSON ignores the rest (community standing, permit breakdown).
+ * pure viewer with no management role has it null). The [communityStanding] is the Plane-A rung (an integer
+ * ordinal — Everyone/Subscriber/Vip/Artist/Moderator) the **participant** surface unlocks progressively from
+ * (a Sub sees a lane a plain viewer doesn't). [permitCapabilities] are the per-user action keys the backend
+ * granted, which the participant surface uses to light up capability-gated self-service (e.g. `economy:transfer:write`).
+ * `ApiClient`'s JSON ignores any field we don't read here.
  */
 @Serializable
 data class ResolvedAccess(
     val userId: String,
     val broadcasterId: String,
     val effectiveLevel: Int = 0,
+    val communityStanding: Int = 0,
+    val communityLevel: Int = 0,
     val managementRole: Int? = null,
     val managementLevel: Int = 0,
+    val permitCapabilities: List<String> = emptyList(),
     val winningSource: String = "",
 ) {
     /** The Plane-B rung the shell gates on, or null when the caller holds no management role (a viewer). */
     val role: ManagementRole?
         get() = managementRole?.let { ManagementRole.fromWire(it) }
+
+    /** The Plane-A community rung the participant surface unlocks from (Everyone/Sub/VIP/Artist/Moderator). */
+    val standing: CommunityStanding
+        get() = CommunityStanding.fromWire(communityStanding)
+}
+
+/**
+ * The Plane-A community-standing ladder (backend `CommunityStanding`). The wire form is the enum's integer
+ * ordinal (the OpenAPI declares it `{"type":"integer"}`): Everyone=0, Subscriber=1, Vip=2, Artist=3, Moderator=4.
+ * The participant surface unlocks progressively up this ladder; [level] is the coarse rank it compares on (a Sub
+ * outranks a plain viewer). This is distinct from the Plane-B [ManagementRole] — a viewer with no management role
+ * still has a community standing.
+ */
+enum class CommunityStanding(val wire: Int, val level: Int) {
+    Everyone(wire = 0, level = 0),
+    Subscriber(wire = 1, level = 20),
+    Vip(wire = 2, level = 40),
+    Artist(wire = 3, level = 60),
+    Moderator(wire = 4, level = 100);
+
+    companion object {
+        /** Resolve a wire ordinal to its rung, failing closed to [Everyone] (the least-privileged) on unknown. */
+        fun fromWire(wire: Int): CommunityStanding = entries.firstOrNull { it.wire == wire } ?: Everyone
+    }
 }
 
 /** How a management membership was sourced (backend `MembershipSource`) — an integer ordinal on the wire. */

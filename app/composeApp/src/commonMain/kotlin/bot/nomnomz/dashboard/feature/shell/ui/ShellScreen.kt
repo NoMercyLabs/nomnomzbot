@@ -84,11 +84,13 @@ import bot.nomnomz.dashboard.feature.tts.ui.TtsScreen
 import bot.nomnomz.dashboard.feature.widgets.ui.WidgetsScreen
 import bot.nomnomz.dashboard.feature.language.state.AppLanguage
 import bot.nomnomz.dashboard.feature.language.state.LanguageController
+import bot.nomnomz.dashboard.feature.participant.ui.ParticipantShell
 import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
 import bot.nomnomz.dashboard.feature.shell.nav.NavGroup
 import bot.nomnomz.dashboard.feature.shell.nav.NavPage
 import bot.nomnomz.dashboard.feature.shell.nav.ShellNav
 import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
+import bot.nomnomz.dashboard.feature.shell.state.ShellAccess
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
@@ -131,8 +133,6 @@ import nomnomzbot.composeapp.generated.resources.shell_role_editor
 import nomnomzbot.composeapp.generated.resources.shell_role_moderator
 import nomnomzbot.composeapp.generated.resources.shell_role_supermod
 import nomnomzbot.composeapp.generated.resources.shell_role_viewer
-import nomnomzbot.composeapp.generated.resources.viewer_surface_body
-import nomnomzbot.composeapp.generated.resources.viewer_surface_title
 import nomnomzbot.composeapp.generated.resources.shell_topbar_channel_label
 import nomnomzbot.composeapp.generated.resources.shell_topbar_hub_label
 import org.jetbrains.compose.resources.stringResource
@@ -153,13 +153,22 @@ fun ShellScreen(
     languageController: LanguageController,
     routeStore: RouteStore,
     user: SessionUser?,
-    role: ManagementRole?,
+    access: ShellAccess.Resolved,
     onLogout: () -> Unit,
 ) {
-    // A viewer (no Plane-B management role) gets the participation-only surface, never the management shell —
-    // Plane A "never renders a dashboard" (frontend-ia.md §1/§3). The shell below is for managers only.
+    // One shell, three rungs (participant → mod → broadcaster), never forked. A caller with no Plane-B management
+    // role is a PARTICIPANT (Rung 0): the same shell renders the participant surface — their own profile/standing,
+    // the channel they're watching, and the read-mostly + self-service slices they're permitted — gated by their
+    // Plane-A community standing, not a management role. A non-null role gets the management shell below unchanged.
+    val role: ManagementRole? = access.role
     if (role == null) {
-        ViewerSurface(user = user, languageController = languageController, onLogout = onLogout)
+        ParticipantShell(
+            graph = graph,
+            languageController = languageController,
+            user = user,
+            access = access,
+            onLogout = onLogout,
+        )
         return
     }
 
@@ -232,50 +241,6 @@ fun ShellScreen(
                     )
                 }
             }
-        }
-    }
-}
-
-// The participation-only surface for a signed-in viewer (no Plane-B management role). Plane A "never renders a
-// dashboard" (frontend-ia.md §1/§3), so instead of the management shell a viewer sees a clear explanation plus the
-// same profile block (language + log out) — they can still take part from chat and the channel's public pages.
-@Composable
-private fun ViewerSurface(
-    user: SessionUser?,
-    languageController: LanguageController,
-    onLogout: () -> Unit,
-) {
-    val tokens = LocalTokens.current
-    val spacing = LocalSpacing.current
-    val typography = LocalTypography.current
-
-    Box(modifier = Modifier.fillMaxSize().background(tokens.background)) {
-        Column(
-            modifier = Modifier
-                .align(Alignment.Center)
-                .width(spacing.s24 * 4f)
-                .clip(RoundedCornerShape(tokens.radius.lg))
-                .background(tokens.card)
-                .padding(spacing.s6),
-            verticalArrangement = Arrangement.spacedBy(spacing.s3),
-        ) {
-            Text(
-                text = stringResource(Res.string.viewer_surface_title),
-                style = typography.xl,
-                color = tokens.cardForeground,
-            )
-            Text(
-                text = stringResource(Res.string.viewer_surface_body),
-                style = typography.sm,
-                color = tokens.mutedForeground,
-            )
-            HorizontalDivider(color = tokens.border, modifier = Modifier.padding(top = spacing.s2))
-            ProfileBlock(
-                user = user,
-                role = null,
-                languageController = languageController,
-                onLogout = onLogout,
-            )
         }
     }
 }

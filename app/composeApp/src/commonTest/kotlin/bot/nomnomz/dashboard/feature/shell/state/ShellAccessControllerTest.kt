@@ -16,11 +16,13 @@ import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelMembership
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
+import bot.nomnomz.dashboard.core.network.CommunityStanding as WireStanding
 import bot.nomnomz.dashboard.core.network.ManagementRole as WireRole
 import bot.nomnomz.dashboard.core.network.PermitGrant
 import bot.nomnomz.dashboard.core.network.ResolvedAccess
 import bot.nomnomz.dashboard.core.network.RolesApi
 import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
+import bot.nomnomz.dashboard.feature.shell.nav.ParticipantStanding
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -77,7 +79,7 @@ class ShellAccessControllerTest {
     @Test
     fun a_role_less_caller_resolves_to_a_viewer_with_a_null_management_role() = runTest {
         // /effective/me returns managementRole = null (a pure viewer). The shell must see null — not a default —
-        // so it routes to the participation-only surface instead of the management dashboard.
+        // so it routes to the participant rung instead of the management dashboard.
         val controller =
             ShellAccessController(
                 FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
@@ -89,6 +91,56 @@ class ShellAccessControllerTest {
         val state: ShellAccess = controller.state.value
         assertTrue(state is ShellAccess.Resolved)
         assertEquals(null, (state as ShellAccess.Resolved).role)
+    }
+
+    @Test
+    fun a_role_less_subscriber_resolves_to_the_subscriber_participant_standing() = runTest {
+        // A pure viewer with no management role still carries a Plane-A community standing — the participant rung
+        // unlocks from it. A subscriber must resolve to ParticipantStanding.Subscriber (not Everyone), so the
+        // surface can light up sub-only lanes; the management role stays null (they get the participant shell).
+        val controller =
+            ShellAccessController(
+                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                FakeRolesApi(
+                    access =
+                        ApiResult.Ok(
+                            resolvedAccess(
+                                role = null,
+                                level = 20,
+                                standing = WireStanding.Subscriber,
+                                capabilities = listOf("economy:transfer:write"),
+                            )
+                        )
+                ),
+            )
+
+        controller.load()
+
+        val resolved: ShellAccess.Resolved = controller.state.value as ShellAccess.Resolved
+        assertEquals(null, resolved.role)
+        assertEquals(ParticipantStanding.Subscriber, resolved.standing)
+        // The caller's own GUID and permit capabilities thread through for the participant self-service.
+        assertEquals("caller", resolved.userId)
+        assertEquals(listOf("economy:transfer:write"), resolved.capabilities)
+        assertEquals("ch1", resolved.channelId)
+    }
+
+    @Test
+    fun a_plain_viewer_resolves_to_the_everyone_standing() = runTest {
+        val controller =
+            ShellAccessController(
+                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                FakeRolesApi(
+                    access = ApiResult.Ok(resolvedAccess(role = null, level = 0, standing = WireStanding.Everyone))
+                ),
+            )
+
+        controller.load()
+
+        val resolved: ShellAccess.Resolved = controller.state.value as ShellAccess.Resolved
+        assertEquals(ParticipantStanding.Everyone, resolved.standing)
+        // A plain viewer holds no transfer capability — the store's transfer affordance stays off.
+        assertTrue(resolved.capabilities.isEmpty())
     }
 
     @Test
@@ -115,7 +167,11 @@ class ShellAccessControllerTest {
 
         val state: ShellAccess = controller.state.value
         assertTrue(state is ShellAccess.Resolved)
-        assertEquals(null, (state as ShellAccess.Resolved).role)
+        val resolved: ShellAccess.Resolved = state as ShellAccess.Resolved
+        assertEquals(null, resolved.role)
+        // Fail closed to the LEAST-privileged participant: no role, lowest standing, no capabilities, no channel.
+        assertEquals(ParticipantStanding.Everyone, resolved.standing)
+        assertTrue(resolved.capabilities.isEmpty())
     }
 
     @Test
@@ -134,14 +190,22 @@ class ShellAccessControllerTest {
 
 // ── Builders ────────────────────────────────────────────────────────────────
 
-private fun resolvedAccess(role: WireRole?, level: Int): ResolvedAccess =
+private fun resolvedAccess(
+    role: WireRole?,
+    level: Int,
+    standing: WireStanding = WireStanding.Everyone,
+    capabilities: List<String> = emptyList(),
+): ResolvedAccess =
     ResolvedAccess(
         userId = "caller",
         broadcasterId = "ch1",
         effectiveLevel = level,
+        communityStanding = standing.wire,
+        communityLevel = standing.level,
         managementRole = role?.wire,
         managementLevel = role?.level ?: 0,
-        winningSource = if (level == 0) "community" else "management",
+        permitCapabilities = capabilities,
+        winningSource = if (role == null) "community" else "management",
     )
 
 // ── Fakes ───────────────────────────────────────────────────────────────────

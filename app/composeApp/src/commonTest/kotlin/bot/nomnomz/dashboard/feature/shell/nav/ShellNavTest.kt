@@ -90,15 +90,27 @@ class ShellNavTest {
         }
     }
 
-    // ── Viewer (no management role) — Plane A is NOT a nav surface (frontend-ia.md §1/§3) ──────────────────
+    // ── Participant (no management role) — Rung 0 is a REAL surface, not a dead-end ────────────────────────
 
     @Test
     fun a_viewer_with_no_management_role_sees_no_management_pages() {
-        // Every shell page floors at Moderator+, and Plane A "never renders a dashboard": a role-less viewer
-        // gets the participation-only surface, not the management shell. The visible page set is empty.
+        // Every shell page floors at Moderator+, so a role-less viewer sees NO management pages — but they are not
+        // a dead-end: they get the participant rung instead. The management page set for a null role is empty.
         val visible: List<NavPage> = ShellNav.visiblePagesFor(null)
 
         assertTrue(visible.isEmpty(), "a viewer must see no management pages, got $visible")
+    }
+
+    @Test
+    fun a_role_less_viewer_gets_a_non_empty_participant_page_set() {
+        // The headline of the IA redesign: a role-less viewer is routed to the participant rung, whose page set is
+        // a REAL surface (My Channel, Now Playing, Leaderboards, Store, Games, Me) — never an empty dead-end.
+        val participant: List<ParticipantPage> = ShellNav.participantPagesFor(ParticipantStanding.Everyone)
+
+        assertTrue(participant.isNotEmpty(), "a participant must see a real page set, got $participant")
+        assertTrue(participant.contains(ParticipantPage.MyChannel))
+        assertTrue(participant.contains(ParticipantPage.PointsAndStore))
+        assertTrue(participant.contains(ParticipantPage.Me))
     }
 
     @Test

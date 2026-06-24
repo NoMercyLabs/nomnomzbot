@@ -94,14 +94,24 @@ object ShellNav {
         )
 
     /**
-     * The pages a caller of [role] may see — those whose read floor the role clears (frontend-ia.md §7). A
-     * `null` [role] is a **viewer** (no Plane-B management role): Plane A "never renders a dashboard"
-     * (frontend-ia.md §1/§3), and every shell page floors at Moderator+, so a viewer sees **no** management
-     * pages — the shell routes them to the participation-only surface instead.
+     * The MANAGEMENT pages a caller of [role] may see — those whose read floor the role clears (frontend-ia.md §7).
+     * A `null` [role] is a participant (no Plane-B management role): every management page floors at Moderator+, so
+     * a participant sees **no** management pages here and the shell renders the PARTICIPANT rung instead (Rung 0 —
+     * `ParticipantNav`, gated by Plane-A community standing). The participant surface is a real page set, not a
+     * dead-end; [participantPagesFor] is its entry. The two rungs share one shell; the role just selects which.
      */
     fun visiblePagesFor(role: ManagementRole?): List<NavPage> =
         if (role == null) emptyList()
         else pages.filter { role.level >= it.readFloor.level }
+
+    /**
+     * The PARTICIPANT pages a role-less caller of [standing] sees (Rung 0). Delegates to [ParticipantNav] — the
+     * single source of the participant page set — so a viewer is never a dead-end: the base surface is always
+     * non-empty, and a sub/VIP unlocks additional lanes. This is the answer for `visiblePagesFor(null)`'s caller:
+     * a null management role routes here, not to an empty list.
+     */
+    fun participantPagesFor(standing: ParticipantStanding): List<ParticipantPage> =
+        ParticipantNav.pagesFor(standing)
 
     /**
      * The minimum [ManagementRole] to run a write [action] on the [route]'s page (frontend-ia.md §3). Most

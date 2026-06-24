@@ -788,4 +788,86 @@
     <!-- Write-gate (frontend-ia.md §7): the reason a control is disabled for a caller below its manage floor.
          %1$s is the minimum role, filled from the shell_role_* labels above. -->
     <string name="manage_gate_requires">Requires %1$s</string>
+
+    <!-- ── Participant rung (Rung 0) — the user-first surface for viewers / subs / VIPs. ───────────────────── -->
+    <!-- Sidebar page labels. -->
+    <string name="participant_nav_my_channel">My Channel</string>
+    <string name="participant_nav_now_playing">Now Playing</string>
+    <string name="participant_nav_leaderboards">Leaderboards</string>
+    <string name="participant_nav_store">My Points &amp; Store</string>
+    <string name="participant_nav_games">Games</string>
+    <string name="participant_nav_me">Me</string>
+    <!-- Community standing labels (the participant's Plane-A rung). -->
+    <string name="participant_standing_everyone">Viewer</string>
+    <string name="participant_standing_subscriber">Subscriber</string>
+    <string name="participant_standing_vip">VIP</string>
+    <string name="participant_standing_artist">Artist</string>
+    <string name="participant_standing_moderator">Moderator</string>
+    <!-- Shared loading / retry. -->
+    <string name="participant_loading">Loading…</string>
+    <string name="participant_retry">Retry</string>
+    <!-- My Channel home. -->
+    <string name="participant_home_greeting">Hi, %1$s</string>
+    <string name="participant_home_channel_title">This channel</string>
+    <string name="participant_home_channel_online">Live now</string>
+    <string name="participant_home_channel_offline">Offline</string>
+    <string name="participant_home_no_title">No stream title set</string>
+    <string name="participant_home_playing">Playing %1$s</string>
+    <!-- Activity stat tiles (shared with Me). -->
+    <string name="participant_stat_messages">Messages</string>
+    <string name="participant_stat_watch_hours">Watch hours</string>
+    <string name="participant_stat_commands">Commands used</string>
+    <string name="participant_stat_channels">Channels</string>
+    <!-- Now Playing / Queue. -->
+    <string name="participant_sr_now_playing">Now playing</string>
+    <string name="participant_sr_nothing_playing">Nothing is playing right now.</string>
+    <string name="participant_sr_unknown_track">Unknown track</string>
+    <string name="participant_sr_unknown_requester">someone</string>
+    <string name="participant_sr_requested_by">Requested by %1$s</string>
+    <string name="participant_sr_submit">Request a song</string>
+    <string name="participant_sr_submit_placeholder">Search for a song to request…</string>
+    <string name="participant_sr_limit">Up to %1$d pending</string>
+    <string name="participant_sr_sub_lane">Sub lane</string>
+    <string name="participant_sr_queue_title">Up next</string>
+    <string name="participant_sr_queue_empty">The queue is empty.</string>
+    <!-- Leaderboards. -->
+    <string name="participant_lb_title">Top holders</string>
+    <string name="participant_lb_sub_board">Top holders (subscribers)</string>
+    <string name="participant_lb_empty">No holders yet.</string>
+    <string name="participant_lb_row_description">#%1$d, %2$s, %3$d points</string>
+    <string name="participant_lb_consent_label">Show me on public leaderboards</string>
+    <!-- My Points &amp; Store. -->
+    <string name="participant_store_balance">Balance: %1$d</string>
+    <string name="participant_store_lifetime">Earned %1$d · spent %2$d all-time</string>
+    <string name="participant_store_frozen">Your account is frozen — spending is paused.</string>
+    <string name="participant_store_transfer_title">Send points</string>
+    <string name="participant_store_transfer_recipient">Recipient user ID</string>
+    <string name="participant_store_transfer_amount">Amount</string>
+    <string name="participant_store_transfer_send">Send</string>
+    <string name="participant_store_catalog_title">Store</string>
+    <string name="participant_store_catalog_empty">Nothing in the store yet.</string>
+    <string name="participant_store_cost">%1$d points</string>
+    <string name="participant_store_buy">Buy %1$s</string>
+    <string name="participant_store_sold_out">Sold out</string>
+    <string name="participant_store_jars_title">Community jars</string>
+    <string name="participant_store_jars_empty">No community jars yet.</string>
+    <string name="participant_store_jar_goal">%1$d of %2$d</string>
+    <string name="participant_store_contribute">Contribute</string>
+    <!-- Games. -->
+    <string name="participant_games_title">Play</string>
+    <string name="participant_games_empty">No games are available right now.</string>
+    <string name="participant_games_18plus">18+</string>
+    <string name="participant_games_bet">Bet</string>
+    <string name="participant_games_play">Play %1$s</string>
+    <string name="participant_games_outcome">Last result</string>
+    <string name="participant_games_history_title">Your recent plays</string>
+    <string name="participant_games_history_empty">You haven't played yet.</string>
+    <string name="participant_games_history_row">%1$s · %2$s · net %3$d</string>
+    <!-- Me. -->
+    <string name="participant_me_profile_title">Your profile</string>
+    <string name="participant_me_pronoun_none">No pronouns set</string>
+    <string name="participant_me_pronoun_readonly">Pronouns are shown from your Twitch profile and can't be edited here yet.</string>
+    <string name="participant_me_channels_title">Channels you take part in</string>
+    <string name="participant_me_channels_empty">No channel activity yet.</string>
+    <string name="participant_me_channels_row">%1$s · %2$d messages · %3$s</string>
 </resources>

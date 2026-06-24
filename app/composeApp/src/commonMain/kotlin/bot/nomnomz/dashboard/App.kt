@@ -130,7 +130,7 @@ fun App(graph: AppGraph = remember { AppGraph() }) {
                                         languageController = graph.languageController,
                                         routeStore = routeStore,
                                         user = user,
-                                        role = resolved.role,
+                                        access = resolved,
                                         onLogout = { scope.launch { graph.sessionStore.disconnect() } },
                                     )
                             }
