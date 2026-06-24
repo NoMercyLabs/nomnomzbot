@@ -773,6 +773,18 @@ public static class DependencyInjection
             NomNomzBot.Infrastructure.EventStore.EventUpcasterRegistry
         >();
 
+        // Owner-gated legacy backfill — imports the legacy NoMercy bot's channel history onto the journal and
+        // rebuilds projections from it. The locator (which legacy file to read) is a stateless seam; the service
+        // composes the importer + projection runner.
+        services.AddSingleton<
+            NomNomzBot.Infrastructure.EventStore.LegacyImport.ILegacyDatabaseLocator,
+            NomNomzBot.Infrastructure.EventStore.LegacyImport.DefaultLegacyDatabaseLocator
+        >();
+        services.AddScoped<
+            NomNomzBot.Application.Contracts.EventStore.ILegacyChannelImportService,
+            NomNomzBot.Infrastructure.EventStore.LegacyImport.LegacyChannelImportService
+        >();
+
         return services;
     }
 

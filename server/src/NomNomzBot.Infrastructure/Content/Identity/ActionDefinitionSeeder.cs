@@ -179,6 +179,9 @@ public sealed class ActionDefinitionSeeder : ISeeder
         // owner-level and not permit-delegable below Broadcaster.
         M("eventstore:export", Broadcaster, grant: false);
         M("eventstore:import", Broadcaster, DangerTier.Critical, grant: false);
+        // One-shot legacy backfill — reads the legacy bot's database and appends its channel history to the journal.
+        // Mutates the journal, so it is owner-level and danger-tier Critical, like the portable import.
+        M("eventstore:import:legacy", Broadcaster, DangerTier.Critical, grant: false);
 
         // Music
         M("music:config:write", Editor);
