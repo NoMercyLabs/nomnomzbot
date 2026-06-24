@@ -23,6 +23,23 @@ import kotlinx.serialization.Serializable
 interface CommandsApi {
     /** The channel's custom chat commands — the lightweight list-view items. */
     suspend fun list(channelId: String): ApiResult<List<CommandSummary>>
+
+    /** Create a new custom command on the channel (backend POST). */
+    suspend fun create(channelId: String, body: CreateCommandBody): ApiResult<Unit>
+
+    /**
+     * Update an existing command, addressed by its current [commandName] (the backend PUT route is keyed by
+     * name, not id). A partial update: only the non-null [body] fields are applied — this is how a toggle is
+     * expressed (flip `isEnabled`, leave the rest null).
+     */
+    suspend fun update(
+        channelId: String,
+        commandName: String,
+        body: UpdateCommandBody,
+    ): ApiResult<Unit>
+
+    /** Delete a command, addressed by its [commandName] (the backend DELETE route is keyed by name). */
+    suspend fun delete(channelId: String, commandName: String): ApiResult<Unit>
 }
 
 class RestCommandsApi(private val client: ApiClient) : CommandsApi {
@@ -38,7 +55,47 @@ class RestCommandsApi(private val client: ApiClient) : CommandsApi {
             is ApiResult.Ok -> ApiResult.Ok(page.value.data)
         }
     }
+
+    // The create response is a `StatusResponseDto<CommandDto>` (201), but the controller re-fetches the list
+    // after every write, so the body is irrelevant here — any 2xx is success.
+    override suspend fun create(channelId: String, body: CreateCommandBody): ApiResult<Unit> =
+        client.postUnit("api/v1/channels/$channelId/commands", body)
+
+    override suspend fun update(
+        channelId: String,
+        commandName: String,
+        body: UpdateCommandBody,
+    ): ApiResult<Unit> = client.putUnit("api/v1/channels/$channelId/commands/$commandName", body)
+
+    override suspend fun delete(channelId: String, commandName: String): ApiResult<Unit> =
+        client.deleteUnit("api/v1/channels/$channelId/commands/$commandName")
 }
+
+/**
+ * The create-command request body (backend `CreateCommandDto`). camelCase JSON. [name] and [response] are
+ * the essentials the create dialog collects; [type] defaults to a plain text command and [permission] to
+ * everyone, matching the backend defaults. [isEnabled] lets a command be created already-on (the default).
+ */
+@Serializable
+data class CreateCommandBody(
+    val name: String,
+    val response: String,
+    val type: String = "text",
+    val permission: String = "everyone",
+    val isEnabled: Boolean = true,
+)
+
+/**
+ * The update-command request body (backend `UpdateCommandDto`) — every field nullable so an update is a
+ * partial patch. A toggle sends only [isEnabled]; an edit sends [response] (and may flip [isEnabled]); all
+ * other fields stay null and the backend leaves them untouched. `explicitNulls = false` on the shared Json
+ * means null fields are omitted from the wire body.
+ */
+@Serializable
+data class UpdateCommandBody(
+    val response: String? = null,
+    val isEnabled: Boolean? = null,
+)
 
 /**
  * A custom chat command's list-view item (backend `CommandListItem`): the trigger [name], who may run it,

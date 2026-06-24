@@ -109,6 +109,17 @@ class ApiClient(
             }
         }
 
+    /** PUTs an optional JSON [body] to a `StatusResponseDto<T>` endpoint, unwrapping `data`. */
+    internal suspend inline fun <reified T> putEnvelope(path: String, body: Any? = null): ApiResult<T> =
+        envelope(path) { url ->
+            httpClient.put(url) {
+                if (body != null) {
+                    contentType(ContentType.Application.Json)
+                    setBody(body)
+                }
+            }
+        }
+
     /** POSTs an optional JSON [body] and treats any 2xx as success, ignoring the response body. */
     internal suspend fun postUnit(path: String, body: Any? = null): ApiResult<Unit> =
         unit(path) { url ->

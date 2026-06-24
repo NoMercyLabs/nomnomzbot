@@ -16,8 +16,10 @@ import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.TtsApi
 import bot.nomnomz.dashboard.core.network.TtsConfig
+import bot.nomnomz.dashboard.core.network.TtsConfigUpdate
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
 
@@ -83,12 +85,115 @@ class TtsControllerTest {
 
         assertTrue(controller.state.value is TtsState.Error)
     }
+
+    @Test
+    fun save_sends_the_edit_and_reflects_the_backend_echoed_config() = runTest {
+        // The backend canonicalizes and echoes the saved config back; the controller adopts THAT, not the
+        // value the user typed. Here the echo flips readUsernames on and clamps maxLength, proving the
+        // controller surfaces the persisted server values rather than the request.
+        val loaded =
+            TtsConfig(
+                isEnabled = false,
+                defaultVoiceId = "en-US-Brian",
+                maxLength = 200,
+                minPermission = "everyone",
+                skipBotMessages = false,
+                readUsernames = false,
+            )
+        val echoed =
+            TtsConfig(
+                isEnabled = true,
+                defaultVoiceId = "en-GB-Sonia",
+                maxLength = 300,
+                minPermission = "subscribers",
+                skipBotMessages = true,
+                readUsernames = true,
+            )
+        val ttsApi = FakeTtsApi(ApiResult.Ok(loaded), updateResult = ApiResult.Ok(echoed))
+        val controller = TtsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), ttsApi)
+        controller.load()
+
+        val edited: TtsConfig = loaded.copy(isEnabled = true, minPermission = "subscribers")
+        controller.save(edited)
+
+        // The whole config is sent for the resolved channel as a TtsConfigUpdate carrying the edited values.
+        assertEquals("ch1", ttsApi.lastUpdateChannelId)
+        assertEquals(
+            TtsConfigUpdate(
+                isEnabled = true,
+                defaultVoiceId = "en-US-Brian",
+                maxLength = 200,
+                minPermission = "subscribers",
+                skipBotMessages = false,
+                readUsernames = false,
+            ),
+            ttsApi.lastUpdate,
+        )
+
+        // State now holds the backend echo, flags the save, and carries no error.
+        val state: TtsState = controller.state.value
+        assertTrue(state is TtsState.Ready)
+        val ready: TtsState.Ready = state as TtsState.Ready
+        assertEquals(echoed, ready.config)
+        assertTrue(ready.justSaved)
+        assertEquals(false, ready.saving)
+        assertNull(ready.saveError)
+    }
+
+    @Test
+    fun save_failure_surfaces_the_error_without_losing_the_loaded_config() = runTest {
+        val loaded =
+            TtsConfig(
+                isEnabled = true,
+                defaultVoiceId = "en-US-Brian",
+                maxLength = 200,
+                minPermission = "everyone",
+                skipBotMessages = false,
+                readUsernames = false,
+            )
+        val ttsApi =
+            FakeTtsApi(
+                ApiResult.Ok(loaded),
+                updateResult = ApiResult.Failure(ApiError(500, "ERR", "save boom")),
+            )
+        val controller = TtsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), ttsApi)
+        controller.load()
+
+        controller.save(loaded.copy(maxLength = 50))
+
+        // The page stays Ready on the loaded config (no data loss) but surfaces the save error, save cleared.
+        val state: TtsState = controller.state.value
+        assertTrue(state is TtsState.Ready)
+        val ready: TtsState.Ready = state as TtsState.Ready
+        assertEquals(loaded, ready.config)
+        assertEquals("save boom", ready.saveError)
+        assertEquals(false, ready.saving)
+        assertEquals(false, ready.justSaved)
+    }
 }
 
 private class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : ChannelsApi {
     override suspend fun primaryChannel(): ApiResult<ChannelSummary> = result
 }
 
-private class FakeTtsApi(private val result: ApiResult<TtsConfig>) : TtsApi {
+private class FakeTtsApi(
+    private val result: ApiResult<TtsConfig>,
+    private val updateResult: ApiResult<TtsConfig> = ApiResult.Ok(TtsConfig()),
+) : TtsApi {
+    var lastUpdate: TtsConfigUpdate? = null
+        private set
+
+    var lastUpdateChannelId: String? = null
+        private set
+
     override suspend fun config(channelId: String): ApiResult<TtsConfig> = result
+
+    override suspend fun updateConfig(
+        channelId: String,
+        update: TtsConfigUpdate,
+    ): ApiResult<TtsConfig> {
+        lastUpdateChannelId = channelId
+        lastUpdate = update
+        return updateResult
+    }
 }

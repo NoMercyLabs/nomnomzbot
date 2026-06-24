@@ -15,12 +15,15 @@ import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.TtsApi
 import bot.nomnomz.dashboard.core.network.TtsConfig
+import bot.nomnomz.dashboard.core.network.TtsConfigUpdate
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-// The TTS page's state-holder: resolves the active channel, then loads its real TTS configuration from the
-// backend (no fabricated values). The screen renders [state] read-only; a retry / reconnect calls [load] again.
+// The TTS page's state-holder: resolves the active channel, loads its real TTS configuration, and
+// persists edits back (no fabricated values). The screen renders [state]; it edits a local form seeded
+// from the loaded config and calls [save] to write the whole config through. A retry / reconnect calls
+// [load] again. The resolved channel id is cached from [load] so [save] reuses it without re-resolving.
 class TtsController(
     private val channelsApi: ChannelsApi,
     private val ttsApi: TtsApi,
@@ -29,6 +32,9 @@ class TtsController(
 
     /** The page render state: loading / ready (with the config) / error. */
     val state: StateFlow<TtsState> = _state.asStateFlow()
+
+    /** The channel resolved by the last successful [load]; [save] targets it without re-resolving. */
+    private var channelId: String? = null
 
     /** Resolve the active channel, then load its TTS configuration. */
     suspend fun load() {
@@ -43,10 +49,43 @@ class TtsController(
                 is ApiResult.Ok -> result.value
             }
 
+        channelId = channel.id
+
         when (val result: ApiResult<TtsConfig> = ttsApi.config(channel.id)) {
             is ApiResult.Failure -> _state.value = TtsState.Error(result.error.message)
             is ApiResult.Ok -> _state.value = TtsState.Ready(result.value)
         }
+    }
+
+    /**
+     * Persist [config] for the loaded channel. Sends the whole configuration as the update; the backend
+     * echoes the saved values, which become the new loaded baseline ([TtsState.Ready.justSaved] flags the
+     * confirmation). A failure surfaces on the current Ready state without discarding the in-progress edit.
+     * No-ops when no channel is loaded yet (the form is only shown once Ready).
+     */
+    suspend fun save(config: TtsConfig) {
+        val target: String = channelId ?: return
+        val current: TtsState = _state.value
+        if (current !is TtsState.Ready) return
+
+        _state.value = current.copy(saving = true, justSaved = false, saveError = null)
+
+        val update: TtsConfigUpdate =
+            TtsConfigUpdate(
+                isEnabled = config.isEnabled,
+                defaultVoiceId = config.defaultVoiceId,
+                maxLength = config.maxLength,
+                minPermission = config.minPermission,
+                skipBotMessages = config.skipBotMessages,
+                readUsernames = config.readUsernames,
+            )
+
+        _state.value =
+            when (val result: ApiResult<TtsConfig> = ttsApi.updateConfig(target, update)) {
+                is ApiResult.Failure ->
+                    current.copy(saving = false, justSaved = false, saveError = result.error.message)
+                is ApiResult.Ok -> TtsState.Ready(config = result.value, justSaved = true)
+            }
     }
 }
 
@@ -54,7 +93,17 @@ class TtsController(
 sealed interface TtsState {
     data object Loading : TtsState
 
-    data class Ready(val config: TtsConfig) : TtsState
+    /**
+     * The loaded configuration plus the in-flight save signals: [saving] while a write is pending,
+     * [justSaved] right after a successful save (the "Saved" confirmation), and [saveError] when the
+     * last save failed. The screen seeds its editable form from [config].
+     */
+    data class Ready(
+        val config: TtsConfig,
+        val saving: Boolean = false,
+        val justSaved: Boolean = false,
+        val saveError: String? = null,
+    ) : TtsState
 
     data class Error(val detail: String) : TtsState
 }

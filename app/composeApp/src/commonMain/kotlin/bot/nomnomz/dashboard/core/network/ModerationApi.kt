@@ -12,18 +12,23 @@ package bot.nomnomz.dashboard.core.network
 
 import kotlinx.serialization.Serializable
 
-// The typed moderation facade. This slice renders the channel's currently-banned viewers (read-only); the
-// list comes straight from the real Twitch-backed moderation state on the backend (no fabricated entries).
+// The typed moderation facade. It renders the channel's currently-banned viewers and lets a moderator lift a
+// ban — both straight against the real Twitch-backed moderation state on the backend (no fabricated entries).
 // State holders depend on the interface (the existing "depend on interfaces" convention) and fake it in
 // tests without HTTP.
 //
-// Backend route (CommunityController):
-//   GET /api/v1/channels/{channelId}/community/bans  →  PaginatedResponse<BannedUserDto>
+// Backend routes (CommunityController):
+//   GET    /api/v1/channels/{channelId}/community/bans            →  PaginatedResponse<BannedUserDto>
+//   DELETE /api/v1/channels/{channelId}/community/{userId}/ban    →  204 No Content
 // A PaginatedResponse is a flat `{ data: [...] }` object (not the single-value StatusResponseDto envelope),
-// so it is read with getDirect + PaginatedEnvelope rather than getEnvelope.
+// so the list is read with getDirect + PaginatedEnvelope rather than getEnvelope. The unban is a bodyless
+// DELETE that returns 204, so it goes through deleteUnit; `userId` is the Twitch id carried by BannedUser.id.
 interface ModerationApi {
     /** The channel's currently-banned viewers — most recent ban first. */
     suspend fun bans(channelId: String): ApiResult<List<BannedUser>>
+
+    /** Lift the ban on [userId] (the [BannedUser.id]); the backend also clears it on Twitch. */
+    suspend fun unban(channelId: String, userId: String): ApiResult<Unit>
 }
 
 class RestModerationApi(private val client: ApiClient) : ModerationApi {
@@ -35,6 +40,9 @@ class RestModerationApi(private val client: ApiClient) : ModerationApi {
             is ApiResult.Failure -> ApiResult.Failure(page.error)
             is ApiResult.Ok -> ApiResult.Ok(page.value.data)
         }
+
+    override suspend fun unban(channelId: String, userId: String): ApiResult<Unit> =
+        client.deleteUnit("api/v1/channels/$channelId/community/$userId/ban")
 }
 
 /**

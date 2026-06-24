@@ -16,8 +16,11 @@ import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.CommandSummary
 import bot.nomnomz.dashboard.core.network.CommandsApi
+import bot.nomnomz.dashboard.core.network.CreateCommandBody
+import bot.nomnomz.dashboard.core.network.UpdateCommandBody
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
 
@@ -31,7 +34,7 @@ class CommandsControllerTest {
         val controller =
             CommandsController(
                 FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
-                FakeCommandsApi(
+                RecordingCommandsApi(
                     ApiResult.Ok(
                         listOf(
                             CommandSummary(
@@ -67,7 +70,7 @@ class CommandsControllerTest {
         val controller =
             CommandsController(
                 FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
-                FakeCommandsApi(ApiResult.Ok(emptyList())),
+                RecordingCommandsApi(ApiResult.Ok(emptyList())),
             )
 
         controller.load()
@@ -80,7 +83,7 @@ class CommandsControllerTest {
         val controller =
             CommandsController(
                 FakeChannelsApi(ApiResult.Failure(ApiError(404, "NO_CHANNEL", "none onboarded"))),
-                FakeCommandsApi(ApiResult.Ok(emptyList())),
+                RecordingCommandsApi(ApiResult.Ok(emptyList())),
             )
 
         controller.load()
@@ -93,12 +96,108 @@ class CommandsControllerTest {
         val controller =
             CommandsController(
                 FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
-                FakeCommandsApi(ApiResult.Failure(ApiError(500, "ERR", "boom"))),
+                RecordingCommandsApi(ApiResult.Failure(ApiError(500, "ERR", "boom"))),
             )
 
         controller.load()
 
         assertTrue(controller.state.value is CommandsState.Error)
+    }
+
+    @Test
+    fun create_posts_the_body_then_reloads_with_the_new_command() = runTest {
+        // The fake starts empty; the create appends the new command to its backing store, so the controller's
+        // post-write reload must surface it — proving create actually calls the api AND re-lists.
+        val commandsApi = RecordingCommandsApi(ApiResult.Ok(emptyList()))
+        val controller =
+            CommandsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), commandsApi)
+        controller.load()
+        assertTrue(controller.state.value is CommandsState.Empty)
+
+        controller.createCommand(name = "!hi", response = "yo", isEnabled = true)
+
+        // The api recorded exactly the body the controller built.
+        assertEquals(1, commandsApi.created.size)
+        val body: CreateCommandBody = commandsApi.created.first()
+        assertEquals("ch1", commandsApi.createdChannelId)
+        assertEquals("!hi", body.name)
+        assertEquals("yo", body.response)
+        assertEquals(true, body.isEnabled)
+
+        // And the reload surfaced the freshly-created row.
+        val state: CommandsState = controller.state.value
+        assertTrue(state is CommandsState.Ready)
+        val commands: List<CommandSummary> = (state as CommandsState.Ready).commands
+        assertEquals(1, commands.size)
+        assertEquals("!hi", commands.first().name)
+        assertNull(state.actionError)
+    }
+
+    @Test
+    fun toggle_puts_only_the_enabled_flag_then_reloads_with_the_flipped_state() = runTest {
+        val commandsApi =
+            RecordingCommandsApi(
+                ApiResult.Ok(
+                    listOf(
+                        CommandSummary(id = 1, name = "!hi", isEnabled = true)
+                    )
+                )
+            )
+        val controller =
+            CommandsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), commandsApi)
+        controller.load()
+
+        controller.toggleCommand(name = "!hi", enabled = false)
+
+        // A toggle is a partial PUT carrying only isEnabled.
+        assertEquals(1, commandsApi.updated.size)
+        val update: Pair<String, UpdateCommandBody> = commandsApi.updated.first()
+        assertEquals("!hi", update.first)
+        assertEquals(false, update.second.isEnabled)
+        assertNull(update.second.response)
+
+        // The reload reflects the persisted flip.
+        val state: CommandsState = controller.state.value
+        assertTrue(state is CommandsState.Ready)
+        assertEquals(false, (state as CommandsState.Ready).commands.first().isEnabled)
+    }
+
+    @Test
+    fun delete_removes_the_command_then_reloads_to_empty() = runTest {
+        val commandsApi =
+            RecordingCommandsApi(
+                ApiResult.Ok(listOf(CommandSummary(id = 1, name = "!hi", isEnabled = true)))
+            )
+        val controller =
+            CommandsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), commandsApi)
+        controller.load()
+        assertTrue(controller.state.value is CommandsState.Ready)
+
+        controller.deleteCommand(name = "!hi")
+
+        assertEquals(listOf("!hi"), commandsApi.deleted)
+        // The store is now empty, so the post-delete reload lands on Empty — the row is really gone.
+        assertTrue(controller.state.value is CommandsState.Empty)
+    }
+
+    @Test
+    fun a_failed_write_surfaces_the_error_over_the_kept_list() = runTest {
+        val commandsApi =
+            RecordingCommandsApi(
+                ApiResult.Ok(listOf(CommandSummary(id = 1, name = "!hi", isEnabled = true))),
+                writeResult = ApiResult.Failure(ApiError(403, "FORBIDDEN", "no permission")),
+            )
+        val controller =
+            CommandsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), commandsApi)
+        controller.load()
+
+        controller.deleteCommand(name = "!hi")
+
+        // The list is kept (not blown away) and the failure is surfaced on it.
+        val state: CommandsState = controller.state.value
+        assertTrue(state is CommandsState.Ready)
+        assertEquals(1, (state as CommandsState.Ready).commands.size)
+        assertEquals("no permission", state.actionError)
     }
 }
 
@@ -106,6 +205,67 @@ private class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : C
     override suspend fun primaryChannel(): ApiResult<ChannelSummary> = result
 }
 
-private class FakeCommandsApi(private val result: ApiResult<List<CommandSummary>>) : CommandsApi {
-    override suspend fun list(channelId: String): ApiResult<List<CommandSummary>> = result
+// A recording fake that behaves like the backend store: list() returns the live store, and each successful
+// write mutates the store so the controller's post-write reload observes the real consequence (a new row, a
+// flipped flag, a removed row) — not merely that a call happened. [writeResult] forces every write to fail
+// (the store is left untouched) to exercise the error path. A list-level [listFailure] is modelled by passing
+// a Failure as the initial result.
+private class RecordingCommandsApi(
+    initial: ApiResult<List<CommandSummary>>,
+    private val writeResult: ApiResult<Unit> = ApiResult.Ok(Unit),
+) : CommandsApi {
+    private val listFailure: ApiError? = (initial as? ApiResult.Failure)?.error
+    private val store: MutableList<CommandSummary> =
+        (initial as? ApiResult.Ok)?.value?.toMutableList() ?: mutableListOf()
+
+    val created: MutableList<CreateCommandBody> = mutableListOf()
+    var createdChannelId: String? = null
+    val updated: MutableList<Pair<String, UpdateCommandBody>> = mutableListOf()
+    val deleted: MutableList<String> = mutableListOf()
+
+    override suspend fun list(channelId: String): ApiResult<List<CommandSummary>> =
+        listFailure?.let { ApiResult.Failure(it) } ?: ApiResult.Ok(store.toList())
+
+    override suspend fun create(channelId: String, body: CreateCommandBody): ApiResult<Unit> {
+        created += body
+        createdChannelId = channelId
+        if (writeResult is ApiResult.Ok) {
+            store +=
+                CommandSummary(
+                    id = store.size + 1,
+                    name = body.name,
+                    description = body.response,
+                    isEnabled = body.isEnabled,
+                )
+        }
+        return writeResult
+    }
+
+    override suspend fun update(
+        channelId: String,
+        commandName: String,
+        body: UpdateCommandBody,
+    ): ApiResult<Unit> {
+        updated += commandName to body
+        if (writeResult is ApiResult.Ok) {
+            val index: Int = store.indexOfFirst { it.name == commandName }
+            if (index >= 0) {
+                val existing: CommandSummary = store[index]
+                store[index] =
+                    existing.copy(
+                        isEnabled = body.isEnabled ?: existing.isEnabled,
+                        description = body.response ?: existing.description,
+                    )
+            }
+        }
+        return writeResult
+    }
+
+    override suspend fun delete(channelId: String, commandName: String): ApiResult<Unit> {
+        deleted += commandName
+        if (writeResult is ApiResult.Ok) {
+            store.removeAll { it.name == commandName }
+        }
+        return writeResult
+    }
 }
