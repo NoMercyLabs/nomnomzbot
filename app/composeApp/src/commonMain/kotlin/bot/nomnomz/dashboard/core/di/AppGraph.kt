@@ -31,9 +31,17 @@ import bot.nomnomz.dashboard.core.network.ModerationApi
 import bot.nomnomz.dashboard.core.network.RestAnalyticsApi
 import bot.nomnomz.dashboard.core.network.RestCommandsApi
 import bot.nomnomz.dashboard.core.network.RestCommunityApi
+import bot.nomnomz.dashboard.core.network.GamesApi
+import bot.nomnomz.dashboard.core.network.RestGamesApi
 import bot.nomnomz.dashboard.core.network.RestModerationApi
+import bot.nomnomz.dashboard.core.network.RestRewardsApi
+import bot.nomnomz.dashboard.core.network.RestSongRequestsApi
 import bot.nomnomz.dashboard.core.network.RestTimersApi
+import bot.nomnomz.dashboard.core.network.RestTtsApi
+import bot.nomnomz.dashboard.core.network.RewardsApi
+import bot.nomnomz.dashboard.core.network.SongRequestsApi
 import bot.nomnomz.dashboard.core.network.TimersApi
+import bot.nomnomz.dashboard.core.network.TtsApi
 import bot.nomnomz.dashboard.core.network.RestAuthApi
 import bot.nomnomz.dashboard.core.network.RestBotAuthApi
 import bot.nomnomz.dashboard.core.network.RestChannelsApi
@@ -47,8 +55,12 @@ import bot.nomnomz.dashboard.feature.community.state.CommunityController
 import bot.nomnomz.dashboard.feature.connect.state.ConnectController
 import bot.nomnomz.dashboard.feature.home.state.HomeController
 import bot.nomnomz.dashboard.feature.integrations.state.IntegrationsController
+import bot.nomnomz.dashboard.feature.games.state.GamesController
 import bot.nomnomz.dashboard.feature.moderation.state.ModerationController
+import bot.nomnomz.dashboard.feature.rewards.state.RewardsController
+import bot.nomnomz.dashboard.feature.songrequests.state.SongRequestsController
 import bot.nomnomz.dashboard.feature.timers.state.TimersController
+import bot.nomnomz.dashboard.feature.tts.state.TtsController
 import bot.nomnomz.dashboard.feature.language.state.LanguageController
 import bot.nomnomz.dashboard.feature.setup.state.SetupController
 
@@ -85,6 +97,10 @@ class AppGraph {
     val timersApi: TimersApi = RestTimersApi(apiClient)
     val moderationApi: ModerationApi = RestModerationApi(apiClient)
     val analyticsApi: AnalyticsApi = RestAnalyticsApi(apiClient)
+    val rewardsApi: RewardsApi = RestRewardsApi(apiClient)
+    val songRequestsApi: SongRequestsApi = RestSongRequestsApi(apiClient)
+    val ttsApi: TtsApi = RestTtsApi(apiClient)
+    val gamesApi: GamesApi = RestGamesApi(apiClient)
 
     private val oauthLauncher: OAuthLauncher = OAuthLauncher()
     private val connectLauncher: ConnectLauncher = OAuthConnectLauncher(oauthLauncher)
@@ -138,4 +154,15 @@ class AppGraph {
 
     val analyticsController: AnalyticsController =
         AnalyticsController(channelsApi = channelsApi, analyticsApi = analyticsApi)
+
+    val rewardsController: RewardsController =
+        RewardsController(channelsApi = channelsApi, rewardsApi = rewardsApi)
+
+    val songRequestsController: SongRequestsController =
+        SongRequestsController(channelsApi = channelsApi, songRequestsApi = songRequestsApi)
+
+    val ttsController: TtsController = TtsController(channelsApi = channelsApi, ttsApi = ttsApi)
+
+    val gamesController: GamesController =
+        GamesController(channelsApi = channelsApi, gamesApi = gamesApi)
 }

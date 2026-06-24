@@ -62,10 +62,14 @@ import bot.nomnomz.dashboard.core.di.AppGraph
 import bot.nomnomz.dashboard.feature.analytics.ui.AnalyticsScreen
 import bot.nomnomz.dashboard.feature.commands.ui.CommandsScreen
 import bot.nomnomz.dashboard.feature.community.ui.CommunityScreen
+import bot.nomnomz.dashboard.feature.games.ui.GamesScreen
 import bot.nomnomz.dashboard.feature.home.ui.HomeScreen
 import bot.nomnomz.dashboard.feature.integrations.ui.IntegrationsScreen
 import bot.nomnomz.dashboard.feature.moderation.ui.ModerationScreen
+import bot.nomnomz.dashboard.feature.rewards.ui.RewardsScreen
+import bot.nomnomz.dashboard.feature.songrequests.ui.SongRequestsScreen
 import bot.nomnomz.dashboard.feature.timers.ui.TimersScreen
+import bot.nomnomz.dashboard.feature.tts.ui.TtsScreen
 import bot.nomnomz.dashboard.feature.language.state.AppLanguage
 import bot.nomnomz.dashboard.feature.language.state.LanguageController
 import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
@@ -197,6 +201,10 @@ private fun ShellContent(selected: ShellRoute, graph: AppGraph) {
         ShellRoute.Timers -> TimersScreen(controller = graph.timersController)
         ShellRoute.Moderation -> ModerationScreen(controller = graph.moderationController)
         ShellRoute.Analytics -> AnalyticsScreen(controller = graph.analyticsController)
+        ShellRoute.Rewards -> RewardsScreen(controller = graph.rewardsController)
+        ShellRoute.SongRequests -> SongRequestsScreen(controller = graph.songRequestsController)
+        ShellRoute.Tts -> TtsScreen(controller = graph.ttsController)
+        ShellRoute.Games -> GamesScreen(controller = graph.gamesController)
         ShellRoute.Integrations -> IntegrationsScreen(controller = graph.integrationsController)
         else -> PagePlaceholder(title = selected.label())
     }
