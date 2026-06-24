@@ -632,8 +632,12 @@ try
     app.UseCors();
     app.UseRateLimiter();
     app.UseAuthentication();
-    app.UseAuthorization();
+    // Tenant resolution MUST sit between authentication and authorization: it needs the authenticated
+    // principal (to resolve the caller's own channel / verify channel access), and the [RequireAction]
+    // Gate-2 policies in UseAuthorization read the resolved tenant. Placing it after UseAuthorization
+    // left every action check tenant-less → an unconditional 403 on channel-scoped endpoints.
     app.UseMiddleware<TenantResolutionMiddleware>();
+    app.UseAuthorization();
 
     app.MapControllers();
 

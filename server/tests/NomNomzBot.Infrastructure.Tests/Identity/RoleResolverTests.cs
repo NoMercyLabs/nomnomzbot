@@ -92,6 +92,52 @@ public sealed class RoleResolverTests
     }
 
     [Fact]
+    public async Task ResolveEffectiveLevel_for_the_channel_owner_is_Broadcaster()
+    {
+        (RoleResolver sut, AuthDbContext db) = Build();
+        // Ownership alone — no standing/membership/permit rows — must resolve to Broadcaster (40), so a fresh
+        // self-host streamer can use their own channel's dashboard (action floor: dashboard:read = 10).
+        db.Channels.Add(
+            new Channel
+            {
+                Id = Channel,
+                OwnerUserId = User,
+                TwitchChannelId = "12345",
+                Name = "stoney",
+                NameNormalized = "stoney",
+            }
+        );
+        await db.SaveChangesAsync();
+
+        Result<int> level = await sut.ResolveEffectiveLevelAsync(User, Channel);
+
+        level.IsSuccess.Should().BeTrue();
+        level.Value.Should().Be(40);
+    }
+
+    [Fact]
+    public async Task ResolveEffectiveLevel_for_a_non_owner_with_no_grants_is_zero()
+    {
+        (RoleResolver sut, AuthDbContext db) = Build();
+        // Channel owned by someone else and the caller has no grants → not the owner → stays Everyone (0).
+        db.Channels.Add(
+            new Channel
+            {
+                Id = Channel,
+                OwnerUserId = Guid.Parse("0192a000-0000-7000-8000-0000000000c9"),
+                TwitchChannelId = "67890",
+                Name = "other",
+                NameNormalized = "other",
+            }
+        );
+        await db.SaveChangesAsync();
+
+        Result<int> level = await sut.ResolveEffectiveLevelAsync(User, Channel);
+
+        level.Value.Should().Be(0);
+    }
+
+    [Fact]
     public async Task ResolveEffectiveLevel_excludes_expired_and_revoked_permits()
     {
         (RoleResolver sut, AuthDbContext db) = Build();

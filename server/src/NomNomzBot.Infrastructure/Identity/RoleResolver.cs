@@ -142,8 +142,21 @@ public sealed class RoleResolver(IApplicationDbContext db, TimeProvider clock) :
                     .Select(a => a.ActionKey)
                     .ToListAsync(ct);
 
+        bool isChannelOwner = await db.Channels.AnyAsync(
+            c => c.Id == broadcasterId && c.OwnerUserId == userId,
+            ct
+        );
+
         int communityLevel = standing?.LevelValue ?? 0;
-        int managementLevel = membership?.LevelValue ?? 0;
+        // The channel owner IS the Broadcaster on their own channel — no membership row needed (schema A.2:
+        // one channel per owner). This is what lets a fresh self-host streamer use their own dashboard out of
+        // the box, instead of being a role-less user on the channel they own.
+        ManagementRole? managementRole =
+            membership?.ManagementRole ?? (isChannelOwner ? ManagementRole.Broadcaster : null);
+        int managementLevel = Math.Max(
+            membership?.LevelValue ?? 0,
+            isChannelOwner ? BroadcasterLevel : 0
+        );
 
         ManagementRole? permitRole = activePermits
             .Where(p => p.GrantType == PermitGrantType.Role && p.GrantedRole != null)
@@ -162,7 +175,7 @@ public sealed class RoleResolver(IApplicationDbContext db, TimeProvider clock) :
         return new AccessFacts(
             standing?.Standing ?? CommunityStanding.Everyone,
             communityLevel,
-            membership?.ManagementRole,
+            managementRole,
             managementLevel,
             permitRole,
             capabilities,
