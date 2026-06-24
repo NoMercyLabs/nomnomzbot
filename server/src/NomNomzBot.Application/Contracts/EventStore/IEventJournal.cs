@@ -66,6 +66,15 @@ public interface IEventJournal
         CancellationToken cancellationToken = default
     );
 
+    /// <summary>
+    /// Returns the subset of <paramref name="candidateEventIds"/> that already exist in the journal — one bulk query
+    /// for idempotent batch writers (the legacy import) to dedupe ~tens-of-thousands of rows without a per-row probe.
+    /// </summary>
+    Task<Result<IReadOnlySet<Guid>>> GetExistingEventIdsAsync(
+        IReadOnlyCollection<Guid> candidateEventIds,
+        CancellationToken cancellationToken = default
+    );
+
     /// <summary>Current head <c>StreamPosition</c> for a tenant (0 if no events). Drives "up to date" checks.</summary>
     Task<Result<long>> GetHeadPositionAsync(
         Guid? broadcasterId,

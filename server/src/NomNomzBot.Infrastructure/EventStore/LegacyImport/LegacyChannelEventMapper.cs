@@ -11,6 +11,8 @@
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using NomNomzBot.Application.Contracts.EventStore;
+using NomNomzBot.Domain.Chat.Events;
+using NomNomzBot.Domain.Chat.ValueObjects;
 using NomNomzBot.Domain.Community.Events;
 using NomNomzBot.Domain.Moderation.Events;
 using NomNomzBot.Domain.Platform;
@@ -24,10 +26,18 @@ namespace NomNomzBot.Infrastructure.EventStore.LegacyImport;
 /// Pure mapping from a legacy <see cref="LegacyChannelEventRow"/> to a journal <see cref="AppendEventRequest"/>
 /// for the target tenant. It rebuilds the <em>current</em> domain event object from the legacy TwitchLib payload
 /// and serialises THAT (not the raw legacy blob), so an imported row's <c>Payload</c> is byte-identical to what a
-/// live event would have journaled — projections fold it with no special case. The <c>EventId</c> is a name-based
-/// UUIDv5 over <c>(targetBroadcasterId, legacyMessageId)</c>, so re-running the import is a no-op (idempotent on
-/// <c>EventId</c>) and two channels importing the same Twitch message-id never collide. Unmappable / noise types
-/// return <c>null</c> (the importer skips them); there is no fabrication — every field comes from the real blob.
+/// live event would have journaled — projections fold it with no special case.
+/// <para>
+/// The <c>EventId</c> prefers the <b>real Twitch event id</b> when the payload carries one: the chat
+/// <c>MessageId</c> GUID (chat message + chat notification) and the channel-points redemption <c>Id</c> GUID. Using
+/// the real id means a live re-delivery of the same message/redemption dedupes against the imported one. The
+/// remaining EventSub topics (follow, sub, cheer, raid, ban, moderator roster) carry <em>no</em> event-level GUID
+/// in their payload — Twitch's only stable id for them is the EventSub message-id (the base64 legacy row id) — so
+/// those fall back to a name-based UUIDv5 over <c>(targetBroadcasterId, legacyRowId)</c>. Either way the identity
+/// is deterministic, so re-running the import is a no-op (idempotent on <c>EventId</c>) and two channels importing
+/// the same id never collide. Unmappable / noise rows return <c>null</c> (the importer skips them, logging the
+/// reason); there is no fabrication — every field comes from the real blob.
+/// </para>
 /// </summary>
 public sealed class LegacyChannelEventMapper
 {
@@ -55,9 +65,18 @@ public sealed class LegacyChannelEventMapper
 
         DomainEventBase? @event = row.Type switch
         {
+            // Chat message + chat notification (the ~28k bulk) — both keyed on the real Twitch MessageId GUID.
+            "channel.chat.message" => MapChatMessage(
+                data,
+                Envelope(row, targetBroadcasterId, data, realIdKey: "MessageId")
+            ),
+            "channel.chat.notification" => MapChatNotification(
+                data,
+                Envelope(row, targetBroadcasterId, data, realIdKey: "MessageId")
+            ),
             "channel.follow" => MapFollow(
                 data,
-                Envelope(row, targetBroadcasterId, data, "FollowedAt")
+                Envelope(row, targetBroadcasterId, data, eventTimeKey: "FollowedAt")
             ),
             "channel.subscribe" => MapSubscribe(data, Envelope(row, targetBroadcasterId, data)),
             "channel.subscription.message" => MapResub(
@@ -75,10 +94,20 @@ public sealed class LegacyChannelEventMapper
                 data,
                 Envelope(row, targetBroadcasterId, data)
             ),
-            "channel.ban" => MapBan(data, Envelope(row, targetBroadcasterId, data, "BannedAt")),
+            "channel.ban" => MapBan(
+                data,
+                Envelope(row, targetBroadcasterId, data, eventTimeKey: "BannedAt")
+            ),
+            // The redemption carries its own real Twitch redemption GUID (`Id`) — use it as the identity.
             "channel.points.custom.reward.redemption.add" => MapRedemption(
                 data,
-                Envelope(row, targetBroadcasterId, data, "RedeemedAt")
+                Envelope(
+                    row,
+                    targetBroadcasterId,
+                    data,
+                    eventTimeKey: "RedeemedAt",
+                    realIdKey: "Id"
+                )
             ),
             _ => null,
         };
@@ -110,14 +139,98 @@ public sealed class LegacyChannelEventMapper
         LegacyChannelEventRow row,
         Guid tenant,
         JObject data,
-        string? eventTimeKey = null
+        string? eventTimeKey = null,
+        string? realIdKey = null
     )
     {
-        Guid eventId = NameBasedGuid.Version5(LegacyImportNamespace, $"{tenant:N}:{row.Id}");
+        // Prefer the real Twitch event GUID inside the payload (chat MessageId / redemption Id) as the identity;
+        // fall back to a deterministic UUIDv5 over (tenant, legacy row id) for the GUID-less EventSub topics.
+        Guid eventId =
+            realIdKey is not null && TryGuid(data, realIdKey) is { } realId
+                ? realId
+                : NameBasedGuid.Version5(LegacyImportNamespace, $"{tenant:N}:{row.Id}");
         DateTime occurred = eventTimeKey is null
             ? AsUtc(row.CreatedAt)
             : EventTime(data, eventTimeKey, row);
         return new EventEnvelope(eventId, tenant, new DateTimeOffset(occurred, TimeSpan.Zero));
+    }
+
+    // ── chat message / notification ─────────────────────────────────────────────────────────────────────────
+    // The legacy chat blob is the TwitchLib channel.chat.message shape: ChatterUser* identity, a nested
+    // Message{Text,Fragments[]}, Badges[], Color, MessageType, Cheer{Bits}, Reply{Parent*}. We rebuild the
+    // current ChatMessageReceivedEvent from it so every chat-folding projection (viewer profiles, daily activity,
+    // engagement) folds it exactly like a live capture — which is what makes distinct viewers > 0 after rebuild.
+    private static ChatMessageReceivedEvent? MapChatMessage(JObject data, EventEnvelope env)
+    {
+        string? chatterId = Str(data, "ChatterUserId");
+        if (chatterId is null)
+            return null;
+
+        JObject? message = data["Message"] as JObject;
+        IReadOnlyList<ChatBadge> badges = ReadBadges(data);
+        JObject? cheer = data["Cheer"] as JObject;
+        JObject? reply = data["Reply"] as JObject;
+
+        return new ChatMessageReceivedEvent
+        {
+            EventId = env.EventId,
+            BroadcasterId = env.Tenant,
+            OccurredAt = env.OccurredAt,
+            // The raw broadcaster string id rides on the event for the send/reply boundary, as on the live path.
+            TwitchBroadcasterId = Str(data, "BroadcasterUserId") ?? string.Empty,
+            MessageId = Str(data, "MessageId") ?? env.EventId.ToString(),
+            UserId = chatterId,
+            UserDisplayName = Str(data, "ChatterUserName") ?? chatterId,
+            UserLogin = Str(data, "ChatterUserLogin") ?? chatterId,
+            Message = ReadMessageText(message),
+            Fragments = ReadFragments(message),
+            ColorHex = Str(data, "Color"),
+            MessageType = Str(data, "MessageType") ?? "text",
+            Badges = badges,
+            IsSubscriber = Bool(data, "IsSubscriber") ?? HasBadge(badges, "subscriber", "founder"),
+            IsVip = Bool(data, "IsVip") ?? HasBadge(badges, "vip"),
+            IsModerator = Bool(data, "IsModerator") ?? HasBadge(badges, "moderator"),
+            IsBroadcaster = Bool(data, "IsBroadcaster") ?? HasBadge(badges, "broadcaster"),
+            Bits = cheer is null ? 0 : Int(cheer, "Bits") ?? 0,
+            ReplyParentMessageId = reply is null ? null : Str(reply, "ParentMessageId"),
+            ReplyParentMessageBody = reply is null ? null : Str(reply, "ParentMessageBody"),
+            ReplyParentUserName = reply is null ? null : Str(reply, "ParentUserName"),
+        };
+    }
+
+    // A chat notification (announcement, watch_streak, sub/raid notice, …) is a chat-rendered system line that a
+    // viewer sees in chat. It maps to a chat message — surfacing in the feed and crediting the chatter — WITHOUT
+    // folding into sub/raid analytics (those are already counted by the dedicated channel.subscribe/raid topics, so
+    // re-counting them here would double-count). An anonymous notice has no chatter to attribute and is skipped.
+    private static ChatMessageReceivedEvent? MapChatNotification(JObject data, EventEnvelope env)
+    {
+        string? chatterId = Str(data, "ChatterUserId");
+        if (chatterId is null)
+            return null;
+
+        JObject? message = data["Message"] as JObject;
+        IReadOnlyList<ChatBadge> badges = ReadBadges(data);
+
+        return new ChatMessageReceivedEvent
+        {
+            EventId = env.EventId,
+            BroadcasterId = env.Tenant,
+            OccurredAt = env.OccurredAt,
+            TwitchBroadcasterId = Str(data, "BroadcasterUserId") ?? string.Empty,
+            MessageId = Str(data, "MessageId") ?? env.EventId.ToString(),
+            UserId = chatterId,
+            UserDisplayName = Str(data, "ChatterUserName") ?? chatterId,
+            UserLogin = Str(data, "ChatterUserLogin") ?? chatterId,
+            Message = ReadMessageText(message),
+            Fragments = ReadFragments(message),
+            ColorHex = Str(data, "Color"),
+            MessageType = "text",
+            Badges = badges,
+            IsSubscriber = HasBadge(badges, "subscriber", "founder"),
+            IsVip = HasBadge(badges, "vip"),
+            IsModerator = HasBadge(badges, "moderator"),
+            IsBroadcaster = HasBadge(badges, "broadcaster"),
+        };
     }
 
     // ── follow ──────────────────────────────────────────────────────────────────────────────────────────────
@@ -341,6 +454,94 @@ public sealed class LegacyChannelEventMapper
             UserInput = Str(data, "UserInput"),
         };
     }
+
+    // ── chat payload helpers ────────────────────────────────────────────────────────────────────────────────
+    // The plain text of a legacy Message object: its Text, else the joined fragment texts (mirrors the live reader).
+    private static string ReadMessageText(JObject? message)
+    {
+        if (message is null)
+            return string.Empty;
+
+        string? text = message["Text"]?.Value<string>();
+        if (!string.IsNullOrEmpty(text))
+            return text;
+
+        if (message["Fragments"] is not JArray fragments)
+            return string.Empty;
+
+        return string.Concat(fragments.Select(f => f["Text"]?.Value<string>() ?? string.Empty));
+    }
+
+    // Rebuilds the structured fragment list from the legacy Message.Fragments[] (TwitchLib PascalCase, nested
+    // Emote/Cheermote/Mention objects), matching the shape the live ChatMessageReceivedEvent carries.
+    private static IReadOnlyList<ChatMessageFragment> ReadFragments(JObject? message)
+    {
+        if (message?["Fragments"] is not JArray array)
+            return [];
+
+        List<ChatMessageFragment> fragments = new(array.Count);
+        foreach (JToken token in array)
+        {
+            if (token is not JObject fragment)
+                continue;
+
+            JObject? emote = fragment["Emote"] as JObject;
+            JObject? cheermote = fragment["Cheermote"] as JObject;
+            JObject? mention = fragment["Mention"] as JObject;
+
+            fragments.Add(
+                new ChatMessageFragment
+                {
+                    Type = fragment["Type"]?.Value<string>() ?? "text",
+                    Text = fragment["Text"]?.Value<string>() ?? string.Empty,
+                    EmoteId = emote?["Id"]?.Value<string>(),
+                    EmoteSetId = emote?["EmoteSetId"]?.Value<string>(),
+                    EmoteOwnerId = emote?["OwnerId"]?.Value<string>(),
+                    EmoteFormats =
+                        (emote?["Format"] as JArray)
+                            ?.Select(f => f.Value<string>() ?? string.Empty)
+                            .ToArray()
+                        ?? [],
+                    CheermotePrefix = cheermote?["Prefix"]?.Value<string>(),
+                    CheermoteBits = cheermote?["Bits"]?.Value<int?>(),
+                    CheermoteTier = cheermote?["Tier"]?.Value<int?>(),
+                    MentionUserId = mention?["UserId"]?.Value<string>(),
+                    MentionUserLogin = mention?["UserLogin"]?.Value<string>(),
+                    MentionUserName = mention?["UserName"]?.Value<string>(),
+                }
+            );
+        }
+
+        return fragments;
+    }
+
+    private static IReadOnlyList<ChatBadge> ReadBadges(JObject data)
+    {
+        if (data["Badges"] is not JArray array)
+            return [];
+
+        List<ChatBadge> badges = new(array.Count);
+        foreach (JToken token in array)
+        {
+            if (token is not JObject badge)
+                continue;
+            string? setId = badge["SetId"]?.Value<string>();
+            string? id = badge["Id"]?.Value<string>();
+            if (setId is null || id is null)
+                continue;
+            badges.Add(new ChatBadge(setId, id, badge["Info"]?.Value<string>()));
+        }
+
+        return badges;
+    }
+
+    private static bool HasBadge(IReadOnlyList<ChatBadge> badges, params string[] setIds) =>
+        badges.Any(b => setIds.Contains(b.SetId, StringComparer.Ordinal));
+
+    // Reads a payload field as a Guid when it is a well-formed GUID string, else null (so the caller falls back to
+    // the derived UUIDv5). Guards against a non-GUID legacy id sneaking into the journal EventId.
+    private static Guid? TryGuid(JObject o, string key) =>
+        Guid.TryParse(o[key]?.Value<string>(), out Guid value) ? value : null;
 
     // ── payload helpers ─────────────────────────────────────────────────────────────────────────────────────
     private static JObject? TryParse(string? json)

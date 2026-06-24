@@ -123,6 +123,15 @@ public sealed class EventJournalService : IEventJournal
             }
 
             await _unitOfWork.CommitTransactionAsync(cancellationToken);
+
+            // Detach everything this batch tracked. Without this, the scoped DbContext accumulates every appended
+            // EventJournal (and TenantSequence) across the whole call sequence — a bulk backfill of tens of
+            // thousands of rows then makes each per-row SaveChanges re-scan an ever-growing change set (O(n²)),
+            // which is what makes a large legacy import crawl to a near-stall toward the end. The rows are already
+            // committed and all reads use AsNoTracking, so dropping the tracked graph is safe and keeps every batch
+            // O(batch).
+            ClearChangeTracker();
+
             return Result.Success<IReadOnlyList<EventRecord>>(results);
         }
         catch (Exception ex)
@@ -225,6 +234,33 @@ public sealed class EventJournalService : IEventJournal
             : Result.Success(Map(row));
     }
 
+    public async Task<Result<IReadOnlySet<Guid>>> GetExistingEventIdsAsync(
+        IReadOnlyCollection<Guid> candidateEventIds,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (candidateEventIds.Count == 0)
+            return Result.Success<IReadOnlySet<Guid>>(new HashSet<Guid>());
+
+        // Chunk the IN-list so a very large candidate set never blows the provider's parameter limit; each chunk is
+        // one indexed query on EventId. The union is the set of ids already journaled.
+        HashSet<Guid> existing = new();
+        const int chunkSize = 1000;
+        Guid[] candidates = candidateEventIds.ToArray();
+        for (int offset = 0; offset < candidates.Length; offset += chunkSize)
+        {
+            Guid[] chunk = candidates[offset..Math.Min(offset + chunkSize, candidates.Length)];
+            List<Guid> found = await _db
+                .EventJournals.AsNoTracking()
+                .Where(e => chunk.Contains(e.EventId))
+                .Select(e => e.EventId)
+                .ToListAsync(cancellationToken);
+            existing.UnionWith(found);
+        }
+
+        return Result.Success<IReadOnlySet<Guid>>(existing);
+    }
+
     public async Task<Result<long>> GetHeadPositionAsync(
         Guid? broadcasterId,
         CancellationToken cancellationToken = default
@@ -274,6 +310,14 @@ public sealed class EventJournalService : IEventJournal
         _db
             .EventJournals.AsNoTracking()
             .FirstOrDefaultAsync(e => e.EventId == eventId, cancellationToken);
+
+    // Drops the tracked entity graph so a long batched append stays O(batch), not O(total). Every
+    // IApplicationDbContext impl in this app IS a DbContext (the same seam ITenantSequenceAllocator relies on).
+    private void ClearChangeTracker()
+    {
+        if (_db is DbContext context)
+            context.ChangeTracker.Clear();
+    }
 
     internal static EventRecord Map(EventJournal e) =>
         new(

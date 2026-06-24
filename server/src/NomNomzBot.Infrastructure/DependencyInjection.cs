@@ -780,6 +780,7 @@ public static class DependencyInjection
             NomNomzBot.Infrastructure.EventStore.LegacyImport.ILegacyDatabaseLocator,
             NomNomzBot.Infrastructure.EventStore.LegacyImport.DefaultLegacyDatabaseLocator
         >();
+        services.AddScoped<NomNomzBot.Infrastructure.Analytics.ChannelEventActorBackfill>();
         services.AddScoped<
             NomNomzBot.Application.Contracts.EventStore.ILegacyChannelImportService,
             NomNomzBot.Infrastructure.EventStore.LegacyImport.LegacyChannelImportService

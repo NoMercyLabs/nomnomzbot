@@ -34,11 +34,14 @@ public interface IProjectionRunner
     /// Rebuilds ONE projection from zero: <c>ResetAsync</c> the read model for the scope, set the checkpoint to
     /// 0, then replay the whole stream through the upcaster so <c>ApplyAsync</c> sees only the current shape.
     /// Reset → replay yields the same state as the incremental fold. Returns the number of events applied.
+    /// The optional <paramref name="progress"/> reports the cumulative applied-event count after each committed
+    /// batch, so a long replay (e.g. an owner's ~41k-event backfill) is observable and a stall is pinpointable.
     /// </summary>
     Task<Result<long>> RebuildAsync(
         string projectionName,
         Guid? broadcasterId,
-        CancellationToken cancellationToken = default
+        CancellationToken cancellationToken = default,
+        IProgress<long>? progress = null
     );
 
     /// <summary>Reads a projection's checkpoint (position, status, lag, last error). Read-only.</summary>

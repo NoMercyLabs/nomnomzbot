@@ -55,7 +55,7 @@ public sealed class TwitchChannelEventLogProjectionTests
         IReadOnlyList<DomainEventBase> spread = Spread();
         await AppendAsync(journal, spread);
 
-        TwitchChannelEventLogProjection projection = new(db);
+        TwitchChannelEventLogProjection projection = NewProjection(db);
         ProjectionRunner runner = NewRunner(db, journal, projection);
 
         Result<long> applied = await runner.RunOnceAsync(projection.Name, Channel);
@@ -67,12 +67,22 @@ public sealed class TwitchChannelEventLogProjectionTests
             .OrderBy(r => r.CreatedAt)
             .ToListAsync();
 
-        // One row per fact, all attributed to this tenant, none to an internal User surrogate (the journal carries a
-        // Twitch string id, not a User Guid), each keyed by its journal EventId so replay can upsert it.
+        // One row per fact, all attributed to this tenant, each keyed by its journal EventId so replay can upsert it.
+        // The fold leaves UserId null (the set-based ChannelEventActorBackfill links it after the rebuild) and instead
+        // snapshots the actor's Twitch id under a stable actorTwitchUserId key — including events whose actor is NOT
+        // the generic "UserId" field (raid=FromUserId, gift=GifterUserId, ban=TargetUserId).
         rows.Should().HaveCount(spread.Count);
         rows.Should().OnlyContain(r => r.ChannelId == Channel);
         rows.Should().OnlyContain(r => r.UserId == null);
         rows.Select(r => r.Id).Should().BeEquivalentTo(spread.Select(e => e.EventId.ToString()));
+
+        DataOf(rows, "channel.cheer")["actorTwitchUserId"]!.Value<string>().Should().Be("200");
+        DataOf(rows, "channel.raid")["actorTwitchUserId"]!.Value<string>().Should().Be("300");
+        DataOf(rows, "channel.subscription.gift")["actorTwitchUserId"]!
+            .Value<string>()
+            .Should()
+            .Be("100");
+        DataOf(rows, "channel.ban")["actorTwitchUserId"]!.Value<string>().Should().Be("400");
 
         rows.Select(r => r.Type)
             .Should()
@@ -118,7 +128,7 @@ public sealed class TwitchChannelEventLogProjectionTests
         IReadOnlyList<DomainEventBase> spread = Spread();
         await AppendAsync(journal, spread);
 
-        TwitchChannelEventLogProjection projection = new(db);
+        TwitchChannelEventLogProjection projection = NewProjection(db);
         ProjectionRunner runner = NewRunner(db, journal, projection);
 
         await runner.RunOnceAsync(projection.Name, Channel);
@@ -158,7 +168,7 @@ public sealed class TwitchChannelEventLogProjectionTests
         using ReadModelRebuildDatabase database = ReadModelRebuildDatabase.Open();
         await using ReadModelRebuildDbContext db = database.NewContext();
 
-        TwitchChannelEventLogProjection projection = new(db);
+        TwitchChannelEventLogProjection projection = NewProjection(db);
 
         // A foreign tenant's row that the reset must not delete.
         db.ChannelEvents.Add(
@@ -194,6 +204,9 @@ public sealed class TwitchChannelEventLogProjectionTests
     }
 
     // ── helpers ──
+    private static TwitchChannelEventLogProjection NewProjection(ReadModelRebuildDbContext db) =>
+        new(db);
+
     private static EventJournalService NewJournal(ReadModelRebuildDbContext db) =>
         new(db, new TenantSequenceAllocator(db), new RebuildTestUnitOfWork(db), Clock);
 
@@ -229,7 +242,7 @@ public sealed class TwitchChannelEventLogProjectionTests
         await db
             .ChannelEvents.AsNoTracking()
             .OrderBy(r => r.Id)
-            .Select(r => $"{r.Id}|{r.ChannelId}|{r.Type}|{r.Data}|{r.CreatedAt:O}")
+            .Select(r => $"{r.Id}|{r.ChannelId}|{r.UserId}|{r.Type}|{r.Data}|{r.CreatedAt:O}")
             .ToListAsync();
 
     private static JObject DataOf(IEnumerable<ChannelEvent> rows, string type) =>

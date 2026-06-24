@@ -39,6 +39,17 @@ Log.Logger = new LoggerConfiguration().WriteTo.Console().CreateBootstrapLogger()
 
 try
 {
+    // ── Standalone CLI: legacy backfill ──────────────────────────────────────────────────────
+    // `--run-legacy-import <channelId>` runs the owner-gated legacy import in a minimal headless host with NO
+    // Kestrel and NO background/hosted services, so the import owns the SQLite file exclusively (the live API must
+    // be stopped). This is intercepted BEFORE the web host is built so none of the boot pipeline below runs.
+    if (NomNomzBot.Api.Cli.LegacyImportCli.Matches(args))
+    {
+        int exitCode = await NomNomzBot.Api.Cli.LegacyImportCli.RunAsync(args);
+        Log.CloseAndFlush();
+        Environment.Exit(exitCode);
+    }
+
     // Self-contained single-exe robustness: the host's default ContentRoot is the current working directory, so
     // appsettings.json (which carries the listen Urls) is only found when the exe is launched from its own folder.
     // A double-click does that, but a shortcut, a Task Scheduler entry, or any other cwd would silently fall back to

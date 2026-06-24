@@ -40,14 +40,19 @@ public interface ILegacyChannelImportService
     );
 }
 
-/// <summary>The outcome of a legacy import, plus the journal head before/after so the caller can see the growth.</summary>
+/// <summary>
+/// The outcome of a legacy import, plus the journal head before/after so the caller can see the growth.
+/// <see cref="SkippedByLegacyType"/> itemizes the unmapped skips by their legacy <c>Type</c> so the operator can
+/// verify every legacy row is accounted for (imported + duplicate + itemized skips = total read), with no silent drop.
+/// </summary>
 public sealed record LegacyImportResult(
     long TotalRead,
     long Imported,
     long SkippedUnmapped,
     long SkippedDuplicate,
     long HeadBefore,
-    long HeadAfter
+    long HeadAfter,
+    IReadOnlyDictionary<string, long> SkippedByLegacyType
 );
 
 /// <summary>How many events one named projection applied during a rebuild.</summary>

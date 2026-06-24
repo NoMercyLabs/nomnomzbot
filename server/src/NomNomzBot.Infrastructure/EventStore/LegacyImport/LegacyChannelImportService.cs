@@ -8,8 +8,10 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.EventStore;
+using NomNomzBot.Infrastructure.Analytics;
 
 namespace NomNomzBot.Infrastructure.EventStore.LegacyImport;
 
@@ -24,7 +26,9 @@ public sealed class LegacyChannelImportService(
     IEventJournal journal,
     IProjectionRunner projectionRunner,
     IEnumerable<IProjection> projections,
-    ILegacyDatabaseLocator legacyDatabase
+    ILegacyDatabaseLocator legacyDatabase,
+    ChannelEventActorBackfill actorBackfill,
+    ILogger<LegacyChannelImportService> logger
 ) : ILegacyChannelImportService
 {
     public async Task<Result<LegacyImportResult>> ImportLegacyAsync(
@@ -46,7 +50,7 @@ public sealed class LegacyChannelImportService(
                 headBefore.ErrorCode
             );
 
-        LegacyChannelEventImporter importer = new(journal, new LegacyChannelEventMapper());
+        LegacyChannelEventImporter importer = new(journal, new LegacyChannelEventMapper(), logger);
         LegacySqliteChannelEventSource source = new(path.Value);
 
         Result<LegacyImportSummary> imported = await importer.ImportAsync(
@@ -72,7 +76,8 @@ public sealed class LegacyChannelImportService(
                 summary.SkippedUnmapped,
                 summary.SkippedDuplicate,
                 headBefore.Value,
-                headAfter.Value
+                headAfter.Value,
+                summary.SkippedByLegacyType
             )
         );
     }
@@ -101,6 +106,22 @@ public sealed class LegacyChannelImportService(
 
             results.Add(new ProjectionRebuildResult(projection.Name, rebuilt.Value));
         }
+
+        // After the channel-event-log projection has rebuilt every row (with the actor's Twitch id snapshotted in
+        // Data), link each row to its internal User in one set-based pass — get-or-create the actors in bulk, then
+        // one UPDATE per distinct actor. This is the cheap replacement for a per-event lookup during the fold, and
+        // it makes ChannelEvents.UserId (and the dashboard's distinct-viewer count) real with NO external call.
+        Result<long> backfilled = await actorBackfill.BackfillAsync(
+            broadcasterId,
+            cancellationToken
+        );
+        if (backfilled.IsFailure)
+            return Result.Failure<IReadOnlyList<ProjectionRebuildResult>>(
+                $"Channel-event actor backfill failed: {backfilled.ErrorMessage}",
+                backfilled.ErrorCode
+            );
+
+        results.Add(new ProjectionRebuildResult("channel-event-actor-backfill", backfilled.Value));
 
         return Result.Success<IReadOnlyList<ProjectionRebuildResult>>(results);
     }

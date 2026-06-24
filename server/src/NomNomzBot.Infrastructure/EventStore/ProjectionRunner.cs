@@ -71,7 +71,8 @@ public sealed class ProjectionRunner : IProjectionRunner
     public async Task<Result<long>> RebuildAsync(
         string projectionName,
         Guid? broadcasterId,
-        CancellationToken cancellationToken = default
+        CancellationToken cancellationToken = default,
+        IProgress<long>? progress = null
     )
     {
         Result<IProjection> projection = Resolve(projectionName);
@@ -93,7 +94,13 @@ public sealed class ProjectionRunner : IProjectionRunner
         checkpoint.UpdatedAt = _clock.GetUtcNow().UtcDateTime;
         await _db.SaveChangesAsync(cancellationToken);
 
-        return await DrainAsync(projection.Value, checkpoint, broadcasterId, cancellationToken);
+        return await DrainAsync(
+            projection.Value,
+            checkpoint,
+            broadcasterId,
+            cancellationToken,
+            progress
+        );
     }
 
     // Reads forward batches from the checkpoint to the head, upcasts each event, applies it, and advances the
@@ -103,7 +110,8 @@ public sealed class ProjectionRunner : IProjectionRunner
         IProjection projection,
         ProjectionCheckpoint checkpoint,
         Guid? broadcasterId,
-        CancellationToken cancellationToken
+        CancellationToken cancellationToken,
+        IProgress<long>? progress = null
     )
     {
         long applied = 0;
@@ -152,11 +160,48 @@ public sealed class ProjectionRunner : IProjectionRunner
             checkpoint.UpdatedAt = checkpoint.LastProcessedAt.Value;
             await _db.SaveChangesAsync(cancellationToken);
 
+            // Detach the entities this batch's ApplyAsync calls tracked (the projection's upserted read-model rows
+            // plus the checkpoint). Without this, a full rebuild folds the whole stream through ONE scoped DbContext
+            // and the change set grows with every applied event — each per-event SaveChanges then re-scans an
+            // ever-larger graph (O(n²)), which makes a tens-of-thousands-event rebuild crawl toward a near-stall. The
+            // batch is committed and projections re-read state with their own queries, so dropping the graph is safe.
+            // The checkpoint is re-fetched fresh on the next batch via the tracked reference below.
+            ClearChangeTracker();
+            checkpoint = await ReattachCheckpointAsync(checkpoint, cancellationToken);
+
+            progress?.Report(applied);
+
             if (batch.Value.Count < BatchSize)
                 break;
         }
 
         return Result.Success(applied);
+    }
+
+    // After clearing the change tracker mid-rebuild, re-load the checkpoint so the next batch mutates a TRACKED
+    // instance and its SaveChanges persists. Falls back to the now-detached instance (re-attached) only if the row
+    // somehow can't be re-read, so the drain never loses its cursor.
+    private async Task<ProjectionCheckpoint> ReattachCheckpointAsync(
+        ProjectionCheckpoint checkpoint,
+        CancellationToken cancellationToken
+    )
+    {
+        ProjectionCheckpoint? fresh = await FindCheckpointAsync(
+            checkpoint.ProjectionName,
+            checkpoint.BroadcasterId,
+            cancellationToken
+        );
+        if (fresh is not null)
+            return fresh;
+
+        _db.ProjectionCheckpoints.Attach(checkpoint);
+        return checkpoint;
+    }
+
+    private void ClearChangeTracker()
+    {
+        if (_db is DbContext context)
+            context.ChangeTracker.Clear();
     }
 
     private Result<EventRecord> Upcast(EventRecord record)

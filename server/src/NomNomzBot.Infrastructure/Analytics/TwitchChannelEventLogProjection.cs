@@ -22,12 +22,17 @@ namespace NomNomzBot.Infrastructure.Analytics;
 /// Folds the journal's channel-fact events into the dashboard channel-event-log read model (event-store §3.3, schema
 /// F.4 <c>TwitchChannelEventLog</c>, surfaced through the live <see cref="ChannelEvent"/> table). One row per journaled
 /// fact — follow, sub, resub, gift, cheer, raid, reward redemption, ban/timeout, sub-end, moderator add/remove, and a
-/// chat-message marker — tenant-scoped by <c>BroadcasterId</c>. The row key is the journal <c>EventId</c> (string), so
-/// the fold is idempotent: replay or a re-applied event upserts the same row, never a duplicate. <c>UserId</c> stays
-/// <c>null</c> — the journal carries Twitch <em>string</em> ids, not the internal <see cref="User"/> surrogate Guid
-/// (the FK is <c>SetNull</c>); the actor's Twitch id + display-name snapshot live inside the scrubbed <c>Data</c> JSON
-/// so the dashboard can render the event without a join. Reset → replay rebuilds the whole log from <c>EventJournal</c>
-/// alone, with no live Twitch call.
+/// chat message — tenant-scoped by <c>BroadcasterId</c>. The row key is the journal <c>EventId</c> (string), so the
+/// fold is idempotent: replay or a re-applied event upserts the same row, never a duplicate.
+/// <para>
+/// The fold snapshots the actor's Twitch id + display name into the scrubbed <c>Data</c> JSON (so the row renders
+/// without a join) and writes a stable <c>actorTwitchUserId</c> key spanning every event type (chat/follow/sub credit
+/// the chatter, a raid the raider, a gift the gifter, a ban the banned user). The internal <c>UserId</c> FK is left
+/// null here and linked AFTER the rebuild by <see cref="ChannelEventActorBackfill"/> in ONE set-based pass
+/// (bulk get-or-create Users, then a single UPDATE) — orders of magnitude cheaper than a per-event lookup, and the
+/// rebuild stays a pure, external-call-free journal replay.
+/// </para>
+/// Reset → replay rebuilds the whole log from <c>EventJournal</c> alone, with no live Twitch call.
 /// </summary>
 public sealed class TwitchChannelEventLogProjection(IApplicationDbContext db) : IProjection
 {
@@ -86,7 +91,10 @@ public sealed class TwitchChannelEventLogProjection(IApplicationDbContext db) : 
             {
                 Id = id,
                 ChannelId = broadcasterId,
-                UserId = null, // journal carries a Twitch string id, not the internal User surrogate Guid
+                // UserId is the actor's internal User surrogate. The fold leaves it null and snapshots the actor's
+                // Twitch id into Data instead; ChannelEventActorBackfill links it in ONE set-based pass after the
+                // rebuild (get-or-create Users in bulk, then a single UPDATE) — far cheaper than a per-event lookup.
+                UserId = null,
                 Type = channelType,
                 CreatedAt = occurredAt,
             };
@@ -254,7 +262,58 @@ public sealed class TwitchChannelEventLogProjection(IApplicationDbContext db) : 
                 break;
         }
 
+        // A stable actor identity spanning every event type, so ChannelEventActorBackfill can link UserId in one
+        // set-based pass without re-branching on type. Anonymous/absent actors carry no id and stay unlinked.
+        WriteActor(@event.EventType, source, data);
+
         return JsonConvert.SerializeObject(data);
+    }
+
+    // The Twitch id + display/login that name the event's actor, per event type — the chatter, the raider, the
+    // gifter, the banned user — projected onto one consistent (actorTwitchUserId, actorLogin, actorDisplay) key set.
+    private static readonly IReadOnlyDictionary<
+        string,
+        (string IdKey, string NameKey, string? LoginKey)
+    > ActorByEventType = new Dictionary<string, (string, string, string?)>(StringComparer.Ordinal)
+    {
+        ["ChatMessageReceivedEvent"] = ("UserId", "UserDisplayName", "UserLogin"),
+        ["NewFollowerEvent"] = ("UserId", "UserDisplayName", "UserLogin"),
+        ["NewSubscriptionEvent"] = ("UserId", "UserDisplayName", null),
+        ["ResubscriptionEvent"] = ("UserId", "UserDisplayName", null),
+        ["SubscriptionEndedEvent"] = ("UserId", "UserDisplayName", "UserLogin"),
+        ["GiftSubscriptionEvent"] = ("GifterUserId", "GifterDisplayName", null),
+        ["CheerEvent"] = ("UserId", "UserDisplayName", null),
+        ["RaidEvent"] = ("FromUserId", "FromDisplayName", "FromLogin"),
+        ["RewardRedeemedEvent"] = ("UserId", "UserDisplayName", null),
+        ["UserBannedEvent"] = ("TargetUserId", "TargetDisplayName", null),
+        ["UserTimedOutEvent"] = ("TargetUserId", "TargetDisplayName", null),
+        ["ModeratorAddedEvent"] = ("UserId", "UserDisplayName", "UserLogin"),
+        ["ModeratorRemovedEvent"] = ("UserId", "UserDisplayName", "UserLogin"),
+    };
+
+    private static void WriteActor(string eventType, JObject source, JObject data)
+    {
+        if (
+            !ActorByEventType.TryGetValue(
+                eventType,
+                out (string IdKey, string NameKey, string? LoginKey) f
+            )
+        )
+            return;
+
+        string? twitchId = source[f.IdKey]?.Value<string>();
+        // "anonymous" is the anonymous-cheer/gift sentinel — there is no real viewer to link, so emit no actor id.
+        if (string.IsNullOrEmpty(twitchId) || twitchId == "anonymous")
+            return;
+
+        string display = source[f.NameKey]?.Value<string>() ?? twitchId;
+        string login =
+            (f.LoginKey is null ? null : source[f.LoginKey]?.Value<string>())
+            ?? display.ToLowerInvariant();
+
+        data["actorTwitchUserId"] = twitchId;
+        data["actorLogin"] = login;
+        data["actorDisplay"] = display;
     }
 
     private static JObject TryParse(string json)

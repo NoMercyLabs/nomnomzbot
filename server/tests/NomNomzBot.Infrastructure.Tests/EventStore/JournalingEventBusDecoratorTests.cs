@@ -84,6 +84,11 @@ public sealed class JournalingEventBusDecoratorTests
             CancellationToken cancellationToken = default
         ) => throw new NotSupportedException();
 
+        public Task<Result<IReadOnlySet<Guid>>> GetExistingEventIdsAsync(
+            IReadOnlyCollection<Guid> candidateEventIds,
+            CancellationToken cancellationToken = default
+        ) => throw new NotSupportedException();
+
         public Task<Result<long>> GetHeadPositionAsync(
             Guid? broadcasterId,
             CancellationToken cancellationToken = default

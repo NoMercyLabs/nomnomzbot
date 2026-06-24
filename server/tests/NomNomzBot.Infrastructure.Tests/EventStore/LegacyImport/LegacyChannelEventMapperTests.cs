@@ -250,6 +250,125 @@ public sealed class LegacyChannelEventMapperTests
     }
 
     [Fact]
+    public void Maps_chat_message_to_ChatMessageReceivedEvent_with_the_REAL_twitch_message_id()
+    {
+        // The chat bulk (~28k rows) is the heart of the backfill. Its identity is the real Twitch MessageId GUID
+        // inside the payload — NOT a synthetic UUIDv5 — so a live re-delivery of the same message dedupes against
+        // the imported one. The legacy blob uses ChatterUser* fields and a nested Message.Text + Fragments[].
+        const string messageId = "69957384-5a22-4536-a82b-c6d318bf12c7";
+        AppendEventRequest? request = _mapper.Map(
+            Row(
+                "channel.chat.message",
+                """{"MessageId":"69957384-5a22-4536-a82b-c6d318bf12c7","ChatterUserId":"128142135","ChatterUserName":"Kanawanagasaki","ChatterUserLogin":"kanawanagasaki","Color":"#008000","MessageType":"text","Message":{"Text":"kanawaSpin","Fragments":[{"Type":"emote","Text":"kanawaSpin","Emote":{"Id":"emotesv2_d29ad362da0343b38c75c2a7c95eb0a3","EmoteSetId":"321763748","OwnerId":"128142135","Format":["static","animated"]}}]},"Badges":[{"SetId":"lead_moderator","Id":"1","Info":""},{"SetId":"founder","Id":"0","Info":"4"}],"Cheer":null,"Reply":null,"IsSubscriber":true,"IsModerator":true,"IsBroadcaster":false,"IsVip":false}"""
+            ),
+            Tenant
+        );
+
+        request.Should().NotBeNull();
+        request!.EventType.Should().Be("ChatMessageReceivedEvent");
+        request.Source.Should().Be("import");
+        request
+            .EventId.Should()
+            .Be(
+                Guid.Parse(messageId),
+                "the EventId IS the real Twitch message id GUID, not a derived UUIDv5"
+            );
+
+        JObject payload = JObject.Parse(request.PayloadJson);
+        payload["MessageId"]!.Value<string>().Should().Be(messageId);
+        payload["UserId"]!.Value<string>().Should().Be("128142135");
+        payload["UserDisplayName"]!.Value<string>().Should().Be("Kanawanagasaki");
+        payload["UserLogin"]!.Value<string>().Should().Be("kanawanagasaki");
+        payload["Message"]!.Value<string>().Should().Be("kanawaSpin");
+        payload["ColorHex"]!.Value<string>().Should().Be("#008000");
+        payload["IsSubscriber"]!.Value<bool>().Should().BeTrue();
+        payload["IsModerator"]!.Value<bool>().Should().BeTrue();
+        // The structured fragment survives so inline emote rendering still works off the imported event.
+        JArray fragments = (JArray)payload["Fragments"]!;
+        fragments.Should().HaveCount(1);
+        fragments[0]["Type"]!.Value<string>().Should().Be("emote");
+        fragments[0]["EmoteId"]!
+            .Value<string>()
+            .Should()
+            .Be("emotesv2_d29ad362da0343b38c75c2a7c95eb0a3");
+    }
+
+    [Fact]
+    public void Maps_chat_message_reply_and_cheer_bits()
+    {
+        AppendEventRequest? request = _mapper.Map(
+            Row(
+                "channel.chat.message",
+                """{"MessageId":"2fed320c-0acc-4e2d-a701-973500b0b49e","ChatterUserId":"100","ChatterUserName":"Bob","ChatterUserLogin":"bob","Color":null,"MessageType":"text","Message":{"Text":"+1","Fragments":[{"Type":"text","Text":"+1"}]},"Badges":[],"Cheer":{"Bits":100},"Reply":{"ParentMessageId":"73d98088-09cc-4bca-932f-250a0b2dafe5","ParentMessageBody":"hello","ParentUserName":"Stoney_Eagle"},"IsSubscriber":false,"IsModerator":false,"IsBroadcaster":false,"IsVip":false}"""
+            ),
+            Tenant
+        );
+
+        JObject payload = JObject.Parse(request!.PayloadJson);
+        payload["Bits"]!.Value<int>().Should().Be(100);
+        payload["ReplyParentMessageId"]!
+            .Value<string>()
+            .Should()
+            .Be("73d98088-09cc-4bca-932f-250a0b2dafe5");
+        payload["ReplyParentUserName"]!.Value<string>().Should().Be("Stoney_Eagle");
+    }
+
+    [Fact]
+    public void Maps_chat_notification_to_a_chat_message_keyed_on_its_real_message_id()
+    {
+        // A chat notification (announcement/watch_streak/…) is a chat-rendered system line with a real MessageId.
+        // It maps to a chat message so it surfaces in the feed WITHOUT folding into sub/raid analytics (those are
+        // already counted by the dedicated channel.subscribe/channel.raid topics — no double count).
+        AppendEventRequest? request = _mapper.Map(
+            Row(
+                "channel.chat.notification",
+                """{"MessageId":"2bf63cf6-33aa-4b20-a303-dd3016acf792","ChatterUserId":"39863651","ChatterUserName":"Stoney_Eagle","ChatterUserLogin":"stoney_eagle","ChatterIsAnonymous":false,"Color":"#BF0039","Badges":[],"NoticeType":"announcement","SystemMessage":"","Message":{"Text":"Yo peep this","Fragments":[{"Type":"text","Text":"Yo peep this"}]}}"""
+            ),
+            Tenant
+        );
+
+        request.Should().NotBeNull();
+        request!.EventType.Should().Be("ChatMessageReceivedEvent");
+        request.EventId.Should().Be(Guid.Parse("2bf63cf6-33aa-4b20-a303-dd3016acf792"));
+        JObject payload = JObject.Parse(request.PayloadJson);
+        payload["UserId"]!.Value<string>().Should().Be("39863651");
+        payload["Message"]!.Value<string>().Should().Be("Yo peep this");
+    }
+
+    [Fact]
+    public void Skips_an_anonymous_chat_notification_with_no_chatter_to_attribute()
+    {
+        // The rare anonymous gift notice carries no ChatterUserId — there is no viewer to attribute, and the gift
+        // it announces is already counted by the gifter's channel.subscription.gift row, so it is a logged skip.
+        _mapper
+            .Map(
+                Row(
+                    "channel.chat.notification",
+                    """{"MessageId":"15faec51-d953-4d4f-92e9-cb25cd4962ff","ChatterUserId":null,"ChatterIsAnonymous":true,"NoticeType":"sub_gift","Message":{"Text":""}}"""
+                ),
+                Tenant
+            )
+            .Should()
+            .BeNull();
+    }
+
+    [Fact]
+    public void Reward_redemption_EventId_is_the_real_twitch_redemption_id()
+    {
+        // The redemption carries its own real Twitch GUID (the redemption Id) — use it as the identity so the
+        // imported row dedupes against a live redemption delivery, rather than a derived UUIDv5.
+        AppendEventRequest? request = _mapper.Map(
+            Row(
+                "channel.points.custom.reward.redemption.add",
+                """{"Id":"b44c2590-d413-4335-8341-dc1537967837","UserId":"107107327","UserName":"mahybe","UserInput":"","Status":"unfulfilled","Reward":{"Id":"ac53c1f0-ac09-436d-a57c-21842f2bc828","Title":"Dunglish","Cost":5000},"RedeemedAt":"2025-08-14T17:30:11.6612797+00:00"}"""
+            ),
+            Tenant
+        );
+
+        request!.EventId.Should().Be(Guid.Parse("b44c2590-d413-4335-8341-dc1537967837"));
+    }
+
+    [Fact]
     public void Derives_a_stable_idempotent_EventId_from_tenant_and_legacy_id()
     {
         LegacyChannelEventRow row = Row(
