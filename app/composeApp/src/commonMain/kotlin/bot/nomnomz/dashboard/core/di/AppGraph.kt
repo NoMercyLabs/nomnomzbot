@@ -21,9 +21,19 @@ import bot.nomnomz.dashboard.core.i18n.LanguageStore
 import bot.nomnomz.dashboard.core.network.ApiClient
 import bot.nomnomz.dashboard.core.network.AuthApi
 import bot.nomnomz.dashboard.core.network.BotAuthApi
+import bot.nomnomz.dashboard.core.network.AnalyticsApi
 import bot.nomnomz.dashboard.core.network.ChannelsApi
+import bot.nomnomz.dashboard.core.network.CommandsApi
+import bot.nomnomz.dashboard.core.network.CommunityApi
 import bot.nomnomz.dashboard.core.network.DashboardApi
 import bot.nomnomz.dashboard.core.network.IntegrationsApi
+import bot.nomnomz.dashboard.core.network.ModerationApi
+import bot.nomnomz.dashboard.core.network.RestAnalyticsApi
+import bot.nomnomz.dashboard.core.network.RestCommandsApi
+import bot.nomnomz.dashboard.core.network.RestCommunityApi
+import bot.nomnomz.dashboard.core.network.RestModerationApi
+import bot.nomnomz.dashboard.core.network.RestTimersApi
+import bot.nomnomz.dashboard.core.network.TimersApi
 import bot.nomnomz.dashboard.core.network.RestAuthApi
 import bot.nomnomz.dashboard.core.network.RestBotAuthApi
 import bot.nomnomz.dashboard.core.network.RestChannelsApi
@@ -31,9 +41,14 @@ import bot.nomnomz.dashboard.core.network.RestDashboardApi
 import bot.nomnomz.dashboard.core.network.RestIntegrationsApi
 import bot.nomnomz.dashboard.core.network.RestSystemApi
 import bot.nomnomz.dashboard.core.network.SystemApi
+import bot.nomnomz.dashboard.feature.analytics.state.AnalyticsController
+import bot.nomnomz.dashboard.feature.commands.state.CommandsController
+import bot.nomnomz.dashboard.feature.community.state.CommunityController
 import bot.nomnomz.dashboard.feature.connect.state.ConnectController
 import bot.nomnomz.dashboard.feature.home.state.HomeController
 import bot.nomnomz.dashboard.feature.integrations.state.IntegrationsController
+import bot.nomnomz.dashboard.feature.moderation.state.ModerationController
+import bot.nomnomz.dashboard.feature.timers.state.TimersController
 import bot.nomnomz.dashboard.feature.language.state.LanguageController
 import bot.nomnomz.dashboard.feature.setup.state.SetupController
 
@@ -65,6 +80,11 @@ class AppGraph {
     val integrationsApi: IntegrationsApi = RestIntegrationsApi(apiClient)
     val systemApi: SystemApi = RestSystemApi(apiClient)
     val dashboardApi: DashboardApi = RestDashboardApi(apiClient)
+    val communityApi: CommunityApi = RestCommunityApi(apiClient)
+    val commandsApi: CommandsApi = RestCommandsApi(apiClient)
+    val timersApi: TimersApi = RestTimersApi(apiClient)
+    val moderationApi: ModerationApi = RestModerationApi(apiClient)
+    val analyticsApi: AnalyticsApi = RestAnalyticsApi(apiClient)
 
     private val oauthLauncher: OAuthLauncher = OAuthLauncher()
     private val connectLauncher: ConnectLauncher = OAuthConnectLauncher(oauthLauncher)
@@ -103,4 +123,19 @@ class AppGraph {
 
     val homeController: HomeController =
         HomeController(channelsApi = channelsApi, dashboardApi = dashboardApi)
+
+    val communityController: CommunityController =
+        CommunityController(channelsApi = channelsApi, communityApi = communityApi)
+
+    val commandsController: CommandsController =
+        CommandsController(channelsApi = channelsApi, commandsApi = commandsApi)
+
+    val timersController: TimersController =
+        TimersController(channelsApi = channelsApi, timersApi = timersApi)
+
+    val moderationController: ModerationController =
+        ModerationController(channelsApi = channelsApi, moderationApi = moderationApi)
+
+    val analyticsController: AnalyticsController =
+        AnalyticsController(channelsApi = channelsApi, analyticsApi = analyticsApi)
 }

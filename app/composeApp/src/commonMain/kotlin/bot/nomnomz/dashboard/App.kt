@@ -111,8 +111,7 @@ fun App(graph: AppGraph = remember { AppGraph() }) {
                             val user: SessionUser? by
                                 graph.sessionStore.user.collectAsStateWithLifecycle()
                             ShellScreen(
-                                homeController = graph.homeController,
-                                integrationsController = graph.integrationsController,
+                                graph = graph,
                                 languageController = graph.languageController,
                                 user = user,
                                 // Self-host: the signed-in owner manages their OWN channel, so they ARE the

@@ -58,10 +58,14 @@ import bot.nomnomz.dashboard.core.connection.SessionUser
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
-import bot.nomnomz.dashboard.feature.home.state.HomeController
+import bot.nomnomz.dashboard.core.di.AppGraph
+import bot.nomnomz.dashboard.feature.analytics.ui.AnalyticsScreen
+import bot.nomnomz.dashboard.feature.commands.ui.CommandsScreen
+import bot.nomnomz.dashboard.feature.community.ui.CommunityScreen
 import bot.nomnomz.dashboard.feature.home.ui.HomeScreen
-import bot.nomnomz.dashboard.feature.integrations.state.IntegrationsController
 import bot.nomnomz.dashboard.feature.integrations.ui.IntegrationsScreen
+import bot.nomnomz.dashboard.feature.moderation.ui.ModerationScreen
+import bot.nomnomz.dashboard.feature.timers.ui.TimersScreen
 import bot.nomnomz.dashboard.feature.language.state.AppLanguage
 import bot.nomnomz.dashboard.feature.language.state.LanguageController
 import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
@@ -120,8 +124,7 @@ private val CompactBreakpoint: Dp = 720.dp
 
 @Composable
 fun ShellScreen(
-    homeController: HomeController,
-    integrationsController: IntegrationsController,
+    graph: AppGraph,
     languageController: LanguageController,
     user: SessionUser?,
     role: ManagementRole,
@@ -162,11 +165,7 @@ fun ShellScreen(
                         channelName = user?.displayName,
                         onMenu = { scope.launch { drawerState.open() } },
                     )
-                    ShellContent(
-                        selected = selected,
-                        homeController = homeController,
-                        integrationsController = integrationsController,
-                    )
+                    ShellContent(selected = selected, graph = graph)
                 }
             }
         } else {
@@ -182,11 +181,7 @@ fun ShellScreen(
                 )
                 Column(modifier = Modifier.fillMaxSize()) {
                     TopBar(title = selected.label(), channelName = user?.displayName, onMenu = null)
-                    ShellContent(
-                        selected = selected,
-                        homeController = homeController,
-                        integrationsController = integrationsController,
-                    )
+                    ShellContent(selected = selected, graph = graph)
                 }
             }
         }
@@ -194,14 +189,15 @@ fun ShellScreen(
 }
 
 @Composable
-private fun ShellContent(
-    selected: ShellRoute,
-    homeController: HomeController,
-    integrationsController: IntegrationsController,
-) {
+private fun ShellContent(selected: ShellRoute, graph: AppGraph) {
     when (selected) {
-        ShellRoute.Dashboard -> HomeScreen(controller = homeController)
-        ShellRoute.Integrations -> IntegrationsScreen(controller = integrationsController)
+        ShellRoute.Dashboard -> HomeScreen(controller = graph.homeController)
+        ShellRoute.Community -> CommunityScreen(controller = graph.communityController)
+        ShellRoute.Commands -> CommandsScreen(controller = graph.commandsController)
+        ShellRoute.Timers -> TimersScreen(controller = graph.timersController)
+        ShellRoute.Moderation -> ModerationScreen(controller = graph.moderationController)
+        ShellRoute.Analytics -> AnalyticsScreen(controller = graph.analyticsController)
+        ShellRoute.Integrations -> IntegrationsScreen(controller = graph.integrationsController)
         else -> PagePlaceholder(title = selected.label())
     }
 }
