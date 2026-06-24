@@ -230,7 +230,7 @@ public sealed class TwitchDeviceCodeServiceTests
     )
     {
         AuthDbContext context = db ?? AuthTestBuilder.NewContext();
-        ITokenProtector protector = AuthTestBuilder.RealTokenProtector(out _);
+        ITokenProtector protector = AuthTestBuilder.RealTokenProtector(context, out _);
         ISystemCredentialsProvider credentials = AuthTestBuilder.CredentialsProvider(
             context,
             protector,

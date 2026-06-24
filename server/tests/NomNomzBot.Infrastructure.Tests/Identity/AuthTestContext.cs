@@ -37,14 +37,22 @@ internal static class AuthTestBuilder
     // A fixed 32-byte base64 deployment key drives the deterministic KEK fallback (no OS keystore needed).
     private const string ConfigKey = "Zm9yLXRlc3Qtb25seS1rZWstMzItYnl0ZXMtbG9uZyEh";
 
-    public static ITokenProtector RealTokenProtector(out ISubjectKeyService subjectKeys)
+    /// <summary>
+    /// Builds the real token protector over the real envelope crypto stack, backed by the persisted DEK store
+    /// (<see cref="CryptoKeySubjectKeyStore"/>) over <paramref name="db"/>. Passing the same context the vault uses
+    /// keeps the DEK registry and the ciphertext that references it in one store — exactly the production wiring.
+    /// </summary>
+    public static ITokenProtector RealTokenProtector(
+        IApplicationDbContext db,
+        out ISubjectKeyService subjectKeys
+    )
     {
         IFieldCipher cipher = new AesGcmFieldCipher();
         IKeyVault vault = new OsSecureStoreKeyVault(
             Options.Create(new EncryptionOptions { Key = ConfigKey }),
             NullLogger<OsSecureStoreKeyVault>.Instance
         );
-        ISubjectKeyStore store = new InMemorySubjectKeyStore();
+        ISubjectKeyStore store = new CryptoKeySubjectKeyStore(db);
         subjectKeys = new SubjectKeyService(
             vault,
             cipher,
@@ -55,12 +63,14 @@ internal static class AuthTestBuilder
         return new TokenProtector(subjectKeys, NullLogger<TokenProtector>.Instance);
     }
 
-    public static AuthDbContext NewContext() =>
-        new(
-            new DbContextOptionsBuilder<AuthDbContext>()
-                .UseInMemoryDatabase(Guid.NewGuid().ToString())
-                .Options
-        );
+    public static AuthDbContext NewContext() => NewContext(Guid.NewGuid().ToString());
+
+    /// <summary>
+    /// A context over a named in-memory store. Two contexts built with the SAME name share one backing store —
+    /// the test analogue of a process restart against the same persisted database.
+    /// </summary>
+    public static AuthDbContext NewContext(string databaseName) =>
+        new(new DbContextOptionsBuilder<AuthDbContext>().UseInMemoryDatabase(databaseName).Options);
 
     /// <summary>
     /// A real <see cref="ISystemCredentialsProvider"/> over the test context + REAL token protector, so a
@@ -105,6 +115,8 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<IntegrationConnection> IntegrationConnections => Set<IntegrationConnection>();
     public DbSet<IntegrationToken> IntegrationTokens => Set<IntegrationToken>();
+    public DbSet<NomNomzBot.Domain.Identity.Entities.CryptoKey> CryptoKeys =>
+        Set<NomNomzBot.Domain.Identity.Entities.CryptoKey>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -133,6 +145,10 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
 
         b.Entity<IntegrationToken>().HasKey(e => e.Id);
         b.Entity<IntegrationToken>().Ignore(e => e.Connection).Ignore(e => e.Channel);
+
+        // The persisted DEK registry (scalar-only) — mapped so the vault/protector tests seal and re-open tokens
+        // through the same store the production wiring uses, and so the restart-survival test can prove it.
+        b.Entity<NomNomzBot.Domain.Identity.Entities.CryptoKey>().HasKey(e => e.Id);
 
         // Reactive missing-scope rows (scalar; nav ignored) — mapped so the ScopeNotificationService tests seed
         // + query gaps through this harness.

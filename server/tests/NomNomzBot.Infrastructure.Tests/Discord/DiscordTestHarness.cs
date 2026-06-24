@@ -44,6 +44,8 @@ internal sealed class DiscordTestDbContext : DbContext, IApplicationDbContext
         Set<DiscordNotificationDispatch>();
     public DbSet<IntegrationConnection> IntegrationConnections => Set<IntegrationConnection>();
     public DbSet<IntegrationToken> IntegrationTokens => Set<IntegrationToken>();
+    public DbSet<NomNomzBot.Domain.Identity.Entities.CryptoKey> CryptoKeys =>
+        Set<NomNomzBot.Domain.Identity.Entities.CryptoKey>();
     public DbSet<Channel> Channels => Set<Channel>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

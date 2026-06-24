@@ -33,10 +33,18 @@ public sealed class IntegrationTokenVaultTests
 {
     private static readonly Guid Tenant = Guid.Parse("0192a000-0000-7000-8000-0000000000d4");
 
-    private static (IntegrationTokenVault Vault, AuthDbContext Db, RecordingEventBus Bus) Build()
+    private static (IntegrationTokenVault Vault, AuthDbContext Db, RecordingEventBus Bus) Build() =>
+        Build(Guid.NewGuid().ToString());
+
+    private static (IntegrationTokenVault Vault, AuthDbContext Db, RecordingEventBus Bus) Build(
+        string databaseName
+    )
     {
-        AuthDbContext db = AuthTestBuilder.NewContext();
-        ITokenProtector protector = AuthTestBuilder.RealTokenProtector(out ISubjectKeyService keys);
+        AuthDbContext db = AuthTestBuilder.NewContext(databaseName);
+        ITokenProtector protector = AuthTestBuilder.RealTokenProtector(
+            db,
+            out ISubjectKeyService keys
+        );
         RecordingEventBus bus = new();
         // The vault reconciles scopes through IScopeGrantService; a passthrough recorder isolates the vault.
         IScopeGrantService scopeGrant = new NoopScopeGrant();
@@ -92,6 +100,42 @@ public sealed class IntegrationTokenVaultTests
 
         refresh.IsSuccess.Should().BeTrue();
         refresh.Value.Value.Should().Be("refresh-token-PLAINTEXT");
+    }
+
+    [Fact]
+    public async Task StoredToken_DecryptsAfterARestart_OverTheSamePersistedStore()
+    {
+        // The reported bug end-to-end: store a token, then a FRESH vault + FRESH DbContext (a process restart)
+        // over the SAME persisted database reads it back. Before the fix the DEK record lived only in process
+        // RAM, so the restarted process hit KEY_NOT_FOUND → DECRYPT_FAILED and every Helix read returned 0.
+        string database = Guid.NewGuid().ToString();
+
+        Guid connectionId;
+        {
+            (IntegrationTokenVault vault, _, _) = Build(database);
+            connectionId = (await vault.UpsertConnectionAsync(TwitchConnect())).Value.Id;
+            Result store = await vault.StoreTokensAsync(
+                connectionId,
+                new StoreTokensDto(
+                    "access-token-survives-restart",
+                    "refresh-token-survives-restart",
+                    AppToken: null,
+                    AccessExpiresAt: DateTime.UtcNow.AddHours(1)
+                )
+            );
+            store.IsSuccess.Should().BeTrue();
+        }
+
+        // ── Restart: new vault instance, new DbContext, same backing database. ──
+        (IntegrationTokenVault restarted, _, _) = Build(database);
+
+        Result<DecryptedTokenDto> access = await restarted.GetAccessTokenAsync(connectionId);
+        Result<DecryptedTokenDto> refresh = await restarted.GetRefreshTokenAsync(connectionId);
+
+        access.IsSuccess.Should().BeTrue("the wrapped DEK persisted, so the token still decrypts");
+        access.Value.Value.Should().Be("access-token-survives-restart");
+        refresh.IsSuccess.Should().BeTrue();
+        refresh.Value.Value.Should().Be("refresh-token-survives-restart");
     }
 
     [Fact]

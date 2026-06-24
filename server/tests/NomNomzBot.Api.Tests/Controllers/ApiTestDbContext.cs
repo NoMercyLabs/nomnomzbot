@@ -126,6 +126,8 @@ internal sealed class ApiTestDbContext : DbContext, IApplicationDbContext
     public DbSet<IpcDevModeKey> IpcDevModeKeys => throw new NotSupportedException();
     public DbSet<IntegrationConnection> IntegrationConnections => throw new NotSupportedException();
     public DbSet<IntegrationToken> IntegrationTokens => throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Identity.Entities.CryptoKey> CryptoKeys =>
+        throw new NotSupportedException();
     public DbSet<DiscordNotificationConfig> DiscordNotificationConfigs =>
         throw new NotSupportedException();
     public DbSet<DiscordNotificationRole> DiscordNotificationRoles =>

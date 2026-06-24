@@ -43,7 +43,10 @@ public sealed class TwitchTokenResolverTests
     ) Build()
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
-        ITokenProtector protector = AuthTestBuilder.RealTokenProtector(out ISubjectKeyService keys);
+        ITokenProtector protector = AuthTestBuilder.RealTokenProtector(
+            db,
+            out ISubjectKeyService keys
+        );
         IntegrationTokenVault vault = new(
             db,
             protector,

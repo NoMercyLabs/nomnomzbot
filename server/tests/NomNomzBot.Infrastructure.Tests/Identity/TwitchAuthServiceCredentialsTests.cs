@@ -39,7 +39,7 @@ public sealed class TwitchAuthServiceCredentialsTests
     )
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
-        ITokenProtector protector = AuthTestBuilder.RealTokenProtector(out _);
+        ITokenProtector protector = AuthTestBuilder.RealTokenProtector(db, out _);
         ISystemCredentialsProvider credentials = AuthTestBuilder.CredentialsProvider(
             db,
             protector,
@@ -93,7 +93,7 @@ public sealed class TwitchAuthServiceCredentialsTests
         // Config carries a DECOY app (the old static IOptions path). The DB carries the real wizard-saved app.
         // The exchange must send the DB app's id + secret, proving wizard creds now drive the OAuth.
         AuthDbContext db = AuthTestBuilder.NewContext();
-        ITokenProtector protector = AuthTestBuilder.RealTokenProtector(out _);
+        ITokenProtector protector = AuthTestBuilder.RealTokenProtector(db, out _);
         await SeedTwitchAppAsync(db, protector, "wizard-client-id", "wizard-secret");
 
         IConfiguration config = new ConfigurationBuilder()

@@ -413,13 +413,15 @@ public static class DependencyInjection
         // The kms_envelope (Azure Managed-HSM) branch is the SaaS profile variant and is wired there.
         services.AddSingleton<IKeyVault, OsSecureStoreKeyVault>();
 
-        // DEK registry — in-process store backs the contract until the CryptoKey EF table + Guid
-        // BroadcasterId widening land (schema build-dependency); singleton so DEKs persist process-wide.
-        services.AddSingleton<ISubjectKeyStore, InMemorySubjectKeyStore>();
+        // DEK registry — persisted in the CryptoKey table (schema Q.1) so wrapped DEKs survive a restart and a
+        // token sealed in one process decrypts in the next. Scoped because it owns the (scoped) DbContext.
+        services.AddScoped<ISubjectKeyStore, CryptoKeySubjectKeyStore>();
 
-        // DEK lifecycle + token-protection facade (singleton — stateless over the singleton store/vault).
-        services.AddSingleton<ISubjectKeyService, SubjectKeyService>();
-        services.AddSingleton<ITokenProtector, TokenProtector>();
+        // DEK lifecycle + token-protection facade. Scoped (not singleton): they compose the scoped DEK store, so
+        // a singleton here would captively pin one DbContext for the process lifetime. The crypto itself is
+        // stateless; the only per-request state is the store's DbContext.
+        services.AddScoped<ISubjectKeyService, SubjectKeyService>();
+        services.AddScoped<ITokenProtector, TokenProtector>();
 
         services.AddSingleton<IJwtTokenService, JwtTokenService>();
 

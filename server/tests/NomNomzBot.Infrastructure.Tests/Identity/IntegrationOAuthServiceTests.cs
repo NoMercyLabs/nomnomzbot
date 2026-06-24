@@ -300,7 +300,10 @@ public sealed class IntegrationOAuthServiceTests
     ) Build(StubHandler handler, IDiscordGuildService discord)
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
-        ITokenProtector protector = AuthTestBuilder.RealTokenProtector(out ISubjectKeyService keys);
+        ITokenProtector protector = AuthTestBuilder.RealTokenProtector(
+            db,
+            out ISubjectKeyService keys
+        );
         IIntegrationTokenVault vault = new IntegrationTokenVault(
             db,
             protector,

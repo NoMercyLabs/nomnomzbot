@@ -101,6 +101,10 @@ public class AppDbContext : DbContext, IApplicationDbContext
     public DbSet<IntegrationConnection> IntegrationConnections => Set<IntegrationConnection>();
     public DbSet<IntegrationToken> IntegrationTokens => Set<IntegrationToken>();
 
+    // DEK registry (schema Q.1) — wrapped per-subject/tenant DEKs; the crypto-shred + restart-survival linchpin.
+    public DbSet<NomNomzBot.Domain.Identity.Entities.CryptoKey> CryptoKeys =>
+        Set<NomNomzBot.Domain.Identity.Entities.CryptoKey>();
+
     // TTS
     public DbSet<TtsVoice> TtsVoices => Set<TtsVoice>();
     public DbSet<UserTtsVoice> UserTtsVoices => Set<UserTtsVoice>();

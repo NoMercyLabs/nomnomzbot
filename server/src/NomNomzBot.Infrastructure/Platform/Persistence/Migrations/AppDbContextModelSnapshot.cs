@@ -3269,6 +3269,77 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.ToTable("ConsentRecords");
                 });
 
+            modelBuilder.Entity("NomNomzBot.Domain.Identity.Entities.CryptoKey", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Algorithm")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<Guid?>("BroadcasterId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("DestroyedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("ErasureRequestId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("KekReference")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<string>("KeyScope")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<int>("KeyVersion")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Provider")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<Guid?>("RotatedFromKeyId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("SubjectIdHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("WrappedKeyMaterial")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BroadcasterId");
+
+                    b.HasIndex("DestroyedAt");
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("KeyScope", "BroadcasterId", "SubjectIdHash", "Status");
+
+                    b.ToTable("CryptoKeys");
+                });
+
             modelBuilder.Entity("NomNomzBot.Domain.Identity.Entities.IamAuditLog", b =>
                 {
                     b.Property<long>("Id")

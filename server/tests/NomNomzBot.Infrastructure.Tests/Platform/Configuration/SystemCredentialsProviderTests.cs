@@ -38,7 +38,7 @@ public sealed class SystemCredentialsProviderTests
     ) Build(IConfiguration config)
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
-        ITokenProtector protector = AuthTestBuilder.RealTokenProtector(out _);
+        ITokenProtector protector = AuthTestBuilder.RealTokenProtector(db, out _);
         SystemCredentialsProvider provider = new(db, protector, config);
         return (provider, db, protector);
     }

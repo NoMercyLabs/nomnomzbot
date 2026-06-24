@@ -39,7 +39,10 @@ public sealed class PlatformBotReadinessGateTests
     private static (PlatformBotReadinessGate Gate, IntegrationTokenVault Vault) Build()
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
-        ITokenProtector protector = AuthTestBuilder.RealTokenProtector(out ISubjectKeyService keys);
+        ITokenProtector protector = AuthTestBuilder.RealTokenProtector(
+            db,
+            out ISubjectKeyService keys
+        );
         IntegrationTokenVault vault = new(
             db,
             protector,

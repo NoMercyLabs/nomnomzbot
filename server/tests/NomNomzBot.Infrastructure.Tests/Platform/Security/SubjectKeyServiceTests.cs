@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
@@ -17,18 +18,41 @@ using NomNomzBot.Application.Common.Models.Crypto;
 using NomNomzBot.Application.Services;
 using NomNomzBot.Infrastructure.Platform.Auth;
 using NomNomzBot.Infrastructure.Platform.Security;
+using NomNomzBot.Infrastructure.Tests.Identity;
 
 namespace NomNomzBot.Infrastructure.Tests.Platform.Security;
 
 /// <summary>
 /// End-to-end envelope-encryption tests over the real stack: AES-256-GCM field cipher + OS-store key vault
-/// (deterministic config-KEK path) + in-process DEK registry. Proves the four mandatory security behaviors
-/// through the full DEK-wrapped-by-KEK envelope, including the crypto-shred GDPR guarantee.
+/// (deterministic config-KEK path) + the persisted DEK registry (<see cref="CryptoKeySubjectKeyStore"/>). Proves
+/// the four mandatory security behaviors through the full DEK-wrapped-by-KEK envelope, the crypto-shred GDPR
+/// guarantee, AND that the wrapped DEK survives a process restart (the token-vault decrypt-after-restart bug).
 /// </summary>
 public class SubjectKeyServiceTests
 {
     // A fixed base64 32-byte deployment key drives the deterministic KEK fallback (no OS keystore needed).
     private const string ConfigKey = "Zm9yLXRlc3Qtb25seS1rZWstMzItYnl0ZXMtbG9uZyEh"; // 32 bytes, base64
+
+    private static ISubjectKeyService BuildOver(string databaseName)
+    {
+        IFieldCipher cipher = new AesGcmFieldCipher();
+        IKeyVault vault = new OsSecureStoreKeyVault(
+            Options.Create(new EncryptionOptions { Key = ConfigKey }),
+            NullLogger<OsSecureStoreKeyVault>.Instance
+        );
+        // A fresh DbContext over the SAME named in-memory store = a fresh service instance over the SAME
+        // persisted database — the test analogue of an API restart.
+        ISubjectKeyStore store = new CryptoKeySubjectKeyStore(
+            AuthTestBuilder.NewContext(databaseName)
+        );
+        return new SubjectKeyService(
+            vault,
+            cipher,
+            store,
+            TimeProvider.System,
+            NullLogger<SubjectKeyService>.Instance
+        );
+    }
 
     private static (ISubjectKeyService Service, ISubjectKeyStore Store) Build()
     {
@@ -37,7 +61,7 @@ public class SubjectKeyServiceTests
             Options.Create(new EncryptionOptions { Key = ConfigKey }),
             NullLogger<OsSecureStoreKeyVault>.Instance
         );
-        ISubjectKeyStore store = new InMemorySubjectKeyStore();
+        ISubjectKeyStore store = new CryptoKeySubjectKeyStore(AuthTestBuilder.NewContext());
         ISubjectKeyService service = new SubjectKeyService(
             vault,
             cipher,
@@ -236,5 +260,97 @@ public class SubjectKeyServiceTests
         ).Value;
 
         second.Should().Be(first);
+    }
+
+    // ─── 5. Restart survival — the token-vault decrypt-after-restart regression ──────
+
+    [Fact]
+    public async Task DekMintedInOneProcess_UnwrapsAndDecrypts_InTheNext()
+    {
+        // The exact failure the bug produced: a key minted + a token sealed before a restart, then read after.
+        string database = Guid.NewGuid().ToString();
+        const string secret = "twitch-access-token-after-restart";
+
+        // ── First process: mint a DEK, seal a token under it, then the process ends. ──
+        Guid keyId;
+        CipherPayload sealed_;
+        {
+            ISubjectKeyService first = BuildOver(database);
+            keyId = (
+                await first.GetOrCreateSubjectKeyAsync(
+                    Guid.CreateVersion7(),
+                    subjectIdHash: "subject-hash-persisted"
+                )
+            ).Value;
+            Result<CipherPayload> protect = await first.ProtectAsync(keyId, secret, Aad());
+            protect.IsSuccess.Should().BeTrue();
+            sealed_ = protect.Value;
+        }
+
+        // ── Second process: a brand-new service over a brand-new context, same persisted store. ──
+        ISubjectKeyService second = BuildOver(database);
+
+        // The DEK record is found (no KEY_NOT_FOUND) and the ciphertext sealed before the "restart" opens.
+        Result<string> opened = await second.UnprotectAsync(keyId, sealed_, Aad());
+
+        opened.IsSuccess.Should().BeTrue("the wrapped DEK must persist across the restart");
+        opened.Value.Should().Be(secret);
+    }
+
+    [Fact]
+    public async Task GetOrCreateSubjectKey_ResolvesToSameKey_AcrossAProcessRestart()
+    {
+        // The vault re-derives the key id from the stable subject identity each boot — that re-resolution must
+        // find the persisted record, not mint a second (orphaning the ciphertext sealed under the first).
+        string database = Guid.NewGuid().ToString();
+        Guid subjectUserId = Guid.CreateVersion7();
+        const string subjectIdHash = "stable-subject-identity-hash";
+
+        Guid before = (
+            await BuildOver(database).GetOrCreateSubjectKeyAsync(subjectUserId, subjectIdHash)
+        ).Value;
+
+        Guid after = (
+            await BuildOver(database).GetOrCreateSubjectKeyAsync(subjectUserId, subjectIdHash)
+        ).Value;
+
+        after
+            .Should()
+            .Be(before, "the persisted active key is reused, not re-minted, after a restart");
+    }
+
+    // ─── 6. Negative — a truly-missing subject still fails closed ────────────────────
+
+    [Fact]
+    public async Task Unprotect_ForMissingKey_FailsWithKeyNotFound()
+    {
+        (ISubjectKeyService service, _) = Build();
+
+        // No key was ever minted for this id — the store returns nothing, so the service fails closed.
+        Result<CipherPayload> sealed_ = await service.ProtectAsync(
+            Guid.CreateVersion7(),
+            "value",
+            Aad()
+        );
+        sealed_.IsFailure.Should().BeTrue();
+        sealed_.ErrorCode.Should().Be("KEY_NOT_FOUND");
+    }
+
+    [Fact]
+    public async Task Decrypt_AfterRestart_ForKeyThatNeverExisted_FailsWithKeyNotFound()
+    {
+        string database = Guid.NewGuid().ToString();
+        // Persist ONE real key so the store/database exists, then ask the next process for a different id.
+        await BuildOver(database).GetOrCreateSubjectKeyAsync(Guid.CreateVersion7(), "some-subject");
+
+        ISubjectKeyService next = BuildOver(database);
+        Result<string> opened = await next.UnprotectAsync(
+            Guid.CreateVersion7(), // an id that was never minted
+            new CipherPayload(Convert.ToBase64String([1, 2, 3]), Convert.ToBase64String([4, 5, 6])),
+            Aad()
+        );
+
+        opened.IsFailure.Should().BeTrue();
+        opened.ErrorCode.Should().Be("KEY_NOT_FOUND");
     }
 }

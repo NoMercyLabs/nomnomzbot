@@ -38,7 +38,7 @@ public sealed class ScopeGrantServiceTests
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
         RecordingEventBus bus = new();
-        ITokenProtector protector = AuthTestBuilder.RealTokenProtector(out _);
+        ITokenProtector protector = AuthTestBuilder.RealTokenProtector(db, out _);
         // No DB-vaulted credential row is seeded here, so the credentials provider falls back to these
         // config values — proving the incremental authorize URL carries the resolved app client id.
         IConfiguration config = new ConfigurationBuilder()

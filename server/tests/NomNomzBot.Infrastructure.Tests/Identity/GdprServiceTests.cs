@@ -53,7 +53,10 @@ public sealed class GdprServiceTests
                 .UseInMemoryDatabase(Guid.NewGuid().ToString())
                 .Options
         );
-        ITokenProtector protector = AuthTestBuilder.RealTokenProtector(out ISubjectKeyService keys);
+        ITokenProtector protector = AuthTestBuilder.RealTokenProtector(
+            db,
+            out ISubjectKeyService keys
+        );
         IntegrationTokenVault vault = new(
             db,
             protector,
@@ -237,6 +240,8 @@ internal sealed class GdprTestDbContext : DbContext, IApplicationDbContext
     public DbSet<DeletionAuditLog> DeletionAuditLogs => Set<DeletionAuditLog>();
     public DbSet<IntegrationConnection> IntegrationConnections => Set<IntegrationConnection>();
     public DbSet<IntegrationToken> IntegrationTokens => Set<IntegrationToken>();
+    public DbSet<NomNomzBot.Domain.Identity.Entities.CryptoKey> CryptoKeys =>
+        Set<NomNomzBot.Domain.Identity.Entities.CryptoKey>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -263,6 +268,9 @@ internal sealed class GdprTestDbContext : DbContext, IApplicationDbContext
 
         b.Entity<IntegrationToken>().HasKey(e => e.Id);
         b.Entity<IntegrationToken>().Ignore(e => e.Connection).Ignore(e => e.Channel);
+
+        // The persisted DEK registry (scalar-only) — the vault seals/crypto-shreds tokens through it.
+        b.Entity<NomNomzBot.Domain.Identity.Entities.CryptoKey>().HasKey(e => e.Id);
 
         // Everything else the IApplicationDbContext surface exposes is ignored — these tests never reach it,
         // and EF would otherwise try to map unsupported jsonb-of-complex-type columns on InMemory.

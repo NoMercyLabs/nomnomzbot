@@ -80,6 +80,8 @@ public sealed class SeedTestDbContext : DbContext, IApplicationDbContext
         Set<NomNomzBot.Domain.Integrations.Entities.IntegrationConnection>();
     public DbSet<NomNomzBot.Domain.Integrations.Entities.IntegrationToken> IntegrationTokens =>
         Set<NomNomzBot.Domain.Integrations.Entities.IntegrationToken>();
+    public DbSet<NomNomzBot.Domain.Identity.Entities.CryptoKey> CryptoKeys =>
+        Set<NomNomzBot.Domain.Identity.Entities.CryptoKey>();
     public DbSet<DiscordGuildConnection> DiscordGuildConnections => Set<DiscordGuildConnection>();
     public DbSet<DiscordNotificationConfig> DiscordNotificationConfigs =>
         Set<DiscordNotificationConfig>();

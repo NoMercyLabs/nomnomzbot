@@ -59,6 +59,10 @@ public interface IApplicationDbContext
     DbSet<IpcDevModeKey> IpcDevModeKeys { get; }
     DbSet<IntegrationConnection> IntegrationConnections { get; }
     DbSet<IntegrationToken> IntegrationTokens { get; }
+
+    // Per-subject/tenant DEK registry (schema Q.1) — the crypto-shred linchpin. Persisting it is what lets a
+    // token sealed in one process decrypt in the next; FK'd by IntegrationToken.EncryptionKeyId, Users.SubjectKeyId, …
+    DbSet<CryptoKey> CryptoKeys { get; }
     DbSet<DiscordGuildConnection> DiscordGuildConnections { get; }
     DbSet<DiscordNotificationConfig> DiscordNotificationConfigs { get; }
     DbSet<DiscordNotificationRole> DiscordNotificationRoles { get; }
