@@ -172,6 +172,8 @@ internal sealed class QuoteTestDbContext : DbContext, IApplicationDbContext
         throw new NotSupportedException();
     public DbSet<ChannelActionOverride> ChannelActionOverrides => throw new NotSupportedException();
     public DbSet<PermitGrant> PermitGrants => throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Identity.Entities.ChannelMissingScope> ChannelMissingScopes =>
+        throw new NotSupportedException();
     public DbSet<IamPermission> IamPermissions => throw new NotSupportedException();
     public DbSet<IamRole> IamRoles => throw new NotSupportedException();
     public DbSet<IamRolePermission> IamRolePermissions => throw new NotSupportedException();

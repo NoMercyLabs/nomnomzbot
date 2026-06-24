@@ -49,7 +49,12 @@ public sealed class PlatformBotReadinessGateTests
             TimeProvider.System,
             NullLogger<IntegrationTokenVault>.Instance
         );
-        TwitchTokenResolver resolver = new(db, vault, Substitute.For<ITwitchAuthService>());
+        TwitchTokenResolver resolver = new(
+            db,
+            vault,
+            Substitute.For<ITwitchAuthService>(),
+            new RecordingEventBus()
+        );
         return (new PlatformBotReadinessGate(resolver), vault);
     }
 

@@ -14,6 +14,8 @@ using Microsoft.Extensions.Configuration;
 using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Twitch;
+using NomNomzBot.Application.DTOs.Twitch;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Integrations.Entities;
@@ -54,7 +56,7 @@ public sealed class ScopeGrantServiceTests
             protector,
             config
         );
-        ScopeGrantService service = new(db, bus, credentials, config);
+        ScopeGrantService service = new(db, bus, credentials, new NoopScopeNotifications(), config);
         return (service, db, bus);
     }
 
@@ -169,4 +171,36 @@ public sealed class ScopeGrantServiceTests
             .SingleAsync(c => c.Id == connectionId);
         connection.Scopes.Should().Contain(["channel:read:subscriptions", "bits:read"]);
     }
+}
+
+/// <summary>A no-op scope-notification double — the grant tests exercise drop detection, not the gap surface.</summary>
+internal sealed class NoopScopeNotifications : IScopeNotificationService
+{
+    public Task<Result<bool>> RecordMissingScopeAsync(
+        Guid broadcasterId,
+        string scope,
+        string? feature,
+        CancellationToken ct = default
+    ) => Task.FromResult(Result.Success(false));
+
+    public Task<Result<MissingScopesDto>> GetMissingScopesAsync(
+        Guid broadcasterId,
+        CancellationToken ct = default
+    ) => Task.FromResult(Result.Success(new MissingScopesDto("connected", [])));
+
+    public Task<Result<int>> NotifyPendingAsync(
+        Guid broadcasterId,
+        CancellationToken ct = default
+    ) => Task.FromResult(Result.Success(0));
+
+    public Task<Result<IReadOnlyList<string>>> ClearResolvedAsync(
+        Guid broadcasterId,
+        IReadOnlyCollection<string> grantedScopes,
+        CancellationToken ct = default
+    ) => Task.FromResult(Result.Success<IReadOnlyList<string>>([]));
+
+    public Task<Result<IReadOnlyList<string>>> BuildRegrantScopeSetAsync(
+        Guid broadcasterId,
+        CancellationToken ct = default
+    ) => Task.FromResult(Result.Success<IReadOnlyList<string>>([]));
 }

@@ -3019,6 +3019,44 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.ToTable("ChannelMemberships");
                 });
 
+            modelBuilder.Entity("NomNomzBot.Domain.Identity.Entities.ChannelMissingScope", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("BroadcasterId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("ChatNotifiedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("DetectedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Feature")
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Scope")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BroadcasterId", "Scope")
+                        .IsUnique();
+
+                    b.ToTable("ChannelMissingScopes");
+                });
+
             modelBuilder.Entity("NomNomzBot.Domain.Identity.Entities.ChannelModerator", b =>
                 {
                     b.Property<Guid>("ChannelId")
@@ -5474,6 +5512,17 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.Navigation("Channel");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("NomNomzBot.Domain.Identity.Entities.ChannelMissingScope", b =>
+                {
+                    b.HasOne("NomNomzBot.Domain.Identity.Entities.Channel", "Channel")
+                        .WithMany()
+                        .HasForeignKey("BroadcasterId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Channel");
                 });
 
             modelBuilder.Entity("NomNomzBot.Domain.Identity.Entities.ChannelModerator", b =>

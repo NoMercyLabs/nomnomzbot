@@ -13,6 +13,7 @@ using Microsoft.Extensions.Configuration;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Integrations.Entities;
@@ -33,18 +34,21 @@ public sealed class ScopeGrantService : IScopeGrantService
     private readonly IApplicationDbContext _db;
     private readonly IEventBus _eventBus;
     private readonly ISystemCredentialsProvider _credentials;
+    private readonly IScopeNotificationService _scopeNotifications;
     private readonly string _baseUrl;
 
     public ScopeGrantService(
         IApplicationDbContext db,
         IEventBus eventBus,
         ISystemCredentialsProvider credentials,
+        IScopeNotificationService scopeNotifications,
         IConfiguration configuration
     )
     {
         _db = db;
         _eventBus = eventBus;
         _credentials = credentials;
+        _scopeNotifications = scopeNotifications;
         _baseUrl = configuration["App:BaseUrl"] ?? "http://localhost:5080";
     }
 
@@ -110,6 +114,16 @@ public sealed class ScopeGrantService : IScopeGrantService
         // The connection's Scopes always become the authoritative granted set.
         connection.Scopes = [.. actualScopes];
         await _db.SaveChangesAsync(cancellationToken);
+
+        // A re-grant (or any wider grant) clears every recorded missing-scope gap the new set now satisfies, so
+        // the dashboard banner clears and a future loss of the same scope is announced afresh. Runs whether or not
+        // anything was dropped — the gap clears purely on what is now granted.
+        if (connection.BroadcasterId is Guid broadcasterId)
+            await _scopeNotifications.ClearResolvedAsync(
+                broadcasterId,
+                connection.Scopes,
+                cancellationToken
+            );
 
         if (dropped.Count == 0)
             return Result.Success<IReadOnlyList<string>>([]);

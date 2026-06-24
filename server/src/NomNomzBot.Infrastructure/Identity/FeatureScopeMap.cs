@@ -44,9 +44,46 @@ public static class FeatureScopeMap
     /// </summary>
     public static IReadOnlyDictionary<string, IReadOnlyList<string>> Features => Map;
 
+    /// <summary>
+    /// Short, user-facing descriptions of what each feature does, for the missing-scope chat notice ("I need
+    /// '&lt;scope&gt;' to &lt;describe&gt;"). Keyed by the same feature keys as <see cref="Features"/>; a feature
+    /// with no entry falls back to its key.
+    /// </summary>
+    private static readonly IReadOnlyDictionary<string, string> Descriptions = new Dictionary<
+        string,
+        string
+    >(StringComparer.OrdinalIgnoreCase)
+    {
+        ["subscriptions"] = "read your subscriber list and count",
+        ["bits"] = "see your Bits events",
+        ["redemptions"] = "manage your channel point rewards",
+        ["raids"] = "start and manage raids",
+        ["broadcast"] = "update your stream title, game and tags",
+        ["polls"] = "run and read your polls",
+        ["predictions"] = "run and read your predictions",
+        ["followers"] = "read your follower list and count",
+        ["moderation"] = "moderate chat (timeouts, bans, message removal)",
+        ["automod"] = "manage your AutoMod settings",
+        ["vips"] = "read and manage your VIPs",
+        ["chat_read"] = "read your chat",
+        ["chat_send"] = "send messages in your chat",
+    };
+
     /// <summary>The scopes <paramref name="featureKey"/> needs, or an empty list when the feature is unknown.</summary>
     public static IReadOnlyList<string> RequiredScopesFor(string featureKey) =>
         Map.TryGetValue(featureKey, out IReadOnlyList<string>? scopes) ? scopes : [];
+
+    /// <summary>
+    /// The first feature whose required-scope set contains <paramref name="scope"/>, or null when no offered
+    /// feature needs it (a raw Helix scope detected outside the feature registry). Used to attribute a
+    /// runtime-detected gap to a feature for the chat notice and the dashboard grouping.
+    /// </summary>
+    public static string? FeatureForScope(string scope) =>
+        Map.FirstOrDefault(kv => kv.Value.Contains(scope, StringComparer.OrdinalIgnoreCase)).Key;
+
+    /// <summary>A short user-facing description of <paramref name="featureKey"/>, falling back to the key itself.</summary>
+    public static string DescribeFeature(string featureKey) =>
+        Descriptions.TryGetValue(featureKey, out string? description) ? description : featureKey;
 
     /// <summary>Every feature whose required scopes are a subset of <paramref name="grantedScopes"/>.</summary>
     public static IReadOnlyList<string> FeaturesSatisfiedBy(

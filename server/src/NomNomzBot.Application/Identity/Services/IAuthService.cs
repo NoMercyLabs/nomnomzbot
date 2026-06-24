@@ -53,6 +53,18 @@ public interface IAuthService
     );
 
     /// <summary>
+    /// Begin a streamer device login requesting an explicit scope set — the additive scope re-grant (identity-auth
+    /// §3.4a). The caller passes <c>granted ∪ missing</c> so the existing grant is preserved and only the delta is
+    /// new to the operator; polling reuses the normal streamer device poll, which reconciles the widened grant onto
+    /// the existing connection and clears the resolved gaps. Distinct from the base login start, which is fixed to
+    /// the standard login scopes.
+    /// </summary>
+    Task<Result<DeviceCodeStartDto>> StartTwitchDeviceLoginForScopesAsync(
+        IReadOnlyList<string> scopes,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>
     /// Poll a streamer device login once. On <c>authorized</c> the tokens are vaulted, the user/channel are
     /// upserted, and a session is opened — the result carries the auth tokens; otherwise just the poll status.
     /// </summary>

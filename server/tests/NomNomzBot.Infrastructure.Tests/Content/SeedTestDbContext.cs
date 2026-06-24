@@ -114,6 +114,8 @@ public sealed class SeedTestDbContext : DbContext, IApplicationDbContext
         Set<NomNomzBot.Domain.Identity.Entities.ChannelActionOverride>();
     public DbSet<NomNomzBot.Domain.Identity.Entities.PermitGrant> PermitGrants =>
         Set<NomNomzBot.Domain.Identity.Entities.PermitGrant>();
+    public DbSet<NomNomzBot.Domain.Identity.Entities.ChannelMissingScope> ChannelMissingScopes =>
+        throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Identity.Entities.IamPermission> IamPermissions =>
         Set<NomNomzBot.Domain.Identity.Entities.IamPermission>();
     public DbSet<NomNomzBot.Domain.Identity.Entities.IamRole> IamRoles =>

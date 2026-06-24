@@ -88,6 +88,10 @@ public interface IApplicationDbContext
     DbSet<ChannelActionOverride> ChannelActionOverrides { get; }
     DbSet<PermitGrant> PermitGrants { get; }
 
+    // Reactive Twitch scope gaps — scopes a channel's streamer token was found missing at runtime, so the
+    // dashboard + chat can surface them and the one-click re-grant can request exactly the delta (identity-auth §3.4a).
+    DbSet<ChannelMissingScope> ChannelMissingScopes { get; }
+
     // Platform IAM (Plane C) — SaaS operator/admin access control. Empty on self-host (owner = full).
     DbSet<IamPermission> IamPermissions { get; }
     DbSet<IamRole> IamRoles { get; }

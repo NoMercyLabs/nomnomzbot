@@ -139,6 +139,8 @@ public class AppDbContext : DbContext, IApplicationDbContext
         Set<NomNomzBot.Domain.Identity.Entities.ActionDefinition>();
     public DbSet<ChannelActionOverride> ChannelActionOverrides => Set<ChannelActionOverride>();
     public DbSet<PermitGrant> PermitGrants => Set<PermitGrant>();
+    public DbSet<NomNomzBot.Domain.Identity.Entities.ChannelMissingScope> ChannelMissingScopes =>
+        Set<NomNomzBot.Domain.Identity.Entities.ChannelMissingScope>();
 
     // Platform IAM (Plane C)
     public DbSet<IamPermission> IamPermissions => Set<IamPermission>();

@@ -339,6 +339,18 @@ public sealed class AuthService : IAuthService
         CancellationToken cancellationToken = default
     ) => StartDeviceLoginAsync(RequiredScopes, cancellationToken);
 
+    public Task<Result<DeviceCodeStartDto>> StartTwitchDeviceLoginForScopesAsync(
+        IReadOnlyList<string> scopes,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (scopes.Count == 0)
+            return Task.FromResult(
+                Result.Failure<DeviceCodeStartDto>("No scopes requested.", "NO_SCOPES")
+            );
+        return StartDeviceLoginAsync([.. scopes], cancellationToken);
+    }
+
     public Task<Result<DeviceCodeStartDto>> StartBotDeviceLoginAsync(
         CancellationToken cancellationToken = default
     ) => StartDeviceLoginAsync(BotScopes, cancellationToken);

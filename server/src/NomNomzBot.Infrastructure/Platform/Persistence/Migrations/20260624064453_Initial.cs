@@ -3351,6 +3351,52 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
             );
 
             migrationBuilder.CreateTable(
+                name: "ChannelMissingScopes",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    BroadcasterId = table.Column<Guid>(type: "uuid", nullable: false),
+                    Scope = table.Column<string>(
+                        type: "character varying(100)",
+                        maxLength: 100,
+                        nullable: false
+                    ),
+                    Feature = table.Column<string>(
+                        type: "character varying(50)",
+                        maxLength: 50,
+                        nullable: true
+                    ),
+                    DetectedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                    ChatNotifiedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: true
+                    ),
+                    CreatedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                    UpdatedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ChannelMissingScopes", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_ChannelMissingScopes_Channels_BroadcasterId",
+                        column: x => x.BroadcasterId,
+                        principalTable: "Channels",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade
+                    );
+                }
+            );
+
+            migrationBuilder.CreateTable(
                 name: "ChannelModerators",
                 columns: table => new
                 {
@@ -5131,6 +5177,13 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
             );
 
             migrationBuilder.CreateIndex(
+                name: "IX_ChannelMissingScopes_BroadcasterId_Scope",
+                table: "ChannelMissingScopes",
+                columns: new[] { "BroadcasterId", "Scope" },
+                unique: true
+            );
+
+            migrationBuilder.CreateIndex(
                 name: "IX_ChannelModerators_UserId",
                 table: "ChannelModerators",
                 column: "UserId"
@@ -6143,6 +6196,8 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
             migrationBuilder.DropTable(name: "ChannelFederationOptIns");
 
             migrationBuilder.DropTable(name: "ChannelMemberships");
+
+            migrationBuilder.DropTable(name: "ChannelMissingScopes");
 
             migrationBuilder.DropTable(name: "ChannelModerators");
 

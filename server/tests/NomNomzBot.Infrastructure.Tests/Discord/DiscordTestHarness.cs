@@ -189,6 +189,8 @@ internal sealed class DiscordTestDbContext : DbContext, IApplicationDbContext
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Identity.Entities.PermitGrant> PermitGrants =>
         throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Identity.Entities.ChannelMissingScope> ChannelMissingScopes =>
+        throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Identity.Entities.IamPermission> IamPermissions =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Identity.Entities.IamRole> IamRoles =>

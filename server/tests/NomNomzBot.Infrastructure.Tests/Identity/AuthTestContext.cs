@@ -134,6 +134,11 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
         b.Entity<IntegrationToken>().HasKey(e => e.Id);
         b.Entity<IntegrationToken>().Ignore(e => e.Connection).Ignore(e => e.Channel);
 
+        // Reactive missing-scope rows (scalar; nav ignored) — mapped so the ScopeNotificationService tests seed
+        // + query gaps through this harness.
+        b.Entity<NomNomzBot.Domain.Identity.Entities.ChannelMissingScope>().HasKey(e => e.Id);
+        b.Entity<NomNomzBot.Domain.Identity.Entities.ChannelMissingScope>().Ignore(e => e.Channel);
+
         // System-config table (scalar Key/Value/SecureValue) — mapped so the system-credentials provider
         // tests can seed wizard-vaulted rows and prove the DB-first resolution + AAD binding.
         b.Entity<NomNomzBot.Domain.Platform.Entities.Configuration>().HasKey(e => e.Id);
@@ -287,6 +292,8 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
         Set<NomNomzBot.Domain.Identity.Entities.ChannelActionOverride>();
     public DbSet<NomNomzBot.Domain.Identity.Entities.PermitGrant> PermitGrants =>
         Set<NomNomzBot.Domain.Identity.Entities.PermitGrant>();
+    public DbSet<NomNomzBot.Domain.Identity.Entities.ChannelMissingScope> ChannelMissingScopes =>
+        Set<NomNomzBot.Domain.Identity.Entities.ChannelMissingScope>();
 
     // Platform IAM (Plane C) — mapped (simple scalar entities) so the IAM-service tests seed through this harness.
     public DbSet<NomNomzBot.Domain.Identity.Entities.IamPermission> IamPermissions =>

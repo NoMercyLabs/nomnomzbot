@@ -53,7 +53,12 @@ public sealed class TwitchTokenResolverTests
             TimeProvider.System,
             NullLogger<IntegrationTokenVault>.Instance
         );
-        TwitchTokenResolver resolver = new(db, vault, Substitute.For<ITwitchAuthService>());
+        TwitchTokenResolver resolver = new(
+            db,
+            vault,
+            Substitute.For<ITwitchAuthService>(),
+            new RecordingEventBus()
+        );
         return (resolver, vault, db);
     }
 

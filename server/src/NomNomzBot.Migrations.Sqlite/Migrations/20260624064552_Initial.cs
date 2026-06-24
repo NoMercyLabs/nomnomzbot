@@ -2133,6 +2133,32 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
             );
 
             migrationBuilder.CreateTable(
+                name: "ChannelMissingScopes",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
+                    BroadcasterId = table.Column<Guid>(type: "TEXT", nullable: false),
+                    Scope = table.Column<string>(type: "TEXT", maxLength: 100, nullable: false),
+                    Feature = table.Column<string>(type: "TEXT", maxLength: 50, nullable: true),
+                    DetectedAt = table.Column<DateTime>(type: "TEXT", nullable: false),
+                    ChatNotifiedAt = table.Column<DateTime>(type: "TEXT", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "TEXT", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "TEXT", nullable: false),
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ChannelMissingScopes", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_ChannelMissingScopes_Channels_BroadcasterId",
+                        column: x => x.BroadcasterId,
+                        principalTable: "Channels",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade
+                    );
+                }
+            );
+
+            migrationBuilder.CreateTable(
                 name: "ChannelModerators",
                 columns: table => new
                 {
@@ -3364,6 +3390,13 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
             );
 
             migrationBuilder.CreateIndex(
+                name: "IX_ChannelMissingScopes_BroadcasterId_Scope",
+                table: "ChannelMissingScopes",
+                columns: new[] { "BroadcasterId", "Scope" },
+                unique: true
+            );
+
+            migrationBuilder.CreateIndex(
                 name: "IX_ChannelModerators_UserId",
                 table: "ChannelModerators",
                 column: "UserId"
@@ -4376,6 +4409,8 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
             migrationBuilder.DropTable(name: "ChannelFederationOptIns");
 
             migrationBuilder.DropTable(name: "ChannelMemberships");
+
+            migrationBuilder.DropTable(name: "ChannelMissingScopes");
 
             migrationBuilder.DropTable(name: "ChannelModerators");
 

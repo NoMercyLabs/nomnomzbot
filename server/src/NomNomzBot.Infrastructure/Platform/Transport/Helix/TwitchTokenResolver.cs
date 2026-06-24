@@ -19,6 +19,8 @@ using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Integrations.Entities;
+using NomNomzBot.Domain.Platform.Interfaces;
+using NomNomzBot.Domain.Twitch.Events;
 
 namespace NomNomzBot.Infrastructure.Platform.Transport.Helix;
 
@@ -38,7 +40,8 @@ namespace NomNomzBot.Infrastructure.Platform.Transport.Helix;
 public sealed class TwitchTokenResolver(
     IApplicationDbContext db,
     IIntegrationTokenVault vault,
-    ITwitchAuthService authService
+    ITwitchAuthService authService,
+    IEventBus eventBus
 ) : ITwitchTokenResolver
 {
     private const string UserProvider = AuthEnums.IntegrationProvider.Twitch;
@@ -103,8 +106,27 @@ public sealed class TwitchTokenResolver(
     )
     {
         IntegrationConnection? connection = await ConnectionAsync(broadcasterId, UserProvider, ct);
-        return connection is not null
+        bool granted =
+            connection is not null
             && connection.Scopes.Contains(scope, StringComparer.OrdinalIgnoreCase);
+
+        // The single chokepoint every sub-client's per-method scope pre-check calls — so emitting here makes the
+        // proactive precheck path feed the same reactive missing-scope surface as a runtime 403, for ALL clients,
+        // without touching each one. The handler is idempotent, so re-emitting on every failed call is harmless.
+        if (!granted && connection is not null)
+            await eventBus.PublishAsync(
+                new TwitchHelixReauthRequiredEvent
+                {
+                    BroadcasterId = broadcasterId,
+                    Provider = "twitch",
+                    ServiceName = "twitch",
+                    Reason = TwitchErrorCodes.MissingScope,
+                    MissingScope = scope,
+                },
+                ct
+            );
+
+        return granted;
     }
 
     /// <summary>The active (non-deleted) connection for a <c>(tenant, provider)</c>, or null when none exists.</summary>
