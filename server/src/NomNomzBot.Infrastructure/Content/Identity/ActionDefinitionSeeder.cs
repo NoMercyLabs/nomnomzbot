@@ -175,6 +175,10 @@ public sealed class ActionDefinitionSeeder : ISeeder
         M("eventstore:projection:rebuild", Broadcaster);
         M("eventstore:replay:write", Broadcaster);
         M("eventstore:replay:republish", Broadcaster);
+        // Portable journal export/import — exporting reads the entire journal; importing mutates it. Both are
+        // owner-level and not permit-delegable below Broadcaster.
+        M("eventstore:export", Broadcaster, grant: false);
+        M("eventstore:import", Broadcaster, DangerTier.Critical, grant: false);
 
         // Music
         M("music:config:write", Editor);
