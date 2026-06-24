@@ -50,12 +50,17 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
+import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
+import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.network.ChatMessage
 import bot.nomnomz.dashboard.feature.chat.state.ChatController
 import bot.nomnomz.dashboard.feature.chat.state.ChatState
+import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
+import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
+import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecision
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
@@ -89,10 +94,16 @@ import org.jetbrains.compose.resources.stringResource
 // message is moderatable: delete that one message or timeout its author — both only once confirmed in the
 // shared ConfirmDialog (design-system rule: destructive actions MUST confirm).
 @Composable
-fun ChatScreen(controller: ChatController) {
+fun ChatScreen(controller: ChatController, role: ManagementRole?) {
     val state: ChatState by controller.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val spacing = LocalSpacing.current
+
+    // One decision for the whole page: Chat gates every write control (send, per-message moderation) at its
+    // single Moderator manage floor (frontend-ia.md §3). A caller below it still reads the live feed, but the
+    // send and moderation affordances render disabled with "Requires Moderator" (§7); the backend re-checks
+    // every write regardless.
+    val manage: ManageDecision = rememberManageDecision(role, ShellRoute.Chat)
 
     // Load once, then poll the backend on an interval so the feed stays fresh without a hub connection.
     LaunchedEffect(Unit) {
@@ -114,12 +125,13 @@ fun ChatScreen(controller: ChatController) {
                     MessageFeed(
                         messages = current.messages,
                         actionError = current.actionError,
+                        manage = manage,
                         onDelete = { id -> scope.launch { controller.deleteMessage(id) } },
                         onTimeout = { userId -> scope.launch { controller.timeout(userId) } },
                     )
             }
         }
-        SendBox(onSend = { text -> scope.launch { controller.send(text) } })
+        SendBox(manage = manage, onSend = { text -> scope.launch { controller.send(text) } })
     }
 }
 
@@ -127,6 +139,7 @@ fun ChatScreen(controller: ChatController) {
 private fun MessageFeed(
     messages: List<ChatMessage>,
     actionError: String?,
+    manage: ManageDecision,
     onDelete: (messageId: String) -> Unit,
     onTimeout: (userId: String) -> Unit,
 ) {
@@ -155,7 +168,7 @@ private fun MessageFeed(
             verticalArrangement = Arrangement.spacedBy(spacing.s2),
         ) {
             items(items = messages, key = { message -> message.id }) { message ->
-                MessageRow(message = message, onDelete = onDelete, onTimeout = onTimeout)
+                MessageRow(message = message, manage = manage, onDelete = onDelete, onTimeout = onTimeout)
             }
         }
     }
@@ -164,6 +177,7 @@ private fun MessageFeed(
 @Composable
 private fun MessageRow(
     message: ChatMessage,
+    manage: ManageDecision,
     onDelete: (messageId: String) -> Unit,
     onTimeout: (userId: String) -> Unit,
 ) {
@@ -205,7 +219,7 @@ private fun MessageRow(
                 modifier = Modifier.weight(1f),
             )
         }
-        MessageActions(message = message, name = name, onDelete = onDelete, onTimeout = onTimeout)
+        MessageActions(message = message, name = name, manage = manage, onDelete = onDelete, onTimeout = onTimeout)
     }
 }
 
@@ -216,6 +230,7 @@ private fun MessageRow(
 private fun MessageActions(
     message: ChatMessage,
     name: String,
+    manage: ManageDecision,
     onDelete: (messageId: String) -> Unit,
     onTimeout: (userId: String) -> Unit,
 ) {
@@ -231,11 +246,16 @@ private fun MessageActions(
     val timeoutItemLabel: String = stringResource(Res.string.chat_timeout_action, name)
 
     Box {
-        TextButton(
-            onClick = { expanded = true },
-            modifier = Modifier.semantics { contentDescription = menuLabel },
-        ) {
-            Text(text = "···", style = typography.sm, color = tokens.mutedForeground, maxLines = 1)
+        // The moderation menu trigger is the write affordance: gate it so a caller below the floor sees the
+        // per-message delete/timeout menu disabled with its reason, rather than gating each dialog button.
+        ManageGate(decision = manage) { enabled ->
+            TextButton(
+                onClick = { expanded = true },
+                enabled = enabled,
+                modifier = Modifier.semantics { contentDescription = menuLabel },
+            ) {
+                Text(text = "···", style = typography.sm, color = tokens.mutedForeground, maxLines = 1)
+            }
         }
 
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
@@ -310,7 +330,7 @@ private fun MessageActions(
 // The send composer: a single-line input that posts the typed line as the bot and clears on send. Empty / blank
 // input is ignored (the send affordance does nothing), matching the backend's empty-message rejection.
 @Composable
-private fun SendBox(onSend: (message: String) -> Unit) {
+private fun SendBox(manage: ManageDecision, onSend: (message: String) -> Unit) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
@@ -343,16 +363,21 @@ private fun SendBox(onSend: (message: String) -> Unit) {
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
             keyboardActions = KeyboardActions(onSend = { submit() }),
         )
-        TextButton(
-            onClick = { submit() },
-            enabled = canSend,
-            modifier = Modifier.semantics { contentDescription = sendLabel },
-        ) {
-            Text(
-                text = stringResource(Res.string.chat_send_action),
-                color = if (canSend) tokens.primary else tokens.mutedForeground,
-                maxLines = 1,
-            )
+        ManageGate(decision = manage) { gateEnabled ->
+            // Send is offered only when the gate allows it AND the draft is non-blank; the keyboard Send action
+            // above goes through the same `submit()` guard but the visible affordance reflects the floor.
+            val sendEnabled: Boolean = gateEnabled && canSend
+            TextButton(
+                onClick = { submit() },
+                enabled = sendEnabled,
+                modifier = Modifier.semantics { contentDescription = sendLabel },
+            ) {
+                Text(
+                    text = stringResource(Res.string.chat_send_action),
+                    color = if (sendEnabled) tokens.primary else tokens.mutedForeground,
+                    maxLines = 1,
+                )
+            }
         }
     }
 }

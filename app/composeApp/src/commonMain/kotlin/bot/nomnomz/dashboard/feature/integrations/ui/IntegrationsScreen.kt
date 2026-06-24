@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -37,10 +38,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
+import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.network.MissingScope
+import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
+import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
+import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecision
 import bot.nomnomz.dashboard.feature.connect.ui.ConnectModal
 import bot.nomnomz.dashboard.feature.connect.ui.ConnectProvider
 import bot.nomnomz.dashboard.feature.connect.ui.ConnectProviders
@@ -131,11 +137,16 @@ private fun ConnectModalProvider.displayName(): String =
     }
 
 @Composable
-fun IntegrationsScreen(controller: IntegrationsController) {
+fun IntegrationsScreen(controller: IntegrationsController, role: ManagementRole?) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
     val scope = rememberCoroutineScope()
+
+    // Integrations gates at its Broadcaster floor — token custody is owner-level (frontend-ia.md §3 Pinned).
+    // The page's read floor is also Broadcaster, so normally only a Broadcaster reaches it; the gate still
+    // defends the connect/disconnect/grant writes for any break-glass case (§7). Backend re-checks every write.
+    val manage: ManageDecision = rememberManageDecision(role, ShellRoute.Integrations)
 
     val state: IntegrationsState by controller.state.collectAsStateWithLifecycle()
 
@@ -204,6 +215,7 @@ fun IntegrationsScreen(controller: IntegrationsController) {
                     if (current.regrant == null && current.missingScopes.isNotEmpty()) {
                         MissingScopesBanner(
                             missing = current.missingScopes,
+                            manage = manage,
                             onGrant = { scope.launch { controller.regrantScopes() } },
                         )
                     }
@@ -219,6 +231,7 @@ fun IntegrationsScreen(controller: IntegrationsController) {
                         connected = current.bot.connected,
                         accountName = current.bot.accountName,
                         busy = current.busy is BusyTarget.Bot || current.botDevice != null,
+                        manage = manage,
                         onConnect = { scope.launch { controller.connectBot() } },
                     )
                     ProviderRow(
@@ -226,6 +239,7 @@ fun IntegrationsScreen(controller: IntegrationsController) {
                         subtitle = Res.string.integrations_spotify_subtitle,
                         connection = current.providers.forProvider(SPOTIFY),
                         busy = current.busy.isProvider(SPOTIFY),
+                        manage = manage,
                         // Open the branded connect modal (at the Intro stage) rather than connecting inline.
                         onConnect = { openModal = ConnectModalProvider.Spotify; stage = ConnectStage.Intro },
                         onDisconnect = { scope.launch { controller.disconnect(SPOTIFY) } },
@@ -235,6 +249,7 @@ fun IntegrationsScreen(controller: IntegrationsController) {
                         subtitle = Res.string.integrations_youtube_subtitle,
                         connection = current.providers.forProvider(YOUTUBE),
                         busy = current.busy.isProvider(YOUTUBE),
+                        manage = manage,
                         onConnect = { openModal = ConnectModalProvider.YouTube; stage = ConnectStage.Intro },
                         onDisconnect = { scope.launch { controller.disconnect(YOUTUBE) } },
                     )
@@ -243,6 +258,7 @@ fun IntegrationsScreen(controller: IntegrationsController) {
                         subtitle = Res.string.integrations_discord_subtitle,
                         connection = current.providers.forProvider(DISCORD),
                         busy = current.busy.isProvider(DISCORD),
+                        manage = manage,
                         onConnect = { openModal = ConnectModalProvider.Discord; stage = ConnectStage.Intro },
                         onDisconnect = { scope.launch { controller.disconnect(DISCORD) } },
                     )
@@ -324,6 +340,7 @@ private fun BotRow(
     connected: Boolean,
     accountName: String?,
     busy: Boolean,
+    manage: ManageDecision,
     onConnect: () -> Unit,
 ) {
     IntegrationCard(
@@ -333,6 +350,7 @@ private fun BotRow(
         accountName = accountName,
         needsReauth = false,
         busy = busy,
+        manage = manage,
         // The bot is connected via the platform OAuth; there is no app-side disconnect on this screen.
         onConnect = onConnect,
         onDisconnect = null,
@@ -345,6 +363,7 @@ private fun ProviderRow(
     subtitle: StringResource,
     connection: ProviderConnection?,
     busy: Boolean,
+    manage: ManageDecision,
     onConnect: () -> Unit,
     onDisconnect: () -> Unit,
 ) {
@@ -355,6 +374,7 @@ private fun ProviderRow(
         accountName = connection?.accountName,
         needsReauth = connection?.needsReauth == true,
         busy = busy,
+        manage = manage,
         onConnect = onConnect,
         onDisconnect = if (connection?.connected == true) onDisconnect else null,
     )
@@ -368,6 +388,7 @@ private fun IntegrationCard(
     accountName: String?,
     needsReauth: Boolean,
     busy: Boolean,
+    manage: ManageDecision,
     onConnect: () -> Unit,
     onDisconnect: (() -> Unit)?,
 ) {
@@ -405,20 +426,31 @@ private fun IntegrationCard(
         } else {
             Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2), verticalAlignment = Alignment.CenterVertically) {
                 if (connected && onDisconnect != null) {
-                    OutlinedButton(onClick = onDisconnect) {
-                        Text(stringResource(Res.string.integrations_action_disconnect), maxLines = 1)
+                    ManageGate(decision = manage) { enabled ->
+                        OutlinedButton(onClick = onDisconnect, enabled = enabled) {
+                            Text(stringResource(Res.string.integrations_action_disconnect), maxLines = 1)
+                        }
                     }
                 }
                 if (!connected || needsReauth) {
-                    Button(onClick = onConnect) {
-                        Text(
-                            text =
-                                stringResource(
-                                    if (needsReauth) Res.string.integrations_action_reauth
-                                    else Res.string.integrations_action_connect
-                                ),
-                            maxLines = 1,
-                        )
+                    ManageGate(decision = manage) { enabled ->
+                        Button(
+                            onClick = onConnect,
+                            enabled = enabled,
+                            colors = ButtonDefaults.buttonColors(
+                                disabledContainerColor = tokens.muted,
+                                disabledContentColor = tokens.mutedForeground,
+                            ),
+                        ) {
+                            Text(
+                                text =
+                                    stringResource(
+                                        if (needsReauth) Res.string.integrations_action_reauth
+                                        else Res.string.integrations_action_connect
+                                    ),
+                                maxLines = 1,
+                            )
+                        }
                     }
                 }
             }
@@ -427,7 +459,7 @@ private fun IntegrationCard(
 }
 
 @Composable
-private fun MissingScopesBanner(missing: List<MissingScope>, onGrant: () -> Unit) {
+private fun MissingScopesBanner(missing: List<MissingScope>, manage: ManageDecision, onGrant: () -> Unit) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
@@ -457,8 +489,17 @@ private fun MissingScopesBanner(missing: List<MissingScope>, onGrant: () -> Unit
             color = tokens.cardForeground,
         )
         Text(text = body, style = typography.sm, color = tokens.mutedForeground)
-        Button(onClick = onGrant, modifier = Modifier.align(Alignment.Start)) {
-            Text(stringResource(Res.string.permissions_banner_action), maxLines = 1)
+        ManageGate(decision = manage, modifier = Modifier.align(Alignment.Start)) { enabled ->
+            Button(
+                onClick = onGrant,
+                enabled = enabled,
+                colors = ButtonDefaults.buttonColors(
+                    disabledContainerColor = tokens.muted,
+                    disabledContentColor = tokens.mutedForeground,
+                ),
+            ) {
+                Text(stringResource(Res.string.permissions_banner_action), maxLines = 1)
+            }
         }
     }
 }

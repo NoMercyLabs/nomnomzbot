@@ -781,4 +781,8 @@
     <string name="pipelines_field_wait_seconds">Wachten (seconden)</string>
     <string name="pipelines_field_min_role">Minimale rol</string>
     <string name="pipelines_field_percent">Percentage</string>
+
+    <!-- Schrijfvergrendeling (frontend-ia.md §7): de reden dat een knop is uitgeschakeld voor een gebruiker
+         onder de beheerdrempel. %1$s is de minimale rol, uit de shell_role_*-labels hierboven. -->
+    <string name="manage_gate_requires">Vereist %1$s</string>
 </resources>

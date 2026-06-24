@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -44,6 +45,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
+import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
+import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -53,6 +56,8 @@ import bot.nomnomz.dashboard.feature.settings.state.JournalPortabilityState
 import bot.nomnomz.dashboard.feature.settings.state.SettingsController
 import bot.nomnomz.dashboard.feature.settings.state.SettingsState
 import bot.nomnomz.dashboard.feature.settings.state.TwitchAppCredentialsController
+import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
+import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecisionAtFloor
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.journal_dismiss
@@ -95,10 +100,18 @@ fun SettingsScreen(
     controller: SettingsController,
     journalController: JournalPortabilityController,
     twitchAppController: TwitchAppCredentialsController,
+    role: ManagementRole?,
 ) {
     val state: SettingsState by controller.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val spacing = LocalSpacing.current
+
+    // Settings gates PER SECTION, each at its own floor (frontend-ia.md §5) — the page has no single manage
+    // floor. Stream info (the broadcast title/category/tags, "Bot basics" tier) is an Editor write; editing the
+    // live Twitch app credentials and the Event Journal export/import (Danger zone) are Broadcaster writes. Each
+    // section gates at its floor; below it the controls disable-with-reason (§7). The backend re-checks writes.
+    val streamInfoManage: ManageDecision = rememberManageDecisionAtFloor(role, ManagementRole.Editor)
+    val ownerManage: ManageDecision = rememberManageDecisionAtFloor(role, ManagementRole.Broadcaster)
 
     LaunchedEffect(Unit) { controller.load() }
 
@@ -106,7 +119,7 @@ fun SettingsScreen(
         modifier = Modifier.fillMaxSize().padding(spacing.s6),
         verticalArrangement = Arrangement.spacedBy(spacing.s6),
     ) {
-        TwitchAppCredentialsCard(controller = twitchAppController)
+        TwitchAppCredentialsCard(controller = twitchAppController, manage = ownerManage)
 
         Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
             when (val current: SettingsState = state) {
@@ -120,6 +133,7 @@ fun SettingsScreen(
                 is SettingsState.Ready ->
                     ReadyContent(
                         state = current,
+                        manage = streamInfoManage,
                         onSave = { title, gameName, tags ->
                             scope.launch { controller.save(title, gameName, tags) }
                         },
@@ -127,7 +141,7 @@ fun SettingsScreen(
             }
         }
 
-        EventJournalSection(controller = journalController)
+        EventJournalSection(controller = journalController, manage = ownerManage)
     }
 }
 
@@ -142,6 +156,7 @@ private fun joinTags(tags: List<String>): String = tags.joinToString(", ")
 @Composable
 private fun ReadyContent(
     state: SettingsState.Ready,
+    manage: ManageDecision,
     onSave: (title: String, gameName: String, tags: List<String>) -> Unit,
 ) {
     val spacing = LocalSpacing.current
@@ -182,14 +197,17 @@ private fun ReadyContent(
             onGameNameChange = { gameName = it },
             tagsText = tagsText,
             onTagsChange = { tagsText = it },
-            enabled = !state.saving,
+            // Editing the broadcast metadata gates at the stream-info (Editor) floor; below it the fields go
+            // read-only with reason via the gated SaveBar below.
+            enabled = !state.saving && manage.isAllowed,
         )
 
         SaveBar(
             saving = state.saving,
             justSaved = state.justSaved,
             saveError = state.saveError,
-            canSave = canSave,
+            manage = manage,
+            canSave = canSave && manage.isAllowed,
             onSave = { onSave(title.trim(), gameName.trim(), editedTags) },
         )
     }
@@ -302,6 +320,7 @@ private fun SaveBar(
     saving: Boolean,
     justSaved: Boolean,
     saveError: String?,
+    manage: ManageDecision,
     canSave: Boolean,
     onSave: () -> Unit,
 ) {
@@ -345,8 +364,14 @@ private fun SaveBar(
                     .clearAndSetSemantics { contentDescription = savingLabel },
             )
         } else {
-            Button(onClick = onSave, enabled = canSave, modifier = Modifier.wrapContentWidth()) {
-                Text(stringResource(Res.string.settings_save))
+            ManageGate(decision = manage) { enabled ->
+                Button(
+                    onClick = onSave,
+                    enabled = canSave && enabled,
+                    modifier = Modifier.wrapContentWidth(),
+                ) {
+                    Text(stringResource(Res.string.settings_save))
+                }
             }
         }
     }
@@ -388,7 +413,7 @@ private fun CenteredMessage(text: String) {
 // a file and uploads it behind a ConfirmDialog (it mutates the journal). The last action's outcome — exported,
 // the import counts, or an error — shows as a status line the user can dismiss.
 @Composable
-private fun EventJournalSection(controller: JournalPortabilityController) {
+private fun EventJournalSection(controller: JournalPortabilityController, manage: ManageDecision) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
@@ -421,19 +446,30 @@ private fun EventJournalSection(controller: JournalPortabilityController) {
             horizontalArrangement = Arrangement.spacedBy(spacing.s4),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Button(
-                onClick = { scope.launch { controller.export() } },
-                enabled = !state.busy,
-                modifier = Modifier.wrapContentWidth(),
-            ) {
-                Text(stringResource(Res.string.journal_export))
+            ManageGate(decision = manage) { enabled ->
+                Button(
+                    onClick = { scope.launch { controller.export() } },
+                    enabled = !state.busy && enabled,
+                    colors = ButtonDefaults.buttonColors(
+                        disabledContainerColor = tokens.muted,
+                        disabledContentColor = tokens.mutedForeground,
+                    ),
+                    modifier = Modifier.wrapContentWidth(),
+                ) {
+                    Text(stringResource(Res.string.journal_export))
+                }
             }
-            TextButton(
-                onClick = { confirmImport = true },
-                enabled = !state.busy,
-                modifier = Modifier.wrapContentWidth(),
-            ) {
-                Text(stringResource(Res.string.journal_import))
+            ManageGate(decision = manage) { enabled ->
+                TextButton(
+                    onClick = { confirmImport = true },
+                    enabled = !state.busy && enabled,
+                    modifier = Modifier.wrapContentWidth(),
+                ) {
+                    Text(
+                        text = stringResource(Res.string.journal_import),
+                        color = if (enabled) tokens.primary else tokens.mutedForeground,
+                    )
+                }
             }
 
             JournalStatus(state = state, onDismiss = { controller.dismiss() })

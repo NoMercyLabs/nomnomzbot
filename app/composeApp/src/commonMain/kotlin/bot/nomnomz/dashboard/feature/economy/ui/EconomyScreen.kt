@@ -52,6 +52,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
+import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
+import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -60,6 +62,10 @@ import bot.nomnomz.dashboard.core.network.CurrencyConfig
 import bot.nomnomz.dashboard.core.network.LeaderboardEntry
 import bot.nomnomz.dashboard.feature.economy.state.EconomyController
 import bot.nomnomz.dashboard.feature.economy.state.EconomyState
+import bot.nomnomz.dashboard.feature.shell.nav.ManageAction
+import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
+import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
+import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecision
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.economy_disable_confirm_cancel
@@ -95,10 +101,18 @@ import org.jetbrains.compose.resources.stringResource
 // consequential action (it stops viewers earning), so that save routes through a ConfirmDialog. The screen loads on
 // first composition and offers a retry on failure.
 @Composable
-fun EconomyScreen(controller: EconomyController) {
+fun EconomyScreen(controller: EconomyController, role: ManagementRole?) {
     val state: EconomyState by controller.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val spacing = LocalSpacing.current
+
+    // Economy splits its write floor (frontend-ia.md §3 Loyalty row): the general currency editor — name, icon,
+    // the enabled toggle, Save — gates at the page's Editor floor, but the PAYOUT / EARN RULES (the economic
+    // parameters: starting balance, max balance, decimal places) are Broadcaster-only. An Editor can rename the
+    // currency but the earn-rule fields render read-only with reason (§7); the backend re-checks every write.
+    val config: ManageDecision = rememberManageDecision(role, ShellRoute.Economy)
+    val payoutRules: ManageDecision =
+        rememberManageDecision(role, ShellRoute.Economy, ManageAction.EconomyPayoutRules)
 
     LaunchedEffect(Unit) { controller.load() }
 
@@ -110,6 +124,8 @@ fun EconomyScreen(controller: EconomyController) {
             is EconomyState.Ready ->
                 ReadyContent(
                     state = current,
+                    config = config,
+                    payoutRules = payoutRules,
                     onSave = { edited -> scope.launch { controller.save(edited) } },
                 )
         }
@@ -117,7 +133,12 @@ fun EconomyScreen(controller: EconomyController) {
 }
 
 @Composable
-private fun ReadyContent(state: EconomyState.Ready, onSave: (CurrencyConfig) -> Unit) {
+private fun ReadyContent(
+    state: EconomyState.Ready,
+    config: ManageDecision,
+    payoutRules: ManageDecision,
+    onSave: (CurrencyConfig) -> Unit,
+) {
     val spacing = LocalSpacing.current
     val loaded: CurrencyConfig = state.config
 
@@ -182,6 +203,11 @@ private fun ReadyContent(state: EconomyState.Ready, onSave: (CurrencyConfig) -> 
     ) {
         StatusBanner(isEnabled = isEnabled, currencyName = edited.currencyName)
 
+        // The general editor is enabled only while not saving AND the caller clears the Editor config floor; the
+        // earn-rule number fields additionally require the Broadcaster payout floor (combined below).
+        val configEnabled: Boolean = !state.saving && config.isAllowed
+        val payoutEnabled: Boolean = !state.saving && payoutRules.isAllowed
+
         EditCard(
             isEnabled = isEnabled,
             onEnabledChange = { isEnabled = it },
@@ -201,14 +227,19 @@ private fun ReadyContent(state: EconomyState.Ready, onSave: (CurrencyConfig) -> 
             decimalPlacesText = decimalPlacesText,
             onDecimalPlacesChange = { decimalPlacesText = it.filter { c -> c.isDigit() } },
             decimalsValid = decimalsValid,
-            enabled = !state.saving,
+            configEnabled = configEnabled,
+            payoutEnabled = payoutEnabled,
+            payoutRules = payoutRules,
         )
 
         SaveBar(
             saving = state.saving,
             justSaved = state.justSaved,
             saveError = state.saveError,
-            canSave = canSave,
+            // Saving persists the whole config, so it gates at the page's Editor floor; the earn-rule fields are
+            // already individually locked for a non-Broadcaster, so an Editor can save the parts they may edit.
+            manage = config,
+            canSave = canSave && config.isAllowed,
             onSave = onSaveClick,
         )
 
@@ -300,7 +331,9 @@ private fun EditCard(
     decimalPlacesText: String,
     onDecimalPlacesChange: (String) -> Unit,
     decimalsValid: Boolean,
-    enabled: Boolean,
+    configEnabled: Boolean,
+    payoutEnabled: Boolean,
+    payoutRules: ManageDecision,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -317,13 +350,13 @@ private fun EditCard(
             label = stringResource(Res.string.economy_toggle_enabled),
             checked = isEnabled,
             onCheckedChange = onEnabledChange,
-            enabled = enabled,
+            enabled = configEnabled,
         )
         TextField(
             value = currencyName,
             onValueChange = onCurrencyNameChange,
             label = stringResource(Res.string.economy_label_currency_name),
-            enabled = enabled,
+            enabled = configEnabled,
             isError = !nameValid,
             errorText = stringResource(Res.string.economy_name_invalid),
         )
@@ -331,35 +364,44 @@ private fun EditCard(
             value = currencyNamePlural,
             onValueChange = onCurrencyNamePluralChange,
             label = stringResource(Res.string.economy_label_currency_name_plural),
-            enabled = enabled,
+            enabled = configEnabled,
         )
         TextField(
             value = iconUrl,
             onValueChange = onIconUrlChange,
             label = stringResource(Res.string.economy_label_icon_url),
-            enabled = enabled,
+            enabled = configEnabled,
         )
-        NumberField(
-            value = startingBalanceText,
-            onValueChange = onStartingBalanceChange,
-            label = stringResource(Res.string.economy_label_starting_balance),
-            enabled = enabled,
-            valid = startingValid,
-        )
-        NumberField(
-            value = maxBalanceText,
-            onValueChange = onMaxBalanceChange,
-            label = stringResource(Res.string.economy_label_max_balance),
-            enabled = enabled,
-            valid = maxValid,
-        )
-        NumberField(
-            value = decimalPlacesText,
-            onValueChange = onDecimalPlacesChange,
-            label = stringResource(Res.string.economy_label_decimal_places),
-            enabled = enabled,
-            valid = decimalsValid,
-        )
+        // The earn / payout rules (frontend-ia.md §3): the economic parameters that change how viewers earn —
+        // Broadcaster-only. Each gates through ManageGate so the field is disabled WITH a reason a screen reader
+        // announces when the caller is below the Broadcaster floor.
+        ManageGate(decision = payoutRules) {
+            NumberField(
+                value = startingBalanceText,
+                onValueChange = onStartingBalanceChange,
+                label = stringResource(Res.string.economy_label_starting_balance),
+                enabled = payoutEnabled,
+                valid = startingValid,
+            )
+        }
+        ManageGate(decision = payoutRules) {
+            NumberField(
+                value = maxBalanceText,
+                onValueChange = onMaxBalanceChange,
+                label = stringResource(Res.string.economy_label_max_balance),
+                enabled = payoutEnabled,
+                valid = maxValid,
+            )
+        }
+        ManageGate(decision = payoutRules) {
+            NumberField(
+                value = decimalPlacesText,
+                onValueChange = onDecimalPlacesChange,
+                label = stringResource(Res.string.economy_label_decimal_places),
+                enabled = payoutEnabled,
+                valid = decimalsValid,
+            )
+        }
     }
 }
 
@@ -452,6 +494,7 @@ private fun SaveBar(
     saving: Boolean,
     justSaved: Boolean,
     saveError: String?,
+    manage: ManageDecision,
     canSave: Boolean,
     onSave: () -> Unit,
 ) {
@@ -495,8 +538,14 @@ private fun SaveBar(
                     .clearAndSetSemantics { contentDescription = savingLabel },
             )
         } else {
-            Button(onClick = onSave, enabled = canSave, modifier = Modifier.wrapContentWidth()) {
-                Text(stringResource(Res.string.economy_save), maxLines = 1)
+            ManageGate(decision = manage) { enabled ->
+                Button(
+                    onClick = onSave,
+                    enabled = canSave && enabled,
+                    modifier = Modifier.wrapContentWidth(),
+                ) {
+                    Text(stringResource(Res.string.economy_save), maxLines = 1)
+                }
             }
         }
     }

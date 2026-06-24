@@ -40,12 +40,18 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
+import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
+import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.network.QueuedSong
 import bot.nomnomz.dashboard.feature.songrequests.state.SongRequestsController
 import bot.nomnomz.dashboard.feature.songrequests.state.SongRequestsState
+import bot.nomnomz.dashboard.feature.shell.nav.ManageAction
+import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
+import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
+import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecision
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.songrequests_action_error
@@ -74,10 +80,17 @@ import org.jetbrains.compose.resources.stringResource
 // control area drives playback (Skip / Pause / Resume act directly), and each queued song carries a Remove
 // affordance that only runs once confirmed in the shared ConfirmDialog (the controller reloads on success).
 @Composable
-fun SongRequestsScreen(controller: SongRequestsController) {
+fun SongRequestsScreen(controller: SongRequestsController, role: ManagementRole?) {
     val state: SongRequestsState by controller.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val spacing = LocalSpacing.current
+
+    // Every control on this page is live-queue moderation (skip/pause/resume/remove). The spec drops that below
+    // the page's Editor floor to Moderator (frontend-ia.md §3 Media row: "queue moderation: Moderator"), so a
+    // Mod can keep the queue moving — one decision feeds all the controls; below Moderator they disable with
+    // reason (§7). The backend re-checks every write.
+    val moderate: ManageDecision =
+        rememberManageDecision(role, ShellRoute.SongRequests, ManageAction.SongQueueModeration)
 
     LaunchedEffect(Unit) { controller.load() }
 
@@ -93,6 +106,7 @@ fun SongRequestsScreen(controller: SongRequestsController) {
                 ReadyContent(
                     queue = current.queue,
                     actionError = current.actionError,
+                    moderate = moderate,
                     onSkip = { scope.launch { controller.skip() } },
                     onPause = { scope.launch { controller.pause() } },
                     onResume = { scope.launch { controller.resume() } },
@@ -106,6 +120,7 @@ fun SongRequestsScreen(controller: SongRequestsController) {
 private fun ReadyContent(
     queue: List<QueuedSong>,
     actionError: String?,
+    moderate: ManageDecision,
     onSkip: () -> Unit,
     onPause: () -> Unit,
     onResume: () -> Unit,
@@ -122,7 +137,7 @@ private fun ReadyContent(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(spacing.s3),
     ) {
-        PlaybackControls(onSkip = onSkip, onPause = onPause, onResume = onResume)
+        PlaybackControls(moderate = moderate, onSkip = onSkip, onPause = onPause, onResume = onResume)
 
         actionError?.let { detail ->
             Text(
@@ -138,7 +153,7 @@ private fun ReadyContent(
             verticalArrangement = Arrangement.spacedBy(spacing.s2),
         ) {
             items(items = queue, key = { song -> song.position }) { song ->
-                QueueRow(song = song, onRemove = { pendingRemoval = song })
+                QueueRow(song = song, moderate = moderate, onRemove = { pendingRemoval = song })
             }
         }
     }
@@ -162,6 +177,7 @@ private fun ReadyContent(
 
 @Composable
 private fun PlaybackControls(
+    moderate: ManageDecision,
     onSkip: () -> Unit,
     onPause: () -> Unit,
     onResume: () -> Unit,
@@ -173,26 +189,29 @@ private fun PlaybackControls(
         horizontalArrangement = Arrangement.spacedBy(spacing.s2),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        ControlButton(label = stringResource(Res.string.songrequests_skip), onClick = onSkip)
-        ControlButton(label = stringResource(Res.string.songrequests_pause), onClick = onPause)
-        ControlButton(label = stringResource(Res.string.songrequests_resume), onClick = onResume)
+        ControlButton(label = stringResource(Res.string.songrequests_skip), moderate = moderate, onClick = onSkip)
+        ControlButton(label = stringResource(Res.string.songrequests_pause), moderate = moderate, onClick = onPause)
+        ControlButton(label = stringResource(Res.string.songrequests_resume), moderate = moderate, onClick = onResume)
     }
 }
 
 @Composable
-private fun ControlButton(label: String, onClick: () -> Unit) {
+private fun ControlButton(label: String, moderate: ManageDecision, onClick: () -> Unit) {
     val tokens = LocalTokens.current
 
-    TextButton(
-        onClick = onClick,
-        modifier = Modifier.clearAndSetSemantics { contentDescription = label },
-    ) {
-        Text(text = label, color = tokens.primary, maxLines = 1)
+    ManageGate(decision = moderate) { enabled ->
+        TextButton(
+            onClick = onClick,
+            enabled = enabled,
+            modifier = Modifier.clearAndSetSemantics { contentDescription = label },
+        ) {
+            Text(text = label, color = if (enabled) tokens.primary else tokens.mutedForeground, maxLines = 1)
+        }
     }
 }
 
 @Composable
-private fun QueueRow(song: QueuedSong, onRemove: () -> Unit) {
+private fun QueueRow(song: QueuedSong, moderate: ManageDecision, onRemove: () -> Unit) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
@@ -252,15 +271,18 @@ private fun QueueRow(song: QueuedSong, onRemove: () -> Unit) {
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
-        TextButton(
-            onClick = onRemove,
-            modifier = Modifier.clearAndSetSemantics { contentDescription = removeLabel },
-        ) {
-            Text(
-                text = stringResource(Res.string.songrequests_remove_action_short),
-                color = tokens.destructive,
-                maxLines = 1,
-            )
+        ManageGate(decision = moderate) { enabled ->
+            TextButton(
+                onClick = onRemove,
+                enabled = enabled,
+                modifier = Modifier.clearAndSetSemantics { contentDescription = removeLabel },
+            ) {
+                Text(
+                    text = stringResource(Res.string.songrequests_remove_action_short),
+                    color = if (enabled) tokens.destructive else tokens.mutedForeground,
+                    maxLines = 1,
+                )
+            }
         }
     }
 }

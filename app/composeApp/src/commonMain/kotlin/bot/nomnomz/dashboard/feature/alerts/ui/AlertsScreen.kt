@@ -49,6 +49,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
+import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
+import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -56,6 +58,9 @@ import bot.nomnomz.dashboard.core.designsystem.theme.Tokens
 import bot.nomnomz.dashboard.core.network.AlertSummary
 import bot.nomnomz.dashboard.feature.alerts.state.AlertsController
 import bot.nomnomz.dashboard.feature.alerts.state.AlertsState
+import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
+import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
+import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecision
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.alerts_action_error
@@ -93,10 +98,15 @@ import org.jetbrains.compose.resources.stringResource
 // edit, enable/disable, and delete — each routed back through the controller, which re-lists after every
 // successful write so the page reflects the backend.
 @Composable
-fun AlertsScreen(controller: AlertsController) {
+fun AlertsScreen(controller: AlertsController, role: ManagementRole?) {
     val state: AlertsState by controller.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val spacing = LocalSpacing.current
+
+    // One decision for the page: Alerts gates every write control at its single Editor manage floor
+    // (frontend-ia.md §3 Stream row). Below it the list stays readable but create/edit/toggle/delete disable
+    // with "Requires Editor" (§7); the backend re-checks every write.
+    val manage: ManageDecision = rememberManageDecision(role, ShellRoute.Alerts)
 
     // The create/edit dialog target: null = closed, a value = open (an empty editor = create, a pre-filled one
     // = edit). The delete-confirm target is the event type pending confirmation, or null when none.
@@ -114,6 +124,7 @@ fun AlertsScreen(controller: AlertsController) {
                 ManagedContent(
                     alerts = emptyList(),
                     actionError = null,
+                    manage = manage,
                     onNew = { editor = AlertEditor.create() },
                     onEdit = { alert ->
                         // The message lives on the detail, not the list item — fetch it, then open a pre-filled
@@ -138,6 +149,7 @@ fun AlertsScreen(controller: AlertsController) {
                 ManagedContent(
                     alerts = current.alerts,
                     actionError = current.actionError,
+                    manage = manage,
                     onNew = { editor = AlertEditor.create() },
                     onEdit = { alert ->
                         scope.launch {
@@ -196,6 +208,7 @@ fun AlertsScreen(controller: AlertsController) {
 private fun ManagedContent(
     alerts: List<AlertSummary>,
     actionError: String?,
+    manage: ManageDecision,
     onNew: () -> Unit,
     onEdit: (AlertSummary) -> Unit,
     onToggle: (AlertSummary, Boolean) -> Unit,
@@ -207,19 +220,25 @@ private fun ManagedContent(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(spacing.s4),
     ) {
-        Header(onNew = onNew)
+        Header(manage = manage, onNew = onNew)
         actionError?.let { ActionErrorBanner(detail = it) }
 
         if (alerts.isEmpty()) {
             CenteredMessage(stringResource(Res.string.alerts_empty))
         } else {
-            AlertList(alerts = alerts, onEdit = onEdit, onToggle = onToggle, onDelete = onDelete)
+            AlertList(
+                alerts = alerts,
+                manage = manage,
+                onEdit = onEdit,
+                onToggle = onToggle,
+                onDelete = onDelete,
+            )
         }
     }
 }
 
 @Composable
-private fun Header(onNew: () -> Unit) {
+private fun Header(manage: ManageDecision, onNew: () -> Unit) {
     val tokens = LocalTokens.current
     val typography = LocalTypography.current
     val newLabel: String = stringResource(Res.string.alerts_new_action)
@@ -234,15 +253,20 @@ private fun Header(onNew: () -> Unit) {
             style = typography.xl2,
             color = tokens.foreground,
         )
-        Button(
-            onClick = onNew,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = tokens.primary,
-                contentColor = tokens.primaryForeground,
-            ),
-            modifier = Modifier.semantics { contentDescription = newLabel },
-        ) {
-            Text(text = newLabel)
+        ManageGate(decision = manage) { enabled ->
+            Button(
+                onClick = onNew,
+                enabled = enabled,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = tokens.primary,
+                    contentColor = tokens.primaryForeground,
+                    disabledContainerColor = tokens.muted,
+                    disabledContentColor = tokens.mutedForeground,
+                ),
+                modifier = Modifier.semantics { contentDescription = newLabel },
+            ) {
+                Text(text = newLabel)
+            }
         }
     }
 }
@@ -268,6 +292,7 @@ private fun ActionErrorBanner(detail: String) {
 @Composable
 private fun AlertList(
     alerts: List<AlertSummary>,
+    manage: ManageDecision,
     onEdit: (AlertSummary) -> Unit,
     onToggle: (AlertSummary, Boolean) -> Unit,
     onDelete: (AlertSummary) -> Unit,
@@ -282,6 +307,7 @@ private fun AlertList(
         items(items = alerts, key = { alert -> alert.id }) { alert ->
             AlertRow(
                 alert = alert,
+                manage = manage,
                 onEdit = { onEdit(alert) },
                 onToggle = { enabled -> onToggle(alert, enabled) },
                 onDelete = { onDelete(alert) },
@@ -293,6 +319,7 @@ private fun AlertList(
 @Composable
 private fun AlertRow(
     alert: AlertSummary,
+    manage: ManageDecision,
     onEdit: () -> Unit,
     onToggle: (Boolean) -> Unit,
     onDelete: () -> Unit,
@@ -348,37 +375,46 @@ private fun AlertRow(
             )
         }
 
-        Switch(
-            checked = alert.isEnabled,
-            onCheckedChange = onToggle,
-            colors = SwitchDefaults.colors(
-                checkedThumbColor = tokens.primaryForeground,
-                checkedTrackColor = tokens.primary,
-                uncheckedThumbColor = tokens.mutedForeground,
-                uncheckedTrackColor = tokens.muted,
-                uncheckedBorderColor = tokens.border,
-            ),
-            modifier = Modifier.semantics { contentDescription = toggleLabel },
-        )
-        TextButton(
-            onClick = onEdit,
-            modifier = Modifier.semantics { contentDescription = editLabel },
-        ) {
-            Text(
-                text = stringResource(Res.string.alerts_edit_action_short),
-                color = tokens.primary,
-                maxLines = 1,
+        ManageGate(decision = manage) { enabled ->
+            Switch(
+                checked = alert.isEnabled,
+                onCheckedChange = onToggle,
+                enabled = enabled,
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = tokens.primaryForeground,
+                    checkedTrackColor = tokens.primary,
+                    uncheckedThumbColor = tokens.mutedForeground,
+                    uncheckedTrackColor = tokens.muted,
+                    uncheckedBorderColor = tokens.border,
+                ),
+                modifier = Modifier.semantics { contentDescription = toggleLabel },
             )
         }
-        TextButton(
-            onClick = onDelete,
-            modifier = Modifier.semantics { contentDescription = deleteLabel },
-        ) {
-            Text(
-                text = stringResource(Res.string.alerts_delete_action_short),
-                color = tokens.destructive,
-                maxLines = 1,
-            )
+        ManageGate(decision = manage) { enabled ->
+            TextButton(
+                onClick = onEdit,
+                enabled = enabled,
+                modifier = Modifier.semantics { contentDescription = editLabel },
+            ) {
+                Text(
+                    text = stringResource(Res.string.alerts_edit_action_short),
+                    color = if (enabled) tokens.primary else tokens.mutedForeground,
+                    maxLines = 1,
+                )
+            }
+        }
+        ManageGate(decision = manage) { enabled ->
+            TextButton(
+                onClick = onDelete,
+                enabled = enabled,
+                modifier = Modifier.semantics { contentDescription = deleteLabel },
+            ) {
+                Text(
+                    text = stringResource(Res.string.alerts_delete_action_short),
+                    color = if (enabled) tokens.destructive else tokens.mutedForeground,
+                    maxLines = 1,
+                )
+            }
         }
     }
 }

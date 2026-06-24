@@ -24,6 +24,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -46,10 +47,15 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
+import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
+import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.network.TimerSummary
+import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
+import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
+import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecision
 import bot.nomnomz.dashboard.feature.timers.state.TimersController
 import bot.nomnomz.dashboard.feature.timers.state.TimersState
 import kotlinx.coroutines.launch
@@ -87,11 +93,16 @@ import org.jetbrains.compose.resources.stringResource
 // create / edit / toggle / delete management surface. The screen is a pure projection of the controller's
 // state; it loads on first composition, offers a retry on failure, and reloads after every successful write.
 @Composable
-fun TimersScreen(controller: TimersController) {
+fun TimersScreen(controller: TimersController, role: ManagementRole?) {
     val state: TimersState by controller.state.collectAsStateWithLifecycle()
     val writeError: String? by controller.writeError.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val spacing = LocalSpacing.current
+
+    // One decision for the whole page: Timers gates every write control at its single Editor manage floor
+    // (frontend-ia.md §3). A caller below it sees the list but every new/toggle/edit/delete control disabled
+    // with "Requires Editor" (§7); the backend re-checks every write regardless.
+    val manage: ManageDecision = rememberManageDecision(role, ShellRoute.Timers)
 
     LaunchedEffect(Unit) { controller.load() }
 
@@ -109,6 +120,7 @@ fun TimersScreen(controller: TimersController) {
                 ManagedContent(
                     timers = emptyList(),
                     writeError = writeError,
+                    manage = manage,
                     onNew = { editTarget = TimerEditTarget.New },
                     onToggle = { timer -> scope.launch { controller.toggleTimer(timer.id, !timer.isEnabled) } },
                     onEdit = { timer -> editTarget = TimerEditTarget.Edit(timer) },
@@ -119,6 +131,7 @@ fun TimersScreen(controller: TimersController) {
                 ManagedContent(
                     timers = current.timers,
                     writeError = writeError,
+                    manage = manage,
                     onNew = { editTarget = TimerEditTarget.New },
                     onToggle = { timer -> scope.launch { controller.toggleTimer(timer.id, !timer.isEnabled) } },
                     onEdit = { timer -> editTarget = TimerEditTarget.Edit(timer) },
@@ -173,12 +186,14 @@ private sealed interface TimerEditTarget {
 private fun ManagedContent(
     timers: List<TimerSummary>,
     writeError: String?,
+    manage: ManageDecision,
     onNew: () -> Unit,
     onToggle: (TimerSummary) -> Unit,
     onEdit: (TimerSummary) -> Unit,
     onDelete: (TimerSummary) -> Unit,
     onDismissError: () -> Unit,
 ) {
+    val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
 
     Column(
@@ -189,7 +204,18 @@ private fun ManagedContent(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.End,
         ) {
-            Button(onClick = onNew) { Text(text = stringResource(Res.string.timers_new)) }
+            ManageGate(decision = manage) { enabled ->
+                Button(
+                    onClick = onNew,
+                    enabled = enabled,
+                    colors = ButtonDefaults.buttonColors(
+                        disabledContainerColor = tokens.muted,
+                        disabledContentColor = tokens.mutedForeground,
+                    ),
+                ) {
+                    Text(text = stringResource(Res.string.timers_new))
+                }
+            }
         }
 
         writeError?.let { detail -> WriteErrorBanner(detail = detail, onDismiss = onDismissError) }
@@ -206,6 +232,7 @@ private fun ManagedContent(
                 items(items = timers, key = { it.id }) { timer ->
                     TimerRow(
                         timer = timer,
+                        manage = manage,
                         onToggle = { onToggle(timer) },
                         onEdit = { onEdit(timer) },
                         onDelete = { onDelete(timer) },
@@ -219,6 +246,7 @@ private fun ManagedContent(
 @Composable
 private fun TimerRow(
     timer: TimerSummary,
+    manage: ManageDecision,
     onToggle: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
@@ -267,26 +295,35 @@ private fun TimerRow(
             }
         }
 
-        Switch(
-            checked = timer.isEnabled,
-            onCheckedChange = { onToggle() },
-            modifier = Modifier.semantics { contentDescription = toggleLabel },
-        )
-        TextButton(
-            onClick = onEdit,
-            modifier = Modifier.semantics { contentDescription = editLabel },
-        ) {
-            Text(text = stringResource(Res.string.timers_edit_action), maxLines = 1)
-        }
-        TextButton(
-            onClick = onDelete,
-            modifier = Modifier.semantics { contentDescription = deleteLabel },
-        ) {
-            Text(
-                text = stringResource(Res.string.timers_delete_action),
-                color = tokens.destructive,
-                maxLines = 1,
+        ManageGate(decision = manage) { enabled ->
+            Switch(
+                checked = timer.isEnabled,
+                onCheckedChange = { onToggle() },
+                enabled = enabled,
+                modifier = Modifier.semantics { contentDescription = toggleLabel },
             )
+        }
+        ManageGate(decision = manage) { enabled ->
+            TextButton(
+                onClick = onEdit,
+                enabled = enabled,
+                modifier = Modifier.semantics { contentDescription = editLabel },
+            ) {
+                Text(text = stringResource(Res.string.timers_edit_action), maxLines = 1)
+            }
+        }
+        ManageGate(decision = manage) { enabled ->
+            TextButton(
+                onClick = onDelete,
+                enabled = enabled,
+                modifier = Modifier.semantics { contentDescription = deleteLabel },
+            ) {
+                Text(
+                    text = stringResource(Res.string.timers_delete_action),
+                    color = if (enabled) tokens.destructive else tokens.mutedForeground,
+                    maxLines = 1,
+                )
+            }
         }
     }
 }

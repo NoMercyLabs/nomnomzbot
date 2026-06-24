@@ -45,6 +45,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
+import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
+import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -52,6 +54,9 @@ import bot.nomnomz.dashboard.core.network.CommunityMember
 import bot.nomnomz.dashboard.core.network.CommunityTrustLevel
 import bot.nomnomz.dashboard.feature.community.state.CommunityController
 import bot.nomnomz.dashboard.feature.community.state.CommunityState
+import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
+import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
+import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecision
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.community_action_error
@@ -89,10 +94,15 @@ import org.jetbrains.compose.resources.stringResource
 // member is actionable: a trust-level picker that acts directly (non-destructive) and a Ban / Unban
 // affordance that lifts/applies a ban only once the moderator confirms it in the shared ConfirmDialog.
 @Composable
-fun CommunityScreen(controller: CommunityController) {
+fun CommunityScreen(controller: CommunityController, role: ManagementRole?) {
     val state: CommunityState by controller.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val spacing = LocalSpacing.current
+
+    // One decision for the whole page: Community gates every write control at its single Moderator manage floor
+    // (frontend-ia.md §3). A caller below it sees the member list but the trust-picker / ban / unban controls
+    // are disabled with "Requires Moderator" (§7); the backend re-checks every write regardless.
+    val manage: ManageDecision = rememberManageDecision(role, ShellRoute.Community)
 
     LaunchedEffect(Unit) { controller.load() }
 
@@ -106,6 +116,7 @@ fun CommunityScreen(controller: CommunityController) {
                 MemberList(
                     members = current.members,
                     actionError = current.actionError,
+                    manage = manage,
                     onSetTrust = { userId, level -> scope.launch { controller.setTrust(userId, level) } },
                     onBan = { userId, reason -> scope.launch { controller.ban(userId, reason) } },
                     onUnban = { userId -> scope.launch { controller.unban(userId) } },
@@ -118,6 +129,7 @@ fun CommunityScreen(controller: CommunityController) {
 private fun MemberList(
     members: List<CommunityMember>,
     actionError: String?,
+    manage: ManageDecision,
     onSetTrust: (userId: String, level: String) -> Unit,
     onBan: (userId: String, reason: String) -> Unit,
     onUnban: (userId: String) -> Unit,
@@ -147,6 +159,7 @@ private fun MemberList(
         items(items = members, key = { member -> member.id }) { member ->
             MemberRow(
                 member = member,
+                manage = manage,
                 onSetTrust = { level -> onSetTrust(member.id, level) },
                 onBan = { pendingBan = member },
                 onUnban = { pendingUnban = member },
@@ -191,6 +204,7 @@ private fun MemberList(
 @Composable
 private fun MemberRow(
     member: CommunityMember,
+    manage: ManageDecision,
     onSetTrust: (level: String) -> Unit,
     onBan: () -> Unit,
     onUnban: () -> Unit,
@@ -231,11 +245,11 @@ private fun MemberRow(
                 foreground = tokens.destructiveForeground,
             )
         }
-        TrustPicker(name = name, current = member.trustLevel, onSelect = onSetTrust)
+        TrustPicker(name = name, current = member.trustLevel, manage = manage, onSelect = onSetTrust)
         if (member.isBanned) {
-            UnbanButton(name = name, onUnban = onUnban)
+            UnbanButton(name = name, manage = manage, onUnban = onUnban)
         } else {
-            BanButton(name = name, onBan = onBan)
+            BanButton(name = name, manage = manage, onBan = onBan)
         }
     }
 }
@@ -247,6 +261,7 @@ private fun MemberRow(
 private fun TrustPicker(
     name: String,
     current: String,
+    manage: ManageDecision,
     onSelect: (level: String) -> Unit,
 ) {
     val tokens = LocalTokens.current
@@ -256,12 +271,22 @@ private fun TrustPicker(
     val activeLabel: String = stringResource(trustLabel(current))
     val pickerLabel: String = stringResource(Res.string.community_trust_picker, name, activeLabel)
 
+    // The picker trigger is the write affordance: opening the menu is the only path to setting a trust level,
+    // so gating the trigger gates the write (the menu items stay unreachable when denied).
     Box {
-        TextButton(
-            onClick = { expanded = true },
-            modifier = Modifier.semantics { contentDescription = pickerLabel },
-        ) {
-            Text(text = activeLabel, style = typography.sm, color = tokens.primary, maxLines = 1)
+        ManageGate(decision = manage) { enabled ->
+            TextButton(
+                onClick = { expanded = true },
+                enabled = enabled,
+                modifier = Modifier.semantics { contentDescription = pickerLabel },
+            ) {
+                Text(
+                    text = activeLabel,
+                    style = typography.sm,
+                    color = if (enabled) tokens.primary else tokens.mutedForeground,
+                    maxLines = 1,
+                )
+            }
         }
 
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
@@ -286,42 +311,48 @@ private fun TrustPicker(
 }
 
 @Composable
-private fun BanButton(name: String, onBan: () -> Unit) {
+private fun BanButton(name: String, manage: ManageDecision, onBan: () -> Unit) {
     val tokens = LocalTokens.current
     val banLabel: String = stringResource(Res.string.community_ban_action, name)
 
-    TextButton(
-        onClick = onBan,
-        modifier = Modifier.clearAndSetSemantics {
-            role = Role.Button
-            contentDescription = banLabel
-        },
-    ) {
-        Text(
-            text = stringResource(Res.string.community_ban_action_short),
-            color = tokens.destructive,
-            maxLines = 1,
-        )
+    ManageGate(decision = manage) { enabled ->
+        TextButton(
+            onClick = onBan,
+            enabled = enabled,
+            modifier = Modifier.clearAndSetSemantics {
+                role = Role.Button
+                contentDescription = banLabel
+            },
+        ) {
+            Text(
+                text = stringResource(Res.string.community_ban_action_short),
+                color = if (enabled) tokens.destructive else tokens.mutedForeground,
+                maxLines = 1,
+            )
+        }
     }
 }
 
 @Composable
-private fun UnbanButton(name: String, onUnban: () -> Unit) {
+private fun UnbanButton(name: String, manage: ManageDecision, onUnban: () -> Unit) {
     val tokens = LocalTokens.current
     val unbanLabel: String = stringResource(Res.string.community_unban_action, name)
 
-    TextButton(
-        onClick = onUnban,
-        modifier = Modifier.clearAndSetSemantics {
-            role = Role.Button
-            contentDescription = unbanLabel
-        },
-    ) {
-        Text(
-            text = stringResource(Res.string.community_unban_action_short),
-            color = tokens.primary,
-            maxLines = 1,
-        )
+    ManageGate(decision = manage) { enabled ->
+        TextButton(
+            onClick = onUnban,
+            enabled = enabled,
+            modifier = Modifier.clearAndSetSemantics {
+                role = Role.Button
+                contentDescription = unbanLabel
+            },
+        ) {
+            Text(
+                text = stringResource(Res.string.community_unban_action_short),
+                color = if (enabled) tokens.primary else tokens.mutedForeground,
+                maxLines = 1,
+            )
+        }
     }
 }
 

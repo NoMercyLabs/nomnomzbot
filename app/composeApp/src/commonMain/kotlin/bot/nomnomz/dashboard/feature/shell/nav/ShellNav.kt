@@ -104,14 +104,36 @@ object ShellNav {
         else pages.filter { role.level >= it.readFloor.level }
 
     /**
-     * Whether a caller of [role] may MUTATE the [route]'s page — its write affordances (frontend-ia.md §7,
-     * "disable-with-reason for actions below the manage floor"). True iff the page has a manage floor and the
-     * role clears it; a read-only page (`manageFloor == null`) and a viewer (`role == null`) can manage
-     * nothing. The screen disables its write controls when this is false; the backend re-checks every write.
+     * The minimum [ManagementRole] to run a write [action] on the [route]'s page (frontend-ia.md §3). Most
+     * controls pass [ManageAction.Default] and gate at the page's own [NavPage.manageFloor]; the called-out
+     * exceptions (Rewards create/delete, Economy payout rules, Song-Request queue moderation) carry their own
+     * floor here, so the rule lives in the nav model rather than scattered across screens. Returns `null` for a
+     * read-only page (`manageFloor == null` and no override), where there is nothing to gate.
      */
-    fun canManage(role: ManagementRole?, route: ShellRoute): Boolean {
+    fun manageFloorFor(route: ShellRoute, action: ManageAction = ManageAction.Default): ManagementRole? =
+        when (action) {
+            // The sub-page floors the spec calls out by name (frontend-ia.md §3 Loyalty / Media rows). These do
+            // not depend on the page's own floor — they are the action's own binding floor.
+            ManageAction.RewardLifecycle -> ManagementRole.Broadcaster
+            ManageAction.EconomyPayoutRules -> ManagementRole.Broadcaster
+            ManageAction.SongQueueModeration -> ManagementRole.Moderator
+            // The common path: gate at the page's own manage floor (null for a read-only page).
+            ManageAction.Default -> pages.first { it.route == route }.manageFloor
+        }
+
+    /**
+     * Whether a caller of [role] may MUTATE the [route]'s page with the given write [action] (frontend-ia.md §7,
+     * "disable-with-reason for actions below the manage floor"). True iff the action has a floor and the role
+     * clears it; a read-only control (no floor) and a viewer (`role == null`) can manage nothing. The screen
+     * disables its write controls when this is false; the backend re-checks every write regardless.
+     */
+    fun canManage(
+        role: ManagementRole?,
+        route: ShellRoute,
+        action: ManageAction = ManageAction.Default,
+    ): Boolean {
         if (role == null) return false
-        val floor: ManagementRole = pages.first { it.route == route }.manageFloor ?: return false
+        val floor: ManagementRole = manageFloorFor(route, action) ?: return false
         return role.level >= floor.level
     }
 }

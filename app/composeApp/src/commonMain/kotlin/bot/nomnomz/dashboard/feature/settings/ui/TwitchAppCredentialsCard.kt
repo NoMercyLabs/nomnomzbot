@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -44,6 +45,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.CopyValue
 import bot.nomnomz.dashboard.core.designsystem.component.LinkedText
+import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
+import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -94,7 +97,7 @@ import org.jetbrains.compose.resources.stringResource
 // id alone, and a secret only unlocks the smoother one-tap redirect flow. Editing live OAuth credentials is
 // consequential, so overwriting an already-configured app confirms first.
 @Composable
-fun TwitchAppCredentialsCard(controller: TwitchAppCredentialsController) {
+fun TwitchAppCredentialsCard(controller: TwitchAppCredentialsController, manage: ManageDecision) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
@@ -135,6 +138,7 @@ fun TwitchAppCredentialsCard(controller: TwitchAppCredentialsController) {
             is TwitchAppCredentialsState.Ready ->
                 ReadyBody(
                     state = current,
+                    manage = manage,
                     onSave = { id, secret -> scope.launch { controller.save(id, secret) } },
                 )
         }
@@ -144,6 +148,7 @@ fun TwitchAppCredentialsCard(controller: TwitchAppCredentialsController) {
 @Composable
 private fun ReadyBody(
     state: TwitchAppCredentialsState.Ready,
+    manage: ManageDecision,
     onSave: (clientId: String, clientSecret: String) -> Unit,
 ) {
     val spacing = LocalSpacing.current
@@ -159,20 +164,25 @@ private fun ReadyBody(
         StateBanner(configured = state.configured)
         Guide(redirectUrl = state.redirectUrl)
 
+        // Editing live OAuth credentials is owner-level (frontend-ia.md §5 — token custody is Broadcaster);
+        // below that floor the fields and Save go read-only with reason via the gated SaveBar.
+        val editEnabled: Boolean = !state.saving && manage.isAllowed
+
         ClientIdField(
             value = clientId,
             onValueChange = { clientId = it },
             invalid = state.saveError is SaveError.MissingClientId,
-            enabled = !state.saving,
+            enabled = editEnabled,
         )
         ClientSecretField(
             value = clientSecret,
             onValueChange = { clientSecret = it },
-            enabled = !state.saving,
+            enabled = editEnabled,
         )
 
         SaveBar(
             state = state,
+            manage = manage,
             // Overwriting an already-configured Twitch app touches the live OAuth path, so it confirms first;
             // a first-time configuration saves straight through.
             onSave = {
@@ -341,6 +351,7 @@ private fun ClientSecretField(
 @Composable
 private fun SaveBar(
     state: TwitchAppCredentialsState.Ready,
+    manage: ManageDecision,
     onSave: () -> Unit,
 ) {
     val tokens = LocalTokens.current
@@ -373,8 +384,18 @@ private fun SaveBar(
                     .clearAndSetSemantics { contentDescription = savingLabel },
             )
         } else {
-            Button(onClick = onSave, modifier = Modifier.wrapContentWidth()) {
-                Text(stringResource(Res.string.twitch_app_save))
+            ManageGate(decision = manage) { enabled ->
+                Button(
+                    onClick = onSave,
+                    enabled = enabled,
+                    colors = ButtonDefaults.buttonColors(
+                        disabledContainerColor = tokens.muted,
+                        disabledContentColor = tokens.mutedForeground,
+                    ),
+                    modifier = Modifier.wrapContentWidth(),
+                ) {
+                    Text(stringResource(Res.string.twitch_app_save))
+                }
             }
         }
     }

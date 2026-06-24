@@ -44,6 +44,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
+import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
+import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -54,6 +56,9 @@ import bot.nomnomz.dashboard.core.network.PermitGrant
 import bot.nomnomz.dashboard.core.network.PermitGrantType
 import bot.nomnomz.dashboard.feature.roles.state.RolesController
 import bot.nomnomz.dashboard.feature.roles.state.RolesState
+import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole as NavManagementRole
+import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
+import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecision
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.roles_action_error
@@ -101,10 +106,16 @@ import org.jetbrains.compose.resources.stringResource
 // they only run once the operator confirms in the shared ConfirmDialog. Granting a capability picks one of the
 // channel's permit-grantable action keys for the chosen member.
 @Composable
-fun RolesScreen(controller: RolesController) {
+fun RolesScreen(controller: RolesController, role: NavManagementRole?) {
     val state: RolesState by controller.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val spacing = LocalSpacing.current
+
+    // One decision for the whole page: Roles & Permits gates every write control at its single Broadcaster manage
+    // floor (frontend-ia.md §3) — assigning/removing a management role, granting a capability, revoking a permit.
+    // A caller below it sees the members and permits but each write disabled with "Requires Broadcaster" (§7);
+    // the backend re-checks every write (and no-escalation) regardless.
+    val manage: ManageDecision = rememberManageDecision(role, ShellRoute.Roles)
 
     LaunchedEffect(Unit) { controller.load() }
 
@@ -117,6 +128,7 @@ fun RolesScreen(controller: RolesController) {
             is RolesState.Ready ->
                 RolesContent(
                     state = current,
+                    manage = manage,
                     onAssignRole = { userId, role -> scope.launch { controller.assignRole(userId, role) } },
                     onRemoveRole = { userId -> scope.launch { controller.removeRole(userId) } },
                     onGrant = { userId, key -> scope.launch { controller.grantCapability(userId, key, null) } },
@@ -129,6 +141,7 @@ fun RolesScreen(controller: RolesController) {
 @Composable
 private fun RolesContent(
     state: RolesState.Ready,
+    manage: ManageDecision,
     onAssignRole: (userId: String, role: ManagementRole) -> Unit,
     onRemoveRole: (userId: String) -> Unit,
     onGrant: (userId: String, actionKey: String) -> Unit,
@@ -163,6 +176,7 @@ private fun RolesContent(
         items(items = state.members, key = { "member-${it.id}" }) { member ->
             MemberRow(
                 member = member,
+                manage = manage,
                 canGrant = state.grantableActions.isNotEmpty(),
                 onAssignRole = { role -> onAssignRole(member.userId, role) },
                 onRemove = { pendingRemove = member },
@@ -182,7 +196,7 @@ private fun RolesContent(
             }
         } else {
             items(items = state.permits, key = { "permit-${it.id}" }) { permit ->
-                PermitRow(permit = permit, onRevoke = { pendingRevoke = permit })
+                PermitRow(permit = permit, manage = manage, onRevoke = { pendingRevoke = permit })
             }
         }
     }
@@ -235,6 +249,7 @@ private fun RolesContent(
 @Composable
 private fun MemberRow(
     member: ChannelMembership,
+    manage: ManageDecision,
     canGrant: Boolean,
     onAssignRole: (role: ManagementRole) -> Unit,
     onRemove: () -> Unit,
@@ -268,9 +283,9 @@ private fun MemberRow(
                 .weight(1f)
                 .clearAndSetSemantics { contentDescription = rowDescription },
         )
-        RolePicker(name = name, current = member.managementRole, onSelect = onAssignRole)
-        if (canGrant) GrantButton(name = name, onGrant = onGrant)
-        RemoveButton(name = name, onRemove = onRemove)
+        RolePicker(name = name, current = member.managementRole, manage = manage, onSelect = onAssignRole)
+        if (canGrant) GrantButton(name = name, manage = manage, onGrant = onGrant)
+        RemoveButton(name = name, manage = manage, onRemove = onRemove)
     }
 }
 
@@ -281,6 +296,7 @@ private fun MemberRow(
 private fun RolePicker(
     name: String,
     current: ManagementRole,
+    manage: ManageDecision,
     onSelect: (role: ManagementRole) -> Unit,
 ) {
     val tokens = LocalTokens.current
@@ -291,11 +307,20 @@ private fun RolePicker(
     val pickerLabel: String = stringResource(Res.string.roles_assign_picker, name, activeLabel)
 
     Box {
-        TextButton(
-            onClick = { expanded = true },
-            modifier = Modifier.semantics { contentDescription = pickerLabel },
-        ) {
-            Text(text = activeLabel, style = typography.sm, color = tokens.primary, maxLines = 1)
+        // Re-assigning a member's management role is the write; the trigger that opens the closed ladder is gated.
+        ManageGate(decision = manage) { enabled ->
+            TextButton(
+                onClick = { expanded = true },
+                enabled = enabled,
+                modifier = Modifier.semantics { contentDescription = pickerLabel },
+            ) {
+                Text(
+                    text = activeLabel,
+                    style = typography.sm,
+                    color = if (enabled) tokens.primary else tokens.mutedForeground,
+                    maxLines = 1,
+                )
+            }
         }
 
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
@@ -315,47 +340,53 @@ private fun RolePicker(
 }
 
 @Composable
-private fun GrantButton(name: String, onGrant: () -> Unit) {
+private fun GrantButton(name: String, manage: ManageDecision, onGrant: () -> Unit) {
     val tokens = LocalTokens.current
     val grantLabel: String = stringResource(Res.string.roles_grant_action, name)
 
-    TextButton(
-        onClick = onGrant,
-        modifier = Modifier.clearAndSetSemantics {
-            role = Role.Button
-            contentDescription = grantLabel
-        },
-    ) {
-        Text(
-            text = stringResource(Res.string.roles_grant_action_short),
-            color = tokens.primary,
-            maxLines = 1,
-        )
+    ManageGate(decision = manage) { enabled ->
+        TextButton(
+            onClick = onGrant,
+            enabled = enabled,
+            modifier = Modifier.clearAndSetSemantics {
+                role = Role.Button
+                contentDescription = grantLabel
+            },
+        ) {
+            Text(
+                text = stringResource(Res.string.roles_grant_action_short),
+                color = if (enabled) tokens.primary else tokens.mutedForeground,
+                maxLines = 1,
+            )
+        }
     }
 }
 
 @Composable
-private fun RemoveButton(name: String, onRemove: () -> Unit) {
+private fun RemoveButton(name: String, manage: ManageDecision, onRemove: () -> Unit) {
     val tokens = LocalTokens.current
     val removeLabel: String = stringResource(Res.string.roles_remove_action, name)
 
-    TextButton(
-        onClick = onRemove,
-        modifier = Modifier.clearAndSetSemantics {
-            role = Role.Button
-            contentDescription = removeLabel
-        },
-    ) {
-        Text(
-            text = stringResource(Res.string.roles_remove_action_short),
-            color = tokens.destructive,
-            maxLines = 1,
-        )
+    ManageGate(decision = manage) { enabled ->
+        TextButton(
+            onClick = onRemove,
+            enabled = enabled,
+            modifier = Modifier.clearAndSetSemantics {
+                role = Role.Button
+                contentDescription = removeLabel
+            },
+        ) {
+            Text(
+                text = stringResource(Res.string.roles_remove_action_short),
+                color = if (enabled) tokens.destructive else tokens.mutedForeground,
+                maxLines = 1,
+            )
+        }
     }
 }
 
 @Composable
-private fun PermitRow(permit: PermitGrant, onRevoke: () -> Unit) {
+private fun PermitRow(permit: PermitGrant, manage: ManageDecision, onRevoke: () -> Unit) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
@@ -395,18 +426,21 @@ private fun PermitRow(permit: PermitGrant, onRevoke: () -> Unit) {
                 overflow = TextOverflow.Ellipsis,
             )
         }
-        TextButton(
-            onClick = onRevoke,
-            modifier = Modifier.clearAndSetSemantics {
-                role = Role.Button
-                contentDescription = revokeLabel
-            },
-        ) {
-            Text(
-                text = stringResource(Res.string.roles_revoke_action_short),
-                color = tokens.destructive,
-                maxLines = 1,
-            )
+        ManageGate(decision = manage) { enabled ->
+            TextButton(
+                onClick = onRevoke,
+                enabled = enabled,
+                modifier = Modifier.clearAndSetSemantics {
+                    role = Role.Button
+                    contentDescription = revokeLabel
+                },
+            ) {
+                Text(
+                    text = stringResource(Res.string.roles_revoke_action_short),
+                    color = if (enabled) tokens.destructive else tokens.mutedForeground,
+                    maxLines = 1,
+                )
+            }
         }
     }
 }

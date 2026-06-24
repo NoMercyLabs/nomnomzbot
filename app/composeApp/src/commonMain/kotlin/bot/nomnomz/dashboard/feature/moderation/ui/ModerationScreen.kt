@@ -39,12 +39,17 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
+import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
+import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.network.BannedUser
 import bot.nomnomz.dashboard.feature.moderation.state.ModerationController
 import bot.nomnomz.dashboard.feature.moderation.state.ModerationState
+import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
+import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
+import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecision
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.moderation_action_error
@@ -68,10 +73,15 @@ import org.jetbrains.compose.resources.stringResource
 // retry on failure. Each ban is actionable — an Unban affordance that, only once the moderator confirms it
 // in the shared ConfirmDialog, lifts the ban via the controller (which reloads the list on success).
 @Composable
-fun ModerationScreen(controller: ModerationController) {
+fun ModerationScreen(controller: ModerationController, role: ManagementRole?) {
     val state: ModerationState by controller.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val spacing = LocalSpacing.current
+
+    // One decision for the whole page: Moderation gates its write affordance at its single Moderator manage
+    // floor (frontend-ia.md §3). A caller below it sees the ban list but the Unban control is disabled with
+    // "Requires Moderator" (§7); the backend re-checks every write regardless.
+    val manage: ManageDecision = rememberManageDecision(role, ShellRoute.Moderation)
 
     LaunchedEffect(Unit) { controller.load() }
 
@@ -90,6 +100,7 @@ fun ModerationScreen(controller: ModerationController) {
                 BansList(
                     bans = current.bans,
                     actionError = current.actionError,
+                    manage = manage,
                     onUnban = { userId -> scope.launch { controller.unban(userId) } },
                 )
         }
@@ -100,6 +111,7 @@ fun ModerationScreen(controller: ModerationController) {
 private fun BansList(
     bans: List<BannedUser>,
     actionError: String?,
+    manage: ManageDecision,
     onUnban: (userId: String) -> Unit,
 ) {
     val tokens = LocalTokens.current
@@ -124,7 +136,7 @@ private fun BansList(
             }
         }
         items(items = bans, key = { it.id }) { ban ->
-            BanRow(ban = ban, onUnban = { pendingUnban = ban })
+            BanRow(ban = ban, manage = manage, onUnban = { pendingUnban = ban })
         }
     }
 
@@ -146,7 +158,7 @@ private fun BansList(
 }
 
 @Composable
-private fun BanRow(ban: BannedUser, onUnban: () -> Unit) {
+private fun BanRow(ban: BannedUser, manage: ManageDecision, onUnban: () -> Unit) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
@@ -206,15 +218,18 @@ private fun BanRow(ban: BannedUser, onUnban: () -> Unit) {
             }
         }
 
-        TextButton(
-            onClick = onUnban,
-            modifier = Modifier.clearAndSetSemantics { contentDescription = unbanLabel },
-        ) {
-            Text(
-                text = stringResource(Res.string.moderation_unban_action_short),
-                color = tokens.primary,
-                maxLines = 1,
-            )
+        ManageGate(decision = manage) { enabled ->
+            TextButton(
+                onClick = onUnban,
+                enabled = enabled,
+                modifier = Modifier.clearAndSetSemantics { contentDescription = unbanLabel },
+            ) {
+                Text(
+                    text = stringResource(Res.string.moderation_unban_action_short),
+                    color = if (enabled) tokens.primary else tokens.mutedForeground,
+                    maxLines = 1,
+                )
+            }
         }
     }
 }

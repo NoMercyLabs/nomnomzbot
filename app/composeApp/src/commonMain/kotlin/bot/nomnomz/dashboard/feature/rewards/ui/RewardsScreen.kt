@@ -51,6 +51,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
+import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
+import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -58,6 +60,10 @@ import bot.nomnomz.dashboard.core.designsystem.theme.Tokens
 import bot.nomnomz.dashboard.core.network.RewardSummary
 import bot.nomnomz.dashboard.feature.rewards.state.RewardsController
 import bot.nomnomz.dashboard.feature.rewards.state.RewardsState
+import bot.nomnomz.dashboard.feature.shell.nav.ManageAction
+import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
+import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
+import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecision
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.rewards_action_error
@@ -97,10 +103,18 @@ import org.jetbrains.compose.resources.stringResource
 // create, edit, enable/disable, and delete — each routed back through the controller, which re-lists after every
 // successful write so the page reflects the backend.
 @Composable
-fun RewardsScreen(controller: RewardsController) {
+fun RewardsScreen(controller: RewardsController, role: ManagementRole?) {
     val state: RewardsState by controller.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val spacing = LocalSpacing.current
+
+    // Rewards splits its write floor (frontend-ia.md §3 Loyalty row): editing/toggling a reward gates at the
+    // page's Editor floor, but CREATING or DELETING one is a Broadcaster-only lifecycle action. Two decisions,
+    // each resolved once and handed to the matching controls — an Editor sees Edit live and New/Delete disabled
+    // with "Requires Broadcaster" (§7); the backend re-checks every write.
+    val edit: ManageDecision = rememberManageDecision(role, ShellRoute.Rewards)
+    val lifecycle: ManageDecision =
+        rememberManageDecision(role, ShellRoute.Rewards, ManageAction.RewardLifecycle)
 
     // The create/edit dialog target: null = closed, a value = open (an empty editor = create, a pre-filled one
     // = edit). The delete-confirm target is the reward pending confirmation, or null when none.
@@ -118,6 +132,8 @@ fun RewardsScreen(controller: RewardsController) {
                 ManagedContent(
                     rewards = emptyList(),
                     actionError = null,
+                    edit = edit,
+                    lifecycle = lifecycle,
                     onNew = { editor = RewardEditor.create() },
                     onEdit = { reward -> editor = RewardEditor.edit(reward) },
                     onToggle = { reward, enabled ->
@@ -129,6 +145,8 @@ fun RewardsScreen(controller: RewardsController) {
                 ManagedContent(
                     rewards = current.rewards,
                     actionError = current.actionError,
+                    edit = edit,
+                    lifecycle = lifecycle,
                     onNew = { editor = RewardEditor.create() },
                     onEdit = { reward -> editor = RewardEditor.edit(reward) },
                     onToggle = { reward, enabled ->
@@ -176,6 +194,8 @@ fun RewardsScreen(controller: RewardsController) {
 private fun ManagedContent(
     rewards: List<RewardSummary>,
     actionError: String?,
+    edit: ManageDecision,
+    lifecycle: ManageDecision,
     onNew: () -> Unit,
     onEdit: (RewardSummary) -> Unit,
     onToggle: (RewardSummary, Boolean) -> Unit,
@@ -187,7 +207,8 @@ private fun ManagedContent(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(spacing.s4),
     ) {
-        Header(onNew = onNew)
+        // Creating a reward is the Broadcaster-only lifecycle action — the New button gates on [lifecycle].
+        Header(lifecycle = lifecycle, onNew = onNew)
         actionError?.let { ActionErrorBanner(detail = it) }
 
         if (rewards.isEmpty()) {
@@ -195,6 +216,8 @@ private fun ManagedContent(
         } else {
             RewardList(
                 rewards = rewards,
+                edit = edit,
+                lifecycle = lifecycle,
                 onEdit = onEdit,
                 onToggle = onToggle,
                 onDelete = onDelete,
@@ -204,7 +227,7 @@ private fun ManagedContent(
 }
 
 @Composable
-private fun Header(onNew: () -> Unit) {
+private fun Header(lifecycle: ManageDecision, onNew: () -> Unit) {
     val tokens = LocalTokens.current
     val typography = LocalTypography.current
     val newLabel: String = stringResource(Res.string.rewards_new_action)
@@ -219,15 +242,20 @@ private fun Header(onNew: () -> Unit) {
             style = typography.xl2,
             color = tokens.foreground,
         )
-        Button(
-            onClick = onNew,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = tokens.primary,
-                contentColor = tokens.primaryForeground,
-            ),
-            modifier = Modifier.semantics { contentDescription = newLabel },
-        ) {
-            Text(text = newLabel)
+        ManageGate(decision = lifecycle) { enabled ->
+            Button(
+                onClick = onNew,
+                enabled = enabled,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = tokens.primary,
+                    contentColor = tokens.primaryForeground,
+                    disabledContainerColor = tokens.muted,
+                    disabledContentColor = tokens.mutedForeground,
+                ),
+                modifier = Modifier.semantics { contentDescription = newLabel },
+            ) {
+                Text(text = newLabel)
+            }
         }
     }
 }
@@ -253,6 +281,8 @@ private fun ActionErrorBanner(detail: String) {
 @Composable
 private fun RewardList(
     rewards: List<RewardSummary>,
+    edit: ManageDecision,
+    lifecycle: ManageDecision,
     onEdit: (RewardSummary) -> Unit,
     onToggle: (RewardSummary, Boolean) -> Unit,
     onDelete: (RewardSummary) -> Unit,
@@ -267,6 +297,8 @@ private fun RewardList(
         items(items = rewards, key = { reward -> reward.id }) { reward ->
             RewardRow(
                 reward = reward,
+                edit = edit,
+                lifecycle = lifecycle,
                 onEdit = { onEdit(reward) },
                 onToggle = { enabled -> onToggle(reward, enabled) },
                 onDelete = { onDelete(reward) },
@@ -278,6 +310,8 @@ private fun RewardList(
 @Composable
 private fun RewardRow(
     reward: RewardSummary,
+    edit: ManageDecision,
+    lifecycle: ManageDecision,
     onEdit: () -> Unit,
     onToggle: (Boolean) -> Unit,
     onDelete: () -> Unit,
@@ -327,37 +361,47 @@ private fun RewardRow(
             )
         }
 
-        Switch(
-            checked = reward.isEnabled,
-            onCheckedChange = onToggle,
-            colors = SwitchDefaults.colors(
-                checkedThumbColor = tokens.primaryForeground,
-                checkedTrackColor = tokens.primary,
-                uncheckedThumbColor = tokens.mutedForeground,
-                uncheckedTrackColor = tokens.muted,
-                uncheckedBorderColor = tokens.border,
-            ),
-            modifier = Modifier.semantics { contentDescription = toggleLabel },
-        )
-        TextButton(
-            onClick = onEdit,
-            modifier = Modifier.semantics { contentDescription = editLabel },
-        ) {
-            Text(
-                text = stringResource(Res.string.rewards_edit_action_short),
-                color = tokens.primary,
-                maxLines = 1,
+        // Toggle + edit gate at the page's Editor floor; delete is the Broadcaster-only lifecycle action.
+        ManageGate(decision = edit) { enabled ->
+            Switch(
+                checked = reward.isEnabled,
+                onCheckedChange = onToggle,
+                enabled = enabled,
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = tokens.primaryForeground,
+                    checkedTrackColor = tokens.primary,
+                    uncheckedThumbColor = tokens.mutedForeground,
+                    uncheckedTrackColor = tokens.muted,
+                    uncheckedBorderColor = tokens.border,
+                ),
+                modifier = Modifier.semantics { contentDescription = toggleLabel },
             )
         }
-        TextButton(
-            onClick = onDelete,
-            modifier = Modifier.semantics { contentDescription = deleteLabel },
-        ) {
-            Text(
-                text = stringResource(Res.string.rewards_delete_action_short),
-                color = tokens.destructive,
-                maxLines = 1,
-            )
+        ManageGate(decision = edit) { enabled ->
+            TextButton(
+                onClick = onEdit,
+                enabled = enabled,
+                modifier = Modifier.semantics { contentDescription = editLabel },
+            ) {
+                Text(
+                    text = stringResource(Res.string.rewards_edit_action_short),
+                    color = if (enabled) tokens.primary else tokens.mutedForeground,
+                    maxLines = 1,
+                )
+            }
+        }
+        ManageGate(decision = lifecycle) { enabled ->
+            TextButton(
+                onClick = onDelete,
+                enabled = enabled,
+                modifier = Modifier.semantics { contentDescription = deleteLabel },
+            ) {
+                Text(
+                    text = stringResource(Res.string.rewards_delete_action_short),
+                    color = if (enabled) tokens.destructive else tokens.mutedForeground,
+                    maxLines = 1,
+                )
+            }
         }
     }
 }

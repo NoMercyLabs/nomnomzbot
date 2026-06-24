@@ -47,6 +47,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
+import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
+import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -54,6 +56,9 @@ import bot.nomnomz.dashboard.core.designsystem.theme.Tokens
 import bot.nomnomz.dashboard.core.network.Quote
 import bot.nomnomz.dashboard.feature.quotes.state.QuotesController
 import bot.nomnomz.dashboard.feature.quotes.state.QuotesState
+import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
+import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
+import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecision
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.quotes_action_error
@@ -88,10 +93,15 @@ import org.jetbrains.compose.resources.stringResource
 // composition. This is the full management surface — create, edit, and delete — each routed back through the
 // controller, which re-lists after every successful write so the page reflects the backend.
 @Composable
-fun QuotesScreen(controller: QuotesController) {
+fun QuotesScreen(controller: QuotesController, role: ManagementRole?) {
     val state: QuotesState by controller.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val spacing = LocalSpacing.current
+
+    // One decision for the whole page: Quotes gates every write control at its single Editor manage floor
+    // (frontend-ia.md §3). A caller below it sees the list but every create/edit/delete control disabled with
+    // "Requires Editor" (§7); the backend re-checks every write regardless.
+    val manage: ManageDecision = rememberManageDecision(role, ShellRoute.Quotes)
 
     // The create/edit dialog target: null = closed, a value = open (an empty editor = create, a pre-filled one
     // = edit). The delete-confirm target is the quote pending confirmation, or null when none.
@@ -109,6 +119,7 @@ fun QuotesScreen(controller: QuotesController) {
                 ManagedContent(
                     quotes = emptyList(),
                     actionError = null,
+                    manage = manage,
                     onNew = { editor = QuoteEditor.create() },
                     onEdit = { quote -> editor = QuoteEditor.edit(quote) },
                     onDelete = { quote -> pendingDelete = quote },
@@ -117,6 +128,7 @@ fun QuotesScreen(controller: QuotesController) {
                 ManagedContent(
                     quotes = current.quotes,
                     actionError = current.actionError,
+                    manage = manage,
                     onNew = { editor = QuoteEditor.create() },
                     onEdit = { quote -> editor = QuoteEditor.edit(quote) },
                     onDelete = { quote -> pendingDelete = quote },
@@ -161,6 +173,7 @@ fun QuotesScreen(controller: QuotesController) {
 private fun ManagedContent(
     quotes: List<Quote>,
     actionError: String?,
+    manage: ManageDecision,
     onNew: () -> Unit,
     onEdit: (Quote) -> Unit,
     onDelete: (Quote) -> Unit,
@@ -171,19 +184,19 @@ private fun ManagedContent(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(spacing.s4),
     ) {
-        Header(onNew = onNew)
+        Header(manage = manage, onNew = onNew)
         actionError?.let { ActionErrorBanner(detail = it) }
 
         if (quotes.isEmpty()) {
             CenteredMessage(stringResource(Res.string.quotes_empty))
         } else {
-            QuoteList(quotes = quotes, onEdit = onEdit, onDelete = onDelete)
+            QuoteList(quotes = quotes, manage = manage, onEdit = onEdit, onDelete = onDelete)
         }
     }
 }
 
 @Composable
-private fun Header(onNew: () -> Unit) {
+private fun Header(manage: ManageDecision, onNew: () -> Unit) {
     val tokens = LocalTokens.current
     val typography = LocalTypography.current
     val newLabel: String = stringResource(Res.string.quotes_new_action)
@@ -198,15 +211,20 @@ private fun Header(onNew: () -> Unit) {
             style = typography.xl2,
             color = tokens.foreground,
         )
-        Button(
-            onClick = onNew,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = tokens.primary,
-                contentColor = tokens.primaryForeground,
-            ),
-            modifier = Modifier.semantics { contentDescription = newLabel },
-        ) {
-            Text(text = newLabel)
+        ManageGate(decision = manage) { enabled ->
+            Button(
+                onClick = onNew,
+                enabled = enabled,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = tokens.primary,
+                    contentColor = tokens.primaryForeground,
+                    disabledContainerColor = tokens.muted,
+                    disabledContentColor = tokens.mutedForeground,
+                ),
+                modifier = Modifier.semantics { contentDescription = newLabel },
+            ) {
+                Text(text = newLabel)
+            }
         }
     }
 }
@@ -232,6 +250,7 @@ private fun ActionErrorBanner(detail: String) {
 @Composable
 private fun QuoteList(
     quotes: List<Quote>,
+    manage: ManageDecision,
     onEdit: (Quote) -> Unit,
     onDelete: (Quote) -> Unit,
 ) {
@@ -245,6 +264,7 @@ private fun QuoteList(
         items(items = quotes, key = { quote -> quote.id }) { quote ->
             QuoteRow(
                 quote = quote,
+                manage = manage,
                 onEdit = { onEdit(quote) },
                 onDelete = { onDelete(quote) },
             )
@@ -253,7 +273,7 @@ private fun QuoteList(
 }
 
 @Composable
-private fun QuoteRow(quote: Quote, onEdit: () -> Unit, onDelete: () -> Unit) {
+private fun QuoteRow(quote: Quote, manage: ManageDecision, onEdit: () -> Unit, onDelete: () -> Unit) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
@@ -306,25 +326,31 @@ private fun QuoteRow(quote: Quote, onEdit: () -> Unit, onDelete: () -> Unit) {
             }
         }
 
-        TextButton(
-            onClick = onEdit,
-            modifier = Modifier.semantics { contentDescription = editLabel },
-        ) {
-            Text(
-                text = stringResource(Res.string.quotes_edit_action_short),
-                color = tokens.primary,
-                maxLines = 1,
-            )
+        ManageGate(decision = manage) { enabled ->
+            TextButton(
+                onClick = onEdit,
+                enabled = enabled,
+                modifier = Modifier.semantics { contentDescription = editLabel },
+            ) {
+                Text(
+                    text = stringResource(Res.string.quotes_edit_action_short),
+                    color = if (enabled) tokens.primary else tokens.mutedForeground,
+                    maxLines = 1,
+                )
+            }
         }
-        TextButton(
-            onClick = onDelete,
-            modifier = Modifier.semantics { contentDescription = deleteLabel },
-        ) {
-            Text(
-                text = stringResource(Res.string.quotes_delete_action_short),
-                color = tokens.destructive,
-                maxLines = 1,
-            )
+        ManageGate(decision = manage) { enabled ->
+            TextButton(
+                onClick = onDelete,
+                enabled = enabled,
+                modifier = Modifier.semantics { contentDescription = deleteLabel },
+            ) {
+                Text(
+                    text = stringResource(Res.string.quotes_delete_action_short),
+                    color = if (enabled) tokens.destructive else tokens.mutedForeground,
+                    maxLines = 1,
+                )
+            }
         }
     }
 }

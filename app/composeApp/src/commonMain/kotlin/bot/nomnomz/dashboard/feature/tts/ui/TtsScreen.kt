@@ -26,6 +26,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.OutlinedTextField
@@ -47,10 +48,15 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
+import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.network.TtsConfig
+import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
+import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
+import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecision
 import bot.nomnomz.dashboard.feature.tts.state.TtsController
 import bot.nomnomz.dashboard.feature.tts.state.TtsState
 import kotlinx.coroutines.launch
@@ -84,10 +90,15 @@ import org.jetbrains.compose.resources.stringResource
 // controller's loaded config; Save persists the whole config and the controller echoes the saved values
 // back. It loads on first composition and offers a retry on failure.
 @Composable
-fun TtsScreen(controller: TtsController) {
+fun TtsScreen(controller: TtsController, role: ManagementRole?) {
     val state: TtsState by controller.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val spacing = LocalSpacing.current
+
+    // One decision for the whole page: TTS gates every config write control at its single Editor manage floor
+    // (frontend-ia.md §3). A caller below it reads the current config but every field, toggle, and Save renders
+    // disabled with "Requires Editor" (§7); the backend re-checks every write regardless.
+    val manage: ManageDecision = rememberManageDecision(role, ShellRoute.Tts)
 
     LaunchedEffect(Unit) { controller.load() }
 
@@ -97,7 +108,11 @@ fun TtsScreen(controller: TtsController) {
             is TtsState.Error ->
                 ErrorContent(detail = current.detail, onRetry = { scope.launch { controller.load() } })
             is TtsState.Ready ->
-                ReadyContent(state = current, onSave = { edited -> scope.launch { controller.save(edited) } })
+                ReadyContent(
+                    state = current,
+                    manage = manage,
+                    onSave = { edited -> scope.launch { controller.save(edited) } },
+                )
         }
     }
 }
@@ -114,7 +129,7 @@ private val PERMISSIONS: List<Pair<String, StringResource>> =
     )
 
 @Composable
-private fun ReadyContent(state: TtsState.Ready, onSave: (TtsConfig) -> Unit) {
+private fun ReadyContent(state: TtsState.Ready, manage: ManageDecision, onSave: (TtsConfig) -> Unit) {
     val spacing = LocalSpacing.current
     val loaded: TtsConfig = state.config
 
@@ -166,6 +181,7 @@ private fun ReadyContent(state: TtsState.Ready, onSave: (TtsConfig) -> Unit) {
             onSkipBotMessagesChange = { skipBotMessages = it },
             readUsernames = readUsernames,
             onReadUsernamesChange = { readUsernames = it },
+            manage = manage,
             enabled = !state.saving,
         )
 
@@ -174,6 +190,7 @@ private fun ReadyContent(state: TtsState.Ready, onSave: (TtsConfig) -> Unit) {
             justSaved = state.justSaved,
             saveError = state.saveError,
             canSave = canSave,
+            manage = manage,
             onSave = { onSave(edited) },
         )
     }
@@ -224,6 +241,7 @@ private fun EditCard(
     onSkipBotMessagesChange: (Boolean) -> Unit,
     readUsernames: Boolean,
     onReadUsernamesChange: (Boolean) -> Unit,
+    manage: ManageDecision,
     enabled: Boolean,
 ) {
     val tokens = LocalTokens.current
@@ -241,26 +259,35 @@ private fun EditCard(
             labelRes = Res.string.tts_toggle_enabled,
             checked = isEnabled,
             onCheckedChange = onEnabledChange,
+            manage = manage,
             enabled = enabled,
         )
-        VoiceField(value = defaultVoiceId, onValueChange = onVoiceChange, enabled = enabled)
+        VoiceField(value = defaultVoiceId, onValueChange = onVoiceChange, manage = manage, enabled = enabled)
         MaxLengthField(
             value = maxLengthText,
             onValueChange = onMaxLengthChange,
             valid = maxLengthValid,
+            manage = manage,
             enabled = enabled,
         )
-        PermissionPicker(selected = minPermission, onSelect = onPermissionChange, enabled = enabled)
+        PermissionPicker(
+            selected = minPermission,
+            onSelect = onPermissionChange,
+            manage = manage,
+            enabled = enabled,
+        )
         SwitchRow(
             labelRes = Res.string.tts_label_skip_bot_messages,
             checked = skipBotMessages,
             onCheckedChange = onSkipBotMessagesChange,
+            manage = manage,
             enabled = enabled,
         )
         SwitchRow(
             labelRes = Res.string.tts_label_read_usernames,
             checked = readUsernames,
             onCheckedChange = onReadUsernamesChange,
+            manage = manage,
             enabled = enabled,
         )
     }
@@ -271,6 +298,7 @@ private fun SwitchRow(
     labelRes: StringResource,
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
+    manage: ManageDecision,
     enabled: Boolean,
 ) {
     val tokens = LocalTokens.current
@@ -293,20 +321,29 @@ private fun SwitchRow(
             color = tokens.cardForeground,
             modifier = Modifier.weight(1f),
         )
-        Switch(checked = checked, onCheckedChange = onCheckedChange, enabled = enabled)
+        ManageGate(decision = manage) { gateEnabled ->
+            Switch(checked = checked, onCheckedChange = onCheckedChange, enabled = gateEnabled && enabled)
+        }
     }
 }
 
 @Composable
-private fun VoiceField(value: String, onValueChange: (String) -> Unit, enabled: Boolean) {
-    OutlinedTextField(
-        value = value,
-        onValueChange = onValueChange,
-        enabled = enabled,
-        singleLine = true,
-        modifier = Modifier.fillMaxWidth(),
-        label = { Text(stringResource(Res.string.tts_label_voice)) },
-    )
+private fun VoiceField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    manage: ManageDecision,
+    enabled: Boolean,
+) {
+    ManageGate(decision = manage) { gateEnabled ->
+        OutlinedTextField(
+            value = value,
+            onValueChange = onValueChange,
+            enabled = gateEnabled && enabled,
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+            label = { Text(stringResource(Res.string.tts_label_voice)) },
+        )
+    }
 }
 
 @Composable
@@ -314,29 +351,37 @@ private fun MaxLengthField(
     value: String,
     onValueChange: (String) -> Unit,
     valid: Boolean,
+    manage: ManageDecision,
     enabled: Boolean,
 ) {
-    OutlinedTextField(
-        value = value,
-        onValueChange = onValueChange,
-        enabled = enabled,
-        singleLine = true,
-        isError = !valid,
-        modifier = Modifier.fillMaxWidth(),
-        label = { Text(stringResource(Res.string.tts_label_max_length)) },
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-        supportingText =
-            if (!valid) {
-                { Text(stringResource(Res.string.tts_max_length_invalid)) }
-            } else {
-                null
-            },
-    )
+    ManageGate(decision = manage) { gateEnabled ->
+        OutlinedTextField(
+            value = value,
+            onValueChange = onValueChange,
+            enabled = gateEnabled && enabled,
+            singleLine = true,
+            isError = !valid,
+            modifier = Modifier.fillMaxWidth(),
+            label = { Text(stringResource(Res.string.tts_label_max_length)) },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            supportingText =
+                if (!valid) {
+                    { Text(stringResource(Res.string.tts_max_length_invalid)) }
+                } else {
+                    null
+                },
+        )
+    }
 }
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun PermissionPicker(selected: String, onSelect: (String) -> Unit, enabled: Boolean) {
+private fun PermissionPicker(
+    selected: String,
+    onSelect: (String) -> Unit,
+    manage: ManageDecision,
+    enabled: Boolean,
+) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
@@ -354,13 +399,15 @@ private fun PermissionPicker(selected: String, onSelect: (String) -> Unit, enabl
         ) {
             for ((value: String, labelRes: StringResource) in PERMISSIONS) {
                 val label: String = stringResource(labelRes)
-                FilterChip(
-                    selected = selected == value,
-                    onClick = { onSelect(value) },
-                    enabled = enabled,
-                    label = { Text(label, maxLines = 1) },
-                    modifier = Modifier.clearAndSetSemantics { contentDescription = label },
-                )
+                ManageGate(decision = manage) { gateEnabled ->
+                    FilterChip(
+                        selected = selected == value,
+                        onClick = { onSelect(value) },
+                        enabled = gateEnabled && enabled,
+                        label = { Text(label, maxLines = 1) },
+                        modifier = Modifier.clearAndSetSemantics { contentDescription = label },
+                    )
+                }
             }
         }
     }
@@ -372,6 +419,7 @@ private fun SaveBar(
     justSaved: Boolean,
     saveError: String?,
     canSave: Boolean,
+    manage: ManageDecision,
     onSave: () -> Unit,
 ) {
     val tokens = LocalTokens.current
@@ -410,8 +458,20 @@ private fun SaveBar(
                     .clearAndSetSemantics { contentDescription = savingLabel },
             )
         } else {
-            Button(onClick = onSave, enabled = canSave, modifier = Modifier.wrapContentWidth()) {
-                Text(stringResource(Res.string.tts_save))
+            ManageGate(decision = manage) { gateEnabled ->
+                Button(
+                    onClick = onSave,
+                    enabled = gateEnabled && canSave,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = tokens.primary,
+                        contentColor = tokens.primaryForeground,
+                        disabledContainerColor = tokens.muted,
+                        disabledContentColor = tokens.mutedForeground,
+                    ),
+                    modifier = Modifier.wrapContentWidth(),
+                ) {
+                    Text(stringResource(Res.string.tts_save))
+                }
             }
         }
     }

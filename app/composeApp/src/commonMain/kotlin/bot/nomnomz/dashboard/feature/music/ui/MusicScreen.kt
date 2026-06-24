@@ -42,6 +42,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
+import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
+import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -49,6 +51,9 @@ import bot.nomnomz.dashboard.core.network.MusicTrack
 import bot.nomnomz.dashboard.core.network.NowPlaying
 import bot.nomnomz.dashboard.feature.music.state.MusicController
 import bot.nomnomz.dashboard.feature.music.state.MusicState
+import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
+import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
+import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecision
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.music_action_error
@@ -87,10 +92,16 @@ import org.jetbrains.compose.resources.stringResource
 // Remove affordance that only runs once confirmed in the shared ConfirmDialog (the controller reloads on
 // success, so the now-playing and queue both re-project).
 @Composable
-fun MusicScreen(controller: MusicController) {
+fun MusicScreen(controller: MusicController, role: ManagementRole?) {
     val state: MusicState by controller.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val spacing = LocalSpacing.current
+
+    // One decision for the whole page: Music gates every playback/queue write control at its single Editor
+    // manage floor (frontend-ia.md §3). A caller below it sees now-playing and the queue but every
+    // play/pause/skip/remove control renders disabled with "Requires Editor" (§7); the backend re-checks every
+    // write regardless.
+    val manage: ManageDecision = rememberManageDecision(role, ShellRoute.Music)
 
     LaunchedEffect(Unit) { controller.load() }
 
@@ -105,6 +116,7 @@ fun MusicScreen(controller: MusicController) {
                     nowPlaying = current.nowPlaying,
                     queue = current.queue,
                     actionError = current.actionError,
+                    manage = manage,
                     onPlay = { scope.launch { controller.resume() } },
                     onPause = { scope.launch { controller.pause() } },
                     onSkip = { scope.launch { controller.skip() } },
@@ -119,6 +131,7 @@ private fun ReadyContent(
     nowPlaying: NowPlaying?,
     queue: List<MusicTrack>,
     actionError: String?,
+    manage: ManageDecision,
     onPlay: () -> Unit,
     onPause: () -> Unit,
     onSkip: () -> Unit,
@@ -138,6 +151,7 @@ private fun ReadyContent(
         if (nowPlaying != null) {
             NowPlayingCard(
                 nowPlaying = nowPlaying,
+                manage = manage,
                 onPlay = onPlay,
                 onPause = onPause,
                 onSkip = onSkip,
@@ -173,7 +187,7 @@ private fun ReadyContent(
                 verticalArrangement = Arrangement.spacedBy(spacing.s2),
             ) {
                 items(items = queue, key = { track -> track.position }) { track ->
-                    QueueRow(track = track, onRemove = { pendingRemoval = track })
+                    QueueRow(track = track, manage = manage, onRemove = { pendingRemoval = track })
                 }
             }
         }
@@ -199,6 +213,7 @@ private fun ReadyContent(
 @Composable
 private fun NowPlayingCard(
     nowPlaying: NowPlaying,
+    manage: ManageDecision,
     onPlay: () -> Unit,
     onPause: () -> Unit,
     onSkip: () -> Unit,
@@ -296,6 +311,7 @@ private fun NowPlayingCard(
 
         PlaybackControls(
             isPlaying = nowPlaying.isPlaying,
+            manage = manage,
             onPlay = onPlay,
             onPause = onPause,
             onSkip = onSkip,
@@ -306,6 +322,7 @@ private fun NowPlayingCard(
 @Composable
 private fun PlaybackControls(
     isPlaying: Boolean,
+    manage: ManageDecision,
     onPlay: () -> Unit,
     onPause: () -> Unit,
     onSkip: () -> Unit,
@@ -319,23 +336,26 @@ private fun PlaybackControls(
     ) {
         // Play and pause are the same backend toggle; the live isPlaying flag decides which one is offered.
         if (isPlaying) {
-            ControlButton(label = stringResource(Res.string.music_pause), onClick = onPause)
+            ControlButton(label = stringResource(Res.string.music_pause), manage = manage, onClick = onPause)
         } else {
-            ControlButton(label = stringResource(Res.string.music_play), onClick = onPlay)
+            ControlButton(label = stringResource(Res.string.music_play), manage = manage, onClick = onPlay)
         }
-        ControlButton(label = stringResource(Res.string.music_skip), onClick = onSkip)
+        ControlButton(label = stringResource(Res.string.music_skip), manage = manage, onClick = onSkip)
     }
 }
 
 @Composable
-private fun ControlButton(label: String, onClick: () -> Unit) {
+private fun ControlButton(label: String, manage: ManageDecision, onClick: () -> Unit) {
     val tokens = LocalTokens.current
 
-    TextButton(
-        onClick = onClick,
-        modifier = Modifier.clearAndSetSemantics { contentDescription = label },
-    ) {
-        Text(text = label, color = tokens.primary, maxLines = 1)
+    ManageGate(decision = manage) { enabled ->
+        TextButton(
+            onClick = onClick,
+            enabled = enabled,
+            modifier = Modifier.clearAndSetSemantics { contentDescription = label },
+        ) {
+            Text(text = label, color = if (enabled) tokens.primary else tokens.mutedForeground, maxLines = 1)
+        }
     }
 }
 
@@ -398,7 +418,7 @@ private fun AlbumArt(title: String) {
 }
 
 @Composable
-private fun QueueRow(track: MusicTrack, onRemove: () -> Unit) {
+private fun QueueRow(track: MusicTrack, manage: ManageDecision, onRemove: () -> Unit) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
@@ -458,15 +478,18 @@ private fun QueueRow(track: MusicTrack, onRemove: () -> Unit) {
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
-        TextButton(
-            onClick = onRemove,
-            modifier = Modifier.clearAndSetSemantics { contentDescription = removeLabel },
-        ) {
-            Text(
-                text = stringResource(Res.string.music_remove_action_short),
-                color = tokens.destructive,
-                maxLines = 1,
-            )
+        ManageGate(decision = manage) { enabled ->
+            TextButton(
+                onClick = onRemove,
+                enabled = enabled,
+                modifier = Modifier.clearAndSetSemantics { contentDescription = removeLabel },
+            ) {
+                Text(
+                    text = stringResource(Res.string.music_remove_action_short),
+                    color = if (enabled) tokens.destructive else tokens.mutedForeground,
+                    maxLines = 1,
+                )
+            }
         }
     }
 }

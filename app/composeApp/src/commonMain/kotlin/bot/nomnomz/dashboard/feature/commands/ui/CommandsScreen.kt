@@ -49,6 +49,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
+import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
+import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -56,6 +58,9 @@ import bot.nomnomz.dashboard.core.designsystem.theme.Tokens
 import bot.nomnomz.dashboard.core.network.CommandSummary
 import bot.nomnomz.dashboard.feature.commands.state.CommandsController
 import bot.nomnomz.dashboard.feature.commands.state.CommandsState
+import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
+import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
+import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecision
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.commands_action_error
@@ -92,10 +97,15 @@ import org.jetbrains.compose.resources.stringResource
 // composition. This is the full management surface — create, edit, enable/disable, and delete — each routed
 // back through the controller, which re-lists after every successful write so the page reflects the backend.
 @Composable
-fun CommandsScreen(controller: CommandsController) {
+fun CommandsScreen(controller: CommandsController, role: ManagementRole?) {
     val state: CommandsState by controller.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val spacing = LocalSpacing.current
+
+    // One decision for the whole page: Commands gates every write control at its single Editor manage floor
+    // (frontend-ia.md §3). A caller below it sees the list but every create/edit/toggle/delete control disabled
+    // with "Requires Editor" (§7); the backend re-checks every write regardless.
+    val manage: ManageDecision = rememberManageDecision(role, ShellRoute.Commands)
 
     // The create/edit dialog target: null = closed, a value = open (an empty editor = create, a pre-filled one
     // = edit). The delete-confirm target is the command name pending confirmation, or null when none.
@@ -113,6 +123,7 @@ fun CommandsScreen(controller: CommandsController) {
                 ManagedContent(
                     commands = emptyList(),
                     actionError = null,
+                    manage = manage,
                     onNew = { editor = CommandEditor.create() },
                     onEdit = { command -> editor = CommandEditor.edit(command) },
                     onToggle = { command, enabled ->
@@ -124,6 +135,7 @@ fun CommandsScreen(controller: CommandsController) {
                 ManagedContent(
                     commands = current.commands,
                     actionError = current.actionError,
+                    manage = manage,
                     onNew = { editor = CommandEditor.create() },
                     onEdit = { command -> editor = CommandEditor.edit(command) },
                     onToggle = { command, enabled ->
@@ -171,6 +183,7 @@ fun CommandsScreen(controller: CommandsController) {
 private fun ManagedContent(
     commands: List<CommandSummary>,
     actionError: String?,
+    manage: ManageDecision,
     onNew: () -> Unit,
     onEdit: (CommandSummary) -> Unit,
     onToggle: (CommandSummary, Boolean) -> Unit,
@@ -182,7 +195,7 @@ private fun ManagedContent(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(spacing.s4),
     ) {
-        Header(onNew = onNew)
+        Header(manage = manage, onNew = onNew)
         actionError?.let { ActionErrorBanner(detail = it) }
 
         if (commands.isEmpty()) {
@@ -190,6 +203,7 @@ private fun ManagedContent(
         } else {
             CommandList(
                 commands = commands,
+                manage = manage,
                 onEdit = onEdit,
                 onToggle = onToggle,
                 onDelete = onDelete,
@@ -199,7 +213,7 @@ private fun ManagedContent(
 }
 
 @Composable
-private fun Header(onNew: () -> Unit) {
+private fun Header(manage: ManageDecision, onNew: () -> Unit) {
     val tokens = LocalTokens.current
     val typography = LocalTypography.current
     val newLabel: String = stringResource(Res.string.commands_new_action)
@@ -214,15 +228,20 @@ private fun Header(onNew: () -> Unit) {
             style = typography.xl2,
             color = tokens.foreground,
         )
-        Button(
-            onClick = onNew,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = tokens.primary,
-                contentColor = tokens.primaryForeground,
-            ),
-            modifier = Modifier.semantics { contentDescription = newLabel },
-        ) {
-            Text(text = newLabel)
+        ManageGate(decision = manage) { enabled ->
+            Button(
+                onClick = onNew,
+                enabled = enabled,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = tokens.primary,
+                    contentColor = tokens.primaryForeground,
+                    disabledContainerColor = tokens.muted,
+                    disabledContentColor = tokens.mutedForeground,
+                ),
+                modifier = Modifier.semantics { contentDescription = newLabel },
+            ) {
+                Text(text = newLabel)
+            }
         }
     }
 }
@@ -248,6 +267,7 @@ private fun ActionErrorBanner(detail: String) {
 @Composable
 private fun CommandList(
     commands: List<CommandSummary>,
+    manage: ManageDecision,
     onEdit: (CommandSummary) -> Unit,
     onToggle: (CommandSummary, Boolean) -> Unit,
     onDelete: (CommandSummary) -> Unit,
@@ -262,6 +282,7 @@ private fun CommandList(
         items(items = commands, key = { command -> command.id }) { command ->
             CommandRow(
                 command = command,
+                manage = manage,
                 onEdit = { onEdit(command) },
                 onToggle = { enabled -> onToggle(command, enabled) },
                 onDelete = { onDelete(command) },
@@ -273,6 +294,7 @@ private fun CommandList(
 @Composable
 private fun CommandRow(
     command: CommandSummary,
+    manage: ManageDecision,
     onEdit: () -> Unit,
     onToggle: (Boolean) -> Unit,
     onDelete: () -> Unit,
@@ -325,37 +347,46 @@ private fun CommandRow(
             )
         }
 
-        Switch(
-            checked = command.isEnabled,
-            onCheckedChange = onToggle,
-            colors = SwitchDefaults.colors(
-                checkedThumbColor = tokens.primaryForeground,
-                checkedTrackColor = tokens.primary,
-                uncheckedThumbColor = tokens.mutedForeground,
-                uncheckedTrackColor = tokens.muted,
-                uncheckedBorderColor = tokens.border,
-            ),
-            modifier = Modifier.semantics { contentDescription = toggleLabel },
-        )
-        TextButton(
-            onClick = onEdit,
-            modifier = Modifier.semantics { contentDescription = editLabel },
-        ) {
-            Text(
-                text = stringResource(Res.string.commands_edit_action_short),
-                color = tokens.primary,
-                maxLines = 1,
+        ManageGate(decision = manage) { enabled ->
+            Switch(
+                checked = command.isEnabled,
+                onCheckedChange = onToggle,
+                enabled = enabled,
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = tokens.primaryForeground,
+                    checkedTrackColor = tokens.primary,
+                    uncheckedThumbColor = tokens.mutedForeground,
+                    uncheckedTrackColor = tokens.muted,
+                    uncheckedBorderColor = tokens.border,
+                ),
+                modifier = Modifier.semantics { contentDescription = toggleLabel },
             )
         }
-        TextButton(
-            onClick = onDelete,
-            modifier = Modifier.semantics { contentDescription = deleteLabel },
-        ) {
-            Text(
-                text = stringResource(Res.string.commands_delete_action_short),
-                color = tokens.destructive,
-                maxLines = 1,
-            )
+        ManageGate(decision = manage) { enabled ->
+            TextButton(
+                onClick = onEdit,
+                enabled = enabled,
+                modifier = Modifier.semantics { contentDescription = editLabel },
+            ) {
+                Text(
+                    text = stringResource(Res.string.commands_edit_action_short),
+                    color = if (enabled) tokens.primary else tokens.mutedForeground,
+                    maxLines = 1,
+                )
+            }
+        }
+        ManageGate(decision = manage) { enabled ->
+            TextButton(
+                onClick = onDelete,
+                enabled = enabled,
+                modifier = Modifier.semantics { contentDescription = deleteLabel },
+            ) {
+                Text(
+                    text = stringResource(Res.string.commands_delete_action_short),
+                    color = if (enabled) tokens.destructive else tokens.mutedForeground,
+                    maxLines = 1,
+                )
+            }
         }
     }
 }

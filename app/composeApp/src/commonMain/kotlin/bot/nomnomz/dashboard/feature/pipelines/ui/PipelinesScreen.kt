@@ -52,6 +52,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
+import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
+import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -66,6 +68,9 @@ import bot.nomnomz.dashboard.core.network.PipelineSummary
 import bot.nomnomz.dashboard.core.network.UserRoleOptions
 import bot.nomnomz.dashboard.feature.pipelines.state.PipelinesController
 import bot.nomnomz.dashboard.feature.pipelines.state.PipelinesState
+import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
+import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
+import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecision
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.pipelines_action_error
@@ -149,10 +154,16 @@ import org.jetbrains.compose.resources.stringResource
 // (create / rename / enable-disable / delete) and the chain EDITOR surface (add / configure / reorder / remove
 // the ordered action blocks with an optional condition + stop flag, then save). It loads on first composition.
 @Composable
-fun PipelinesScreen(controller: PipelinesController) {
+fun PipelinesScreen(controller: PipelinesController, role: ManagementRole?) {
     val state: PipelinesState by controller.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val spacing = LocalSpacing.current
+
+    // One decision for the whole page: Pipelines gates every write control at its single Editor manage floor
+    // (frontend-ia.md §3) — both the list surface (create / rename / toggle / delete) and the chain editor
+    // (add / configure / reorder / remove / save). A caller below it sees the list and the chain but each write
+    // disabled with "Requires Editor" (§7); the backend re-checks every write regardless.
+    val manage: ManageDecision = rememberManageDecision(role, ShellRoute.Pipelines)
 
     LaunchedEffect(Unit) { controller.load() }
 
@@ -165,6 +176,7 @@ fun PipelinesScreen(controller: PipelinesController) {
                 ListContent(
                     pipelines = emptyList(),
                     actionError = null,
+                    manage = manage,
                     controller = controller,
                     scope = scope,
                 )
@@ -172,11 +184,12 @@ fun PipelinesScreen(controller: PipelinesController) {
                 ListContent(
                     pipelines = current.pipelines,
                     actionError = current.actionError,
+                    manage = manage,
                     controller = controller,
                     scope = scope,
                 )
             is PipelinesState.Editing ->
-                ChainEditor(editing = current, controller = controller, scope = scope)
+                ChainEditor(editing = current, manage = manage, controller = controller, scope = scope)
         }
     }
 }
@@ -187,6 +200,7 @@ fun PipelinesScreen(controller: PipelinesController) {
 private fun ListContent(
     pipelines: List<PipelineSummary>,
     actionError: String?,
+    manage: ManageDecision,
     controller: PipelinesController,
     scope: kotlinx.coroutines.CoroutineScope,
 ) {
@@ -200,7 +214,7 @@ private fun ListContent(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(spacing.s4),
     ) {
-        ListHeader(onNew = { editor = PipelineEditor.create() })
+        ListHeader(manage = manage, onNew = { editor = PipelineEditor.create() })
         actionError?.let { ActionErrorBanner(detail = it) }
 
         if (pipelines.isEmpty()) {
@@ -214,6 +228,7 @@ private fun ListContent(
                 items(items = pipelines, key = { it.id }) { pipeline ->
                     PipelineRow(
                         pipeline = pipeline,
+                        manage = manage,
                         onOpen = { scope.launch { controller.openEditor(pipeline) } },
                         onEdit = { editor = PipelineEditor.edit(pipeline) },
                         onToggle = { enabled -> scope.launch { controller.togglePipeline(pipeline.id, enabled) } },
@@ -256,7 +271,7 @@ private fun ListContent(
 }
 
 @Composable
-private fun ListHeader(onNew: () -> Unit) {
+private fun ListHeader(manage: ManageDecision, onNew: () -> Unit) {
     val tokens = LocalTokens.current
     val typography = LocalTypography.current
     val newLabel: String = stringResource(Res.string.pipelines_new_action)
@@ -267,16 +282,21 @@ private fun ListHeader(onNew: () -> Unit) {
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
         Text(text = stringResource(Res.string.pipelines_title), style = typography.xl2, color = tokens.foreground)
-        Button(
-            onClick = onNew,
-            colors =
-                ButtonDefaults.buttonColors(
-                    containerColor = tokens.primary,
-                    contentColor = tokens.primaryForeground,
-                ),
-            modifier = Modifier.semantics { contentDescription = newLabel },
-        ) {
-            Text(text = newLabel)
+        ManageGate(decision = manage) { enabled ->
+            Button(
+                onClick = onNew,
+                enabled = enabled,
+                colors =
+                    ButtonDefaults.buttonColors(
+                        containerColor = tokens.primary,
+                        contentColor = tokens.primaryForeground,
+                        disabledContainerColor = tokens.muted,
+                        disabledContentColor = tokens.mutedForeground,
+                    ),
+                modifier = Modifier.semantics { contentDescription = newLabel },
+            ) {
+                Text(text = newLabel)
+            }
         }
     }
 }
@@ -284,6 +304,7 @@ private fun ListHeader(onNew: () -> Unit) {
 @Composable
 private fun PipelineRow(
     pipeline: PipelineSummary,
+    manage: ManageDecision,
     onOpen: () -> Unit,
     onEdit: () -> Unit,
     onToggle: (Boolean) -> Unit,
@@ -336,23 +357,40 @@ private fun PipelineRow(
             )
         }
 
-        Switch(
-            checked = pipeline.isEnabled,
-            onCheckedChange = onToggle,
-            colors = switchColors(),
-            modifier = Modifier.semantics { contentDescription = toggleLabel },
-        )
+        ManageGate(decision = manage) { enabled ->
+            Switch(
+                checked = pipeline.isEnabled,
+                onCheckedChange = onToggle,
+                enabled = enabled,
+                colors = switchColors(),
+                modifier = Modifier.semantics { contentDescription = toggleLabel },
+            )
+        }
+        // Opening the chain editor is navigation/read, not a write — it stays enabled for everyone; the editor
+        // surface gates each of its own write controls.
         TextButton(
             onClick = onOpen,
             modifier = Modifier.semantics { contentDescription = editChainLabel },
         ) {
             Text(text = stringResource(Res.string.pipelines_edit_chain_action_short), color = tokens.primary, maxLines = 1)
         }
-        TextButton(onClick = onEdit) {
-            Text(text = stringResource(Res.string.pipelines_rename_action_short), color = tokens.primary, maxLines = 1)
+        ManageGate(decision = manage) { enabled ->
+            TextButton(onClick = onEdit, enabled = enabled) {
+                Text(
+                    text = stringResource(Res.string.pipelines_rename_action_short),
+                    color = if (enabled) tokens.primary else tokens.mutedForeground,
+                    maxLines = 1,
+                )
+            }
         }
-        TextButton(onClick = onDelete) {
-            Text(text = stringResource(Res.string.pipelines_delete_action_short), color = tokens.destructive, maxLines = 1)
+        ManageGate(decision = manage) { enabled ->
+            TextButton(onClick = onDelete, enabled = enabled) {
+                Text(
+                    text = stringResource(Res.string.pipelines_delete_action_short),
+                    color = if (enabled) tokens.destructive else tokens.mutedForeground,
+                    maxLines = 1,
+                )
+            }
         }
     }
 }
@@ -362,6 +400,7 @@ private fun PipelineRow(
 @Composable
 private fun ChainEditor(
     editing: PipelinesState.Editing,
+    manage: ManageDecision,
     controller: PipelinesController,
     scope: kotlinx.coroutines.CoroutineScope,
 ) {
@@ -396,16 +435,21 @@ private fun ChainEditor(
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f),
             )
-            Button(
-                onClick = { scope.launch { controller.saveChain() } },
-                colors =
-                    ButtonDefaults.buttonColors(
-                        containerColor = tokens.primary,
-                        contentColor = tokens.primaryForeground,
-                    ),
-                modifier = Modifier.semantics { contentDescription = saveLabel },
-            ) {
-                Text(text = saveLabel)
+            ManageGate(decision = manage) { enabled ->
+                Button(
+                    onClick = { scope.launch { controller.saveChain() } },
+                    enabled = enabled,
+                    colors =
+                        ButtonDefaults.buttonColors(
+                            containerColor = tokens.primary,
+                            contentColor = tokens.primaryForeground,
+                            disabledContainerColor = tokens.muted,
+                            disabledContentColor = tokens.mutedForeground,
+                        ),
+                    modifier = Modifier.semantics { contentDescription = saveLabel },
+                ) {
+                    Text(text = saveLabel)
+                }
             }
         }
 
@@ -417,16 +461,21 @@ private fun ChainEditor(
             color = tokens.mutedForeground,
         )
 
-        Button(
-            onClick = { stepDialog = StepDialogTarget(index = null, step = null) },
-            colors =
-                ButtonDefaults.buttonColors(
-                    containerColor = tokens.secondary,
-                    contentColor = tokens.secondaryForeground,
-                ),
-            modifier = Modifier.fillMaxWidth().semantics { contentDescription = addLabel },
-        ) {
-            Text(text = addLabel)
+        ManageGate(decision = manage) { enabled ->
+            Button(
+                onClick = { stepDialog = StepDialogTarget(index = null, step = null) },
+                enabled = enabled,
+                colors =
+                    ButtonDefaults.buttonColors(
+                        containerColor = tokens.secondary,
+                        contentColor = tokens.secondaryForeground,
+                        disabledContainerColor = tokens.muted,
+                        disabledContentColor = tokens.mutedForeground,
+                    ),
+                modifier = Modifier.fillMaxWidth().semantics { contentDescription = addLabel },
+            ) {
+                Text(text = addLabel)
+            }
         }
 
         if (editing.steps.isEmpty()) {
@@ -442,6 +491,7 @@ private fun ChainEditor(
                         index = index,
                         total = editing.steps.size,
                         step = step,
+                        manage = manage,
                         onEdit = { stepDialog = StepDialogTarget(index = index, step = step) },
                         onRemove = { controller.removeStep(index) },
                         onMoveUp = { controller.moveStepUp(index) },
@@ -470,6 +520,7 @@ private fun StepCard(
     index: Int,
     total: Int,
     step: PipelineStep,
+    manage: ManageDecision,
     onEdit: () -> Unit,
     onRemove: () -> Unit,
     onMoveUp: () -> Unit,
@@ -512,22 +563,33 @@ private fun StepCard(
         ParamSummary(step.action)
 
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(spacing.s1)) {
-            TextButton(onClick = onMoveUp, enabled = index > 0, modifier = Modifier.semantics { contentDescription = upLabel }) {
-                Text(text = stringResource(Res.string.pipelines_step_move_up_short), color = if (index > 0) tokens.primary else tokens.mutedForeground, maxLines = 1)
+            // Reorder is a write AND bounded by position: the gate's `enabled` and the bound both must hold.
+            ManageGate(decision = manage) { allowed ->
+                val canMoveUp: Boolean = allowed && index > 0
+                TextButton(onClick = onMoveUp, enabled = canMoveUp, modifier = Modifier.semantics { contentDescription = upLabel }) {
+                    Text(text = stringResource(Res.string.pipelines_step_move_up_short), color = if (canMoveUp) tokens.primary else tokens.mutedForeground, maxLines = 1)
+                }
             }
-            TextButton(
-                onClick = onMoveDown,
-                enabled = index < total - 1,
-                modifier = Modifier.semantics { contentDescription = downLabel },
-            ) {
-                Text(text = stringResource(Res.string.pipelines_step_move_down_short), color = if (index < total - 1) tokens.primary else tokens.mutedForeground, maxLines = 1)
+            ManageGate(decision = manage) { allowed ->
+                val canMoveDown: Boolean = allowed && index < total - 1
+                TextButton(
+                    onClick = onMoveDown,
+                    enabled = canMoveDown,
+                    modifier = Modifier.semantics { contentDescription = downLabel },
+                ) {
+                    Text(text = stringResource(Res.string.pipelines_step_move_down_short), color = if (canMoveDown) tokens.primary else tokens.mutedForeground, maxLines = 1)
+                }
             }
             Box(modifier = Modifier.weight(1f))
-            TextButton(onClick = onEdit, modifier = Modifier.semantics { contentDescription = editLabel }) {
-                Text(text = stringResource(Res.string.pipelines_step_edit_short), color = tokens.primary, maxLines = 1)
+            ManageGate(decision = manage) { enabled ->
+                TextButton(onClick = onEdit, enabled = enabled, modifier = Modifier.semantics { contentDescription = editLabel }) {
+                    Text(text = stringResource(Res.string.pipelines_step_edit_short), color = if (enabled) tokens.primary else tokens.mutedForeground, maxLines = 1)
+                }
             }
-            TextButton(onClick = onRemove, modifier = Modifier.semantics { contentDescription = removeLabel }) {
-                Text(text = stringResource(Res.string.pipelines_step_delete_short), color = tokens.destructive, maxLines = 1)
+            ManageGate(decision = manage) { enabled ->
+                TextButton(onClick = onRemove, enabled = enabled, modifier = Modifier.semantics { contentDescription = removeLabel }) {
+                    Text(text = stringResource(Res.string.pipelines_step_delete_short), color = if (enabled) tokens.destructive else tokens.mutedForeground, maxLines = 1)
+                }
             }
         }
     }

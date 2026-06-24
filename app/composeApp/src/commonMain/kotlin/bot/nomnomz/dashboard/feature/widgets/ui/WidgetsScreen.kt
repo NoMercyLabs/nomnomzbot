@@ -44,10 +44,15 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.CopyValue
+import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
+import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.network.WidgetSummary
+import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
+import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
+import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecision
 import bot.nomnomz.dashboard.feature.widgets.state.WidgetsController
 import bot.nomnomz.dashboard.feature.widgets.state.WidgetsState
 import kotlinx.coroutines.launch
@@ -80,12 +85,18 @@ import org.jetbrains.compose.resources.stringResource
 // the operator pastes into an OBS browser source. Each overlay can be enabled/disabled inline, or deleted —
 // deletion is destructive (its browser-source URL stops resolving once gone), so it confirms first.
 @Composable
-fun WidgetsScreen(controller: WidgetsController) {
+fun WidgetsScreen(controller: WidgetsController, role: ManagementRole?) {
     val state: WidgetsState by controller.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
+
+    // One decision for the whole page: Overlays gates every write control at its single Editor manage floor
+    // (frontend-ia.md §3, Stream group). A caller below it still sees each overlay and can copy its
+    // browser-source URL, but every enable/disable and delete control renders disabled with "Requires Editor"
+    // (§7); the backend re-checks every write regardless.
+    val manage: ManageDecision = rememberManageDecision(role, ShellRoute.Widgets)
 
     // The delete-confirm target: the widget pending confirmation (id + name for the message), or null when none.
     var pendingDelete: PendingDelete? by remember { mutableStateOf(null) }
@@ -116,6 +127,7 @@ fun WidgetsScreen(controller: WidgetsController) {
                 ReadyContent(
                     widgets = current.widgets,
                     actionError = current.actionError,
+                    manage = manage,
                     onToggle = { widget, enabled ->
                         scope.launch { controller.toggleWidget(widget.id, enabled) }
                     },
@@ -146,6 +158,7 @@ fun WidgetsScreen(controller: WidgetsController) {
 private fun ReadyContent(
     widgets: List<WidgetSummary>,
     actionError: String?,
+    manage: ManageDecision,
     onToggle: (WidgetSummary, Boolean) -> Unit,
     onDelete: (WidgetSummary) -> Unit,
 ) {
@@ -156,7 +169,7 @@ private fun ReadyContent(
         verticalArrangement = Arrangement.spacedBy(spacing.s3),
     ) {
         actionError?.let { ActionErrorBanner(detail = it) }
-        WidgetList(widgets = widgets, onToggle = onToggle, onDelete = onDelete)
+        WidgetList(widgets = widgets, manage = manage, onToggle = onToggle, onDelete = onDelete)
     }
 }
 
@@ -181,6 +194,7 @@ private fun ActionErrorBanner(detail: String) {
 @Composable
 private fun WidgetList(
     widgets: List<WidgetSummary>,
+    manage: ManageDecision,
     onToggle: (WidgetSummary, Boolean) -> Unit,
     onDelete: (WidgetSummary) -> Unit,
 ) {
@@ -194,6 +208,7 @@ private fun WidgetList(
         items(items = widgets, key = { widget -> widget.id }) { widget ->
             WidgetRow(
                 widget = widget,
+                manage = manage,
                 onToggle = { enabled -> onToggle(widget, enabled) },
                 onDelete = { onDelete(widget) },
             )
@@ -207,6 +222,7 @@ private fun WidgetList(
 @Composable
 private fun WidgetRow(
     widget: WidgetSummary,
+    manage: ManageDecision,
     onToggle: (Boolean) -> Unit,
     onDelete: () -> Unit,
 ) {
@@ -259,27 +275,33 @@ private fun WidgetRow(
                 )
             }
 
-            Switch(
-                checked = widget.isEnabled,
-                onCheckedChange = onToggle,
-                colors = SwitchDefaults.colors(
-                    checkedThumbColor = tokens.primaryForeground,
-                    checkedTrackColor = tokens.primary,
-                    uncheckedThumbColor = tokens.mutedForeground,
-                    uncheckedTrackColor = tokens.muted,
-                    uncheckedBorderColor = tokens.border,
-                ),
-                modifier = Modifier.semantics { contentDescription = toggleLabel },
-            )
-            TextButton(
-                onClick = onDelete,
-                modifier = Modifier.semantics { contentDescription = deleteLabel },
-            ) {
-                Text(
-                    text = stringResource(Res.string.widgets_delete_action_short),
-                    color = tokens.destructive,
-                    maxLines = 1,
+            ManageGate(decision = manage) { enabled ->
+                Switch(
+                    checked = widget.isEnabled,
+                    onCheckedChange = onToggle,
+                    enabled = enabled,
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = tokens.primaryForeground,
+                        checkedTrackColor = tokens.primary,
+                        uncheckedThumbColor = tokens.mutedForeground,
+                        uncheckedTrackColor = tokens.muted,
+                        uncheckedBorderColor = tokens.border,
+                    ),
+                    modifier = Modifier.semantics { contentDescription = toggleLabel },
                 )
+            }
+            ManageGate(decision = manage) { enabled ->
+                TextButton(
+                    onClick = onDelete,
+                    enabled = enabled,
+                    modifier = Modifier.semantics { contentDescription = deleteLabel },
+                ) {
+                    Text(
+                        text = stringResource(Res.string.widgets_delete_action_short),
+                        color = if (enabled) tokens.destructive else tokens.mutedForeground,
+                        maxLines = 1,
+                    )
+                }
             }
         }
 

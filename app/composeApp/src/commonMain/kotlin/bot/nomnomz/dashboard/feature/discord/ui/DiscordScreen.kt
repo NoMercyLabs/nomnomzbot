@@ -49,6 +49,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
+import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
+import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -58,6 +60,9 @@ import bot.nomnomz.dashboard.core.network.DiscordNotificationConfig
 import bot.nomnomz.dashboard.feature.discord.state.DiscordController
 import bot.nomnomz.dashboard.feature.discord.state.DiscordState
 import bot.nomnomz.dashboard.feature.discord.state.GuildNotifications
+import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
+import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
+import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecision
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.discord_action_error
@@ -103,10 +108,15 @@ import org.jetbrains.compose.resources.stringResource
 // after every successful write so the page reflects the backend. When no guild is linked, it shows a clear
 // empty state pointing the operator at the Integrations page to connect Discord.
 @Composable
-fun DiscordScreen(controller: DiscordController) {
+fun DiscordScreen(controller: DiscordController, role: ManagementRole?) {
     val state: DiscordState by controller.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val spacing = LocalSpacing.current
+
+    // One decision for the whole page: Discord gates every write control at its single Broadcaster manage floor
+    // (frontend-ia.md §3). A caller below it sees each guild's rules but the new-rule / toggle / edit / delete
+    // controls disabled with "Requires Broadcaster" (§7); the backend re-checks every write regardless.
+    val manage: ManageDecision = rememberManageDecision(role, ShellRoute.Discord)
 
     // The create/edit dialog target: null = closed; a value = open (empty = create under a guild, pre-filled =
     // edit a rule). The delete-confirm target is the rule pending confirmation, or null when none.
@@ -125,6 +135,7 @@ fun DiscordScreen(controller: DiscordController) {
                 ReadyContent(
                     guilds = current.guilds,
                     actionError = current.actionError,
+                    manage = manage,
                     onNewRule = { connectionId -> editor = RuleEditor.create(connectionId) },
                     onEditRule = { rule ->
                         editor =
@@ -183,6 +194,7 @@ fun DiscordScreen(controller: DiscordController) {
 private fun ReadyContent(
     guilds: List<GuildNotifications>,
     actionError: String?,
+    manage: ManageDecision,
     onNewRule: (connectionId: String) -> Unit,
     onEditRule: (DiscordNotificationConfig) -> Unit,
     onToggleRule: (DiscordNotificationConfig, Boolean) -> Unit,
@@ -211,6 +223,7 @@ private fun ReadyContent(
             items(items = guilds, key = { guild -> guild.connection.id }) { guild ->
                 GuildCard(
                     guild = guild,
+                    manage = manage,
                     onNewRule = { onNewRule(guild.connection.id) },
                     onEditRule = onEditRule,
                     onToggleRule = onToggleRule,
@@ -224,6 +237,7 @@ private fun ReadyContent(
 @Composable
 private fun GuildCard(
     guild: GuildNotifications,
+    manage: ManageDecision,
     onNewRule: () -> Unit,
     onEditRule: (DiscordNotificationConfig) -> Unit,
     onToggleRule: (DiscordNotificationConfig, Boolean) -> Unit,
@@ -240,7 +254,7 @@ private fun GuildCard(
             .padding(spacing.s4),
         verticalArrangement = Arrangement.spacedBy(spacing.s3),
     ) {
-        GuildHeader(connection = guild.connection, onNewRule = onNewRule)
+        GuildHeader(connection = guild.connection, manage = manage, onNewRule = onNewRule)
 
         guild.loadError?.let {
             Text(
@@ -266,6 +280,7 @@ private fun GuildCard(
                 guild.configs.forEach { rule ->
                     RuleRow(
                         rule = rule,
+                        manage = manage,
                         onEdit = { onEditRule(rule) },
                         onToggle = { enabled -> onToggleRule(rule, enabled) },
                         onDelete = { onDeleteRule(rule) },
@@ -277,7 +292,7 @@ private fun GuildCard(
 }
 
 @Composable
-private fun GuildHeader(connection: DiscordGuildConnection, onNewRule: () -> Unit) {
+private fun GuildHeader(connection: DiscordGuildConnection, manage: ManageDecision, onNewRule: () -> Unit) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
@@ -318,15 +333,20 @@ private fun GuildHeader(connection: DiscordGuildConnection, onNewRule: () -> Uni
                 overflow = TextOverflow.Ellipsis,
             )
         }
-        Button(
-            onClick = onNewRule,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = tokens.primary,
-                contentColor = tokens.primaryForeground,
-            ),
-            modifier = Modifier.semantics { contentDescription = newLabel },
-        ) {
-            Text(text = newLabel)
+        ManageGate(decision = manage) { enabled ->
+            Button(
+                onClick = onNewRule,
+                enabled = enabled,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = tokens.primary,
+                    contentColor = tokens.primaryForeground,
+                    disabledContainerColor = tokens.muted,
+                    disabledContentColor = tokens.mutedForeground,
+                ),
+                modifier = Modifier.semantics { contentDescription = newLabel },
+            ) {
+                Text(text = newLabel)
+            }
         }
     }
 }
@@ -334,6 +354,7 @@ private fun GuildHeader(connection: DiscordGuildConnection, onNewRule: () -> Uni
 @Composable
 private fun RuleRow(
     rule: DiscordNotificationConfig,
+    manage: ManageDecision,
     onEdit: () -> Unit,
     onToggle: (Boolean) -> Unit,
     onDelete: () -> Unit,
@@ -391,21 +412,40 @@ private fun RuleRow(
             )
         }
 
-        Switch(
-            checked = rule.enabled,
-            onCheckedChange = onToggle,
-            colors = switchColors(),
-            modifier = Modifier.semantics { contentDescription = toggleLabel },
-        )
-        TextButton(onClick = onEdit, modifier = Modifier.semantics { contentDescription = editLabel }) {
-            Text(text = stringResource(Res.string.discord_edit_action_short), color = tokens.primary, maxLines = 1)
-        }
-        TextButton(onClick = onDelete, modifier = Modifier.semantics { contentDescription = deleteLabel }) {
-            Text(
-                text = stringResource(Res.string.discord_delete_action_short),
-                color = tokens.destructive,
-                maxLines = 1,
+        ManageGate(decision = manage) { enabled ->
+            Switch(
+                checked = rule.enabled,
+                onCheckedChange = onToggle,
+                enabled = enabled,
+                colors = switchColors(),
+                modifier = Modifier.semantics { contentDescription = toggleLabel },
             )
+        }
+        ManageGate(decision = manage) { enabled ->
+            TextButton(
+                onClick = onEdit,
+                enabled = enabled,
+                modifier = Modifier.semantics { contentDescription = editLabel },
+            ) {
+                Text(
+                    text = stringResource(Res.string.discord_edit_action_short),
+                    color = if (enabled) tokens.primary else tokens.mutedForeground,
+                    maxLines = 1,
+                )
+            }
+        }
+        ManageGate(decision = manage) { enabled ->
+            TextButton(
+                onClick = onDelete,
+                enabled = enabled,
+                modifier = Modifier.semantics { contentDescription = deleteLabel },
+            ) {
+                Text(
+                    text = stringResource(Res.string.discord_delete_action_short),
+                    color = if (enabled) tokens.destructive else tokens.mutedForeground,
+                    maxLines = 1,
+                )
+            }
         }
     }
 }

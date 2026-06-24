@@ -203,6 +203,7 @@ fun ShellScreen(
                     ShellContent(
                         selected = selected,
                         graph = graph,
+                        role = role,
                         modifier = Modifier.weight(1f).fillMaxWidth(),
                     )
                 }
@@ -226,6 +227,7 @@ fun ShellScreen(
                     ShellContent(
                         selected = selected,
                         graph = graph,
+                        role = role,
                         modifier = Modifier.weight(1f).fillMaxWidth(),
                     )
                 }
@@ -279,37 +281,46 @@ private fun ViewerSurface(
 }
 
 // The content host. The [modifier] (weight(1f) below the top bar) is what makes the page fill and
-// reflow with the window — the inner screens fill this Box, so resizing flows straight through.
+// reflow with the window — the inner screens fill this Box, so resizing flows straight through. The resolved
+// [role] threads into every screen so each gates its own write controls through `ManageGate` at the right floor
+// (frontend-ia.md §7) — read stays open per the page's read floor, writes disable-with-reason below the manage
+// floor. The role is non-null here (a viewer was routed to the participation surface above).
 @Composable
-private fun ShellContent(selected: ShellRoute, graph: AppGraph, modifier: Modifier = Modifier) {
+private fun ShellContent(
+    selected: ShellRoute,
+    graph: AppGraph,
+    role: ManagementRole,
+    modifier: Modifier = Modifier,
+) {
     Box(modifier = modifier) {
         when (selected) {
             ShellRoute.Dashboard -> HomeScreen(controller = graph.homeController)
-            ShellRoute.Chat -> ChatScreen(controller = graph.chatController)
-            ShellRoute.Community -> CommunityScreen(controller = graph.communityController)
-            ShellRoute.Commands -> CommandsScreen(controller = graph.commandsController)
-            ShellRoute.Quotes -> QuotesScreen(controller = graph.quotesController)
-            ShellRoute.Timers -> TimersScreen(controller = graph.timersController)
-            ShellRoute.Moderation -> ModerationScreen(controller = graph.moderationController)
+            ShellRoute.Chat -> ChatScreen(controller = graph.chatController, role = role)
+            ShellRoute.Community -> CommunityScreen(controller = graph.communityController, role = role)
+            ShellRoute.Commands -> CommandsScreen(controller = graph.commandsController, role = role)
+            ShellRoute.Quotes -> QuotesScreen(controller = graph.quotesController, role = role)
+            ShellRoute.Timers -> TimersScreen(controller = graph.timersController, role = role)
+            ShellRoute.Moderation -> ModerationScreen(controller = graph.moderationController, role = role)
             ShellRoute.Analytics -> AnalyticsScreen(controller = graph.analyticsController)
-            ShellRoute.Rewards -> RewardsScreen(controller = graph.rewardsController)
-            ShellRoute.SongRequests -> SongRequestsScreen(controller = graph.songRequestsController)
-            ShellRoute.Music -> MusicScreen(controller = graph.musicController)
-            ShellRoute.Tts -> TtsScreen(controller = graph.ttsController)
-            ShellRoute.Games -> GamesScreen(controller = graph.gamesController)
-            ShellRoute.Discord -> DiscordScreen(controller = graph.discordController)
-            ShellRoute.Pipelines -> PipelinesScreen(controller = graph.pipelinesController)
-            ShellRoute.Roles -> RolesScreen(controller = graph.rolesController)
-            ShellRoute.Integrations -> IntegrationsScreen(controller = graph.integrationsController)
+            ShellRoute.Rewards -> RewardsScreen(controller = graph.rewardsController, role = role)
+            ShellRoute.SongRequests -> SongRequestsScreen(controller = graph.songRequestsController, role = role)
+            ShellRoute.Music -> MusicScreen(controller = graph.musicController, role = role)
+            ShellRoute.Tts -> TtsScreen(controller = graph.ttsController, role = role)
+            ShellRoute.Games -> GamesScreen(controller = graph.gamesController, role = role)
+            ShellRoute.Discord -> DiscordScreen(controller = graph.discordController, role = role)
+            ShellRoute.Pipelines -> PipelinesScreen(controller = graph.pipelinesController, role = role)
+            ShellRoute.Roles -> RolesScreen(controller = graph.rolesController, role = role)
+            ShellRoute.Integrations -> IntegrationsScreen(controller = graph.integrationsController, role = role)
             ShellRoute.Settings ->
                 SettingsScreen(
                     controller = graph.settingsController,
                     journalController = graph.journalPortabilityController,
                     twitchAppController = graph.twitchAppCredentialsController,
+                    role = role,
                 )
-            ShellRoute.Economy -> EconomyScreen(controller = graph.economyController)
-            ShellRoute.Alerts -> AlertsScreen(controller = graph.alertsController)
-            ShellRoute.Widgets -> WidgetsScreen(controller = graph.widgetsController)
+            ShellRoute.Economy -> EconomyScreen(controller = graph.economyController, role = role)
+            ShellRoute.Alerts -> AlertsScreen(controller = graph.alertsController, role = role)
+            ShellRoute.Widgets -> WidgetsScreen(controller = graph.widgetsController, role = role)
         }
     }
 }

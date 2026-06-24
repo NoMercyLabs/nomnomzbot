@@ -49,6 +49,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
+import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -56,6 +58,9 @@ import bot.nomnomz.dashboard.core.designsystem.theme.Tokens
 import bot.nomnomz.dashboard.core.network.GameSummary
 import bot.nomnomz.dashboard.feature.games.state.GamesController
 import bot.nomnomz.dashboard.feature.games.state.GamesState
+import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
+import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
+import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecision
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.games_18plus
@@ -87,10 +92,15 @@ import org.jetbrains.compose.resources.stringResource
 // the controller, which re-lists after each success so the page reflects the backend. The screen loads on first
 // composition and offers a retry on failure.
 @Composable
-fun GamesScreen(controller: GamesController) {
+fun GamesScreen(controller: GamesController, role: ManagementRole?) {
     val state: GamesState by controller.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val spacing = LocalSpacing.current
+
+    // One decision for the whole page: Games gates every write control at its single Editor manage floor
+    // (frontend-ia.md §3, economy.md §3.5). A caller below it sees the catalog but every toggle/edit control
+    // renders disabled with "Requires Editor" (§7); the backend re-checks every write regardless.
+    val manage: ManageDecision = rememberManageDecision(role, ShellRoute.Games)
 
     // The config dialog target: null = closed, a game = open and editing that game's config.
     var editing: GameSummary? by remember { mutableStateOf(null) }
@@ -107,6 +117,7 @@ fun GamesScreen(controller: GamesController) {
                 ManagedContent(
                     games = current.games,
                     actionError = current.actionError,
+                    manage = manage,
                     onToggle = { game, enabled ->
                         scope.launch { controller.toggleGame(game, enabled) }
                     },
@@ -135,6 +146,7 @@ fun GamesScreen(controller: GamesController) {
 private fun ManagedContent(
     games: List<GameSummary>,
     actionError: String?,
+    manage: ManageDecision,
     onToggle: (GameSummary, Boolean) -> Unit,
     onEdit: (GameSummary) -> Unit,
 ) {
@@ -145,7 +157,7 @@ private fun ManagedContent(
         verticalArrangement = Arrangement.spacedBy(spacing.s4),
     ) {
         actionError?.let { ActionErrorBanner(detail = it) }
-        GameList(games = games, onToggle = onToggle, onEdit = onEdit)
+        GameList(games = games, manage = manage, onToggle = onToggle, onEdit = onEdit)
     }
 }
 
@@ -170,6 +182,7 @@ private fun ActionErrorBanner(detail: String) {
 @Composable
 private fun GameList(
     games: List<GameSummary>,
+    manage: ManageDecision,
     onToggle: (GameSummary, Boolean) -> Unit,
     onEdit: (GameSummary) -> Unit,
 ) {
@@ -183,6 +196,7 @@ private fun GameList(
         items(items = games, key = { game -> game.id }) { game ->
             GameRow(
                 game = game,
+                manage = manage,
                 onToggle = { enabled -> onToggle(game, enabled) },
                 onEdit = { onEdit(game) },
             )
@@ -193,6 +207,7 @@ private fun GameList(
 @Composable
 private fun GameRow(
     game: GameSummary,
+    manage: ManageDecision,
     onToggle: (Boolean) -> Unit,
     onEdit: () -> Unit,
 ) {
@@ -266,21 +281,27 @@ private fun GameRow(
                 foreground = tokens.destructiveForeground,
             )
         }
-        Switch(
-            checked = game.isEnabled,
-            onCheckedChange = onToggle,
-            colors = switchColors(),
-            modifier = Modifier.semantics { contentDescription = toggleLabel },
-        )
-        TextButton(
-            onClick = onEdit,
-            modifier = Modifier.semantics { contentDescription = editLabel },
-        ) {
-            Text(
-                text = stringResource(Res.string.games_edit_action_short),
-                color = tokens.primary,
-                maxLines = 1,
+        ManageGate(decision = manage) { enabled ->
+            Switch(
+                checked = game.isEnabled,
+                onCheckedChange = onToggle,
+                enabled = enabled,
+                colors = switchColors(),
+                modifier = Modifier.semantics { contentDescription = toggleLabel },
             )
+        }
+        ManageGate(decision = manage) { enabled ->
+            TextButton(
+                onClick = onEdit,
+                enabled = enabled,
+                modifier = Modifier.semantics { contentDescription = editLabel },
+            ) {
+                Text(
+                    text = stringResource(Res.string.games_edit_action_short),
+                    color = if (enabled) tokens.primary else tokens.mutedForeground,
+                    maxLines = 1,
+                )
+            }
         }
     }
 }
