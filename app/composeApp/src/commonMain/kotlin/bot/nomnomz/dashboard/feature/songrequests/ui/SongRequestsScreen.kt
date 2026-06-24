@@ -26,7 +26,10 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -35,6 +38,7 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -43,20 +47,31 @@ import bot.nomnomz.dashboard.feature.songrequests.state.SongRequestsController
 import bot.nomnomz.dashboard.feature.songrequests.state.SongRequestsState
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.songrequests_action_error
 import nomnomzbot.composeapp.generated.resources.songrequests_empty
 import nomnomzbot.composeapp.generated.resources.songrequests_error
 import nomnomzbot.composeapp.generated.resources.songrequests_loading
+import nomnomzbot.composeapp.generated.resources.songrequests_pause
 import nomnomzbot.composeapp.generated.resources.songrequests_position
+import nomnomzbot.composeapp.generated.resources.songrequests_remove_action
+import nomnomzbot.composeapp.generated.resources.songrequests_remove_action_short
+import nomnomzbot.composeapp.generated.resources.songrequests_remove_confirm
+import nomnomzbot.composeapp.generated.resources.songrequests_remove_dismiss
+import nomnomzbot.composeapp.generated.resources.songrequests_remove_message
+import nomnomzbot.composeapp.generated.resources.songrequests_remove_title
 import nomnomzbot.composeapp.generated.resources.songrequests_requested_by
+import nomnomzbot.composeapp.generated.resources.songrequests_resume
 import nomnomzbot.composeapp.generated.resources.songrequests_retry
 import nomnomzbot.composeapp.generated.resources.songrequests_row_description
+import nomnomzbot.composeapp.generated.resources.songrequests_skip
 import nomnomzbot.composeapp.generated.resources.songrequests_unknown_requester
 import org.jetbrains.compose.resources.stringResource
 
-// The Song Requests page: the channel's live music queue — every track is real data from
+// The Song Requests page: the channel's live music queue, made controllable — every track is real data from
 // [SongRequestsController] (the backend sources it from the connected music provider). The screen is a pure
-// projection of the controller's state; it loads on first composition and offers a retry on failure. Read-only
-// this slice (no skip/remove actions).
+// projection of the controller's state; it loads on first composition and offers a retry on failure. A header
+// control area drives playback (Skip / Pause / Resume act directly), and each queued song carries a Remove
+// affordance that only runs once confirmed in the shared ConfirmDialog (the controller reloads on success).
 @Composable
 fun SongRequestsScreen(controller: SongRequestsController) {
     val state: SongRequestsState by controller.state.collectAsStateWithLifecycle()
@@ -73,25 +88,110 @@ fun SongRequestsScreen(controller: SongRequestsController) {
                 CenteredMessage(stringResource(Res.string.songrequests_empty))
             is SongRequestsState.Error ->
                 ErrorContent(detail = current.detail, onRetry = { scope.launch { controller.load() } })
-            is SongRequestsState.Ready -> QueueList(queue = current.queue)
+            is SongRequestsState.Ready ->
+                ReadyContent(
+                    queue = current.queue,
+                    actionError = current.actionError,
+                    onSkip = { scope.launch { controller.skip() } },
+                    onPause = { scope.launch { controller.pause() } },
+                    onResume = { scope.launch { controller.resume() } },
+                    onRemove = { position -> scope.launch { controller.remove(position) } },
+                )
         }
     }
 }
 
 @Composable
-private fun QueueList(queue: List<QueuedSong>) {
+private fun ReadyContent(
+    queue: List<QueuedSong>,
+    actionError: String?,
+    onSkip: () -> Unit,
+    onPause: () -> Unit,
+    onResume: () -> Unit,
+    onRemove: (position: Int) -> Unit,
+) {
+    val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
 
-    LazyColumn(
+    // The queued song awaiting confirmation, if any — the screen owns the dialog's open/closed state.
+    var pendingRemoval: QueuedSong? by remember { mutableStateOf(null) }
+
+    Column(
         modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(spacing.s2),
+        verticalArrangement = Arrangement.spacedBy(spacing.s3),
     ) {
-        items(items = queue, key = { song -> song.position }) { song -> QueueRow(song = song) }
+        PlaybackControls(onSkip = onSkip, onPause = onPause, onResume = onResume)
+
+        actionError?.let { detail ->
+            Text(
+                text = stringResource(Res.string.songrequests_action_error, detail),
+                style = typography.sm,
+                color = tokens.destructive,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.s1),
+            )
+        }
+
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.spacedBy(spacing.s2),
+        ) {
+            items(items = queue, key = { song -> song.position }) { song ->
+                QueueRow(song = song, onRemove = { pendingRemoval = song })
+            }
+        }
+    }
+
+    pendingRemoval?.let { song ->
+        val title: String = song.trackName.takeIf { it.isNotBlank() } ?: song.artist
+        ConfirmDialog(
+            title = stringResource(Res.string.songrequests_remove_title),
+            message = stringResource(Res.string.songrequests_remove_message, title),
+            confirmLabel = stringResource(Res.string.songrequests_remove_confirm),
+            dismissLabel = stringResource(Res.string.songrequests_remove_dismiss),
+            destructive = true,
+            onConfirm = {
+                onRemove(song.position)
+                pendingRemoval = null
+            },
+            onDismiss = { pendingRemoval = null },
+        )
     }
 }
 
 @Composable
-private fun QueueRow(song: QueuedSong) {
+private fun PlaybackControls(
+    onSkip: () -> Unit,
+    onPause: () -> Unit,
+    onResume: () -> Unit,
+) {
+    val spacing = LocalSpacing.current
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        ControlButton(label = stringResource(Res.string.songrequests_skip), onClick = onSkip)
+        ControlButton(label = stringResource(Res.string.songrequests_pause), onClick = onPause)
+        ControlButton(label = stringResource(Res.string.songrequests_resume), onClick = onResume)
+    }
+}
+
+@Composable
+private fun ControlButton(label: String, onClick: () -> Unit) {
+    val tokens = LocalTokens.current
+
+    TextButton(
+        onClick = onClick,
+        modifier = Modifier.clearAndSetSemantics { contentDescription = label },
+    ) {
+        Text(text = label, color = tokens.primary)
+    }
+}
+
+@Composable
+private fun QueueRow(song: QueuedSong, onRemove: () -> Unit) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
@@ -104,15 +204,14 @@ private fun QueueRow(song: QueuedSong) {
     val requestedLabel: String = stringResource(Res.string.songrequests_requested_by, requester)
     val rowDescription: String =
         stringResource(Res.string.songrequests_row_description, positionLabel, title, requester)
+    val removeLabel: String = stringResource(Res.string.songrequests_remove_action, title)
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(tokens.radius.lg))
             .background(tokens.card)
-            .padding(horizontal = spacing.s4, vertical = spacing.s3)
-            // One node for screen readers: "1, Track Title, requested by Stoney_Eagle".
-            .clearAndSetSemantics { contentDescription = rowDescription },
+            .padding(horizontal = spacing.s4, vertical = spacing.s3),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(spacing.s3),
     ) {
@@ -122,7 +221,10 @@ private fun QueueRow(song: QueuedSong) {
             foreground = tokens.secondaryForeground,
         )
         Column(
-            modifier = Modifier.weight(1f),
+            modifier = Modifier
+                .weight(1f)
+                // One node for screen readers: "1, Track Title, requested by Stoney_Eagle".
+                .clearAndSetSemantics { contentDescription = rowDescription },
             verticalArrangement = Arrangement.spacedBy(spacing.s1),
         ) {
             Text(text = title, style = typography.base, color = tokens.cardForeground)
@@ -131,6 +233,15 @@ private fun QueueRow(song: QueuedSong) {
             }
         }
         Text(text = requestedLabel, style = typography.xs, color = tokens.mutedForeground)
+        TextButton(
+            onClick = onRemove,
+            modifier = Modifier.clearAndSetSemantics { contentDescription = removeLabel },
+        ) {
+            Text(
+                text = stringResource(Res.string.songrequests_remove_action_short),
+                color = tokens.destructive,
+            )
+        }
     }
 }
 

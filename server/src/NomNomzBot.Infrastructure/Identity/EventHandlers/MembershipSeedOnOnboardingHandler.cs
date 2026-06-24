@@ -103,6 +103,13 @@ public sealed class MembershipSeedOnOnboardingHandler(
             new TwitchPageRequest(),
             ct
         );
+        if (modsResult.IsFailure)
+            logger.LogWarning(
+                "Onboarding seed (memberships): reading moderators from Twitch failed for {BroadcasterId}: {Error} ({Code}) — management roles sourced from moderators will be empty until re-auth grants the scope",
+                broadcasterId,
+                modsResult.ErrorMessage,
+                modsResult.ErrorCode
+            );
         if (modsResult.IsSuccess)
             foreach (TwitchModerator mod in modsResult.Value.Items)
             {
@@ -123,6 +130,13 @@ public sealed class MembershipSeedOnOnboardingHandler(
 
         Result<IReadOnlyList<TwitchChannelEditor>> editorsResult =
             await channels.GetChannelEditorsAsync(broadcasterId, ct);
+        if (editorsResult.IsFailure)
+            logger.LogWarning(
+                "Onboarding seed (memberships): reading channel editors from Twitch failed for {BroadcasterId}: {Error} ({Code}) — editor roles will be empty until re-auth grants the scope",
+                broadcasterId,
+                editorsResult.ErrorMessage,
+                editorsResult.ErrorCode
+            );
         if (editorsResult.IsSuccess)
             foreach (TwitchChannelEditor editor in editorsResult.Value)
             {

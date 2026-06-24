@@ -44,20 +44,48 @@ public sealed class CommunityRosterService(
         if (!channelExists)
             return Errors.ChannelNotFound<int>(broadcasterId.ToString());
 
-        // Pull the current rosters from Helix. A failure (no token / missing scope) degrades to an empty
-        // roster — the channel simply seeds nothing rather than throwing.
+        // Pull the current rosters from Helix. A read can legitimately be empty (no mods/VIPs) OR fail
+        // (no token / missing scope / Twitch error). The two must not be conflated: a failed read that
+        // silently became "0 moderators" is exactly the bug this fix closes — it hides a missing
+        // `moderation:read` / `channel:read:vips` grant behind a real-looking empty Community page. Each
+        // failed read is logged with its actual Helix error code so the cause is observable, and a read
+        // that failed (rather than returned empty) propagates as a failure so the onboarding seed handler
+        // and the dashboard surface "could not read your moderators" instead of a false zero.
         Result<TwitchPage<TwitchModerator>> modsResult = await moderators.GetModeratorsAsync(
             broadcasterId,
             new TwitchPageRequest(),
             cancellationToken
         );
-        IReadOnlyList<TwitchModerator> mods = modsResult.IsSuccess ? modsResult.Value.Items : [];
+        if (modsResult.IsFailure)
+            logger.LogWarning(
+                "Community roster sync: reading moderators from Twitch failed for {BroadcasterId}: {Error} ({Code}){Detail}",
+                broadcasterId,
+                modsResult.ErrorMessage,
+                modsResult.ErrorCode,
+                modsResult.ErrorDetail is null ? "" : $" — {modsResult.ErrorDetail}"
+            );
 
         Result<TwitchPage<TwitchVip>> vipsResult = await moderators.GetVipsAsync(
             broadcasterId,
             new TwitchPageRequest(),
             cancellationToken
         );
+        if (vipsResult.IsFailure)
+            logger.LogWarning(
+                "Community roster sync: reading VIPs from Twitch failed for {BroadcasterId}: {Error} ({Code}){Detail}",
+                broadcasterId,
+                vipsResult.ErrorMessage,
+                vipsResult.ErrorCode,
+                vipsResult.ErrorDetail is null ? "" : $" — {vipsResult.ErrorDetail}"
+            );
+
+        // Both reads failed (e.g. the streamer's token lacks `moderation:read` + `channel:read:vips`) —
+        // there is nothing to seed and the channel's real roster is unknown, not empty. Surface the
+        // moderator failure (the primary signal) rather than reporting a misleading success.
+        if (modsResult.IsFailure && vipsResult.IsFailure)
+            return modsResult.WithValue(0);
+
+        IReadOnlyList<TwitchModerator> mods = modsResult.IsSuccess ? modsResult.Value.Items : [];
         IReadOnlyList<TwitchVip> vips = vipsResult.IsSuccess ? vipsResult.Value.Items : [];
 
         if (mods.Count == 0 && vips.Count == 0)

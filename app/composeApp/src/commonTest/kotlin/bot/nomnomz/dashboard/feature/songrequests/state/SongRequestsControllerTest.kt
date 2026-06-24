@@ -18,12 +18,14 @@ import bot.nomnomz.dashboard.core.network.QueuedSong
 import bot.nomnomz.dashboard.core.network.SongRequestsApi
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
 
-// Proves the Song Requests page state machine the screen renders: resolve the active channel, then surface the
-// real queue — empty as Empty, a failure of either step as Error. The screen is a pure projection of this, so
-// testing it proves the page shows the real music queue (no fabricated tracks) and degrades cleanly.
+// Proves the Song Requests page state machine the screen renders: resolve the active channel, surface the real
+// queue (empty as Empty, a failure of either step as Error), and drive the supported playback controls. The
+// screen is a pure projection of this, so testing it proves the page shows the real music queue (no fabricated
+// tracks), controls it through the real backend routes, reloads on a successful control, and degrades cleanly.
 class SongRequestsControllerTest {
 
     @Test
@@ -101,13 +103,147 @@ class SongRequestsControllerTest {
 
         assertTrue(controller.state.value is SongRequestsState.Empty)
     }
+
+    @Test
+    fun skip_hits_the_skip_route_then_reloads_the_queue() = runTest {
+        val before = listOf(QueuedSong(position = 0, trackName = "A"), QueuedSong(position = 1, trackName = "B"))
+        val after = listOf(QueuedSong(position = 0, trackName = "B"))
+        val songRequestsApi =
+            // First load returns both; after the skip succeeds the reload returns the advanced queue.
+            FakeSongRequestsApi(queueResults = listOf(ApiResult.Ok(before), ApiResult.Ok(after)))
+        val controller =
+            SongRequestsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), songRequestsApi)
+
+        controller.load()
+        controller.skip()
+
+        // The skip hit the real route with the resolved channel.
+        assertEquals(listOf("ch1"), songRequestsApi.skipCalls)
+        // The queue reloaded and now reflects the post-skip state.
+        val state: SongRequestsState = controller.state.value
+        assertTrue(state is SongRequestsState.Ready)
+        assertEquals(listOf("B"), (state as SongRequestsState.Ready).queue.map { it.trackName })
+        assertNull(state.actionError)
+    }
+
+    @Test
+    fun pause_hits_the_pause_route_then_reloads() = runTest {
+        val queue = listOf(QueuedSong(position = 0, trackName = "A"))
+        val songRequestsApi = FakeSongRequestsApi(queueResults = listOf(ApiResult.Ok(queue)))
+        val controller =
+            SongRequestsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), songRequestsApi)
+
+        controller.load()
+        controller.pause()
+
+        assertEquals(listOf("ch1"), songRequestsApi.pauseCalls)
+        // Two queue reads: the initial load plus the reload after the successful pause.
+        assertEquals(2, songRequestsApi.queueCalls)
+    }
+
+    @Test
+    fun resume_hits_the_resume_route_then_reloads() = runTest {
+        val queue = listOf(QueuedSong(position = 0, trackName = "A"))
+        val songRequestsApi = FakeSongRequestsApi(queueResults = listOf(ApiResult.Ok(queue)))
+        val controller =
+            SongRequestsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), songRequestsApi)
+
+        controller.load()
+        controller.resume()
+
+        assertEquals(listOf("ch1"), songRequestsApi.resumeCalls)
+        assertEquals(2, songRequestsApi.queueCalls)
+    }
+
+    @Test
+    fun remove_deletes_the_position_then_reloads_the_remaining_queue() = runTest {
+        val before = listOf(QueuedSong(position = 0, trackName = "A"), QueuedSong(position = 1, trackName = "B"))
+        val after = listOf(QueuedSong(position = 0, trackName = "A"))
+        val songRequestsApi =
+            FakeSongRequestsApi(queueResults = listOf(ApiResult.Ok(before), ApiResult.Ok(after)))
+        val controller =
+            SongRequestsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), songRequestsApi)
+
+        controller.load()
+        controller.remove(1)
+
+        // The remove hit the real route with the resolved channel + the zero-based position.
+        assertEquals(listOf("ch1" to 1), songRequestsApi.removeCalls)
+        val state: SongRequestsState = controller.state.value
+        assertTrue(state is SongRequestsState.Ready)
+        assertEquals(listOf("A"), (state as SongRequestsState.Ready).queue.map { it.trackName })
+        assertNull(state.actionError)
+    }
+
+    @Test
+    fun a_failed_control_surfaces_the_error_and_keeps_the_queue() = runTest {
+        val queue = listOf(QueuedSong(position = 0, trackName = "A"))
+        val songRequestsApi =
+            FakeSongRequestsApi(
+                queueResults = listOf(ApiResult.Ok(queue)),
+                controlResult = ApiResult.Failure(ApiError(503, "UNAVAILABLE", "No active music provider.")),
+            )
+        val controller =
+            SongRequestsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), songRequestsApi)
+
+        controller.load()
+        controller.skip()
+
+        assertEquals(listOf("ch1"), songRequestsApi.skipCalls)
+        val state: SongRequestsState = controller.state.value
+        assertTrue(state is SongRequestsState.Ready)
+        // The queue is untouched and the failure is surfaced on the Ready state.
+        assertEquals(listOf("A"), (state as SongRequestsState.Ready).queue.map { it.trackName })
+        assertEquals("No active music provider.", state.actionError)
+        // Only the initial load read the queue; the failed control did not trigger a reload.
+        assertEquals(1, songRequestsApi.queueCalls)
+    }
 }
 
 private class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : ChannelsApi {
     override suspend fun primaryChannel(): ApiResult<ChannelSummary> = result
 }
 
-private class FakeSongRequestsApi(private val result: ApiResult<List<QueuedSong>>) :
-    SongRequestsApi {
-    override suspend fun queue(channelId: String): ApiResult<List<QueuedSong>> = result
+private class FakeSongRequestsApi(
+    private val queueResults: List<ApiResult<List<QueuedSong>>>,
+    // The default-OK result every control (skip/pause/resume/remove) returns unless a test overrides it.
+    private val controlResult: ApiResult<Unit> = ApiResult.Ok(Unit),
+) : SongRequestsApi {
+    // Single-result convenience for the read-only tests (one queue() result, controls unused).
+    constructor(result: ApiResult<List<QueuedSong>>) : this(queueResults = listOf(result))
+
+    var queueCalls: Int = 0
+        private set
+
+    val skipCalls: MutableList<String> = mutableListOf()
+    val pauseCalls: MutableList<String> = mutableListOf()
+    val resumeCalls: MutableList<String> = mutableListOf()
+    val removeCalls: MutableList<Pair<String, Int>> = mutableListOf()
+
+    override suspend fun queue(channelId: String): ApiResult<List<QueuedSong>> {
+        // Walk through the configured sequence; the last entry repeats once the script runs out.
+        val index: Int = minOf(queueCalls, queueResults.lastIndex)
+        queueCalls += 1
+        return queueResults[index]
+    }
+
+    override suspend fun skip(channelId: String): ApiResult<Unit> {
+        skipCalls.add(channelId)
+        return controlResult
+    }
+
+    override suspend fun pause(channelId: String): ApiResult<Unit> {
+        pauseCalls.add(channelId)
+        return controlResult
+    }
+
+    override suspend fun resume(channelId: String): ApiResult<Unit> {
+        resumeCalls.add(channelId)
+        return controlResult
+    }
+
+    override suspend fun remove(channelId: String, position: Int): ApiResult<Unit> {
+        removeCalls.add(channelId to position)
+        return controlResult
+    }
 }

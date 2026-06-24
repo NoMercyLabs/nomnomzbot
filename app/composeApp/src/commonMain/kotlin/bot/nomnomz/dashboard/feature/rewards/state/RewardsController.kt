@@ -13,15 +13,18 @@ package bot.nomnomz.dashboard.feature.rewards.state
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
+import bot.nomnomz.dashboard.core.network.CreateRewardBody
 import bot.nomnomz.dashboard.core.network.RewardSummary
 import bot.nomnomz.dashboard.core.network.RewardsApi
+import bot.nomnomz.dashboard.core.network.UpdateRewardBody
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 // The Rewards page's state-holder (frontend-ia.md §3 — the channel's channel-point rewards). Resolves the active
 // channel, then loads its real reward list from the backend (Twitch Helix Custom Rewards; no fabricated rewards).
-// The screen renders [state]; a retry / reconnect calls [load] again. Read-only this slice.
+// It also drives the page's writes — create / edit / toggle / delete — each of which re-lists on success so the
+// screen always reflects the backend's truth. The screen renders [state]; a retry / reconnect calls [load] again.
 class RewardsController(
     private val channelsApi: ChannelsApi,
     private val rewardsApi: RewardsApi,
@@ -30,6 +33,10 @@ class RewardsController(
 
     /** The page render state: loading / ready (with the rewards) / empty / error. */
     val state: StateFlow<RewardsState> = _state.asStateFlow()
+
+    // The channel the writes target — resolved by [load] and reused by every mutation so a write never has to
+    // re-resolve the channel. Null until the first successful resolve.
+    private var channelId: String? = null
 
     /** Resolve the active channel, then load its rewards list. */
     suspend fun load() {
@@ -43,6 +50,7 @@ class RewardsController(
                 }
                 is ApiResult.Ok -> result.value
             }
+        channelId = channel.id
 
         when (val result: ApiResult<List<RewardSummary>> = rewardsApi.list(channel.id)) {
             is ApiResult.Failure -> _state.value = RewardsState.Error(result.error.message)
@@ -52,13 +60,81 @@ class RewardsController(
                     else RewardsState.Ready(result.value)
         }
     }
+
+    /** Create a reward, then reload so the new row appears. Surfaces the error on failure. */
+    suspend fun createReward(title: String, cost: Int, prompt: String) {
+        val channel: String = channelId ?: return failWrite(NoChannelError)
+        afterWrite(rewardsApi.create(channel, CreateRewardBody(title, cost, prompt.ifBlank { null })))
+    }
+
+    /**
+     * Edit a reward's title / cost / prompt (and enabled flag), addressed by its [rewardId]. Reloads on
+     * success. Surfaces the error on failure.
+     */
+    suspend fun updateReward(
+        rewardId: String,
+        title: String,
+        cost: Int,
+        prompt: String,
+        isEnabled: Boolean,
+    ) {
+        val channel: String = channelId ?: return failWrite(NoChannelError)
+        afterWrite(
+            rewardsApi.update(
+                channel,
+                rewardId,
+                UpdateRewardBody(
+                    title = title,
+                    cost = cost,
+                    prompt = prompt.ifBlank { null },
+                    isEnabled = isEnabled,
+                ),
+            )
+        )
+    }
+
+    /** Flip a reward's enabled flag via the update endpoint (a partial PUT carrying only the flag). Reloads. */
+    suspend fun toggleReward(rewardId: String, enabled: Boolean) {
+        val channel: String = channelId ?: return failWrite(NoChannelError)
+        afterWrite(rewardsApi.update(channel, rewardId, UpdateRewardBody(isEnabled = enabled)))
+    }
+
+    /** Delete a reward, addressed by its [rewardId]. Reloads on success. Surfaces the error on failure. */
+    suspend fun deleteReward(rewardId: String) {
+        val channel: String = channelId ?: return failWrite(NoChannelError)
+        afterWrite(rewardsApi.delete(channel, rewardId))
+    }
+
+    // A write either reloads the list (success) or surfaces its error over the current Ready list without
+    // losing it (failure) — so a failed toggle/delete leaves the page intact with a visible reason.
+    private suspend fun afterWrite(result: ApiResult<Unit>) {
+        when (result) {
+            is ApiResult.Ok -> load()
+            is ApiResult.Failure -> failWrite(result.error.message)
+        }
+    }
+
+    private fun failWrite(detail: String) {
+        val current: RewardsState = _state.value
+        _state.value =
+            if (current is RewardsState.Ready) current.copy(actionError = detail)
+            else RewardsState.Error(detail)
+    }
+
+    private companion object {
+        const val NoChannelError: String = "No active channel — reconnect and try again."
+    }
 }
 
 /** The Rewards page render state. */
 sealed interface RewardsState {
     data object Loading : RewardsState
 
-    data class Ready(val rewards: List<RewardSummary>) : RewardsState
+    /**
+     * The channel's rewards are listed. [actionError] is non-null only when the last create/edit/toggle/delete
+     * failed — the screen surfaces it as a transient banner while keeping the list rendered.
+     */
+    data class Ready(val rewards: List<RewardSummary>, val actionError: String? = null) : RewardsState
 
     data object Empty : RewardsState
 

@@ -146,4 +146,74 @@ public sealed class CommunityRosterServiceTests
 
         result.IsFailure.Should().BeTrue();
     }
+
+    [Fact]
+    public async Task Sync_surfaces_the_helix_failure_when_both_reads_fail_instead_of_a_false_zero()
+    {
+        // The real-world stoney_eagle case: the streamer's token lacks `moderation:read` + `channel:read:vips`,
+        // so both Helix reads short-circuit with `missing_scope`. The sync must NOT report a misleading
+        // success-with-zero (which renders as a real-looking empty Community page) — it must propagate the
+        // failure carrying the scope error code, so the seed handler logs a warning and the dashboard can
+        // surface "could not read your moderators" instead of "0 moderators".
+        (CommunityRosterService sut, AuthDbContext db, ITwitchModeratorsApi mods) = Build();
+        mods.GetModeratorsAsync(Channel, Arg.Any<TwitchPageRequest>(), Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Failure<TwitchPage<TwitchModerator>>(
+                    "Missing required scope 'moderation:read'.",
+                    TwitchErrorCodes.MissingScope
+                )
+            );
+        mods.GetVipsAsync(Channel, Arg.Any<TwitchPageRequest>(), Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Failure<TwitchPage<TwitchVip>>(
+                    "Missing required scope 'channel:read:vips'.",
+                    TwitchErrorCodes.MissingScope
+                )
+            );
+
+        Result<int> result = await sut.SyncModeratorsFromTwitchAsync(Channel);
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be(TwitchErrorCodes.MissingScope);
+        result.ErrorMessage.Should().Contain("moderation:read");
+
+        // Nothing was written — the channel's real roster is unknown, not empty.
+        (await db.ChannelModerators.AnyAsync())
+            .Should()
+            .BeFalse();
+        (await db.Users.AnyAsync()).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Sync_still_seeds_the_readable_roster_when_only_the_vip_read_fails()
+    {
+        // A partial outage (VIP read fails, moderator read succeeds) must not throw away the moderators we
+        // CAN read: the moderator rows still seed, and the failure is logged (not asserted here) but does
+        // not abort the whole sync.
+        (CommunityRosterService sut, AuthDbContext db, ITwitchModeratorsApi mods) = Build();
+        mods.GetModeratorsAsync(Channel, Arg.Any<TwitchPageRequest>(), Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Success(
+                    new TwitchPage<TwitchModerator>(
+                        [new TwitchModerator("tw-mod-1", "modone", "ModOne")],
+                        null,
+                        1
+                    )
+                )
+            );
+        mods.GetVipsAsync(Channel, Arg.Any<TwitchPageRequest>(), Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Failure<TwitchPage<TwitchVip>>(
+                    "Twitch request failed (500).",
+                    TwitchErrorCodes.TwitchError
+                )
+            );
+
+        Result<int> result = await sut.SyncModeratorsFromTwitchAsync(Channel);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().Be(1);
+        (await db.ChannelModerators.CountAsync(m => m.ChannelId == Channel)).Should().Be(1);
+        (await db.Users.CountAsync(u => u.TwitchUserId == "tw-mod-1")).Should().Be(1);
+    }
 }

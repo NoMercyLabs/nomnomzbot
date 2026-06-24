@@ -152,8 +152,12 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
         // Ignore every entity these tests do not exercise so the model stays minimal and provider-agnostic.
         b.Ignore<NomNomzBot.Domain.Platform.Entities.Service>();
         b.Ignore<NomNomzBot.Domain.Commands.Entities.Command>();
-        b.Ignore<NomNomzBot.Domain.Rewards.Entities.Reward>();
         b.Ignore<NomNomzBot.Domain.Widgets.Entities.Widget>();
+
+        // Reward is scalar-only (no jsonb-of-complex-type column), so it materializes on InMemory. Mapped
+        // (navs ignored) so the reward-sync tests can prove the Twitch read path through this harness.
+        b.Entity<NomNomzBot.Domain.Rewards.Entities.Reward>().HasKey(e => e.Id);
+        b.Entity<NomNomzBot.Domain.Rewards.Entities.Reward>().Ignore(e => e.Channel);
         b.Ignore<NomNomzBot.Domain.Platform.Entities.EventSubSubscription>();
         b.Ignore<NomNomzBot.Domain.Platform.Entities.EventSubConduit>();
         b.Ignore<NomNomzBot.Domain.Platform.Entities.EventSubConduitShard>();
@@ -197,7 +201,7 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
     public DbSet<NomNomzBot.Domain.Commands.Entities.Command> Commands =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Rewards.Entities.Reward> Rewards =>
-        throw new NotSupportedException();
+        Set<NomNomzBot.Domain.Rewards.Entities.Reward>();
     public DbSet<NomNomzBot.Domain.Quotes.Entities.Quote> Quotes =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Widgets.Entities.Widget> Widgets =>

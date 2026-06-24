@@ -37,6 +37,7 @@ public class DashboardController : BaseController
     private readonly ITwitchChannelsApi _channels;
     private readonly ITwitchStreamsApi _streams;
     private readonly TimeProvider _timeProvider;
+    private readonly ILogger<DashboardController> _logger;
 
     public DashboardController(
         IChannelRegistry registry,
@@ -44,7 +45,8 @@ public class DashboardController : BaseController
         IApplicationDbContext db,
         ITwitchChannelsApi channels,
         ITwitchStreamsApi streams,
-        TimeProvider timeProvider
+        TimeProvider timeProvider,
+        ILogger<DashboardController> logger
     )
     {
         _registry = registry;
@@ -53,6 +55,7 @@ public class DashboardController : BaseController
         _channels = channels;
         _streams = streams;
         _timeProvider = timeProvider;
+        _logger = logger;
     }
 
     // ── DTOs ──────────────────────────────────────────────────────────────────
@@ -78,10 +81,19 @@ public class DashboardController : BaseController
         if (!Guid.TryParse(channelId, out Guid tenantId))
             return BadRequestResponse("Invalid channel id.");
 
-        // The sub-clients resolve the tenant Guid → Twitch id internally; a failure (no token / missing
-        // scope / offline) degrades gracefully to 0 rather than failing the whole stats snapshot.
+        // The sub-clients resolve the tenant Guid → Twitch id internally. A failure (no token / missing
+        // scope / Twitch error) still degrades to 0 so the whole stats snapshot doesn't fail — but it is
+        // logged with the real Helix error code, so a persistent "0 followers" on a non-empty channel is
+        // diagnosable (a missing `moderator:read:followers` grant) instead of an invisible silent zero.
         Result<int> followerResult = await _channels.GetChannelFollowerCountAsync(tenantId, ct);
         int followerCount = followerResult.IsSuccess ? followerResult.Value : 0;
+        if (followerResult.IsFailure)
+            _logger.LogWarning(
+                "Dashboard stats: reading the follower count from Twitch failed for {BroadcasterId}: {Error} ({Code}) — reporting 0",
+                tenantId,
+                followerResult.ErrorMessage,
+                followerResult.ErrorCode
+            );
 
         ChannelContext? ctx = _registry.Get(tenantId);
 

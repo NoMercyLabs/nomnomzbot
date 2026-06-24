@@ -209,20 +209,36 @@ public class RewardService : IRewardService
         if (!channelExists)
             return Errors.ChannelNotFound(broadcasterId);
 
-        // The sub-client resolves the tenant Guid → Twitch id internally; a failure degrades to "no rewards".
+        // Reconcile the bot's MANAGED rewards (rewards.md §3.1): Helix returns only rewards this client_id
+        // created (`only_manageable_rewards=true`). A freshly-onboarded channel where the bot has created
+        // none legitimately yields an empty set — unmanaged (streamer-created) rewards are NOT pulled here;
+        // they surface at redemption time. A *failed* read (no token / missing scope / Twitch error) is a
+        // different thing entirely and must not masquerade as "no rewards": it is logged with its real Helix
+        // error code and propagated so the onboarding seed handler and dashboard see the actual cause.
         Result<IReadOnlyList<TwitchCustomReward>> rewardsResult =
             await _channelPoints.GetCustomRewardsAsync(
                 broadcaster,
                 onlyManageableRewards: true,
                 ct: cancellationToken
             );
-        IReadOnlyList<TwitchCustomReward> twitchRewards = rewardsResult.IsSuccess
-            ? rewardsResult.Value
-            : [];
+        if (rewardsResult.IsFailure)
+        {
+            _logger.LogWarning(
+                "Reward sync: reading channel-point rewards from Twitch failed for {BroadcasterId}: {Error} ({Code}){Detail}",
+                broadcasterId,
+                rewardsResult.ErrorMessage,
+                rewardsResult.ErrorCode,
+                rewardsResult.ErrorDetail is null ? "" : $" — {rewardsResult.ErrorDetail}"
+            );
+            return rewardsResult;
+        }
+
+        IReadOnlyList<TwitchCustomReward> twitchRewards = rewardsResult.Value;
         if (twitchRewards.Count == 0)
         {
             _logger.LogInformation(
-                "No manageable rewards found for broadcaster {BroadcasterId}",
+                "Reward sync: Twitch returned no bot-managed rewards for broadcaster {BroadcasterId} "
+                    + "(streamer-created rewards are unmanaged and surface at redemption time, not via sync)",
                 broadcasterId
             );
             return Result.Success();

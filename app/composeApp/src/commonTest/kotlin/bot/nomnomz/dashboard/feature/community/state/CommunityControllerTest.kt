@@ -16,14 +16,19 @@ import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.CommunityApi
 import bot.nomnomz.dashboard.core.network.CommunityMember
+import bot.nomnomz.dashboard.core.network.CommunityTrustLevel
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
 
-// Proves the Community page state machine the screen renders: resolve the active channel, then surface the real
-// member list — empty as Empty, a failure of either step as Error. The screen is a pure projection of this, so
-// testing it proves the page shows real viewers (no fabricated lists) and degrades cleanly.
+// Proves the Community page state machine the screen renders: resolve the active channel, surface the real
+// member list (empty as Empty, a failure of either step as Error), and manage each member — set their trust
+// level, ban them, or lift a ban. Each action must hit the right backend route with the resolved channel,
+// reload on success so the list reflects the backend's truth, and surface a failure over the intact list.
+// The screen is a pure projection of this, so testing it proves the page acts on real data and degrades
+// cleanly.
 class CommunityControllerTest {
 
     @Test
@@ -99,12 +104,197 @@ class CommunityControllerTest {
 
         assertTrue(controller.state.value is CommunityState.Empty)
     }
+
+    @Test
+    fun set_trust_calls_the_trust_route_then_reloads_the_updated_member() = runTest {
+        val viewer = CommunityMember(id = "u1", displayName = "Viewer One", trustLevel = "viewer")
+        val communityApi =
+            FakeCommunityApi(
+                // The reload after the trust write returns the member at the new level.
+                membersResults =
+                    listOf(
+                        ApiResult.Ok(listOf(viewer)),
+                        ApiResult.Ok(listOf(viewer.copy(trustLevel = CommunityTrustLevel.Vip))),
+                    )
+            )
+        val controller =
+            CommunityController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), communityApi)
+
+        controller.load()
+        controller.setTrust("u1", CommunityTrustLevel.Vip)
+
+        // The write hit the trust route with the resolved channel, the member, and the chosen level.
+        assertEquals(listOf(Triple("ch1", "u1", CommunityTrustLevel.Vip)), communityApi.trustCalls)
+        // The list reloaded and the member's badge now reflects the new level.
+        val state: CommunityState = controller.state.value
+        assertTrue(state is CommunityState.Ready)
+        assertEquals(CommunityTrustLevel.Vip, (state as CommunityState.Ready).members.first().trustLevel)
+        assertNull(state.actionError)
+    }
+
+    @Test
+    fun set_trust_surfaces_the_error_and_keeps_the_list_when_it_fails() = runTest {
+        val viewer = CommunityMember(id = "u1", displayName = "Viewer One", trustLevel = "viewer")
+        val communityApi =
+            FakeCommunityApi(
+                membersResults = listOf(ApiResult.Ok(listOf(viewer))),
+                trustResult = ApiResult.Failure(ApiError(403, "FORBIDDEN", "Missing scope.")),
+            )
+        val controller =
+            CommunityController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), communityApi)
+
+        controller.load()
+        controller.setTrust("u1", CommunityTrustLevel.Moderator)
+
+        assertEquals(listOf(Triple("ch1", "u1", CommunityTrustLevel.Moderator)), communityApi.trustCalls)
+        val state: CommunityState = controller.state.value
+        assertTrue(state is CommunityState.Ready)
+        // The list is intact (still the viewer, unchanged) and the failure is surfaced on the Ready state.
+        assertEquals(listOf("u1"), (state as CommunityState.Ready).members.map { it.id })
+        assertEquals("viewer", state.members.first().trustLevel)
+        assertEquals("Missing scope.", state.actionError)
+        // Only the initial load fetched members; the failed write did not trigger a reload.
+        assertEquals(1, communityApi.membersCalls)
+    }
+
+    @Test
+    fun ban_calls_the_ban_route_then_reloads_with_the_member_banned() = runTest {
+        val troll = CommunityMember(id = "u1", displayName = "Troll", isBanned = false)
+        val communityApi =
+            FakeCommunityApi(
+                membersResults =
+                    listOf(
+                        ApiResult.Ok(listOf(troll)),
+                        ApiResult.Ok(listOf(troll.copy(isBanned = true))),
+                    )
+            )
+        val controller =
+            CommunityController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), communityApi)
+
+        controller.load()
+        controller.ban("u1", "Spamming links")
+
+        // The write hit the ban route with the resolved channel, the member, and the reason.
+        assertEquals(listOf(Triple("ch1", "u1", "Spamming links")), communityApi.banCalls)
+        // The list reloaded and the member now reads as banned.
+        val state: CommunityState = controller.state.value
+        assertTrue(state is CommunityState.Ready)
+        assertTrue((state as CommunityState.Ready).members.first().isBanned)
+        assertNull(state.actionError)
+    }
+
+    @Test
+    fun ban_surfaces_the_error_and_keeps_the_list_when_it_fails() = runTest {
+        val troll = CommunityMember(id = "u1", displayName = "Troll", isBanned = false)
+        val communityApi =
+            FakeCommunityApi(
+                membersResults = listOf(ApiResult.Ok(listOf(troll))),
+                banResult = ApiResult.Failure(ApiError(403, "FORBIDDEN", "Missing scope.")),
+            )
+        val controller =
+            CommunityController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), communityApi)
+
+        controller.load()
+        controller.ban("u1", "Spamming links")
+
+        assertEquals(listOf(Triple("ch1", "u1", "Spamming links")), communityApi.banCalls)
+        val state: CommunityState = controller.state.value
+        assertTrue(state is CommunityState.Ready)
+        // The list is intact (still not banned) and the failure is surfaced.
+        assertEquals(false, (state as CommunityState.Ready).members.first().isBanned)
+        assertEquals("Missing scope.", state.actionError)
+        assertEquals(1, communityApi.membersCalls)
+    }
+
+    @Test
+    fun unban_calls_the_unban_route_then_reloads_with_the_member_cleared() = runTest {
+        val troll = CommunityMember(id = "u1", displayName = "Troll", isBanned = true)
+        val communityApi =
+            FakeCommunityApi(
+                membersResults =
+                    listOf(
+                        ApiResult.Ok(listOf(troll)),
+                        ApiResult.Ok(listOf(troll.copy(isBanned = false))),
+                    )
+            )
+        val controller =
+            CommunityController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), communityApi)
+
+        controller.load()
+        controller.unban("u1")
+
+        // The write hit the unban route with the resolved channel and the member.
+        assertEquals(listOf("ch1" to "u1"), communityApi.unbanCalls)
+        // The list reloaded and the member is no longer banned.
+        val state: CommunityState = controller.state.value
+        assertTrue(state is CommunityState.Ready)
+        assertEquals(false, (state as CommunityState.Ready).members.first().isBanned)
+        assertNull(state.actionError)
+    }
+
+    @Test
+    fun unban_surfaces_the_error_and_keeps_the_list_when_it_fails() = runTest {
+        val troll = CommunityMember(id = "u1", displayName = "Troll", isBanned = true)
+        val communityApi =
+            FakeCommunityApi(
+                membersResults = listOf(ApiResult.Ok(listOf(troll))),
+                unbanResult = ApiResult.Failure(ApiError(403, "FORBIDDEN", "Missing scope.")),
+            )
+        val controller =
+            CommunityController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), communityApi)
+
+        controller.load()
+        controller.unban("u1")
+
+        assertEquals(listOf("ch1" to "u1"), communityApi.unbanCalls)
+        val state: CommunityState = controller.state.value
+        assertTrue(state is CommunityState.Ready)
+        // The list is intact (still banned) and the failure is surfaced.
+        assertTrue((state as CommunityState.Ready).members.first().isBanned)
+        assertEquals("Missing scope.", state.actionError)
+        assertEquals(1, communityApi.membersCalls)
+    }
 }
 
 private class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : ChannelsApi {
     override suspend fun primaryChannel(): ApiResult<ChannelSummary> = result
 }
 
-private class FakeCommunityApi(private val result: ApiResult<List<CommunityMember>>) : CommunityApi {
-    override suspend fun members(channelId: String): ApiResult<List<CommunityMember>> = result
+private class FakeCommunityApi(
+    private val membersResults: List<ApiResult<List<CommunityMember>>>,
+    private val trustResult: ApiResult<Unit> = ApiResult.Ok(Unit),
+    private val banResult: ApiResult<Unit> = ApiResult.Ok(Unit),
+    private val unbanResult: ApiResult<Unit> = ApiResult.Ok(Unit),
+) : CommunityApi {
+    // Single-result convenience for the read-only tests (one members() result, default-OK writes).
+    constructor(result: ApiResult<List<CommunityMember>>) : this(membersResults = listOf(result))
+
+    var membersCalls: Int = 0
+        private set
+
+    val trustCalls: MutableList<Triple<String, String, String>> = mutableListOf()
+    val banCalls: MutableList<Triple<String, String, String>> = mutableListOf()
+    val unbanCalls: MutableList<Pair<String, String>> = mutableListOf()
+
+    override suspend fun members(channelId: String): ApiResult<List<CommunityMember>> {
+        // Walk through the configured sequence; the last entry repeats once the script runs out.
+        val index: Int = minOf(membersCalls, membersResults.lastIndex)
+        membersCalls += 1
+        return membersResults[index]
+    }
+
+    override suspend fun setTrust(channelId: String, userId: String, level: String): ApiResult<Unit> {
+        trustCalls.add(Triple(channelId, userId, level))
+        return trustResult
+    }
+
+    override suspend fun ban(channelId: String, userId: String, reason: String): ApiResult<Unit> {
+        banCalls.add(Triple(channelId, userId, reason))
+        return banResult
+    }
+
+    override suspend fun unban(channelId: String, userId: String): ApiResult<Unit> {
+        unbanCalls.add(channelId to userId)
+        return unbanResult
+    }
 }
