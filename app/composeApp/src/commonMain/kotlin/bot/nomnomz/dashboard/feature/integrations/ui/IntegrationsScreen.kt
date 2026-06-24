@@ -32,14 +32,17 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
+import bot.nomnomz.dashboard.core.network.MissingScope
 import bot.nomnomz.dashboard.feature.integrations.state.BusyTarget
 import bot.nomnomz.dashboard.feature.integrations.state.IntegrationsController
 import bot.nomnomz.dashboard.feature.integrations.state.IntegrationsState
 import bot.nomnomz.dashboard.feature.integrations.state.ProviderConnection
+import bot.nomnomz.dashboard.feature.integrations.state.RegrantState
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
@@ -61,6 +64,16 @@ import nomnomzbot.composeapp.generated.resources.integrations_subtitle
 import nomnomzbot.composeapp.generated.resources.integrations_title
 import nomnomzbot.composeapp.generated.resources.integrations_youtube_subtitle
 import nomnomzbot.composeapp.generated.resources.integrations_youtube_title
+import nomnomzbot.composeapp.generated.resources.permissions_banner_action
+import nomnomzbot.composeapp.generated.resources.permissions_banner_body
+import nomnomzbot.composeapp.generated.resources.permissions_banner_body_generic
+import nomnomzbot.composeapp.generated.resources.permissions_banner_title
+import nomnomzbot.composeapp.generated.resources.permissions_feature_fallback
+import nomnomzbot.composeapp.generated.resources.permissions_regrant_cancel
+import nomnomzbot.composeapp.generated.resources.permissions_regrant_instruction
+import nomnomzbot.composeapp.generated.resources.permissions_regrant_open
+import nomnomzbot.composeapp.generated.resources.permissions_regrant_title
+import nomnomzbot.composeapp.generated.resources.permissions_regrant_waiting
 
 // The integrations / onboarding screen (frontend.md §5). Lists the bot account + the three
 // providers with live connection status read from the backend, and runs the REAL connect/disconnect
@@ -117,6 +130,21 @@ fun IntegrationsScreen(controller: IntegrationsController) {
 
             is IntegrationsState.Ready ->
                 Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
+                    // The streamer-token scope health surface: a re-grant panel while one is in flight, else a
+                    // persistent banner whenever a feature needs a Twitch permission the token is missing.
+                    current.regrant?.let { regrant: RegrantState ->
+                        RegrantPanel(
+                            regrant = regrant,
+                            onCancel = { controller.cancelRegrant() },
+                        )
+                    }
+                    if (current.regrant == null && current.missingScopes.isNotEmpty()) {
+                        MissingScopesBanner(
+                            missing = current.missingScopes,
+                            onGrant = { scope.launch { controller.regrantScopes() } },
+                        )
+                    }
+
                     BotRow(
                         connected = current.bot.connected,
                         accountName = current.bot.accountName,
@@ -254,6 +282,89 @@ private fun IntegrationCard(
                         )
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MissingScopesBanner(missing: List<MissingScope>, onGrant: () -> Unit) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    // One scope → name it + what it unlocks; several → a clear count. Either way the action is one click.
+    val body: String =
+        if (missing.size == 1) {
+            val only: MissingScope = missing.first()
+            val feature: String =
+                only.features.firstOrNull() ?: stringResource(Res.string.permissions_feature_fallback)
+            stringResource(Res.string.permissions_banner_body, only.scope, feature)
+        } else {
+            stringResource(Res.string.permissions_banner_body_generic, missing.size)
+        }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(tokens.card, RoundedCornerShape(tokens.radius.lg))
+            .border(width = spacing.s0_5 / 2, color = tokens.primary, shape = RoundedCornerShape(tokens.radius.lg))
+            .padding(spacing.s4),
+        verticalArrangement = Arrangement.spacedBy(spacing.s2),
+    ) {
+        Text(
+            text = stringResource(Res.string.permissions_banner_title),
+            style = typography.base,
+            color = tokens.cardForeground,
+        )
+        Text(text = body, style = typography.sm, color = tokens.mutedForeground)
+        Button(onClick = onGrant, modifier = Modifier.align(Alignment.Start)) {
+            Text(stringResource(Res.string.permissions_banner_action), maxLines = 1)
+        }
+    }
+}
+
+@Composable
+private fun RegrantPanel(regrant: RegrantState, onCancel: () -> Unit) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+    val uriHandler = LocalUriHandler.current
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(tokens.card, RoundedCornerShape(tokens.radius.lg))
+            .border(width = spacing.s0_5 / 2, color = tokens.primary, shape = RoundedCornerShape(tokens.radius.lg))
+            .padding(spacing.s4),
+        verticalArrangement = Arrangement.spacedBy(spacing.s2),
+    ) {
+        Text(
+            text = stringResource(Res.string.permissions_regrant_title),
+            style = typography.base,
+            color = tokens.cardForeground,
+        )
+        Text(
+            text = stringResource(Res.string.permissions_regrant_instruction),
+            style = typography.sm,
+            color = tokens.mutedForeground,
+        )
+        Text(
+            text = regrant.userCode,
+            style = typography.xl2,
+            color = tokens.primary,
+        )
+        Text(
+            text = stringResource(Res.string.permissions_regrant_waiting),
+            style = typography.xs,
+            color = tokens.mutedForeground,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2), verticalAlignment = Alignment.CenterVertically) {
+            Button(onClick = { uriHandler.openUri(regrant.verificationUri) }) {
+                Text(stringResource(Res.string.permissions_regrant_open), maxLines = 1)
+            }
+            TextButton(onClick = onCancel) {
+                Text(stringResource(Res.string.permissions_regrant_cancel), maxLines = 1)
             }
         }
     }

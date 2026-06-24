@@ -21,46 +21,60 @@ import bot.nomnomz.dashboard.core.i18n.LanguageStore
 import bot.nomnomz.dashboard.core.network.ApiClient
 import bot.nomnomz.dashboard.core.network.AuthApi
 import bot.nomnomz.dashboard.core.network.BotAuthApi
+import bot.nomnomz.dashboard.core.network.AlertsApi
 import bot.nomnomz.dashboard.core.network.AnalyticsApi
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.CommandsApi
 import bot.nomnomz.dashboard.core.network.CommunityApi
 import bot.nomnomz.dashboard.core.network.DashboardApi
+import bot.nomnomz.dashboard.core.network.EconomyApi
 import bot.nomnomz.dashboard.core.network.IntegrationsApi
 import bot.nomnomz.dashboard.core.network.ModerationApi
+import bot.nomnomz.dashboard.core.network.RestAlertsApi
 import bot.nomnomz.dashboard.core.network.RestAnalyticsApi
 import bot.nomnomz.dashboard.core.network.RestCommandsApi
 import bot.nomnomz.dashboard.core.network.RestCommunityApi
+import bot.nomnomz.dashboard.core.network.RestEconomyApi
 import bot.nomnomz.dashboard.core.network.GamesApi
 import bot.nomnomz.dashboard.core.network.RestGamesApi
 import bot.nomnomz.dashboard.core.network.RestModerationApi
 import bot.nomnomz.dashboard.core.network.RestRewardsApi
 import bot.nomnomz.dashboard.core.network.RestSongRequestsApi
+import bot.nomnomz.dashboard.core.network.RestStreamApi
 import bot.nomnomz.dashboard.core.network.RestTimersApi
 import bot.nomnomz.dashboard.core.network.RestTtsApi
+import bot.nomnomz.dashboard.core.network.RestWidgetsApi
 import bot.nomnomz.dashboard.core.network.RewardsApi
 import bot.nomnomz.dashboard.core.network.SongRequestsApi
+import bot.nomnomz.dashboard.core.network.StreamApi
 import bot.nomnomz.dashboard.core.network.TimersApi
 import bot.nomnomz.dashboard.core.network.TtsApi
+import bot.nomnomz.dashboard.core.network.WidgetsApi
 import bot.nomnomz.dashboard.core.network.RestAuthApi
 import bot.nomnomz.dashboard.core.network.RestBotAuthApi
 import bot.nomnomz.dashboard.core.network.RestChannelsApi
 import bot.nomnomz.dashboard.core.network.RestDashboardApi
 import bot.nomnomz.dashboard.core.network.RestIntegrationsApi
 import bot.nomnomz.dashboard.core.network.RestSystemApi
+import bot.nomnomz.dashboard.core.network.RestTwitchDiagnosticsApi
 import bot.nomnomz.dashboard.core.network.SystemApi
+import bot.nomnomz.dashboard.core.network.TwitchDiagnosticsApi
+import bot.nomnomz.dashboard.feature.alerts.state.AlertsController
 import bot.nomnomz.dashboard.feature.analytics.state.AnalyticsController
 import bot.nomnomz.dashboard.feature.commands.state.CommandsController
 import bot.nomnomz.dashboard.feature.community.state.CommunityController
 import bot.nomnomz.dashboard.feature.connect.state.ConnectController
+import bot.nomnomz.dashboard.feature.economy.state.EconomyController
 import bot.nomnomz.dashboard.feature.home.state.HomeController
 import bot.nomnomz.dashboard.feature.integrations.state.IntegrationsController
 import bot.nomnomz.dashboard.feature.games.state.GamesController
 import bot.nomnomz.dashboard.feature.moderation.state.ModerationController
 import bot.nomnomz.dashboard.feature.rewards.state.RewardsController
+import bot.nomnomz.dashboard.feature.settings.state.SettingsController
 import bot.nomnomz.dashboard.feature.songrequests.state.SongRequestsController
 import bot.nomnomz.dashboard.feature.timers.state.TimersController
 import bot.nomnomz.dashboard.feature.tts.state.TtsController
+import bot.nomnomz.dashboard.feature.widgets.state.WidgetsController
 import bot.nomnomz.dashboard.feature.language.state.LanguageController
 import bot.nomnomz.dashboard.feature.setup.state.SetupController
 
@@ -90,6 +104,7 @@ class AppGraph {
     val channelsApi: ChannelsApi = RestChannelsApi(apiClient)
     val botAuthApi: BotAuthApi = RestBotAuthApi(apiClient)
     val integrationsApi: IntegrationsApi = RestIntegrationsApi(apiClient)
+    val twitchDiagnosticsApi: TwitchDiagnosticsApi = RestTwitchDiagnosticsApi(apiClient)
     val systemApi: SystemApi = RestSystemApi(apiClient)
     val dashboardApi: DashboardApi = RestDashboardApi(apiClient)
     val communityApi: CommunityApi = RestCommunityApi(apiClient)
@@ -101,6 +116,10 @@ class AppGraph {
     val songRequestsApi: SongRequestsApi = RestSongRequestsApi(apiClient)
     val ttsApi: TtsApi = RestTtsApi(apiClient)
     val gamesApi: GamesApi = RestGamesApi(apiClient)
+    val streamApi: StreamApi = RestStreamApi(apiClient)
+    val economyApi: EconomyApi = RestEconomyApi(apiClient)
+    val alertsApi: AlertsApi = RestAlertsApi(apiClient)
+    val widgetsApi: WidgetsApi = RestWidgetsApi(apiClient)
 
     private val oauthLauncher: OAuthLauncher = OAuthLauncher()
     private val connectLauncher: ConnectLauncher = OAuthConnectLauncher(oauthLauncher)
@@ -135,6 +154,8 @@ class AppGraph {
             botAuthApi = botAuthApi,
             integrationsApi = integrationsApi,
             connectLauncher = connectLauncher,
+            diagnosticsApi = twitchDiagnosticsApi,
+            authApi = authApi,
         )
 
     val homeController: HomeController =
@@ -165,4 +186,16 @@ class AppGraph {
 
     val gamesController: GamesController =
         GamesController(channelsApi = channelsApi, gamesApi = gamesApi)
+
+    val settingsController: SettingsController =
+        SettingsController(channelsApi = channelsApi, streamApi = streamApi)
+
+    val economyController: EconomyController =
+        EconomyController(channelsApi = channelsApi, economyApi = economyApi)
+
+    val alertsController: AlertsController =
+        AlertsController(channelsApi = channelsApi, alertsApi = alertsApi)
+
+    val widgetsController: WidgetsController =
+        WidgetsController(channelsApi = channelsApi, widgetsApi = widgetsApi)
 }

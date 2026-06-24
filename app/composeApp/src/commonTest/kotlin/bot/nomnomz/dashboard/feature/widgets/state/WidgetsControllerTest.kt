@@ -1,0 +1,213 @@
+// -----------------------------------------------------------------------------
+//  Copyright (c) NoMercy Labs.
+//
+//  This file is part of NomNomzBot, free software licensed under the GNU Affero
+//  General Public License v3.0 or later. You may redistribute and/or modify it
+//  under those terms. Distributed WITHOUT ANY WARRANTY. See LICENSE for details.
+//
+//  SPDX-License-Identifier: AGPL-3.0-or-later
+// -----------------------------------------------------------------------------
+
+package bot.nomnomz.dashboard.feature.widgets.state
+
+import bot.nomnomz.dashboard.core.network.ApiError
+import bot.nomnomz.dashboard.core.network.ApiResult
+import bot.nomnomz.dashboard.core.network.ChannelSummary
+import bot.nomnomz.dashboard.core.network.ChannelsApi
+import bot.nomnomz.dashboard.core.network.WidgetSummary
+import bot.nomnomz.dashboard.core.network.WidgetsApi
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
+import kotlinx.coroutines.test.runTest
+
+// Proves the Overlays page state machine the screen renders: resolve the active channel, then surface the
+// channel's real overlay widgets — empty when there are none, error if either step fails — and prove the writes
+// follow through (a toggle persists the flipped flag, a delete really removes the row). The screen is a pure
+// projection of this, so testing it proves the page shows real data (no fabricated rows), exposes each
+// overlay's browser-source URL, and degrades cleanly.
+class WidgetsControllerTest {
+
+    @Test
+    fun load_surfaces_the_channel_widgets_with_their_overlay_urls() = runTest {
+        val controller =
+            WidgetsController(
+                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                RecordingWidgetsApi(
+                    ApiResult.Ok(
+                        listOf(
+                            WidgetSummary(
+                                id = "w-1",
+                                name = "Alerts",
+                                type = "alerts",
+                                isEnabled = true,
+                                overlayUrl = "http://localhost:8080/overlay?widgetId=w-1&token=tok",
+                            )
+                        )
+                    )
+                ),
+            )
+
+        controller.load()
+
+        val state: WidgetsState = controller.state.value
+        assertTrue(state is WidgetsState.Ready)
+        val widgets: List<WidgetSummary> = (state as WidgetsState.Ready).widgets
+        assertEquals(1, widgets.size)
+        val widget: WidgetSummary = widgets.first()
+        assertEquals("Alerts", widget.name)
+        assertEquals("alerts", widget.type)
+        assertEquals(true, widget.isEnabled)
+        // The browser-source URL — the page's core value (paste into OBS) — survives intact to the row.
+        assertEquals("http://localhost:8080/overlay?widgetId=w-1&token=tok", widget.overlayUrl)
+        assertNull(state.actionError)
+    }
+
+    @Test
+    fun load_is_empty_when_the_channel_has_no_widgets() = runTest {
+        val controller =
+            WidgetsController(
+                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                RecordingWidgetsApi(ApiResult.Ok(emptyList())),
+            )
+
+        controller.load()
+
+        assertTrue(controller.state.value is WidgetsState.Empty)
+    }
+
+    @Test
+    fun load_errors_when_no_channel_resolves() = runTest {
+        val controller =
+            WidgetsController(
+                FakeChannelsApi(ApiResult.Failure(ApiError(404, "NO_CHANNEL", "none onboarded"))),
+                RecordingWidgetsApi(ApiResult.Ok(emptyList())),
+            )
+
+        controller.load()
+
+        assertTrue(controller.state.value is WidgetsState.Error)
+    }
+
+    @Test
+    fun load_errors_when_the_list_call_fails() = runTest {
+        val controller =
+            WidgetsController(
+                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                RecordingWidgetsApi(ApiResult.Failure(ApiError(500, "ERR", "boom"))),
+            )
+
+        controller.load()
+
+        assertTrue(controller.state.value is WidgetsState.Error)
+    }
+
+    @Test
+    fun toggle_puts_only_the_enabled_flag_then_reloads_with_the_flipped_state() = runTest {
+        val widgetsApi =
+            RecordingWidgetsApi(
+                ApiResult.Ok(listOf(WidgetSummary(id = "w-1", name = "Alerts", isEnabled = true)))
+            )
+        val controller =
+            WidgetsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), widgetsApi)
+        controller.load()
+
+        controller.toggleWidget(widgetId = "w-1", enabled = false)
+
+        // A toggle records exactly the widget + the new flag.
+        assertEquals(1, widgetsApi.toggled.size)
+        val toggle: Pair<String, Boolean> = widgetsApi.toggled.first()
+        assertEquals("w-1", toggle.first)
+        assertEquals(false, toggle.second)
+        assertEquals("ch1", widgetsApi.toggledChannelId)
+
+        // The reload reflects the persisted flip — the consequence of the action, not merely the call.
+        val state: WidgetsState = controller.state.value
+        assertTrue(state is WidgetsState.Ready)
+        assertEquals(false, (state as WidgetsState.Ready).widgets.first().isEnabled)
+    }
+
+    @Test
+    fun delete_removes_the_widget_then_reloads_to_empty() = runTest {
+        val widgetsApi =
+            RecordingWidgetsApi(
+                ApiResult.Ok(listOf(WidgetSummary(id = "w-1", name = "Alerts", isEnabled = true)))
+            )
+        val controller =
+            WidgetsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), widgetsApi)
+        controller.load()
+        assertTrue(controller.state.value is WidgetsState.Ready)
+
+        controller.deleteWidget(widgetId = "w-1")
+
+        assertEquals(listOf("w-1"), widgetsApi.deleted)
+        // The store is now empty, so the post-delete reload lands on Empty — the row is really gone.
+        assertTrue(controller.state.value is WidgetsState.Empty)
+    }
+
+    @Test
+    fun a_failed_write_surfaces_the_error_over_the_kept_list() = runTest {
+        val widgetsApi =
+            RecordingWidgetsApi(
+                ApiResult.Ok(listOf(WidgetSummary(id = "w-1", name = "Alerts", isEnabled = true))),
+                writeResult = ApiResult.Failure(ApiError(403, "FORBIDDEN", "no permission")),
+            )
+        val controller =
+            WidgetsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), widgetsApi)
+        controller.load()
+
+        controller.deleteWidget(widgetId = "w-1")
+
+        // The list is kept (not blown away) and the failure is surfaced on it.
+        val state: WidgetsState = controller.state.value
+        assertTrue(state is WidgetsState.Ready)
+        assertEquals(1, (state as WidgetsState.Ready).widgets.size)
+        assertEquals("no permission", state.actionError)
+    }
+}
+
+private class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : ChannelsApi {
+    override suspend fun primaryChannel(): ApiResult<ChannelSummary> = result
+}
+
+// A recording fake that behaves like the backend store: list() returns the live store, and each successful
+// write mutates the store so the controller's post-write reload observes the real consequence (a flipped flag,
+// a removed row) — not merely that a call happened. [writeResult] forces every write to fail (the store is left
+// untouched) to exercise the error path. A list-level failure is modelled by passing a Failure as the initial
+// result.
+private class RecordingWidgetsApi(
+    initial: ApiResult<List<WidgetSummary>>,
+    private val writeResult: ApiResult<Unit> = ApiResult.Ok(Unit),
+) : WidgetsApi {
+    private val listFailure: ApiError? = (initial as? ApiResult.Failure)?.error
+    private val store: MutableList<WidgetSummary> =
+        (initial as? ApiResult.Ok)?.value?.toMutableList() ?: mutableListOf()
+
+    val toggled: MutableList<Pair<String, Boolean>> = mutableListOf()
+    var toggledChannelId: String? = null
+    val deleted: MutableList<String> = mutableListOf()
+
+    override suspend fun list(channelId: String): ApiResult<List<WidgetSummary>> =
+        listFailure?.let { ApiResult.Failure(it) } ?: ApiResult.Ok(store.toList())
+
+    override suspend fun setEnabled(
+        channelId: String,
+        widgetId: String,
+        enabled: Boolean,
+    ): ApiResult<Unit> {
+        toggled += widgetId to enabled
+        toggledChannelId = channelId
+        if (writeResult is ApiResult.Ok) {
+            val index: Int = store.indexOfFirst { it.id == widgetId }
+            if (index >= 0) store[index] = store[index].copy(isEnabled = enabled)
+        }
+        return writeResult
+    }
+
+    override suspend fun delete(channelId: String, widgetId: String): ApiResult<Unit> {
+        deleted += widgetId
+        if (writeResult is ApiResult.Ok) store.removeAll { it.id == widgetId }
+        return writeResult
+    }
+}

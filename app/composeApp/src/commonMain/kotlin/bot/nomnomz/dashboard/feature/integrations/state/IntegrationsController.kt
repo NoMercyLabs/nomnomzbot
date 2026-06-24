@@ -13,13 +13,20 @@ package bot.nomnomz.dashboard.feature.integrations.state
 import bot.nomnomz.dashboard.core.connection.ConnectLauncher
 import bot.nomnomz.dashboard.core.connection.SessionStore
 import bot.nomnomz.dashboard.core.network.ApiResult
+import bot.nomnomz.dashboard.core.network.AuthApi
 import bot.nomnomz.dashboard.core.network.BotAuthApi
 import bot.nomnomz.dashboard.core.network.BotStatus
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
+import bot.nomnomz.dashboard.core.network.DeviceLoginPoll
 import bot.nomnomz.dashboard.core.network.IntegrationStatus
 import bot.nomnomz.dashboard.core.network.IntegrationsApi
+import bot.nomnomz.dashboard.core.network.MissingScope
+import bot.nomnomz.dashboard.core.network.MissingScopes
 import bot.nomnomz.dashboard.core.network.OAuthStart
+import bot.nomnomz.dashboard.core.network.ScopeRegrantStart
+import bot.nomnomz.dashboard.core.network.TwitchDiagnosticsApi
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -29,21 +36,19 @@ import kotlinx.coroutines.flow.asStateFlow
 // backend. The token always lands SERVER-SIDE, so every connect is: open the backend-issued authorize
 // URL → wait for / return from the browser → re-read the authoritative status. Nothing is mocked.
 //
-// The connects are driven through the shared [OAuthLauncher] seam (desktop loopback / web redirect):
-//   - Bot:            backend GET …/auth/twitch/bot returns the authorize URL; the callback signals the
-//                     loopback with `bot_connected=true` (no token); we confirm via the bot status read.
-//   - Spotify/YouTube: backend POST …/integrations/{p}/connect returns the PROVIDER authorize URL; the
-//                     provider→backend callback vaults the token then returns to our redirect; we refresh.
-//   - Discord:        backend GET …/integrations/discord/callback/start is opened directly. Its callback
-//                     redirects to the configured frontend (it ignores a loopback redirect), so on desktop
-//                     the loopback signal never fires — we open the URL and the user refreshes. (Backend
-//                     gap: Discord start should accept + honor a loopback redirect like the others.)
+// It also owns the streamer-token scope health: which Twitch permissions a feature needs that the token
+// is missing (read from /twitch/diagnostics/missing-scopes), and the ONE-CLICK additive re-grant — a
+// secret-free Device Code Flow requesting (granted ∪ missing). The streamer approves the widened grant at
+// twitch.tv/activate; the controller polls the normal streamer device poll until authorized, then re-reads
+// the gaps (which clear server-side). No manual re-auth instructions, no back-fill.
 class IntegrationsController(
     private val sessionStore: SessionStore,
     private val channelsApi: ChannelsApi,
     private val botAuthApi: BotAuthApi,
     private val integrationsApi: IntegrationsApi,
     private val connectLauncher: ConnectLauncher,
+    private val diagnosticsApi: TwitchDiagnosticsApi,
+    private val authApi: AuthApi,
 ) {
     private val _state: MutableStateFlow<IntegrationsState> =
         MutableStateFlow(IntegrationsState.Loading)
@@ -86,7 +91,24 @@ class IntegrationsController(
                 is ApiResult.Failure -> emptyList()
             }
 
-        _state.value = IntegrationsState.Ready(bot = bot, providers = providers, busy = null)
+        // The streamer-token scope gaps. A failure (e.g. no Twitch connection yet) is a non-event — render
+        // an empty list, never an error that hides the whole screen.
+        val missingScopes: List<MissingScope> =
+            when (val result: ApiResult<MissingScopes> = diagnosticsApi.missingScopes()) {
+                is ApiResult.Ok -> result.value.scopes
+                is ApiResult.Failure -> emptyList()
+            }
+
+        // Preserve any in-flight re-grant panel across a refresh (the poll loop refreshes mid-flow).
+        val regrant: RegrantState? = (_state.value as? IntegrationsState.Ready)?.regrant
+        _state.value =
+            IntegrationsState.Ready(
+                bot = bot,
+                providers = providers,
+                missingScopes = missingScopes,
+                busy = null,
+                regrant = regrant,
+            )
     }
 
     /** Run the bot-account connect, then refresh. */
@@ -136,6 +158,74 @@ class IntegrationsController(
     }
 
     /**
+     * Start the one-click additive scope re-grant. The backend mints a Device Code Flow handle requesting
+     * (granted ∪ missing); we surface the user code + verification URL (the screen opens it) and poll the
+     * normal streamer device poll until the operator approves at twitch.tv/activate — on approval the widened
+     * grant reconciles server-side, so we re-read the gaps (they clear) and dismiss the panel. A failure to
+     * START (e.g. nothing missing) leaves the screen unchanged; the poll loop tolerates the code expiring.
+     */
+    suspend fun regrantScopes() {
+        val ready: IntegrationsState.Ready = _state.value as? IntegrationsState.Ready ?: return
+        if (ready.regrant != null) return // single-flight: a re-grant is already in progress.
+
+        when (val start: ApiResult<ScopeRegrantStart> = diagnosticsApi.startRegrant()) {
+            is ApiResult.Failure -> return // e.g. NO_MISSING_SCOPES / no connection — nothing to grant.
+            is ApiResult.Ok -> {
+                _state.value =
+                    ready.copy(
+                        regrant = RegrantState(
+                            userCode = start.value.userCode,
+                            verificationUri = start.value.verificationUri,
+                        )
+                    )
+                pollRegrant(start.value)
+            }
+        }
+    }
+
+    /** Dismiss the re-grant panel without waiting (the user closed it); the next refresh re-reads the gaps. */
+    fun cancelRegrant() {
+        val ready: IntegrationsState.Ready = _state.value as? IntegrationsState.Ready ?: return
+        _state.value = ready.copy(regrant = null)
+    }
+
+    /**
+     * Poll the streamer device endpoint on its interval until the operator approves (→ refresh + dismiss the
+     * panel), declines, or the code expires. A transient poll failure is tolerated until the deadline so a
+     * blip mid-approval doesn't abort the re-grant.
+     */
+    private suspend fun pollRegrant(start: ScopeRegrantStart) {
+        val intervalMs: Long = start.interval.coerceAtLeast(1).toLong() * 1000L
+        val deadlineMs: Long = start.expiresIn.coerceAtLeast(1).toLong() * 1000L
+        var elapsedMs: Long = 0
+
+        while (elapsedMs < deadlineMs && (_state.value as? IntegrationsState.Ready)?.regrant != null) {
+            delay(intervalMs)
+            elapsedMs += intervalMs
+
+            when (val poll: ApiResult<DeviceLoginPoll> = authApi.pollDeviceLogin(start.deviceCode)) {
+                is ApiResult.Failure -> Unit // tolerate transient failures until the code's deadline.
+                is ApiResult.Ok ->
+                    when (poll.value.status) {
+                        DEVICE_AUTHORIZED -> {
+                            // The widened grant is vaulted + reconciled server-side; re-read the now-cleared gaps.
+                            cancelRegrant()
+                            refresh()
+                            return
+                        }
+                        DEVICE_EXPIRED, DEVICE_DENIED, DEVICE_ERROR -> {
+                            cancelRegrant()
+                            return
+                        }
+                        else -> Unit // pending / slow_down — keep polling.
+                    }
+            }
+        }
+        // Timed out without approval — drop the panel; the gaps remain and can be re-granted again.
+        cancelRegrant()
+    }
+
+    /**
      * Mark a target busy, run [action], then re-read status regardless of outcome (the authoritative
      * connected state always comes from the backend, never an optimistic local flip — no fakes).
      */
@@ -160,6 +250,14 @@ class IntegrationsController(
             is ApiResult.Failure -> ApiResult.Failure(error)
             is ApiResult.Ok -> ApiResult.Ok(value.authorizeUrl)
         }
+
+    private companion object {
+        // The streamer device-poll statuses (server-side DeviceLoginStatus wire strings).
+        const val DEVICE_AUTHORIZED = "authorized"
+        const val DEVICE_EXPIRED = "expired"
+        const val DEVICE_DENIED = "denied"
+        const val DEVICE_ERROR = "error"
+    }
 }
 
 /** The integrations screen render state. */
@@ -169,7 +267,9 @@ sealed interface IntegrationsState {
     data class Ready(
         val bot: BotConnection,
         val providers: List<ProviderConnection>,
+        val missingScopes: List<MissingScope>,
         val busy: BusyTarget?,
+        val regrant: RegrantState?,
     ) : IntegrationsState
 
     data class Error(val detail: String) : IntegrationsState
@@ -185,6 +285,9 @@ data class ProviderConnection(
     val accountName: String?,
     val needsReauth: Boolean,
 )
+
+/** The in-flight re-grant panel: the user code to enter and the Twitch URL to open. */
+data class RegrantState(val userCode: String, val verificationUri: String)
 
 /** Which row is mid-operation, so the screen can disable just that row's actions. */
 sealed interface BusyTarget {

@@ -55,6 +55,14 @@ class ApiContractTest {
             CommandSummary.serializer() to "CommandDto",
             TimerSummary.serializer() to "TimerListItem",
             BannedUser.serializer() to "BannedUserDto",
+            MissingScopes.serializer() to "MissingScopesDto",
+            MissingScope.serializer() to "MissingScopeDto",
+            ScopeRegrantStart.serializer() to "ScopeRegrantStartDto",
+            StreamInfo.serializer() to "StreamInfoDto",
+            LeaderboardEntry.serializer() to "LeaderboardEntryDto",
+            AlertSummary.serializer() to "EventResponseListItem",
+            AlertDetail.serializer() to "EventResponseDto",
+            WidgetSummary.serializer() to "WidgetDetail",
         )
 
     @Test

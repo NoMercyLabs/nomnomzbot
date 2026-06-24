@@ -14,13 +14,21 @@ import bot.nomnomz.dashboard.core.connection.ConnectLauncher
 import bot.nomnomz.dashboard.core.connection.SessionStore
 import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
+import bot.nomnomz.dashboard.core.network.AuthApi
+import bot.nomnomz.dashboard.core.network.AuthPayload
 import bot.nomnomz.dashboard.core.network.BotAuthApi
 import bot.nomnomz.dashboard.core.network.BotStatus
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
+import bot.nomnomz.dashboard.core.network.CurrentUser
+import bot.nomnomz.dashboard.core.network.DeviceLoginPoll
 import bot.nomnomz.dashboard.core.network.IntegrationStatus
 import bot.nomnomz.dashboard.core.network.IntegrationsApi
+import bot.nomnomz.dashboard.core.network.MissingScope
+import bot.nomnomz.dashboard.core.network.MissingScopes
 import bot.nomnomz.dashboard.core.network.OAuthStart
+import bot.nomnomz.dashboard.core.network.ScopeRegrantStart
+import bot.nomnomz.dashboard.core.network.TwitchDiagnosticsApi
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -42,9 +50,11 @@ class IntegrationsControllerTest {
         bot: BotAuthApi,
         integrations: IntegrationsApi,
         launcher: ConnectLauncher,
+        diagnostics: TwitchDiagnosticsApi = FakeTwitchDiagnosticsApi(),
+        auth: AuthApi = FakeAuthApi(),
     ): IntegrationsController {
         val session = SessionStore(FakeVault())
-        return IntegrationsController(session, channels, bot, integrations, launcher)
+        return IntegrationsController(session, channels, bot, integrations, launcher, diagnostics, auth)
     }
 
     @Test
@@ -180,6 +190,108 @@ class IntegrationsControllerTest {
         assertEquals("spotify", integrations.disconnectedGenericProvider)
         assertFalse((controller.state.value as IntegrationsState.Ready).providers.row("spotify").connected)
     }
+
+    @Test
+    fun load_surfaces_the_missing_twitch_scopes_into_the_ready_state() = runTest {
+        val diagnostics =
+            FakeTwitchDiagnosticsApi(
+                missing =
+                    MissingScopes(
+                        connectionStatus = "connected",
+                        scopes =
+                            listOf(
+                                MissingScope("moderator:read:followers", listOf("followers")),
+                                MissingScope("channel:read:subscriptions", listOf("subscriptions")),
+                            ),
+                    )
+            )
+        val controller =
+            controller(
+                channels = FakeChannelsApi(ApiResult.Ok(channel)),
+                bot = FakeBotAuthApi(BotStatus(connected = true)),
+                integrations = FakeIntegrationsApi(emptyList()),
+                launcher = FakeConnectLauncher(),
+                diagnostics = diagnostics,
+            )
+
+        controller.load()
+
+        val ready: IntegrationsState.Ready = controller.state.value as IntegrationsState.Ready
+        // The screen renders the gaps the backend reported — the banner's data, not a guess.
+        assertEquals(2, ready.missingScopes.size)
+        assertEquals("moderator:read:followers", ready.missingScopes[0].scope)
+        assertEquals("subscriptions", ready.missingScopes[1].features.first())
+        assertNull(ready.regrant)
+    }
+
+    @Test
+    fun regrant_shows_the_device_code_then_clears_the_gaps_once_authorized() = runTest {
+        val diagnostics =
+            FakeTwitchDiagnosticsApi(
+                missing =
+                    MissingScopes(
+                        scopes = listOf(MissingScope("channel:read:subscriptions", listOf("subscriptions")))
+                    ),
+                regrant =
+                    ScopeRegrantStart(
+                        deviceCode = "DEV-123",
+                        userCode = "WXYZ-9876",
+                        verificationUri = "https://twitch.tv/activate",
+                        interval = 0, // poll immediately in the test
+                        expiresIn = 60,
+                        requestedScopes =
+                            listOf("moderator:read:followers", "channel:read:subscriptions"),
+                    ),
+            )
+        // The streamer approves on the first poll → authorized.
+        val auth = FakeAuthApi(pollStatuses = listOf("authorized"))
+        val controller =
+            controller(
+                channels = FakeChannelsApi(ApiResult.Ok(channel)),
+                bot = FakeBotAuthApi(BotStatus(connected = true)),
+                integrations = FakeIntegrationsApi(emptyList()),
+                launcher = FakeConnectLauncher(),
+                diagnostics = diagnostics,
+                auth = auth,
+            )
+        controller.load()
+        assertEquals(1, (controller.state.value as IntegrationsState.Ready).missingScopes.size)
+
+        // The backend clears the gap once the widened grant is approved + reconciled (status re-read).
+        diagnostics.missingAfter = MissingScopes(scopes = emptyList())
+        controller.regrantScopes()
+
+        val ready: IntegrationsState.Ready = controller.state.value as IntegrationsState.Ready
+        // The re-grant requested the UNION (existing followers scope kept + the missing subscriptions scope).
+        assertEquals(
+            listOf("moderator:read:followers", "channel:read:subscriptions"),
+            diagnostics.lastRegrantRequestedScopes,
+        )
+        // After approval the panel is dismissed and the banner data is gone (re-read, not optimistic).
+        assertNull(ready.regrant)
+        assertTrue(ready.missingScopes.isEmpty())
+        // The streamer device poll was actually driven with the issued device code.
+        assertEquals("DEV-123", auth.polledDeviceCode)
+    }
+
+    @Test
+    fun regrant_is_a_no_op_when_the_backend_reports_nothing_to_grant() = runTest {
+        val diagnostics = FakeTwitchDiagnosticsApi(regrantFails = true)
+        val controller =
+            controller(
+                channels = FakeChannelsApi(ApiResult.Ok(channel)),
+                bot = FakeBotAuthApi(BotStatus(connected = true)),
+                integrations = FakeIntegrationsApi(emptyList()),
+                launcher = FakeConnectLauncher(),
+                diagnostics = diagnostics,
+            )
+        controller.load()
+
+        controller.regrantScopes()
+
+        // No device-code panel is shown when there is nothing to grant.
+        assertNull((controller.state.value as IntegrationsState.Ready).regrant)
+    }
 }
 
 private fun List<ProviderConnection>.row(provider: String): ProviderConnection =
@@ -284,4 +396,48 @@ private class FakeVault : bot.nomnomz.dashboard.core.connection.SessionTokenStor
     ) = Unit
 
     override suspend fun clear(profileId: String) = Unit
+}
+
+private class FakeTwitchDiagnosticsApi(
+    private val missing: MissingScopes = MissingScopes(scopes = emptyList()),
+    private val regrant: ScopeRegrantStart? = null,
+    private val regrantFails: Boolean = false,
+) : TwitchDiagnosticsApi {
+    // `missingAfter` lets a test model the backend clearing the gaps between the start and the post-approval
+    // re-read, so the banner clearing is proven by the re-read (not an optimistic local flip).
+    var missingAfter: MissingScopes? = null
+    var lastRegrantRequestedScopes: List<String>? = null
+
+    override suspend fun missingScopes(): ApiResult<MissingScopes> = ApiResult.Ok(missingAfter ?: missing)
+
+    override suspend fun startRegrant(): ApiResult<ScopeRegrantStart> {
+        if (regrantFails || regrant == null)
+            return ApiResult.Failure(ApiError(409, "NO_MISSING_SCOPES", "Nothing to grant."))
+        lastRegrantRequestedScopes = regrant.requestedScopes
+        return ApiResult.Ok(regrant)
+    }
+}
+
+private class FakeAuthApi(private val pollStatuses: List<String> = emptyList()) : AuthApi {
+    var polledDeviceCode: String? = null
+    private var pollIndex: Int = 0
+
+    override suspend fun me(): ApiResult<CurrentUser> =
+        ApiResult.Failure(ApiError(0, "UNUSED", "not used here"))
+
+    override suspend fun startDeviceLogin(): ApiResult<bot.nomnomz.dashboard.core.network.DeviceCodeStart> =
+        ApiResult.Failure(ApiError(0, "UNUSED", "not used here"))
+
+    override suspend fun pollDeviceLogin(deviceCode: String): ApiResult<DeviceLoginPoll> {
+        polledDeviceCode = deviceCode
+        val status: String = pollStatuses.getOrElse(pollIndex) { "pending" }
+        pollIndex++
+        val auth: AuthPayload? =
+            if (status == "authorized") AuthPayload(accessToken = "a", refreshToken = "r", expiresIn = 3600L)
+            else null
+        return ApiResult.Ok(DeviceLoginPoll(status = status, auth = auth))
+    }
+
+    override suspend fun refresh(refreshToken: String?): ApiResult<AuthPayload> =
+        ApiResult.Failure(ApiError(0, "UNUSED", "not used here"))
 }
