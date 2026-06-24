@@ -190,11 +190,18 @@ fun ShellScreen(
                         channelName = user?.displayName,
                         onMenu = { scope.launch { drawerState.open() } },
                     )
-                    ShellContent(selected = selected, graph = graph)
+                    ShellContent(
+                        selected = selected,
+                        graph = graph,
+                        modifier = Modifier.weight(1f).fillMaxWidth(),
+                    )
                 }
             }
         } else {
-            // Desktop / wide: persistent sidebar beside the content.
+            // Desktop / wide: persistent sidebar beside the content. The content column takes the
+            // REMAINING width via weight(1f) — a fillMaxWidth/fillMaxSize child in a Row claims the
+            // Row's full width (ignoring the fixed-width sidebar) and overflows the window, so the page
+            // never reflows to the space left of the sidebar. weight(1f) is what makes it adapt.
             Row(modifier = Modifier.fillMaxSize()) {
                 Sidebar(
                     role = role,
@@ -204,44 +211,52 @@ fun ShellScreen(
                     languageController = languageController,
                     onLogout = onLogout,
                 )
-                Column(modifier = Modifier.fillMaxSize()) {
+                Column(modifier = Modifier.weight(1f).fillMaxHeight()) {
                     TopBar(title = selected.label(), channelName = user?.displayName, onMenu = null)
-                    ShellContent(selected = selected, graph = graph)
+                    ShellContent(
+                        selected = selected,
+                        graph = graph,
+                        modifier = Modifier.weight(1f).fillMaxWidth(),
+                    )
                 }
             }
         }
     }
 }
 
+// The content host. The [modifier] (weight(1f) below the top bar) is what makes the page fill and
+// reflow with the window — the inner screens fill this Box, so resizing flows straight through.
 @Composable
-private fun ShellContent(selected: ShellRoute, graph: AppGraph) {
-    when (selected) {
-        ShellRoute.Dashboard -> HomeScreen(controller = graph.homeController)
-        ShellRoute.Chat -> ChatScreen(controller = graph.chatController)
-        ShellRoute.Community -> CommunityScreen(controller = graph.communityController)
-        ShellRoute.Commands -> CommandsScreen(controller = graph.commandsController)
-        ShellRoute.Quotes -> QuotesScreen(controller = graph.quotesController)
-        ShellRoute.Timers -> TimersScreen(controller = graph.timersController)
-        ShellRoute.Moderation -> ModerationScreen(controller = graph.moderationController)
-        ShellRoute.Analytics -> AnalyticsScreen(controller = graph.analyticsController)
-        ShellRoute.Rewards -> RewardsScreen(controller = graph.rewardsController)
-        ShellRoute.SongRequests -> SongRequestsScreen(controller = graph.songRequestsController)
-        ShellRoute.Music -> MusicScreen(controller = graph.musicController)
-        ShellRoute.Tts -> TtsScreen(controller = graph.ttsController)
-        ShellRoute.Games -> GamesScreen(controller = graph.gamesController)
-        ShellRoute.Discord -> DiscordScreen(controller = graph.discordController)
-        ShellRoute.Pipelines -> PipelinesScreen(controller = graph.pipelinesController)
-        ShellRoute.Roles -> RolesScreen(controller = graph.rolesController)
-        ShellRoute.Integrations -> IntegrationsScreen(controller = graph.integrationsController)
-        ShellRoute.Settings ->
-            SettingsScreen(
-                controller = graph.settingsController,
-                journalController = graph.journalPortabilityController,
-                twitchAppController = graph.twitchAppCredentialsController,
-            )
-        ShellRoute.Economy -> EconomyScreen(controller = graph.economyController)
-        ShellRoute.Alerts -> AlertsScreen(controller = graph.alertsController)
-        ShellRoute.Widgets -> WidgetsScreen(controller = graph.widgetsController)
+private fun ShellContent(selected: ShellRoute, graph: AppGraph, modifier: Modifier = Modifier) {
+    Box(modifier = modifier) {
+        when (selected) {
+            ShellRoute.Dashboard -> HomeScreen(controller = graph.homeController)
+            ShellRoute.Chat -> ChatScreen(controller = graph.chatController)
+            ShellRoute.Community -> CommunityScreen(controller = graph.communityController)
+            ShellRoute.Commands -> CommandsScreen(controller = graph.commandsController)
+            ShellRoute.Quotes -> QuotesScreen(controller = graph.quotesController)
+            ShellRoute.Timers -> TimersScreen(controller = graph.timersController)
+            ShellRoute.Moderation -> ModerationScreen(controller = graph.moderationController)
+            ShellRoute.Analytics -> AnalyticsScreen(controller = graph.analyticsController)
+            ShellRoute.Rewards -> RewardsScreen(controller = graph.rewardsController)
+            ShellRoute.SongRequests -> SongRequestsScreen(controller = graph.songRequestsController)
+            ShellRoute.Music -> MusicScreen(controller = graph.musicController)
+            ShellRoute.Tts -> TtsScreen(controller = graph.ttsController)
+            ShellRoute.Games -> GamesScreen(controller = graph.gamesController)
+            ShellRoute.Discord -> DiscordScreen(controller = graph.discordController)
+            ShellRoute.Pipelines -> PipelinesScreen(controller = graph.pipelinesController)
+            ShellRoute.Roles -> RolesScreen(controller = graph.rolesController)
+            ShellRoute.Integrations -> IntegrationsScreen(controller = graph.integrationsController)
+            ShellRoute.Settings ->
+                SettingsScreen(
+                    controller = graph.settingsController,
+                    journalController = graph.journalPortabilityController,
+                    twitchAppController = graph.twitchAppCredentialsController,
+                )
+            ShellRoute.Economy -> EconomyScreen(controller = graph.economyController)
+            ShellRoute.Alerts -> AlertsScreen(controller = graph.alertsController)
+            ShellRoute.Widgets -> WidgetsScreen(controller = graph.widgetsController)
+        }
     }
 }
 
