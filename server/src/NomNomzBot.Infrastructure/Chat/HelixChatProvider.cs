@@ -184,14 +184,29 @@ public sealed class HelixChatProvider : IChatProvider
         if (_cachedBotUserId is not null)
             return _cachedBotUserId;
 
-        // The shared platform bot's Twitch user id is the connected account on its vault connection
-        // (Provider "twitch_bot", no broadcaster) — it is the sender_id on every chat send.
+        // The sender_id must be the same account whose token signs the send. That identity follows the bot
+        // resolution order (ITwitchTokenResolver.GetBotTokenAsync): a registered bot account if present, else
+        // the streamer's own main account (onboarding.md two-account model — the main account IS the bot until
+        // a custom bot is registered; deployment-profile.md "self-host always custom"). So pick the bot account's
+        // Twitch user id when a "twitch_bot" connection exists; otherwise the owner's "twitch" connection id.
         string botProvider = AuthEnums.IntegrationProvider.Twitch + "_bot";
-        _cachedBotUserId = await _db
-            .IntegrationConnections.IgnoreQueryFilters()
-            .Where(c => c.Provider == botProvider && c.BroadcasterId == null && c.DeletedAt == null)
-            .Select(c => c.ProviderAccountId)
-            .FirstOrDefaultAsync(ct);
+        string userProvider = AuthEnums.IntegrationProvider.Twitch;
+        _cachedBotUserId =
+            await _db
+                .IntegrationConnections.IgnoreQueryFilters()
+                .Where(c =>
+                    c.Provider == botProvider && c.BroadcasterId == null && c.DeletedAt == null
+                )
+                .Select(c => c.ProviderAccountId)
+                .FirstOrDefaultAsync(ct)
+            ?? await _db
+                .IntegrationConnections.IgnoreQueryFilters()
+                .Where(c =>
+                    c.Provider == userProvider && c.BroadcasterId != null && c.DeletedAt == null
+                )
+                .OrderBy(c => c.CreatedAt)
+                .Select(c => c.ProviderAccountId)
+                .FirstOrDefaultAsync(ct);
 
         return _cachedBotUserId;
     }

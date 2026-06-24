@@ -64,6 +64,11 @@ public sealed class AuthService : IAuthService
     [
         "user:read:email",
         "user:read:chat",
+        // The streamer's own account is the bot's chat identity until a custom bot account is registered
+        // (onboarding.md two-account model; deployment-profile.md "self-host always custom"), so the
+        // streamer grant must carry the Helix chat-send scope — `HelixChatProvider` sends via
+        // `POST /helix/chat/messages` (`user:write:chat`) on every profile (scaling-qos.md §6).
+        "user:write:chat",
         "channel:read:subscriptions",
         "bits:read",
         "channel:manage:redemptions",

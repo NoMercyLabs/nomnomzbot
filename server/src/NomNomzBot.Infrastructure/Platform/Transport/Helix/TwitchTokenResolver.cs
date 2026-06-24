@@ -50,7 +50,16 @@ public sealed class TwitchTokenResolver(
 
     public async Task<Result<TwitchAccessContext>> GetBotTokenAsync(CancellationToken ct = default)
     {
-        IntegrationConnection? connection = await ConnectionAsync(null, BotProvider, ct);
+        // Resolution order for the bot chat identity (onboarding.md "Bot identity (two-account model)";
+        // deployment-profile.md §"Everything rides this one switch" → "self-host always custom"):
+        //   1. A registered custom/shared bot account — the `twitch_bot` connection (no broadcaster).
+        //   2. Self-host fallback: until a bot account is registered, the bot speaks as the streamer's
+        //      OWN main account — the single owner's `twitch` user connection. The streamer grant carries
+        //      `user:write:chat` + `user:read:chat` (scaling-qos.md §6), so it can send/read chat as the bot.
+        // `no_token` only when neither identity exists (a fresh, un-onboarded install).
+        IntegrationConnection? connection =
+            await ConnectionAsync(null, BotProvider, ct) ?? await OwnerUserConnectionAsync(ct);
+
         if (connection is null)
         {
             return Result.Failure<TwitchAccessContext>(
@@ -128,6 +137,21 @@ public sealed class TwitchTokenResolver(
 
         return granted;
     }
+
+    /// <summary>
+    /// The self-host owner's own Twitch user connection used as the bot identity when no dedicated bot account
+    /// is registered (onboarding.md two-account model: the main account IS the bot until a custom bot is added).
+    /// Self-host is single-tenant (deployment-profile.md), so there is exactly one streamer <c>twitch</c>
+    /// connection; ordered by creation so the result is deterministic if more than one ever exists.
+    /// </summary>
+    private async Task<IntegrationConnection?> OwnerUserConnectionAsync(CancellationToken ct) =>
+        await db
+            .IntegrationConnections.IgnoreQueryFilters()
+            .Where(c =>
+                c.Provider == UserProvider && c.BroadcasterId != null && c.DeletedAt == null
+            )
+            .OrderBy(c => c.CreatedAt)
+            .FirstOrDefaultAsync(ct);
 
     /// <summary>The active (non-deleted) connection for a <c>(tenant, provider)</c>, or null when none exists.</summary>
     private async Task<IntegrationConnection?> ConnectionAsync(

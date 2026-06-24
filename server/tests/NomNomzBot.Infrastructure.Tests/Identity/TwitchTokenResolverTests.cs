@@ -131,7 +131,7 @@ public sealed class TwitchTokenResolverTests
     }
 
     [Fact]
-    public async Task GetBotToken_ReturnsThePlatformBotToken()
+    public async Task GetBotToken_WithRegisteredBotAccount_ReturnsThePlatformBotToken()
     {
         (TwitchTokenResolver resolver, IntegrationTokenVault vault, _) = Build();
         await StoreConnectionAsync(vault, null, BotProvider, "bot-access-PLAINTEXT", "bot-user-1");
@@ -141,6 +141,73 @@ public sealed class TwitchTokenResolverTests
         result.IsSuccess.Should().BeTrue();
         result.Value.AccessToken.Should().Be("bot-access-PLAINTEXT");
         result.Value.ServiceName.Should().Be(BotProvider);
+    }
+
+    /// <summary>
+    /// Self-host two-account model (onboarding.md): before any bot account is registered, the bot's chat
+    /// identity IS the owner's own main account. With no <c>twitch_bot</c> connection, <c>GetBotTokenAsync</c>
+    /// must fall back to the single owner's <c>twitch</c> user token — not fail <c>no_token</c>, which is what
+    /// stranded the readiness gate and the deferred chat notice on a fresh self-host install.
+    /// </summary>
+    [Fact]
+    public async Task GetBotToken_WithNoBotAccount_FallsBackToTheOwnersOwnUserToken()
+    {
+        (TwitchTokenResolver resolver, IntegrationTokenVault vault, _) = Build();
+        await StoreConnectionAsync(
+            vault,
+            Tenant,
+            AuthEnums.IntegrationProvider.Twitch,
+            "owner-access-PLAINTEXT",
+            "owner-user-1"
+        );
+
+        Result<TwitchAccessContext> result = await resolver.GetBotTokenAsync();
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.AccessToken.Should().Be("owner-access-PLAINTEXT");
+        result.Value.BroadcasterId.Should().Be(Tenant);
+        result.Value.ServiceName.Should().Be(AuthEnums.IntegrationProvider.Twitch);
+    }
+
+    /// <summary>
+    /// A registered bot account takes precedence over the owner's main account: once a <c>twitch_bot</c>
+    /// connection exists, the bot speaks as the bot — never the owner — even though the owner connection is
+    /// also present. Guards the resolution order (bot-account first, owner-fallback only when absent).
+    /// </summary>
+    [Fact]
+    public async Task GetBotToken_WithBothBotAndOwner_PrefersTheRegisteredBotAccount()
+    {
+        (TwitchTokenResolver resolver, IntegrationTokenVault vault, _) = Build();
+        await StoreConnectionAsync(
+            vault,
+            Tenant,
+            AuthEnums.IntegrationProvider.Twitch,
+            "owner-access-PLAINTEXT",
+            "owner-user-1"
+        );
+        await StoreConnectionAsync(vault, null, BotProvider, "bot-access-PLAINTEXT", "bot-user-1");
+
+        Result<TwitchAccessContext> result = await resolver.GetBotTokenAsync();
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.AccessToken.Should().Be("bot-access-PLAINTEXT");
+        result.Value.BroadcasterId.Should().BeNull();
+        result.Value.ServiceName.Should().Be(BotProvider);
+    }
+
+    /// <summary>
+    /// A fresh, un-onboarded self-host install (no bot account, no owner connection) still fails <c>no_token</c>
+    /// — the fallback adds a path, it does not paper over a wholly unconfigured system.
+    /// </summary>
+    [Fact]
+    public async Task GetBotToken_WithNoConnectionAtAll_FailsWithNoToken()
+    {
+        (TwitchTokenResolver resolver, _, _) = Build();
+
+        Result<TwitchAccessContext> result = await resolver.GetBotTokenAsync();
+
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be(TwitchErrorCodes.NoToken);
     }
 
     [Fact]

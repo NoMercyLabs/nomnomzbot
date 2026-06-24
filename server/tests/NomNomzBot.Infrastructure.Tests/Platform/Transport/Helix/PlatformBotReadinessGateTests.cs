@@ -86,8 +86,49 @@ public sealed class PlatformBotReadinessGateTests
             .BeTrue("the platform bot is authorized and its token decrypts");
     }
 
+    /// <summary>
+    /// Self-host two-account model: with no dedicated bot account, the streamer's own main-account token is the
+    /// bot identity, so the gate must report ready off the owner's <c>twitch</c> connection alone — this is what
+    /// un-defers the action-required chat notice on a fresh self-host install (no bot account ever registered).
+    /// </summary>
+    [Fact]
+    public async Task IsConfigured_WithOnlyTheOwnersOwnUserToken_IsTrue()
+    {
+        (PlatformBotReadinessGate gate, IntegrationTokenVault vault) = Build();
+        Guid owner = Guid.Parse("0192a000-0000-7000-8000-0000000000c1");
+
+        await StoreOwnerConnectionAsync(vault, owner, "owner-access-PLAINTEXT", "owner-user-1");
+
+        (await gate.IsPlatformBotConfiguredAsync())
+            .Should()
+            .BeTrue("the main account is the bot until a custom bot account is registered");
+    }
+
     private static async Task StoreBotConnectionAsync(
         IntegrationTokenVault vault,
+        string accessToken,
+        string accountId
+    ) =>
+        await StoreConnectionAsync(vault, broadcasterId: null, BotProvider, accessToken, accountId);
+
+    private static async Task StoreOwnerConnectionAsync(
+        IntegrationTokenVault vault,
+        Guid owner,
+        string accessToken,
+        string accountId
+    ) =>
+        await StoreConnectionAsync(
+            vault,
+            owner,
+            AuthEnums.IntegrationProvider.Twitch,
+            accessToken,
+            accountId
+        );
+
+    private static async Task StoreConnectionAsync(
+        IntegrationTokenVault vault,
+        Guid? broadcasterId,
+        string provider,
         string accessToken,
         string accountId
     )
@@ -95,8 +136,8 @@ public sealed class PlatformBotReadinessGateTests
         Guid connectionId = (
             await vault.UpsertConnectionAsync(
                 new UpsertConnectionDto(
-                    BroadcasterId: null,
-                    BotProvider,
+                    broadcasterId,
+                    provider,
                     accountId,
                     "login",
                     [],
