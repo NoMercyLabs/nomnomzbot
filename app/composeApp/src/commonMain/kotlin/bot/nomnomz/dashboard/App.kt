@@ -25,6 +25,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.connection.SessionPhase
+import bot.nomnomz.dashboard.core.connection.SessionUser
 import bot.nomnomz.dashboard.core.di.AppGraph
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.NomNomzTheme
@@ -35,6 +36,7 @@ import bot.nomnomz.dashboard.feature.connect.ui.ConnectScreen
 import bot.nomnomz.dashboard.feature.language.state.AppLanguage
 import bot.nomnomz.dashboard.feature.language.ui.LanguagePicker
 import bot.nomnomz.dashboard.feature.setup.ui.SetupWizardScreen
+import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
 import bot.nomnomz.dashboard.feature.shell.ui.ShellScreen
 import bot.nomnomz.dashboard.feature.splash.ui.SplashScreen
 import kotlinx.coroutines.Job
@@ -105,20 +107,35 @@ fun App(graph: AppGraph = remember { AppGraph() }) {
                         Destination.Splash -> SplashScreen()
                         Destination.Connect -> ConnectScreen(controller = graph.connectController)
                         Destination.Setup -> SetupWizardScreen(controller = graph.setupController)
-                        Destination.Shell ->
+                        Destination.Shell -> {
+                            val user: SessionUser? by
+                                graph.sessionStore.user.collectAsStateWithLifecycle()
                             ShellScreen(
                                 integrationsController = graph.integrationsController,
-                                onDisconnect = { scope.launch { graph.sessionStore.disconnect() } },
+                                languageController = graph.languageController,
+                                user = user,
+                                // Self-host: the signed-in owner manages their OWN channel, so they ARE the
+                                // Broadcaster. Delegated Mod/SuperMod/Editor roles come from channel
+                                // membership in a later slice.
+                                role = ManagementRole.Broadcaster,
+                                onLogout = { scope.launch { graph.sessionStore.disconnect() } },
                             )
+                        }
                     }
                 }
 
-                LanguagePicker(
-                    controller = graph.languageController,
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(spacing.s2),
-                )
+                // The picker is a global top-end affordance ONLY during onboarding (splash/connect/setup),
+                // so a Dutch-system streamer can pin English before signing in. In the shell it lives in the
+                // profile menu (frontend-ia.md §4), so it must not overlay there — that caused the top-bar
+                // collision with the old Disconnect button.
+                if (destination != Destination.Shell) {
+                    LanguagePicker(
+                        controller = graph.languageController,
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(spacing.s2),
+                    )
+                }
             }
         }
     }
