@@ -10,10 +10,9 @@
 
 package bot.nomnomz.dashboard.feature.connect.state
 
+import bot.nomnomz.dashboard.core.connection.ConnectLauncher
 import bot.nomnomz.dashboard.core.connection.ConnectionProfile
 import bot.nomnomz.dashboard.core.connection.LanDiscovery
-import bot.nomnomz.dashboard.core.connection.OAuthFlow
-import bot.nomnomz.dashboard.core.connection.OAuthLauncher
 import bot.nomnomz.dashboard.core.connection.ProfileSource
 import bot.nomnomz.dashboard.core.connection.RestorableSession
 import bot.nomnomz.dashboard.core.connection.SessionStore
@@ -56,7 +55,7 @@ class ConnectController(
     private val sessionStore: SessionStore,
     private val authApi: AuthApi,
     private val systemApi: SystemApi,
-    private val oauthLauncher: OAuthLauncher,
+    private val connectLauncher: ConnectLauncher,
     private val lanDiscovery: LanDiscovery,
     private val profileIdFactory: () -> String = ::randomProfileId,
 ) {
@@ -152,7 +151,17 @@ class ConnectController(
                 _status.value = ConnectStatus.Error(ConnectError.Auth(statusResult.error.message))
             }
 
-            is ApiResult.Ok -> runDeviceLogin(profile)
+            is ApiResult.Ok -> {
+                // Redirect (Authorization Code) login when the operator has a client SECRET configured
+                // (twitchApp.ok) — a clean tap → Twitch → redirect-back, far better on mobile, and it sets the
+                // HttpOnly cookie that remember-me rides. Without a secret (the shared public client) only the
+                // Device Code Flow can mint a refresh token, so fall back to it.
+                if (statusResult.value.checks.twitchApp.ok) {
+                    runStreamerOAuth(profile)
+                } else {
+                    runDeviceLogin(profile)
+                }
+            }
         }
     }
 
@@ -246,7 +255,7 @@ class ConnectController(
 
     /** Run the streamer OAuth dance against [profile] and establish the session on success. */
     private suspend fun runStreamerOAuth(profile: ConnectionProfile): Boolean =
-        when (val authResult: ApiResult<SessionTokens> = oauthLauncher.authorize(profile.baseUrl, OAuthFlow.Streamer)) {
+        when (val authResult: ApiResult<SessionTokens> = connectLauncher.authorizeStreamer(profile.baseUrl)) {
             is ApiResult.Failure -> {
                 _status.value = ConnectStatus.Error(ConnectError.Auth(authResult.error.message))
                 false

@@ -75,7 +75,7 @@ class AppGraph {
             sessionStore = sessionStore,
             authApi = authApi,
             systemApi = systemApi,
-            oauthLauncher = oauthLauncher,
+            connectLauncher = connectLauncher,
             lanDiscovery = lanDiscovery,
         )
 

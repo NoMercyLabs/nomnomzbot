@@ -11,9 +11,9 @@
 package bot.nomnomz.dashboard.feature.connect.state
 
 import bot.nomnomz.dashboard.core.connection.ActiveProfileStore
+import bot.nomnomz.dashboard.core.connection.ConnectLauncher
 import bot.nomnomz.dashboard.core.connection.ConnectionProfile
 import bot.nomnomz.dashboard.core.connection.LanDiscovery
-import bot.nomnomz.dashboard.core.connection.OAuthLauncher
 import bot.nomnomz.dashboard.core.connection.ProfileSource
 import bot.nomnomz.dashboard.core.connection.SessionPhase
 import bot.nomnomz.dashboard.core.connection.SessionStore
@@ -56,13 +56,14 @@ class ConnectControllerDeviceLoginTest {
         lanDiscovery: LanDiscovery = FakeLanDiscovery(),
         vault: SessionTokenStore = InMemoryVault(),
         profiles: ActiveProfileStore = InMemoryProfileStore(),
+        connectLauncher: ConnectLauncher = FakeConnectLauncher(),
     ): ConnectController {
         val session: SessionStore = SessionStore(vault, profiles)
         return ConnectController(
                 sessionStore = session,
                 authApi = authApi,
                 systemApi = systemApi,
-                oauthLauncher = OAuthLauncher(),
+                connectLauncher = connectLauncher,
                 lanDiscovery = lanDiscovery,
                 profileIdFactory = { "test-profile" },
             )
@@ -199,6 +200,62 @@ class ConnectControllerDeviceLoginTest {
         assertEquals(SessionPhase.NotConnected, session.phase.value)
         assertEquals(null, session.baseUrl())
         assertEquals(true, controller.status.value is ConnectStatus.Error)
+    }
+
+    // ── Login method: redirect (secret) vs device (no secret) ─────────────────
+
+    @Test
+    fun connect_uses_the_redirect_login_when_the_twitch_app_has_a_secret_configured() = runTest {
+        // Backend reports the Twitch app configured (client id + secret) ⇒ the better redirect login runs, not
+        // the device-code dance. The fake launcher returns the session the OAuth redirect would yield.
+        val launcher =
+            FakeConnectLauncher(
+                streamerResult =
+                    ApiResult.Ok(SessionTokens(accessToken = "redir-acc", refreshToken = "redir-ref")),
+            )
+        val controller =
+            controller(
+                FakeSystemApi(ready = true, twitchConfigured = true),
+                FakeAuthApi(meResults = listOf(ApiResult.Ok(CurrentUser("u1", "eagle", "Eagle")))),
+                connectLauncher = launcher,
+            )
+        controller.onBaseUrlChange("http://localhost:5080")
+
+        controller.connect()
+
+        val session: SessionStore = sessionOf(controller)
+        // The redirect path ran (not the device poll), and its tokens established the session.
+        assertEquals(true, launcher.authorizeStreamerCalled)
+        assertEquals(SessionPhase.Connected, session.phase.value)
+        assertEquals("redir-acc", session.accessToken())
+        assertEquals("eagle", session.user.value?.username)
+    }
+
+    @Test
+    fun connect_uses_the_device_flow_when_no_secret_is_configured() = runTest {
+        // No secret ⇒ only the shared-public-client device flow can mint a refresh token, so it is used.
+        val launcher = FakeConnectLauncher()
+        val authApi =
+            FakeAuthApi(
+                poll =
+                    ApiResult.Ok(
+                        DeviceLoginPoll("authorized", AuthPayload(accessToken = "acc", refreshToken = "ref"))
+                    )
+            )
+        val controller =
+            controller(
+                FakeSystemApi(ready = true, twitchConfigured = false),
+                authApi,
+                connectLauncher = launcher,
+            )
+        controller.onBaseUrlChange("http://localhost:5080")
+
+        controller.connect()
+
+        val session: SessionStore = sessionOf(controller)
+        assertEquals(false, launcher.authorizeStreamerCalled) // redirect NOT used
+        assertEquals(SessionPhase.Connected, session.phase.value)
+        assertEquals("acc", session.accessToken())
     }
 
     // ── Remembered tier (restore-on-boot) ─────────────────────────────────────
@@ -349,6 +406,9 @@ class ConnectControllerDeviceLoginTest {
 private class FakeSystemApi(
     private val ready: Boolean = false,
     private val statusError: ApiError? = null,
+    // Whether the Twitch app has a client SECRET configured (so the redirect login is available). Separate
+    // from [ready]; defaults false so the device-flow tests keep taking the device path.
+    private val twitchConfigured: Boolean = false,
 ) : SystemApi {
     override suspend fun status(): ApiResult<SystemStatus> =
         if (statusError != null) {
@@ -359,7 +419,11 @@ private class FakeSystemApi(
                     ready = ready,
                     checks =
                         SystemChecks(
-                            twitchApp = SystemCheck(ready, if (ready) "configured" else "missing"),
+                            twitchApp =
+                                SystemCheck(
+                                    twitchConfigured,
+                                    if (twitchConfigured) "configured" else "missing",
+                                ),
                             platformBot =
                                 SystemCheck(ready, if (ready) "connected" else "disconnected"),
                         ),
@@ -442,6 +506,24 @@ private class FakeAuthApi(
         baseUrlAtRefresh = baseUrlProbe?.invoke()
         return refreshResult
     }
+}
+
+/** A fake [ConnectLauncher] — records whether the streamer redirect login ran, and returns a canned result. */
+private class FakeConnectLauncher(
+    private val streamerResult: ApiResult<SessionTokens> =
+        ApiResult.Failure(ApiError(0, "NO_LAUNCH", "redirect login not expected in this test")),
+) : ConnectLauncher {
+    var authorizeStreamerCalled: Boolean = false
+        private set
+
+    override suspend fun authorizeStreamer(baseUrl: String): ApiResult<SessionTokens> {
+        authorizeStreamerCalled = true
+        return streamerResult
+    }
+
+    override suspend fun awaitConnect(
+        authorizeUrlFor: suspend (redirect: String) -> ApiResult<String>
+    ): ApiResult<Unit> = ApiResult.Ok(Unit)
 }
 
 /** An in-memory [SessionTokenStore] the restore tests seed + assert against, without any OS vault. */

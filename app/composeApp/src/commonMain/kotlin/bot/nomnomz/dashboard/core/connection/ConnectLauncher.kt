@@ -18,6 +18,15 @@ import bot.nomnomz.dashboard.core.network.ApiResult
 // launcher. Tests substitute a fake that drives the authorize-URL provider and returns a canned outcome.
 interface ConnectLauncher {
     /**
+     * Run the streamer LOGIN dance against [baseUrl] and return the issued session tokens — the redirect
+     * (Authorization Code) login. On desktop the loopback resolves with the tokens; on web the page
+     * redirects to the backend and this never resolves — the session arrives on reload via
+     * readReturnedSession. Depending on this interface (not the expect/actual [OAuthLauncher]) keeps the
+     * redirect-vs-device branch fakeable in tests.
+     */
+    suspend fun authorizeStreamer(baseUrl: String): ApiResult<SessionTokens>
+
+    /**
      * Run a token-less connect dance: hand [authorizeUrlFor] the redirect the backend should return to
      * (the desktop loopback; empty on web), open the resulting authorize URL, and resolve when the
      * provider returns (desktop) — the token is vaulted server-side, so only a success/error is surfaced.
@@ -29,6 +38,9 @@ interface ConnectLauncher {
 
 /** The real adapter: delegates straight to the per-target [OAuthLauncher]. */
 class OAuthConnectLauncher(private val launcher: OAuthLauncher) : ConnectLauncher {
+    override suspend fun authorizeStreamer(baseUrl: String): ApiResult<SessionTokens> =
+        launcher.authorize(baseUrl, OAuthFlow.Streamer)
+
     override suspend fun awaitConnect(
         authorizeUrlFor: suspend (redirect: String) -> ApiResult<String>
     ): ApiResult<Unit> = launcher.awaitConnect(authorizeUrlFor)

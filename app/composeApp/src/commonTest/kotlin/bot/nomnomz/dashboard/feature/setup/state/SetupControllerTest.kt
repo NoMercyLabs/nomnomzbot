@@ -443,6 +443,13 @@ private class FakeSystemApi(
 private class FakeConnectLauncher : ConnectLauncher {
     var openedUrl: String? = null
 
+    override suspend fun authorizeStreamer(
+        baseUrl: String
+    ): ApiResult<bot.nomnomz.dashboard.core.connection.SessionTokens> =
+        ApiResult.Failure(
+            bot.nomnomz.dashboard.core.network.ApiError(0, "UNUSED", "streamer login not used here")
+        )
+
     override suspend fun awaitConnect(
         authorizeUrlFor: suspend (redirect: String) -> ApiResult<String>
     ): ApiResult<Unit> =
