@@ -78,6 +78,10 @@ public static class DependencyInjection
         DbProviderKind dbProvider = DeploymentModeResolver.DbProviderFor(mode);
         CacheProviderKind cacheProvider = DeploymentModeResolver.CacheProviderFor(mode);
 
+        // Expose the resolved mode so services can branch on it without re-resolving — e.g. the self-host
+        // first-owner admin bootstrap (the owner == the admin only on self-host).
+        services.AddSingleton(new DeploymentContext(mode));
+
         services.AddSingleton<IInfraReachabilityProbe, InfraReachabilityProbe>();
         services.AddSingleton<IDeploymentProfileService, DeploymentProfileService>();
 

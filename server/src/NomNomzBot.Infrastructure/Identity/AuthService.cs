@@ -24,6 +24,7 @@ using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Identity.Events;
 using NomNomzBot.Domain.Integrations.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
+using NomNomzBot.Infrastructure.Platform.Deployment;
 
 namespace NomNomzBot.Infrastructure.Identity;
 
@@ -55,6 +56,9 @@ public sealed class AuthService : IAuthService
 
     // Twitch user id of the account to promote to platform admin on login (§12 first-admin bootstrap).
     private readonly string? _initialAdminTwitchId;
+
+    // Self-host makes the first onboarded account the platform admin (the owner IS the admin); SaaS does not.
+    private readonly bool _isSelfHost;
 
     private static readonly string[] RequiredScopes =
     [
@@ -92,6 +96,7 @@ public sealed class AuthService : IAuthService
         ISystemCredentialsProvider credentials,
         IHttpClientFactory httpClientFactory,
         IConfiguration configuration,
+        DeploymentContext deploymentContext,
         TimeProvider timeProvider,
         ILogger<AuthService> logger
     )
@@ -108,6 +113,7 @@ public sealed class AuthService : IAuthService
         _logger = logger;
         _baseUrl = configuration["App:BaseUrl"] ?? "http://localhost:5080";
         _initialAdminTwitchId = configuration["App:InitialAdminTwitchId"];
+        _isSelfHost = deploymentContext.IsSelfHost;
     }
 
     // ─── User OAuth ──────────────────────────────────────────────────────────
@@ -204,19 +210,26 @@ public sealed class AuthService : IAuthService
         }
         user.LastSeenAt = _timeProvider.GetUtcNow().UtcDateTime;
 
-        // First-admin bootstrap (§12): a self-hoster sets App:InitialAdminTwitchId to their Twitch user id,
-        // and the matching account is promoted to platform principal on login — no raw SQL, idempotent.
+        // First-admin bootstrap (§12): the configured App:InitialAdminTwitchId match (any deployment), OR — on
+        // self-host, where the owner IS the admin — the FIRST account to onboard when no platform principal
+        // exists yet. No raw SQL, idempotent.
+        bool anyPlatformPrincipalExists = await _db.Users.AnyAsync(
+            u => u.IsPlatformPrincipal,
+            cancellationToken
+        );
         if (
             AdminBootstrap.ShouldPromote(
                 user.IsPlatformPrincipal,
                 _initialAdminTwitchId,
-                user.TwitchUserId
+                user.TwitchUserId,
+                _isSelfHost,
+                anyPlatformPrincipalExists
             )
         )
         {
             user.IsPlatformPrincipal = true;
             _logger.LogInformation(
-                "Bootstrapped platform admin from App:InitialAdminTwitchId: {TwitchUserId}",
+                "Bootstrapped platform admin (self-host first owner or configured id): {TwitchUserId}",
                 user.TwitchUserId
             );
         }

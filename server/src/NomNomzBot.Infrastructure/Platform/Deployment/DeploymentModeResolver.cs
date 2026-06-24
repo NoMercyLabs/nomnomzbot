@@ -76,3 +76,13 @@ public static class DeploymentModeResolver
         return null;
     }
 }
+
+/// <summary>
+/// A reference-type carrier for the resolved <see cref="DeploymentMode"/> so services can DI-inject it (an
+/// enum value type cannot be registered as a singleton directly). Exposes the self-host check the first-owner
+/// admin bootstrap branches on.
+/// </summary>
+public sealed record DeploymentContext(DeploymentMode Mode)
+{
+    public bool IsSelfHost => Mode is DeploymentMode.SelfHostLite or DeploymentMode.SelfHostFull;
+}
