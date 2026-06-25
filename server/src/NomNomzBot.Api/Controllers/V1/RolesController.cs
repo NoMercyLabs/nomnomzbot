@@ -12,7 +12,9 @@ using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NomNomzBot.Api.Authorization;
+using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Auth;
+using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Domain.Identity.Enums;
 
@@ -36,6 +38,7 @@ public class RolesController(
 
     [HttpGet]
     [RequireAction("roles:read")]
+    [ProducesResponseType<PaginatedResponse<ChannelMembershipDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> List(
         string channelId,
         [FromQuery] int page = 1,
@@ -45,8 +48,20 @@ public class RolesController(
     {
         if (!Guid.TryParse(channelId, out Guid broadcasterId))
             return BadRequestResponse("Invalid channel id.");
-        return ResultResponse(
-            await memberships.ListMembershipsAsync(broadcasterId, page, pageSize, ct)
+        // The flat PaginatedResponse ({ data: [...] }) shape every other list endpoint emits — the dashboard's
+        // PaginatedEnvelope reads `data` as the array, so wrapping a PagedList in StatusResponseDto (data: {items})
+        // would break deserialization. Mirror EventResponses/Commands/etc.: GetPaginatedResponse over the PagedList.
+        Result<PagedList<ChannelMembershipDto>> result = await memberships.ListMembershipsAsync(
+            broadcasterId,
+            page,
+            pageSize,
+            ct
+        );
+        if (result.IsFailure)
+            return ResultResponse(result);
+        return GetPaginatedResponse(
+            result.Value,
+            new PageRequestDto { Page = page, Take = pageSize }
         );
     }
 

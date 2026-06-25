@@ -119,6 +119,38 @@ public sealed class RolesControllerTests
     }
 
     [Fact]
+    public async Task List_returns_the_flat_paginated_shape_the_dashboard_deserializes()
+    {
+        (RolesController controller, IMembershipService service) = Build();
+        ChannelMembershipDto member = new(
+            Guid.NewGuid(),
+            Target,
+            "nibbles",
+            ManagementRole.Editor,
+            30,
+            MembershipSource.BotGrant,
+            Caller,
+            default,
+            null
+        );
+        service
+            .ListMembershipsAsync(Channel, 1, 100, Arg.Any<CancellationToken>())
+            .Returns(Result.Success(new PagedList<ChannelMembershipDto>([member], 1, 100, 1)));
+
+        IActionResult result = await controller.List(Channel.ToString(), 1, 100, default);
+
+        // The dashboard's PaginatedEnvelope reads `data` as the array, so the body MUST be the flat
+        // PaginatedResponse ({ data: [...] }) — NOT StatusResponseDto<PagedList> ({ data: { items: [...] } }),
+        // the exact shape mismatch that crashed the roles page on load.
+        OkObjectResult ok = result.Should().BeOfType<OkObjectResult>().Subject;
+        PaginatedResponse<ChannelMembershipDto> body = ok
+            .Value.Should()
+            .BeOfType<PaginatedResponse<ChannelMembershipDto>>()
+            .Subject;
+        body.Data.Should().ContainSingle().Which.UserId.Should().Be(Target);
+    }
+
+    [Fact]
     public async Task EffectiveMe_resolves_the_authenticated_caller_not_an_arbitrary_user()
     {
         // /effective/me is the shell's self-introspection on session establish — it must resolve the CALLER's
