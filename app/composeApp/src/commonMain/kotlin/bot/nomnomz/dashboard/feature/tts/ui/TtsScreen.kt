@@ -44,11 +44,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
+import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
@@ -85,6 +87,10 @@ import nomnomzbot.composeapp.generated.resources.tts_status_enabled
 import nomnomzbot.composeapp.generated.resources.tts_toggle_enabled
 import nomnomzbot.composeapp.generated.resources.tts_voices_count
 import nomnomzbot.composeapp.generated.resources.tts_voices_default
+import nomnomzbot.composeapp.generated.resources.tts_voices_more
+import nomnomzbot.composeapp.generated.resources.tts_voices_search
+import nomnomzbot.composeapp.generated.resources.tts_voices_use
+import nomnomzbot.composeapp.generated.resources.tts_voices_use_action
 import nomnomzbot.composeapp.generated.resources.tts_voices_title
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
@@ -198,20 +204,44 @@ private fun ReadyContent(state: TtsState.Ready, manage: ManageDecision, onSave: 
             onSave = { onSave(edited) },
         )
 
-        VoicesSummary(voices = state.voices, currentVoiceId = defaultVoiceId)
+        VoicePicker(
+            voices = state.voices,
+            currentVoiceId = defaultVoiceId,
+            manage = manage,
+            onSelect = { defaultVoiceId = it },
+        )
     }
 }
 
-// A compact reference card under the form: how many TTS voices are available (so the operator knows the
-// `defaultVoiceId` field has real options) and which one their current selection resolves to. A full voice
-// picker is a follow-up; this lists nothing when the provider returned no voices.
+// A searchable voice picker under the form: the count + current selection, then a search box. Typing filters
+// the channel's voices by display name / locale / id and shows the top matches (capped, so a provider's
+// hundreds never flood the page); "Use" sets the defaultVoiceId field above. Nothing renders if no voices load.
 @Composable
-private fun VoicesSummary(voices: List<TtsVoice>, currentVoiceId: String) {
+private fun VoicePicker(
+    voices: List<TtsVoice>,
+    currentVoiceId: String,
+    manage: ManageDecision,
+    onSelect: (String) -> Unit,
+) {
     if (voices.isEmpty()) return
 
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
+
+    var query: String by remember { mutableStateOf("") }
+    val trimmed: String = query.trim()
+    val matches: List<TtsVoice> =
+        if (trimmed.isBlank()) {
+            emptyList()
+        } else {
+            voices.filter {
+                it.displayName.contains(trimmed, ignoreCase = true) ||
+                    it.locale.contains(trimmed, ignoreCase = true) ||
+                    it.id.contains(trimmed, ignoreCase = true)
+            }
+        }
+    val shown: List<TtsVoice> = matches.take(8)
 
     val current: TtsVoice? = voices.firstOrNull { it.id == currentVoiceId }
     val selectedLabel: String? = current?.let { "${it.displayName} (${it.locale})" }
@@ -222,7 +252,7 @@ private fun VoicesSummary(voices: List<TtsVoice>, currentVoiceId: String) {
             .clip(RoundedCornerShape(tokens.radius.lg))
             .background(tokens.card)
             .padding(spacing.s4),
-        verticalArrangement = Arrangement.spacedBy(spacing.s1),
+        verticalArrangement = Arrangement.spacedBy(spacing.s2),
     ) {
         Text(
             text = stringResource(Res.string.tts_voices_title),
@@ -243,6 +273,80 @@ private fun VoicesSummary(voices: List<TtsVoice>, currentVoiceId: String) {
                 color = tokens.mutedForeground,
                 maxLines = 1,
             )
+        }
+        AppTextField(
+            value = query,
+            onValueChange = { query = it },
+            label = stringResource(Res.string.tts_voices_search),
+            modifier = Modifier.fillMaxWidth(),
+        )
+        shown.forEach { voice ->
+            VoiceMatchRow(
+                voice = voice,
+                manage = manage,
+                onUse = {
+                    onSelect(voice.id)
+                    query = ""
+                },
+            )
+        }
+        if (matches.size > shown.size) {
+            Text(
+                text = stringResource(Res.string.tts_voices_more, matches.size),
+                style = typography.sm,
+                color = tokens.mutedForeground,
+                maxLines = 1,
+            )
+        }
+    }
+}
+
+// One voice match: name + locale/provider, with a "Use" action that sets it as the default voice (Editor floor).
+@Composable
+private fun VoiceMatchRow(voice: TtsVoice, manage: ManageDecision, onUse: () -> Unit) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    val useLabel: String = stringResource(Res.string.tts_voices_use_action, voice.displayName)
+    val rowDescription: String = "${voice.displayName}, ${voice.locale}, ${voice.provider}"
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+    ) {
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .clearAndSetSemantics { contentDescription = rowDescription },
+            verticalArrangement = Arrangement.spacedBy(spacing.s1),
+        ) {
+            Text(
+                text = voice.displayName,
+                style = typography.sm,
+                color = tokens.cardForeground,
+                maxLines = 1,
+            )
+            Text(
+                text = "${voice.locale} · ${voice.provider}",
+                style = typography.sm,
+                color = tokens.mutedForeground,
+                maxLines = 1,
+            )
+        }
+        ManageGate(decision = manage) { enabled ->
+            TextButton(
+                onClick = onUse,
+                enabled = enabled,
+                modifier = Modifier.semantics { contentDescription = useLabel },
+            ) {
+                Text(
+                    text = stringResource(Res.string.tts_voices_use),
+                    color = if (enabled) tokens.primary else tokens.mutedForeground,
+                    maxLines = 1,
+                )
+            }
         }
     }
 }
