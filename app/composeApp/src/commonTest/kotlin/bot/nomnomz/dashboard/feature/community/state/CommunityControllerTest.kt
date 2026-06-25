@@ -297,4 +297,10 @@ private class FakeCommunityApi(
         unbanCalls.add(channelId to userId)
         return unbanResult
     }
+
+    override suspend fun addVip(channelId: String, userId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+
+    override suspend fun removeVip(channelId: String, userId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+
+    override suspend fun shoutout(channelId: String, targetTwitchUserId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
 }

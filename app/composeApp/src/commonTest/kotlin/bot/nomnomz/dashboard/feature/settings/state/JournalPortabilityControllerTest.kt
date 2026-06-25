@@ -208,6 +208,9 @@ private class FakeEventStoreApi(
         lastImportBytes = bytes
         return importResult
     }
+
+    override suspend fun rebuildProjections(channelId: String): ApiResult<String> =
+        ApiResult.Ok("ok")
 }
 
 private class FakeFileBridge(

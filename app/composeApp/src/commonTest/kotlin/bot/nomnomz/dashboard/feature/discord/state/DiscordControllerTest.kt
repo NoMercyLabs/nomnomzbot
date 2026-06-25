@@ -15,10 +15,15 @@ import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.CreateDiscordConfigBody
+import bot.nomnomz.dashboard.core.network.CreateDiscordRoleBody
 import bot.nomnomz.dashboard.core.network.DiscordApi
+import bot.nomnomz.dashboard.core.network.DiscordConfigPreview
+import bot.nomnomz.dashboard.core.network.DiscordDispatchLogEntry
 import bot.nomnomz.dashboard.core.network.DiscordEmbed
 import bot.nomnomz.dashboard.core.network.DiscordGuildConnection
 import bot.nomnomz.dashboard.core.network.DiscordNotificationConfig
+import bot.nomnomz.dashboard.core.network.DiscordNotificationRole
+import bot.nomnomz.dashboard.core.network.UpdateDiscordRoleBody
 import bot.nomnomz.dashboard.core.network.UpdateDiscordConfigBody
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -426,4 +431,38 @@ private class RecordingDiscordApi(
 
     private fun notFound(): ApiResult<DiscordNotificationConfig> =
         ApiResult.Failure(ApiError(404, "NOT_FOUND", "no such config"))
+
+    override suspend fun previewConfig(channelId: String, configId: String): ApiResult<DiscordConfigPreview> =
+        ApiResult.Ok(DiscordConfigPreview())
+
+    override suspend fun roles(channelId: String, connectionId: String): ApiResult<List<DiscordNotificationRole>> =
+        ApiResult.Ok(emptyList())
+
+    override suspend fun createRole(
+        channelId: String,
+        connectionId: String,
+        body: CreateDiscordRoleBody,
+    ): ApiResult<DiscordNotificationRole> = ApiResult.Ok(DiscordNotificationRole())
+
+    override suspend fun updateRole(
+        channelId: String,
+        roleId: String,
+        body: UpdateDiscordRoleBody,
+    ): ApiResult<DiscordNotificationRole> = ApiResult.Ok(DiscordNotificationRole())
+
+    override suspend fun deleteRole(channelId: String, roleId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+
+    override suspend fun postRoleButton(channelId: String, roleId: String, buttonChannelId: String): ApiResult<DiscordNotificationRole> =
+        ApiResult.Ok(DiscordNotificationRole())
+
+    override suspend fun approveServerConsent(
+        channelId: String,
+        connectionId: String,
+        approvedByDiscordUserId: String,
+    ): ApiResult<Unit> = ApiResult.Ok(Unit)
+
+    override suspend fun revokeServerConsent(channelId: String, connectionId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+
+    override suspend fun dispatchLog(channelId: String, connectionId: String): ApiResult<List<DiscordDispatchLogEntry>> =
+        ApiResult.Ok(emptyList())
 }

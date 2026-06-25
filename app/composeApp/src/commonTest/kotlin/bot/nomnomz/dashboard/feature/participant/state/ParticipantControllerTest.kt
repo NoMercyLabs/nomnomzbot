@@ -13,7 +13,12 @@ package bot.nomnomz.dashboard.feature.participant.state
 import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.CatalogItem
+import bot.nomnomz.dashboard.core.network.CatalogPurchase
 import bot.nomnomz.dashboard.core.network.ChannelAppearance
+import bot.nomnomz.dashboard.core.network.ChannelSummary
+import bot.nomnomz.dashboard.core.network.ChannelsApi
+import bot.nomnomz.dashboard.core.network.CreateCatalogItemBody
+import bot.nomnomz.dashboard.core.network.CreateSavingsJarBody
 import bot.nomnomz.dashboard.core.network.CurrencyAccount
 import bot.nomnomz.dashboard.core.network.CurrencyAccountSummary
 import bot.nomnomz.dashboard.core.network.EarningRule
@@ -26,12 +31,18 @@ import bot.nomnomz.dashboard.core.network.GamePlayResult
 import bot.nomnomz.dashboard.core.network.GameSummary
 import bot.nomnomz.dashboard.core.network.LeaderboardEntry
 import bot.nomnomz.dashboard.core.network.MusicApi
+import bot.nomnomz.dashboard.core.network.MusicConfig
+import bot.nomnomz.dashboard.core.network.MusicDevice
+import bot.nomnomz.dashboard.core.network.MusicPlaylist
 import bot.nomnomz.dashboard.core.network.MusicSnapshot
+import bot.nomnomz.dashboard.core.network.MusicSongRequestBody
 import bot.nomnomz.dashboard.core.network.MusicTrack
 import bot.nomnomz.dashboard.core.network.NowPlaying
 import bot.nomnomz.dashboard.core.network.ParticipantApi
 import bot.nomnomz.dashboard.core.network.SavingsJar
+import bot.nomnomz.dashboard.core.network.UpdateMusicConfigBody
 import bot.nomnomz.dashboard.core.network.UpsertCurrencyConfig
+import bot.nomnomz.dashboard.core.network.UpsertEarningRuleBody
 import bot.nomnomz.dashboard.core.network.UserActivity
 import bot.nomnomz.dashboard.core.network.UserProfile
 import bot.nomnomz.dashboard.feature.shell.nav.ParticipantStanding
@@ -559,6 +570,26 @@ private class FakeEconomyApi(
         itemId: String,
         enabled: Boolean,
     ): ApiResult<Unit> = ApiResult.Ok(Unit)
+
+    override suspend fun createCatalogItem(channelId: String, request: CreateCatalogItemBody): ApiResult<CatalogItem> =
+        ApiResult.Ok(CatalogItem())
+
+    override suspend fun deleteCatalogItem(channelId: String, itemId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+
+    override suspend fun upsertEarningRule(channelId: String, request: UpsertEarningRuleBody): ApiResult<EarningRule> =
+        ApiResult.Ok(EarningRule())
+
+    override suspend fun savingsJars(channelId: String): ApiResult<List<SavingsJar>> = ApiResult.Ok(emptyList())
+
+    override suspend fun createSavingsJar(channelId: String, request: CreateSavingsJarBody): ApiResult<SavingsJar> =
+        ApiResult.Ok(SavingsJar())
+
+    override suspend fun adjustAccount(channelId: String, viewerUserId: String, amount: Long, reason: String?): ApiResult<Unit> =
+        ApiResult.Ok(Unit)
+
+    override suspend fun catalogPurchases(channelId: String): ApiResult<List<CatalogPurchase>> = ApiResult.Ok(emptyList())
+
+    override suspend fun refundPurchase(channelId: String, purchaseId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
 }
 
 private class FakeMusicApi(private val snapshot: ApiResult<MusicSnapshot>) : MusicApi {
@@ -576,4 +607,31 @@ private class FakeMusicApi(private val snapshot: ApiResult<MusicSnapshot>) : Mus
     override suspend fun resume(channelId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
 
     override suspend fun remove(channelId: String, position: Int): ApiResult<Unit> = ApiResult.Ok(Unit)
+
+    override suspend fun addToQueue(channelId: String, body: MusicSongRequestBody): ApiResult<Unit> = ApiResult.Ok(Unit)
+
+    override suspend fun config(channelId: String): ApiResult<MusicConfig> = ApiResult.Ok(MusicConfig())
+
+    override suspend fun updateConfig(channelId: String, body: UpdateMusicConfigBody): ApiResult<MusicConfig> =
+        ApiResult.Ok(MusicConfig())
+
+    override suspend fun srPageToken(channelId: String): ApiResult<String> = ApiResult.Ok("")
+
+    override suspend fun rotateSrPageToken(channelId: String): ApiResult<String> = ApiResult.Ok("")
+
+    override suspend fun seek(channelId: String, positionMs: Int): ApiResult<Unit> = ApiResult.Ok(Unit)
+
+    override suspend fun setShuffle(channelId: String, enabled: Boolean): ApiResult<Unit> = ApiResult.Ok(Unit)
+
+    override suspend fun setRepeat(channelId: String, mode: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+
+    override suspend fun transferPlayback(channelId: String, deviceId: String, play: Boolean): ApiResult<Unit> =
+        ApiResult.Ok(Unit)
+
+    override suspend fun getDevices(channelId: String): ApiResult<List<MusicDevice>> = ApiResult.Ok(emptyList())
+
+    override suspend fun getPlaylists(channelId: String, offset: Int, limit: Int): ApiResult<List<MusicPlaylist>> =
+        ApiResult.Ok(emptyList())
+
+    override suspend fun playContext(channelId: String, contextUri: String): ApiResult<Unit> = ApiResult.Ok(Unit)
 }

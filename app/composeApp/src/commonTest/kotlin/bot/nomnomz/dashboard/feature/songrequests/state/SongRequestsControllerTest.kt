@@ -14,8 +14,10 @@ import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
+import bot.nomnomz.dashboard.core.network.MusicConfig
 import bot.nomnomz.dashboard.core.network.QueuedSong
 import bot.nomnomz.dashboard.core.network.SongRequestsApi
+import bot.nomnomz.dashboard.core.network.UpdateMusicConfigBody
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -101,7 +103,9 @@ class SongRequestsControllerTest {
 
         controller.load()
 
-        assertTrue(controller.state.value is SongRequestsState.Empty)
+        val s: SongRequestsState = controller.state.value
+        assertTrue(s is SongRequestsState.Ready)
+        assertTrue((s as SongRequestsState.Ready).queue.isEmpty())
     }
 
     @Test
@@ -246,4 +250,13 @@ private class FakeSongRequestsApi(
         removeCalls.add(channelId to position)
         return controlResult
     }
+
+    override suspend fun config(channelId: String): ApiResult<MusicConfig> = ApiResult.Ok(MusicConfig())
+
+    override suspend fun updateConfig(channelId: String, body: UpdateMusicConfigBody): ApiResult<MusicConfig> =
+        ApiResult.Ok(MusicConfig())
+
+    override suspend fun srPageToken(channelId: String): ApiResult<String> = ApiResult.Ok("")
+
+    override suspend fun rotateSrPageToken(channelId: String): ApiResult<String> = ApiResult.Ok("")
 }

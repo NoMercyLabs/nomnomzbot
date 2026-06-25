@@ -14,6 +14,7 @@ import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
+import bot.nomnomz.dashboard.core.network.CreateWidgetBody
 import bot.nomnomz.dashboard.core.network.WidgetSummary
 import bot.nomnomz.dashboard.core.network.WidgetsApi
 import kotlin.test.Test
@@ -210,4 +211,13 @@ private class RecordingWidgetsApi(
         if (writeResult is ApiResult.Ok) store.removeAll { it.id == widgetId }
         return writeResult
     }
+
+    override suspend fun create(channelId: String, body: CreateWidgetBody): ApiResult<WidgetSummary> =
+        ApiResult.Ok(WidgetSummary(id = "new-widget", type = body.type, name = body.name))
+
+    override suspend fun rename(channelId: String, widgetId: String, name: String): ApiResult<Unit> =
+        ApiResult.Ok(Unit)
+
+    override suspend fun clone(channelId: String, sourceType: String, sourceName: String): ApiResult<WidgetSummary> =
+        ApiResult.Ok(WidgetSummary(id = "cloned-widget", type = sourceType, name = "$sourceName (copy)"))
 }

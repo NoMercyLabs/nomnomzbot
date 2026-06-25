@@ -17,8 +17,10 @@ import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.AutomodCapsFilter
 import bot.nomnomz.dashboard.core.network.AutomodConfig
 import bot.nomnomz.dashboard.core.network.BannedUser
+import bot.nomnomz.dashboard.core.network.CreateModerationRuleBody
 import bot.nomnomz.dashboard.core.network.ModLogEntry
 import bot.nomnomz.dashboard.core.network.ModerationRule
+import bot.nomnomz.dashboard.core.network.ModerationStats
 import bot.nomnomz.dashboard.core.network.ShieldStatus
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
@@ -479,4 +481,19 @@ private class FakeModerationApi(
         deletedRules.add(ruleId)
         return ApiResult.Ok(Unit)
     }
+
+    override suspend fun createRule(channelId: String, body: CreateModerationRuleBody): ApiResult<ModerationRule> =
+        ApiResult.Ok(ModerationRule(id = 999, name = body.name, isEnabled = true))
+
+    override suspend fun performAction(
+        channelId: String,
+        action: String,
+        targetUserId: String,
+        durationSeconds: Int?,
+        reason: String?,
+    ): ApiResult<Unit> = ApiResult.Ok(Unit)
+
+    override suspend fun stats(channelId: String): ApiResult<ModerationStats> = ApiResult.Ok(ModerationStats())
+
+    override suspend fun announce(channelId: String, message: String, color: String?): ApiResult<Unit> = ApiResult.Ok(Unit)
 }

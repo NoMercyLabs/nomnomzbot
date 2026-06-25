@@ -15,9 +15,14 @@ import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.MusicApi
+import bot.nomnomz.dashboard.core.network.MusicConfig
+import bot.nomnomz.dashboard.core.network.MusicDevice
+import bot.nomnomz.dashboard.core.network.MusicPlaylist
 import bot.nomnomz.dashboard.core.network.MusicSnapshot
+import bot.nomnomz.dashboard.core.network.MusicSongRequestBody
 import bot.nomnomz.dashboard.core.network.MusicTrack
 import bot.nomnomz.dashboard.core.network.NowPlaying
+import bot.nomnomz.dashboard.core.network.UpdateMusicConfigBody
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -291,6 +296,8 @@ private class FakeMusicApi(
     private val snapshots: List<ApiResult<MusicSnapshot>>,
     // The default-OK result every control (skip/pause/resume/remove) returns unless a test overrides it.
     private val controlResult: ApiResult<Unit> = ApiResult.Ok(Unit),
+    // Config defaults to failure so tests that don't configure it don't interfere with Empty state detection.
+    private val configResult: ApiResult<MusicConfig> = ApiResult.Failure(ApiError(503, "UNAVAILABLE", "no config")),
 ) : MusicApi {
     // Single-result convenience for the read-only tests (one queue() result, controls unused).
     constructor(result: ApiResult<MusicSnapshot>) : this(snapshots = listOf(result))
@@ -329,4 +336,31 @@ private class FakeMusicApi(
         removeCalls.add(channelId to position)
         return controlResult
     }
+
+    override suspend fun addToQueue(channelId: String, body: MusicSongRequestBody): ApiResult<Unit> = ApiResult.Ok(Unit)
+
+    override suspend fun config(channelId: String): ApiResult<MusicConfig> = configResult
+
+    override suspend fun updateConfig(channelId: String, body: UpdateMusicConfigBody): ApiResult<MusicConfig> =
+        ApiResult.Ok(MusicConfig())
+
+    override suspend fun srPageToken(channelId: String): ApiResult<String> = ApiResult.Ok("")
+
+    override suspend fun rotateSrPageToken(channelId: String): ApiResult<String> = ApiResult.Ok("")
+
+    override suspend fun seek(channelId: String, positionMs: Int): ApiResult<Unit> = ApiResult.Ok(Unit)
+
+    override suspend fun setShuffle(channelId: String, enabled: Boolean): ApiResult<Unit> = ApiResult.Ok(Unit)
+
+    override suspend fun setRepeat(channelId: String, mode: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+
+    override suspend fun transferPlayback(channelId: String, deviceId: String, play: Boolean): ApiResult<Unit> =
+        ApiResult.Ok(Unit)
+
+    override suspend fun getDevices(channelId: String): ApiResult<List<MusicDevice>> = ApiResult.Ok(emptyList())
+
+    override suspend fun getPlaylists(channelId: String, offset: Int, limit: Int): ApiResult<List<MusicPlaylist>> =
+        ApiResult.Ok(emptyList())
+
+    override suspend fun playContext(channelId: String, contextUri: String): ApiResult<Unit> = ApiResult.Ok(Unit)
 }

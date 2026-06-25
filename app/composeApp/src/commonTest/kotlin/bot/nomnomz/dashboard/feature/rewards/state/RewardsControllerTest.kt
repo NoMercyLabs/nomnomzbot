@@ -395,4 +395,6 @@ private class RecordingRewardsApi(
         refunded += redemptionId
         return writeResult
     }
+
+    override suspend fun sync(channelId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
 }

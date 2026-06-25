@@ -17,6 +17,8 @@ import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.TtsApi
 import bot.nomnomz.dashboard.core.network.TtsConfig
 import bot.nomnomz.dashboard.core.network.TtsConfigUpdate
+import bot.nomnomz.dashboard.core.network.TtsTestRequest
+import bot.nomnomz.dashboard.core.network.TtsTestResult
 import bot.nomnomz.dashboard.core.network.TtsVoice
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -228,4 +230,7 @@ private class FakeTtsApi(
     }
 
     override suspend fun voices(channelId: String): ApiResult<List<TtsVoice>> = voicesResult
+
+    override suspend fun testSpeak(channelId: String, request: TtsTestRequest): ApiResult<TtsTestResult> =
+        ApiResult.Ok(TtsTestResult())
 }

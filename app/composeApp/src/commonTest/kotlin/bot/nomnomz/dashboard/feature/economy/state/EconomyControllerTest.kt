@@ -15,12 +15,17 @@ import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.CatalogItem
+import bot.nomnomz.dashboard.core.network.CatalogPurchase
+import bot.nomnomz.dashboard.core.network.CreateCatalogItemBody
+import bot.nomnomz.dashboard.core.network.CreateSavingsJarBody
 import bot.nomnomz.dashboard.core.network.CurrencyAccountSummary
 import bot.nomnomz.dashboard.core.network.CurrencyConfig
 import bot.nomnomz.dashboard.core.network.EarningRule
 import bot.nomnomz.dashboard.core.network.EconomyApi
 import bot.nomnomz.dashboard.core.network.LeaderboardEntry
+import bot.nomnomz.dashboard.core.network.SavingsJar
 import bot.nomnomz.dashboard.core.network.UpsertCurrencyConfig
+import bot.nomnomz.dashboard.core.network.UpsertEarningRuleBody
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -455,4 +460,24 @@ private class FakeEconomyApi(
         lastCatalogToggle = itemId to enabled
         return ApiResult.Ok(Unit)
     }
+
+    override suspend fun createCatalogItem(channelId: String, request: CreateCatalogItemBody): ApiResult<CatalogItem> =
+        ApiResult.Ok(CatalogItem())
+
+    override suspend fun deleteCatalogItem(channelId: String, itemId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+
+    override suspend fun upsertEarningRule(channelId: String, request: UpsertEarningRuleBody): ApiResult<EarningRule> =
+        ApiResult.Ok(EarningRule())
+
+    override suspend fun savingsJars(channelId: String): ApiResult<List<SavingsJar>> = ApiResult.Ok(emptyList())
+
+    override suspend fun createSavingsJar(channelId: String, request: CreateSavingsJarBody): ApiResult<SavingsJar> =
+        ApiResult.Ok(SavingsJar())
+
+    override suspend fun adjustAccount(channelId: String, viewerUserId: String, amount: Long, reason: String?): ApiResult<Unit> =
+        ApiResult.Ok(Unit)
+
+    override suspend fun catalogPurchases(channelId: String): ApiResult<List<CatalogPurchase>> = ApiResult.Ok(emptyList())
+
+    override suspend fun refundPurchase(channelId: String, purchaseId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
 }
