@@ -113,6 +113,17 @@ class ApiClient(
             }
         }
 
+    /** PATCHes an optional JSON [body] to a `StatusResponseDto<T>` endpoint, unwrapping `data`. */
+    internal suspend inline fun <reified T> patchEnvelope(path: String, body: Any? = null): ApiResult<T> =
+        envelope(path) { url ->
+            httpClient.patch(url) {
+                if (body != null) {
+                    contentType(ContentType.Application.Json)
+                    setBody(body)
+                }
+            }
+        }
+
     /** PUTs an optional JSON [body] to a `StatusResponseDto<T>` endpoint, unwrapping `data`. */
     internal suspend inline fun <reified T> putEnvelope(path: String, body: Any? = null): ApiResult<T> =
         envelope(path) { url ->

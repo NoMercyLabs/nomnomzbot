@@ -116,7 +116,10 @@ import bot.nomnomz.dashboard.feature.songrequests.state.SongRequestsController
 import bot.nomnomz.dashboard.feature.timers.state.TimersController
 import bot.nomnomz.dashboard.feature.tts.state.TtsController
 import bot.nomnomz.dashboard.feature.widgets.state.WidgetsController
+import bot.nomnomz.dashboard.core.network.LiveOpsApi
+import bot.nomnomz.dashboard.core.network.RestLiveOpsApi
 import bot.nomnomz.dashboard.feature.language.state.LanguageController
+import bot.nomnomz.dashboard.feature.liveops.state.LiveOpsController
 import bot.nomnomz.dashboard.feature.setup.state.SetupController
 
 // The composition root for this slice — one instance of each engine singleton (frontend-structure.md
@@ -178,6 +181,7 @@ class AppGraph {
     val webhooksApi: WebhooksApi = RestWebhooksApi(apiClient)
     val federationApi: FederationApi = RestFederationApi(apiClient)
     val codeScriptsApi: CodeScriptsApi = RestCodeScriptsApi(apiClient)
+    val liveOpsApi: LiveOpsApi = RestLiveOpsApi(apiClient)
 
     private val oauthLauncher: OAuthLauncher = OAuthLauncher()
     private val connectLauncher: ConnectLauncher = OAuthConnectLauncher(oauthLauncher)
@@ -309,6 +313,9 @@ class AppGraph {
         FederationController(channelsApi = channelsApi, federationApi = federationApi)
 
     val codeScriptsController: CodeScriptsController = CodeScriptsController(api = codeScriptsApi)
+
+    val liveOpsController: LiveOpsController =
+        LiveOpsController(channelsApi = channelsApi, liveOpsApi = liveOpsApi)
 
     // The PARTICIPANT rung's controller is built PER resolved access (channel + caller's own user GUID + community
     // standing + permit capabilities), which the shell resolves at entry via /effective/me — unlike the management
