@@ -170,6 +170,29 @@ class ModerationController(
         afterWrite(moderationApi.removeBlockedTerm(channel, term))
     }
 
+    /**
+     * Flip one AutoMod [filter]'s enabled flag and persist the whole config (the backend POST takes the full
+     * config; the other filters' settings ride along unchanged), then reload. No-ops off a Ready state.
+     */
+    suspend fun toggleAutomodFilter(filter: AutomodFilter) {
+        val channel: String = channelId ?: return
+        val current: ModerationState = _state.value
+        if (current !is ModerationState.Ready) return
+        val c: AutomodConfig = current.automod
+        val updated: AutomodConfig =
+            when (filter) {
+                AutomodFilter.Link ->
+                    c.copy(linkFilter = c.linkFilter.copy(enabled = !c.linkFilter.enabled))
+                AutomodFilter.Caps ->
+                    c.copy(capsFilter = c.capsFilter.copy(enabled = !c.capsFilter.enabled))
+                AutomodFilter.Phrases ->
+                    c.copy(bannedPhrases = c.bannedPhrases.copy(enabled = !c.bannedPhrases.enabled))
+                AutomodFilter.Emotes ->
+                    c.copy(emoteSpam = c.emoteSpam.copy(enabled = !c.emoteSpam.enabled))
+            }
+        afterWrite(moderationApi.saveAutomod(channel, updated))
+    }
+
     // Reload on success; on failure surface the message on the current Ready state without losing the lists.
     private suspend fun afterWrite(result: ApiResult<Unit>) {
         when (result) {
@@ -204,4 +227,12 @@ sealed interface ModerationState {
     data object Empty : ModerationState
 
     data class Error(val detail: String) : ModerationState
+}
+
+/** The four independent AutoMod filters, used to address a per-filter toggle. */
+enum class AutomodFilter {
+    Link,
+    Caps,
+    Phrases,
+    Emotes,
 }

@@ -218,6 +218,10 @@
     <string name="moderation_automod_off">Off</string>
     <string name="moderation_automod_caps_detail">%1$d%% caps</string>
     <string name="moderation_automod_emote_detail">max %1$d emotes</string>
+    <string name="moderation_automod_enable">Enable</string>
+    <string name="moderation_automod_disable">Disable</string>
+    <string name="moderation_automod_enable_action">Enable %1$s filter</string>
+    <string name="moderation_automod_disable_action">Disable %1$s filter</string>
     <string name="moderation_no_reason">No reason given</string>
     <string name="moderation_banned_on">Banned on %1$s</string>
     <string name="moderation_banned_by">Banned by %1$s</string>

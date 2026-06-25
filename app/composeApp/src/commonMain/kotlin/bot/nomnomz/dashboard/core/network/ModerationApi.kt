@@ -51,6 +51,9 @@ interface ModerationApi {
 
     /** The channel's AutoMod filter configuration (link / caps / banned-phrases / emote-spam). */
     suspend fun automod(channelId: String): ApiResult<AutomodConfig>
+
+    /** Persist the whole AutoMod [config] (the backend POST takes the full config; a toggle re-sends it). */
+    suspend fun saveAutomod(channelId: String, config: AutomodConfig): ApiResult<Unit>
 }
 
 class RestModerationApi(private val client: ApiClient) : ModerationApi {
@@ -103,6 +106,10 @@ class RestModerationApi(private val client: ApiClient) : ModerationApi {
     // AutoMod is a single-value StatusResponseDto envelope ({ data: { … } }) — getEnvelope reads the config.
     override suspend fun automod(channelId: String): ApiResult<AutomodConfig> =
         client.getEnvelope("api/v1/channels/$channelId/moderation/automod")
+
+    // The POST body IS the full AutomodConfigDto; the controller reloads after, so any 2xx is success.
+    override suspend fun saveAutomod(channelId: String, config: AutomodConfig): ApiResult<Unit> =
+        client.postUnit("api/v1/channels/$channelId/moderation/automod", config)
 }
 
 /**

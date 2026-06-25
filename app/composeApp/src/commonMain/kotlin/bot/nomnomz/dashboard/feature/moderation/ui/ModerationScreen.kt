@@ -50,6 +50,7 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.network.AutomodConfig
 import bot.nomnomz.dashboard.core.network.BannedUser
 import bot.nomnomz.dashboard.core.network.ModLogEntry
+import bot.nomnomz.dashboard.feature.moderation.state.AutomodFilter
 import bot.nomnomz.dashboard.feature.moderation.state.ModerationController
 import bot.nomnomz.dashboard.feature.moderation.state.ModerationState
 import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
@@ -60,6 +61,10 @@ import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.moderation_action_error
 import nomnomzbot.composeapp.generated.resources.moderation_automod_caps
 import nomnomzbot.composeapp.generated.resources.moderation_automod_caps_detail
+import nomnomzbot.composeapp.generated.resources.moderation_automod_disable
+import nomnomzbot.composeapp.generated.resources.moderation_automod_disable_action
+import nomnomzbot.composeapp.generated.resources.moderation_automod_enable
+import nomnomzbot.composeapp.generated.resources.moderation_automod_enable_action
 import nomnomzbot.composeapp.generated.resources.moderation_automod_emote_detail
 import nomnomzbot.composeapp.generated.resources.moderation_automod_emotes
 import nomnomzbot.composeapp.generated.resources.moderation_automod_link
@@ -137,6 +142,7 @@ fun ModerationScreen(controller: ModerationController, role: ManagementRole?) {
                     onToggleShield = { on -> scope.launch { controller.setShieldMode(on) } },
                     onAddTerm = { term -> scope.launch { controller.addBlockedTerm(term) } },
                     onRemoveTerm = { term -> scope.launch { controller.removeBlockedTerm(term) } },
+                    onToggleFilter = { f -> scope.launch { controller.toggleAutomodFilter(f) } },
                 )
         }
     }
@@ -155,6 +161,7 @@ private fun BansList(
     onToggleShield: (Boolean) -> Unit,
     onAddTerm: (String) -> Unit,
     onRemoveTerm: (String) -> Unit,
+    onToggleFilter: (AutomodFilter) -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -230,6 +237,8 @@ private fun BansList(
                 name = stringResource(Res.string.moderation_automod_link),
                 enabled = automod.linkFilter.enabled,
                 detail = null,
+                manage = manage,
+                onToggle = { onToggleFilter(AutomodFilter.Link) },
             )
         }
         item(key = "automod-caps") {
@@ -241,6 +250,8 @@ private fun BansList(
                         Res.string.moderation_automod_caps_detail,
                         automod.capsFilter.threshold,
                     ),
+                manage = manage,
+                onToggle = { onToggleFilter(AutomodFilter.Caps) },
             )
         }
         item(key = "automod-phrases") {
@@ -248,6 +259,8 @@ private fun BansList(
                 name = stringResource(Res.string.moderation_automod_phrases),
                 enabled = automod.bannedPhrases.enabled,
                 detail = null,
+                manage = manage,
+                onToggle = { onToggleFilter(AutomodFilter.Phrases) },
             )
         }
         item(key = "automod-emotes") {
@@ -259,6 +272,8 @@ private fun BansList(
                         Res.string.moderation_automod_emote_detail,
                         automod.emoteSpam.maxEmotes,
                     ),
+                manage = manage,
+                onToggle = { onToggleFilter(AutomodFilter.Emotes) },
             )
         }
     }
@@ -382,7 +397,13 @@ private fun ErrorContent(detail: String, onRetry: () -> Unit) {
 // One AutoMod filter row: the filter name + an On/Off status, with the threshold detail (caps % / emote max)
 // shown when enabled. Read-only — the per-filter toggle / edit is a follow-up.
 @Composable
-private fun AutomodRow(name: String, enabled: Boolean, detail: String?) {
+private fun AutomodRow(
+    name: String,
+    enabled: Boolean,
+    detail: String?,
+    manage: ManageDecision,
+    onToggle: () -> Unit,
+) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
@@ -393,41 +414,72 @@ private fun AutomodRow(name: String, enabled: Boolean, detail: String?) {
         )
     val rowDescription: String =
         if (enabled && detail != null) "$name, $statusWord, $detail" else "$name, $statusWord"
+    val toggleLabel: String =
+        stringResource(
+            if (enabled) Res.string.moderation_automod_disable_action
+            else Res.string.moderation_automod_enable_action,
+            name,
+        )
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(tokens.radius.lg))
             .background(tokens.card)
-            .padding(horizontal = spacing.s4, vertical = spacing.s3)
-            .clearAndSetSemantics { contentDescription = rowDescription },
+            .padding(horizontal = spacing.s4, vertical = spacing.s3),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(spacing.s3),
     ) {
-        Text(
-            text = name,
-            style = typography.base,
-            color = tokens.cardForeground,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f),
-        )
-        if (enabled && detail != null) {
+        // The name + status + detail is one semantics node; the enable/disable button keeps its own.
+        Row(
+            modifier = Modifier
+                .weight(1f)
+                .clearAndSetSemantics { contentDescription = rowDescription },
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(spacing.s3),
+        ) {
             Text(
-                text = detail,
+                text = name,
+                style = typography.base,
+                color = tokens.cardForeground,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            if (enabled && detail != null) {
+                Text(
+                    text = detail,
+                    style = typography.sm,
+                    color = tokens.mutedForeground,
+                    maxLines = 1,
+                    modifier = Modifier.wrapContentWidth(),
+                )
+            }
+            Text(
+                text = statusWord,
                 style = typography.sm,
-                color = tokens.mutedForeground,
+                color = if (enabled) tokens.primary else tokens.mutedForeground,
                 maxLines = 1,
                 modifier = Modifier.wrapContentWidth(),
             )
         }
-        Text(
-            text = statusWord,
-            style = typography.sm,
-            color = if (enabled) tokens.primary else tokens.mutedForeground,
-            maxLines = 1,
-            modifier = Modifier.wrapContentWidth(),
-        )
+        ManageGate(decision = manage) { canManage ->
+            TextButton(
+                onClick = onToggle,
+                enabled = canManage,
+                modifier = Modifier.semantics { contentDescription = toggleLabel },
+            ) {
+                Text(
+                    text =
+                        stringResource(
+                            if (enabled) Res.string.moderation_automod_disable
+                            else Res.string.moderation_automod_enable
+                        ),
+                    color = if (canManage) tokens.primary else tokens.mutedForeground,
+                    maxLines = 1,
+                )
+            }
+        }
     }
 }
 

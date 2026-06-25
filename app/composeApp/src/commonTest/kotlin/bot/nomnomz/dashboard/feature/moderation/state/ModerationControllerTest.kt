@@ -185,6 +185,34 @@ class ModerationControllerTest {
     }
 
     @Test
+    fun toggling_an_automod_filter_saves_the_whole_config_with_that_filter_flipped() = runTest {
+        val moderationApi =
+            FakeModerationApi(
+                // A ban keeps the page Ready; the caps filter starts disabled so the toggle enables it.
+                bansResults = listOf(ApiResult.Ok(listOf(BannedUser(id = "u1", username = "troll")))),
+                automodResult =
+                    ApiResult.Ok(
+                        AutomodConfig(
+                            capsFilter = AutomodCapsFilter(enabled = false, threshold = 80)
+                        )
+                    ),
+            )
+        val controller =
+            ModerationController(
+                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                moderationApi,
+            )
+        controller.load()
+
+        controller.toggleAutomodFilter(AutomodFilter.Caps)
+
+        // The whole config is saved with caps flipped on; its threshold rides along unchanged.
+        val saved: AutomodConfig = moderationApi.lastSavedAutomod!!
+        assertTrue(saved.capsFilter.enabled)
+        assertEquals(80, saved.capsFilter.threshold)
+    }
+
+    @Test
     fun load_is_empty_when_no_one_is_banned() = runTest {
         val controller =
             ModerationController(
@@ -389,4 +417,12 @@ private class FakeModerationApi(
     }
 
     override suspend fun automod(channelId: String): ApiResult<AutomodConfig> = automodResult
+
+    var lastSavedAutomod: AutomodConfig? = null
+        private set
+
+    override suspend fun saveAutomod(channelId: String, config: AutomodConfig): ApiResult<Unit> {
+        lastSavedAutomod = config
+        return ApiResult.Ok(Unit)
+    }
 }
