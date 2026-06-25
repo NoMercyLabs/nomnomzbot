@@ -87,7 +87,7 @@ public sealed class IdentityRekeyBehaviorTests
                 .Ignore(e => e.Events);
 
             b.Entity<Command>().HasKey(e => e.Id);
-            b.Entity<Command>().Ignore(e => e.Responses).Ignore(e => e.Aliases);
+            b.Entity<Command>().Ignore(e => e.TemplateResponses).Ignore(e => e.Aliases);
             b.Entity<Command>().Ignore(e => e.Channel);
 
             // The unit under test: the production composing tenant + soft-delete global query filter.
@@ -159,8 +159,9 @@ public sealed class IdentityRekeyBehaviorTests
             {
                 BroadcasterId = TenantA,
                 Name = "hello-a",
-                Permission = "everyone",
-                Type = "text",
+                NameNormalized = "hello-a",
+                MinPermissionLevel = 0,
+                Tier = "template",
             }
         );
         db.Commands.Add(
@@ -168,8 +169,9 @@ public sealed class IdentityRekeyBehaviorTests
             {
                 BroadcasterId = TenantB,
                 Name = "hello-b",
-                Permission = "everyone",
-                Type = "text",
+                NameNormalized = "hello-b",
+                MinPermissionLevel = 0,
+                Tier = "template",
             }
         );
         await db.SaveChangesAsync();
@@ -224,7 +226,7 @@ public sealed class IdentityRekeyBehaviorTests
         await using RekeyTestContext db = NewContext(dbName, tenant);
 
         // B's command id, looked up bypassing the filter (simulating an id the attacker leaked/guessed).
-        int bCommandId = (
+        Guid bCommandId = (
             await db.Commands.IgnoreQueryFilters().SingleAsync(c => c.BroadcasterId == TenantB)
         ).Id;
 
@@ -431,6 +433,16 @@ public sealed class IdentityRekeyBehaviorTests
             throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.Commands.Entities.Pipeline> Pipelines =>
             throw new NotSupportedException();
+        public DbSet<PipelineStep> PipelineSteps => throw new NotSupportedException();
+        public DbSet<PipelineStepCondition> PipelineStepConditions =>
+            throw new NotSupportedException();
+        public DbSet<PipelineExecution> PipelineExecutions => throw new NotSupportedException();
+        public DbSet<ChannelBuiltinCommand> ChannelBuiltinCommands =>
+            throw new NotSupportedException();
+        public DbSet<CommandCooldownState> CommandCooldownStates =>
+            throw new NotSupportedException();
+        public DbSet<NamedCounter> NamedCounters => throw new NotSupportedException();
+        public DbSet<CommandUsage> CommandUsages => throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.EventStore.Entities.EventJournal> EventJournals =>
             throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.EventStore.Entities.TenantSequence> TenantSequences =>

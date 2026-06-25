@@ -14,12 +14,13 @@ namespace NomNomzBot.Application.Commands.Dtos;
 
 /// <summary>Full timer detail for viewing/editing.</summary>
 public sealed record TimerDto(
-    int Id,
+    Guid Id,
     string Name,
     List<string> Messages,
     int IntervalMinutes,
     int MinChatActivity,
     bool IsEnabled,
+    Guid? PipelineId,
     DateTime? LastFiredAt,
     int NextMessageIndex,
     DateTime CreatedAt,
@@ -28,7 +29,7 @@ public sealed record TimerDto(
 
 /// <summary>Lightweight timer info for list views.</summary>
 public sealed record TimerListItem(
-    int Id,
+    Guid Id,
     string Name,
     int IntervalMinutes,
     bool IsEnabled,
@@ -43,14 +44,15 @@ public sealed record CreateTimerDto
     [Required, MaxLength(100)]
     public required string Name { get; init; }
 
-    [Required, MinLength(1)]
-    public required List<string> Messages { get; init; }
+    public required List<string> Messages { get; init; } = [];
+
+    public Guid? PipelineId { get; init; }
 
     [Range(1, 1440)]
     public int IntervalMinutes { get; init; } = 30;
 
     [Range(0, 10000)]
-    public int MinChatActivity { get; init; } = 0;
+    public int MinChatActivity { get; init; }
 
     public bool IsEnabled { get; init; } = true;
 }
@@ -62,6 +64,8 @@ public sealed record UpdateTimerDto
     public string? Name { get; init; }
 
     public List<string>? Messages { get; init; }
+
+    public Guid? PipelineId { get; init; }
 
     [Range(1, 1440)]
     public int? IntervalMinutes { get; init; }

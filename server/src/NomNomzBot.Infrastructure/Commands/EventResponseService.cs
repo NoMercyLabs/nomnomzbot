@@ -111,8 +111,8 @@ public class EventResponseService : IEventResponseService
                 ResponseType = request.ResponseType ?? "chat_message",
                 IsEnabled = request.IsEnabled ?? true,
                 Message = request.Message,
-                PipelineJson = request.PipelineJson,
-                Metadata = request.Metadata ?? new Dictionary<string, string>(),
+                PipelineId = request.PipelineId,
+                MetadataJson = request.Metadata ?? new Dictionary<string, string>(),
             };
             _db.EventResponses.Add(entity);
         }
@@ -124,10 +124,10 @@ public class EventResponseService : IEventResponseService
                 entity.ResponseType = request.ResponseType;
             if (request.Message is not null)
                 entity.Message = request.Message;
-            if (request.PipelineJson is not null)
-                entity.PipelineJson = request.PipelineJson;
+            if (request.PipelineId.HasValue)
+                entity.PipelineId = request.PipelineId.Value;
             if (request.Metadata is not null)
-                entity.Metadata = request.Metadata;
+                entity.MetadataJson = request.Metadata;
         }
 
         await _db.SaveChangesAsync(cancellationToken);
@@ -165,8 +165,8 @@ public class EventResponseService : IEventResponseService
             e.IsEnabled,
             e.ResponseType,
             e.Message,
-            e.PipelineJson,
-            e.Metadata,
+            e.PipelineId,
+            e.MetadataJson,
             e.CreatedAt,
             e.UpdatedAt
         );

@@ -9,18 +9,20 @@
 // -----------------------------------------------------------------------------
 
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json;
 
 namespace NomNomzBot.Application.Commands.Dtos;
 
-/// <summary>Full pipeline details including the deserialized node graph.</summary>
+/// <summary>Full pipeline details including the deserialized node graph cache.</summary>
 public sealed record PipelineDto(
-    int Id,
+    Guid Id,
     string ChannelId,
     string Name,
     string? Description,
     bool IsEnabled,
-    object Graph,
-    int TriggerCount,
+    string TriggerKind,
+    JsonElement? GraphJsonCache,
+    long TriggerCount,
     DateTime? LastTriggeredAt,
     DateTime CreatedAt,
     DateTime UpdatedAt
@@ -28,11 +30,11 @@ public sealed record PipelineDto(
 
 /// <summary>Lightweight pipeline summary for list views.</summary>
 public sealed record PipelineListItemDto(
-    int Id,
+    Guid Id,
     string Name,
     string? Description,
     bool IsEnabled,
-    int TriggerCount,
+    long TriggerCount,
     DateTime? LastTriggeredAt,
     DateTime UpdatedAt
 );
@@ -48,7 +50,10 @@ public sealed record CreatePipelineDto
 
     public bool IsEnabled { get; init; } = true;
 
-    public object? Graph { get; init; }
+    [MaxLength(30)]
+    public string TriggerKind { get; init; } = "manual";
+
+    public object? GraphJsonCache { get; init; }
 }
 
 /// <summary>Request to update an existing pipeline.</summary>
@@ -62,5 +67,8 @@ public sealed record UpdatePipelineDto
 
     public bool? IsEnabled { get; init; }
 
-    public object? Graph { get; init; }
+    [MaxLength(30)]
+    public string? TriggerKind { get; init; }
+
+    public object? GraphJsonCache { get; init; }
 }

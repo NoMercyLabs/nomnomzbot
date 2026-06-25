@@ -236,12 +236,8 @@ public sealed class SeedRunnerTests
             (await context.Commands.Where(c => c.BroadcasterId == alphaId).CountAsync())
                 .Should()
                 .Be(5);
-            // Shape: every seeded default is a pipeline command with a non-empty pipeline body.
-            (
-                await context
-                    .Commands.Where(c => c.Type == "pipeline" && c.PipelineJson != null)
-                    .CountAsync()
-            )
+            // Shape: every seeded default is an enabled template command.
+            (await context.Commands.Where(c => c.IsEnabled).CountAsync())
                 .Should()
                 .Be(10);
         }

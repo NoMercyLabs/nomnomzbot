@@ -16,15 +16,13 @@ using NomNomzBot.Domain.Commands.Entities;
 namespace NomNomzBot.Infrastructure.Content.Commands;
 
 /// <summary>
-/// Seeds the shipped default music commands (<c>!sr</c>, <c>!skip</c>, <c>!queue</c>,
-/// <c>!volume</c>, <c>!song</c>) for every channel that does not already have them
-/// (backend-structure §5.2 pattern, Order 80 — last, because it FK-references the
-/// <see cref="Channel"/> rows created at runtime by onboarding, not by an earlier seeder).
-/// A default command is just a pre-seeded pipeline command the streamer then edits or disables.
+/// Seeds the shipped built-in music commands (<c>!sr</c>, <c>!skip</c>, <c>!queue</c>,
+/// <c>!volume</c>, <c>!song</c>) as <see cref="ChannelBuiltinCommand"/> rows for every
+/// channel that does not already have them.
 /// </summary>
 /// <remarks>
-/// Idempotent: upserts by the natural key <c>(BroadcasterId, Name)</c> — the same unique index
-/// the schema enforces — so a re-run, and the no-channel fresh-deploy case, both add nothing.
+/// Idempotent: upserts by the natural key <c>(BroadcasterId, BuiltinKey)</c>.
+/// Order 80 — last, because it FK-references Channel rows created at runtime by onboarding.
 /// </remarks>
 public sealed class DefaultCommandsSeeder : ISeeder
 {
@@ -34,44 +32,7 @@ public sealed class DefaultCommandsSeeder : ISeeder
 
     public int Order => 80;
 
-    private static readonly IReadOnlyList<DefaultCommand> Defaults =
-    [
-        new(
-            "!sr",
-            """{"steps":[{"action":{"type":"music_request"}}]}""",
-            "everyone",
-            5,
-            "Request a song"
-        ),
-        new(
-            "!skip",
-            """{"steps":[{"action":{"type":"music_skip"}}]}""",
-            "moderator",
-            0,
-            "Skip the current song"
-        ),
-        new(
-            "!queue",
-            """{"steps":[{"action":{"type":"music_queue"}}]}""",
-            "everyone",
-            10,
-            "Show the song queue"
-        ),
-        new(
-            "!volume",
-            """{"steps":[{"action":{"type":"music_volume"}}]}""",
-            "moderator",
-            0,
-            "Set the music volume"
-        ),
-        new(
-            "!song",
-            """{"steps":[{"action":{"type":"music_current"}}]}""",
-            "everyone",
-            5,
-            "Show the current song"
-        ),
-    ];
+    private static readonly string[] DefaultKeys = ["!sr", "!skip", "!queue", "!volume", "!song"];
 
     public async Task SeedAsync(CancellationToken ct = default)
     {
@@ -80,47 +41,33 @@ public sealed class DefaultCommandsSeeder : ISeeder
         if (channelIds.Count == 0)
             return;
 
-        string[] defaultNames = Defaults.Select(d => d.Name).ToArray();
-
-        // One round-trip: which (channel, name) pairs already exist among the defaults.
-        List<(Guid BroadcasterId, string Name)> existing = await _db
-            .Commands.Where(c =>
-                channelIds.Contains(c.BroadcasterId) && defaultNames.Contains(c.Name)
+        List<(Guid BroadcasterId, string Key)> existing = await _db
+            .ChannelBuiltinCommands.Where(b =>
+                channelIds.Contains(b.BroadcasterId) && DefaultKeys.Contains(b.BuiltinKey)
             )
-            .Select(c => new ValueTuple<Guid, string>(c.BroadcasterId, c.Name))
+            .Select(b => new ValueTuple<Guid, string>(b.BroadcasterId, b.BuiltinKey))
             .ToListAsync(ct);
 
         HashSet<(Guid, string)> present = existing.ToHashSet();
 
         foreach (Guid channelId in channelIds)
         {
-            foreach (DefaultCommand def in Defaults)
+            foreach (string key in DefaultKeys)
             {
-                if (present.Contains((channelId, def.Name)))
+                if (present.Contains((channelId, key)))
                     continue;
 
-                _db.Commands.Add(
-                    new()
+                _db.ChannelBuiltinCommands.Add(
+                    new ChannelBuiltinCommand
                     {
                         BroadcasterId = channelId,
-                        Name = def.Name,
-                        Type = "pipeline",
-                        PipelineJson = def.PipelineJson,
-                        Permission = def.Permission,
-                        CooldownSeconds = def.CooldownSeconds,
-                        Description = def.Description,
+                        BuiltinKey = key,
                         IsEnabled = true,
                     }
                 );
             }
         }
-    }
 
-    private sealed record DefaultCommand(
-        string Name,
-        string PipelineJson,
-        string Permission,
-        int CooldownSeconds,
-        string Description
-    );
+        await _db.SaveChangesAsync(ct);
+    }
 }

@@ -64,7 +64,7 @@ public class PipelineService : IPipelineService
 
     public async Task<Result<PipelineDto>> GetAsync(
         string broadcasterId,
-        int id,
+        Guid id,
         CancellationToken ct = default
     )
     {
@@ -103,7 +103,10 @@ public class PipelineService : IPipelineService
             Name = request.Name,
             Description = request.Description,
             IsEnabled = request.IsEnabled,
-            GraphJson = request.Graph is not null ? JsonSerializer.Serialize(request.Graph) : "{}",
+            TriggerKind = request.TriggerKind,
+            GraphJsonCache = request.GraphJsonCache is not null
+                ? JsonSerializer.Serialize(request.GraphJsonCache)
+                : null,
         };
 
         _db.Pipelines.Add(entity);
@@ -114,7 +117,7 @@ public class PipelineService : IPipelineService
 
     public async Task<Result<PipelineDto>> UpdateAsync(
         string broadcasterId,
-        int id,
+        Guid id,
         UpdatePipelineDto request,
         CancellationToken ct = default
     )
@@ -139,8 +142,10 @@ public class PipelineService : IPipelineService
             entity.Description = request.Description;
         if (request.IsEnabled.HasValue)
             entity.IsEnabled = request.IsEnabled.Value;
-        if (request.Graph is not null)
-            entity.GraphJson = JsonSerializer.Serialize(request.Graph);
+        if (request.TriggerKind is not null)
+            entity.TriggerKind = request.TriggerKind;
+        if (request.GraphJsonCache is not null)
+            entity.GraphJsonCache = JsonSerializer.Serialize(request.GraphJsonCache);
 
         await _db.SaveChangesAsync(ct);
 
@@ -149,7 +154,7 @@ public class PipelineService : IPipelineService
 
     public async Task<Result> DeleteAsync(
         string broadcasterId,
-        int id,
+        Guid id,
         CancellationToken ct = default
     )
     {
@@ -170,17 +175,24 @@ public class PipelineService : IPipelineService
         return Result.Success();
     }
 
-    private static PipelineDto ToDto(PipelineEntity p) =>
-        new(
+    private static PipelineDto ToDto(PipelineEntity p)
+    {
+        JsonElement? graph = p.GraphJsonCache is not null
+            ? JsonSerializer.Deserialize<JsonElement>(p.GraphJsonCache)
+            : null;
+
+        return new PipelineDto(
             p.Id,
             p.BroadcasterId.ToString(),
             p.Name,
             p.Description,
             p.IsEnabled,
-            JsonSerializer.Deserialize<JsonElement>(p.GraphJson),
+            p.TriggerKind,
+            graph,
             p.TriggerCount,
             p.LastTriggeredAt,
             p.CreatedAt,
             p.UpdatedAt
         );
+    }
 }

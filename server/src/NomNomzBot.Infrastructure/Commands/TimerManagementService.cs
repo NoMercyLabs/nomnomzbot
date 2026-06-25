@@ -63,7 +63,7 @@ public class TimerManagementService : ITimerManagementService
 
     public async Task<Result<TimerDto>> GetAsync(
         string broadcasterId,
-        int id,
+        Guid id,
         CancellationToken cancellationToken = default
     )
     {
@@ -109,6 +109,7 @@ public class TimerManagementService : ITimerManagementService
             BroadcasterId = broadcaster,
             Name = request.Name,
             Messages = request.Messages,
+            PipelineId = request.PipelineId,
             IntervalMinutes = request.IntervalMinutes,
             MinChatActivity = request.MinChatActivity,
             IsEnabled = request.IsEnabled,
@@ -122,7 +123,7 @@ public class TimerManagementService : ITimerManagementService
 
     public async Task<Result<TimerDto>> UpdateAsync(
         string broadcasterId,
-        int id,
+        Guid id,
         UpdateTimerDto request,
         CancellationToken cancellationToken = default
     )
@@ -145,6 +146,8 @@ public class TimerManagementService : ITimerManagementService
             timer.Name = request.Name;
         if (request.Messages is not null)
             timer.Messages = request.Messages;
+        if (request.PipelineId.HasValue)
+            timer.PipelineId = request.PipelineId.Value;
         if (request.IntervalMinutes.HasValue)
             timer.IntervalMinutes = request.IntervalMinutes.Value;
         if (request.MinChatActivity.HasValue)
@@ -159,7 +162,7 @@ public class TimerManagementService : ITimerManagementService
 
     public async Task<Result> DeleteAsync(
         string broadcasterId,
-        int id,
+        Guid id,
         CancellationToken cancellationToken = default
     )
     {
@@ -182,7 +185,7 @@ public class TimerManagementService : ITimerManagementService
 
     public async Task<Result<TimerDto>> ToggleAsync(
         string broadcasterId,
-        int id,
+        Guid id,
         CancellationToken cancellationToken = default
     )
     {
@@ -214,6 +217,7 @@ public class TimerManagementService : ITimerManagementService
             t.IntervalMinutes,
             t.MinChatActivity,
             t.IsEnabled,
+            t.PipelineId,
             t.LastFiredAt,
             t.NextMessageIndex,
             t.CreatedAt,

@@ -174,12 +174,13 @@ public sealed class SqliteMigrationService
                     {
                         BroadcasterId = broadcasterId,
                         Name = name,
-                        Response = response,
+                        NameNormalized = name,
+                        TemplateResponse = response,
                         CooldownSeconds = cooldown,
                         IsEnabled = true,
-                        Type = "chat",
-                        Permission = "everyone",
-                        Responses = [],
+                        Tier = "template",
+                        MinPermissionLevel = 0,
+                        TemplateResponses = [],
                         Aliases = [],
                     }
                 );

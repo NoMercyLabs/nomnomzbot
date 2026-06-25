@@ -368,9 +368,9 @@ public class ChannelsController : BaseController
                         {
                             BroadcasterId = tenantId,
                             Name = def.Name,
-                            Type = "pipeline",
-                            PipelineJson = def.PipelineJson,
-                            Permission = def.Permission,
+                            NameNormalized = def.Name.ToLowerInvariant(),
+                            Tier = "template",
+                            MinPermissionLevel = 0,
                             CooldownSeconds = def.CooldownSeconds,
                             Description = def.Description,
                             IsEnabled = true,

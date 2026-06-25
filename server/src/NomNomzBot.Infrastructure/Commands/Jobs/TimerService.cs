@@ -44,7 +44,7 @@ public sealed class TimerService : BackgroundService
 
     // Per-timer in-memory state: tracks message count at last fire for activity gating
     // Key: timer.Id, Value: MessageCount snapshot when the timer last fired
-    private readonly ConcurrentDictionary<int, long> _messageCountAtLastFire = new();
+    private readonly ConcurrentDictionary<Guid, long> _messageCountAtLastFire = new();
 
     public TimerService(
         IServiceScopeFactory scopeFactory,
@@ -139,7 +139,9 @@ public sealed class TimerService : BackgroundService
         // Check minimum chat activity since last fire
         if (timer.MinChatActivity > 0)
         {
-            long countAtLastFire = _messageCountAtLastFire.GetValueOrDefault(timer.Id, 0L);
+            long countAtLastFire = _messageCountAtLastFire.TryGetValue(timer.Id, out long snap)
+                ? snap
+                : 0L;
             long messagesSinceLastFire = channelCtx.MessageCount - countAtLastFire;
             if (messagesSinceLastFire < timer.MinChatActivity)
             {

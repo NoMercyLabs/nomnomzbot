@@ -28,7 +28,7 @@ public interface ITimerManagementService
     /// <summary>Get a single timer by ID.</summary>
     Task<Result<TimerDto>> GetAsync(
         string broadcasterId,
-        int id,
+        Guid id,
         CancellationToken cancellationToken = default
     );
 
@@ -42,7 +42,7 @@ public interface ITimerManagementService
     /// <summary>Update an existing timer.</summary>
     Task<Result<TimerDto>> UpdateAsync(
         string broadcasterId,
-        int id,
+        Guid id,
         UpdateTimerDto request,
         CancellationToken cancellationToken = default
     );
@@ -50,14 +50,14 @@ public interface ITimerManagementService
     /// <summary>Delete a timer.</summary>
     Task<Result> DeleteAsync(
         string broadcasterId,
-        int id,
+        Guid id,
         CancellationToken cancellationToken = default
     );
 
     /// <summary>Toggle a timer enabled/disabled.</summary>
     Task<Result<TimerDto>> ToggleAsync(
         string broadcasterId,
-        int id,
+        Guid id,
         CancellationToken cancellationToken = default
     );
 }

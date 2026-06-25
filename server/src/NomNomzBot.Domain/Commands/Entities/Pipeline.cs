@@ -16,12 +16,14 @@ using NomNomzBot.Domain.Platform;
 namespace NomNomzBot.Domain.Commands.Entities;
 
 /// <summary>
-/// A named pipeline created via the visual node builder in the frontend.
-/// Stores a JSON graph that the pipeline engine executes.
+/// A named pipeline created via the visual block builder in the frontend.
+/// The normalized <see cref="Steps"/> collection is the execution truth;
+/// <see cref="GraphJsonCache"/> is a build-time cache regenerated from the steps.
+/// Schema: H.1 (commands-pipelines.md §1).
 /// </summary>
-public class Pipeline : BaseEntity, ITenantScoped
+public class Pipeline : SoftDeletableEntity, ITenantScoped
 {
-    public int Id { get; set; }
+    public Guid Id { get; set; }
     public Guid BroadcasterId { get; set; }
 
     [MaxLength(200)]
@@ -30,14 +32,27 @@ public class Pipeline : BaseEntity, ITenantScoped
     [MaxLength(500)]
     public string? Description { get; set; }
 
+    /// <summary>What triggered this pipeline: command | event | timer | manual | webhook.</summary>
+    [MaxLength(30)]
+    public string TriggerKind { get; set; } = "manual";
+
     public bool IsEnabled { get; set; } = true;
 
-    /// <summary>JSON representation of the pipeline node graph.</summary>
-    public string GraphJson { get; set; } = "{}";
+    /// <summary>Maximum number of steps permitted at save time (save-fail guard).</summary>
+    public int MaxStepCount { get; set; } = 50;
 
-    public int TriggerCount { get; set; }
+    public long TriggerCount { get; set; }
 
     public DateTime? LastTriggeredAt { get; set; }
+
+    /// <summary>
+    /// Cached JSON representation regenerated from <see cref="Steps"/>. The engine reads the
+    /// normalized step rows and uses this only as a performance cache; it must never be the
+    /// sole truth.
+    /// </summary>
+    public string? GraphJsonCache { get; set; }
+
+    public virtual ICollection<PipelineStep> Steps { get; set; } = [];
 
     [ForeignKey(nameof(BroadcasterId))]
     public virtual Channel Channel { get; set; } = null!;

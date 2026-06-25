@@ -157,14 +157,12 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
             .Select(c => new CachedCommand
             {
                 Name = c.Name,
-                Responses = c.Responses.ToArray(),
-                // CooldownSeconds maps to GlobalCooldown; UserCooldown is 0 unless CooldownPerUser is true
+                TemplateResponses = (c.TemplateResponses ?? new List<string>()).ToArray(),
                 GlobalCooldown = c.CooldownPerUser ? 0 : c.CooldownSeconds,
                 UserCooldown = c.CooldownPerUser ? c.CooldownSeconds : 0,
-                Permission = c.Permission,
-                Type = c.Type,
-                // Prefer the bound Pipeline entity's JSON; fall back to the inline PipelineJson.
-                PipelineJson = c.Pipeline != null ? c.Pipeline.GraphJson : c.PipelineJson,
+                MinPermissionLevel = c.MinPermissionLevel,
+                Tier = c.Tier,
+                PipelineGraphJson = c.Pipeline != null ? c.Pipeline.GraphJsonCache : null,
                 Aliases = c.Aliases.ToArray(),
             })
             .ToListAsync(ct);

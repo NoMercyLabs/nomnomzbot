@@ -127,9 +127,17 @@ public class AppDbContext : DbContext, IApplicationDbContext
     // Watch streaks
     public DbSet<WatchStreak> WatchStreaks => Set<WatchStreak>();
 
-    // Pipelines
+    // Pipelines + steps + telemetry
     public DbSet<Domain.Commands.Entities.Pipeline> Pipelines =>
         Set<Domain.Commands.Entities.Pipeline>();
+
+    public DbSet<PipelineStep> PipelineSteps => Set<PipelineStep>();
+    public DbSet<PipelineStepCondition> PipelineStepConditions => Set<PipelineStepCondition>();
+    public DbSet<PipelineExecution> PipelineExecutions => Set<PipelineExecution>();
+    public DbSet<ChannelBuiltinCommand> ChannelBuiltinCommands => Set<ChannelBuiltinCommand>();
+    public DbSet<CommandCooldownState> CommandCooldownStates => Set<CommandCooldownState>();
+    public DbSet<NamedCounter> NamedCounters => Set<NamedCounter>();
+    public DbSet<CommandUsage> CommandUsages => Set<CommandUsage>();
 
     // Event store — append-only journal (O.1), per-tenant sequences (Q.3), projection checkpoints (O.3)
     public DbSet<EventJournal> EventJournals => Set<EventJournal>();

@@ -102,6 +102,13 @@ public sealed class SeedTestDbContext : DbContext, IApplicationDbContext
     public DbSet<EventResponse> EventResponses => Set<EventResponse>();
     public DbSet<WatchStreak> WatchStreaks => Set<WatchStreak>();
     public DbSet<Pipeline> Pipelines => Set<Pipeline>();
+    public DbSet<PipelineStep> PipelineSteps => Set<PipelineStep>();
+    public DbSet<PipelineStepCondition> PipelineStepConditions => Set<PipelineStepCondition>();
+    public DbSet<PipelineExecution> PipelineExecutions => Set<PipelineExecution>();
+    public DbSet<ChannelBuiltinCommand> ChannelBuiltinCommands => Set<ChannelBuiltinCommand>();
+    public DbSet<CommandCooldownState> CommandCooldownStates => Set<CommandCooldownState>();
+    public DbSet<NamedCounter> NamedCounters => Set<NamedCounter>();
+    public DbSet<CommandUsage> CommandUsages => Set<CommandUsage>();
     public DbSet<NomNomzBot.Domain.EventStore.Entities.EventJournal> EventJournals =>
         Set<NomNomzBot.Domain.EventStore.Entities.EventJournal>();
     public DbSet<NomNomzBot.Domain.EventStore.Entities.TenantSequence> TenantSequences =>

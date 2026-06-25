@@ -53,9 +53,9 @@ public class TimersController : BaseController
     }
 
     [RequireAction("timers:read")]
-    [HttpGet("{id:int}")]
+    [HttpGet("{id:guid}")]
     [ProducesResponseType<StatusResponseDto<TimerDto>>(StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetTimer(string channelId, int id, CancellationToken ct)
+    public async Task<IActionResult> GetTimer(string channelId, Guid id, CancellationToken ct)
     {
         Result<TimerDto> result = await _timerService.GetAsync(channelId, id, ct);
         return ResultResponse(result);
@@ -86,11 +86,11 @@ public class TimersController : BaseController
     }
 
     [RequireAction("timers:write")]
-    [HttpPut("{id:int}")]
+    [HttpPut("{id:guid}")]
     [ProducesResponseType<StatusResponseDto<TimerDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> UpdateTimer(
         string channelId,
-        int id,
+        Guid id,
         [FromBody] UpdateTimerDto request,
         CancellationToken ct
     )
@@ -102,9 +102,9 @@ public class TimersController : BaseController
     }
 
     [RequireAction("timers:write")]
-    [HttpDelete("{id:int}")]
+    [HttpDelete("{id:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
-    public async Task<IActionResult> DeleteTimer(string channelId, int id, CancellationToken ct)
+    public async Task<IActionResult> DeleteTimer(string channelId, Guid id, CancellationToken ct)
     {
         Result result = await _timerService.DeleteAsync(channelId, id, ct);
         if (result.IsFailure)
@@ -113,9 +113,9 @@ public class TimersController : BaseController
     }
 
     [RequireAction("timers:write")]
-    [HttpPost("{id:int}/toggle")]
+    [HttpPost("{id:guid}/toggle")]
     [ProducesResponseType<StatusResponseDto<TimerDto>>(StatusCodes.Status200OK)]
-    public async Task<IActionResult> ToggleTimer(string channelId, int id, CancellationToken ct)
+    public async Task<IActionResult> ToggleTimer(string channelId, Guid id, CancellationToken ct)
     {
         Result<TimerDto> result = await _timerService.ToggleAsync(channelId, id, ct);
         if (result.IsFailure)

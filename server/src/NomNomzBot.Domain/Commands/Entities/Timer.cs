@@ -16,33 +16,43 @@ using NomNomzBot.Domain.Platform;
 namespace NomNomzBot.Domain.Commands.Entities;
 
 /// <summary>
-/// A channel timer that sends a message at a configured interval,
+/// A channel timer that sends a message or fires a pipeline at a configured interval,
 /// with optional minimum chat activity enforcement.
+/// Schema: I.1 (commands-pipelines.md §1).
 /// </summary>
 public class Timer : SoftDeletableEntity, ITenantScoped
 {
-    public int Id { get; set; }
+    public Guid Id { get; set; }
     public Guid BroadcasterId { get; set; }
 
     [MaxLength(100)]
     public string Name { get; set; } = null!;
 
-    /// <summary>List of messages to rotate through (round-robin).</summary>
+    /// <summary>List of messages to rotate through (round-robin); used for template mode.</summary>
     public List<string> Messages { get; set; } = [];
+
+    /// <summary>EF Core schema version.</summary>
+    public int ConfigSchemaVersion { get; set; } = 1;
+
+    /// <summary>FK to a pipeline this timer should execute when it fires.</summary>
+    public Guid? PipelineId { get; set; }
+
+    [ForeignKey(nameof(PipelineId))]
+    public virtual Pipeline? Pipeline { get; set; }
 
     /// <summary>How often the timer fires (in minutes).</summary>
     public int IntervalMinutes { get; set; } = 30;
 
     /// <summary>Minimum number of chat messages since last fire before the timer will fire again.</summary>
-    public int MinChatActivity { get; set; } = 0;
+    public int MinChatActivity { get; set; }
 
     public bool IsEnabled { get; set; } = true;
 
     /// <summary>UTC time the timer last sent a message.</summary>
     public DateTime? LastFiredAt { get; set; }
 
-    /// <summary>Round-robin index into Messages.</summary>
-    public int NextMessageIndex { get; set; } = 0;
+    /// <summary>Round-robin index into <see cref="Messages"/>.</summary>
+    public int NextMessageIndex { get; set; }
 
     [ForeignKey(nameof(BroadcasterId))]
     public virtual Channel Channel { get; set; } = null!;

@@ -24,19 +24,18 @@ public class CommandConfiguration : IEntityTypeConfiguration<Command>
 
         builder.Property(e => e.Name).IsRequired().HasMaxLength(100);
 
+        builder.Property(e => e.NameNormalized).IsRequired().HasMaxLength(100);
+
+        builder.Property(e => e.Tier).IsRequired().HasMaxLength(20).HasDefaultValue("template");
+
+        builder.Property(e => e.MinPermissionLevel).IsRequired().HasDefaultValue(0);
+
+        builder.Property(e => e.TemplateResponse).HasMaxLength(2000);
+
         builder
-            .Property(e => e.Permission)
-            .IsRequired()
-            .HasMaxLength(20)
-            .HasDefaultValue("everyone");
-
-        builder.Property(e => e.Type).IsRequired().HasMaxLength(20).HasDefaultValue("text");
-
-        builder.Property(e => e.Response).HasMaxLength(2000);
-
-        builder.Property(e => e.Responses).HasColumnType("jsonb").HasDefaultValueSql("'[]'::jsonb");
-
-        builder.Property(e => e.PipelineJson).HasColumnType("jsonb");
+            .Property(e => e.TemplateResponses)
+            .HasColumnType("jsonb")
+            .HasDefaultValueSql("'[]'::jsonb");
 
         builder.Property(e => e.IsEnabled).HasDefaultValue(true);
 
@@ -49,6 +48,8 @@ public class CommandConfiguration : IEntityTypeConfiguration<Command>
         builder.Property(e => e.Aliases).HasColumnType("jsonb").HasDefaultValueSql("'[]'::jsonb");
 
         builder.Property(e => e.IsPlatform).IsRequired();
+
+        builder.Property(e => e.UseCount).IsRequired().HasDefaultValue(0L);
 
         builder
             .HasOne(e => e.Channel)
@@ -66,9 +67,9 @@ public class CommandConfiguration : IEntityTypeConfiguration<Command>
         builder.HasIndex(e => e.PipelineId).HasDatabaseName("IX_Command_PipelineId");
 
         builder
-            .HasIndex(e => new { e.Name, e.BroadcasterId })
+            .HasIndex(e => new { e.NameNormalized, e.BroadcasterId })
             .IsUnique()
-            .HasDatabaseName("IX_Command_Name_BroadcasterId");
+            .HasDatabaseName("IX_Command_NameNormalized_BroadcasterId");
 
         builder
             .HasIndex(e => new { e.BroadcasterId, e.IsEnabled })

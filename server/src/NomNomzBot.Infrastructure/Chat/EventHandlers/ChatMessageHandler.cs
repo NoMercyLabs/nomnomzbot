@@ -99,7 +99,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
             return;
 
         // Permission check
-        if (!HasPermission(@event, command.Permission))
+        if (!HasPermission(@event, command.MinPermissionLevel))
         {
             _logger.LogDebug(
                 "Command {Command} denied for {User} in {Channel}: insufficient permission",
@@ -160,12 +160,12 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
 
         try
         {
-            if (command.Type == "pipeline" && !string.IsNullOrEmpty(command.PipelineJson))
+            if (command.Tier == "pipeline" && !string.IsNullOrEmpty(command.PipelineGraphJson))
             {
                 PipelineRequest request = new()
                 {
                     BroadcasterId = @event.BroadcasterId,
-                    PipelineJson = command.PipelineJson,
+                    PipelineJson = command.PipelineGraphJson,
                     TriggeredByUserId = @event.UserId,
                     TriggeredByDisplayName = @event.UserDisplayName,
                     MessageId = @event.MessageId,
@@ -178,7 +178,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
             else
             {
                 // Simple response command — pick a response (round-robin or random)
-                string response = PickResponse(command.Responses);
+                string response = PickResponse(command.TemplateResponses);
                 if (string.IsNullOrEmpty(response))
                     return;
 
@@ -208,9 +208,8 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
         }
     }
 
-    private static bool HasPermission(ChatMessageReceivedEvent @event, string requiredPermission)
+    private static bool HasPermission(ChatMessageReceivedEvent @event, int minPermissionLevel)
     {
-        PermissionLevel required = ChatRole.Parse(requiredPermission);
         PermissionLevel actual = ChatRole.Resolve(
             @event.IsBroadcaster,
             @event.IsModerator,
@@ -218,7 +217,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
             @event.IsSubscriber,
             @event.Badges
         );
-        return actual.ToLevelValue() >= required.ToLevelValue();
+        return actual.ToLevelValue() >= minPermissionLevel;
     }
 
     private static string PickResponse(string[] responses)

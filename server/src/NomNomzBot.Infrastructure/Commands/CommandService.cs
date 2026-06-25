@@ -38,10 +38,10 @@ public class CommandService : ICommandService
                 "VALIDATION_FAILED"
             );
 
-        string normalizedName = request.Name.ToLowerInvariant();
+        string nameNormalized = request.Name.ToLowerInvariant();
 
         bool exists = await _db.Commands.AnyAsync(
-            c => c.BroadcasterId == broadcaster && c.Name == normalizedName,
+            c => c.BroadcasterId == broadcaster && c.NameNormalized == nameNormalized,
             cancellationToken
         );
 
@@ -51,11 +51,13 @@ public class CommandService : ICommandService
         Command command = new()
         {
             BroadcasterId = broadcaster,
-            Name = normalizedName,
-            Type = request.Type,
-            Permission = request.Permission,
-            Response = request.Response,
-            Responses = request.Responses ?? [],
+            Name = request.Name,
+            NameNormalized = nameNormalized,
+            Tier = request.Tier,
+            MinPermissionLevel = request.MinPermissionLevel,
+            TemplateResponse = request.TemplateResponse,
+            TemplateResponses = request.TemplateResponses ?? [],
+            PipelineId = request.PipelineId,
             CooldownSeconds = request.CooldownSeconds,
             CooldownPerUser = request.CooldownPerUser,
             Description = request.Description,
@@ -82,22 +84,26 @@ public class CommandService : ICommandService
                 "VALIDATION_FAILED"
             );
 
+        string nameNormalized = commandName.ToLowerInvariant();
+
         Command? command = await _db.Commands.FirstOrDefaultAsync(
-            c => c.BroadcasterId == broadcaster && c.Name == commandName,
+            c => c.BroadcasterId == broadcaster && c.NameNormalized == nameNormalized,
             cancellationToken
         );
 
         if (command is null)
             return Errors.NotFound<CommandDto>("Command", commandName);
 
-        if (request.Type is not null)
-            command.Type = request.Type;
-        if (request.Permission is not null)
-            command.Permission = request.Permission;
-        if (request.Response is not null)
-            command.Response = request.Response;
-        if (request.Responses is not null)
-            command.Responses = request.Responses;
+        if (request.Tier is not null)
+            command.Tier = request.Tier;
+        if (request.MinPermissionLevel.HasValue)
+            command.MinPermissionLevel = request.MinPermissionLevel.Value;
+        if (request.TemplateResponse is not null)
+            command.TemplateResponse = request.TemplateResponse;
+        if (request.TemplateResponses is not null)
+            command.TemplateResponses = request.TemplateResponses;
+        if (request.PipelineId.HasValue)
+            command.PipelineId = request.PipelineId.Value;
         if (request.CooldownSeconds.HasValue)
             command.CooldownSeconds = request.CooldownSeconds.Value;
         if (request.CooldownPerUser.HasValue)
@@ -123,8 +129,10 @@ public class CommandService : ICommandService
         if (!Guid.TryParse(broadcasterId, out Guid broadcaster))
             return Result.Failure($"Invalid channel ID '{broadcasterId}'.", "VALIDATION_FAILED");
 
+        string nameNormalized = commandName.ToLowerInvariant();
+
         Command? command = await _db.Commands.FirstOrDefaultAsync(
-            c => c.BroadcasterId == broadcaster && c.Name == commandName,
+            c => c.BroadcasterId == broadcaster && c.NameNormalized == nameNormalized,
             cancellationToken
         );
 
@@ -149,8 +157,10 @@ public class CommandService : ICommandService
                 "VALIDATION_FAILED"
             );
 
+        string nameNormalized = commandName.ToLowerInvariant();
+
         Command? command = await _db.Commands.FirstOrDefaultAsync(
-            c => c.BroadcasterId == broadcaster && c.Name == commandName,
+            c => c.BroadcasterId == broadcaster && c.NameNormalized == nameNormalized,
             cancellationToken
         );
 
@@ -182,13 +192,13 @@ public class CommandService : ICommandService
             .Select(c => new CommandListItem(
                 c.Id,
                 c.Name,
-                c.Type,
-                c.Permission,
+                c.Tier,
+                c.MinPermissionLevel,
                 c.IsEnabled,
                 c.CooldownSeconds,
                 c.Description,
                 c.Aliases,
-                0,
+                c.UseCount,
                 c.CreatedAt
             ))
             .ToListAsync(cancellationToken);
@@ -212,16 +222,22 @@ public class CommandService : ICommandService
                 "VALIDATION_FAILED"
             );
 
+        string nameNormalized = commandName.ToLowerInvariant();
+
         Command? command = await _db.Commands.FirstOrDefaultAsync(
-            c => c.BroadcasterId == broadcaster && c.Name == commandName && c.IsEnabled,
+            c =>
+                c.BroadcasterId == broadcaster && c.NameNormalized == nameNormalized && c.IsEnabled,
             cancellationToken
         );
 
         if (command is null)
             return Errors.NotFound<string>("Command", commandName);
 
+        // Template tier: return the template response directly.
+        // Pipeline tier: will be wired to IPipelineEngine in a follow-up slice.
         string? response =
-            command.Response ?? (command.Responses.Count > 0 ? command.Responses[0] : null);
+            command.TemplateResponse
+            ?? (command.TemplateResponses is { Count: > 0 } ? command.TemplateResponses[0] : null);
 
         return Result.Success(response ?? string.Empty);
     }
@@ -230,19 +246,17 @@ public class CommandService : ICommandService
         new(
             c.Id,
             c.Name,
-            c.Type,
-            c.Permission,
+            c.Tier,
+            c.MinPermissionLevel,
             c.IsEnabled,
-            c.Response,
-            c.Responses,
-            c.PipelineJson is not null
-                ? System.Text.Json.JsonSerializer.Deserialize<object>(c.PipelineJson)
-                : null,
+            c.TemplateResponse,
+            c.TemplateResponses,
+            c.PipelineId,
             c.CooldownSeconds,
             c.CooldownPerUser,
             c.Description,
             c.Aliases,
-            0,
+            c.UseCount,
             c.CreatedAt,
             c.UpdatedAt
         );

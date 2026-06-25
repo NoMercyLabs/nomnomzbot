@@ -14,34 +14,34 @@ namespace NomNomzBot.Application.Commands.Dtos;
 
 /// <summary>Full command detail for viewing/editing.</summary>
 public sealed record CommandDto(
-    int Id,
+    Guid Id,
     string Name,
-    string Type,
-    string Permission,
+    string Tier,
+    int MinPermissionLevel,
     bool IsEnabled,
-    string? Response,
-    List<string>? Responses,
-    object? Pipeline,
+    string? TemplateResponse,
+    List<string>? TemplateResponses,
+    Guid? PipelineId,
     int CooldownSeconds,
     bool CooldownPerUser,
     string? Description,
     List<string> Aliases,
-    int UsageCount,
+    long UseCount,
     DateTime CreatedAt,
     DateTime UpdatedAt
 );
 
 /// <summary>Lightweight command info for list views.</summary>
 public sealed record CommandListItem(
-    int Id,
+    Guid Id,
     string Name,
-    string Type,
-    string Permission,
+    string Tier,
+    int MinPermissionLevel,
     bool IsEnabled,
     int CooldownSeconds,
     string? Description,
     List<string> Aliases,
-    int UsageCount,
+    long UseCount,
     DateTime CreatedAt
 );
 
@@ -51,17 +51,18 @@ public sealed record CreateCommandDto
     [Required, MaxLength(100)]
     public required string Name { get; init; }
 
-    [Required]
-    public string Type { get; init; } = "text";
+    /// <summary>template | pipeline | code</summary>
+    public string Tier { get; init; } = "template";
 
-    public string Permission { get; init; } = "everyone";
+    /// <summary>0=everyone, 1=follower, 2=sub, 3=vip, 4=moderator, 5=broadcaster</summary>
+    public int MinPermissionLevel { get; init; }
 
     [MaxLength(2000)]
-    public string? Response { get; init; }
+    public string? TemplateResponse { get; init; }
 
-    public List<string>? Responses { get; init; }
+    public List<string>? TemplateResponses { get; init; }
 
-    public object? Pipeline { get; init; }
+    public Guid? PipelineId { get; init; }
 
     [Range(0, 86400)]
     public int CooldownSeconds { get; init; }
@@ -77,14 +78,15 @@ public sealed record CreateCommandDto
 /// <summary>Request to update an existing command.</summary>
 public sealed record UpdateCommandDto
 {
-    public string? Type { get; init; }
-    public string? Permission { get; init; }
+    public string? Tier { get; init; }
+    public int? MinPermissionLevel { get; init; }
 
     [MaxLength(2000)]
-    public string? Response { get; init; }
+    public string? TemplateResponse { get; init; }
 
-    public List<string>? Responses { get; init; }
-    public object? Pipeline { get; init; }
+    public List<string>? TemplateResponses { get; init; }
+
+    public Guid? PipelineId { get; init; }
 
     [Range(0, 86400)]
     public int? CooldownSeconds { get; init; }

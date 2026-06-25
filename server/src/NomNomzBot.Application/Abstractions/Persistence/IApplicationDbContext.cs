@@ -80,6 +80,13 @@ public interface IApplicationDbContext
     DbSet<EventResponse> EventResponses { get; }
     DbSet<WatchStreak> WatchStreaks { get; }
     DbSet<NomNomzBot.Domain.Commands.Entities.Pipeline> Pipelines { get; }
+    DbSet<PipelineStep> PipelineSteps { get; }
+    DbSet<PipelineStepCondition> PipelineStepConditions { get; }
+    DbSet<PipelineExecution> PipelineExecutions { get; }
+    DbSet<ChannelBuiltinCommand> ChannelBuiltinCommands { get; }
+    DbSet<CommandCooldownState> CommandCooldownStates { get; }
+    DbSet<NamedCounter> NamedCounters { get; }
+    DbSet<CommandUsage> CommandUsages { get; }
 
     // Event store (append-only journal + per-tenant sequences + projection checkpoints)
     DbSet<EventJournal> EventJournals { get; }

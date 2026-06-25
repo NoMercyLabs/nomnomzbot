@@ -26,7 +26,7 @@ public interface IPipelineService
 
     Task<Result<PipelineDto>> GetAsync(
         string broadcasterId,
-        int id,
+        Guid id,
         CancellationToken ct = default
     );
 
@@ -38,10 +38,10 @@ public interface IPipelineService
 
     Task<Result<PipelineDto>> UpdateAsync(
         string broadcasterId,
-        int id,
+        Guid id,
         UpdatePipelineDto request,
         CancellationToken ct = default
     );
 
-    Task<Result> DeleteAsync(string broadcasterId, int id, CancellationToken ct = default);
+    Task<Result> DeleteAsync(string broadcasterId, Guid id, CancellationToken ct = default);
 }

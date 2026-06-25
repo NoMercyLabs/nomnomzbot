@@ -17,32 +17,39 @@ namespace NomNomzBot.Domain.Commands.Entities;
 
 /// <summary>
 /// Configures what the bot does when a specific channel event fires
-/// (e.g., a follow → send a chat message; a sub → trigger a pipeline).
+/// (e.g. a follow → send a chat message; a sub → trigger a pipeline).
+/// Schema: I.2 (commands-pipelines.md §1).
 /// </summary>
-public class EventResponse : BaseEntity, ITenantScoped
+public class EventResponse : SoftDeletableEntity, ITenantScoped
 {
-    public int Id { get; set; }
+    public Guid Id { get; set; }
     public Guid BroadcasterId { get; set; }
 
-    /// <summary>The event type this response applies to (e.g., "channel.follow", "channel.subscribe").</summary>
+    /// <summary>The event type this response applies to (e.g. "channel.follow", "channel.subscribe").</summary>
     [MaxLength(100)]
     public string EventType { get; set; } = null!;
 
-    public bool IsEnabled { get; set; } = true;
-
-    /// <summary>How the bot responds: "chat_message", "overlay", "pipeline", or "none".</summary>
+    /// <summary>How the bot responds: chat_message | overlay | pipeline | none.</summary>
     [MaxLength(50)]
     public string ResponseType { get; set; } = "chat_message";
 
-    /// <summary>The chat message template to send (when ResponseType is "chat_message").</summary>
+    /// <summary>The chat message template to send (when <see cref="ResponseType"/> is chat_message).</summary>
     [MaxLength(2000)]
     public string? Message { get; set; }
 
-    /// <summary>JSON pipeline definition (when ResponseType is "pipeline").</summary>
-    public string? PipelineJson { get; set; }
+    /// <summary>FK to a named pipeline executed when <see cref="ResponseType"/> is pipeline.</summary>
+    public Guid? PipelineId { get; set; }
 
-    /// <summary>Additional key-value metadata (e.g., overlay widget ID).</summary>
-    public Dictionary<string, string> Metadata { get; set; } = new();
+    [ForeignKey(nameof(PipelineId))]
+    public virtual Pipeline? Pipeline { get; set; }
+
+    /// <summary>Additional key-value metadata (e.g. overlay widget id).</summary>
+    public Dictionary<string, string> MetadataJson { get; set; } = new();
+
+    /// <summary>EF Core schema version.</summary>
+    public int ConfigSchemaVersion { get; set; } = 1;
+
+    public bool IsEnabled { get; set; } = true;
 
     [ForeignKey(nameof(BroadcasterId))]
     public virtual Channel Channel { get; set; } = null!;

@@ -315,6 +315,20 @@ internal sealed class EventStoreTestDbContext : DbContext, IApplicationDbContext
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Commands.Entities.Pipeline> Pipelines =>
         throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Commands.Entities.PipelineStep> PipelineSteps =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Commands.Entities.PipelineStepCondition> PipelineStepConditions =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Commands.Entities.PipelineExecution> PipelineExecutions =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Commands.Entities.ChannelBuiltinCommand> ChannelBuiltinCommands =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Commands.Entities.CommandCooldownState> CommandCooldownStates =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Commands.Entities.NamedCounter> NamedCounters =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Commands.Entities.CommandUsage> CommandUsages =>
+        throw new NotSupportedException();
 }
 
 /// <summary>

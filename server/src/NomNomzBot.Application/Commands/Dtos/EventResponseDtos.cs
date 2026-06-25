@@ -14,12 +14,12 @@ namespace NomNomzBot.Application.Commands.Dtos;
 
 /// <summary>An event response configuration.</summary>
 public sealed record EventResponseDto(
-    int Id,
+    Guid Id,
     string EventType,
     bool IsEnabled,
     string ResponseType,
     string? Message,
-    string? PipelineJson,
+    Guid? PipelineId,
     Dictionary<string, string> Metadata,
     DateTime CreatedAt,
     DateTime UpdatedAt
@@ -27,7 +27,7 @@ public sealed record EventResponseDto(
 
 /// <summary>Lightweight event response summary.</summary>
 public sealed record EventResponseListItem(
-    int Id,
+    Guid Id,
     string EventType,
     bool IsEnabled,
     string ResponseType,
@@ -45,7 +45,7 @@ public sealed record UpdateEventResponseDto
     [MaxLength(2000)]
     public string? Message { get; init; }
 
-    public string? PipelineJson { get; init; }
+    public Guid? PipelineId { get; init; }
 
     public Dictionary<string, string>? Metadata { get; init; }
 }

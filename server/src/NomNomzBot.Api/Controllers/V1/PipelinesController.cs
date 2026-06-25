@@ -53,9 +53,9 @@ public class PipelinesController : BaseController
     }
 
     [RequireAction("pipelines:read")]
-    [HttpGet("{id:int}")]
+    [HttpGet("{id:guid}")]
     [ProducesResponseType<StatusResponseDto<PipelineDto>>(StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetPipeline(string channelId, int id, CancellationToken ct)
+    public async Task<IActionResult> GetPipeline(string channelId, Guid id, CancellationToken ct)
     {
         Result<PipelineDto> result = await _pipelineService.GetAsync(channelId, id, ct);
         return ResultResponse(result);
@@ -86,11 +86,11 @@ public class PipelinesController : BaseController
     }
 
     [RequireAction("pipelines:write")]
-    [HttpPut("{id:int}")]
+    [HttpPut("{id:guid}")]
     [ProducesResponseType<StatusResponseDto<PipelineDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> UpdatePipeline(
         string channelId,
-        int id,
+        Guid id,
         [FromBody] UpdatePipelineDto request,
         CancellationToken ct
     )
@@ -102,9 +102,9 @@ public class PipelinesController : BaseController
     }
 
     [RequireAction("pipelines:write")]
-    [HttpDelete("{id:int}")]
+    [HttpDelete("{id:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
-    public async Task<IActionResult> DeletePipeline(string channelId, int id, CancellationToken ct)
+    public async Task<IActionResult> DeletePipeline(string channelId, Guid id, CancellationToken ct)
     {
         Result result = await _pipelineService.DeleteAsync(channelId, id, ct);
         if (result.IsFailure)

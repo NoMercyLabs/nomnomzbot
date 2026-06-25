@@ -90,14 +90,24 @@ public class ChannelContext
 public class CachedCommand
 {
     public required string Name { get; init; }
-    public required string[] Responses { get; init; }
+
+    /// <summary>Template responses (round-robin). Empty for pipeline/code tier commands.</summary>
+    public required string[] TemplateResponses { get; init; }
+
     public required int GlobalCooldown { get; init; }
     public required int UserCooldown { get; init; }
-    public required string Permission { get; init; }
-    public required string Type { get; init; }
 
-    /// <summary>Resolved pipeline JSON — either the command's own inline steps or the bound
-    /// Pipeline entity's GraphJson (loaded by ChannelRegistry at cache-warm time).</summary>
-    public string? PipelineJson { get; init; }
+    /// <summary>Minimum permission level integer (0=everyone, 4=moderator, 5=broadcaster).</summary>
+    public required int MinPermissionLevel { get; init; }
+
+    /// <summary>template | pipeline | code</summary>
+    public required string Tier { get; init; }
+
+    /// <summary>
+    /// Resolved pipeline graph-cache JSON — from the bound Pipeline entity.
+    /// Null for template-tier commands.
+    /// </summary>
+    public string? PipelineGraphJson { get; init; }
+
     public string[] Aliases { get; init; } = [];
 }
