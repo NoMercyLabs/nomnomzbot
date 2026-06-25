@@ -56,6 +56,8 @@ import bot.nomnomz.dashboard.feature.integrations.state.IntegrationsController
 import bot.nomnomz.dashboard.feature.integrations.state.IntegrationsState
 import bot.nomnomz.dashboard.feature.integrations.state.ProviderConnection
 import bot.nomnomz.dashboard.feature.integrations.state.RegrantState
+import bot.nomnomz.dashboard.feature.settings.state.TwitchAppCredentialsController
+import bot.nomnomz.dashboard.feature.settings.ui.TwitchAppCredentialsCard
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
@@ -137,7 +139,11 @@ private fun ConnectModalProvider.displayName(): String =
     }
 
 @Composable
-fun IntegrationsScreen(controller: IntegrationsController, role: ManagementRole?) {
+fun IntegrationsScreen(
+    controller: IntegrationsController,
+    twitchAppController: TwitchAppCredentialsController,
+    role: ManagementRole?,
+) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
@@ -219,6 +225,10 @@ fun IntegrationsScreen(controller: IntegrationsController, role: ManagementRole?
                             onGrant = { scope.launch { controller.regrantScopes() } },
                         )
                     }
+
+                    // The Twitch application is an integration like any other (it's the credential the whole
+                    // platform OAuth runs on), so it lives here with the bot account — not in Settings.
+                    TwitchAppCredentialsCard(controller = twitchAppController, manage = manage)
 
                     // The secret-free bot device login panel while one is awaiting approval at twitch.tv/activate.
                     current.botDevice?.let { device: BotDeviceState ->

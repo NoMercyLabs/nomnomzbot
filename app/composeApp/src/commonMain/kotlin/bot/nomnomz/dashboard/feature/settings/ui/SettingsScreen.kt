@@ -55,7 +55,6 @@ import bot.nomnomz.dashboard.feature.settings.state.JournalPortabilityController
 import bot.nomnomz.dashboard.feature.settings.state.JournalPortabilityState
 import bot.nomnomz.dashboard.feature.settings.state.SettingsController
 import bot.nomnomz.dashboard.feature.settings.state.SettingsState
-import bot.nomnomz.dashboard.feature.settings.state.TwitchAppCredentialsController
 import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
 import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecisionAtFloor
 import kotlinx.coroutines.launch
@@ -99,7 +98,6 @@ import org.jetbrains.compose.resources.stringResource
 fun SettingsScreen(
     controller: SettingsController,
     journalController: JournalPortabilityController,
-    twitchAppController: TwitchAppCredentialsController,
     role: ManagementRole?,
 ) {
     val state: SettingsState by controller.state.collectAsStateWithLifecycle()
@@ -107,9 +105,10 @@ fun SettingsScreen(
     val spacing = LocalSpacing.current
 
     // Settings gates PER SECTION, each at its own floor (frontend-ia.md §5) — the page has no single manage
-    // floor. Stream info (the broadcast title/category/tags, "Bot basics" tier) is an Editor write; editing the
-    // live Twitch app credentials and the Event Journal export/import (Danger zone) are Broadcaster writes. Each
-    // section gates at its floor; below it the controls disable-with-reason (§7). The backend re-checks writes.
+    // floor. Stream info (the broadcast title/category/tags, "Bot basics" tier) is an Editor write; the Event
+    // Journal export/import (Danger zone) is a Broadcaster write. Each section gates at its floor; below it the
+    // controls disable-with-reason (§7). The backend re-checks writes. (The Twitch app credentials moved to the
+    // Integrations area — they are an integration like the bot account, not a Settings concern.)
     val streamInfoManage: ManageDecision = rememberManageDecisionAtFloor(role, ManagementRole.Editor)
     val ownerManage: ManageDecision = rememberManageDecisionAtFloor(role, ManagementRole.Broadcaster)
 
@@ -119,8 +118,6 @@ fun SettingsScreen(
         modifier = Modifier.fillMaxSize().padding(spacing.s6),
         verticalArrangement = Arrangement.spacedBy(spacing.s6),
     ) {
-        TwitchAppCredentialsCard(controller = twitchAppController, manage = ownerManage)
-
         Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
             when (val current: SettingsState = state) {
                 is SettingsState.Loading ->

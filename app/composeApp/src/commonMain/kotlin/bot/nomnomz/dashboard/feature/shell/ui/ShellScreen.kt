@@ -275,12 +275,16 @@ private fun ShellContent(
             ShellRoute.Discord -> DiscordScreen(controller = graph.discordController, role = role)
             ShellRoute.Pipelines -> PipelinesScreen(controller = graph.pipelinesController, role = role)
             ShellRoute.Roles -> RolesScreen(controller = graph.rolesController, role = role)
-            ShellRoute.Integrations -> IntegrationsScreen(controller = graph.integrationsController, role = role)
+            ShellRoute.Integrations ->
+                IntegrationsScreen(
+                    controller = graph.integrationsController,
+                    twitchAppController = graph.twitchAppCredentialsController,
+                    role = role,
+                )
             ShellRoute.Settings ->
                 SettingsScreen(
                     controller = graph.settingsController,
                     journalController = graph.journalPortabilityController,
-                    twitchAppController = graph.twitchAppCredentialsController,
                     role = role,
                 )
             ShellRoute.Economy -> EconomyScreen(controller = graph.economyController, role = role)
