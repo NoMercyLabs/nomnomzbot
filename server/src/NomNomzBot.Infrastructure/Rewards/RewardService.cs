@@ -209,6 +209,48 @@ public class RewardService : IRewardService
         );
     }
 
+    public async Task<Result> SetRedemptionStatusAsync(
+        string broadcasterId,
+        string redemptionId,
+        string twitchStatus,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (!Guid.TryParse(broadcasterId, out Guid broadcaster))
+            return Result.Failure($"Invalid channel ID '{broadcasterId}'.", "VALIDATION_FAILED");
+
+        // The reward id Helix needs to address the redemption rides the queue read model (folded from the journal).
+        Redemption? row = await _db.Redemptions.FirstOrDefaultAsync(
+            r => r.BroadcasterId == broadcaster && r.RedemptionId == redemptionId,
+            cancellationToken
+        );
+        if (row is null)
+            return Result.Failure($"Redemption '{redemptionId}' was not found.", "NOT_FOUND");
+
+        Result<IReadOnlyList<TwitchCustomRewardRedemption>> helix =
+            await _channelPoints.UpdateRedemptionStatusAsync(
+                broadcaster,
+                row.RewardId,
+                [redemptionId],
+                new UpdateRedemptionStatusRequest(twitchStatus),
+                cancellationToken
+            );
+        if (helix.IsFailure)
+            return Result.Failure(
+                helix.ErrorMessage ?? "Twitch rejected the redemption update.",
+                helix.ErrorCode ?? "TWITCH_ERROR"
+            );
+
+        // Optimistic local update so the queue re-list drops it from the pending lane immediately; the matching
+        // EventSub redemption.update folds the same status through the projection (idempotent), confirming it.
+        row.Status = twitchStatus.Equals("FULFILLED", StringComparison.OrdinalIgnoreCase)
+            ? "fulfilled"
+            : "canceled";
+        row.UpdatedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync(cancellationToken);
+        return Result.Success();
+    }
+
     public async Task<Result<RewardDetail>> GetAsync(
         string broadcasterId,
         string rewardId,

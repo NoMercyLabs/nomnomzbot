@@ -100,4 +100,66 @@ public sealed class RewardServiceRedemptionsTests
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be("VALIDATION_FAILED");
     }
+
+    [Fact]
+    public async Task SetRedemptionStatus_fulfils_via_helix_and_marks_the_local_row_fulfilled()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        db.Redemptions.Add(
+            Redeem("redeem-1", "unfulfilled", new DateTime(2025, 8, 1, 0, 0, 0, DateTimeKind.Utc))
+        );
+        await db.SaveChangesAsync();
+
+        ITwitchChannelPointsApi points = Substitute.For<ITwitchChannelPointsApi>();
+        points
+            .UpdateRedemptionStatusAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<IReadOnlyList<string>>(),
+                Arg.Any<UpdateRedemptionStatusRequest>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                Result.Success<IReadOnlyList<TwitchCustomRewardRedemption>>(
+                    Array.Empty<TwitchCustomRewardRedemption>()
+                )
+            );
+        RewardService sut = new(db, points, NullLogger<RewardService>.Instance);
+
+        Result result = await sut.SetRedemptionStatusAsync(
+            Channel.ToString(),
+            "redeem-1",
+            "FULFILLED"
+        );
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        // Helix is addressed by the row's reward id + the redemption id, with the FULFILLED status.
+        await points
+            .Received(1)
+            .UpdateRedemptionStatusAsync(
+                Channel,
+                "rw1",
+                Arg.Is<IReadOnlyList<string>>(ids => ids.Count == 1 && ids[0] == "redeem-1"),
+                Arg.Is<UpdateRedemptionStatusRequest>(r => r.Status == "FULFILLED"),
+                Arg.Any<CancellationToken>()
+            );
+        // The local queue row reflects the new status immediately (optimistic; the EventSub fold confirms it).
+        db.Redemptions.Single().Status.Should().Be("fulfilled");
+    }
+
+    [Fact]
+    public async Task SetRedemptionStatus_returns_not_found_for_an_unknown_redemption()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        RewardService sut = new(
+            db,
+            Substitute.For<ITwitchChannelPointsApi>(),
+            NullLogger<RewardService>.Instance
+        );
+
+        Result result = await sut.SetRedemptionStatusAsync(Channel.ToString(), "nope", "FULFILLED");
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("NOT_FOUND");
+    }
 }

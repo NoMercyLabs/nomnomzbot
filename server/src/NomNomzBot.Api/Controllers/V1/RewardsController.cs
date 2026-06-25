@@ -83,6 +83,30 @@ public class RewardsController : BaseController
         return GetPaginatedResponse(result.Value, request);
     }
 
+    /// <summary>Mark a queued redemption FULFILLED (Helix), removing it from the pending queue.</summary>
+    [RequireAction("reward:manage")]
+    [HttpPost("redemptions/{redemptionId}/fulfill")]
+    public async Task<IActionResult> FulfillRedemption(
+        string channelId,
+        string redemptionId,
+        CancellationToken ct
+    ) =>
+        ResultResponse(
+            await _rewardService.SetRedemptionStatusAsync(channelId, redemptionId, "FULFILLED", ct)
+        );
+
+    /// <summary>Refund a queued redemption — CANCELED in Helix (the viewer's points are returned).</summary>
+    [RequireAction("reward:manage")]
+    [HttpPost("redemptions/{redemptionId}/refund")]
+    public async Task<IActionResult> RefundRedemption(
+        string channelId,
+        string redemptionId,
+        CancellationToken ct
+    ) =>
+        ResultResponse(
+            await _rewardService.SetRedemptionStatusAsync(channelId, redemptionId, "CANCELED", ct)
+        );
+
     [RequireAction("reward:read")]
     [HttpGet("{rewardId}")]
     [ProducesResponseType<StatusResponseDto<RewardDetail>>(StatusCodes.Status200OK)]

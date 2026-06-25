@@ -58,6 +58,18 @@ public interface IRewardService
         CancellationToken cancellationToken = default
     );
 
+    /// <summary>
+    /// Fulfil or refund a queued redemption via Helix (<paramref name="twitchStatus"/> = <c>FULFILLED</c> or
+    /// <c>CANCELED</c>), then reflect the new status in the local queue read model. Addressed by the redemption id;
+    /// the reward id Helix requires is resolved from the read model.
+    /// </summary>
+    Task<Result> SetRedemptionStatusAsync(
+        string broadcasterId,
+        string redemptionId,
+        string twitchStatus,
+        CancellationToken cancellationToken = default
+    );
+
     /// <summary>Get a single reward by ID.</summary>
     Task<Result<RewardDetail>> GetAsync(
         string broadcasterId,
