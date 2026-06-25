@@ -548,8 +548,7 @@ public sealed class LegacyChannelEventMapperTests
     }
 
     [Theory]
-    [InlineData("channel.points.custom.reward.update")] // a reward DEFINITION edit (not a redemption) — not journaled
-    [InlineData("channel.poll.progress")]
+    [InlineData("channel.points.custom.reward.update")] // reward DEFINITION edit (not a redemption) — not journaled
     [InlineData("websocket.error")]
     [InlineData("channel.vip.add")]
     public void Skips_unimported_and_noise_types(string type)
@@ -562,5 +561,113 @@ public sealed class LegacyChannelEventMapperTests
     {
         _mapper.Map(Row("channel.follow", "not json"), Tenant).Should().BeNull();
         _mapper.Map(Row("channel.follow", """{"UserName":"no id"}"""), Tenant).Should().BeNull();
+    }
+
+    [Fact]
+    public void Maps_poll_begin_to_PollBeganEvent_with_choices_and_derived_duration()
+    {
+        AppendEventRequest? request = _mapper.Map(
+            Row(
+                "channel.poll.begin",
+                """{"Id":"poll-abc","Title":"Best stack?","Choices":[{"Id":"c1","Title":"Kotlin","Votes":0,"ChannelPointsVotes":0},{"Id":"c2","Title":"Swift","Votes":0,"ChannelPointsVotes":0}],"BitsVoting":{"IsEnabled":false,"AmountPerVote":0},"ChannelPointsVoting":{"IsEnabled":false,"AmountPerVote":0},"StartedAt":"2025-09-01T12:00:00+00:00","EndsAt":"2025-09-01T12:05:00+00:00"}"""
+            ),
+            Tenant
+        );
+
+        request.Should().NotBeNull();
+        request!.EventType.Should().Be("PollBeganEvent");
+        JObject payload = JObject.Parse(request.PayloadJson);
+        payload["PollId"]!.Value<string>().Should().Be("poll-abc");
+        payload["Title"]!.Value<string>().Should().Be("Best stack?");
+        payload["DurationSeconds"]!.Value<int>().Should().Be(300);
+        JArray choices = (JArray)payload["Choices"]!;
+        choices.Should().HaveCount(2);
+        choices[0]["Id"]!.Value<string>().Should().Be("c1");
+        choices[0]["Title"]!.Value<string>().Should().Be("Kotlin");
+    }
+
+    [Fact]
+    public void Maps_poll_progress_to_PollProgressEvent_with_live_vote_tallies()
+    {
+        AppendEventRequest? request = _mapper.Map(
+            Row(
+                "channel.poll.progress",
+                """{"Id":"poll-abc","Title":"Best stack?","Choices":[{"Id":"c1","Title":"Kotlin","Votes":7,"ChannelPointsVotes":0},{"Id":"c2","Title":"Swift","Votes":2,"ChannelPointsVotes":0}],"EndsAt":"2025-09-01T12:05:00+00:00"}"""
+            ),
+            Tenant
+        );
+
+        request.Should().NotBeNull();
+        request!.EventType.Should().Be("PollProgressEvent");
+        JObject payload = JObject.Parse(request.PayloadJson);
+        payload["PollId"]!.Value<string>().Should().Be("poll-abc");
+        JArray choices = (JArray)payload["Choices"]!;
+        choices[0]["Votes"]!.Value<int>().Should().Be(7);
+    }
+
+    [Fact]
+    public void Maps_poll_end_to_PollEndedEvent_with_winning_choice_derived_from_votes()
+    {
+        AppendEventRequest? request = _mapper.Map(
+            Row(
+                "channel.poll.end",
+                """{"Id":"poll-abc","Title":"Best stack?","Status":"completed","Choices":[{"Id":"c1","Title":"Kotlin","Votes":7,"ChannelPointsVotes":0},{"Id":"c2","Title":"Swift","Votes":2,"ChannelPointsVotes":0}]}"""
+            ),
+            Tenant
+        );
+
+        request.Should().NotBeNull();
+        request!.EventType.Should().Be("PollEndedEvent");
+        JObject payload = JObject.Parse(request.PayloadJson);
+        payload["Status"]!.Value<string>().Should().Be("completed");
+        payload["WinningChoiceId"]!.Value<string>().Should().Be("c1", "Kotlin had the most votes");
+    }
+
+    [Fact]
+    public void Maps_hype_train_begin_to_HypeTrainBeganEvent_with_contributions()
+    {
+        AppendEventRequest? request = _mapper.Map(
+            Row(
+                "channel.hype_train.begin",
+                """{"Id":"ht-001","Level":1,"Total":350,"Progress":350,"Goal":1000,"TopContributions":[{"UserId":"42660213","UserLogin":"dukasoft","UserName":"DukaSoft","Type":"bits","Total":200},{"UserId":"39863651","UserLogin":"stoney_eagle","UserName":"Stoney_Eagle","Type":"subscription","Total":150}],"ExpiresAt":"2025-09-01T15:05:00+00:00","StartedAt":"2025-09-01T15:00:00+00:00"}"""
+            ),
+            Tenant
+        );
+
+        request.Should().NotBeNull();
+        request!.EventType.Should().Be("HypeTrainBeganEvent");
+        JObject payload = JObject.Parse(request.PayloadJson);
+        payload["HypeTrainId"]!.Value<string>().Should().Be("ht-001");
+        payload["Level"]!.Value<int>().Should().Be(1);
+        payload["Total"]!.Value<int>().Should().Be(350);
+        payload["Goal"]!.Value<int>().Should().Be(1000);
+        JArray contributions = (JArray)payload["TopContributions"]!;
+        contributions.Should().HaveCount(2);
+        contributions[0]["UserId"]!.Value<string>().Should().Be("42660213");
+        contributions[0]["Type"]!.Value<string>().Should().Be("bits");
+    }
+
+    [Fact]
+    public void Maps_hype_train_end_to_HypeTrainEndedEvent_with_the_real_end_time()
+    {
+        AppendEventRequest? request = _mapper.Map(
+            Row(
+                "channel.hype_train.end",
+                """{"Id":"ht-001","Level":2,"Total":2500,"TopContributions":[{"UserId":"42660213","UserLogin":"dukasoft","UserName":"DukaSoft","Type":"bits","Total":1000}],"EndedAt":"2025-09-01T15:05:30+00:00"}"""
+            ),
+            Tenant
+        );
+
+        request.Should().NotBeNull();
+        request!.EventType.Should().Be("HypeTrainEndedEvent");
+        request
+            .OccurredAt.Should()
+            .Be(
+                DateTime.Parse("2025-09-01T15:05:30+00:00").ToUniversalTime(),
+                "OccurredAt is the real EndedAt from the payload"
+            );
+        JObject payload = JObject.Parse(request.PayloadJson);
+        payload["Level"]!.Value<int>().Should().Be(2);
+        payload["Total"]!.Value<int>().Should().Be(2500);
     }
 }

@@ -139,6 +139,26 @@ public sealed class LegacyChannelEventMapper
                 data,
                 Envelope(row, targetBroadcasterId, data, eventTimeKey: "StartedAt")
             ),
+            // Polls — begin / live-progress / terminal end.
+            "channel.poll.begin" => MapPollBegan(data, Envelope(row, targetBroadcasterId, data)),
+            "channel.poll.progress" => MapPollProgress(
+                data,
+                Envelope(row, targetBroadcasterId, data)
+            ),
+            "channel.poll.end" => MapPollEnded(data, Envelope(row, targetBroadcasterId, data)),
+            // Hype trains — begin / progress / end (EventSub v2 shape, TwitchLib PascalCase keys).
+            "channel.hype_train.begin" => MapHypeTrainBegan(
+                data,
+                Envelope(row, targetBroadcasterId, data, eventTimeKey: "StartedAt")
+            ),
+            "channel.hype_train.progress" => MapHypeTrainProgress(
+                data,
+                Envelope(row, targetBroadcasterId, data)
+            ),
+            "channel.hype_train.end" => MapHypeTrainEnded(
+                data,
+                Envelope(row, targetBroadcasterId, data, eventTimeKey: "EndedAt")
+            ),
             _ => null,
         };
 
@@ -602,6 +622,199 @@ public sealed class LegacyChannelEventMapper
             RequesterUserId = Str(data, "RequesterUserId"),
             RequesterDisplayName = Str(data, "RequesterUserName"),
         };
+
+    // ── polls ───────────────────────────────────────────────────────────────────────────────────────────────
+    // TwitchLib PascalCase poll shape: Id, Title, Choices[]{Id,Title,Votes,ChannelPointsVotes}, DurationSeconds,
+    // StartedAt, EndsAt, Status (end only). Begin uses StartedAt to derive DurationSeconds when the raw field is 0.
+    private static PollBeganEvent? MapPollBegan(JObject data, EventEnvelope env)
+    {
+        string? pollId = Str(data, "Id");
+        string? title = Str(data, "Title");
+        if (pollId is null || title is null)
+            return null;
+
+        int durationSeconds = Int(data, "DurationSeconds") ?? 0;
+        DateTimeOffset? endsAt = ReadDateTimeOffset(data, "EndsAt");
+        if (durationSeconds == 0 && endsAt is { } e)
+            durationSeconds = Math.Max(0, (int)(e - env.OccurredAt).TotalSeconds);
+
+        return new PollBeganEvent
+        {
+            EventId = env.EventId,
+            BroadcasterId = env.Tenant,
+            OccurredAt = env.OccurredAt,
+            PollId = pollId,
+            Title = title,
+            Choices = ReadPollChoices(data),
+            DurationSeconds = durationSeconds,
+            EndsAt = endsAt ?? env.OccurredAt,
+        };
+    }
+
+    private static PollProgressEvent? MapPollProgress(JObject data, EventEnvelope env)
+    {
+        string? pollId = Str(data, "Id");
+        string? title = Str(data, "Title");
+        if (pollId is null || title is null)
+            return null;
+
+        return new PollProgressEvent
+        {
+            EventId = env.EventId,
+            BroadcasterId = env.Tenant,
+            OccurredAt = env.OccurredAt,
+            PollId = pollId,
+            Title = title,
+            Choices = ReadPollChoices(data),
+            EndsAt = ReadDateTimeOffset(data, "EndsAt") ?? env.OccurredAt,
+        };
+    }
+
+    private static PollEndedEvent? MapPollEnded(JObject data, EventEnvelope env)
+    {
+        string? pollId = Str(data, "Id");
+        string? title = Str(data, "Title");
+        if (pollId is null || title is null)
+            return null;
+
+        IReadOnlyList<PollChoice> choices = ReadPollChoices(data);
+        PollChoice? winner = null;
+        foreach (PollChoice choice in choices)
+        {
+            if (choice.Votes > 0 && (winner is null || choice.Votes > winner.Votes))
+                winner = choice;
+        }
+
+        return new PollEndedEvent
+        {
+            EventId = env.EventId,
+            BroadcasterId = env.Tenant,
+            OccurredAt = env.OccurredAt,
+            PollId = pollId,
+            Title = title,
+            Status = Str(data, "Status") ?? "completed",
+            Choices = choices,
+            WinningChoiceId = winner?.Id,
+        };
+    }
+
+    private static IReadOnlyList<PollChoice> ReadPollChoices(JObject data)
+    {
+        if (data["Choices"] is not JArray array)
+            return [];
+
+        List<PollChoice> result = new(array.Count);
+        foreach (JToken token in array)
+        {
+            if (token is not JObject choice)
+                continue;
+            string? id = Str(choice, "Id");
+            string? title = Str(choice, "Title");
+            if (id is null || title is null)
+                continue;
+            result.Add(
+                new PollChoice(
+                    id,
+                    title,
+                    Int(choice, "Votes") ?? 0,
+                    Int(choice, "ChannelPointsVotes") ?? 0
+                )
+            );
+        }
+
+        return result;
+    }
+
+    // ── hype trains ─────────────────────────────────────────────────────────────────────────────────────────
+    // TwitchLib PascalCase hype-train shape: Id, Level, Total, Progress, Goal,
+    // TopContributions[]{UserId,UserLogin,UserName,Type,Total}, ExpiresAt (begin/progress), EndedAt (end).
+    private static HypeTrainBeganEvent? MapHypeTrainBegan(JObject data, EventEnvelope env)
+    {
+        string? id = Str(data, "Id");
+        if (id is null)
+            return null;
+
+        return new HypeTrainBeganEvent
+        {
+            EventId = env.EventId,
+            BroadcasterId = env.Tenant,
+            OccurredAt = env.OccurredAt,
+            HypeTrainId = id,
+            Level = Int(data, "Level") ?? 1,
+            Total = Int(data, "Total") ?? 0,
+            Progress = Int(data, "Progress") ?? 0,
+            Goal = Int(data, "Goal") ?? 0,
+            TopContributions = ReadTopContributions(data),
+            ExpiresAt = ReadDateTimeOffset(data, "ExpiresAt") ?? env.OccurredAt,
+        };
+    }
+
+    private static HypeTrainProgressEvent? MapHypeTrainProgress(JObject data, EventEnvelope env)
+    {
+        string? id = Str(data, "Id");
+        if (id is null)
+            return null;
+
+        return new HypeTrainProgressEvent
+        {
+            EventId = env.EventId,
+            BroadcasterId = env.Tenant,
+            OccurredAt = env.OccurredAt,
+            HypeTrainId = id,
+            Level = Int(data, "Level") ?? 1,
+            Total = Int(data, "Total") ?? 0,
+            Progress = Int(data, "Progress") ?? 0,
+            Goal = Int(data, "Goal") ?? 0,
+            TopContributions = ReadTopContributions(data),
+            ExpiresAt = ReadDateTimeOffset(data, "ExpiresAt") ?? env.OccurredAt,
+        };
+    }
+
+    private static HypeTrainEndedEvent? MapHypeTrainEnded(JObject data, EventEnvelope env)
+    {
+        string? id = Str(data, "Id");
+        if (id is null)
+            return null;
+
+        return new HypeTrainEndedEvent
+        {
+            EventId = env.EventId,
+            BroadcasterId = env.Tenant,
+            OccurredAt = env.OccurredAt,
+            HypeTrainId = id,
+            Level = Int(data, "Level") ?? 1,
+            Total = Int(data, "Total") ?? 0,
+            TopContributions = ReadTopContributions(data),
+            EndedAt = ReadDateTimeOffset(data, "EndedAt") ?? env.OccurredAt,
+        };
+    }
+
+    private static IReadOnlyList<HypeTrainContribution> ReadTopContributions(JObject data)
+    {
+        if (data["TopContributions"] is not JArray array)
+            return [];
+
+        List<HypeTrainContribution> result = new(array.Count);
+        foreach (JToken token in array)
+        {
+            if (token is not JObject contribution)
+                continue;
+            string? userId = Str(contribution, "UserId");
+            if (userId is null)
+                continue;
+            result.Add(
+                new HypeTrainContribution(
+                    userId,
+                    Str(contribution, "UserLogin") ?? userId,
+                    Str(contribution, "UserName") ?? userId,
+                    Str(contribution, "Type") ?? "other",
+                    Int(contribution, "Total") ?? 0
+                )
+            );
+        }
+
+        return result;
+    }
 
     // ── chat payload helpers ────────────────────────────────────────────────────────────────────────────────
     // The plain text of a legacy Message object: its Text, else the joined fragment texts (mirrors the live reader).
