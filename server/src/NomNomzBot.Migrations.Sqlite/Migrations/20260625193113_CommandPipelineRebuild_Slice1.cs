@@ -305,6 +305,12 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                 defaultValue: ""
             );
 
+            // Back-fill NameNormalized from the existing Name column so the unique index below
+            // does not collide on the empty-string default that was just applied to every existing row.
+            migrationBuilder.Sql(
+                "UPDATE \"Commands\" SET \"NameNormalized\" = lower(\"Name\") WHERE \"NameNormalized\" = ''"
+            );
+
             migrationBuilder.AddColumn<string>(
                 name: "PrefixMode",
                 table: "Commands",
