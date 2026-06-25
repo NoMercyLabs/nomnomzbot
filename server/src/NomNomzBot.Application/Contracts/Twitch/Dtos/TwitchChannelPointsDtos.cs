@@ -57,7 +57,7 @@ public sealed record TwitchCustomReward(
     bool IsPaused,
     bool IsInStock,
     bool ShouldRedemptionsSkipRequestQueue,
-    int RedemptionsRedeemedCurrentStream,
+    int? RedemptionsRedeemedCurrentStream,
     DateTimeOffset? CooldownExpiresAt
 );
 
