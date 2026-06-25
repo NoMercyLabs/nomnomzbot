@@ -19,19 +19,18 @@ public class PagedList<T>
     public bool HasPreviousPage => Page > 1;
     public bool HasNextPage => Page * PageSize < TotalCount;
 
+    /// <summary>
+    /// Builds a page. Argument order is <c>(items, page, pageSize, totalCount)</c> — <b>totalCount LAST</b>. There
+    /// was once a second ctor in a different order (<c>(items, total, page, pageSize)</c>), but a <c>List&lt;T&gt;</c>
+    /// always bound to THIS one (its <c>IReadOnlyList</c> param is the better match), so any call written in that
+    /// other order silently set <see cref="TotalCount"/> to the page size — a bug that hit 16 list services before
+    /// it was found. That trap ctor was removed; this is the only one. Pass a materialised list/array.
+    /// </summary>
     public PagedList(IReadOnlyList<T> items, int page, int pageSize, int totalCount)
     {
         Items = items;
         Page = page;
         PageSize = pageSize;
         TotalCount = totalCount;
-    }
-
-    public PagedList(IEnumerable<T> items, int total, int page, int pageSize)
-    {
-        Items = items.ToList().AsReadOnly();
-        TotalCount = total;
-        Page = page;
-        PageSize = pageSize;
     }
 }
