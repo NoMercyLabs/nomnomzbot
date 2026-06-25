@@ -772,6 +772,9 @@ public static class DependencyInjection
             NomNomzBot.Application.Contracts.EventStore.IEventUpcasterRegistry,
             NomNomzBot.Infrastructure.EventStore.EventUpcasterRegistry
         >();
+        // The projection driver (event-store.md §3.3) — periodically advances every projection to the journal
+        // head so live appends reach the read models (without it, projections only move during import/rebuild).
+        services.AddHostedService<NomNomzBot.Infrastructure.EventStore.EventStoreProjectionDriver>();
 
         // Owner-gated legacy backfill — imports the legacy NoMercy bot's channel history onto the journal and
         // rebuilds projections from it. The locator (which legacy file to read) is a stateless seam; the service
