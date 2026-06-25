@@ -1,3 +1,6 @@
+# Tool state
+.playwright-mcp/
+
 # Dependencies
 node_modules/
 
