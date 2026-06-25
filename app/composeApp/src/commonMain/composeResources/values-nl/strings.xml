@@ -192,6 +192,10 @@
     <string name="timers_disabled">Uit</string>
     <string name="moderation_loading">Bans laden…</string>
     <string name="moderation_empty">Geen actieve bans</string>
+    <string name="moderation_bans_title">Verbannen kijkers</string>
+    <string name="moderation_log_title">Recente acties</string>
+    <string name="moderation_log_by">door %1$s</string>
+    <string name="moderation_log_row_description">%1$s %2$s, door %3$s</string>
     <string name="moderation_no_reason">Geen reden opgegeven</string>
     <string name="moderation_banned_on">Verbannen op %1$s</string>
     <string name="moderation_banned_by">Verbannen door %1$s</string>

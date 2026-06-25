@@ -29,6 +29,9 @@ interface ModerationApi {
 
     /** Lift the ban on [userId] (the [BannedUser.id]); the backend also clears it on Twitch. */
     suspend fun unban(channelId: String, userId: String): ApiResult<Unit>
+
+    /** The channel's recent moderator action log — newest first (bans / timeouts / unbans / deletes / etc.). */
+    suspend fun modLog(channelId: String): ApiResult<List<ModLogEntry>>
 }
 
 class RestModerationApi(private val client: ApiClient) : ModerationApi {
@@ -43,6 +46,17 @@ class RestModerationApi(private val client: ApiClient) : ModerationApi {
 
     override suspend fun unban(channelId: String, userId: String): ApiResult<Unit> =
         client.deleteUnit("api/v1/channels/$channelId/community/$userId/ban")
+
+    // The mod log is a flat PaginatedResponse on the ModerationController (moderation/log), so read it with
+    // getDirect + PaginatedEnvelope like the bans list. First page only here.
+    override suspend fun modLog(channelId: String): ApiResult<List<ModLogEntry>> =
+        when (
+            val page: ApiResult<PaginatedEnvelope<ModLogEntry>> =
+                client.getDirect("api/v1/channels/$channelId/moderation/log?page=1&pageSize=25")
+        ) {
+            is ApiResult.Failure -> ApiResult.Failure(page.error)
+            is ApiResult.Ok -> ApiResult.Ok(page.value.data)
+        }
 }
 
 /**
@@ -59,4 +73,20 @@ data class BannedUser(
     val reason: String = "",
     val bannedBy: String = "",
     val bannedAt: String = "",
+)
+
+/**
+ * One moderator action-log entry (backend `ModLogEntryDto`). camelCase mirror: the [action] (ban / timeout /
+ * delete / ...), the [moderator] who issued it, the [target] viewer, an optional [reason], the [timestamp], and
+ * the timeout [duration] in seconds (null for non-timeout actions).
+ */
+@Serializable
+data class ModLogEntry(
+    val id: String = "",
+    val action: String = "",
+    val moderator: String = "",
+    val target: String? = null,
+    val reason: String? = null,
+    val timestamp: String = "",
+    val duration: Int? = null,
 )

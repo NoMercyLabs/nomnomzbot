@@ -15,6 +15,7 @@ import bot.nomnomz.dashboard.core.feedback.RecordingFeedback
 import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.BannedUser
+import bot.nomnomz.dashboard.core.network.ModLogEntry
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.ModerationApi
@@ -61,6 +62,39 @@ class ModerationControllerTest {
         assertEquals(1, bans.size)
         assertEquals("Trolly", bans.first().displayName)
         assertEquals("Spamming links", bans.first().reason)
+    }
+
+    @Test
+    fun load_surfaces_the_mod_action_log_even_with_no_bans() = runTest {
+        val controller =
+            ModerationController(
+                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                FakeModerationApi(
+                    bansResults = listOf(ApiResult.Ok(emptyList())),
+                    modLogResult =
+                        ApiResult.Ok(
+                            listOf(
+                                ModLogEntry(
+                                    id = "e1",
+                                    action = "timeout",
+                                    moderator = "Stoney_Eagle",
+                                    target = "Baduser",
+                                    timestamp = "2025-08-01T00:00:00Z",
+                                    duration = 600,
+                                )
+                            )
+                        ),
+                ),
+            )
+
+        controller.load()
+
+        // The log keeps the page non-empty even though there are no active bans.
+        val ready: ModerationState.Ready = controller.state.value as ModerationState.Ready
+        assertTrue(ready.bans.isEmpty())
+        assertEquals(1, ready.modLog.size)
+        assertEquals("timeout", ready.modLog.first().action)
+        assertEquals("Baduser", ready.modLog.first().target)
     }
 
     @Test
@@ -211,6 +245,7 @@ private class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : C
 private class FakeModerationApi(
     private val bansResults: List<ApiResult<List<BannedUser>>>,
     private val unbanResult: ApiResult<Unit> = ApiResult.Ok(Unit),
+    private val modLogResult: ApiResult<List<ModLogEntry>> = ApiResult.Ok(emptyList()),
 ) : ModerationApi {
     // Single-result convenience for the read-only tests (one bans() result, default-OK unban).
     constructor(
@@ -233,4 +268,6 @@ private class FakeModerationApi(
         unbanCalls.add(channelId to userId)
         return unbanResult
     }
+
+    override suspend fun modLog(channelId: String): ApiResult<List<ModLogEntry>> = modLogResult
 }

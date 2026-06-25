@@ -195,6 +195,10 @@
     <string name="timers_disabled">Off</string>
     <string name="moderation_loading">Loading bans…</string>
     <string name="moderation_empty">No active bans</string>
+    <string name="moderation_bans_title">Banned viewers</string>
+    <string name="moderation_log_title">Recent actions</string>
+    <string name="moderation_log_by">by %1$s</string>
+    <string name="moderation_log_row_description">%1$s %2$s, by %3$s</string>
     <string name="moderation_no_reason">No reason given</string>
     <string name="moderation_banned_on">Banned on %1$s</string>
     <string name="moderation_banned_by">Banned by %1$s</string>

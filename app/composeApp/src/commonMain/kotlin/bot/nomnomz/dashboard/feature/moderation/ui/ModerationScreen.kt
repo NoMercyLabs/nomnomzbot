@@ -45,6 +45,7 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.network.BannedUser
+import bot.nomnomz.dashboard.core.network.ModLogEntry
 import bot.nomnomz.dashboard.feature.moderation.state.ModerationController
 import bot.nomnomz.dashboard.feature.moderation.state.ModerationState
 import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
@@ -53,6 +54,10 @@ import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecision
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.moderation_action_error
+import nomnomzbot.composeapp.generated.resources.moderation_bans_title
+import nomnomzbot.composeapp.generated.resources.moderation_log_by
+import nomnomzbot.composeapp.generated.resources.moderation_log_row_description
+import nomnomzbot.composeapp.generated.resources.moderation_log_title
 import nomnomzbot.composeapp.generated.resources.moderation_banned_by
 import nomnomzbot.composeapp.generated.resources.moderation_banned_on
 import nomnomzbot.composeapp.generated.resources.moderation_empty
@@ -99,6 +104,7 @@ fun ModerationScreen(controller: ModerationController, role: ManagementRole?) {
             is ModerationState.Ready ->
                 BansList(
                     bans = current.bans,
+                    modLog = current.modLog,
                     actionError = current.actionError,
                     manage = manage,
                     onUnban = { userId -> scope.launch { controller.unban(userId) } },
@@ -110,6 +116,7 @@ fun ModerationScreen(controller: ModerationController, role: ManagementRole?) {
 @Composable
 private fun BansList(
     bans: List<BannedUser>,
+    modLog: List<ModLogEntry>,
     actionError: String?,
     manage: ManageDecision,
     onUnban: (userId: String) -> Unit,
@@ -135,8 +142,29 @@ private fun BansList(
                 )
             }
         }
-        items(items = bans, key = { it.id }) { ban ->
-            BanRow(ban = ban, manage = manage, onUnban = { pendingUnban = ban })
+        if (bans.isNotEmpty()) {
+            item(key = "bans-header") {
+                Text(
+                    text = stringResource(Res.string.moderation_bans_title),
+                    style = typography.lg,
+                    color = tokens.cardForeground,
+                    maxLines = 1,
+                )
+            }
+            items(items = bans, key = { it.id }) { ban ->
+                BanRow(ban = ban, manage = manage, onUnban = { pendingUnban = ban })
+            }
+        }
+        if (modLog.isNotEmpty()) {
+            item(key = "log-header") {
+                Text(
+                    text = stringResource(Res.string.moderation_log_title),
+                    style = typography.lg,
+                    color = tokens.cardForeground,
+                    maxLines = 1,
+                )
+            }
+            items(items = modLog, key = { "log-${it.id}" }) { entry -> ModLogRow(entry = entry) }
         }
     }
 
@@ -252,6 +280,55 @@ private fun ErrorContent(detail: String, onRetry: () -> Unit) {
                 textAlign = TextAlign.Center,
             )
             TextButton(onClick = onRetry) { Text(text = stringResource(Res.string.moderation_retry)) }
+        }
+    }
+}
+
+// One mod-log row: the action + target (e.g. "timeout Baduser") over "by <moderator>". Read-only history.
+@Composable
+private fun ModLogRow(entry: ModLogEntry) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    val primary: String = "${entry.action} ${entry.target ?: ""}".trim()
+    val byLabel: String = stringResource(Res.string.moderation_log_by, entry.moderator)
+    val rowDescription: String =
+        stringResource(
+            Res.string.moderation_log_row_description,
+            entry.action,
+            entry.target ?: "",
+            entry.moderator,
+        )
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(tokens.radius.lg))
+            .background(tokens.card)
+            .padding(horizontal = spacing.s4, vertical = spacing.s3)
+            .clearAndSetSemantics { contentDescription = rowDescription },
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(spacing.s3),
+    ) {
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(spacing.s1),
+        ) {
+            Text(
+                text = primary,
+                style = typography.base,
+                color = tokens.cardForeground,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = byLabel,
+                style = typography.sm,
+                color = tokens.mutedForeground,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
     }
 }

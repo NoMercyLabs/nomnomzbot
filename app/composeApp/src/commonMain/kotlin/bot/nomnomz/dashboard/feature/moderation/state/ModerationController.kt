@@ -16,6 +16,7 @@ import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.BannedUser
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
+import bot.nomnomz.dashboard.core.network.ModLogEntry
 import bot.nomnomz.dashboard.core.network.ModerationApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -55,13 +56,26 @@ class ModerationController(
 
         channelId = channel.id
 
-        when (val result: ApiResult<List<BannedUser>> = moderationApi.bans(channel.id)) {
-            is ApiResult.Failure -> _state.value = ModerationState.Error(result.error.message)
-            is ApiResult.Ok ->
-                _state.value =
-                    if (result.value.isEmpty()) ModerationState.Empty
-                    else ModerationState.Ready(result.value)
-        }
+        val bans: List<BannedUser> =
+            when (val result: ApiResult<List<BannedUser>> = moderationApi.bans(channel.id)) {
+                is ApiResult.Failure -> {
+                    _state.value = ModerationState.Error(result.error.message)
+                    return
+                }
+                is ApiResult.Ok -> result.value
+            }
+
+        // The mod action log (recent moderator actions). A failure must NOT blank the page — the bans loaded —
+        // so it degrades to an empty list rather than erroring the whole screen.
+        val modLog: List<ModLogEntry> =
+            when (val result: ApiResult<List<ModLogEntry>> = moderationApi.modLog(channel.id)) {
+                is ApiResult.Failure -> emptyList()
+                is ApiResult.Ok -> result.value
+            }
+
+        _state.value =
+            if (bans.isEmpty() && modLog.isEmpty()) ModerationState.Empty
+            else ModerationState.Ready(bans, modLog)
     }
 
     /**
@@ -93,8 +107,15 @@ class ModerationController(
 sealed interface ModerationState {
     data object Loading : ModerationState
 
-    /** The active bans, plus an optional message when the last unban attempt failed (the list is intact). */
-    data class Ready(val bans: List<BannedUser>, val actionError: String? = null) : ModerationState
+    /**
+     * The active bans + the recent mod action log, plus an optional message when the last unban attempt failed
+     * (the lists stay intact).
+     */
+    data class Ready(
+        val bans: List<BannedUser>,
+        val modLog: List<ModLogEntry> = emptyList(),
+        val actionError: String? = null,
+    ) : ModerationState
 
     data object Empty : ModerationState
 
