@@ -14,6 +14,7 @@ import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
+import bot.nomnomz.dashboard.core.network.CatalogItem
 import bot.nomnomz.dashboard.core.network.CurrencyAccountSummary
 import bot.nomnomz.dashboard.core.network.CurrencyConfig
 import bot.nomnomz.dashboard.core.network.EarningRule
@@ -182,6 +183,38 @@ class EconomyControllerTest {
     }
 
     @Test
+    fun load_surfaces_the_store_catalog() = runTest {
+        val economyApi =
+            FakeEconomyApi(
+                configResult = ApiResult.Ok(loadedConfig),
+                leaderboardResult = ApiResult.Ok(leaderboard),
+                catalogResult =
+                    ApiResult.Ok(
+                        listOf(
+                            CatalogItem(
+                                id = "c1",
+                                name = "Timeout the streamer",
+                                cost = 500,
+                                isEnabled = true,
+                                stockLimit = 3,
+                                stockRemaining = 2,
+                            )
+                        )
+                    ),
+            )
+        val controller =
+            EconomyController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), economyApi)
+
+        controller.load()
+
+        val ready: EconomyState.Ready = controller.state.value as EconomyState.Ready
+        assertEquals(1, ready.catalog.size)
+        assertEquals("Timeout the streamer", ready.catalog.first().name)
+        assertEquals(500, ready.catalog.first().cost)
+        assertEquals(2, ready.catalog.first().stockRemaining)
+    }
+
+    @Test
     fun load_seeds_a_default_form_when_the_economy_is_not_configured() = runTest {
         // A null config means the economy was never set up — the page must still render a (default) form so the
         // operator can create it, flagged not-configured, with whatever leaderboard exists (empty here).
@@ -340,6 +373,7 @@ private class FakeEconomyApi(
     private val updateResult: ApiResult<CurrencyConfig> = ApiResult.Ok(CurrencyConfig()),
     private val accountsResult: ApiResult<List<CurrencyAccountSummary>> = ApiResult.Ok(emptyList()),
     private val earningRulesResult: ApiResult<List<EarningRule>> = ApiResult.Ok(emptyList()),
+    private val catalogResult: ApiResult<List<CatalogItem>> = ApiResult.Ok(emptyList()),
 ) : EconomyApi {
     var lastUpdate: UpsertCurrencyConfig? = null
         private set
@@ -386,4 +420,6 @@ private class FakeEconomyApi(
         lastFreeze = viewerUserId to frozen
         return ApiResult.Ok(Unit)
     }
+
+    override suspend fun catalog(channelId: String): ApiResult<List<CatalogItem>> = catalogResult
 }

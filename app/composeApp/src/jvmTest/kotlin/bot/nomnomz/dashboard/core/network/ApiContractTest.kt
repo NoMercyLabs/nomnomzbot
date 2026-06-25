@@ -67,6 +67,7 @@ class ApiContractTest {
             RedemptionSummary.serializer() to "RedemptionListItem",
             CurrencyAccountSummary.serializer() to "CurrencyAccountDto",
             EarningRule.serializer() to "EarningRuleDto",
+            CatalogItem.serializer() to "CatalogItemDto",
         )
 
     @Test

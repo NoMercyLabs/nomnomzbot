@@ -53,6 +53,9 @@ interface EconomyApi {
         viewerUserId: String,
         frozen: Boolean,
     ): ApiResult<Unit>
+
+    /** The channel's store catalog — the items viewers buy with currency. First page only here. */
+    suspend fun catalog(channelId: String): ApiResult<List<CatalogItem>>
 }
 
 class RestEconomyApi(private val client: ApiClient) : EconomyApi {
@@ -123,11 +126,23 @@ class RestEconomyApi(private val client: ApiClient) : EconomyApi {
             "api/v1/channels/$channelId/economy/accounts/$viewerUserId/freeze",
             FreezeAccountBody(frozen),
         )
+
+    override suspend fun catalog(channelId: String): ApiResult<List<CatalogItem>> =
+        when (
+            val page: ApiResult<PaginatedEnvelope<CatalogItem>> =
+                client.getDirect("api/v1/channels/$channelId/economy/catalog?page=1&pageSize=25")
+        ) {
+            is ApiResult.Failure -> ApiResult.Failure(page.error)
+            is ApiResult.Ok -> ApiResult.Ok(page.value.data)
+        }
 }
 
 /** The freeze/unfreeze request body (backend `CurrencyController.FreezeBody`). camelCase `frozen`. */
 @Serializable
 data class FreezeAccountBody(val frozen: Boolean)
+
+// The store-item DTO `CatalogItem` (backend `CatalogItemDto`) is declared once in ParticipantApi.kt and shared —
+// the Economy page's catalog read returns that same type rather than re-declaring it (one DTO per backend shape).
 
 /**
  * The channel's currency definition (backend `CurrencyConfigDto`). Field names mirror the DTO camelCase exactly.

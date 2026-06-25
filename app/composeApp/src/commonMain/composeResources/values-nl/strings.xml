@@ -452,6 +452,11 @@
     <string name="economy_earning_empty">Nog geen verdienregels</string>
     <string name="economy_earning_row_description">%1$s, snelheid %2$d</string>
     <string name="economy_earning_disabled">Uitgeschakeld</string>
+    <string name="economy_catalog_title">Winkelcatalogus</string>
+    <string name="economy_catalog_empty">Nog geen catalogusitems</string>
+    <string name="economy_catalog_row_description">%1$s, kosten %2$d</string>
+    <string name="economy_catalog_disabled">Uitgeschakeld</string>
+    <string name="economy_catalog_stock">%1$d / %2$d over</string>
     <string name="alerts_title">Meldingen &amp; gebeurtenissen</string>
     <string name="alerts_loading">Je meldingen laden…</string>
     <string name="alerts_error">Kon je meldingen niet laden: %1$s</string>

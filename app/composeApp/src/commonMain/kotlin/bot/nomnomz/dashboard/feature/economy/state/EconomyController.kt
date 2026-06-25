@@ -11,6 +11,7 @@
 package bot.nomnomz.dashboard.feature.economy.state
 
 import bot.nomnomz.dashboard.core.network.ApiResult
+import bot.nomnomz.dashboard.core.network.CatalogItem
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.CurrencyAccountSummary
@@ -91,6 +92,13 @@ class EconomyController(
                 is ApiResult.Ok -> result.value
             }
 
+        // The store catalog (items viewers buy). Same resilience contract — a failure degrades to an empty list.
+        val catalog: List<CatalogItem> =
+            when (val result: ApiResult<List<CatalogItem>> = economyApi.catalog(channel.id)) {
+                is ApiResult.Failure -> emptyList()
+                is ApiResult.Ok -> result.value
+            }
+
         _state.value =
             EconomyState.Ready(
                 // A null config means the economy was never set up; seed the form with sensible defaults so the
@@ -100,6 +108,7 @@ class EconomyController(
                 leaderboard = leaderboard,
                 accounts = accounts,
                 earningRules = earningRules,
+                catalog = catalog,
             )
     }
 
@@ -184,6 +193,7 @@ sealed interface EconomyState {
         val leaderboard: List<LeaderboardEntry>,
         val accounts: List<CurrencyAccountSummary> = emptyList(),
         val earningRules: List<EarningRule> = emptyList(),
+        val catalog: List<CatalogItem> = emptyList(),
         val saving: Boolean = false,
         val justSaved: Boolean = false,
         val saveError: String? = null,

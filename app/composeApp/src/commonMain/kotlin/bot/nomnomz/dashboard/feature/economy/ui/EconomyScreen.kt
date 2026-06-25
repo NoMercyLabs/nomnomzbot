@@ -60,6 +60,7 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.designsystem.theme.Tokens
 import bot.nomnomz.dashboard.core.network.CurrencyConfig
+import bot.nomnomz.dashboard.core.network.CatalogItem
 import bot.nomnomz.dashboard.core.network.CurrencyAccountSummary
 import bot.nomnomz.dashboard.core.network.EarningRule
 import bot.nomnomz.dashboard.core.network.LeaderboardEntry
@@ -79,6 +80,11 @@ import nomnomzbot.composeapp.generated.resources.economy_account_unfreeze_action
 import nomnomzbot.composeapp.generated.resources.economy_accounts_empty
 import nomnomzbot.composeapp.generated.resources.economy_accounts_row_description
 import nomnomzbot.composeapp.generated.resources.economy_accounts_title
+import nomnomzbot.composeapp.generated.resources.economy_catalog_disabled
+import nomnomzbot.composeapp.generated.resources.economy_catalog_empty
+import nomnomzbot.composeapp.generated.resources.economy_catalog_row_description
+import nomnomzbot.composeapp.generated.resources.economy_catalog_stock
+import nomnomzbot.composeapp.generated.resources.economy_catalog_title
 import nomnomzbot.composeapp.generated.resources.economy_disable_confirm_cancel
 import nomnomzbot.composeapp.generated.resources.economy_earning_disabled
 import nomnomzbot.composeapp.generated.resources.economy_earning_empty
@@ -267,6 +273,8 @@ private fun ReadyContent(
         AccountsSection(accounts = state.accounts, manage = config, onFreeze = onFreeze)
 
         EarningRulesSection(rules = state.earningRules)
+
+        CatalogSection(catalog = state.catalog)
     }
 
     pendingDisable?.let { edit ->
@@ -861,6 +869,102 @@ private fun EarningRuleRow(rule: EarningRule) {
         }
         Text(
             text = "+${rule.rate}",
+            style = typography.base,
+            color = tokens.primary,
+            maxLines = 1,
+            modifier = Modifier.wrapContentWidth(),
+        )
+    }
+}
+
+// The store catalog (economy.md §4): one row per item — the name, a disabled flag, stock (for limited items),
+// and the cost. Read-only here; create / edit / delete + purchase history are a follow-up management surface.
+@Composable
+private fun CatalogSection(catalog: List<CatalogItem>) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    Text(
+        text = stringResource(Res.string.economy_catalog_title),
+        style = typography.lg,
+        color = tokens.cardForeground,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+    )
+
+    if (catalog.isEmpty()) {
+        Text(
+            text = stringResource(Res.string.economy_catalog_empty),
+            style = typography.sm,
+            color = tokens.mutedForeground,
+        )
+        return
+    }
+
+    LazyColumn(
+        modifier = Modifier.fillMaxWidth(),
+        contentPadding = PaddingValues(vertical = spacing.s1),
+        verticalArrangement = Arrangement.spacedBy(spacing.s2),
+    ) {
+        items(items = catalog, key = { it.id }) { item -> CatalogItemRow(item = item) }
+    }
+}
+
+@Composable
+private fun CatalogItemRow(item: CatalogItem) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    val rowDescription: String =
+        stringResource(Res.string.economy_catalog_row_description, item.name, item.cost)
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(tokens.radius.lg))
+            .background(tokens.card)
+            .padding(horizontal = spacing.s4, vertical = spacing.s3)
+            .clearAndSetSemantics { contentDescription = rowDescription },
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(spacing.s3),
+    ) {
+        Text(
+            text = item.name,
+            style = typography.base,
+            color = tokens.cardForeground,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
+        if (!item.isEnabled) {
+            Text(
+                text = stringResource(Res.string.economy_catalog_disabled),
+                style = typography.sm,
+                color = tokens.mutedForeground,
+                maxLines = 1,
+                modifier = Modifier.wrapContentWidth(),
+            )
+        }
+        // Stock only for limited items — a null stockLimit means unlimited, so show nothing.
+        val limit: Int? = item.stockLimit
+        if (limit != null) {
+            Text(
+                text =
+                    stringResource(
+                        Res.string.economy_catalog_stock,
+                        item.stockRemaining ?: 0,
+                        limit,
+                    ),
+                style = typography.sm,
+                color = tokens.mutedForeground,
+                maxLines = 1,
+                modifier = Modifier.wrapContentWidth(),
+            )
+        }
+        Text(
+            text = item.cost.toString(),
             style = typography.base,
             color = tokens.primary,
             maxLines = 1,
