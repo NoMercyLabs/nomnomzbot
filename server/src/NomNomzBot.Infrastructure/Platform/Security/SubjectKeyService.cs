@@ -115,6 +115,30 @@ public sealed class SubjectKeyService : ISubjectKeyService
             cryptoKeyId,
             cancellationToken
         );
+
+        // The active DEK no longer unwraps under the CURRENT KEK (the root key was rotated/replaced, so its
+        // wrapped material fails authentication). A protect OVERWRITES the subject's secret, so self-heal: mint a
+        // fresh DEK under the current KEK, replace this key's material in place (same key id ⇒ the envelope the
+        // caller writes stays consistent), and seal the new value with it. Anything sealed under the lost DEK was
+        // already unrecoverable and is being replaced. Gated to UNWRAP_FAILED only — a crypto-shredded key fails
+        // with KEY_DESTROYED and is never re-keyed here, so the GDPR erasure guarantee is untouched.
+        if (unwrap.IsFailure && unwrap.ErrorCode == "UNWRAP_FAILED")
+        {
+            Result<byte[]> rekeyed = await RekeyInPlaceAsync(cryptoKeyId, cancellationToken);
+            if (rekeyed.IsFailure)
+                return rekeyed.ToTyped<CipherPayload>();
+
+            byte[] freshDek = rekeyed.Value;
+            try
+            {
+                return _fieldCipher.Encrypt(freshDek, plaintext, aad);
+            }
+            finally
+            {
+                CryptographicOperations.ZeroMemory(freshDek);
+            }
+        }
+
         if (unwrap.IsFailure)
             return unwrap.ToTyped<CipherPayload>();
 
@@ -126,6 +150,53 @@ public sealed class SubjectKeyService : ISubjectKeyService
         finally
         {
             CryptographicOperations.ZeroMemory(dek);
+        }
+    }
+
+    /// <summary>
+    /// Replaces an active subject key's wrapped material with a freshly-minted DEK sealed under the CURRENT KEK,
+    /// keeping the same key id and version. Called only when the existing wrapped DEK fails to unwrap (a rotated
+    /// KEK) on a protect (overwrite) — never for a crypto-shredded key. Returns the plaintext fresh DEK for the
+    /// caller to seal with; the caller owns zeroing it.
+    /// </summary>
+    private async Task<Result<byte[]>> RekeyInPlaceAsync(
+        Guid cryptoKeyId,
+        CancellationToken cancellationToken
+    )
+    {
+        SubjectKeyRecord? record = await _store.GetAsync(cryptoKeyId, cancellationToken);
+        if (record is null)
+            return Result.Failure<byte[]>("No such key.", "KEY_NOT_FOUND");
+        if (record.Status != SubjectKeyStatus.Active)
+            return Result.Failure<byte[]>("The key is not active.", "KEY_NOT_ACTIVE");
+
+        byte[] dek = RandomNumberGenerator.GetBytes(DekSizeBytes);
+        bool handedOff = false;
+        try
+        {
+            Result<WrappedKey> wrapped = await _keyVault.WrapAsync(dek, cancellationToken);
+            if (wrapped.IsFailure)
+                return wrapped.WithValue(Array.Empty<byte>());
+
+            SubjectKeyRecord rekeyed = record with
+            {
+                WrappedKeyMaterial = wrapped.Value.WrappedKeyMaterial,
+                KekReference = wrapped.Value.KekReference,
+                Provider = wrapped.Value.Provider,
+            };
+            await _store.UpdateAsync(rekeyed, cancellationToken);
+            _logger.LogWarning(
+                "Re-keyed subject DEK {KeyId} in place: the prior DEK was unreadable under the current KEK "
+                    + "(root key rotated). Secrets stored under the old key are unrecoverable and must be re-entered.",
+                cryptoKeyId
+            );
+            handedOff = true;
+            return Result.Success(dek);
+        }
+        finally
+        {
+            if (!handedOff)
+                CryptographicOperations.ZeroMemory(dek);
         }
     }
 

@@ -33,11 +33,18 @@ public class SubjectKeyServiceTests
     // A fixed base64 32-byte deployment key drives the deterministic KEK fallback (no OS keystore needed).
     private const string ConfigKey = "Zm9yLXRlc3Qtb25seS1rZWstMzItYnl0ZXMtbG9uZyEh"; // 32 bytes, base64
 
-    private static ISubjectKeyService BuildOver(string databaseName)
+    // A different 32-byte base64 deployment key — the test analogue of a rotated/replaced ENCRYPTION_KEY: DEKs
+    // wrapped under ConfigKey no longer unwrap under this one.
+    private const string RotatedKey = "QmFyLXRlc3Qtb25seS1rZWstMzItYnl0ZXMtbG9uZyEh";
+
+    private static ISubjectKeyService BuildOver(string databaseName) =>
+        BuildOver(databaseName, ConfigKey);
+
+    private static ISubjectKeyService BuildOver(string databaseName, string configKey)
     {
         IFieldCipher cipher = new AesGcmFieldCipher();
         IKeyVault vault = new OsSecureStoreKeyVault(
-            Options.Create(new EncryptionOptions { Key = ConfigKey }),
+            Options.Create(new EncryptionOptions { Key = configKey }),
             NullLogger<OsSecureStoreKeyVault>.Instance
         );
         // A fresh DbContext over the SAME named in-memory store = a fresh service instance over the SAME
@@ -317,6 +324,87 @@ public class SubjectKeyServiceTests
         after
             .Should()
             .Be(before, "the persisted active key is reused, not re-minted, after a restart");
+    }
+
+    // ─── 7. KEK rotation — a write self-heals a stale DEK; a shredded key stays dead ──
+
+    [Fact]
+    public async Task ProtectAfterKekRotation_RekeysInPlaceAndSucceeds()
+    {
+        // The stale-secret failure: a DEK minted + a secret sealed under one KEK, then the deployment's KEK is
+        // rotated. Reads of the old secret are dead, but a WRITE of a new secret must self-heal — re-key the
+        // subject in place under the current KEK and seal the new value, readable thereafter.
+        string database = Guid.NewGuid().ToString();
+        Guid subjectUserId = Guid.CreateVersion7();
+        const string subjectIdHash = "kek-rotation-subject";
+
+        Guid keyId;
+        CipherPayload oldSealed;
+        {
+            ISubjectKeyService underKekA = BuildOver(database, ConfigKey);
+            keyId = (
+                await underKekA.GetOrCreateSubjectKeyAsync(subjectUserId, subjectIdHash)
+            ).Value;
+            Result<CipherPayload> sealedOld = await underKekA.ProtectAsync(
+                keyId,
+                "old-secret",
+                Aad()
+            );
+            sealedOld.IsSuccess.Should().BeTrue();
+            oldSealed = sealedOld.Value;
+        }
+
+        // Same store, ROTATED KEK: the old DEK no longer unwraps.
+        ISubjectKeyService underKekB = BuildOver(database, RotatedKey);
+
+        // The old ciphertext is unrecoverable (its KEK is gone) — the read failure the user sees today.
+        (await underKekB.UnprotectAsync(keyId, oldSealed, Aad()))
+            .IsFailure.Should()
+            .BeTrue("the secret sealed under the lost KEK cannot be read");
+
+        // A WRITE self-heals: re-keys the same subject in place and seals the new value under the current KEK.
+        Result<CipherPayload> reSealed = await underKekB.ProtectAsync(keyId, "new-secret", Aad());
+        reSealed
+            .IsSuccess.Should()
+            .BeTrue("a write must succeed by re-keying the stale DEK under the current KEK");
+
+        // The freshly-sealed secret round-trips under the current KEK.
+        Result<string> opened = await underKekB.UnprotectAsync(keyId, reSealed.Value, Aad());
+        opened.IsSuccess.Should().BeTrue();
+        opened.Value.Should().Be("new-secret");
+    }
+
+    [Fact]
+    public async Task ProtectAfterKekRotation_DoesNotResurrectACryptoShreddedKey()
+    {
+        // A crypto-shredded key STAYS dead even under a rotated KEK: a write fails closed (KEY_DESTROYED), never
+        // silently re-keyed — the GDPR erasure guarantee outranks the stale-secret self-heal.
+        string database = Guid.NewGuid().ToString();
+        Guid subjectUserId = Guid.CreateVersion7();
+        const string subjectIdHash = "shredded-subject";
+
+        Guid keyId;
+        {
+            ISubjectKeyService underKekA = BuildOver(database, ConfigKey);
+            keyId = (
+                await underKekA.GetOrCreateSubjectKeyAsync(subjectUserId, subjectIdHash)
+            ).Value;
+            (await underKekA.DestroyKeyAsync(keyId, Guid.CreateVersion7()))
+                .IsSuccess.Should()
+                .BeTrue();
+        }
+
+        ISubjectKeyService underKekB = BuildOver(database, RotatedKey);
+        Result<CipherPayload> write = await underKekB.ProtectAsync(
+            keyId,
+            "should-not-write",
+            Aad()
+        );
+
+        write.IsFailure.Should().BeTrue();
+        write
+            .ErrorCode.Should()
+            .Be("KEY_DESTROYED", "a shredded key is never re-keyed, even under a rotated KEK");
     }
 
     // ─── 6. Negative — a truly-missing subject still fails closed ────────────────────
