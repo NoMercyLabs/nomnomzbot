@@ -879,6 +879,32 @@
     <string name="music_remove_message">%1$s uit de wachtrij verwijderen?</string>
     <string name="music_remove_confirm">Verwijderen</string>
     <string name="music_remove_dismiss">Annuleren</string>
+    <!-- Muziek: toevoegen aan wachtrij -->
+    <string name="music_add_title">Toevoegen aan wachtrij</string>
+    <string name="music_add_query">Naam van nummer of artiest</string>
+    <string name="music_add_requested_by">Aangevraagd door</string>
+    <string name="music_add_action">Toevoegen</string>
+    <!-- Muziek: instellingen -->
+    <string name="music_config_title">Nummerkeuze-instellingen</string>
+    <string name="music_config_enabled">Ingeschakeld</string>
+    <string name="music_config_provider">Voorkeursprovider</string>
+    <string name="music_config_provider_auto">Automatisch</string>
+    <string name="music_config_provider_spotify">Spotify</string>
+    <string name="music_config_provider_youtube">YouTube</string>
+    <string name="music_config_max_queue">Max. wachtrijgrootte</string>
+    <string name="music_config_max_per_user">Max. per gebruiker</string>
+    <string name="music_config_allow_youtube">YouTube toestaan</string>
+    <string name="music_config_allow_spotify">Spotify toestaan</string>
+    <string name="music_config_trust">Minimaal vertrouwensniveau</string>
+    <string name="music_config_save">Opslaan</string>
+    <!-- Muziek: SR-paginatoken -->
+    <string name="music_token_title">SR-paginalink</string>
+    <string name="music_token_value">Token: %1$s</string>
+    <string name="music_token_rotate">Token roteren</string>
+    <string name="music_token_rotate_title">SR-token roteren?</string>
+    <string name="music_token_rotate_message">De huidige deellink werkt direct niet meer.</string>
+    <string name="music_token_rotate_confirm">Roteren</string>
+    <string name="music_token_rotate_dismiss">Annuleren</string>
 
     <!-- Pipelines page. -->
     <string name="pipelines_title">Pijplijnen</string>

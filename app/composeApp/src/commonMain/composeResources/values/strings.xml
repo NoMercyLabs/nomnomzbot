@@ -882,6 +882,32 @@
     <string name="music_remove_message">Remove %1$s from the queue?</string>
     <string name="music_remove_confirm">Remove</string>
     <string name="music_remove_dismiss">Cancel</string>
+    <!-- Music: add to queue -->
+    <string name="music_add_title">Add to Queue</string>
+    <string name="music_add_query">Song or artist name</string>
+    <string name="music_add_requested_by">Requested by</string>
+    <string name="music_add_action">Add</string>
+    <!-- Music: config -->
+    <string name="music_config_title">Song Request Settings</string>
+    <string name="music_config_enabled">Enabled</string>
+    <string name="music_config_provider">Preferred provider</string>
+    <string name="music_config_provider_auto">Auto</string>
+    <string name="music_config_provider_spotify">Spotify</string>
+    <string name="music_config_provider_youtube">YouTube</string>
+    <string name="music_config_max_queue">Max queue size</string>
+    <string name="music_config_max_per_user">Max per user</string>
+    <string name="music_config_allow_youtube">Allow YouTube</string>
+    <string name="music_config_allow_spotify">Allow Spotify</string>
+    <string name="music_config_trust">Minimum trust level</string>
+    <string name="music_config_save">Save</string>
+    <!-- Music: SR-page token -->
+    <string name="music_token_title">SR Page Link</string>
+    <string name="music_token_value">Token: %1$s</string>
+    <string name="music_token_rotate">Rotate token</string>
+    <string name="music_token_rotate_title">Rotate SR token?</string>
+    <string name="music_token_rotate_message">The current share link will stop working immediately.</string>
+    <string name="music_token_rotate_confirm">Rotate</string>
+    <string name="music_token_rotate_dismiss">Cancel</string>
 
     <!-- Pipelines page. -->
     <string name="pipelines_title">Pipelines</string>

@@ -44,6 +44,21 @@ interface MusicApi {
 
     /** Remove one queued song by its zero-based [position] (the [MusicTrack.position]). */
     suspend fun remove(channelId: String, position: Int): ApiResult<Unit>
+
+    /** Add a song to the queue by search [query], attributed to [requestedBy]. */
+    suspend fun addToQueue(channelId: String, body: MusicSongRequestBody): ApiResult<Unit>
+
+    /** The channel's SR / music configuration. */
+    suspend fun config(channelId: String): ApiResult<MusicConfig>
+
+    /** Update (patch) the SR / music configuration. */
+    suspend fun updateConfig(channelId: String, body: UpdateMusicConfigBody): ApiResult<MusicConfig>
+
+    /** Get (or mint) the channel's public SR-page shareable token. */
+    suspend fun srPageToken(channelId: String): ApiResult<String>
+
+    /** Rotate the SR-page token — the old share link stops working immediately. */
+    suspend fun rotateSrPageToken(channelId: String): ApiResult<String>
 }
 
 class RestMusicApi(private val client: ApiClient) : MusicApi {
@@ -64,6 +79,22 @@ class RestMusicApi(private val client: ApiClient) : MusicApi {
 
     override suspend fun remove(channelId: String, position: Int): ApiResult<Unit> =
         client.deleteUnit("api/v1/channels/$channelId/music/queue/$position")
+
+    override suspend fun addToQueue(channelId: String, body: MusicSongRequestBody): ApiResult<Unit> =
+        client.postUnit("api/v1/channels/$channelId/music/queue", body)
+
+    override suspend fun config(channelId: String): ApiResult<MusicConfig> =
+        client.getEnvelope("api/v1/channels/$channelId/music/config")
+
+    override suspend fun updateConfig(channelId: String, body: UpdateMusicConfigBody): ApiResult<MusicConfig> =
+        client.putEnvelope("api/v1/channels/$channelId/music/config", body)
+
+    // The token is a bare string value inside StatusResponseDto<string> — getEnvelope<String> unwraps it.
+    override suspend fun srPageToken(channelId: String): ApiResult<String> =
+        client.getEnvelope("api/v1/channels/$channelId/music/sr-page-token")
+
+    override suspend fun rotateSrPageToken(channelId: String): ApiResult<String> =
+        client.postEnvelope("api/v1/channels/$channelId/music/sr-page-token/rotate", Unit)
 }
 
 /**
@@ -108,4 +139,32 @@ data class MusicTrack(
     val imageUrl: String? = null,
     val durationMs: Int = 0,
     val requestedBy: String? = null,
+)
+
+/** Add a song request to the queue (backend `SongRequestDto`). */
+@Serializable
+data class MusicSongRequestBody(val query: String, val requestedBy: String)
+
+/** SR / music configuration (backend `MusicConfigDto`). */
+@Serializable
+data class MusicConfig(
+    val isEnabled: Boolean = true,
+    val preferredProvider: String = "auto",
+    val maxQueueSize: Int = 50,
+    val maxRequestsPerUser: Int = 3,
+    val allowYouTube: Boolean = true,
+    val allowSpotify: Boolean = true,
+    val minTrustLevel: String = "everyone",
+)
+
+/** Partial update body (backend `UpdateMusicConfigDto`). All fields optional — null = don't change. */
+@Serializable
+data class UpdateMusicConfigBody(
+    val isEnabled: Boolean? = null,
+    val preferredProvider: String? = null,
+    val maxQueueSize: Int? = null,
+    val maxRequestsPerUser: Int? = null,
+    val allowYouTube: Boolean? = null,
+    val allowSpotify: Boolean? = null,
+    val minTrustLevel: String? = null,
 )

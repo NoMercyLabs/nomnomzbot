@@ -23,6 +23,13 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -47,8 +54,11 @@ import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
+import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
+import bot.nomnomz.dashboard.core.network.MusicConfig
 import bot.nomnomz.dashboard.core.network.MusicTrack
 import bot.nomnomz.dashboard.core.network.NowPlaying
+import bot.nomnomz.dashboard.core.network.UpdateMusicConfigBody
 import bot.nomnomz.dashboard.feature.music.state.MusicController
 import bot.nomnomz.dashboard.feature.music.state.MusicState
 import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
@@ -82,6 +92,29 @@ import nomnomzbot.composeapp.generated.resources.music_row_description
 import nomnomzbot.composeapp.generated.resources.music_skip
 import nomnomzbot.composeapp.generated.resources.music_unknown_requester
 import nomnomzbot.composeapp.generated.resources.music_unknown_track
+import nomnomzbot.composeapp.generated.resources.music_add_title
+import nomnomzbot.composeapp.generated.resources.music_add_query
+import nomnomzbot.composeapp.generated.resources.music_add_requested_by
+import nomnomzbot.composeapp.generated.resources.music_add_action
+import nomnomzbot.composeapp.generated.resources.music_config_title
+import nomnomzbot.composeapp.generated.resources.music_config_enabled
+import nomnomzbot.composeapp.generated.resources.music_config_provider
+import nomnomzbot.composeapp.generated.resources.music_config_provider_auto
+import nomnomzbot.composeapp.generated.resources.music_config_provider_spotify
+import nomnomzbot.composeapp.generated.resources.music_config_provider_youtube
+import nomnomzbot.composeapp.generated.resources.music_config_max_queue
+import nomnomzbot.composeapp.generated.resources.music_config_max_per_user
+import nomnomzbot.composeapp.generated.resources.music_config_allow_youtube
+import nomnomzbot.composeapp.generated.resources.music_config_allow_spotify
+import nomnomzbot.composeapp.generated.resources.music_config_trust
+import nomnomzbot.composeapp.generated.resources.music_config_save
+import nomnomzbot.composeapp.generated.resources.music_token_title
+import nomnomzbot.composeapp.generated.resources.music_token_value
+import nomnomzbot.composeapp.generated.resources.music_token_rotate
+import nomnomzbot.composeapp.generated.resources.music_token_rotate_title
+import nomnomzbot.composeapp.generated.resources.music_token_rotate_message
+import nomnomzbot.composeapp.generated.resources.music_token_rotate_confirm
+import nomnomzbot.composeapp.generated.resources.music_token_rotate_dismiss
 import org.jetbrains.compose.resources.stringResource
 
 // The Music page: the channel's live playback, made controllable — every track is real data from
@@ -115,12 +148,17 @@ fun MusicScreen(controller: MusicController, role: ManagementRole?) {
                 ReadyContent(
                     nowPlaying = current.nowPlaying,
                     queue = current.queue,
+                    config = current.config,
+                    srPageToken = current.srPageToken,
                     actionError = current.actionError,
                     manage = manage,
                     onPlay = { scope.launch { controller.resume() } },
                     onPause = { scope.launch { controller.pause() } },
                     onSkip = { scope.launch { controller.skip() } },
                     onRemove = { position -> scope.launch { controller.remove(position) } },
+                    onAddToQueue = { query, requestedBy -> scope.launch { controller.addToQueue(query, requestedBy) } },
+                    onSaveConfig = { body -> scope.launch { controller.updateConfig(body) } },
+                    onRotateToken = { scope.launch { controller.rotateSrPageToken() } },
                 )
         }
     }
@@ -130,19 +168,24 @@ fun MusicScreen(controller: MusicController, role: ManagementRole?) {
 private fun ReadyContent(
     nowPlaying: NowPlaying?,
     queue: List<MusicTrack>,
+    config: MusicConfig?,
+    srPageToken: String?,
     actionError: String?,
     manage: ManageDecision,
     onPlay: () -> Unit,
     onPause: () -> Unit,
     onSkip: () -> Unit,
     onRemove: (position: Int) -> Unit,
+    onAddToQueue: (query: String, requestedBy: String) -> Unit,
+    onSaveConfig: (UpdateMusicConfigBody) -> Unit,
+    onRotateToken: () -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
 
-    // The queued track awaiting confirmation, if any — the screen owns the dialog's open/closed state.
     var pendingRemoval: MusicTrack? by remember { mutableStateOf(null) }
+    var pendingRotate: Boolean by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier.fillMaxSize(),
@@ -182,14 +225,27 @@ private fun ReadyContent(
                 modifier = Modifier.padding(horizontal = spacing.s1),
             )
         } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(spacing.s2),
-            ) {
-                items(items = queue, key = { track -> track.position }) { track ->
+            Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
+                queue.forEach { track ->
                     QueueRow(track = track, manage = manage, onRemove = { pendingRemoval = track })
                 }
             }
+        }
+
+        // ── Add to queue ──────────────────────────────────────────────────
+        HorizontalDivider(color = tokens.border)
+        AddToQueueSection(manage = manage, onAdd = onAddToQueue)
+
+        // ── SR config ────────────────────────────────────────────────────
+        if (config != null) {
+            HorizontalDivider(color = tokens.border)
+            MusicConfigSection(config = config, manage = manage, onSave = onSaveConfig)
+        }
+
+        // ── SR-page token ─────────────────────────────────────────────────
+        if (srPageToken != null) {
+            HorizontalDivider(color = tokens.border)
+            SrTokenSection(token = srPageToken, manage = manage, onRotate = { pendingRotate = true })
         }
     }
 
@@ -206,6 +262,21 @@ private fun ReadyContent(
                 pendingRemoval = null
             },
             onDismiss = { pendingRemoval = null },
+        )
+    }
+
+    if (pendingRotate) {
+        ConfirmDialog(
+            title = stringResource(Res.string.music_token_rotate_title),
+            message = stringResource(Res.string.music_token_rotate_message),
+            confirmLabel = stringResource(Res.string.music_token_rotate_confirm),
+            dismissLabel = stringResource(Res.string.music_token_rotate_dismiss),
+            destructive = true,
+            onConfirm = {
+                pendingRotate = false
+                onRotateToken()
+            },
+            onDismiss = { pendingRotate = false },
         )
     }
 }
@@ -511,6 +582,249 @@ private fun Badge(
             .padding(horizontal = spacing.s2, vertical = spacing.s1),
     ) {
         Text(text = label, style = typography.xs, color = foreground, maxLines = 1)
+    }
+}
+
+// ── Add to queue ─────────────────────────────────────────────────────────────
+
+@Composable
+private fun AddToQueueSection(manage: ManageDecision, onAdd: (query: String, requestedBy: String) -> Unit) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    var query: String by remember { mutableStateOf("") }
+    var requestedBy: String by remember { mutableStateOf("") }
+    val canAdd: Boolean = query.isNotBlank() && requestedBy.isNotBlank()
+
+    Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
+        Text(text = stringResource(Res.string.music_add_title), style = typography.base, color = tokens.cardForeground)
+        AppTextField(
+            value = query,
+            onValueChange = { query = it },
+            label = stringResource(Res.string.music_add_query),
+            isError = false,
+            errorText = null,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        AppTextField(
+            value = requestedBy,
+            onValueChange = { requestedBy = it },
+            label = stringResource(Res.string.music_add_requested_by),
+            isError = false,
+            errorText = null,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        ManageGate(decision = manage) { enabled ->
+            Button(
+                onClick = {
+                    onAdd(query, requestedBy)
+                    query = ""
+                    requestedBy = ""
+                },
+                enabled = enabled && canAdd,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = tokens.primary,
+                    contentColor = tokens.primaryForeground,
+                    disabledContainerColor = tokens.muted,
+                    disabledContentColor = tokens.mutedForeground,
+                ),
+            ) {
+                Text(text = stringResource(Res.string.music_add_action))
+            }
+        }
+    }
+}
+
+// ── Music / SR config ────────────────────────────────────────────────────────
+
+@Composable
+private fun MusicConfigSection(config: MusicConfig, manage: ManageDecision, onSave: (UpdateMusicConfigBody) -> Unit) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    var isEnabled: Boolean by remember(config) { mutableStateOf(config.isEnabled) }
+    var preferredProvider: String by remember(config) { mutableStateOf(config.preferredProvider) }
+    var maxQueueSize: String by remember(config) { mutableStateOf(config.maxQueueSize.toString()) }
+    var maxPerUser: String by remember(config) { mutableStateOf(config.maxRequestsPerUser.toString()) }
+    var allowYouTube: Boolean by remember(config) { mutableStateOf(config.allowYouTube) }
+    var allowSpotify: Boolean by remember(config) { mutableStateOf(config.allowSpotify) }
+    var minTrustLevel: String by remember(config) { mutableStateOf(config.minTrustLevel) }
+
+    val trustLevels: List<String> = listOf("everyone", "subscribers", "vip", "moderators", "broadcaster")
+    val providerOptions: List<Pair<String, String>> = listOf(
+        "auto" to stringResource(Res.string.music_config_provider_auto),
+        "spotify" to stringResource(Res.string.music_config_provider_spotify),
+        "youtube" to stringResource(Res.string.music_config_provider_youtube),
+    )
+
+    Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
+        Text(text = stringResource(Res.string.music_config_title), style = typography.base, color = tokens.cardForeground)
+
+        // Enabled toggle
+        ManageGate(decision = manage) { enabled ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text(text = stringResource(Res.string.music_config_enabled), color = tokens.cardForeground)
+                Switch(
+                    checked = isEnabled,
+                    onCheckedChange = { isEnabled = it },
+                    enabled = enabled,
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = tokens.primaryForeground,
+                        checkedTrackColor = tokens.primary,
+                        uncheckedThumbColor = tokens.mutedForeground,
+                        uncheckedTrackColor = tokens.muted,
+                    ),
+                )
+            }
+        }
+
+        // Provider selector (text buttons)
+        Column(verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
+            Text(text = stringResource(Res.string.music_config_provider), style = typography.sm, color = tokens.mutedForeground)
+            Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
+                providerOptions.forEach { (key, label) ->
+                    ManageGate(decision = manage) { enabled ->
+                        TextButton(
+                            onClick = { preferredProvider = key },
+                            enabled = enabled,
+                        ) {
+                            Text(
+                                text = label,
+                                color = if (preferredProvider == key) tokens.primary else tokens.mutedForeground,
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // Max queue / per-user fields
+        Row(horizontalArrangement = Arrangement.spacedBy(spacing.s3)) {
+            AppTextField(
+                value = maxQueueSize,
+                onValueChange = { maxQueueSize = it },
+                label = stringResource(Res.string.music_config_max_queue),
+                isError = false,
+                errorText = null,
+                modifier = Modifier.weight(1f),
+            )
+            AppTextField(
+                value = maxPerUser,
+                onValueChange = { maxPerUser = it },
+                label = stringResource(Res.string.music_config_max_per_user),
+                isError = false,
+                errorText = null,
+                modifier = Modifier.weight(1f),
+            )
+        }
+
+        // Allow YouTube / Spotify toggles
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(spacing.s4),
+        ) {
+            ManageGate(decision = manage) { enabled ->
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
+                    Switch(
+                        checked = allowYouTube,
+                        onCheckedChange = { allowYouTube = it },
+                        enabled = enabled,
+                        colors = SwitchDefaults.colors(checkedThumbColor = tokens.primaryForeground, checkedTrackColor = tokens.primary, uncheckedThumbColor = tokens.mutedForeground, uncheckedTrackColor = tokens.muted),
+                    )
+                    Text(text = stringResource(Res.string.music_config_allow_youtube), style = typography.sm, color = tokens.cardForeground)
+                }
+            }
+            ManageGate(decision = manage) { enabled ->
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
+                    Switch(
+                        checked = allowSpotify,
+                        onCheckedChange = { allowSpotify = it },
+                        enabled = enabled,
+                        colors = SwitchDefaults.colors(checkedThumbColor = tokens.primaryForeground, checkedTrackColor = tokens.primary, uncheckedThumbColor = tokens.mutedForeground, uncheckedTrackColor = tokens.muted),
+                    )
+                    Text(text = stringResource(Res.string.music_config_allow_spotify), style = typography.sm, color = tokens.cardForeground)
+                }
+            }
+        }
+
+        // Trust level
+        Column(verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
+            Text(text = stringResource(Res.string.music_config_trust), style = typography.sm, color = tokens.mutedForeground)
+            Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
+                trustLevels.forEach { level ->
+                    ManageGate(decision = manage) { enabled ->
+                        TextButton(onClick = { minTrustLevel = level }, enabled = enabled) {
+                            Text(
+                                text = level,
+                                style = typography.xs,
+                                color = if (minTrustLevel == level) tokens.primary else tokens.mutedForeground,
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        ManageGate(decision = manage) { enabled ->
+            Button(
+                onClick = {
+                    onSave(
+                        UpdateMusicConfigBody(
+                            isEnabled = isEnabled,
+                            preferredProvider = preferredProvider,
+                            maxQueueSize = maxQueueSize.toIntOrNull(),
+                            maxRequestsPerUser = maxPerUser.toIntOrNull(),
+                            allowYouTube = allowYouTube,
+                            allowSpotify = allowSpotify,
+                            minTrustLevel = minTrustLevel,
+                        )
+                    )
+                },
+                enabled = enabled,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = tokens.primary,
+                    contentColor = tokens.primaryForeground,
+                    disabledContainerColor = tokens.muted,
+                    disabledContentColor = tokens.mutedForeground,
+                ),
+            ) {
+                Text(text = stringResource(Res.string.music_config_save))
+            }
+        }
+    }
+}
+
+// ── SR page token ─────────────────────────────────────────────────────────────
+
+@Composable
+private fun SrTokenSection(token: String, manage: ManageDecision, onRotate: () -> Unit) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
+        Text(text = stringResource(Res.string.music_token_title), style = typography.base, color = tokens.cardForeground)
+        Text(
+            text = stringResource(Res.string.music_token_value, token),
+            style = typography.sm,
+            color = tokens.mutedForeground,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
+        ManageGate(decision = manage) { enabled ->
+            TextButton(onClick = onRotate, enabled = enabled) {
+                Text(
+                    text = stringResource(Res.string.music_token_rotate),
+                    color = if (enabled) tokens.destructive else tokens.mutedForeground,
+                )
+            }
+        }
     }
 }
 

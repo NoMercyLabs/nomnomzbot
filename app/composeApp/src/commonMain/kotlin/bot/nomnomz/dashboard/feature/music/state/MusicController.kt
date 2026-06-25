@@ -14,9 +14,12 @@ import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.MusicApi
+import bot.nomnomz.dashboard.core.network.MusicConfig
 import bot.nomnomz.dashboard.core.network.MusicSnapshot
 import bot.nomnomz.dashboard.core.network.MusicTrack
 import bot.nomnomz.dashboard.core.network.NowPlaying
+import bot.nomnomz.dashboard.core.network.MusicSongRequestBody
+import bot.nomnomz.dashboard.core.network.UpdateMusicConfigBody
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -54,14 +57,81 @@ class MusicController(
 
         channelId = channel.id
 
-        when (val result: ApiResult<MusicSnapshot> = musicApi.queue(channel.id)) {
-            is ApiResult.Failure -> _state.value = MusicState.Error(result.error.message)
+        val snapshot: MusicSnapshot =
+            when (val result: ApiResult<MusicSnapshot> = musicApi.queue(channel.id)) {
+                is ApiResult.Failure -> {
+                    _state.value = MusicState.Error(result.error.message)
+                    return
+                }
+                is ApiResult.Ok -> result.value
+            }
+
+        // Config is resilient — a failure degrades to null; the playback controls still render.
+        val config: MusicConfig? =
+            when (val result: ApiResult<MusicConfig> = musicApi.config(channel.id)) {
+                is ApiResult.Failure -> null
+                is ApiResult.Ok -> result.value
+            }
+
+        // SR-page token is also resilient — null if the backend doesn't have one minted yet or returns error.
+        val srToken: String? =
+            when (val result: ApiResult<String> = musicApi.srPageToken(channel.id)) {
+                is ApiResult.Failure -> null
+                is ApiResult.Ok -> result.value
+            }
+
+        _state.value =
+            if (snapshot.nowPlaying == null && snapshot.queue.isEmpty() && config == null) MusicState.Empty
+            else MusicState.Ready(
+                nowPlaying = snapshot.nowPlaying,
+                queue = snapshot.queue,
+                config = config,
+                srPageToken = srToken,
+            )
+    }
+
+    /**
+     * Add a song to the queue by search [query], attributed to [requestedBy]. Reloads on success so the new
+     * entry appears; surfaces the error without clearing the current queue on failure.
+     */
+    suspend fun addToQueue(query: String, requestedBy: String) {
+        val channel: String = channelId ?: return
+        control { musicApi.addToQueue(channel, MusicSongRequestBody(query, requestedBy)) }
+    }
+
+    /**
+     * Persist a partial config update. Only the fields present in [body] are changed; everything else is
+     * carried unchanged by the backend. Reloads on success (the new config replaces the old); surfaces the
+     * error on the Ready state on failure.
+     */
+    suspend fun updateConfig(body: UpdateMusicConfigBody) {
+        val channel: String = channelId ?: return
+        when (val result: ApiResult<MusicConfig> = musicApi.updateConfig(channel, body)) {
+            is ApiResult.Failure -> {
+                val current: MusicState = _state.value
+                if (current is MusicState.Ready) {
+                    _state.value = current.copy(actionError = result.error.message)
+                }
+            }
+            is ApiResult.Ok -> load()
+        }
+    }
+
+    /** Rotate the SR-page token. The new token replaces the old on the Ready state. */
+    suspend fun rotateSrPageToken() {
+        val channel: String = channelId ?: return
+        when (val result: ApiResult<String> = musicApi.rotateSrPageToken(channel)) {
+            is ApiResult.Failure -> {
+                val current: MusicState = _state.value
+                if (current is MusicState.Ready) {
+                    _state.value = current.copy(actionError = result.error.message)
+                }
+            }
             is ApiResult.Ok -> {
-                val snapshot: MusicSnapshot = result.value
-                // Nothing playing and nothing queued → Empty; otherwise show whatever the provider reports.
-                _state.value =
-                    if (snapshot.nowPlaying == null && snapshot.queue.isEmpty()) MusicState.Empty
-                    else MusicState.Ready(nowPlaying = snapshot.nowPlaying, queue = snapshot.queue)
+                val current: MusicState = _state.value
+                if (current is MusicState.Ready) {
+                    _state.value = current.copy(srPageToken = result.value)
+                }
             }
         }
     }
@@ -107,11 +177,15 @@ sealed interface MusicState {
     /**
      * The live playback snapshot: the [nowPlaying] track (null when nothing is playing), the upcoming [queue],
      * and an optional [actionError] when the last control failed (the snapshot is intact). The screen drives
-     * play/pause from [NowPlaying.isPlaying] and offers a per-track remove on the queue.
+     * play/pause from [NowPlaying.isPlaying] and offers a per-track remove on the queue. [config] is null
+     * when the config endpoint is unavailable (the playback section still renders). [srPageToken] is the
+     * minted SR-page shareable token (null if not yet minted or the endpoint is down).
      */
     data class Ready(
         val nowPlaying: NowPlaying?,
         val queue: List<MusicTrack>,
+        val config: MusicConfig? = null,
+        val srPageToken: String? = null,
         val actionError: String? = null,
     ) : MusicState
 
