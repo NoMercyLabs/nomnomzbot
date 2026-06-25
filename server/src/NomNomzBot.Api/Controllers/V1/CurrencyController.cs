@@ -60,6 +60,9 @@ public class CurrencyController(
 
     [HttpGet("earning-rules")]
     [RequireAction("economy:earning-rules:read")]
+    [ProducesResponseType<StatusResponseDto<IReadOnlyList<EarningRuleDto>>>(
+        StatusCodes.Status200OK
+    )]
     public async Task<IActionResult> ListEarningRules(string channelId, CancellationToken ct)
     {
         if (!Guid.TryParse(channelId, out Guid broadcasterId))

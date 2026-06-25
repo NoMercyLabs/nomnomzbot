@@ -447,6 +447,10 @@
     <string name="economy_accounts_empty">No accounts yet</string>
     <string name="economy_accounts_row_description">%1$s, balance %2$d</string>
     <string name="economy_account_frozen">Frozen</string>
+    <string name="economy_earning_title">Earning rules</string>
+    <string name="economy_earning_empty">No earning rules yet</string>
+    <string name="economy_earning_row_description">%1$s, rate %2$d</string>
+    <string name="economy_earning_disabled">Disabled</string>
     <string name="alerts_title">Alerts &amp; Events</string>
     <string name="alerts_loading">Loading your alerts…</string>
     <string name="alerts_error">Could not load your alerts: %1$s</string>

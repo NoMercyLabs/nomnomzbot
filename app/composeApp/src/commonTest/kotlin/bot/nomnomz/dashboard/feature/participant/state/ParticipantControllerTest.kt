@@ -16,6 +16,7 @@ import bot.nomnomz.dashboard.core.network.CatalogItem
 import bot.nomnomz.dashboard.core.network.ChannelAppearance
 import bot.nomnomz.dashboard.core.network.CurrencyAccount
 import bot.nomnomz.dashboard.core.network.CurrencyAccountSummary
+import bot.nomnomz.dashboard.core.network.EarningRule
 import bot.nomnomz.dashboard.core.network.CurrencyConfig
 import bot.nomnomz.dashboard.core.network.DashboardApi
 import bot.nomnomz.dashboard.core.network.DashboardStats
@@ -539,6 +540,9 @@ private class FakeEconomyApi(
     }
 
     override suspend fun accounts(channelId: String): ApiResult<List<CurrencyAccountSummary>> =
+        ApiResult.Ok(emptyList())
+
+    override suspend fun earningRules(channelId: String): ApiResult<List<EarningRule>> =
         ApiResult.Ok(emptyList())
 }
 

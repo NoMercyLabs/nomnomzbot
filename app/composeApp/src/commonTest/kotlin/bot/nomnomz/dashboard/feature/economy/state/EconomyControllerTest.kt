@@ -16,6 +16,7 @@ import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.CurrencyAccountSummary
 import bot.nomnomz.dashboard.core.network.CurrencyConfig
+import bot.nomnomz.dashboard.core.network.EarningRule
 import bot.nomnomz.dashboard.core.network.EconomyApi
 import bot.nomnomz.dashboard.core.network.LeaderboardEntry
 import bot.nomnomz.dashboard.core.network.UpsertCurrencyConfig
@@ -120,6 +121,35 @@ class EconomyControllerTest {
         // Config + leaderboard loaded fine, so the page stays Ready with an empty accounts list.
         val ready: EconomyState.Ready = controller.state.value as EconomyState.Ready
         assertTrue(ready.accounts.isEmpty())
+    }
+
+    @Test
+    fun load_surfaces_the_earning_rules() = runTest {
+        val economyApi =
+            FakeEconomyApi(
+                configResult = ApiResult.Ok(loadedConfig),
+                leaderboardResult = ApiResult.Ok(leaderboard),
+                earningRulesResult =
+                    ApiResult.Ok(
+                        listOf(
+                            EarningRule(
+                                id = "e1",
+                                source = "chat_message",
+                                isEnabled = true,
+                                rate = 5,
+                            )
+                        )
+                    ),
+            )
+        val controller =
+            EconomyController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), economyApi)
+
+        controller.load()
+
+        val ready: EconomyState.Ready = controller.state.value as EconomyState.Ready
+        assertEquals(1, ready.earningRules.size)
+        assertEquals("chat_message", ready.earningRules.first().source)
+        assertEquals(5, ready.earningRules.first().rate)
     }
 
     @Test
@@ -280,6 +310,7 @@ private class FakeEconomyApi(
     private val leaderboardResult: ApiResult<List<LeaderboardEntry>>,
     private val updateResult: ApiResult<CurrencyConfig> = ApiResult.Ok(CurrencyConfig()),
     private val accountsResult: ApiResult<List<CurrencyAccountSummary>> = ApiResult.Ok(emptyList()),
+    private val earningRulesResult: ApiResult<List<EarningRule>> = ApiResult.Ok(emptyList()),
 ) : EconomyApi {
     var lastUpdate: UpsertCurrencyConfig? = null
         private set
@@ -311,4 +342,7 @@ private class FakeEconomyApi(
 
     override suspend fun accounts(channelId: String): ApiResult<List<CurrencyAccountSummary>> =
         accountsResult
+
+    override suspend fun earningRules(channelId: String): ApiResult<List<EarningRule>> =
+        earningRulesResult
 }

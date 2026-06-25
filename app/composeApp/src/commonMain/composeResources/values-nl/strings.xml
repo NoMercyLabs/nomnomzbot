@@ -444,6 +444,10 @@
     <string name="economy_accounts_empty">Nog geen accounts</string>
     <string name="economy_accounts_row_description">%1$s, saldo %2$d</string>
     <string name="economy_account_frozen">Bevroren</string>
+    <string name="economy_earning_title">Verdienregels</string>
+    <string name="economy_earning_empty">Nog geen verdienregels</string>
+    <string name="economy_earning_row_description">%1$s, snelheid %2$d</string>
+    <string name="economy_earning_disabled">Uitgeschakeld</string>
     <string name="alerts_title">Meldingen &amp; gebeurtenissen</string>
     <string name="alerts_loading">Je meldingen laden…</string>
     <string name="alerts_error">Kon je meldingen niet laden: %1$s</string>

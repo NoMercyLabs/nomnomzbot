@@ -60,6 +60,7 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.designsystem.theme.Tokens
 import bot.nomnomz.dashboard.core.network.CurrencyConfig
 import bot.nomnomz.dashboard.core.network.CurrencyAccountSummary
+import bot.nomnomz.dashboard.core.network.EarningRule
 import bot.nomnomz.dashboard.core.network.LeaderboardEntry
 import bot.nomnomz.dashboard.feature.economy.state.EconomyController
 import bot.nomnomz.dashboard.feature.economy.state.EconomyState
@@ -74,6 +75,10 @@ import nomnomzbot.composeapp.generated.resources.economy_accounts_empty
 import nomnomzbot.composeapp.generated.resources.economy_accounts_row_description
 import nomnomzbot.composeapp.generated.resources.economy_accounts_title
 import nomnomzbot.composeapp.generated.resources.economy_disable_confirm_cancel
+import nomnomzbot.composeapp.generated.resources.economy_earning_disabled
+import nomnomzbot.composeapp.generated.resources.economy_earning_empty
+import nomnomzbot.composeapp.generated.resources.economy_earning_row_description
+import nomnomzbot.composeapp.generated.resources.economy_earning_title
 import nomnomzbot.composeapp.generated.resources.economy_disable_confirm_confirm
 import nomnomzbot.composeapp.generated.resources.economy_disable_confirm_message
 import nomnomzbot.composeapp.generated.resources.economy_disable_confirm_title
@@ -251,6 +256,8 @@ private fun ReadyContent(
         LeaderboardSection(entries = state.leaderboard)
 
         AccountsSection(accounts = state.accounts)
+
+        EarningRulesSection(rules = state.earningRules)
     }
 
     pendingDisable?.let { edit ->
@@ -721,6 +728,86 @@ private fun AccountRow(account: CurrencyAccountSummary) {
         }
         Text(
             text = account.balance.toString(),
+            style = typography.base,
+            color = tokens.primary,
+            maxLines = 1,
+            modifier = Modifier.wrapContentWidth(),
+        )
+    }
+}
+
+// The earning rules (economy.md §4): one row per source — the source key, a disabled flag, and the gain rate.
+// Read-only here; rate / cap editing is a follow-up management surface.
+@Composable
+private fun EarningRulesSection(rules: List<EarningRule>) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    Text(
+        text = stringResource(Res.string.economy_earning_title),
+        style = typography.lg,
+        color = tokens.cardForeground,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+    )
+
+    if (rules.isEmpty()) {
+        Text(
+            text = stringResource(Res.string.economy_earning_empty),
+            style = typography.sm,
+            color = tokens.mutedForeground,
+        )
+        return
+    }
+
+    LazyColumn(
+        modifier = Modifier.fillMaxWidth(),
+        contentPadding = PaddingValues(vertical = spacing.s1),
+        verticalArrangement = Arrangement.spacedBy(spacing.s2),
+    ) {
+        items(items = rules, key = { it.id }) { rule -> EarningRuleRow(rule = rule) }
+    }
+}
+
+@Composable
+private fun EarningRuleRow(rule: EarningRule) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    val rowDescription: String =
+        stringResource(Res.string.economy_earning_row_description, rule.source, rule.rate)
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(tokens.radius.lg))
+            .background(tokens.card)
+            .padding(horizontal = spacing.s4, vertical = spacing.s3)
+            .clearAndSetSemantics { contentDescription = rowDescription },
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(spacing.s3),
+    ) {
+        Text(
+            text = rule.source,
+            style = typography.base,
+            color = tokens.cardForeground,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
+        if (!rule.isEnabled) {
+            Text(
+                text = stringResource(Res.string.economy_earning_disabled),
+                style = typography.sm,
+                color = tokens.mutedForeground,
+                maxLines = 1,
+                modifier = Modifier.wrapContentWidth(),
+            )
+        }
+        Text(
+            text = "+${rule.rate}",
             style = typography.base,
             color = tokens.primary,
             maxLines = 1,

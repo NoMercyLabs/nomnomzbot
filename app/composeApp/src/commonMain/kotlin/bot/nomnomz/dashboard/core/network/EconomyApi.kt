@@ -43,6 +43,9 @@ interface EconomyApi {
 
     /** The channel's currency accounts — viewer balances + lifetime totals. First page only here. */
     suspend fun accounts(channelId: String): ApiResult<List<CurrencyAccountSummary>>
+
+    /** The channel's earning rules — how viewers earn currency (per source). The full set, read-only here. */
+    suspend fun earningRules(channelId: String): ApiResult<List<EarningRule>>
 }
 
 class RestEconomyApi(private val client: ApiClient) : EconomyApi {
@@ -98,6 +101,11 @@ class RestEconomyApi(private val client: ApiClient) : EconomyApi {
             is ApiResult.Failure -> ApiResult.Failure(page.error)
             is ApiResult.Ok -> ApiResult.Ok(page.value.data)
         }
+
+    // StatusResponseDto envelope wrapping the rule list (ResultResponse over a Result<list>) — getEnvelope reads
+    // the `data` list directly, exactly like the leaderboard configs.
+    override suspend fun earningRules(channelId: String): ApiResult<List<EarningRule>> =
+        client.getEnvelope("api/v1/channels/$channelId/economy/earning-rules")
 }
 
 /**
@@ -173,4 +181,23 @@ data class CurrencyAccountSummary(
     val lifetimeSpent: Long = 0,
     val isFrozen: Boolean = false,
     val lastActivityAt: String? = null,
+)
+
+/**
+ * One earning rule (backend `EarningRuleDto`) — how viewers earn currency from a [source] (e.g. chat_message,
+ * watch_time), at [rate] per unit, optionally windowed ([unitWindowSeconds]) and capped ([perWindowCap] /
+ * [perStreamCap]) and role-gated ([minRoleLevel]). camelCase mirror; the backend's nested `bonusConfig` map is
+ * deliberately omitted (the page reads the scalar rule shape — the contract test allows a subset).
+ */
+@Serializable
+data class EarningRule(
+    val id: String = "",
+    val source: String = "",
+    val isEnabled: Boolean = false,
+    val rate: Long = 0,
+    val unitWindowSeconds: Int? = null,
+    val perWindowCap: Long? = null,
+    val perStreamCap: Long? = null,
+    val minRoleLevel: Int? = null,
+    val configSchemaVersion: Int = 0,
 )

@@ -15,6 +15,7 @@ import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.CurrencyAccountSummary
 import bot.nomnomz.dashboard.core.network.CurrencyConfig
+import bot.nomnomz.dashboard.core.network.EarningRule
 import bot.nomnomz.dashboard.core.network.EconomyApi
 import bot.nomnomz.dashboard.core.network.LeaderboardEntry
 import bot.nomnomz.dashboard.core.network.UpsertCurrencyConfig
@@ -82,6 +83,14 @@ class EconomyController(
                 is ApiResult.Ok -> result.value
             }
 
+        // The earning rules (how viewers earn). Same resilience contract — a failure degrades to an empty list
+        // rather than erroring the whole page.
+        val earningRules: List<EarningRule> =
+            when (val result: ApiResult<List<EarningRule>> = economyApi.earningRules(channel.id)) {
+                is ApiResult.Failure -> emptyList()
+                is ApiResult.Ok -> result.value
+            }
+
         _state.value =
             EconomyState.Ready(
                 // A null config means the economy was never set up; seed the form with sensible defaults so the
@@ -90,6 +99,7 @@ class EconomyController(
                 configured = config != null,
                 leaderboard = leaderboard,
                 accounts = accounts,
+                earningRules = earningRules,
             )
     }
 
@@ -153,6 +163,7 @@ sealed interface EconomyState {
         val configured: Boolean,
         val leaderboard: List<LeaderboardEntry>,
         val accounts: List<CurrencyAccountSummary> = emptyList(),
+        val earningRules: List<EarningRule> = emptyList(),
         val saving: Boolean = false,
         val justSaved: Boolean = false,
         val saveError: String? = null,
