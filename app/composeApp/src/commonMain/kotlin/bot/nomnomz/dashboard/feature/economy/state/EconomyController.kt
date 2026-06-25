@@ -14,12 +14,16 @@ import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.CatalogItem
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
+import bot.nomnomz.dashboard.core.network.CreateCatalogItemBody
+import bot.nomnomz.dashboard.core.network.CreateSavingsJarBody
 import bot.nomnomz.dashboard.core.network.CurrencyAccountSummary
 import bot.nomnomz.dashboard.core.network.CurrencyConfig
 import bot.nomnomz.dashboard.core.network.EarningRule
 import bot.nomnomz.dashboard.core.network.EconomyApi
 import bot.nomnomz.dashboard.core.network.LeaderboardEntry
+import bot.nomnomz.dashboard.core.network.SavingsJar
 import bot.nomnomz.dashboard.core.network.UpsertCurrencyConfig
+import bot.nomnomz.dashboard.core.network.UpsertEarningRuleBody
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -99,6 +103,13 @@ class EconomyController(
                 is ApiResult.Ok -> result.value
             }
 
+        // Community savings jars. Same resilience contract.
+        val savingsJars: List<SavingsJar> =
+            when (val result: ApiResult<List<SavingsJar>> = economyApi.savingsJars(channel.id)) {
+                is ApiResult.Failure -> emptyList()
+                is ApiResult.Ok -> result.value
+            }
+
         _state.value =
             EconomyState.Ready(
                 // A null config means the economy was never set up; seed the form with sensible defaults so the
@@ -109,6 +120,7 @@ class EconomyController(
                 accounts = accounts,
                 earningRules = earningRules,
                 catalog = catalog,
+                savingsJars = savingsJars,
             )
     }
 
@@ -190,6 +202,82 @@ class EconomyController(
         }
     }
 
+    /**
+     * Toggle the earning rule identified by [source] (e.g. `"chat_message"`) — flips its [isEnabled] flag while
+     * keeping all other fields unchanged from the currently-loaded rule. No-ops when no rule for [source] is loaded.
+     * Reloads on success; surfaces the error on the Ready state on failure.
+     */
+    suspend fun toggleEarningRule(source: String, isEnabled: Boolean) {
+        val channel: String = channelId ?: return
+        val current: EconomyState = _state.value
+        if (current !is EconomyState.Ready) return
+        val rule: EarningRule = current.earningRules.firstOrNull { it.source == source } ?: return
+        val body: UpsertEarningRuleBody =
+            UpsertEarningRuleBody(
+                source = rule.source,
+                isEnabled = isEnabled,
+                rate = rule.rate,
+                unitWindowSeconds = rule.unitWindowSeconds,
+                perWindowCap = rule.perWindowCap,
+                perStreamCap = rule.perStreamCap,
+                minRoleLevel = rule.minRoleLevel,
+            )
+        afterWrite(economyApi.upsertEarningRule(channel, body))
+    }
+
+    /**
+     * Create a new catalog item with [request] and reload so it appears in the store list. Surfaces the error on the
+     * Ready state on failure.
+     */
+    suspend fun createCatalogItem(request: CreateCatalogItemBody) {
+        val channel: String = channelId ?: return
+        // postEnvelope returns the saved item — we don't need it here; reload gives us the full list.
+        when (val result: ApiResult<CatalogItem> = economyApi.createCatalogItem(channel, request)) {
+            is ApiResult.Ok -> load()
+            is ApiResult.Failure -> {
+                val current: EconomyState = _state.value
+                if (current is EconomyState.Ready) {
+                    _state.value = current.copy(saveError = result.error.message)
+                }
+            }
+        }
+    }
+
+    /** Delete the catalog item [itemId], then reload so it drops off the list. Surfaces the error on failure. */
+    suspend fun deleteCatalogItem(itemId: String) {
+        val channel: String = channelId ?: return
+        afterWrite(economyApi.deleteCatalogItem(channel, itemId))
+    }
+
+    /**
+     * Create a new savings jar with [request] and reload. Surfaces the error on the Ready state on failure.
+     */
+    suspend fun createSavingsJar(request: CreateSavingsJarBody) {
+        val channel: String = channelId ?: return
+        when (val result: ApiResult<SavingsJar> = economyApi.createSavingsJar(channel, request)) {
+            is ApiResult.Ok -> load()
+            is ApiResult.Failure -> {
+                val current: EconomyState = _state.value
+                if (current is EconomyState.Ready) {
+                    _state.value = current.copy(saveError = result.error.message)
+                }
+            }
+        }
+    }
+
+    // Reload on success; on failure surface the message on the current Ready state without losing the loaded page.
+    private suspend fun afterWrite(result: ApiResult<*>) {
+        when (result) {
+            is ApiResult.Ok -> load()
+            is ApiResult.Failure -> {
+                val current: EconomyState = _state.value
+                if (current is EconomyState.Ready) {
+                    _state.value = current.copy(saveError = result.error.message)
+                }
+            }
+        }
+    }
+
     private companion object {
         // The top-holders window the Economy page surfaces — a fixed, bounded read (the backend caps it too).
         const val LEADERBOARD_TOP: Int = 25
@@ -213,6 +301,7 @@ sealed interface EconomyState {
         val accounts: List<CurrencyAccountSummary> = emptyList(),
         val earningRules: List<EarningRule> = emptyList(),
         val catalog: List<CatalogItem> = emptyList(),
+        val savingsJars: List<SavingsJar> = emptyList(),
         val saving: Boolean = false,
         val justSaved: Boolean = false,
         val saveError: String? = null,

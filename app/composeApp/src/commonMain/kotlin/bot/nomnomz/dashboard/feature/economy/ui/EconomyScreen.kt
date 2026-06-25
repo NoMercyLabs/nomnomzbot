@@ -26,6 +26,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.OutlinedTextField
@@ -52,6 +53,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
@@ -59,11 +61,14 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.designsystem.theme.Tokens
-import bot.nomnomz.dashboard.core.network.CurrencyConfig
 import bot.nomnomz.dashboard.core.network.CatalogItem
+import bot.nomnomz.dashboard.core.network.CreateCatalogItemBody
+import bot.nomnomz.dashboard.core.network.CreateSavingsJarBody
 import bot.nomnomz.dashboard.core.network.CurrencyAccountSummary
+import bot.nomnomz.dashboard.core.network.CurrencyConfig
 import bot.nomnomz.dashboard.core.network.EarningRule
 import bot.nomnomz.dashboard.core.network.LeaderboardEntry
+import bot.nomnomz.dashboard.core.network.SavingsJar
 import bot.nomnomz.dashboard.feature.economy.state.EconomyController
 import bot.nomnomz.dashboard.feature.economy.state.EconomyState
 import bot.nomnomz.dashboard.feature.shell.nav.ManageAction
@@ -83,17 +88,51 @@ import nomnomzbot.composeapp.generated.resources.economy_accounts_title
 import nomnomzbot.composeapp.generated.resources.economy_catalog_disable
 import nomnomzbot.composeapp.generated.resources.economy_catalog_disable_action
 import nomnomzbot.composeapp.generated.resources.economy_catalog_disabled
+import nomnomzbot.composeapp.generated.resources.economy_catalog_add
+import nomnomzbot.composeapp.generated.resources.economy_catalog_cancel
+import nomnomzbot.composeapp.generated.resources.economy_catalog_cost
+import nomnomzbot.composeapp.generated.resources.economy_catalog_cost_invalid
+import nomnomzbot.composeapp.generated.resources.economy_catalog_create
+import nomnomzbot.composeapp.generated.resources.economy_catalog_create_title
+import nomnomzbot.composeapp.generated.resources.economy_catalog_delete
+import nomnomzbot.composeapp.generated.resources.economy_catalog_delete_action
+import nomnomzbot.composeapp.generated.resources.economy_catalog_delete_confirm
+import nomnomzbot.composeapp.generated.resources.economy_catalog_delete_dismiss
+import nomnomzbot.composeapp.generated.resources.economy_catalog_delete_message
+import nomnomzbot.composeapp.generated.resources.economy_catalog_delete_title
+import nomnomzbot.composeapp.generated.resources.economy_catalog_description
 import nomnomzbot.composeapp.generated.resources.economy_catalog_enable
 import nomnomzbot.composeapp.generated.resources.economy_catalog_enable_action
+import nomnomzbot.composeapp.generated.resources.economy_catalog_name
+import nomnomzbot.composeapp.generated.resources.economy_catalog_name_required
 import nomnomzbot.composeapp.generated.resources.economy_catalog_empty
 import nomnomzbot.composeapp.generated.resources.economy_catalog_row_description
 import nomnomzbot.composeapp.generated.resources.economy_catalog_stock
 import nomnomzbot.composeapp.generated.resources.economy_catalog_title
 import nomnomzbot.composeapp.generated.resources.economy_disable_confirm_cancel
+import nomnomzbot.composeapp.generated.resources.economy_earning_disable
+import nomnomzbot.composeapp.generated.resources.economy_earning_disable_action
 import nomnomzbot.composeapp.generated.resources.economy_earning_disabled
 import nomnomzbot.composeapp.generated.resources.economy_earning_empty
+import nomnomzbot.composeapp.generated.resources.economy_earning_enable
+import nomnomzbot.composeapp.generated.resources.economy_earning_enable_action
 import nomnomzbot.composeapp.generated.resources.economy_earning_row_description
 import nomnomzbot.composeapp.generated.resources.economy_earning_title
+import nomnomzbot.composeapp.generated.resources.economy_jars_add
+import nomnomzbot.composeapp.generated.resources.economy_jars_balance
+import nomnomzbot.composeapp.generated.resources.economy_jars_cancel
+import nomnomzbot.composeapp.generated.resources.economy_jars_closed
+import nomnomzbot.composeapp.generated.resources.economy_jars_create
+import nomnomzbot.composeapp.generated.resources.economy_jars_create_title
+import nomnomzbot.composeapp.generated.resources.economy_jars_description
+import nomnomzbot.composeapp.generated.resources.economy_jars_empty
+import nomnomzbot.composeapp.generated.resources.economy_jars_goal
+import nomnomzbot.composeapp.generated.resources.economy_jars_goal_progress
+import nomnomzbot.composeapp.generated.resources.economy_jars_name
+import nomnomzbot.composeapp.generated.resources.economy_jars_name_required
+import nomnomzbot.composeapp.generated.resources.economy_jars_open
+import nomnomzbot.composeapp.generated.resources.economy_jars_row_description
+import nomnomzbot.composeapp.generated.resources.economy_jars_title
 import nomnomzbot.composeapp.generated.resources.economy_disable_confirm_confirm
 import nomnomzbot.composeapp.generated.resources.economy_disable_confirm_message
 import nomnomzbot.composeapp.generated.resources.economy_disable_confirm_title
@@ -158,6 +197,18 @@ fun EconomyScreen(controller: EconomyController, role: ManagementRole?) {
                     onToggleCatalog = { itemId, enabled ->
                         scope.launch { controller.setCatalogItemEnabled(itemId, enabled) }
                     },
+                    onCreateCatalogItem = { request ->
+                        scope.launch { controller.createCatalogItem(request) }
+                    },
+                    onDeleteCatalogItem = { itemId ->
+                        scope.launch { controller.deleteCatalogItem(itemId) }
+                    },
+                    onToggleEarningRule = { source, enabled ->
+                        scope.launch { controller.toggleEarningRule(source, enabled) }
+                    },
+                    onCreateSavingsJar = { request ->
+                        scope.launch { controller.createSavingsJar(request) }
+                    },
                 )
         }
     }
@@ -171,6 +222,10 @@ private fun ReadyContent(
     onSave: (CurrencyConfig) -> Unit,
     onFreeze: (String, Boolean) -> Unit,
     onToggleCatalog: (String, Boolean) -> Unit,
+    onCreateCatalogItem: (CreateCatalogItemBody) -> Unit,
+    onDeleteCatalogItem: (String) -> Unit,
+    onToggleEarningRule: (source: String, enabled: Boolean) -> Unit,
+    onCreateSavingsJar: (CreateSavingsJarBody) -> Unit,
 ) {
     val spacing = LocalSpacing.current
     val loaded: CurrencyConfig = state.config
@@ -280,9 +335,25 @@ private fun ReadyContent(
 
         AccountsSection(accounts = state.accounts, manage = config, onFreeze = onFreeze)
 
-        EarningRulesSection(rules = state.earningRules)
+        EarningRulesSection(
+            rules = state.earningRules,
+            manage = payoutRules,
+            onToggle = onToggleEarningRule,
+        )
 
-        CatalogSection(catalog = state.catalog, manage = config, onToggle = onToggleCatalog)
+        CatalogSection(
+            catalog = state.catalog,
+            manage = config,
+            onToggle = onToggleCatalog,
+            onCreate = onCreateCatalogItem,
+            onDelete = onDeleteCatalogItem,
+        )
+
+        SavingsJarsSection(
+            jars = state.savingsJars,
+            manage = config,
+            onCreate = onCreateSavingsJar,
+        )
     }
 
     pendingDisable?.let { edit ->
@@ -808,7 +879,11 @@ private fun AccountRow(
 // The earning rules (economy.md §4): one row per source — the source key, a disabled flag, and the gain rate.
 // Read-only here; rate / cap editing is a follow-up management surface.
 @Composable
-private fun EarningRulesSection(rules: List<EarningRule>) {
+private fun EarningRulesSection(
+    rules: List<EarningRule>,
+    manage: ManageDecision,
+    onToggle: (source: String, enabled: Boolean) -> Unit,
+) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
@@ -835,18 +910,26 @@ private fun EarningRulesSection(rules: List<EarningRule>) {
         contentPadding = PaddingValues(vertical = spacing.s1),
         verticalArrangement = Arrangement.spacedBy(spacing.s2),
     ) {
-        items(items = rules, key = { it.id }) { rule -> EarningRuleRow(rule = rule) }
+        items(items = rules, key = { it.id }) { rule ->
+            EarningRuleRow(rule = rule, manage = manage, onToggle = { onToggle(rule.source, !rule.isEnabled) })
+        }
     }
 }
 
 @Composable
-private fun EarningRuleRow(rule: EarningRule) {
+private fun EarningRuleRow(rule: EarningRule, manage: ManageDecision, onToggle: () -> Unit) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
 
     val rowDescription: String =
         stringResource(Res.string.economy_earning_row_description, rule.source, rule.rate)
+    val toggleLabel: String =
+        stringResource(
+            if (rule.isEnabled) Res.string.economy_earning_disable_action
+            else Res.string.economy_earning_enable_action,
+            rule.source,
+        )
 
     Row(
         modifier = Modifier
@@ -854,26 +937,26 @@ private fun EarningRuleRow(rule: EarningRule) {
             .clip(RoundedCornerShape(tokens.radius.lg))
             .background(tokens.card)
             .padding(horizontal = spacing.s4, vertical = spacing.s3)
-            .clearAndSetSemantics { contentDescription = rowDescription },
+            .semantics { contentDescription = rowDescription },
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(spacing.s3),
     ) {
-        Text(
-            text = rule.source,
-            style = typography.base,
-            color = tokens.cardForeground,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f),
-        )
-        if (!rule.isEnabled) {
+        Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = stringResource(Res.string.economy_earning_disabled),
-                style = typography.sm,
-                color = tokens.mutedForeground,
+                text = rule.source,
+                style = typography.base,
+                color = tokens.cardForeground,
                 maxLines = 1,
-                modifier = Modifier.wrapContentWidth(),
+                overflow = TextOverflow.Ellipsis,
             )
+            if (!rule.isEnabled) {
+                Text(
+                    text = stringResource(Res.string.economy_earning_disabled),
+                    style = typography.sm,
+                    color = tokens.mutedForeground,
+                    maxLines = 1,
+                )
+            }
         }
         Text(
             text = "+${rule.rate}",
@@ -882,28 +965,64 @@ private fun EarningRuleRow(rule: EarningRule) {
             maxLines = 1,
             modifier = Modifier.wrapContentWidth(),
         )
+        ManageGate(decision = manage) { enabled ->
+            TextButton(
+                onClick = onToggle,
+                enabled = enabled,
+                modifier = Modifier.clearAndSetSemantics { contentDescription = toggleLabel },
+            ) {
+                Text(
+                    text =
+                        stringResource(
+                            if (rule.isEnabled) Res.string.economy_earning_disable
+                            else Res.string.economy_earning_enable
+                        ),
+                    color = if (enabled) tokens.primary else tokens.mutedForeground,
+                    maxLines = 1,
+                )
+            }
+        }
     }
 }
 
-// The store catalog (economy.md §4): one row per item — the name, a disabled flag, stock (for limited items),
-// and the cost. Read-only here; create / edit / delete + purchase history are a follow-up management surface.
 @Composable
 private fun CatalogSection(
     catalog: List<CatalogItem>,
     manage: ManageDecision,
     onToggle: (String, Boolean) -> Unit,
+    onCreate: (CreateCatalogItemBody) -> Unit,
+    onDelete: (String) -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
 
-    Text(
-        text = stringResource(Res.string.economy_catalog_title),
-        style = typography.lg,
-        color = tokens.cardForeground,
-        maxLines = 1,
-        overflow = TextOverflow.Ellipsis,
-    )
+    var showCreateDialog: Boolean by remember { mutableStateOf(false) }
+    var pendingDelete: CatalogItem? by remember { mutableStateOf(null) }
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Text(
+            text = stringResource(Res.string.economy_catalog_title),
+            style = typography.lg,
+            color = tokens.cardForeground,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
+        ManageGate(decision = manage) { enabled ->
+            TextButton(onClick = { showCreateDialog = true }, enabled = enabled) {
+                Text(
+                    text = stringResource(Res.string.economy_catalog_add),
+                    color = if (enabled) tokens.primary else tokens.mutedForeground,
+                    maxLines = 1,
+                )
+            }
+        }
+    }
 
     if (catalog.isEmpty()) {
         Text(
@@ -911,17 +1030,47 @@ private fun CatalogSection(
             style = typography.sm,
             color = tokens.mutedForeground,
         )
-        return
+    } else {
+        LazyColumn(
+            modifier = Modifier.fillMaxWidth(),
+            contentPadding = PaddingValues(vertical = spacing.s1),
+            verticalArrangement = Arrangement.spacedBy(spacing.s2),
+        ) {
+            items(items = catalog, key = { it.id }) { item ->
+                CatalogItemRow(
+                    item = item,
+                    manage = manage,
+                    onToggle = onToggle,
+                    onDelete = { pendingDelete = item },
+                )
+            }
+        }
     }
 
-    LazyColumn(
-        modifier = Modifier.fillMaxWidth(),
-        contentPadding = PaddingValues(vertical = spacing.s1),
-        verticalArrangement = Arrangement.spacedBy(spacing.s2),
-    ) {
-        items(items = catalog, key = { it.id }) { item ->
-            CatalogItemRow(item = item, manage = manage, onToggle = onToggle)
-        }
+    if (showCreateDialog) {
+        CreateCatalogItemDialog(
+            onConfirm = { request ->
+                onCreate(request)
+                showCreateDialog = false
+            },
+            onDismiss = { showCreateDialog = false },
+        )
+    }
+
+    pendingDelete?.let { item ->
+        val name: String = item.name
+        ConfirmDialog(
+            title = stringResource(Res.string.economy_catalog_delete_title),
+            message = stringResource(Res.string.economy_catalog_delete_message, name),
+            confirmLabel = stringResource(Res.string.economy_catalog_delete_confirm),
+            dismissLabel = stringResource(Res.string.economy_catalog_delete_dismiss),
+            destructive = true,
+            onConfirm = {
+                onDelete(item.id)
+                pendingDelete = null
+            },
+            onDismiss = { pendingDelete = null },
+        )
     }
 }
 
@@ -930,6 +1079,7 @@ private fun CatalogItemRow(
     item: CatalogItem,
     manage: ManageDecision,
     onToggle: (String, Boolean) -> Unit,
+    onDelete: () -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -1019,8 +1169,282 @@ private fun CatalogItemRow(
                     maxLines = 1,
                 )
             }
+            // Delete — destructive; the caller confirms before calling onDelete.
+            val deleteLabel: String = stringResource(Res.string.economy_catalog_delete_action, item.name)
+            TextButton(
+                onClick = onDelete,
+                enabled = enabled,
+                modifier = Modifier.clearAndSetSemantics { contentDescription = deleteLabel },
+            ) {
+                Text(
+                    text = stringResource(Res.string.economy_catalog_delete),
+                    color = if (enabled) tokens.destructive else tokens.mutedForeground,
+                    maxLines = 1,
+                )
+            }
         }
     }
+}
+
+@Composable
+private fun CreateCatalogItemDialog(
+    onConfirm: (CreateCatalogItemBody) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    var name: String by remember { mutableStateOf("") }
+    var description: String by remember { mutableStateOf("") }
+    var costText: String by remember { mutableStateOf("") }
+    var nameError: Boolean by remember { mutableStateOf(false) }
+    var costError: Boolean by remember { mutableStateOf(false) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = stringResource(Res.string.economy_catalog_create_title),
+                style = typography.lg,
+                color = tokens.cardForeground,
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
+                AppTextField(
+                    value = name,
+                    onValueChange = { name = it; nameError = false },
+                    label = stringResource(Res.string.economy_catalog_name),
+                    isError = nameError,
+                    errorText = stringResource(Res.string.economy_catalog_name_required),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                AppTextField(
+                    value = description,
+                    onValueChange = { description = it },
+                    label = stringResource(Res.string.economy_catalog_description),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                AppTextField(
+                    value = costText,
+                    onValueChange = { costText = it; costError = false },
+                    label = stringResource(Res.string.economy_catalog_cost),
+                    isError = costError,
+                    errorText = stringResource(Res.string.economy_catalog_cost_invalid),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        },
+        confirmButton = {
+            Button(onClick = {
+                val trimmedName: String = name.trim()
+                val cost: Long? = costText.trim().toLongOrNull()?.takeIf { it > 0 }
+                nameError = trimmedName.isEmpty()
+                costError = cost == null
+                if (!nameError && !costError) {
+                    onConfirm(
+                        CreateCatalogItemBody(
+                            name = trimmedName,
+                            description = description.trim().ifEmpty { null },
+                            cost = cost!!,
+                        )
+                    )
+                }
+            }) {
+                Text(stringResource(Res.string.economy_catalog_create))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(Res.string.economy_catalog_cancel))
+            }
+        },
+        containerColor = tokens.card,
+    )
+}
+
+@Composable
+private fun SavingsJarsSection(
+    jars: List<SavingsJar>,
+    manage: ManageDecision,
+    onCreate: (CreateSavingsJarBody) -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    var showCreate: Boolean by remember { mutableStateOf(false) }
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Text(
+            text = stringResource(Res.string.economy_jars_title),
+            style = typography.lg,
+            color = tokens.cardForeground,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
+        ManageGate(decision = manage) { enabled ->
+            TextButton(onClick = { showCreate = true }, enabled = enabled) {
+                Text(
+                    text = stringResource(Res.string.economy_jars_add),
+                    color = if (enabled) tokens.primary else tokens.mutedForeground,
+                    maxLines = 1,
+                )
+            }
+        }
+    }
+
+    if (jars.isEmpty()) {
+        Text(
+            text = stringResource(Res.string.economy_jars_empty),
+            style = typography.sm,
+            color = tokens.mutedForeground,
+        )
+    } else {
+        LazyColumn(
+            modifier = Modifier.fillMaxWidth(),
+            contentPadding = PaddingValues(vertical = spacing.s1),
+            verticalArrangement = Arrangement.spacedBy(spacing.s2),
+        ) {
+            items(items = jars, key = { it.id }) { jar -> SavingsJarRow(jar = jar) }
+        }
+    }
+
+    if (showCreate) {
+        CreateSavingsJarDialog(
+            onConfirm = { request ->
+                onCreate(request)
+                showCreate = false
+            },
+            onDismiss = { showCreate = false },
+        )
+    }
+}
+
+@Composable
+private fun SavingsJarRow(jar: SavingsJar) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    val rowDescription: String =
+        stringResource(Res.string.economy_jars_row_description, jar.name, jar.balance)
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(tokens.radius.lg))
+            .background(tokens.card)
+            .padding(horizontal = spacing.s4, vertical = spacing.s3)
+            .clearAndSetSemantics { contentDescription = rowDescription },
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(spacing.s3),
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = jar.name,
+                style = typography.base,
+                color = tokens.cardForeground,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            val goal: Long? = jar.goalAmount
+            val balanceText: String =
+                if (goal != null) stringResource(Res.string.economy_jars_goal_progress, jar.balance, goal)
+                else stringResource(Res.string.economy_jars_balance, jar.balance)
+            Text(
+                text = balanceText,
+                style = typography.sm,
+                color = tokens.mutedForeground,
+                maxLines = 1,
+            )
+        }
+        Text(
+            text = stringResource(if (jar.isOpen) Res.string.economy_jars_open else Res.string.economy_jars_closed),
+            style = typography.sm,
+            color = if (jar.isOpen) tokens.primary else tokens.mutedForeground,
+            maxLines = 1,
+        )
+    }
+}
+
+@Composable
+private fun CreateSavingsJarDialog(
+    onConfirm: (CreateSavingsJarBody) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    var name: String by remember { mutableStateOf("") }
+    var description: String by remember { mutableStateOf("") }
+    var goalText: String by remember { mutableStateOf("") }
+    var nameError: Boolean by remember { mutableStateOf(false) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = stringResource(Res.string.economy_jars_create_title),
+                style = typography.lg,
+                color = tokens.cardForeground,
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
+                AppTextField(
+                    value = name,
+                    onValueChange = { name = it; nameError = false },
+                    label = stringResource(Res.string.economy_jars_name),
+                    isError = nameError,
+                    errorText = stringResource(Res.string.economy_jars_name_required),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                AppTextField(
+                    value = description,
+                    onValueChange = { description = it },
+                    label = stringResource(Res.string.economy_jars_description),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                AppTextField(
+                    value = goalText,
+                    onValueChange = { goalText = it },
+                    label = stringResource(Res.string.economy_jars_goal),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        },
+        confirmButton = {
+            Button(onClick = {
+                val trimmedName: String = name.trim()
+                nameError = trimmedName.isEmpty()
+                if (!nameError) {
+                    onConfirm(
+                        CreateSavingsJarBody(
+                            name = trimmedName,
+                            description = description.trim().ifEmpty { null },
+                            goalAmount = goalText.trim().toLongOrNull()?.takeIf { it > 0 },
+                        )
+                    )
+                }
+            }) {
+                Text(stringResource(Res.string.economy_jars_create))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(Res.string.economy_jars_cancel))
+            }
+        },
+        containerColor = tokens.card,
+    )
 }
 
 // The shared switch color set: every slot driven by a token so the control reads on-theme in light + dark.

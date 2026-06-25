@@ -63,6 +63,33 @@ interface EconomyApi {
         itemId: String,
         enabled: Boolean,
     ): ApiResult<Unit>
+
+    /** Create a new store catalog item and return the saved item. */
+    suspend fun createCatalogItem(
+        channelId: String,
+        request: CreateCatalogItemBody,
+    ): ApiResult<CatalogItem>
+
+    /** Delete a catalog item ([itemId]) permanently. */
+    suspend fun deleteCatalogItem(channelId: String, itemId: String): ApiResult<Unit>
+
+    /**
+     * Upsert an earning rule (full PUT; keyed by [source] in the body). The backend creates or replaces the rule for
+     * [source]; used for toggling [isEnabled] or editing the rate and caps.
+     */
+    suspend fun upsertEarningRule(
+        channelId: String,
+        request: UpsertEarningRuleBody,
+    ): ApiResult<EarningRule>
+
+    /** The channel's community savings jars — open and closed. Full list (first page). */
+    suspend fun savingsJars(channelId: String): ApiResult<List<SavingsJar>>
+
+    /** Create a new savings jar and return the saved jar. */
+    suspend fun createSavingsJar(
+        channelId: String,
+        request: CreateSavingsJarBody,
+    ): ApiResult<SavingsJar>
 }
 
 class RestEconomyApi(private val client: ApiClient) : EconomyApi {
@@ -152,6 +179,31 @@ class RestEconomyApi(private val client: ApiClient) : EconomyApi {
             "api/v1/channels/$channelId/economy/catalog/$itemId",
             UpdateCatalogItemBody(isEnabled = enabled),
         )
+
+    override suspend fun createCatalogItem(
+        channelId: String,
+        request: CreateCatalogItemBody,
+    ): ApiResult<CatalogItem> =
+        client.postEnvelope("api/v1/channels/$channelId/economy/catalog", request)
+
+    override suspend fun deleteCatalogItem(channelId: String, itemId: String): ApiResult<Unit> =
+        client.deleteUnit("api/v1/channels/$channelId/economy/catalog/$itemId")
+
+    // The earning-rules PUT is a full upsert keyed by source in the body (no ruleId in the URL).
+    override suspend fun upsertEarningRule(
+        channelId: String,
+        request: UpsertEarningRuleBody,
+    ): ApiResult<EarningRule> =
+        client.putEnvelope("api/v1/channels/$channelId/economy/earning-rules", request)
+
+    override suspend fun savingsJars(channelId: String): ApiResult<List<SavingsJar>> =
+        client.getEnvelope("api/v1/channels/$channelId/economy/jars")
+
+    override suspend fun createSavingsJar(
+        channelId: String,
+        request: CreateSavingsJarBody,
+    ): ApiResult<SavingsJar> =
+        client.postEnvelope("api/v1/channels/$channelId/economy/jars", request)
 }
 
 /** The freeze/unfreeze request body (backend `CurrencyController.FreezeBody`). camelCase `frozen`. */
@@ -165,8 +217,57 @@ data class FreezeAccountBody(val frozen: Boolean)
 @Serializable
 data class UpdateCatalogItemBody(val isEnabled: Boolean? = null)
 
-// The store-item DTO `CatalogItem` (backend `CatalogItemDto`) is declared once in ParticipantApi.kt and shared —
-// the Economy page's catalog read returns that same type rather than re-declaring it (one DTO per backend shape).
+/**
+ * A new catalog-item request (backend `CreateCatalogItemRequest`). Required: [name], [sinkType], [cost];
+ * everything else has a sensible default. [permission] must be a valid community-standing value ("Everyone" etc.).
+ */
+@Serializable
+data class CreateCatalogItemBody(
+    val name: String,
+    val description: String? = null,
+    val sinkType: String = "currency",
+    val cost: Long,
+    val iconUrl: String? = null,
+    val isEnabled: Boolean = true,
+    val permission: String = "Everyone",
+    val pipelineId: String? = null,
+    val cooldownSeconds: Int = 0,
+    val cooldownPerUser: Boolean = false,
+    val stockLimit: Int? = null,
+    val maxPerViewerPerStream: Int? = null,
+    val sortOrder: Int? = null,
+)
+
+/**
+ * A full earning-rule upsert (backend `UpsertEarningRuleRequest`). Keyed by [source]; the backend creates or
+ * replaces the rule for that source. [bonusConfig] is deliberately omitted (the dashboard doesn't surface it yet).
+ */
+@Serializable
+data class UpsertEarningRuleBody(
+    val source: String,
+    val isEnabled: Boolean,
+    val rate: Long,
+    val unitWindowSeconds: Int? = null,
+    val perWindowCap: Long? = null,
+    val perStreamCap: Long? = null,
+    val minRoleLevel: Int? = null,
+)
+
+/**
+ * A new savings jar request (backend `CreateSavingsJarRequest`). Required: [name], [isOpen]; goal/icon/cap optional.
+ */
+@Serializable
+data class CreateSavingsJarBody(
+    val name: String,
+    val description: String? = null,
+    val goalAmount: Long? = null,
+    val iconUrl: String? = null,
+    val isOpen: Boolean = true,
+    val maxWithdrawalPerChannel: Long? = null,
+)
+
+// The store-item DTO `CatalogItem` and `SavingsJar` (backend `CatalogItemDto` / `SavingsJarDto`) are declared once
+// in ParticipantApi.kt and shared — the Economy page reuses those types rather than re-declaring them.
 
 /**
  * The channel's currency definition (backend `CurrencyConfigDto`). Field names mirror the DTO camelCase exactly.
