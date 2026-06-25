@@ -66,7 +66,75 @@ public interface IMusicService
         int position,
         CancellationToken cancellationToken = default
     );
+
+    // ── Extended remote controls (provider-dependent) ──────────────────────────
+
+    /// <summary>Seek to <paramref name="positionMs"/> in the current track. Returns false when unsupported.</summary>
+    Task<bool> SeekAsync(
+        string broadcasterId,
+        int positionMs,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>Enable or disable shuffle. Returns false when unsupported.</summary>
+    Task<bool> SetShuffleAsync(
+        string broadcasterId,
+        bool enabled,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>Set repeat mode: <c>off</c>, <c>track</c>, or <c>context</c>. Returns false when unsupported.</summary>
+    Task<bool> SetRepeatAsync(
+        string broadcasterId,
+        string mode,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>Transfer playback to another device. Returns false when unsupported.</summary>
+    Task<bool> TransferPlaybackAsync(
+        string broadcasterId,
+        string deviceId,
+        bool play = false,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>Return available playback devices. Empty when unsupported.</summary>
+    Task<IReadOnlyList<MusicDeviceDto>> GetDevicesAsync(
+        string broadcasterId,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>Return the user's playlists. Empty when unsupported.</summary>
+    Task<IReadOnlyList<MusicPlaylistDto>> GetPlaylistsAsync(
+        string broadcasterId,
+        int offset = 0,
+        int limit = 20,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>Start playback of a playlist/context URI. Returns false when unsupported.</summary>
+    Task<bool> PlayContextAsync(
+        string broadcasterId,
+        string contextUri,
+        CancellationToken cancellationToken = default
+    );
 }
+
+public sealed record MusicDeviceDto(
+    string Id,
+    string Name,
+    string Type,
+    bool IsActive,
+    int VolumePercent
+);
+
+public sealed record MusicPlaylistDto(
+    string Id,
+    string Name,
+    string Uri,
+    int TrackCount,
+    string? ImageUrl
+);
 
 /// <summary>A music track from a search result.</summary>
 public sealed record MusicTrack(

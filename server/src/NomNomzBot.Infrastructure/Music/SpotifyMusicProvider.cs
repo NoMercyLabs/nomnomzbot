@@ -32,7 +32,7 @@ namespace NomNomzBot.Infrastructure.Music;
 /// - Batch endpoints removed — no GET /tracks?ids=
 /// - Browse endpoints removed
 /// </summary>
-public sealed class SpotifyMusicProvider : IMusicProvider
+public sealed class SpotifyMusicProvider : IMusicProvider, IMusicRemoteProvider
 {
     private const string SpotifyApiBase = "https://api.spotify.com/v1";
     private const string SpotifyTokenEndpoint = "https://accounts.spotify.com/api/token";
@@ -193,6 +193,167 @@ public sealed class SpotifyMusicProvider : IMusicProvider
         );
 
         return response?.IsSuccessStatusCode == true;
+    }
+
+    // ─── IMusicRemoteProvider ────────────────────────────────────────────────
+
+    public async Task SeekAsync(
+        string broadcasterId,
+        int positionMs,
+        CancellationToken cancellationToken = default
+    )
+    {
+        string? token = await GetTokenAsync(broadcasterId, cancellationToken);
+        if (token is null)
+            return;
+
+        string url = $"{SpotifyApiBase}/me/player/seek?position_ms={positionMs}";
+        await SendPlayerCommandAsync(HttpMethod.Put, url, token, null, cancellationToken);
+    }
+
+    public async Task SetShuffleAsync(
+        string broadcasterId,
+        bool enabled,
+        CancellationToken cancellationToken = default
+    )
+    {
+        string? token = await GetTokenAsync(broadcasterId, cancellationToken);
+        if (token is null)
+            return;
+
+        string url =
+            $"{SpotifyApiBase}/me/player/shuffle?state={enabled.ToString().ToLowerInvariant()}";
+        await SendPlayerCommandAsync(HttpMethod.Put, url, token, null, cancellationToken);
+    }
+
+    public async Task SetRepeatAsync(
+        string broadcasterId,
+        string mode,
+        CancellationToken cancellationToken = default
+    )
+    {
+        string? token = await GetTokenAsync(broadcasterId, cancellationToken);
+        if (token is null)
+            return;
+
+        string url = $"{SpotifyApiBase}/me/player/repeat?state={Uri.EscapeDataString(mode)}";
+        await SendPlayerCommandAsync(HttpMethod.Put, url, token, null, cancellationToken);
+    }
+
+    public async Task TransferPlaybackAsync(
+        string broadcasterId,
+        string deviceId,
+        bool play = false,
+        CancellationToken cancellationToken = default
+    )
+    {
+        string? token = await GetTokenAsync(broadcasterId, cancellationToken);
+        if (token is null)
+            return;
+
+        string url = $"{SpotifyApiBase}/me/player";
+        await SendPlayerCommandAsync(
+            HttpMethod.Put,
+            url,
+            token,
+            new { device_ids = new[] { deviceId }, play },
+            cancellationToken
+        );
+    }
+
+    public async Task<IReadOnlyList<MusicDevice>> GetDevicesAsync(
+        string broadcasterId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        string? token = await GetTokenAsync(broadcasterId, cancellationToken);
+        if (token is null)
+            return [];
+
+        string url = $"{SpotifyApiBase}/me/player/devices";
+        HttpResponseMessage? response = await SendAsync(
+            HttpMethod.Get,
+            url,
+            token,
+            cancellationToken
+        );
+        if (response is null || !response.IsSuccessStatusCode)
+            return [];
+
+        SpotifyDevicesResponse? json =
+            await response.Content.ReadFromJsonAsync<SpotifyDevicesResponse>(
+                cancellationToken: cancellationToken
+            );
+
+        return json?.Devices?.Select(d => new MusicDevice
+                {
+                    Id = d.Id,
+                    Name = d.Name,
+                    Type = d.Type,
+                    IsActive = d.IsActive,
+                    VolumePercent = d.VolumePercent,
+                })
+                .ToList()
+                .AsReadOnly()
+            ?? (IReadOnlyList<MusicDevice>)[];
+    }
+
+    public async Task<IReadOnlyList<MusicPlaylist>> GetPlaylistsAsync(
+        string broadcasterId,
+        int offset = 0,
+        int limit = 20,
+        CancellationToken cancellationToken = default
+    )
+    {
+        string? token = await GetTokenAsync(broadcasterId, cancellationToken);
+        if (token is null)
+            return [];
+
+        string url = $"{SpotifyApiBase}/me/playlists?offset={offset}&limit={Math.Min(limit, 50)}";
+        HttpResponseMessage? response = await SendAsync(
+            HttpMethod.Get,
+            url,
+            token,
+            cancellationToken
+        );
+        if (response is null || !response.IsSuccessStatusCode)
+            return [];
+
+        SpotifyPaging<SpotifyPlaylist>? json = await response.Content.ReadFromJsonAsync<
+            SpotifyPaging<SpotifyPlaylist>
+        >(cancellationToken: cancellationToken);
+
+        return json?.Items?.Select(p => new MusicPlaylist
+                {
+                    Id = p.Id,
+                    Name = p.Name,
+                    Uri = p.Uri,
+                    TrackCount = p.Tracks?.Total ?? 0,
+                    ImageUrl = p.Images?.FirstOrDefault()?.Url,
+                })
+                .ToList()
+                .AsReadOnly()
+            ?? (IReadOnlyList<MusicPlaylist>)[];
+    }
+
+    public async Task PlayContextAsync(
+        string broadcasterId,
+        string contextUri,
+        CancellationToken cancellationToken = default
+    )
+    {
+        string? token = await GetTokenAsync(broadcasterId, cancellationToken);
+        if (token is null)
+            return;
+
+        string url = $"{SpotifyApiBase}/me/player/play";
+        await SendPlayerCommandAsync(
+            HttpMethod.Put,
+            url,
+            token,
+            new { context_uri = contextUri },
+            cancellationToken
+        );
     }
 
     // ─── Token management ────────────────────────────────────────────────────
@@ -521,5 +682,53 @@ public sealed class SpotifyMusicProvider : IMusicProvider
 
         [JsonPropertyName("expires_in")]
         public int ExpiresIn { get; set; }
+    }
+
+    private sealed class SpotifyDevicesResponse
+    {
+        [JsonPropertyName("devices")]
+        public List<SpotifyDevice>? Devices { get; set; }
+    }
+
+    private sealed class SpotifyDevice
+    {
+        [JsonPropertyName("id")]
+        public string Id { get; set; } = null!;
+
+        [JsonPropertyName("name")]
+        public string Name { get; set; } = null!;
+
+        [JsonPropertyName("type")]
+        public string Type { get; set; } = null!;
+
+        [JsonPropertyName("is_active")]
+        public bool IsActive { get; set; }
+
+        [JsonPropertyName("volume_percent")]
+        public int VolumePercent { get; set; }
+    }
+
+    private sealed class SpotifyPlaylist
+    {
+        [JsonPropertyName("id")]
+        public string Id { get; set; } = null!;
+
+        [JsonPropertyName("name")]
+        public string Name { get; set; } = null!;
+
+        [JsonPropertyName("uri")]
+        public string Uri { get; set; } = null!;
+
+        [JsonPropertyName("images")]
+        public List<SpotifyImage>? Images { get; set; }
+
+        [JsonPropertyName("tracks")]
+        public SpotifyPlaylistTracks? Tracks { get; set; }
+    }
+
+    private sealed class SpotifyPlaylistTracks
+    {
+        [JsonPropertyName("total")]
+        public int Total { get; set; }
     }
 }

@@ -339,6 +339,144 @@ public sealed class MusicService : IMusicService
         }
     }
 
+    // ── Remote controls (delegate to IMusicRemoteProvider when available) ────────
+
+    public async Task<bool> SeekAsync(
+        string broadcasterId,
+        int positionMs,
+        CancellationToken cancellationToken = default
+    )
+    {
+        IMusicRemoteProvider? remote = await GetRemoteProviderAsync(
+            broadcasterId,
+            cancellationToken
+        );
+        if (remote is null)
+            return false;
+        await remote.SeekAsync(broadcasterId, positionMs, cancellationToken);
+        return true;
+    }
+
+    public async Task<bool> SetShuffleAsync(
+        string broadcasterId,
+        bool enabled,
+        CancellationToken cancellationToken = default
+    )
+    {
+        IMusicRemoteProvider? remote = await GetRemoteProviderAsync(
+            broadcasterId,
+            cancellationToken
+        );
+        if (remote is null)
+            return false;
+        await remote.SetShuffleAsync(broadcasterId, enabled, cancellationToken);
+        return true;
+    }
+
+    public async Task<bool> SetRepeatAsync(
+        string broadcasterId,
+        string mode,
+        CancellationToken cancellationToken = default
+    )
+    {
+        IMusicRemoteProvider? remote = await GetRemoteProviderAsync(
+            broadcasterId,
+            cancellationToken
+        );
+        if (remote is null)
+            return false;
+        await remote.SetRepeatAsync(broadcasterId, mode, cancellationToken);
+        return true;
+    }
+
+    public async Task<bool> TransferPlaybackAsync(
+        string broadcasterId,
+        string deviceId,
+        bool play = false,
+        CancellationToken cancellationToken = default
+    )
+    {
+        IMusicRemoteProvider? remote = await GetRemoteProviderAsync(
+            broadcasterId,
+            cancellationToken
+        );
+        if (remote is null)
+            return false;
+        await remote.TransferPlaybackAsync(broadcasterId, deviceId, play, cancellationToken);
+        return true;
+    }
+
+    public async Task<IReadOnlyList<MusicDeviceDto>> GetDevicesAsync(
+        string broadcasterId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        IMusicRemoteProvider? remote = await GetRemoteProviderAsync(
+            broadcasterId,
+            cancellationToken
+        );
+        if (remote is null)
+            return [];
+        IReadOnlyList<MusicDevice> devices = await remote.GetDevicesAsync(
+            broadcasterId,
+            cancellationToken
+        );
+        return devices
+            .Select(d => new MusicDeviceDto(d.Id, d.Name, d.Type, d.IsActive, d.VolumePercent))
+            .ToList()
+            .AsReadOnly();
+    }
+
+    public async Task<IReadOnlyList<MusicPlaylistDto>> GetPlaylistsAsync(
+        string broadcasterId,
+        int offset = 0,
+        int limit = 20,
+        CancellationToken cancellationToken = default
+    )
+    {
+        IMusicRemoteProvider? remote = await GetRemoteProviderAsync(
+            broadcasterId,
+            cancellationToken
+        );
+        if (remote is null)
+            return [];
+        IReadOnlyList<MusicPlaylist> playlists = await remote.GetPlaylistsAsync(
+            broadcasterId,
+            offset,
+            limit,
+            cancellationToken
+        );
+        return playlists
+            .Select(p => new MusicPlaylistDto(p.Id, p.Name, p.Uri, p.TrackCount, p.ImageUrl))
+            .ToList()
+            .AsReadOnly();
+    }
+
+    public async Task<bool> PlayContextAsync(
+        string broadcasterId,
+        string contextUri,
+        CancellationToken cancellationToken = default
+    )
+    {
+        IMusicRemoteProvider? remote = await GetRemoteProviderAsync(
+            broadcasterId,
+            cancellationToken
+        );
+        if (remote is null)
+            return false;
+        await remote.PlayContextAsync(broadcasterId, contextUri, cancellationToken);
+        return true;
+    }
+
+    private async Task<IMusicRemoteProvider?> GetRemoteProviderAsync(
+        string broadcasterId,
+        CancellationToken cancellationToken
+    )
+    {
+        IMusicProvider? provider = await GetActiveProviderAsync(broadcasterId, cancellationToken);
+        return provider as IMusicRemoteProvider;
+    }
+
     private SongRequestEntry? DequeueNext(string broadcasterId)
     {
         lock (_queueLock)

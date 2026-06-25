@@ -207,6 +207,113 @@ public class MusicController : BaseController
         return Ok(new StatusResponseDto<object> { Message = "Playback resumed." });
     }
 
+    // ─── Remote controls (seek / shuffle / repeat / transfer / playlists) ───────
+
+    [HttpPost("seek")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
+    public async Task<IActionResult> Seek(
+        string channelId,
+        [FromBody] SeekDto dto,
+        CancellationToken ct
+    )
+    {
+        bool ok = await _musicService.SeekAsync(channelId, dto.PositionMs, ct);
+        return ok
+            ? NoContent()
+            : ServiceUnavailableResponse("Seek not supported by active provider.");
+    }
+
+    [HttpPatch("shuffle")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
+    public async Task<IActionResult> SetShuffle(
+        string channelId,
+        [FromBody] ShuffleDto dto,
+        CancellationToken ct
+    )
+    {
+        bool ok = await _musicService.SetShuffleAsync(channelId, dto.Enabled, ct);
+        return ok
+            ? NoContent()
+            : ServiceUnavailableResponse("Shuffle not supported by active provider.");
+    }
+
+    [HttpPatch("repeat")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
+    public async Task<IActionResult> SetRepeat(
+        string channelId,
+        [FromBody] RepeatDto dto,
+        CancellationToken ct
+    )
+    {
+        bool ok = await _musicService.SetRepeatAsync(channelId, dto.Mode, ct);
+        return ok
+            ? NoContent()
+            : ServiceUnavailableResponse("Repeat not supported by active provider.");
+    }
+
+    [HttpGet("devices")]
+    [ProducesResponseType<StatusResponseDto<IReadOnlyList<MusicDeviceDto>>>(
+        StatusCodes.Status200OK
+    )]
+    public async Task<IActionResult> GetDevices(string channelId, CancellationToken ct)
+    {
+        IReadOnlyList<MusicDeviceDto> devices = await _musicService.GetDevicesAsync(channelId, ct);
+        return Ok(new StatusResponseDto<IReadOnlyList<MusicDeviceDto>> { Data = devices });
+    }
+
+    [HttpPost("transfer")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
+    public async Task<IActionResult> Transfer(
+        string channelId,
+        [FromBody] TransferDto dto,
+        CancellationToken ct
+    )
+    {
+        bool ok = await _musicService.TransferPlaybackAsync(channelId, dto.DeviceId, dto.Play, ct);
+        return ok
+            ? NoContent()
+            : ServiceUnavailableResponse("Transfer not supported by active provider.");
+    }
+
+    [HttpGet("playlists")]
+    [ProducesResponseType<StatusResponseDto<IReadOnlyList<MusicPlaylistDto>>>(
+        StatusCodes.Status200OK
+    )]
+    public async Task<IActionResult> GetPlaylists(
+        string channelId,
+        [FromQuery] int offset = 0,
+        [FromQuery] int limit = 20,
+        CancellationToken ct = default
+    )
+    {
+        IReadOnlyList<MusicPlaylistDto> playlists = await _musicService.GetPlaylistsAsync(
+            channelId,
+            offset,
+            limit,
+            ct
+        );
+        return Ok(new StatusResponseDto<IReadOnlyList<MusicPlaylistDto>> { Data = playlists });
+    }
+
+    [HttpPost("play-context")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
+    public async Task<IActionResult> PlayContext(
+        string channelId,
+        [FromBody] PlayContextDto dto,
+        CancellationToken ct
+    )
+    {
+        bool ok = await _musicService.PlayContextAsync(channelId, dto.ContextUri, ct);
+        return ok
+            ? NoContent()
+            : ServiceUnavailableResponse("Play context not supported by active provider.");
+    }
+
     // ─── Now playing ──────────────────────────────────────────────────────────
 
     [HttpGet("now-playing")]
@@ -240,3 +347,15 @@ public class MusicController : BaseController
         return Ok(new StatusResponseDto<NowPlayingDto> { Data = dto });
     }
 }
+
+// ─── Request DTOs ─────────────────────────────────────────────────────────────
+
+public sealed record SeekDto(int PositionMs);
+
+public sealed record ShuffleDto(bool Enabled);
+
+public sealed record RepeatDto(string Mode);
+
+public sealed record TransferDto(string DeviceId, bool Play = false);
+
+public sealed record PlayContextDto(string ContextUri);
