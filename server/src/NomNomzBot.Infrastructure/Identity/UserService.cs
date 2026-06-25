@@ -116,6 +116,30 @@ public class UserService : IUserService
         if (request.DisplayName is not null)
             user.DisplayName = request.DisplayName;
 
+        if (request.PronounId is not null)
+        {
+            // 0 clears the pronoun; any positive id resolves against the Pronouns table.
+            if (request.PronounId == 0)
+            {
+                user.Pronoun = null;
+                user.PronounManualOverride = false;
+            }
+            else
+            {
+                Pronoun? pronoun = await _db.Pronouns.FindAsync(
+                    [request.PronounId.Value],
+                    cancellationToken
+                );
+                if (pronoun is null)
+                    return Errors.NotFound<UserProfileDto>(
+                        "Pronoun",
+                        request.PronounId.ToString()!
+                    );
+                user.Pronoun = pronoun;
+                user.PronounManualOverride = true;
+            }
+        }
+
         await _db.SaveChangesAsync(cancellationToken);
 
         return Result.Success(ToProfileDto(user));
@@ -291,6 +315,7 @@ public class UserService : IUserService
                     : "N/A";
 
                 return new UserChannelAppearanceDto(
+                    ch.Id.ToString(),
                     ch.Name,
                     followDate,
                     msgs is not null ? msgs.MessageCount : 0,

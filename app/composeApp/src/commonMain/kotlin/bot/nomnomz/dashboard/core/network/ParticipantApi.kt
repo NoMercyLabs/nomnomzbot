@@ -299,12 +299,12 @@ data class UserProfile(
 )
 
 /**
- * One channel the caller appears in (backend `UserChannelAppearanceDto`) — their participation footprint. Only
- * [channelName] (no channel id) is returned, so this surfaces the list but can't drive the per-channel picker
- * (which needs ids) — that picker reuses the owned/participated channel list instead (flagged gap).
+ * One channel the caller appears in (backend `UserChannelAppearanceDto`). [channelId] is the channel's Guid,
+ * enabling the per-channel picker on the participant screen.
  */
 @Serializable
 data class ChannelAppearance(
+    val channelId: String = "",
     val channelName: String = "",
     val followDate: String = "",
     val messages: Int = 0,

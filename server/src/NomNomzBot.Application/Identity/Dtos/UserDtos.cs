@@ -58,6 +58,9 @@ public sealed record UpdateUserProfileRequest
 {
     public string? DisplayName { get; init; }
     public string? Email { get; init; }
+
+    /// <summary>The <see cref="Pronoun.Id"/> to assign, or <c>null</c> to leave unchanged, or <c>0</c> to clear.</summary>
+    public int? PronounId { get; init; }
 }
 
 /// <summary>GDPR data summary for a user.</summary>
@@ -73,6 +76,7 @@ public sealed record UserStatsDto(
 
 /// <summary>Channel appearance record for GDPR user data view.</summary>
 public sealed record UserChannelAppearanceDto(
+    string ChannelId,
     string ChannelName,
     string FollowDate,
     int Messages,
