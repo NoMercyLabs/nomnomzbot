@@ -61,8 +61,9 @@ public sealed class LegacyChannelEventImporterTests
                 """{"IsAnonymous":false,"UserId":"100","UserName":"Alice","Message":"Cheer100","Bits":100}""",
                 "c1"
             ),
-            // Noise the importer must skip — not one of the imported channel events.
-            Row("channel.update", "{}", "u1"),
+            // Noise the importer must skip — not one of the imported channel events. (channel.update IS mapped
+            // now; the reward-DEFINITION update channel.points.custom.reward.update is the intentionally-skipped one.)
+            Row("channel.points.custom.reward.update", "{}", "u1"),
             Row("channel.poll.progress", "{}", "p1"),
         ];
 
@@ -84,7 +85,10 @@ public sealed class LegacyChannelEventImporterTests
         summary.TotalRead.Should().Be(5);
         summary
             .Imported.Should()
-            .Be(3, "follow + subscribe + cheer map; update + poll.progress are noise");
+            .Be(
+                3,
+                "follow + subscribe + cheer map; reward-definition update + poll.progress are noise"
+            );
         summary.SkippedUnmapped.Should().Be(2);
         summary.SkippedDuplicate.Should().Be(0);
 
