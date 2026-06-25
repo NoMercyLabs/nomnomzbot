@@ -41,6 +41,7 @@ enum class ShellRoute {
     Features,
     Webhooks,
     Federation,
+    CodeScripts,
     Settings,
 }
 
@@ -100,6 +101,7 @@ object ShellNav {
             NavPage(ShellRoute.Features, NavGroup.Setup, ManagementRole.Broadcaster, ManagementRole.Broadcaster),
             NavPage(ShellRoute.Webhooks, NavGroup.Connect, ManagementRole.Broadcaster, ManagementRole.Broadcaster),
             NavPage(ShellRoute.Federation, NavGroup.Connect, ManagementRole.Broadcaster, ManagementRole.Broadcaster),
+            NavPage(ShellRoute.CodeScripts, NavGroup.Chat, ManagementRole.Broadcaster, ManagementRole.Broadcaster),
             NavPage(ShellRoute.Settings, NavGroup.Setup, ManagementRole.Moderator, null),
         )
 
@@ -137,6 +139,7 @@ object ShellNav {
             ManageAction.RewardLifecycle -> ManagementRole.Broadcaster
             ManageAction.EconomyPayoutRules -> ManagementRole.Broadcaster
             ManageAction.SongQueueModeration -> ManagementRole.Moderator
+            ManageAction.MusicConfig -> ManagementRole.Editor
             // The common path: gate at the page's own manage floor (null for a read-only page).
             ManageAction.Default -> pages.first { it.route == route }.manageFloor
         }

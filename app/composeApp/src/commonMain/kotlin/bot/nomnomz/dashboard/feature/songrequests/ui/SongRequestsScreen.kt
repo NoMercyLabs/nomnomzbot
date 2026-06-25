@@ -14,6 +14,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -21,6 +22,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.material3.Switch
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -45,7 +50,9 @@ import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
+import bot.nomnomz.dashboard.core.network.MusicConfig
 import bot.nomnomz.dashboard.core.network.QueuedSong
+import bot.nomnomz.dashboard.core.network.UpdateMusicConfigBody
 import bot.nomnomz.dashboard.feature.songrequests.state.SongRequestsController
 import bot.nomnomz.dashboard.feature.songrequests.state.SongRequestsState
 import bot.nomnomz.dashboard.feature.shell.nav.ManageAction
@@ -55,11 +62,16 @@ import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecision
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.songrequests_action_error
+import nomnomzbot.composeapp.generated.resources.songrequests_config_allow_spotify
+import nomnomzbot.composeapp.generated.resources.songrequests_config_allow_youtube
+import nomnomzbot.composeapp.generated.resources.songrequests_config_enabled
+import nomnomzbot.composeapp.generated.resources.songrequests_config_title
 import nomnomzbot.composeapp.generated.resources.songrequests_empty
 import nomnomzbot.composeapp.generated.resources.songrequests_error
 import nomnomzbot.composeapp.generated.resources.songrequests_loading
 import nomnomzbot.composeapp.generated.resources.songrequests_pause
 import nomnomzbot.composeapp.generated.resources.songrequests_position
+import nomnomzbot.composeapp.generated.resources.songrequests_queue_title
 import nomnomzbot.composeapp.generated.resources.songrequests_remove_action
 import nomnomzbot.composeapp.generated.resources.songrequests_remove_action_short
 import nomnomzbot.composeapp.generated.resources.songrequests_remove_confirm
@@ -71,26 +83,29 @@ import nomnomzbot.composeapp.generated.resources.songrequests_resume
 import nomnomzbot.composeapp.generated.resources.songrequests_retry
 import nomnomzbot.composeapp.generated.resources.songrequests_row_description
 import nomnomzbot.composeapp.generated.resources.songrequests_skip
+import nomnomzbot.composeapp.generated.resources.songrequests_token_copy
+import nomnomzbot.composeapp.generated.resources.songrequests_token_rotate
+import nomnomzbot.composeapp.generated.resources.songrequests_token_rotate_confirm
+import nomnomzbot.composeapp.generated.resources.songrequests_token_rotate_dismiss
+import nomnomzbot.composeapp.generated.resources.songrequests_token_rotate_message
+import nomnomzbot.composeapp.generated.resources.songrequests_token_rotate_title
+import nomnomzbot.composeapp.generated.resources.songrequests_token_title
 import nomnomzbot.composeapp.generated.resources.songrequests_unknown_requester
 import org.jetbrains.compose.resources.stringResource
 
-// The Song Requests page: the channel's live music queue, made controllable — every track is real data from
-// [SongRequestsController] (the backend sources it from the connected music provider). The screen is a pure
-// projection of the controller's state; it loads on first composition and offers a retry on failure. A header
-// control area drives playback (Skip / Pause / Resume act directly), and each queued song carries a Remove
-// affordance that only runs once confirmed in the shared ConfirmDialog (the controller reloads on success).
+// The Song Requests page: the channel's live music queue + SR management (config, SR-page token). Loads all
+// three in parallel; the queue + controls render immediately. The config section surfaces the key SR toggles
+// (enabled, providers) with inline saves. The SR-page token section shows the shareable link + rotate action.
 @Composable
 fun SongRequestsScreen(controller: SongRequestsController, role: ManagementRole?) {
     val state: SongRequestsState by controller.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val spacing = LocalSpacing.current
 
-    // Every control on this page is live-queue moderation (skip/pause/resume/remove). The spec drops that below
-    // the page's Editor floor to Moderator (frontend-ia.md §3 Media row: "queue moderation: Moderator"), so a
-    // Mod can keep the queue moving — one decision feeds all the controls; below Moderator they disable with
-    // reason (§7). The backend re-checks every write.
     val moderate: ManageDecision =
         rememberManageDecision(role, ShellRoute.SongRequests, ManageAction.SongQueueModeration)
+    val configure: ManageDecision =
+        rememberManageDecision(role, ShellRoute.SongRequests, ManageAction.MusicConfig)
 
     LaunchedEffect(Unit) { controller.load() }
 
@@ -98,19 +113,22 @@ fun SongRequestsScreen(controller: SongRequestsController, role: ManagementRole?
         when (val current: SongRequestsState = state) {
             is SongRequestsState.Loading ->
                 CenteredMessage(stringResource(Res.string.songrequests_loading))
-            is SongRequestsState.Empty ->
-                CenteredMessage(stringResource(Res.string.songrequests_empty))
             is SongRequestsState.Error ->
                 ErrorContent(detail = current.detail, onRetry = { scope.launch { controller.load() } })
             is SongRequestsState.Ready ->
                 ReadyContent(
                     queue = current.queue,
+                    config = current.config,
+                    srPageToken = current.srPageToken,
                     actionError = current.actionError,
                     moderate = moderate,
+                    configure = configure,
                     onSkip = { scope.launch { controller.skip() } },
                     onPause = { scope.launch { controller.pause() } },
                     onResume = { scope.launch { controller.resume() } },
                     onRemove = { position -> scope.launch { controller.remove(position) } },
+                    onUpdateConfig = { body -> scope.launch { controller.updateConfig(body) } },
+                    onRotateToken = { scope.launch { controller.rotateSrPageToken() } },
                 )
         }
     }
@@ -119,45 +137,89 @@ fun SongRequestsScreen(controller: SongRequestsController, role: ManagementRole?
 @Composable
 private fun ReadyContent(
     queue: List<QueuedSong>,
+    config: MusicConfig?,
+    srPageToken: String?,
     actionError: String?,
     moderate: ManageDecision,
+    configure: ManageDecision,
     onSkip: () -> Unit,
     onPause: () -> Unit,
     onResume: () -> Unit,
     onRemove: (position: Int) -> Unit,
+    onUpdateConfig: (UpdateMusicConfigBody) -> Unit,
+    onRotateToken: () -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
 
-    // The queued song awaiting confirmation, if any — the screen owns the dialog's open/closed state.
     var pendingRemoval: QueuedSong? by remember { mutableStateOf(null) }
+    var showRotateConfirm: Boolean by remember { mutableStateOf(false) }
 
-    Column(
+    LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(spacing.s3),
+        verticalArrangement = Arrangement.spacedBy(spacing.s4),
+        contentPadding = PaddingValues(bottom = spacing.s6),
     ) {
-        PlaybackControls(moderate = moderate, onSkip = onSkip, onPause = onPause, onResume = onResume)
+        // ── Playback controls ────────────────────────────────────────────────
+        item {
+            PlaybackControls(moderate = moderate, onSkip = onSkip, onPause = onPause, onResume = onResume)
+        }
 
         actionError?.let { detail ->
+            item {
+                Text(
+                    text = stringResource(Res.string.songrequests_action_error, detail),
+                    style = typography.sm,
+                    color = tokens.destructive,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.s1),
+                )
+            }
+        }
+
+        // ── Queue list ───────────────────────────────────────────────────────
+        item {
             Text(
-                text = stringResource(Res.string.songrequests_action_error, detail),
-                style = typography.sm,
-                color = tokens.destructive,
-                modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.s1),
+                text = stringResource(Res.string.songrequests_queue_title),
+                style = typography.base.copy(fontWeight = FontWeight.SemiBold),
+                color = tokens.foreground,
             )
         }
 
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(spacing.s2),
-        ) {
+        if (queue.isEmpty()) {
+            item {
+                CenteredMessage(stringResource(Res.string.songrequests_empty))
+            }
+        } else {
             items(items = queue, key = { song -> song.position }) { song ->
                 QueueRow(song = song, moderate = moderate, onRemove = { pendingRemoval = song })
             }
         }
+
+        // ── Config section ───────────────────────────────────────────────────
+        if (config != null) {
+            item {
+                ConfigSection(
+                    config = config,
+                    configure = configure,
+                    onUpdate = onUpdateConfig,
+                )
+            }
+        }
+
+        // ── SR page token ────────────────────────────────────────────────────
+        if (srPageToken != null) {
+            item {
+                SrTokenSection(
+                    token = srPageToken,
+                    configure = configure,
+                    onRotate = { showRotateConfirm = true },
+                )
+            }
+        }
     }
 
+    // Removal confirmation
     pendingRemoval?.let { song ->
         val title: String = song.trackName.takeIf { it.isNotBlank() } ?: song.artist
         ConfirmDialog(
@@ -172,6 +234,153 @@ private fun ReadyContent(
             },
             onDismiss = { pendingRemoval = null },
         )
+    }
+
+    // Token-rotate confirmation
+    if (showRotateConfirm) {
+        ConfirmDialog(
+            title = stringResource(Res.string.songrequests_token_rotate_title),
+            message = stringResource(Res.string.songrequests_token_rotate_message),
+            confirmLabel = stringResource(Res.string.songrequests_token_rotate_confirm),
+            dismissLabel = stringResource(Res.string.songrequests_token_rotate_dismiss),
+            destructive = true,
+            onConfirm = {
+                onRotateToken()
+                showRotateConfirm = false
+            },
+            onDismiss = { showRotateConfirm = false },
+        )
+    }
+}
+
+@Composable
+private fun ConfigSection(
+    config: MusicConfig,
+    configure: ManageDecision,
+    onUpdate: (UpdateMusicConfigBody) -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(tokens.radius.lg))
+            .background(tokens.card)
+            .padding(spacing.s4),
+        verticalArrangement = Arrangement.spacedBy(spacing.s3),
+    ) {
+        Text(
+            text = stringResource(Res.string.songrequests_config_title),
+            style = typography.base.copy(fontWeight = FontWeight.SemiBold),
+            color = tokens.cardForeground,
+        )
+        SrToggleRow(
+            label = stringResource(Res.string.songrequests_config_enabled),
+            checked = config.isEnabled,
+            configure = configure,
+            onToggle = { onUpdate(UpdateMusicConfigBody(isEnabled = it)) },
+        )
+        SrToggleRow(
+            label = stringResource(Res.string.songrequests_config_allow_spotify),
+            checked = config.allowSpotify,
+            configure = configure,
+            onToggle = { onUpdate(UpdateMusicConfigBody(allowSpotify = it)) },
+        )
+        SrToggleRow(
+            label = stringResource(Res.string.songrequests_config_allow_youtube),
+            checked = config.allowYouTube,
+            configure = configure,
+            onToggle = { onUpdate(UpdateMusicConfigBody(allowYouTube = it)) },
+        )
+    }
+}
+
+@Composable
+private fun SrToggleRow(
+    label: String,
+    checked: Boolean,
+    configure: ManageDecision,
+    onToggle: (Boolean) -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val typography = LocalTypography.current
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Text(text = label, style = typography.sm, color = tokens.cardForeground)
+        ManageGate(decision = configure) { enabled ->
+            Switch(
+                checked = checked,
+                onCheckedChange = { onToggle(it) },
+                enabled = enabled,
+                colors = SwitchDefaults.colors(
+                    checkedTrackColor = tokens.primary,
+                    checkedThumbColor = tokens.primaryForeground,
+                ),
+            )
+        }
+    }
+}
+
+@Composable
+private fun SrTokenSection(
+    token: String,
+    configure: ManageDecision,
+    onRotate: () -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(tokens.radius.lg))
+            .background(tokens.card)
+            .padding(spacing.s4),
+        verticalArrangement = Arrangement.spacedBy(spacing.s3),
+    ) {
+        Text(
+            text = stringResource(Res.string.songrequests_token_title),
+            style = typography.base.copy(fontWeight = FontWeight.SemiBold),
+            color = tokens.cardForeground,
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+        ) {
+            SelectionContainer(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = token,
+                    style = typography.sm,
+                    color = tokens.mutedForeground,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            TextButton(onClick = { /* clipboard copy — TODO: platform clipboard API */ }) {
+                Text(
+                    text = stringResource(Res.string.songrequests_token_copy),
+                    color = tokens.primary,
+                    style = typography.sm,
+                )
+            }
+        }
+        ManageGate(decision = configure) { enabled ->
+            TextButton(onClick = onRotate, enabled = enabled) {
+                Text(
+                    text = stringResource(Res.string.songrequests_token_rotate),
+                    color = if (enabled) tokens.destructive else tokens.mutedForeground,
+                    style = typography.sm,
+                )
+            }
+        }
     }
 }
 
@@ -243,7 +452,6 @@ private fun QueueRow(song: QueuedSong, moderate: ManageDecision, onRemove: () ->
         Column(
             modifier = Modifier
                 .weight(1f)
-                // One node for screen readers: "1, Track Title, requested by Stoney_Eagle".
                 .clearAndSetSemantics { contentDescription = rowDescription },
             verticalArrangement = Arrangement.spacedBy(spacing.s1),
         ) {
@@ -334,7 +542,7 @@ private fun CenteredMessage(text: String) {
     val tokens = LocalTokens.current
     val typography = LocalTypography.current
 
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
         Text(text = text, style = typography.base, color = tokens.mutedForeground)
     }
 }

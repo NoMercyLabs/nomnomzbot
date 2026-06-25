@@ -33,4 +33,7 @@ enum class ManageAction {
 
     /** Song Requests: moderating the live queue — skip/pause/resume/remove (Moderator — below the Editor floor). */
     SongQueueModeration,
+
+    /** Song Requests / Music: editing SR config and rotating the SR-page token (Editor — the page's own floor). */
+    MusicConfig,
 }
