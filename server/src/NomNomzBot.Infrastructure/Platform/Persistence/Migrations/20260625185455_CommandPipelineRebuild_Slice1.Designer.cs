@@ -14,7 +14,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260625184952_CommandPipelineRebuild_Slice1")]
+    [Migration("20260625185455_CommandPipelineRebuild_Slice1")]
     partial class CommandPipelineRebuild_Slice1
     {
         /// <inheritdoc />
@@ -25,7 +25,6 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                 .HasAnnotation("ProductVersion", "10.0.8")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
-            NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "hstore");
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
             modelBuilder.Entity("NomNomzBot.Domain.Analytics.Entities.ChannelAnalyticsDaily", b =>
@@ -773,7 +772,9 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         .HasColumnType("character varying(100)");
 
                     b.Property<int>("ConfigSchemaVersion")
-                        .HasColumnType("integer");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1);
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -782,7 +783,9 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<bool>("IsEnabled")
-                        .HasColumnType("boolean");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true);
 
                     b.Property<string>("OverridesJson")
                         .HasColumnType("text");
@@ -792,7 +795,9 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("BroadcasterId");
+                    b.HasIndex("BroadcasterId", "BuiltinKey")
+                        .IsUnique()
+                        .HasDatabaseName("IX_ChannelBuiltinCommand_BroadcasterId_Key");
 
                     b.ToTable("ChannelBuiltinCommands");
                 });
@@ -951,7 +956,11 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("CommandId");
+                    b.HasIndex("CommandId", "ExpiresAt")
+                        .HasDatabaseName("IX_CommandCooldownState_CommandId_ExpiresAt");
+
+                    b.HasIndex("CommandId", "UserId", "ExpiresAt")
+                        .HasDatabaseName("IX_CommandCooldownState_CommandId_UserId_ExpiresAt");
 
                     b.ToTable("CommandCooldownStates");
                 });
@@ -996,7 +1005,11 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("CommandId");
+                    b.HasIndex("BroadcasterId", "CreatedAt")
+                        .HasDatabaseName("IX_CommandUsage_BroadcasterId_CreatedAt");
+
+                    b.HasIndex("CommandId", "CreatedAt")
+                        .HasDatabaseName("IX_CommandUsage_CommandId_CreatedAt");
 
                     b.ToTable("CommandUsages");
                 });
@@ -1011,7 +1024,9 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<int>("ConfigSchemaVersion")
-                        .HasColumnType("integer");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1);
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -1021,11 +1036,13 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
 
                     b.Property<string>("EventType")
                         .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
 
                     b.Property<bool>("IsEnabled")
-                        .HasColumnType("boolean");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true);
 
                     b.Property<string>("Message")
                         .HasMaxLength(2000)
@@ -1033,24 +1050,29 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
 
                     b.Property<Dictionary<string, string>>("MetadataJson")
                         .IsRequired()
-                        .HasColumnType("hstore");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("jsonb")
+                        .HasDefaultValueSql("'{}'::jsonb");
 
                     b.Property<Guid?>("PipelineId")
                         .HasColumnType("uuid");
 
                     b.Property<string>("ResponseType")
                         .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasDefaultValue("chat_message");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("BroadcasterId");
-
                     b.HasIndex("PipelineId");
+
+                    b.HasIndex("BroadcasterId", "EventType")
+                        .HasDatabaseName("IX_EventResponse_BroadcasterId_EventType");
 
                     b.ToTable("EventResponses");
                 });
@@ -1079,11 +1101,15 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<long>("Value")
-                        .HasColumnType("bigint");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasDefaultValue(0L);
 
                     b.HasKey("Id");
 
-                    b.HasIndex("BroadcasterId");
+                    b.HasIndex("BroadcasterId", "Key")
+                        .IsUnique()
+                        .HasDatabaseName("IX_NamedCounter_BroadcasterId_Key");
 
                     b.ToTable("NamedCounters");
                 });
@@ -1111,13 +1137,17 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         .HasColumnType("text");
 
                     b.Property<bool>("IsEnabled")
-                        .HasColumnType("boolean");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true);
 
                     b.Property<DateTime?>("LastTriggeredAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<int>("MaxStepCount")
-                        .HasColumnType("integer");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(50);
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -1125,19 +1155,24 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         .HasColumnType("character varying(200)");
 
                     b.Property<long>("TriggerCount")
-                        .HasColumnType("bigint");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasDefaultValue(0L);
 
                     b.Property<string>("TriggerKind")
                         .IsRequired()
-                        .HasMaxLength(30)
-                        .HasColumnType("character varying(30)");
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasDefaultValue("manual");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("BroadcasterId");
+                    b.HasIndex("BroadcasterId", "IsEnabled")
+                        .HasDatabaseName("IX_Pipeline_BroadcasterId_IsEnabled");
 
                     b.ToTable("Pipelines");
                 });
@@ -1160,14 +1195,18 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<int>("DurationMs")
-                        .HasColumnType("integer");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0);
 
                     b.Property<string>("ErrorMessage")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
 
                     b.Property<int>("HostCallCount")
-                        .HasColumnType("integer");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0);
 
                     b.Property<Guid>("PipelineId")
                         .HasColumnType("uuid");
@@ -1185,8 +1224,8 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
 
                     b.Property<string>("TriggerKind")
                         .IsRequired()
-                        .HasMaxLength(30)
-                        .HasColumnType("character varying(30)");
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
 
                     b.Property<Guid?>("TriggeredByUserId")
                         .HasColumnType("uuid");
@@ -1196,7 +1235,11 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("PipelineId");
+                    b.HasIndex("BroadcasterId", "StartedAt")
+                        .HasDatabaseName("IX_PipelineExecution_BroadcasterId_StartedAt");
+
+                    b.HasIndex("PipelineId", "StartedAt")
+                        .HasDatabaseName("IX_PipelineExecution_PipelineId_StartedAt");
 
                     b.ToTable("PipelineExecutions");
                 });
@@ -1224,16 +1267,22 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
 
                     b.Property<string>("ConfigJson")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("text")
+                        .HasDefaultValue("{}");
 
                     b.Property<int>("ConfigSchemaVersion")
-                        .HasColumnType("integer");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1);
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<bool>("IsEnabled")
-                        .HasColumnType("boolean");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true);
 
                     b.Property<int>("Order")
                         .HasColumnType("integer");
@@ -1249,7 +1298,11 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("PipelineId");
+                    b.HasIndex("BroadcasterId")
+                        .HasDatabaseName("IX_PipelineStep_BroadcasterId");
+
+                    b.HasIndex("PipelineId", "Order")
+                        .HasDatabaseName("IX_PipelineStep_PipelineId_Order");
 
                     b.ToTable("PipelineSteps");
                 });
@@ -1276,7 +1329,9 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         .HasColumnType("character varying(500)");
 
                     b.Property<bool>("Negate")
-                        .HasColumnType("boolean");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
 
                     b.Property<string>("Operator")
                         .HasMaxLength(20)
@@ -1297,7 +1352,8 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("PipelineStepId");
+                    b.HasIndex("PipelineStepId")
+                        .HasDatabaseName("IX_PipelineStepCondition_StepId");
 
                     b.ToTable("PipelineStepConditions");
                 });
@@ -1312,7 +1368,9 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<int>("ConfigSchemaVersion")
-                        .HasColumnType("integer");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1);
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -1321,25 +1379,33 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<int>("IntervalMinutes")
-                        .HasColumnType("integer");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(30);
 
                     b.Property<bool>("IsEnabled")
-                        .HasColumnType("boolean");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true);
 
                     b.Property<DateTime?>("LastFiredAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.PrimitiveCollection<List<string>>("Messages")
+                    b.PrimitiveCollection<string>("Messages")
                         .IsRequired()
-                        .HasColumnType("text[]");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("jsonb")
+                        .HasDefaultValueSql("'[]'::jsonb");
 
                     b.Property<int>("MinChatActivity")
-                        .HasColumnType("integer");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0);
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
 
                     b.Property<int>("NextMessageIndex")
                         .HasColumnType("integer");
@@ -1347,14 +1413,20 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.Property<Guid?>("PipelineId")
                         .HasColumnType("uuid");
 
+                    b.Property<Guid?>("PipelineId1")
+                        .HasColumnType("uuid");
+
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("BroadcasterId");
-
                     b.HasIndex("PipelineId");
+
+                    b.HasIndex("PipelineId1");
+
+                    b.HasIndex("BroadcasterId", "IsEnabled")
+                        .HasDatabaseName("IX_Timer_BroadcasterId_IsEnabled");
 
                     b.ToTable("Timers");
                 });
@@ -5972,7 +6044,8 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
 
                     b.HasOne("NomNomzBot.Domain.Commands.Entities.Pipeline", "Pipeline")
                         .WithMany()
-                        .HasForeignKey("PipelineId");
+                        .HasForeignKey("PipelineId")
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("Channel");
 
@@ -6042,9 +6115,14 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("NomNomzBot.Domain.Commands.Entities.Pipeline", null)
+                        .WithMany()
+                        .HasForeignKey("PipelineId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("NomNomzBot.Domain.Commands.Entities.Pipeline", "Pipeline")
                         .WithMany()
-                        .HasForeignKey("PipelineId");
+                        .HasForeignKey("PipelineId1");
 
                     b.Navigation("Channel");
 
