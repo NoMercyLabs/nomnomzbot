@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -61,6 +62,7 @@ import nomnomzbot.composeapp.generated.resources.connect_error_login_failed
 import nomnomzbot.composeapp.generated.resources.connect_modal_heading_first_login
 import nomnomzbot.composeapp.generated.resources.connect_url_label
 import nomnomzbot.composeapp.generated.resources.connect_url_placeholder
+import nomnomzbot.composeapp.generated.resources.connect_use_device_code
 import org.jetbrains.compose.resources.stringResource
 
 // The real direct-connect gate (frontend.md §5/§6), restyled as the branded Twitch [ConnectModal] (the
@@ -142,6 +144,16 @@ fun ConnectScreen(controller: ConnectController) {
                 // Make the account unambiguous: this is the streamer's OWN account, and the bot is a
                 // separate, optional account added later — never forced here.
                 AccountHint()
+
+                // Secondary path: force the device-code login even when the redirect flow is available. It needs
+                // no registered redirect URL on the Twitch app, so it's the resilient way in when the redirect
+                // callback isn't set up yet — the operator approves a code at twitch.tv/activate.
+                TextButton(
+                    onClick = { scope.launch { controller.connect(forceDevice = true) } },
+                    enabled = !busy,
+                ) {
+                    Text(stringResource(Res.string.connect_use_device_code))
+                }
             }
 
             ConnectStatusRow(status = status)

@@ -98,7 +98,7 @@ class ConnectController(
      * shared [beginOnboarding]: probe readiness, and either run the streamer OAuth (configured) or route to
      * the Setup wizard (fresh self-host). Errors surface on [status] and the gate stays on Connect.
      */
-    suspend fun connect() {
+    suspend fun connect(forceDevice: Boolean = false) {
         // Single-flight: never start a second device login while one is already in flight — a second poll loop
         // would double the rate we hit the backend (and Twitch). The button is also disabled while busy.
         if (loginInProgress()) return
@@ -116,7 +116,7 @@ class ConnectController(
                 baseUrl = normalized,
                 source = ProfileSource.Manual,
             )
-        beginOnboarding(profile)
+        beginOnboarding(profile, forceDevice)
     }
 
     /**
@@ -139,7 +139,7 @@ class ConnectController(
      * reachable, then mints a user code and polls until the operator approves at twitch.tv/activate — at
      * which point the session is established and the gate advances to the shell. A failed probe rolls back.
      */
-    private suspend fun beginOnboarding(profile: ConnectionProfile) {
+    private suspend fun beginOnboarding(profile: ConnectionProfile, forceDevice: Boolean = false) {
         _status.value = ConnectStatus.Connecting
 
         // Pin the profile so the shared ApiClient targets the chosen backend for the anonymous device
@@ -159,8 +159,10 @@ class ConnectController(
                 // Redirect (Authorization Code) login when the operator has a client SECRET configured
                 // (twitchApp.ok) — a clean tap → Twitch → redirect-back, far better on mobile, and it sets the
                 // HttpOnly cookie that remember-me rides. Without a secret (the shared public client) only the
-                // Device Code Flow can mint a refresh token, so fall back to it.
-                if (statusResult.value.checks.twitchApp.ok) {
+                // Device Code Flow can mint a refresh token, so fall back to it. The operator can also force the
+                // device path ([forceDevice]) — it needs no registered redirect URL on the Twitch app, the
+                // resilient way in when the redirect callback isn't registered yet.
+                if (!forceDevice && statusResult.value.checks.twitchApp.ok) {
                     runStreamerOAuth(profile)
                 } else {
                     runDeviceLogin(profile)
