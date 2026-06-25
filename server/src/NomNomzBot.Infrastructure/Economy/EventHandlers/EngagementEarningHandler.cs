@@ -69,7 +69,7 @@ public sealed class EngagementEarningHandler(
 
         await earning.ApplyEarningAsync(
             @event.BroadcasterId,
-            new EarnRequest(viewerUserId.Value, "Subscribe", 1, @event.EventId, null, null),
+            new EarnRequest(viewerUserId.Value, "Subscription", 1, @event.EventId, null, null),
             cancellationToken
         );
     }
