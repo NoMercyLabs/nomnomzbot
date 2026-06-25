@@ -40,6 +40,9 @@ interface EconomyApi {
 
     /** The channel's primary points leaderboard — the top holders, capped at [top] rows. */
     suspend fun leaderboard(channelId: String, top: Int): ApiResult<List<LeaderboardEntry>>
+
+    /** The channel's currency accounts — viewer balances + lifetime totals. First page only here. */
+    suspend fun accounts(channelId: String): ApiResult<List<CurrencyAccountSummary>>
 }
 
 class RestEconomyApi(private val client: ApiClient) : EconomyApi {
@@ -85,6 +88,16 @@ class RestEconomyApi(private val client: ApiClient) : EconomyApi {
             "api/v1/channels/$channelId/economy/leaderboards/${primary.id}?top=$top"
         )
     }
+
+    // Flat PaginatedResponse like the other lists — read with getDirect. First page only; the pager layers later.
+    override suspend fun accounts(channelId: String): ApiResult<List<CurrencyAccountSummary>> =
+        when (
+            val page: ApiResult<PaginatedEnvelope<CurrencyAccountSummary>> =
+                client.getDirect("api/v1/channels/$channelId/economy/accounts?page=1&pageSize=25")
+        ) {
+            is ApiResult.Failure -> ApiResult.Failure(page.error)
+            is ApiResult.Ok -> ApiResult.Ok(page.value.data)
+        }
 }
 
 /**
@@ -143,4 +156,21 @@ data class LeaderboardConfig(
     val period: String = "",
     val isPublic: Boolean = false,
     val topN: Int = 0,
+)
+
+/**
+ * One viewer's currency account (backend `CurrencyAccountDto`) — the account-admin row. camelCase mirror; the
+ * Economy page reads the balance + lifetime totals + frozen flag. [viewerTwitchUserId] identifies the holder
+ * (the display name is resolved elsewhere); [lastActivityAt] is the ISO-8601 last-movement time, or null.
+ */
+@Serializable
+data class CurrencyAccountSummary(
+    val id: String = "",
+    val viewerUserId: String = "",
+    val viewerTwitchUserId: String = "",
+    val balance: Long = 0,
+    val lifetimeEarned: Long = 0,
+    val lifetimeSpent: Long = 0,
+    val isFrozen: Boolean = false,
+    val lastActivityAt: String? = null,
 )

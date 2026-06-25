@@ -443,6 +443,10 @@
     <string name="economy_leaderboard_title">Top holders</string>
     <string name="economy_leaderboard_empty">No holders yet</string>
     <string name="economy_leaderboard_row_description">#%1$d, %2$s, %3$s</string>
+    <string name="economy_accounts_title">Accounts</string>
+    <string name="economy_accounts_empty">No accounts yet</string>
+    <string name="economy_accounts_row_description">%1$s, balance %2$d</string>
+    <string name="economy_account_frozen">Frozen</string>
     <string name="alerts_title">Alerts &amp; Events</string>
     <string name="alerts_loading">Loading your alerts…</string>
     <string name="alerts_error">Could not load your alerts: %1$s</string>

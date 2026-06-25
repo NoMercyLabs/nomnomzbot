@@ -13,6 +13,7 @@ package bot.nomnomz.dashboard.feature.economy.state
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
+import bot.nomnomz.dashboard.core.network.CurrencyAccountSummary
 import bot.nomnomz.dashboard.core.network.CurrencyConfig
 import bot.nomnomz.dashboard.core.network.EconomyApi
 import bot.nomnomz.dashboard.core.network.LeaderboardEntry
@@ -61,21 +62,35 @@ class EconomyController(
                 is ApiResult.Ok -> result.value
             }
 
-        when (
-            val result: ApiResult<List<LeaderboardEntry>> =
-                economyApi.leaderboard(channel.id, LEADERBOARD_TOP)
-        ) {
-            is ApiResult.Failure -> _state.value = EconomyState.Error(result.error.message)
-            is ApiResult.Ok ->
-                _state.value =
-                    EconomyState.Ready(
-                        // A null config means the economy was never set up; seed the form with sensible defaults
-                        // so the operator can create it. The first save establishes the real config.
-                        config = config ?: CurrencyConfig(),
-                        configured = config != null,
-                        leaderboard = result.value,
-                    )
-        }
+        val leaderboard: List<LeaderboardEntry> =
+            when (
+                val result: ApiResult<List<LeaderboardEntry>> =
+                    economyApi.leaderboard(channel.id, LEADERBOARD_TOP)
+            ) {
+                is ApiResult.Failure -> {
+                    _state.value = EconomyState.Error(result.error.message)
+                    return
+                }
+                is ApiResult.Ok -> result.value
+            }
+
+        // The account-admin list (viewer balances). A failure here must NOT blank the page — config + leaderboard
+        // loaded fine — so it degrades to an empty list rather than erroring the whole screen.
+        val accounts: List<CurrencyAccountSummary> =
+            when (val result: ApiResult<List<CurrencyAccountSummary>> = economyApi.accounts(channel.id)) {
+                is ApiResult.Failure -> emptyList()
+                is ApiResult.Ok -> result.value
+            }
+
+        _state.value =
+            EconomyState.Ready(
+                // A null config means the economy was never set up; seed the form with sensible defaults so the
+                // operator can create it. The first save establishes the real config.
+                config = config ?: CurrencyConfig(),
+                configured = config != null,
+                leaderboard = leaderboard,
+                accounts = accounts,
+            )
     }
 
     /**
@@ -137,6 +152,7 @@ sealed interface EconomyState {
         val config: CurrencyConfig,
         val configured: Boolean,
         val leaderboard: List<LeaderboardEntry>,
+        val accounts: List<CurrencyAccountSummary> = emptyList(),
         val saving: Boolean = false,
         val justSaved: Boolean = false,
         val saveError: String? = null,

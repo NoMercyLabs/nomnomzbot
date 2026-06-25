@@ -59,6 +59,7 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.designsystem.theme.Tokens
 import bot.nomnomz.dashboard.core.network.CurrencyConfig
+import bot.nomnomz.dashboard.core.network.CurrencyAccountSummary
 import bot.nomnomz.dashboard.core.network.LeaderboardEntry
 import bot.nomnomz.dashboard.feature.economy.state.EconomyController
 import bot.nomnomz.dashboard.feature.economy.state.EconomyState
@@ -68,6 +69,10 @@ import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
 import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecision
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.economy_account_frozen
+import nomnomzbot.composeapp.generated.resources.economy_accounts_empty
+import nomnomzbot.composeapp.generated.resources.economy_accounts_row_description
+import nomnomzbot.composeapp.generated.resources.economy_accounts_title
 import nomnomzbot.composeapp.generated.resources.economy_disable_confirm_cancel
 import nomnomzbot.composeapp.generated.resources.economy_disable_confirm_confirm
 import nomnomzbot.composeapp.generated.resources.economy_disable_confirm_message
@@ -244,6 +249,8 @@ private fun ReadyContent(
         )
 
         LeaderboardSection(entries = state.leaderboard)
+
+        AccountsSection(accounts = state.accounts)
     }
 
     pendingDisable?.let { edit ->
@@ -630,6 +637,90 @@ private fun LeaderboardRow(entry: LeaderboardEntry) {
         )
         Text(
             text = valueText,
+            style = typography.base,
+            color = tokens.primary,
+            maxLines = 1,
+            modifier = Modifier.wrapContentWidth(),
+        )
+    }
+}
+
+// The account-admin list (economy.md §4): one row per viewer account — the holder (Twitch id), a frozen flag,
+// and the current balance. Read-only here; balance adjustments / freeze are a follow-up management surface.
+@Composable
+private fun AccountsSection(accounts: List<CurrencyAccountSummary>) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    Text(
+        text = stringResource(Res.string.economy_accounts_title),
+        style = typography.lg,
+        color = tokens.cardForeground,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+    )
+
+    if (accounts.isEmpty()) {
+        Text(
+            text = stringResource(Res.string.economy_accounts_empty),
+            style = typography.sm,
+            color = tokens.mutedForeground,
+        )
+        return
+    }
+
+    LazyColumn(
+        modifier = Modifier.fillMaxWidth(),
+        contentPadding = PaddingValues(vertical = spacing.s1),
+        verticalArrangement = Arrangement.spacedBy(spacing.s2),
+    ) {
+        items(items = accounts, key = { it.id }) { account -> AccountRow(account = account) }
+    }
+}
+
+@Composable
+private fun AccountRow(account: CurrencyAccountSummary) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    val rowDescription: String =
+        stringResource(
+            Res.string.economy_accounts_row_description,
+            account.viewerTwitchUserId,
+            account.balance,
+        )
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(tokens.radius.lg))
+            .background(tokens.card)
+            .padding(horizontal = spacing.s4, vertical = spacing.s3)
+            .clearAndSetSemantics { contentDescription = rowDescription },
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(spacing.s3),
+    ) {
+        Text(
+            text = account.viewerTwitchUserId,
+            style = typography.base,
+            color = tokens.cardForeground,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
+        if (account.isFrozen) {
+            Text(
+                text = stringResource(Res.string.economy_account_frozen),
+                style = typography.sm,
+                color = tokens.destructive,
+                maxLines = 1,
+                modifier = Modifier.wrapContentWidth(),
+            )
+        }
+        Text(
+            text = account.balance.toString(),
             style = typography.base,
             color = tokens.primary,
             maxLines = 1,

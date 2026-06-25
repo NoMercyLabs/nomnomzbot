@@ -15,6 +15,7 @@ import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.CatalogItem
 import bot.nomnomz.dashboard.core.network.ChannelAppearance
 import bot.nomnomz.dashboard.core.network.CurrencyAccount
+import bot.nomnomz.dashboard.core.network.CurrencyAccountSummary
 import bot.nomnomz.dashboard.core.network.CurrencyConfig
 import bot.nomnomz.dashboard.core.network.DashboardApi
 import bot.nomnomz.dashboard.core.network.DashboardStats
@@ -536,6 +537,9 @@ private class FakeEconomyApi(
         leaderboardCalls.add(channelId)
         return ApiResult.Ok(leaderboard)
     }
+
+    override suspend fun accounts(channelId: String): ApiResult<List<CurrencyAccountSummary>> =
+        ApiResult.Ok(emptyList())
 }
 
 private class FakeMusicApi(private val snapshot: ApiResult<MusicSnapshot>) : MusicApi {

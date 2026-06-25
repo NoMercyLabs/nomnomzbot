@@ -14,6 +14,7 @@ import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
+import bot.nomnomz.dashboard.core.network.CurrencyAccountSummary
 import bot.nomnomz.dashboard.core.network.CurrencyConfig
 import bot.nomnomz.dashboard.core.network.EconomyApi
 import bot.nomnomz.dashboard.core.network.LeaderboardEntry
@@ -71,6 +72,54 @@ class EconomyControllerTest {
         assertEquals(leaderboard, ready.leaderboard)
         // The leaderboard read is addressed to the resolved channel.
         assertEquals("ch1", economyApi.lastLeaderboardChannelId)
+    }
+
+    @Test
+    fun load_surfaces_the_currency_accounts() = runTest {
+        val economyApi =
+            FakeEconomyApi(
+                configResult = ApiResult.Ok(loadedConfig),
+                leaderboardResult = ApiResult.Ok(leaderboard),
+                accountsResult =
+                    ApiResult.Ok(
+                        listOf(
+                            CurrencyAccountSummary(
+                                id = "a1",
+                                viewerTwitchUserId = "39863651",
+                                balance = 1200,
+                                lifetimeEarned = 5000,
+                                isFrozen = false,
+                            )
+                        )
+                    ),
+            )
+        val controller =
+            EconomyController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), economyApi)
+
+        controller.load()
+
+        val ready: EconomyState.Ready = controller.state.value as EconomyState.Ready
+        assertEquals(1, ready.accounts.size)
+        assertEquals("39863651", ready.accounts.first().viewerTwitchUserId)
+        assertEquals(1200, ready.accounts.first().balance)
+    }
+
+    @Test
+    fun a_failed_accounts_load_degrades_to_an_empty_list_not_an_error() = runTest {
+        val economyApi =
+            FakeEconomyApi(
+                configResult = ApiResult.Ok(loadedConfig),
+                leaderboardResult = ApiResult.Ok(leaderboard),
+                accountsResult = ApiResult.Failure(ApiError(500, "ERR", "boom")),
+            )
+        val controller =
+            EconomyController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), economyApi)
+
+        controller.load()
+
+        // Config + leaderboard loaded fine, so the page stays Ready with an empty accounts list.
+        val ready: EconomyState.Ready = controller.state.value as EconomyState.Ready
+        assertTrue(ready.accounts.isEmpty())
     }
 
     @Test
@@ -230,6 +279,7 @@ private class FakeEconomyApi(
     private val configResult: ApiResult<CurrencyConfig?>,
     private val leaderboardResult: ApiResult<List<LeaderboardEntry>>,
     private val updateResult: ApiResult<CurrencyConfig> = ApiResult.Ok(CurrencyConfig()),
+    private val accountsResult: ApiResult<List<CurrencyAccountSummary>> = ApiResult.Ok(emptyList()),
 ) : EconomyApi {
     var lastUpdate: UpsertCurrencyConfig? = null
         private set
@@ -258,4 +308,7 @@ private class FakeEconomyApi(
         lastLeaderboardChannelId = channelId
         return leaderboardResult
     }
+
+    override suspend fun accounts(channelId: String): ApiResult<List<CurrencyAccountSummary>> =
+        accountsResult
 }
