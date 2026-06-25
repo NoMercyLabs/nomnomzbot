@@ -58,6 +58,9 @@ interface ModerationApi {
     /** The channel's moderation filter rules (newest first). */
     suspend fun rules(channelId: String): ApiResult<List<ModerationRule>>
 
+    /** Create a new filter rule. Returns the full row (including the assigned [ModerationRule.id]). */
+    suspend fun createRule(channelId: String, body: CreateModerationRuleBody): ApiResult<ModerationRule>
+
     /** Enable or disable a filter rule ([enabled]) — a partial PUT carrying only the flag. */
     suspend fun setRuleEnabled(channelId: String, ruleId: Int, enabled: Boolean): ApiResult<Unit>
 
@@ -141,6 +144,12 @@ class RestModerationApi(private val client: ApiClient) : ModerationApi {
             is ApiResult.Failure -> ApiResult.Failure(page.error)
             is ApiResult.Ok -> ApiResult.Ok(page.value.data)
         }
+
+    // POST creates a new rule; the backend returns a StatusResponseDto<ModerationRuleDetail> with the new row.
+    override suspend fun createRule(
+        channelId: String,
+        body: CreateModerationRuleBody,
+    ): ApiResult<ModerationRule> = client.postEnvelope("api/v1/channels/$channelId/moderation/rules", body)
 
     // Partial PUT — only the flag; the rule's name / action / settings stay untouched on the backend.
     override suspend fun setRuleEnabled(
@@ -262,5 +271,19 @@ data class ModerationRule(
 /** A partial moderation-rule update (backend `UpdateModerationRuleRequest`) — a toggle sends just [isEnabled]. */
 @Serializable
 data class UpdateRuleBody(val isEnabled: Boolean? = null)
+
+/**
+ * Create-rule body (backend `CreateModerationRuleRequest`). [type] is one of: `"profanity"`, `"links"`,
+ * `"caps"`, `"emotes"`, `"spam"`. [action] is one of: `"delete"`, `"timeout"`, `"ban"`. [durationSeconds]
+ * is only used when [action] is `"timeout"`.
+ */
+@Serializable
+data class CreateModerationRuleBody(
+    val name: String,
+    val type: String,
+    val action: String,
+    val durationSeconds: Int? = null,
+    val reason: String? = null,
+)
 
 // ModerationActionBody lives in ChatApi.kt (package-shared) — imported from there.

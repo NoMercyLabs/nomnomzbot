@@ -18,6 +18,7 @@ import bot.nomnomz.dashboard.core.network.BannedUser
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.ModLogEntry
+import bot.nomnomz.dashboard.core.network.CreateModerationRuleBody
 import bot.nomnomz.dashboard.core.network.ModerationApi
 import bot.nomnomz.dashboard.core.network.ModerationRule
 import bot.nomnomz.dashboard.core.network.ShieldStatus
@@ -202,6 +203,35 @@ class ModerationController(
                     c.copy(emoteSpam = c.emoteSpam.copy(enabled = !c.emoteSpam.enabled))
             }
         afterWrite(moderationApi.saveAutomod(channel, updated))
+    }
+
+    /**
+     * Create a new filter rule with the given [name], [type], [action], optional [durationSeconds] (for
+     * `"timeout"` action), and optional [reason]. Reloads on success so the new rule appears in the list.
+     */
+    suspend fun createRule(
+        name: String,
+        type: String,
+        action: String,
+        durationSeconds: Int? = null,
+        reason: String? = null,
+    ) {
+        val channel: String = channelId ?: return
+        when (
+            val result: ApiResult<ModerationRule> =
+                moderationApi.createRule(
+                    channel,
+                    CreateModerationRuleBody(name, type, action, durationSeconds, reason),
+                )
+        ) {
+            is ApiResult.Ok -> load()
+            is ApiResult.Failure -> {
+                val current: ModerationState = _state.value
+                if (current is ModerationState.Ready) {
+                    _state.value = current.copy(actionError = result.error.message)
+                }
+            }
+        }
     }
 
     /** Enable or disable a filter rule ([enabled]), then reload. Surfaces the error on failure. */

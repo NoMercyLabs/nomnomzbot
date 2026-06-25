@@ -108,6 +108,14 @@ import nomnomzbot.composeapp.generated.resources.moderation_rules_disable
 import nomnomzbot.composeapp.generated.resources.moderation_rules_disable_action
 import nomnomzbot.composeapp.generated.resources.moderation_rules_enable
 import nomnomzbot.composeapp.generated.resources.moderation_rules_enable_action
+import nomnomzbot.composeapp.generated.resources.moderation_rules_add
+import nomnomzbot.composeapp.generated.resources.moderation_rules_create_action
+import nomnomzbot.composeapp.generated.resources.moderation_rules_create_confirm
+import nomnomzbot.composeapp.generated.resources.moderation_rules_create_dismiss
+import nomnomzbot.composeapp.generated.resources.moderation_rules_create_name
+import nomnomzbot.composeapp.generated.resources.moderation_rules_create_name_required
+import nomnomzbot.composeapp.generated.resources.moderation_rules_create_title
+import nomnomzbot.composeapp.generated.resources.moderation_rules_create_type
 import nomnomzbot.composeapp.generated.resources.moderation_rules_title
 import nomnomzbot.composeapp.generated.resources.moderation_action_apply
 import nomnomzbot.composeapp.generated.resources.moderation_action_confirm
@@ -176,6 +184,9 @@ fun ModerationScreen(controller: ModerationController, role: ManagementRole?) {
                     onToggleFilter = { f -> scope.launch { controller.toggleAutomodFilter(f) } },
                     onToggleRule = { id, on -> scope.launch { controller.toggleRule(id, on) } },
                     onDeleteRule = { id -> scope.launch { controller.deleteRule(id) } },
+                    onCreateRule = { name, type, action, duration, reason ->
+                        scope.launch { controller.createRule(name, type, action, duration, reason) }
+                    },
                 )
         }
     }
@@ -199,6 +210,7 @@ private fun BansList(
     onToggleFilter: (AutomodFilter) -> Unit,
     onToggleRule: (Int, Boolean) -> Unit,
     onDeleteRule: (Int) -> Unit,
+    onCreateRule: (name: String, type: String, action: String, durationSeconds: Int?, reason: String?) -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -210,6 +222,8 @@ private fun BansList(
     var pendingDeleteRule: ModerationRule? by remember { mutableStateOf(null) }
     // Whether the "moderate a viewer" action dialog is open.
     var showActionDialog: Boolean by remember { mutableStateOf(false) }
+    // Whether the "add filter rule" dialog is open.
+    var showCreateRuleDialog: Boolean by remember { mutableStateOf(false) }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -331,15 +345,30 @@ private fun BansList(
                 onToggle = { onToggleFilter(AutomodFilter.Emotes) },
             )
         }
-        if (rules.isNotEmpty()) {
-            item(key = "rules-header") {
+        item(key = "rules-header") {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 Text(
                     text = stringResource(Res.string.moderation_rules_title),
                     style = typography.lg,
                     color = tokens.cardForeground,
                     maxLines = 1,
                 )
+                ManageGate(manage) {
+                    TextButton(onClick = { showCreateRuleDialog = true }) {
+                        Text(
+                            text = stringResource(Res.string.moderation_rules_add),
+                            style = typography.sm,
+                            color = tokens.primary,
+                        )
+                    }
+                }
             }
+        }
+        if (rules.isNotEmpty()) {
             items(items = rules, key = { "rule-${it.id}" }) { rule ->
                 RuleRow(
                     rule = rule,
@@ -389,6 +418,16 @@ private fun BansList(
                 showActionDialog = false
             },
             onDismiss = { showActionDialog = false },
+        )
+    }
+
+    if (showCreateRuleDialog) {
+        CreateRuleDialog(
+            onConfirm = { name, type, action, duration, reason ->
+                onCreateRule(name, type, action, duration, reason)
+                showCreateRuleDialog = false
+            },
+            onDismiss = { showCreateRuleDialog = false },
         )
     }
 }
@@ -959,3 +998,108 @@ private fun CenteredMessage(text: String) {
 /** The date portion of an ISO-8601 timestamp (`2026-06-24T18:05:00Z` → `2026-06-24`); the whole value
  *  when it carries no time component. Avoids pulling a date library into this read-only slice. */
 private fun datePart(timestamp: String): String = timestamp.substringBefore('T')
+
+// Dialog to create a new filter rule. The moderator enters a name, picks a type and action, then fills the
+// optional duration (for timeout action) and reason. The caller owns open/closed state.
+@Composable
+private fun CreateRuleDialog(
+    onConfirm: (name: String, type: String, action: String, durationSeconds: Int?, reason: String?) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    val types: List<String> = listOf("profanity", "links", "caps", "emotes", "spam")
+    val actions: List<String> = listOf("delete", "timeout", "ban")
+
+    var name: String by remember { mutableStateOf("") }
+    var selectedType: String by remember { mutableStateOf(types.first()) }
+    var selectedAction: String by remember { mutableStateOf(actions.first()) }
+    var durationInput: String by remember { mutableStateOf("600") }
+    var reason: String by remember { mutableStateOf("") }
+    var nameError: Boolean by remember { mutableStateOf(false) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = stringResource(Res.string.moderation_rules_create_title),
+                style = typography.lg,
+                color = tokens.cardForeground,
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
+                AppTextField(
+                    value = name,
+                    onValueChange = { name = it; nameError = false },
+                    label = stringResource(Res.string.moderation_rules_create_name),
+                    isError = nameError,
+                    errorText = if (nameError) stringResource(Res.string.moderation_rules_create_name_required) else null,
+                )
+                Text(
+                    text = stringResource(Res.string.moderation_rules_create_type),
+                    style = typography.sm,
+                    color = tokens.mutedForeground,
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
+                    types.forEach { t ->
+                        FilterChip(
+                            selected = selectedType == t,
+                            onClick = { selectedType = t },
+                            label = { Text(t, style = typography.xs) },
+                        )
+                    }
+                }
+                Text(
+                    text = stringResource(Res.string.moderation_rules_create_action),
+                    style = typography.sm,
+                    color = tokens.mutedForeground,
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
+                    actions.forEach { a ->
+                        FilterChip(
+                            selected = selectedAction == a,
+                            onClick = { selectedAction = a },
+                            label = { Text(a, style = typography.xs) },
+                        )
+                    }
+                }
+                if (selectedAction == "timeout") {
+                    AppTextField(
+                        value = durationInput,
+                        onValueChange = { durationInput = it },
+                        label = stringResource(Res.string.moderation_action_duration),
+                        isError = false,
+                        errorText = null,
+                    )
+                }
+                AppTextField(
+                    value = reason,
+                    onValueChange = { reason = it },
+                    label = stringResource(Res.string.moderation_action_reason),
+                    isError = false,
+                    errorText = null,
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    if (name.isBlank()) { nameError = true; return@Button }
+                    val duration: Int? = if (selectedAction == "timeout") durationInput.trim().toIntOrNull() else null
+                    onConfirm(name.trim(), selectedType, selectedAction, duration, reason.trim().takeIf { it.isNotBlank() })
+                },
+            ) {
+                Text(stringResource(Res.string.moderation_rules_create_confirm))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(Res.string.moderation_rules_create_dismiss))
+            }
+        },
+        containerColor = tokens.card,
+    )
+}
