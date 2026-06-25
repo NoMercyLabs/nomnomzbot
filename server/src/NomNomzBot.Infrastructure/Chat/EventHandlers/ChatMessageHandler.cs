@@ -12,6 +12,7 @@ using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.RateLimiting;
 using NomNomzBot.Application.Abstractions.Templating;
+using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Identity;
@@ -24,11 +25,12 @@ namespace NomNomzBot.Infrastructure.Chat.EventHandlers;
 /// Hot-path handler for every incoming chat message.
 /// 1. Checks for command prefix (!commandname)
 /// 2. Looks up command in the in-memory ChannelRegistry (no DB hit)
-/// 3. Validates permission level: broadcaster > mod > vip > sub > viewer
-/// 4. Checks global and per-user cooldowns via ICooldownManager
-/// 5. For response-type commands: resolves template variables, sends message
-/// 6. For pipeline-type commands: delegates to IPipelineEngine
-/// 7. Publishes CommandExecutedEvent or CommandFailedEvent
+/// 3. If no custom command found, checks IBuiltinCommandCatalog (code-defined builtins)
+/// 4. Validates permission level: broadcaster > mod > vip > sub > viewer
+/// 5. Checks global and per-user cooldowns via ICooldownManager
+/// 6. For response-type commands: resolves template variables, sends message
+/// 7. For pipeline-type commands: delegates to IPipelineEngine
+/// 8. For builtin commands: delegates to IBuiltinCommand.ExecuteAsync
 /// </summary>
 public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
 {
@@ -36,6 +38,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
     private readonly ICooldownManager _cooldowns;
     private readonly IChatProvider _chat;
     private readonly IPipelineEngine _pipeline;
+    private readonly IBuiltinCommandCatalog _builtins;
     private readonly ITemplateResolver _templateResolver;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<ChatMessageHandler> _logger;
@@ -45,6 +48,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
         ICooldownManager cooldowns,
         IChatProvider chat,
         IPipelineEngine pipeline,
+        IBuiltinCommandCatalog builtins,
         ITemplateResolver templateResolver,
         TimeProvider timeProvider,
         ILogger<ChatMessageHandler> logger
@@ -54,6 +58,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
         _cooldowns = cooldowns;
         _chat = chat;
         _pipeline = pipeline;
+        _builtins = builtins;
         _templateResolver = templateResolver;
         _timeProvider = timeProvider;
         _logger = logger;
@@ -96,7 +101,48 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
 
         // Look up command in in-memory cache (O(1), no DB hit)
         if (!ctx.Commands.TryGetValue(commandName, out CachedCommand? command))
+        {
+            // Fall back to built-in catalog (code-defined commands like !uptime).
+            IBuiltinCommand? builtin = _builtins.Get(commandName);
+            if (builtin is null)
+                return;
+
+            if (!HasPermission(@event, builtin.DefaultMinPermissionLevel))
+                return;
+
+            if (_cooldowns.IsOnCooldown(cooldownChannelKey, commandName))
+                return;
+
+            if (builtin.DefaultCooldownSeconds > 0)
+                _cooldowns.SetCooldown(
+                    cooldownChannelKey,
+                    commandName,
+                    TimeSpan.FromSeconds(builtin.DefaultCooldownSeconds)
+                );
+
+            BuiltinCommandContext builtinCtx = new()
+            {
+                BroadcasterId = @event.BroadcasterId,
+                TriggeringUserId = @event.UserId,
+                TriggeringUserDisplayName = @event.UserDisplayName,
+                Args = args,
+                CancellationToken = cancellationToken,
+            };
+
+            Application.Common.Models.Result<string> builtinResult = await builtin.ExecuteAsync(
+                builtinCtx,
+                cancellationToken
+            );
+
+            if (builtinResult.IsSuccess && !string.IsNullOrEmpty(builtinResult.Value))
+                await _chat.SendMessageAsync(
+                    @event.BroadcasterId,
+                    builtinResult.Value,
+                    cancellationToken
+                );
+
             return;
+        }
 
         // Permission check
         if (!HasPermission(@event, command.MinPermissionLevel))
