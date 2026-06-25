@@ -464,6 +464,8 @@ private class FakeSystemApi(
         setupCompleted = true
         return ApiResult.Ok(Unit)
     }
+
+    override suspend fun pronouns(): ApiResult<List<bot.nomnomz.dashboard.core.network.PronounOption>> = ApiResult.Ok(emptyList())
 }
 
 // Drives the authorize-URL provider with a fixed loopback redirect (as the desktop launcher would) and

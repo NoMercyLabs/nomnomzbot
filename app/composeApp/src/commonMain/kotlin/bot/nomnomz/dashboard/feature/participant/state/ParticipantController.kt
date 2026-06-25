@@ -24,7 +24,9 @@ import bot.nomnomz.dashboard.core.network.MusicSnapshot
 import bot.nomnomz.dashboard.core.network.MusicApi
 import bot.nomnomz.dashboard.core.network.EconomyApi
 import bot.nomnomz.dashboard.core.network.ParticipantApi
+import bot.nomnomz.dashboard.core.network.PronounOption
 import bot.nomnomz.dashboard.core.network.SavingsJar
+import bot.nomnomz.dashboard.core.network.SystemApi
 import bot.nomnomz.dashboard.core.network.UserActivity
 import bot.nomnomz.dashboard.core.network.UserProfile
 import bot.nomnomz.dashboard.feature.shell.nav.ParticipantStanding
@@ -48,6 +50,7 @@ class ParticipantController(
     private val dashboardApi: DashboardApi,
     private val economyApi: EconomyApi,
     private val musicApi: MusicApi,
+    private val systemApi: SystemApi,
 ) {
     private val _myChannel: MutableStateFlow<MyChannelState> = MutableStateFlow(MyChannelState.Loading)
     private val _nowPlaying: MutableStateFlow<NowPlayingState> = MutableStateFlow(NowPlayingState.Loading)
@@ -355,7 +358,7 @@ class ParticipantController(
 
     // ── Me ───────────────────────────────────────────────────────────────────
 
-    /** Load the caller's own profile (pronouns), activity summary, and participation footprint. */
+    /** Load the caller's own profile, activity summary, participation footprint, and the pronoun catalogue. */
     suspend fun loadMe() {
         _me.value = MeState.Loading
         if (userId == null) {
@@ -381,6 +384,12 @@ class ParticipantController(
                 is ApiResult.Ok -> result.value
             }
 
+        val pronouns: List<PronounOption> =
+            when (val result: ApiResult<List<PronounOption>> = systemApi.pronouns()) {
+                is ApiResult.Failure -> emptyList()
+                is ApiResult.Ok -> result.value
+            }
+
         when (val result: ApiResult<List<ChannelAppearance>> = participantApi.myChannels(userId)) {
             is ApiResult.Failure -> _me.value = MeState.Error(result.error.message)
             is ApiResult.Ok ->
@@ -390,6 +399,34 @@ class ParticipantController(
                         activity = activity,
                         channels = result.value,
                         standing = standing,
+                        pronouns = pronouns,
+                    )
+        }
+    }
+
+    /** Update the caller's pronoun selection and refresh the Me state on success. */
+    suspend fun updatePronoun(pronounId: Int?) {
+        if (userId == null) return
+        val current: MeState.Ready = (_me.value as? MeState.Ready) ?: return
+        _me.value = current.copy(profileSaving = true, profileError = null)
+
+        when (
+            val result: ApiResult<UserProfile> =
+                participantApi.updateMyProfile(
+                    userId = userId,
+                    displayName = null,
+                    email = null,
+                    pronounId = pronounId,
+                )
+        ) {
+            is ApiResult.Failure ->
+                _me.value = current.copy(profileSaving = false, profileError = result.error.message)
+            is ApiResult.Ok ->
+                _me.value =
+                    current.copy(
+                        profile = result.value,
+                        profileSaving = false,
+                        profileError = null,
                     )
         }
     }

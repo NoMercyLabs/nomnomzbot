@@ -657,6 +657,8 @@ private class FakeSystemApi(
     override suspend fun botStatus(): ApiResult<BotStatus> = ApiResult.Ok(BotStatus(connected = true))
 
     override suspend fun completeSetup(): ApiResult<Unit> = ApiResult.Ok(Unit)
+
+    override suspend fun pronouns(): ApiResult<List<bot.nomnomz.dashboard.core.network.PronounOption>> = ApiResult.Ok(emptyList())
 }
 
 private class FakeIntegrationsApi(

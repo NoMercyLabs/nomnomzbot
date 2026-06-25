@@ -122,3 +122,12 @@ data class SaveCredentialsBody(
 data class BotOAuthUrl(
     val oauthUrl: String,
 )
+
+/** One entry in the pronoun catalogue (`GET /api/v1/system/pronouns` → `PronounDto`). */
+@Serializable
+data class PronounOption(
+    val id: Int,
+    val name: String,
+    val subject: String,
+    val `object`: String,
+)

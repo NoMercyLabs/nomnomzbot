@@ -57,6 +57,9 @@ interface SystemApi {
 
     /** Finalize first-run setup, locking the credential endpoints to platform admins thereafter. */
     suspend fun completeSetup(): ApiResult<Unit>
+
+    /** The full pronoun catalogue; anonymous — available before login (for Me screen pronoun picker). */
+    suspend fun pronouns(): ApiResult<List<PronounOption>>
 }
 
 class RestSystemApi(private val client: ApiClient) : SystemApi {
@@ -114,4 +117,7 @@ class RestSystemApi(private val client: ApiClient) : SystemApi {
 
     override suspend fun completeSetup(): ApiResult<Unit> =
         client.postUnit("api/v1/system/setup/complete")
+
+    override suspend fun pronouns(): ApiResult<List<PronounOption>> =
+        client.getEnvelope("api/v1/system/pronouns")
 }

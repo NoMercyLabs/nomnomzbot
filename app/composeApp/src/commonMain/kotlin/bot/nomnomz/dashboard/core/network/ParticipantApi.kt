@@ -78,6 +78,9 @@ interface ParticipantApi {
     /** The caller's own profile (display name, avatar, pronouns) by their platform [userId]. */
     suspend fun myProfile(userId: String): ApiResult<UserProfile>
 
+    /** Update the caller's own profile ([displayName], [email], [pronounId]) by their platform [userId]. */
+    suspend fun updateMyProfile(userId: String, displayName: String?, email: String?, pronounId: Int?): ApiResult<UserProfile>
+
     /** The channels the caller appears in as a participant (their follow/watch footprint) by their [userId]. */
     suspend fun myChannels(userId: String): ApiResult<List<ChannelAppearance>>
 
@@ -190,6 +193,14 @@ class RestParticipantApi(private val client: ApiClient) : ParticipantApi {
     override suspend fun myProfile(userId: String): ApiResult<UserProfile> =
         client.getEnvelope("api/v1/users/$userId/profile")
 
+    override suspend fun updateMyProfile(
+        userId: String,
+        displayName: String?,
+        email: String?,
+        pronounId: Int?,
+    ): ApiResult<UserProfile> =
+        client.putEnvelope("api/v1/users/$userId/profile", UpdateProfileBody(displayName, email, pronounId))
+
     override suspend fun myChannels(userId: String): ApiResult<List<ChannelAppearance>> =
         client.getEnvelope("api/v1/users/$userId/channels")
 
@@ -282,9 +293,8 @@ data class GamePlay(
 )
 
 /**
- * The caller's profile (backend `UserProfileDto`). The participant "Me" screen reads [displayName]/[pronoun] and
- * the avatar. Pronouns are READ-ONLY here — the backend's profile update accepts only display name + email, with
- * no pronoun write (flagged gap), so the surface shows the pronoun but offers no editor for it.
+ * The caller's profile (backend `UserProfileDto`). The participant "Me" screen reads and writes
+ * [displayName], [email], and [pronounId] via `PUT /users/{userId}/profile`.
  */
 @Serializable
 data class UserProfile(
@@ -294,6 +304,7 @@ data class UserProfile(
     val profileImageUrl: String? = null,
     val email: String? = null,
     val pronoun: String? = null,
+    val pronounId: Int? = null,
     val createdAt: String = "",
     val lastLoginAt: String = "",
 )
@@ -346,6 +357,10 @@ private data class TransferBody(
 /** Request body for a game play (backend `PlayGameRequest`); player + level + game are bound server-side. */
 @Serializable
 private data class PlayGameBody(val betAmount: Long)
+
+/** Request body for updating the caller's own profile (backend `UpdateUserProfileRequest`). */
+@Serializable
+private data class UpdateProfileBody(val displayName: String?, val email: String?, val pronounId: Int?)
 
 /** Request body for a song-request submission (backend `SongRequestDto`): the search query + an optional name. */
 @Serializable

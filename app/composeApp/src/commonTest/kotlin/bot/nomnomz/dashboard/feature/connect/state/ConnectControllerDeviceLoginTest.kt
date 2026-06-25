@@ -466,6 +466,8 @@ private class FakeSystemApi(
         ApiResult.Ok(BotStatus(connected = ready))
 
     override suspend fun completeSetup(): ApiResult<Unit> = ApiResult.Ok(Unit)
+
+    override suspend fun pronouns(): ApiResult<List<bot.nomnomz.dashboard.core.network.PronounOption>> = ApiResult.Ok(emptyList())
 }
 
 /** An in-memory [AuthApi] so the controller tests drive the device-login + restore outcomes without HTTP. */

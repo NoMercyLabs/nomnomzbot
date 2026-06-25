@@ -19,6 +19,7 @@ import bot.nomnomz.dashboard.core.network.GamePlayResult
 import bot.nomnomz.dashboard.core.network.GameSummary
 import bot.nomnomz.dashboard.core.network.LeaderboardEntry
 import bot.nomnomz.dashboard.core.network.MusicSnapshot
+import bot.nomnomz.dashboard.core.network.PronounOption
 import bot.nomnomz.dashboard.core.network.SavingsJar
 import bot.nomnomz.dashboard.core.network.UserActivity
 import bot.nomnomz.dashboard.core.network.UserProfile
@@ -111,7 +112,7 @@ sealed interface ParticipantGamesState {
     data class Error(val detail: String) : ParticipantGamesState
 }
 
-/** The Me state: the caller's own profile (pronouns read-only), activity, and participation footprint. */
+/** The Me state: the caller's own profile (pronouns editable), activity, and participation footprint. */
 sealed interface MeState {
     data object Loading : MeState
 
@@ -120,6 +121,9 @@ sealed interface MeState {
         val activity: UserActivity,
         val channels: List<ChannelAppearance>,
         val standing: ParticipantStanding,
+        val pronouns: List<PronounOption> = emptyList(),
+        val profileSaving: Boolean = false,
+        val profileError: String? = null,
     ) : MeState
 
     data class Error(val detail: String) : MeState

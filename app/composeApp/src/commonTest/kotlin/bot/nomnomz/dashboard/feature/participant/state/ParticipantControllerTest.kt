@@ -38,8 +38,11 @@ import bot.nomnomz.dashboard.core.network.MusicSnapshot
 import bot.nomnomz.dashboard.core.network.MusicSongRequestBody
 import bot.nomnomz.dashboard.core.network.MusicTrack
 import bot.nomnomz.dashboard.core.network.NowPlaying
+import bot.nomnomz.dashboard.core.network.BotStatus
 import bot.nomnomz.dashboard.core.network.ParticipantApi
+import bot.nomnomz.dashboard.core.network.PronounOption
 import bot.nomnomz.dashboard.core.network.SavingsJar
+import bot.nomnomz.dashboard.core.network.SystemApi
 import bot.nomnomz.dashboard.core.network.UpdateMusicConfigBody
 import bot.nomnomz.dashboard.core.network.UpsertCurrencyConfig
 import bot.nomnomz.dashboard.core.network.UpsertEarningRuleBody
@@ -378,6 +381,7 @@ class ParticipantControllerTest {
                 dashboardApi = FakeDashboardApi(ApiResult.Ok(DashboardStats())),
                 economyApi = FakeEconomyApi(),
                 musicApi = FakeMusicApi(ApiResult.Ok(MusicSnapshot())),
+                systemApi = FakeSystemApi(),
             )
 
         controller.loadStore()
@@ -394,6 +398,7 @@ class ParticipantControllerTest {
         dashboard: DashboardApi = FakeDashboardApi(ApiResult.Ok(DashboardStats())),
         economy: EconomyApi = FakeEconomyApi(),
         music: MusicApi = FakeMusicApi(ApiResult.Ok(MusicSnapshot())),
+        system: SystemApi = FakeSystemApi(),
         standing: ParticipantStanding = ParticipantStanding.Everyone,
         canTransfer: Boolean = false,
     ): ParticipantController =
@@ -406,6 +411,7 @@ class ParticipantControllerTest {
             dashboardApi = dashboard,
             economyApi = economy,
             musicApi = music,
+            systemApi = system,
         )
 }
 
@@ -512,6 +518,13 @@ private class FakeParticipantApi(
         profileCalls.add(userId)
         return ApiResult.Ok(profile)
     }
+
+    override suspend fun updateMyProfile(
+        userId: String,
+        displayName: String?,
+        email: String?,
+        pronounId: Int?,
+    ): ApiResult<UserProfile> = ApiResult.Ok(profile.copy(pronounId = pronounId))
 
     override suspend fun myChannels(userId: String): ApiResult<List<ChannelAppearance>> {
         channelsCalls.add(userId)
@@ -634,4 +647,43 @@ private class FakeMusicApi(private val snapshot: ApiResult<MusicSnapshot>) : Mus
         ApiResult.Ok(emptyList())
 
     override suspend fun playContext(channelId: String, contextUri: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+}
+
+private class FakeSystemApi : SystemApi {
+    override suspend fun status(): ApiResult<bot.nomnomz.dashboard.core.network.SystemStatus> =
+        ApiResult.Failure(ApiError(status = 0, code = null, message = "not used in participant tests"))
+
+    override suspend fun wizard(): ApiResult<bot.nomnomz.dashboard.core.network.SetupWizard> =
+        ApiResult.Ok(bot.nomnomz.dashboard.core.network.SetupWizard(complete = false))
+
+    override suspend fun saveTwitchCredentials(
+        clientId: String,
+        clientSecret: String,
+        botUsername: String?,
+    ): ApiResult<Unit> = ApiResult.Ok(Unit)
+
+    override suspend fun saveSpotifyCredentials(
+        clientId: String,
+        clientSecret: String,
+    ): ApiResult<Unit> = ApiResult.Ok(Unit)
+
+    override suspend fun saveYouTubeCredentials(
+        clientId: String,
+        clientSecret: String,
+    ): ApiResult<Unit> = ApiResult.Ok(Unit)
+
+    override suspend fun saveDiscordCredentials(
+        clientId: String,
+        clientSecret: String,
+    ): ApiResult<Unit> = ApiResult.Ok(Unit)
+
+    override suspend fun botOAuthUrl(): ApiResult<bot.nomnomz.dashboard.core.network.BotOAuthUrl> =
+        ApiResult.Ok(bot.nomnomz.dashboard.core.network.BotOAuthUrl(oauthUrl = ""))
+
+    override suspend fun botStatus(): ApiResult<BotStatus> =
+        ApiResult.Ok(BotStatus(connected = false))
+
+    override suspend fun completeSetup(): ApiResult<Unit> = ApiResult.Ok(Unit)
+
+    override suspend fun pronouns(): ApiResult<List<PronounOption>> = ApiResult.Ok(emptyList())
 }
