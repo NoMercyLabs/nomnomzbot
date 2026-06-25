@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using Microsoft.Extensions.DependencyInjection;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.DTOs.Economy;
 using NomNomzBot.Application.Economy.Services;
@@ -22,11 +23,11 @@ namespace NomNomzBot.Infrastructure.Economy.EventHandlers;
 /// Awards currency for each chat message when the channel has a <c>ChatMessage</c> earning rule enabled
 /// (economy.md §3.3, EarningSource.ChatMessage). The earn is idempotent by <c>MessageId</c> converted to a
 /// deterministic <see cref="Guid"/> — a duplicate EventSub delivery for the same message will be a no-op in the
-/// ledger. Viewer get-or-create runs in its own scope (via <see cref="IUserService"/>) so it never shares a
-/// <see cref="NomNomzBot.Application.Abstractions.Persistence.IApplicationDbContext"/> instance with the caller's
-/// scope — preventing the "second operation started" concurrency exception on the hot path.
+/// ledger. Uses <see cref="IServiceScopeFactory"/> to create its own scope so the earning service's
+/// <see cref="NomNomzBot.Application.Abstractions.Persistence.IApplicationDbContext"/> never contends with the
+/// parallel <c>ChatMessagePersistenceHandler</c> that runs in the EventBus dispatch scope.
 /// </summary>
-public sealed class ChatEarningHandler(ICurrencyEarningService earning, IUserService userService)
+public sealed class ChatEarningHandler(IServiceScopeFactory scopeFactory, IUserService userService)
     : IEventHandler<ChatMessageReceivedEvent>
 {
     public async Task HandleAsync(
@@ -52,6 +53,12 @@ public sealed class ChatEarningHandler(ICurrencyEarningService earning, IUserSer
 
         // Resolve role level from badge flags (mirrors CommunityStanding ordinal for gate checks).
         int roleLevel = ResolveRoleLevel(@event);
+
+        // Dedicated scope so CurrencyEarningService.IApplicationDbContext never races with
+        // ChatMessagePersistenceHandler which holds the EventBus dispatch scope's DbContext.
+        await using AsyncServiceScope scope = scopeFactory.CreateAsyncScope();
+        ICurrencyEarningService earning =
+            scope.ServiceProvider.GetRequiredService<ICurrencyEarningService>();
 
         await earning.ApplyEarningAsync(
             @event.BroadcasterId,
