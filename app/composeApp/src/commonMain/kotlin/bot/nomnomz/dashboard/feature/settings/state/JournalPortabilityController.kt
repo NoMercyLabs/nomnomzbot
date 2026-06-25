@@ -109,6 +109,29 @@ class JournalPortabilityController(
         }
     }
 
+    /**
+     * Enqueue a full projection rebuild for the channel. The backend processes it async; the UI surfaces the
+     * task ID as confirmation. This is a Danger-zone action — the caller must confirm first.
+     */
+    suspend fun rebuildProjections() {
+        if (_state.value.busy) return
+        _state.value = JournalPortabilityState(busy = true)
+
+        val target: String =
+            when (val resolved: ApiResult<String> = resolveChannel()) {
+                is ApiResult.Failure -> {
+                    _state.value = JournalPortabilityState(error = resolved.error.message)
+                    return
+                }
+                is ApiResult.Ok -> resolved.value
+            }
+
+        when (val result: ApiResult<String> = eventStoreApi.rebuildProjections(target)) {
+            is ApiResult.Failure -> _state.value = JournalPortabilityState(error = result.error.message)
+            is ApiResult.Ok -> _state.value = JournalPortabilityState(rebuildTaskId = result.value)
+        }
+    }
+
     /** Clear a surfaced result/error back to idle (after the user has seen it). */
     fun dismiss() {
         _state.value = JournalPortabilityState()
@@ -137,5 +160,6 @@ data class JournalPortabilityState(
     val busy: Boolean = false,
     val exported: Boolean = false,
     val imported: EventJournalImportSummary? = null,
+    val rebuildTaskId: String? = null,
     val error: String? = null,
 )

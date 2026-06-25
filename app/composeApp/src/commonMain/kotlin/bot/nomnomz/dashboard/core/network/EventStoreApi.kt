@@ -18,8 +18,9 @@ import kotlinx.serialization.Serializable
 // back, idempotently (duplicates by EventId are skipped) and atomically.
 //
 // Backend routes:
-//   POST /api/v1/event-store/channels/{channelId}/export  → JSONL file (application/x-ndjson)
-//   POST /api/v1/event-store/channels/{channelId}/import  ← multipart file → StatusResponseDto<EventJournalImportSummary>
+//   POST /api/v1/event-store/channels/{channelId}/export               → JSONL file (application/x-ndjson)
+//   POST /api/v1/event-store/channels/{channelId}/import               ← multipart file → StatusResponseDto<EventJournalImportSummary>
+//   POST /api/v1/event-store/channels/{channelId}/rebuild-projections  → StatusResponseDto<string> (task ID)
 interface EventStoreApi {
     /** Exports the channel's whole event journal as raw JSONL bytes (one event envelope per line). */
     suspend fun exportJournal(channelId: String): ApiResult<ByteArray>
@@ -30,6 +31,9 @@ interface EventStoreApi {
         fileName: String,
         bytes: ByteArray,
     ): ApiResult<EventJournalImportSummary>
+
+    /** Enqueues a full projection rebuild for the channel. The backend returns a task-tracking ID. */
+    suspend fun rebuildProjections(channelId: String): ApiResult<String>
 }
 
 class RestEventStoreApi(private val client: ApiClient) : EventStoreApi {
@@ -48,6 +52,9 @@ class RestEventStoreApi(private val client: ApiClient) : EventStoreApi {
             bytes = bytes,
             contentType = ContentType("application", "x-ndjson"),
         )
+
+    override suspend fun rebuildProjections(channelId: String): ApiResult<String> =
+        client.postEnvelope("api/v1/event-store/channels/$channelId/rebuild-projections", Unit)
 }
 
 /**

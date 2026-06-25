@@ -643,6 +643,50 @@
     <string name="journal_import_confirm_message">This adds the file's events to your channel's ledger. Events already present are skipped, so it can't make duplicates, but it can't be undone. Continue?</string>
     <string name="journal_import_confirm_ok">Import</string>
     <string name="journal_import_confirm_cancel">Cancel</string>
+    <string name="journal_rebuild">Rebuild projections</string>
+    <string name="journal_rebuild_confirm_title">Rebuild all projections?</string>
+    <string name="journal_rebuild_confirm_message">This replays the entire event ledger to rebuild all read models from scratch. The channel's data will be temporarily incomplete while it runs. This cannot be undone. Continue?</string>
+    <string name="journal_rebuild_confirm_ok">Rebuild</string>
+    <string name="journal_rebuild_confirm_cancel">Cancel</string>
+    <string name="journal_rebuilding">Rebuilding projections… task %1$s</string>
+
+    <!-- Federation page -->
+    <string name="federation_title">Federation</string>
+    <string name="federation_subtitle">Connect trusted peer bots and opt in to shared capabilities across deployments.</string>
+    <string name="federation_loading">Loading federation data…</string>
+    <string name="federation_error">Failed to load federation data: %1$s</string>
+    <string name="federation_retry">Retry</string>
+    <string name="federation_action_error">Action failed: %1$s</string>
+    <string name="federation_peer_title">Trusted peers</string>
+    <string name="federation_peer_title_dialog">Register peer</string>
+    <string name="federation_peer_add">Register peer</string>
+    <string name="federation_peer_name">Peer name</string>
+    <string name="federation_peer_name_required">Name is required.</string>
+    <string name="federation_peer_baseurl">Base URL</string>
+    <string name="federation_peer_baseurl_required">Base URL is required.</string>
+    <string name="federation_peer_confirm">Register</string>
+    <string name="federation_peer_dismiss">Cancel</string>
+    <string name="federation_peer_trust">Trust</string>
+    <string name="federation_peer_revoke">Revoke</string>
+    <string name="federation_peer_status_trusted">Trusted</string>
+    <string name="federation_peer_status_untrusted">Pending trust</string>
+    <string name="federation_peer_status_revoked">Revoked</string>
+    <string name="federation_peer_revoke_title">Revoke peer?</string>
+    <string name="federation_peer_revoke_message">Revoke trust for peer "%1$s"? This will stop all federated communication with this peer.</string>
+    <string name="federation_peer_revoke_confirm">Revoke</string>
+    <string name="federation_peer_revoke_cancel">Cancel</string>
+    <string name="federation_optin_title">Channel opt-ins</string>
+    <string name="federation_optin_add">Add opt-in</string>
+    <string name="federation_optin_peerid">Peer ID</string>
+    <string name="federation_optin_peer_required">Peer ID is required.</string>
+    <string name="federation_optin_capability">Capability</string>
+    <string name="federation_optin_capability_required">Capability is required.</string>
+    <string name="federation_optin_confirm">Add</string>
+    <string name="federation_optin_dismiss">Cancel</string>
+    <string name="federation_optin_remove_title">Remove opt-in?</string>
+    <string name="federation_optin_remove_message">Remove the "%1$s" opt-in from peer "%2$s"?</string>
+    <string name="federation_optin_remove_confirm">Remove</string>
+    <string name="federation_optin_remove_cancel">Cancel</string>
     <string name="feedback_dismiss">Dismiss</string>
     <string name="feedback_connected">Connected</string>
     <string name="feedback_connect_failed">Couldn't connect: %1$s</string>
@@ -1096,6 +1140,7 @@
     <!-- Shell nav -->
     <string name="shell_nav_features">Features</string>
     <string name="shell_nav_webhooks">Webhooks</string>
+    <string name="shell_nav_federation">Federation</string>
 
     <!-- Features page -->
     <string name="features_title">Features</string>

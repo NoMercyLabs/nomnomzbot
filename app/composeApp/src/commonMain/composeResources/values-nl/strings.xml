@@ -640,6 +640,50 @@
     <string name="journal_import_confirm_message">Hiermee worden de gebeurtenissen uit het bestand aan het logboek van je kanaal toegevoegd. Gebeurtenissen die er al zijn worden overgeslagen, dus er kunnen geen duplicaten ontstaan, maar dit kan niet ongedaan worden gemaakt. Doorgaan?</string>
     <string name="journal_import_confirm_ok">Importeren</string>
     <string name="journal_import_confirm_cancel">Annuleren</string>
+    <string name="journal_rebuild">Projecties herbouwen</string>
+    <string name="journal_rebuild_confirm_title">Alle projecties herbouwen?</string>
+    <string name="journal_rebuild_confirm_message">Dit herhaalt het volledige gebeurtenislogboek om alle leesmodellen vanaf nul opnieuw op te bouwen. Kanaldata is tijdelijk onvolledig tijdens de verwerking. Dit kan niet ongedaan worden gemaakt. Doorgaan?</string>
+    <string name="journal_rebuild_confirm_ok">Herbouwen</string>
+    <string name="journal_rebuild_confirm_cancel">Annuleren</string>
+    <string name="journal_rebuilding">Projecties worden herbouwd… taak %1$s</string>
+
+    <!-- Federation page -->
+    <string name="federation_title">Federatie</string>
+    <string name="federation_subtitle">Verbind vertrouwde peer-bots en opt in voor gedeelde mogelijkheden tussen implementaties.</string>
+    <string name="federation_loading">Federatiegegevens laden…</string>
+    <string name="federation_error">Federatiegegevens laden mislukt: %1$s</string>
+    <string name="federation_retry">Opnieuw proberen</string>
+    <string name="federation_action_error">Actie mislukt: %1$s</string>
+    <string name="federation_peer_title">Vertrouwde peers</string>
+    <string name="federation_peer_title_dialog">Peer registreren</string>
+    <string name="federation_peer_add">Peer registreren</string>
+    <string name="federation_peer_name">Peernaam</string>
+    <string name="federation_peer_name_required">Naam is verplicht.</string>
+    <string name="federation_peer_baseurl">Basis-URL</string>
+    <string name="federation_peer_baseurl_required">Basis-URL is verplicht.</string>
+    <string name="federation_peer_confirm">Registreren</string>
+    <string name="federation_peer_dismiss">Annuleren</string>
+    <string name="federation_peer_trust">Vertrouwen</string>
+    <string name="federation_peer_revoke">Intrekken</string>
+    <string name="federation_peer_status_trusted">Vertrouwd</string>
+    <string name="federation_peer_status_untrusted">In afwachting</string>
+    <string name="federation_peer_status_revoked">Ingetrokken</string>
+    <string name="federation_peer_revoke_title">Peer intrekken?</string>
+    <string name="federation_peer_revoke_message">Vertrouwen intrekken voor peer "%1$s"? Dit stopt alle gefedereerde communicatie met deze peer.</string>
+    <string name="federation_peer_revoke_confirm">Intrekken</string>
+    <string name="federation_peer_revoke_cancel">Annuleren</string>
+    <string name="federation_optin_title">Kanaal opt-ins</string>
+    <string name="federation_optin_add">Opt-in toevoegen</string>
+    <string name="federation_optin_peerid">Peer-ID</string>
+    <string name="federation_optin_peer_required">Peer-ID is verplicht.</string>
+    <string name="federation_optin_capability">Mogelijkheid</string>
+    <string name="federation_optin_capability_required">Mogelijkheid is verplicht.</string>
+    <string name="federation_optin_confirm">Toevoegen</string>
+    <string name="federation_optin_dismiss">Annuleren</string>
+    <string name="federation_optin_remove_title">Opt-in verwijderen?</string>
+    <string name="federation_optin_remove_message">De opt-in "%1$s" van peer "%2$s" verwijderen?</string>
+    <string name="federation_optin_remove_confirm">Verwijderen</string>
+    <string name="federation_optin_remove_cancel">Annuleren</string>
     <string name="feedback_dismiss">Sluiten</string>
     <string name="feedback_connected">Verbonden</string>
     <string name="feedback_connect_failed">Verbinden mislukt: %1$s</string>
@@ -1083,6 +1127,7 @@
     <!-- Shell nav -->
     <string name="shell_nav_features">Functies</string>
     <string name="shell_nav_webhooks">Webhooks</string>
+    <string name="shell_nav_federation">Federatie</string>
 
     <!-- Features page -->
     <string name="features_title">Functies</string>

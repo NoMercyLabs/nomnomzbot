@@ -71,6 +71,12 @@ import nomnomzbot.composeapp.generated.resources.journal_import_confirm_title
 import nomnomzbot.composeapp.generated.resources.journal_imported
 import nomnomzbot.composeapp.generated.resources.journal_section_description
 import nomnomzbot.composeapp.generated.resources.journal_section_title
+import nomnomzbot.composeapp.generated.resources.journal_rebuild
+import nomnomzbot.composeapp.generated.resources.journal_rebuild_confirm_cancel
+import nomnomzbot.composeapp.generated.resources.journal_rebuild_confirm_message
+import nomnomzbot.composeapp.generated.resources.journal_rebuild_confirm_ok
+import nomnomzbot.composeapp.generated.resources.journal_rebuild_confirm_title
+import nomnomzbot.composeapp.generated.resources.journal_rebuilding
 import nomnomzbot.composeapp.generated.resources.journal_working
 import nomnomzbot.composeapp.generated.resources.settings_error
 import nomnomzbot.composeapp.generated.resources.settings_label_category
@@ -418,6 +424,7 @@ private fun EventJournalSection(controller: JournalPortabilityController, manage
 
     val state: JournalPortabilityState by controller.state.collectAsStateWithLifecycle()
     var confirmImport: Boolean by remember { mutableStateOf(false) }
+    var confirmRebuild: Boolean by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -468,6 +475,18 @@ private fun EventJournalSection(controller: JournalPortabilityController, manage
                     )
                 }
             }
+            ManageGate(decision = manage) { enabled ->
+                TextButton(
+                    onClick = { confirmRebuild = true },
+                    enabled = !state.busy && enabled,
+                    modifier = Modifier.wrapContentWidth(),
+                ) {
+                    Text(
+                        text = stringResource(Res.string.journal_rebuild),
+                        color = if (enabled) tokens.destructive else tokens.mutedForeground,
+                    )
+                }
+            }
 
             JournalStatus(state = state, onDismiss = { controller.dismiss() })
         }
@@ -485,6 +504,21 @@ private fun EventJournalSection(controller: JournalPortabilityController, manage
                 scope.launch { controller.import() }
             },
             onDismiss = { confirmImport = false },
+        )
+    }
+
+    if (confirmRebuild) {
+        ConfirmDialog(
+            title = stringResource(Res.string.journal_rebuild_confirm_title),
+            message = stringResource(Res.string.journal_rebuild_confirm_message),
+            confirmLabel = stringResource(Res.string.journal_rebuild_confirm_ok),
+            dismissLabel = stringResource(Res.string.journal_rebuild_confirm_cancel),
+            destructive = true,
+            onConfirm = {
+                confirmRebuild = false
+                scope.launch { controller.rebuildProjections() }
+            },
+            onDismiss = { confirmRebuild = false },
         )
     }
 }
@@ -540,6 +574,17 @@ private fun RowScope.JournalStatus(state: JournalPortabilityState, onDismiss: ()
                 style = typography.sm,
                 color = tokens.mutedForeground,
                 maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            TextButton(onClick = onDismiss) { Text(stringResource(Res.string.journal_dismiss)) }
+        }
+        state.rebuildTaskId != null -> {
+            Text(
+                text = stringResource(Res.string.journal_rebuilding, state.rebuildTaskId),
+                style = typography.sm,
+                color = tokens.mutedForeground,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f),
             )
