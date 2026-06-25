@@ -13,7 +13,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Discord;
-using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Domain.Discord.Entities;
 using NomNomzBot.Domain.Discord.Events;
 using NomNomzBot.Domain.Identity.Entities;

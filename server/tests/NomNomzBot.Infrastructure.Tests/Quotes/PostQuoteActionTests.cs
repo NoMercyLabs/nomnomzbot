@@ -12,7 +12,6 @@ using System.Text.Json;
 using FluentAssertions;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Abstractions.Pipeline;
-using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Quotes.Dtos;
 using NomNomzBot.Application.Quotes.Services;
 using NomNomzBot.Domain.Chat.Interfaces;

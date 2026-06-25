@@ -9,7 +9,6 @@
 // -----------------------------------------------------------------------------
 
 using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform;
 

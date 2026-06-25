@@ -10,8 +10,6 @@
 
 using System.Diagnostics;
 using System.Runtime.InteropServices;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Common.Interfaces;
 
 namespace NomNomzBot.Api.Configuration;

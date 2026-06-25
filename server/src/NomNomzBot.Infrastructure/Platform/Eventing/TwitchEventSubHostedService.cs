@@ -30,7 +30,7 @@ namespace NomNomzBot.Infrastructure.Platform.Eventing;
 /// The EventSub lifecycle host (twitch-eventsub §3.2/§7): the <c>IHostedService</c> that drives the transport,
 /// owns the subscription registry, and turns inbound wire frames into journaled, fanned-out facts via
 /// <see cref="INotificationDispatcher"/>. It is the single instance behind <see cref="ITwitchEventSubService"/>
-/// and <see cref="NomNomzBot.Application.Contracts.Platform.IEventSource"/>.
+/// and <see cref="IEventSource"/>.
 /// <para>
 /// It resolves the tenant (Twitch id ⇒ Guid), persists the raw payload, and fans out via
 /// <see cref="INotificationDispatcher"/> — which journals the raw event and publishes the strongly-typed

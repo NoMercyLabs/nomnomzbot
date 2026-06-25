@@ -9,7 +9,6 @@
 // -----------------------------------------------------------------------------
 
 using System.Net;
-using System.Net.Http;
 using System.Net.Sockets;
 
 namespace NomNomzBot.Infrastructure.Sandbox;

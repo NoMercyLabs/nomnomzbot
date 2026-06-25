@@ -15,7 +15,6 @@ using NomNomzBot.Application.Contracts.Billing;
 using NomNomzBot.Application.DTOs.Billing;
 using NomNomzBot.Domain.Billing.Entities;
 using NomNomzBot.Domain.Billing.Enums;
-using NomNomzBot.Domain.Identity.Enums;
 
 namespace NomNomzBot.Infrastructure.Billing;
 

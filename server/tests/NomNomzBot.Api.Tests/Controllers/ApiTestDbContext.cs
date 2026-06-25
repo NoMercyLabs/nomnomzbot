@@ -21,7 +21,6 @@ using NomNomzBot.Domain.EventStore.Entities;
 using NomNomzBot.Domain.Federation.Entities;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Integrations.Entities;
-using NomNomzBot.Domain.Platform;
 using NomNomzBot.Domain.Platform.Entities;
 using NomNomzBot.Domain.Quotes.Entities;
 using NomNomzBot.Domain.Rewards.Entities;

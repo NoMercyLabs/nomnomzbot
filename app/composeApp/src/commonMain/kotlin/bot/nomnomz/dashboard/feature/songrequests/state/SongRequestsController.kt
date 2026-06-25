@@ -13,17 +13,19 @@ package bot.nomnomz.dashboard.feature.songrequests.state
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
+import bot.nomnomz.dashboard.core.network.MusicConfig
 import bot.nomnomz.dashboard.core.network.QueuedSong
 import bot.nomnomz.dashboard.core.network.SongRequestsApi
+import bot.nomnomz.dashboard.core.network.UpdateMusicConfigBody
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-// The Song Requests page's state-holder — the channel's live music queue, made controllable. Resolves the
-// active channel, loads its real song-request queue from the backend (the connected music provider; no
-// fabricated tracks), and drives the supported playback controls: skip / pause / resume, plus removing a
-// queued song by position. The screen renders [state]; a retry / reconnect calls [load] again. A control hits
-// the backend and reloads on success; on failure the queue stays put and the error surfaces on the Ready state.
+// The Song Requests page's state-holder — the channel's live queue AND its SR management capabilities:
+// config (max queue, allowed providers, trust floor) and the public SR-page token. Loads all three in
+// parallel on [load]; controls affect the queue only and reload on success. No fabricated tracks.
 class SongRequestsController(
     private val channelsApi: ChannelsApi,
     private val songRequestsApi: SongRequestsApi,
@@ -31,13 +33,13 @@ class SongRequestsController(
     private val _state: MutableStateFlow<SongRequestsState> =
         MutableStateFlow(SongRequestsState.Loading)
 
-    /** The page render state: loading / ready (with the queue) / empty / error. */
+    /** The page render state. */
     val state: StateFlow<SongRequestsState> = _state.asStateFlow()
 
-    // The channel the loaded queue belongs to, kept so the controls target the same channel without re-resolving.
+    // Resolved channel id — set on first load, reused by control actions so they target the same channel.
     private var channelId: String? = null
 
-    /** Resolve the active channel, then load its song-request queue. */
+    /** Resolve the active channel, then load its queue, config, and SR-page token in parallel. */
     suspend fun load() {
         _state.value = SongRequestsState.Loading
 
@@ -52,45 +54,82 @@ class SongRequestsController(
 
         channelId = channel.id
 
-        when (val result: ApiResult<List<QueuedSong>> = songRequestsApi.queue(channel.id)) {
-            is ApiResult.Failure -> _state.value = SongRequestsState.Error(result.error.message)
-            is ApiResult.Ok ->
-                _state.value =
-                    if (result.value.isEmpty()) SongRequestsState.Empty
-                    else SongRequestsState.Ready(result.value)
+        coroutineScope {
+            val queueDeferred = async { songRequestsApi.queue(channel.id) }
+            val configDeferred = async { songRequestsApi.config(channel.id) }
+            val tokenDeferred = async { songRequestsApi.srPageToken(channel.id) }
+
+            val queueResult: ApiResult<List<QueuedSong>> = queueDeferred.await()
+            val configResult: ApiResult<MusicConfig> = configDeferred.await()
+            val tokenResult: ApiResult<String> = tokenDeferred.await()
+
+            if (queueResult is ApiResult.Failure) {
+                _state.value = SongRequestsState.Error(queueResult.error.message)
+                return@coroutineScope
+            }
+
+            val queue: List<QueuedSong> = (queueResult as ApiResult.Ok).value
+            val config: MusicConfig? = (configResult as? ApiResult.Ok)?.value
+            val srPageToken: String? = (tokenResult as? ApiResult.Ok)?.value
+
+            _state.value = SongRequestsState.Ready(
+                queue = queue,
+                config = config,
+                srPageToken = srPageToken,
+            )
         }
     }
 
-    /** Skip the current track. Reloads the queue on success; surfaces the error on the Ready state on failure. */
+    /** Skip the current track. Reloads on success. */
     suspend fun skip() = control { channel -> songRequestsApi.skip(channel) }
 
-    /** Pause playback. Reloads the queue on success; surfaces the error on the Ready state on failure. */
+    /** Pause playback. Reloads on success. */
     suspend fun pause() = control { channel -> songRequestsApi.pause(channel) }
 
-    /** Resume playback. Reloads the queue on success; surfaces the error on the Ready state on failure. */
+    /** Resume playback. Reloads on success. */
     suspend fun resume() = control { channel -> songRequestsApi.resume(channel) }
 
     /**
-     * Remove the queued song at [position] (a [QueuedSong.position]). On success the queue reloads so the
-     * removed song drops off; on failure the current queue stays put and the error surfaces on the Ready state.
-     * The screen gates this destructive action behind a confirmation, so it only runs on a confirmed click.
+     * Remove the queued song at [position]. Reloads on success; surfaces the error on failure.
+     * The screen gates this behind a confirmation before calling.
      */
     suspend fun remove(position: Int) = control { channel -> songRequestsApi.remove(channel, position) }
 
-    // The shared control flow: run [action] against the resolved channel; reload the queue on success, or keep
-    // the current list and surface the failure on the Ready state. No channel resolved yet → nothing to control.
+    /** Save a patched SR / music config. Reloads on success. */
+    suspend fun updateConfig(body: UpdateMusicConfigBody) {
+        val channel: String = channelId ?: return
+        when (val result: ApiResult<MusicConfig> = songRequestsApi.updateConfig(channel, body)) {
+            is ApiResult.Ok -> load()
+            is ApiResult.Failure -> surfaceError(result.error.message)
+        }
+    }
+
+    /** Rotate the SR-page token so the old share link stops working. */
+    suspend fun rotateSrPageToken() {
+        val channel: String = channelId ?: return
+        when (val result: ApiResult<String> = songRequestsApi.rotateSrPageToken(channel)) {
+            is ApiResult.Ok -> {
+                val current: SongRequestsState = _state.value
+                if (current is SongRequestsState.Ready)
+                    _state.value = current.copy(srPageToken = result.value)
+            }
+            is ApiResult.Failure -> surfaceError(result.error.message)
+        }
+    }
+
+    // Shared control flow: run [action]; reload on success, surface the error on the Ready state on failure.
     private suspend fun control(action: suspend (channel: String) -> ApiResult<Unit>) {
         val channel: String = channelId ?: return
-
         when (val result: ApiResult<Unit> = action(channel)) {
             is ApiResult.Ok -> load()
-            is ApiResult.Failure -> {
-                val current: SongRequestsState = _state.value
-                if (current is SongRequestsState.Ready) {
-                    _state.value = current.copy(actionError = result.error.message)
-                }
-            }
+            is ApiResult.Failure -> surfaceError(result.error.message)
         }
+    }
+
+    private fun surfaceError(message: String) {
+        val current: SongRequestsState = _state.value
+        if (current is SongRequestsState.Ready)
+            _state.value = current.copy(actionError = message)
     }
 }
 
@@ -98,10 +137,17 @@ class SongRequestsController(
 sealed interface SongRequestsState {
     data object Loading : SongRequestsState
 
-    /** The upcoming queue, plus an optional message when the last control failed (the queue is intact). */
-    data class Ready(val queue: List<QueuedSong>, val actionError: String? = null) : SongRequestsState
-
-    data object Empty : SongRequestsState
+    /**
+     * Loaded: the live queue, the SR config, and the SR-page token. [config] and [srPageToken] may be null
+     * when the backend call failed (resilient — the queue still renders). [actionError] surfaces the last
+     * control-action failure while keeping the queue intact.
+     */
+    data class Ready(
+        val queue: List<QueuedSong>,
+        val config: MusicConfig?,
+        val srPageToken: String?,
+        val actionError: String? = null,
+    ) : SongRequestsState
 
     data class Error(val detail: String) : SongRequestsState
 }

@@ -120,7 +120,7 @@ public sealed class TimerService : BackgroundService
     private async Task ProcessTimerAsync(
         IApplicationDbContext db,
         IChatProvider chat,
-        Domain.Commands.Entities.Timer timer,
+        Timer timer,
         DateTime now,
         CancellationToken ct
     )

@@ -10,7 +10,6 @@
 
 using FluentAssertions;
 using NomNomzBot.Api.Authorization;
-using Xunit;
 
 namespace NomNomzBot.Api.Tests.Authorization;
 

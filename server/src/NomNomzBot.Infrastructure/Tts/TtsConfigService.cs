@@ -14,7 +14,6 @@ using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Tts.Dtos;
 using NomNomzBot.Application.Tts.Services;
-using NomNomzBot.Domain.Platform.Entities;
 using NomNomzBot.Domain.Tts.Entities;
 using NomNomzBot.Domain.Tts.Interfaces;
 using ChannelConfiguration = NomNomzBot.Domain.Platform.Entities.Configuration;

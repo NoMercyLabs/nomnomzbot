@@ -19,7 +19,7 @@ namespace NomNomzBot.Domain.Commands.Entities;
 /// for the step to execute. Unknown <see cref="ConditionType"/> values hard-fail the run
 /// (fail-closed semantics). Schema: H.3 (commands-pipelines.md §1).
 /// </summary>
-public class PipelineStepCondition : BaseEntity
+public class PipelineStepCondition : BaseEntity, ITenantScoped
 {
     public Guid Id { get; set; }
     public Guid PipelineStepId { get; set; }

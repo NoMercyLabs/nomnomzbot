@@ -19,7 +19,7 @@ namespace NomNomzBot.Domain.Commands.Entities;
 /// Unknown <see cref="ActionType"/> values are rejected at save time (fail-closed).
 /// Schema: H.2 (commands-pipelines.md §1).
 /// </summary>
-public class PipelineStep : BaseEntity
+public class PipelineStep : BaseEntity, ITenantScoped
 {
     public Guid Id { get; set; }
     public Guid PipelineId { get; set; }

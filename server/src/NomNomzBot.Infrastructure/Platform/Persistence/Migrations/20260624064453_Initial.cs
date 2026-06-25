@@ -1,6 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using Microsoft.EntityFrameworkCore.Migrations;
+﻿using Microsoft.EntityFrameworkCore.Migrations;
 using NomNomzBot.Domain.Chat.ValueObjects;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 

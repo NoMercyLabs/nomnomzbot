@@ -18,7 +18,7 @@ namespace NomNomzBot.Domain.Commands.Entities;
 /// Append-only usage record per command invocation. <see cref="ArgsSnapshot"/> is PII-scrubbed
 /// at write time. Schema: M.5 (commands-pipelines.md §1).
 /// </summary>
-public class CommandUsage : BaseEntity
+public class CommandUsage : BaseEntity, ITenantScoped
 {
     public long Id { get; set; }
 

@@ -140,7 +140,10 @@ public sealed class LegacyChannelEventMapper
                 Envelope(row, targetBroadcasterId, data, eventTimeKey: "StartedAt")
             ),
             // Polls — begin / live-progress / terminal end.
-            "channel.poll.begin" => MapPollBegan(data, Envelope(row, targetBroadcasterId, data)),
+            "channel.poll.begin" => MapPollBegan(
+                data,
+                Envelope(row, targetBroadcasterId, data, eventTimeKey: "StartedAt")
+            ),
             "channel.poll.progress" => MapPollProgress(
                 data,
                 Envelope(row, targetBroadcasterId, data)

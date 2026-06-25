@@ -22,7 +22,6 @@ using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Identity.Events;
-using NomNomzBot.Domain.Integrations.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Platform.Deployment;
 

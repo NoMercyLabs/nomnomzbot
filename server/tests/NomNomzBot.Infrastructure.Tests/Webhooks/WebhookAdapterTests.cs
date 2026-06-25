@@ -12,7 +12,6 @@ using System.Security.Cryptography;
 using System.Text;
 using FluentAssertions;
 using Microsoft.Extensions.Time.Testing;
-using NomNomzBot.Application.Contracts.Webhooks;
 using NomNomzBot.Application.DTOs.Webhooks;
 using NomNomzBot.Infrastructure.Webhooks;
 using NomNomzBot.Infrastructure.Webhooks.Adapters;

@@ -8,13 +8,11 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-using System.Text.Json;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Domain.Chat.Entities;
-using NomNomzBot.Domain.Identity.Entities;
 
 namespace NomNomzBot.Infrastructure.Platform.Persistence;
 

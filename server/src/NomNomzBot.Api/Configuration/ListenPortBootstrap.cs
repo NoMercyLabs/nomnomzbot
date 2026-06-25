@@ -8,8 +8,6 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
 using NomNomzBot.Domain.Enums.Deployment;
 
 namespace NomNomzBot.Api.Configuration;

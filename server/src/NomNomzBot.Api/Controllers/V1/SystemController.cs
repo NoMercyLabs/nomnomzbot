@@ -13,7 +13,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Hosting;
 using NomNomzBot.Api.Extensions;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Persistence;

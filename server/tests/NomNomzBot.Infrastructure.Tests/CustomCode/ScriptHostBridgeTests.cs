@@ -9,7 +9,6 @@
 // -----------------------------------------------------------------------------
 
 using System.Net;
-using System.Net.Http;
 using FluentAssertions;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Economy.Services;

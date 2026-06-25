@@ -15,7 +15,6 @@ using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Domain.Platform;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Platform.Eventing;
-using NSubstitute;
 // ReSharper disable InconsistentNaming
 
 using InfraEventBus = NomNomzBot.Infrastructure.Platform.Eventing.EventBus;

@@ -12,7 +12,6 @@ using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
-using NomNomzBot.Api.Controllers;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Music.Dtos;

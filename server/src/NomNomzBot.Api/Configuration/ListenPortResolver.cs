@@ -8,8 +8,6 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-using Microsoft.Extensions.Logging;
-
 namespace NomNomzBot.Api.Configuration;
 
 /// <summary>Resolves the actual port the self-host bot should listen on (deployment-distribution §6).</summary>

@@ -8,7 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-using global::Jint;
+using Jint;
 using NomNomzBot.Application.Contracts.CustomCode;
 
 namespace NomNomzBot.Infrastructure.CustomCode.Jint;

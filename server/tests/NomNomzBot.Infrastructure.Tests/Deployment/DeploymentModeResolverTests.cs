@@ -12,7 +12,6 @@ using FluentAssertions;
 using Microsoft.Extensions.Configuration;
 using NomNomzBot.Domain.Enums.Deployment;
 using NomNomzBot.Infrastructure.Platform.Deployment;
-using Xunit;
 
 namespace NomNomzBot.Infrastructure.Tests.Deployment;
 

@@ -8,7 +8,6 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-using System.Linq;
 using FluentAssertions;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
@@ -18,14 +17,11 @@ using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Domain.Enums.Deployment;
-using NomNomzBot.Domain.Platform;
 using NomNomzBot.Domain.Platform.Entities;
 using NomNomzBot.Domain.Platform.Events;
-using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Platform.Deployment;
 using NomNomzBot.Infrastructure.Platform.Persistence;
 using NomNomzBot.Infrastructure.Tests.Identity;
-using Xunit;
 
 namespace NomNomzBot.Infrastructure.Tests.Deployment;
 

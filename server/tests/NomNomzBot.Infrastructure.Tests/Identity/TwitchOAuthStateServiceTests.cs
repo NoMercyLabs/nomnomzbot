@@ -8,9 +8,6 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
 using FluentAssertions;
 using NomNomzBot.Application.Abstractions.Caching;
 using NomNomzBot.Application.Identity.Services;

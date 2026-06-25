@@ -14,7 +14,6 @@ using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Domain.Identity.Entities;
-using NomNomzBot.Domain.Platform;
 using NomNomzBot.Domain.Platform.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Stream.Events;
@@ -83,8 +82,10 @@ public sealed class ChannelOfflineHandler : IEventHandler<ChannelOfflineEvent>
         // Finalize the Stream record with EndedAt
         if (channelCtx?.CurrentStreamId is not null)
         {
-            global::NomNomzBot.Domain.Stream.Entities.Stream? streamRecord =
-                await db.Streams.FindAsync([channelCtx.CurrentStreamId], cancellationToken);
+            Domain.Stream.Entities.Stream? streamRecord = await db.Streams.FindAsync(
+                [channelCtx.CurrentStreamId],
+                cancellationToken
+            );
             if (streamRecord is not null)
                 streamRecord.EndedAt = endedAt;
         }

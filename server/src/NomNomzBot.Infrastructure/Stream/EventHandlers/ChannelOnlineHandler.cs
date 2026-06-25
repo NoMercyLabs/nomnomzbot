@@ -16,7 +16,6 @@ using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Domain.Identity.Entities;
-using NomNomzBot.Domain.Platform;
 using NomNomzBot.Domain.Platform.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Stream.Events;
@@ -97,7 +96,7 @@ public sealed class ChannelOnlineHandler : IEventHandler<ChannelOnlineEvent>
             channel.GameName = gameName;
 
         string? streamId = Ulid.NewUlid().ToString();
-        global::NomNomzBot.Domain.Stream.Entities.Stream stream = new()
+        Domain.Stream.Entities.Stream stream = new()
         {
             Id = streamId,
             ChannelId = broadcasterId,

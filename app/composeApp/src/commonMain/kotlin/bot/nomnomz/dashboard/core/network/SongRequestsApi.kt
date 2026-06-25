@@ -15,18 +15,19 @@ import kotlinx.serialization.Serializable
 // The typed song-requests facade — the channel's live music queue, sourced by the backend from the connected
 // music provider (Spotify/YouTube; no fabricated tracks). The queue is a `StatusResponseDto<MusicQueueDto>`
 // wrapper (`{ nowPlaying, queue: [...] }`), so it is read with getEnvelope and the upcoming `queue` list is
-// exposed; the page also controls playback through the same facade. State holders depend on this interface and
-// fake it in tests without HTTP.
+// exposed; the page also controls playback and exposes the SR config + SR-page token management. State holders
+// depend on this interface and fake it in tests without HTTP.
 //
-// Backend routes (MusicController). The control routes are exactly the four the backend supports — there is no
-// clear-queue or reorder endpoint, so the page exposes none:
-//   GET    /api/v1/channels/{channelId}/music/queue            →  StatusResponseDto<MusicQueueDto>
-//   POST   /api/v1/channels/{channelId}/music/skip             →  StatusResponseDto<object>
-//   POST   /api/v1/channels/{channelId}/music/pause            →  StatusResponseDto<object>
-//   POST   /api/v1/channels/{channelId}/music/resume           →  StatusResponseDto<object>
-//   DELETE /api/v1/channels/{channelId}/music/queue/{position} →  204 No Content
-// The control endpoints take no request body and report success by status code, so each goes through postUnit /
-// deleteUnit (any 2xx is success); the queue is re-read after a mutating write to project the new state.
+// Backend routes (MusicController):
+//   GET    /api/v1/channels/{channelId}/music/queue               →  StatusResponseDto<MusicQueueDto>
+//   POST   /api/v1/channels/{channelId}/music/skip                →  StatusResponseDto<object>
+//   POST   /api/v1/channels/{channelId}/music/pause               →  StatusResponseDto<object>
+//   POST   /api/v1/channels/{channelId}/music/resume              →  StatusResponseDto<object>
+//   DELETE /api/v1/channels/{channelId}/music/queue/{position}    →  204 No Content
+//   GET    /api/v1/channels/{channelId}/music/config              →  StatusResponseDto<MusicConfigDto>
+//   PUT    /api/v1/channels/{channelId}/music/config              →  StatusResponseDto<MusicConfigDto>
+//   GET    /api/v1/channels/{channelId}/music/sr-page-token       →  StatusResponseDto<string>
+//   POST   /api/v1/channels/{channelId}/music/sr-page-token/rotate →  StatusResponseDto<string>
 interface SongRequestsApi {
     /** The channel's upcoming song-request queue (the wrapper's `queue` list; now-playing is read elsewhere). */
     suspend fun queue(channelId: String): ApiResult<List<QueuedSong>>
@@ -42,6 +43,18 @@ interface SongRequestsApi {
 
     /** Remove one queued song by its zero-based [position] (the [QueuedSong.position]). */
     suspend fun remove(channelId: String, position: Int): ApiResult<Unit>
+
+    /** The channel's SR / music configuration. Reuses [MusicConfig] (same shape). */
+    suspend fun config(channelId: String): ApiResult<MusicConfig>
+
+    /** Update (patch) the SR / music configuration. */
+    suspend fun updateConfig(channelId: String, body: UpdateMusicConfigBody): ApiResult<MusicConfig>
+
+    /** Get (or mint) the channel's public SR-page shareable token. */
+    suspend fun srPageToken(channelId: String): ApiResult<String>
+
+    /** Rotate the SR-page token — the old share link stops working immediately. */
+    suspend fun rotateSrPageToken(channelId: String): ApiResult<String>
 }
 
 class RestSongRequestsApi(private val client: ApiClient) : SongRequestsApi {
@@ -69,6 +82,18 @@ class RestSongRequestsApi(private val client: ApiClient) : SongRequestsApi {
 
     override suspend fun remove(channelId: String, position: Int): ApiResult<Unit> =
         client.deleteUnit("api/v1/channels/$channelId/music/queue/$position")
+
+    override suspend fun config(channelId: String): ApiResult<MusicConfig> =
+        client.getEnvelope("api/v1/channels/$channelId/music/config")
+
+    override suspend fun updateConfig(channelId: String, body: UpdateMusicConfigBody): ApiResult<MusicConfig> =
+        client.putEnvelope("api/v1/channels/$channelId/music/config", body)
+
+    override suspend fun srPageToken(channelId: String): ApiResult<String> =
+        client.getEnvelope("api/v1/channels/$channelId/music/sr-page-token")
+
+    override suspend fun rotateSrPageToken(channelId: String): ApiResult<String> =
+        client.postEnvelope("api/v1/channels/$channelId/music/sr-page-token/rotate", Unit)
 }
 
 /**

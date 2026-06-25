@@ -347,8 +347,10 @@ public sealed class SubscriptionService(
         CancellationToken ct
     )
     {
-        NomNomzBot.Domain.Identity.Entities.Channel? channel =
-            await db.Channels.FirstOrDefaultAsync(c => c.Id == broadcasterId, ct);
+        Domain.Identity.Entities.Channel? channel = await db.Channels.FirstOrDefaultAsync(
+            c => c.Id == broadcasterId,
+            ct
+        );
         if (channel is not null)
             channel.BillingTierKey = tierKey;
     }

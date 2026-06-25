@@ -10,7 +10,6 @@
 
 using FluentAssertions;
 using Microsoft.Extensions.Time.Testing;
-using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Identity.Events;
 using NomNomzBot.Infrastructure.Identity;

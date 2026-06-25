@@ -19,7 +19,6 @@ using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Identity;
 using NomNomzBot.Domain.Identity.Enums;
-using NomNomzBot.Domain.Platform;
 using NomNomzBot.Domain.Platform.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
 
@@ -173,7 +172,7 @@ public sealed partial class AutoModerationHandler : IEventHandler<ChatMessageRec
     }
 
     private static bool CheckEmoteSpam(
-        IReadOnlyList<NomNomzBot.Domain.Chat.ValueObjects.ChatMessageFragment> fragments,
+        IReadOnlyList<Domain.Chat.ValueObjects.ChatMessageFragment> fragments,
         AutoModRule rule
     )
     {

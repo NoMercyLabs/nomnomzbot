@@ -504,12 +504,18 @@ public static class DependencyInjection
         // Auto-moderation engine consumed by concrete type — kept explicit.
         services.AddScoped<AutoModerationEngine>();
 
-        // Built-in commands (singletons, catalog built from the resolved enumerable).
-        services.AddSingleton<
+        // Built-in commands — scoped because some implementations consume scoped services
+        // (e.g. IMusicService). The catalog is also scoped so it receives a consistent
+        // IEnumerable<IBuiltinCommand> from the DI container within each request scope.
+        services.AddScoped<
             IBuiltinCommand,
             NomNomzBot.Infrastructure.Commands.Builtins.UptimeBuiltin
         >();
-        services.AddSingleton<IBuiltinCommandCatalog, BuiltinCommandCatalog>();
+        services.AddScoped<
+            IBuiltinCommand,
+            NomNomzBot.Infrastructure.Commands.Builtins.SongRequestBuiltin
+        >();
+        services.AddScoped<IBuiltinCommandCatalog, BuiltinCommandCatalog>();
         // Per-channel enable/disable toggle management.
         services.AddScoped<IBuiltinCommandService, BuiltinCommandService>();
 

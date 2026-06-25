@@ -54,8 +54,7 @@ public class AppDbContext : DbContext, IApplicationDbContext
     public DbSet<Command> Commands => Set<Command>();
     public DbSet<Reward> Rewards => Set<Reward>();
     public DbSet<Redemption> Redemptions => Set<Redemption>();
-    public DbSet<NomNomzBot.Domain.Quotes.Entities.Quote> Quotes =>
-        Set<NomNomzBot.Domain.Quotes.Entities.Quote>();
+    public DbSet<Domain.Quotes.Entities.Quote> Quotes => Set<Domain.Quotes.Entities.Quote>();
     public DbSet<Widget> Widgets => Set<Widget>();
 
     // EventSub — per-tenant subscription registry (F.7), app-global conduit + shards (F.8/F.9),
@@ -68,12 +67,11 @@ public class AppDbContext : DbContext, IApplicationDbContext
     // Chat
     public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
     public DbSet<ChannelEvent> ChannelEvents => Set<ChannelEvent>();
-    public DbSet<global::NomNomzBot.Domain.Stream.Entities.Stream> Streams =>
-        Set<global::NomNomzBot.Domain.Stream.Entities.Stream>();
+    public DbSet<Domain.Stream.Entities.Stream> Streams => Set<Domain.Stream.Entities.Stream>();
 
     // Config & Storage
-    public DbSet<NomNomzBot.Domain.Platform.Entities.Configuration> Configurations =>
-        Set<NomNomzBot.Domain.Platform.Entities.Configuration>();
+    public DbSet<Domain.Platform.Entities.Configuration> Configurations =>
+        Set<Domain.Platform.Entities.Configuration>();
     public DbSet<Storage> Storages => Set<Storage>();
     public DbSet<Record> Records => Set<Record>();
 
@@ -103,8 +101,7 @@ public class AppDbContext : DbContext, IApplicationDbContext
     public DbSet<IntegrationToken> IntegrationTokens => Set<IntegrationToken>();
 
     // DEK registry (schema Q.1) — wrapped per-subject/tenant DEKs; the crypto-shred + restart-survival linchpin.
-    public DbSet<NomNomzBot.Domain.Identity.Entities.CryptoKey> CryptoKeys =>
-        Set<NomNomzBot.Domain.Identity.Entities.CryptoKey>();
+    public DbSet<CryptoKey> CryptoKeys => Set<CryptoKey>();
 
     // TTS
     public DbSet<TtsVoice> TtsVoices => Set<TtsVoice>();
@@ -148,12 +145,10 @@ public class AppDbContext : DbContext, IApplicationDbContext
     public DbSet<ChannelMembership> ChannelMemberships => Set<ChannelMembership>();
     public DbSet<ChannelCommunityStanding> ChannelCommunityStandings =>
         Set<ChannelCommunityStanding>();
-    public DbSet<NomNomzBot.Domain.Identity.Entities.ActionDefinition> ActionDefinitions =>
-        Set<NomNomzBot.Domain.Identity.Entities.ActionDefinition>();
+    public DbSet<ActionDefinition> ActionDefinitions => Set<ActionDefinition>();
     public DbSet<ChannelActionOverride> ChannelActionOverrides => Set<ChannelActionOverride>();
     public DbSet<PermitGrant> PermitGrants => Set<PermitGrant>();
-    public DbSet<NomNomzBot.Domain.Identity.Entities.ChannelMissingScope> ChannelMissingScopes =>
-        Set<NomNomzBot.Domain.Identity.Entities.ChannelMissingScope>();
+    public DbSet<ChannelMissingScope> ChannelMissingScopes => Set<ChannelMissingScope>();
 
     // Platform IAM (Plane C)
     public DbSet<IamPermission> IamPermissions => Set<IamPermission>();
@@ -164,84 +159,80 @@ public class AppDbContext : DbContext, IApplicationDbContext
     public DbSet<IamAuditLog> IamAuditLogs => Set<IamAuditLog>();
 
     // Economy — currency core (economy.md K.1-K.3)
-    public DbSet<NomNomzBot.Domain.Economy.Entities.CurrencyConfig> CurrencyConfigs =>
-        Set<NomNomzBot.Domain.Economy.Entities.CurrencyConfig>();
-    public DbSet<NomNomzBot.Domain.Economy.Entities.EarningRule> EarningRules =>
-        Set<NomNomzBot.Domain.Economy.Entities.EarningRule>();
-    public DbSet<NomNomzBot.Domain.Economy.Entities.CurrencyAccount> CurrencyAccounts =>
-        Set<NomNomzBot.Domain.Economy.Entities.CurrencyAccount>();
-    public DbSet<NomNomzBot.Domain.Economy.Entities.CurrencyLedgerEntry> CurrencyLedgerEntries =>
-        Set<NomNomzBot.Domain.Economy.Entities.CurrencyLedgerEntry>();
-    public DbSet<NomNomzBot.Domain.Economy.Entities.CatalogItem> CatalogItems =>
-        Set<NomNomzBot.Domain.Economy.Entities.CatalogItem>();
-    public DbSet<NomNomzBot.Domain.Economy.Entities.CatalogPurchase> CatalogPurchases =>
-        Set<NomNomzBot.Domain.Economy.Entities.CatalogPurchase>();
-    public DbSet<NomNomzBot.Domain.Economy.Entities.GameConfig> GameConfigs =>
-        Set<NomNomzBot.Domain.Economy.Entities.GameConfig>();
-    public DbSet<NomNomzBot.Domain.Economy.Entities.GamePlay> GamePlays =>
-        Set<NomNomzBot.Domain.Economy.Entities.GamePlay>();
-    public DbSet<NomNomzBot.Domain.Economy.Entities.ViewerAgeConsent> ViewerAgeConsents =>
-        Set<NomNomzBot.Domain.Economy.Entities.ViewerAgeConsent>();
-    public DbSet<NomNomzBot.Domain.Economy.Entities.SavingsJar> SavingsJars =>
-        Set<NomNomzBot.Domain.Economy.Entities.SavingsJar>();
-    public DbSet<NomNomzBot.Domain.Economy.Entities.SavingsJarMembership> SavingsJarMemberships =>
-        Set<NomNomzBot.Domain.Economy.Entities.SavingsJarMembership>();
-    public DbSet<NomNomzBot.Domain.Economy.Entities.JarContribution> JarContributions =>
-        Set<NomNomzBot.Domain.Economy.Entities.JarContribution>();
-    public DbSet<NomNomzBot.Domain.Economy.Entities.LeaderboardConfig> LeaderboardConfigs =>
-        Set<NomNomzBot.Domain.Economy.Entities.LeaderboardConfig>();
-    public DbSet<NomNomzBot.Domain.Economy.Entities.LeaderboardOptOut> LeaderboardOptOuts =>
-        Set<NomNomzBot.Domain.Economy.Entities.LeaderboardOptOut>();
-    public DbSet<NomNomzBot.Domain.Economy.Entities.LeaderboardSnapshot> LeaderboardSnapshots =>
-        Set<NomNomzBot.Domain.Economy.Entities.LeaderboardSnapshot>();
-    public DbSet<NomNomzBot.Domain.Billing.Entities.BillingTier> BillingTiers =>
-        Set<NomNomzBot.Domain.Billing.Entities.BillingTier>();
-    public DbSet<NomNomzBot.Domain.Billing.Entities.TierLimit> TierLimits =>
-        Set<NomNomzBot.Domain.Billing.Entities.TierLimit>();
-    public DbSet<NomNomzBot.Domain.Billing.Entities.Subscription> Subscriptions =>
-        Set<NomNomzBot.Domain.Billing.Entities.Subscription>();
-    public DbSet<NomNomzBot.Domain.Billing.Entities.Invoice> Invoices =>
-        Set<NomNomzBot.Domain.Billing.Entities.Invoice>();
-    public DbSet<NomNomzBot.Domain.Billing.Entities.UsageRecord> UsageRecords =>
-        Set<NomNomzBot.Domain.Billing.Entities.UsageRecord>();
-    public DbSet<NomNomzBot.Domain.Billing.Entities.FoundersBadge> FoundersBadges =>
-        Set<NomNomzBot.Domain.Billing.Entities.FoundersBadge>();
-    public DbSet<NomNomzBot.Domain.Billing.Entities.InviteCode> InviteCodes =>
-        Set<NomNomzBot.Domain.Billing.Entities.InviteCode>();
-    public DbSet<NomNomzBot.Domain.Federation.Entities.FederationPeer> FederationPeers =>
-        Set<NomNomzBot.Domain.Federation.Entities.FederationPeer>();
-    public DbSet<NomNomzBot.Domain.Federation.Entities.FederationPeerKey> FederationPeerKeys =>
-        Set<NomNomzBot.Domain.Federation.Entities.FederationPeerKey>();
-    public DbSet<NomNomzBot.Domain.Federation.Entities.ChannelFederationOptIn> ChannelFederationOptIns =>
-        Set<NomNomzBot.Domain.Federation.Entities.ChannelFederationOptIn>();
-    public DbSet<NomNomzBot.Domain.Webhooks.Entities.OutboundWebhookEndpoint> OutboundWebhookEndpoints =>
-        Set<NomNomzBot.Domain.Webhooks.Entities.OutboundWebhookEndpoint>();
-    public DbSet<NomNomzBot.Domain.Webhooks.Entities.OutboundWebhookDelivery> OutboundWebhookDeliveries =>
-        Set<NomNomzBot.Domain.Webhooks.Entities.OutboundWebhookDelivery>();
-    public DbSet<NomNomzBot.Domain.Webhooks.Entities.InboundWebhookEndpoint> InboundWebhookEndpoints =>
-        Set<NomNomzBot.Domain.Webhooks.Entities.InboundWebhookEndpoint>();
-    public DbSet<NomNomzBot.Domain.Platform.Entities.HttpEgressAllowlist> HttpEgressAllowlists =>
-        Set<NomNomzBot.Domain.Platform.Entities.HttpEgressAllowlist>();
-    public DbSet<NomNomzBot.Domain.Analytics.Entities.ViewerProfile> ViewerProfiles =>
-        Set<NomNomzBot.Domain.Analytics.Entities.ViewerProfile>();
-    public DbSet<NomNomzBot.Domain.Analytics.Entities.WatchSession> WatchSessions =>
-        Set<NomNomzBot.Domain.Analytics.Entities.WatchSession>();
-    public DbSet<NomNomzBot.Domain.Analytics.Entities.MessageActivityDaily> MessageActivityDailies =>
-        Set<NomNomzBot.Domain.Analytics.Entities.MessageActivityDaily>();
-    public DbSet<NomNomzBot.Domain.Analytics.Entities.ViewerEngagementDaily> ViewerEngagementDailies =>
-        Set<NomNomzBot.Domain.Analytics.Entities.ViewerEngagementDaily>();
-    public DbSet<NomNomzBot.Domain.Analytics.Entities.ChannelAnalyticsDaily> ChannelAnalyticsDailies =>
-        Set<NomNomzBot.Domain.Analytics.Entities.ChannelAnalyticsDaily>();
-    public DbSet<NomNomzBot.Domain.Platform.Entities.DeploymentProfile> DeploymentProfiles =>
-        Set<NomNomzBot.Domain.Platform.Entities.DeploymentProfile>();
-    public DbSet<NomNomzBot.Domain.Platform.Entities.FeatureFlag> FeatureFlags =>
-        Set<NomNomzBot.Domain.Platform.Entities.FeatureFlag>();
-    public DbSet<NomNomzBot.Domain.Platform.Entities.FeatureFlagOverride> FeatureFlagOverrides =>
-        Set<NomNomzBot.Domain.Platform.Entities.FeatureFlagOverride>();
-    public DbSet<NomNomzBot.Domain.CustomCode.Entities.CodeScript> CodeScripts =>
-        Set<NomNomzBot.Domain.CustomCode.Entities.CodeScript>();
-    public DbSet<NomNomzBot.Domain.CustomCode.Entities.CodeScriptVersion> CodeScriptVersions =>
-        Set<NomNomzBot.Domain.CustomCode.Entities.CodeScriptVersion>();
+    public DbSet<Domain.Economy.Entities.CurrencyConfig> CurrencyConfigs =>
+        Set<Domain.Economy.Entities.CurrencyConfig>();
+    public DbSet<Domain.Economy.Entities.EarningRule> EarningRules =>
+        Set<Domain.Economy.Entities.EarningRule>();
+    public DbSet<Domain.Economy.Entities.CurrencyAccount> CurrencyAccounts =>
+        Set<Domain.Economy.Entities.CurrencyAccount>();
+    public DbSet<Domain.Economy.Entities.CurrencyLedgerEntry> CurrencyLedgerEntries =>
+        Set<Domain.Economy.Entities.CurrencyLedgerEntry>();
+    public DbSet<Domain.Economy.Entities.CatalogItem> CatalogItems =>
+        Set<Domain.Economy.Entities.CatalogItem>();
+    public DbSet<Domain.Economy.Entities.CatalogPurchase> CatalogPurchases =>
+        Set<Domain.Economy.Entities.CatalogPurchase>();
+    public DbSet<Domain.Economy.Entities.GameConfig> GameConfigs =>
+        Set<Domain.Economy.Entities.GameConfig>();
+    public DbSet<Domain.Economy.Entities.GamePlay> GamePlays =>
+        Set<Domain.Economy.Entities.GamePlay>();
+    public DbSet<Domain.Economy.Entities.ViewerAgeConsent> ViewerAgeConsents =>
+        Set<Domain.Economy.Entities.ViewerAgeConsent>();
+    public DbSet<Domain.Economy.Entities.SavingsJar> SavingsJars =>
+        Set<Domain.Economy.Entities.SavingsJar>();
+    public DbSet<Domain.Economy.Entities.SavingsJarMembership> SavingsJarMemberships =>
+        Set<Domain.Economy.Entities.SavingsJarMembership>();
+    public DbSet<Domain.Economy.Entities.JarContribution> JarContributions =>
+        Set<Domain.Economy.Entities.JarContribution>();
+    public DbSet<Domain.Economy.Entities.LeaderboardConfig> LeaderboardConfigs =>
+        Set<Domain.Economy.Entities.LeaderboardConfig>();
+    public DbSet<Domain.Economy.Entities.LeaderboardOptOut> LeaderboardOptOuts =>
+        Set<Domain.Economy.Entities.LeaderboardOptOut>();
+    public DbSet<Domain.Economy.Entities.LeaderboardSnapshot> LeaderboardSnapshots =>
+        Set<Domain.Economy.Entities.LeaderboardSnapshot>();
+    public DbSet<Domain.Billing.Entities.BillingTier> BillingTiers =>
+        Set<Domain.Billing.Entities.BillingTier>();
+    public DbSet<Domain.Billing.Entities.TierLimit> TierLimits =>
+        Set<Domain.Billing.Entities.TierLimit>();
+    public DbSet<Domain.Billing.Entities.Subscription> Subscriptions =>
+        Set<Domain.Billing.Entities.Subscription>();
+    public DbSet<Domain.Billing.Entities.Invoice> Invoices =>
+        Set<Domain.Billing.Entities.Invoice>();
+    public DbSet<Domain.Billing.Entities.UsageRecord> UsageRecords =>
+        Set<Domain.Billing.Entities.UsageRecord>();
+    public DbSet<Domain.Billing.Entities.FoundersBadge> FoundersBadges =>
+        Set<Domain.Billing.Entities.FoundersBadge>();
+    public DbSet<Domain.Billing.Entities.InviteCode> InviteCodes =>
+        Set<Domain.Billing.Entities.InviteCode>();
+    public DbSet<Domain.Federation.Entities.FederationPeer> FederationPeers =>
+        Set<Domain.Federation.Entities.FederationPeer>();
+    public DbSet<Domain.Federation.Entities.FederationPeerKey> FederationPeerKeys =>
+        Set<Domain.Federation.Entities.FederationPeerKey>();
+    public DbSet<Domain.Federation.Entities.ChannelFederationOptIn> ChannelFederationOptIns =>
+        Set<Domain.Federation.Entities.ChannelFederationOptIn>();
+    public DbSet<Domain.Webhooks.Entities.OutboundWebhookEndpoint> OutboundWebhookEndpoints =>
+        Set<Domain.Webhooks.Entities.OutboundWebhookEndpoint>();
+    public DbSet<Domain.Webhooks.Entities.OutboundWebhookDelivery> OutboundWebhookDeliveries =>
+        Set<Domain.Webhooks.Entities.OutboundWebhookDelivery>();
+    public DbSet<Domain.Webhooks.Entities.InboundWebhookEndpoint> InboundWebhookEndpoints =>
+        Set<Domain.Webhooks.Entities.InboundWebhookEndpoint>();
+    public DbSet<HttpEgressAllowlist> HttpEgressAllowlists => Set<HttpEgressAllowlist>();
+    public DbSet<Domain.Analytics.Entities.ViewerProfile> ViewerProfiles =>
+        Set<Domain.Analytics.Entities.ViewerProfile>();
+    public DbSet<Domain.Analytics.Entities.WatchSession> WatchSessions =>
+        Set<Domain.Analytics.Entities.WatchSession>();
+    public DbSet<Domain.Analytics.Entities.MessageActivityDaily> MessageActivityDailies =>
+        Set<Domain.Analytics.Entities.MessageActivityDaily>();
+    public DbSet<Domain.Analytics.Entities.ViewerEngagementDaily> ViewerEngagementDailies =>
+        Set<Domain.Analytics.Entities.ViewerEngagementDaily>();
+    public DbSet<Domain.Analytics.Entities.ChannelAnalyticsDaily> ChannelAnalyticsDailies =>
+        Set<Domain.Analytics.Entities.ChannelAnalyticsDaily>();
+    public DbSet<DeploymentProfile> DeploymentProfiles => Set<DeploymentProfile>();
+    public DbSet<FeatureFlag> FeatureFlags => Set<FeatureFlag>();
+    public DbSet<FeatureFlagOverride> FeatureFlagOverrides => Set<FeatureFlagOverride>();
+    public DbSet<Domain.CustomCode.Entities.CodeScript> CodeScripts =>
+        Set<Domain.CustomCode.Entities.CodeScript>();
+    public DbSet<Domain.CustomCode.Entities.CodeScriptVersion> CodeScriptVersions =>
+        Set<Domain.CustomCode.Entities.CodeScriptVersion>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {

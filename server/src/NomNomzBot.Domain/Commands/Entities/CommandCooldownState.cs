@@ -18,7 +18,7 @@ namespace NomNomzBot.Domain.Commands.Entities;
 /// No soft-delete — rows are TTL-swept when <see cref="ExpiresAt"/> passes.
 /// Schema: G.3 (commands-pipelines.md §1).
 /// </summary>
-public class CommandCooldownState : BaseEntity
+public class CommandCooldownState : BaseEntity, ITenantScoped
 {
     public long Id { get; set; }
 

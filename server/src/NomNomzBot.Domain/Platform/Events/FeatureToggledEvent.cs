@@ -8,8 +8,6 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-using NomNomzBot.Domain.Platform;
-
 namespace NomNomzBot.Domain.Platform.Events;
 
 public sealed class FeatureToggledEvent : DomainEventBase

@@ -8,7 +8,6 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-using System.Linq;
 using FluentAssertions;
 using NomNomzBot.Application.Abstractions.Platform;
 using NomNomzBot.Application.Common.Models;

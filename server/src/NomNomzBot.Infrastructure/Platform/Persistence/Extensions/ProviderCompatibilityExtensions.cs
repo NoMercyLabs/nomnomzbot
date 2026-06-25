@@ -37,8 +37,8 @@ public static class ProviderCompatibilityExtensions
     private static readonly Type[] ComplexJsonPropertyTypes =
     [
         typeof(Dictionary<string, string>),
-        typeof(List<NomNomzBot.Domain.Chat.ValueObjects.ChatBadge>),
-        typeof(List<NomNomzBot.Domain.Chat.ValueObjects.ChatMessageFragment>),
+        typeof(List<Domain.Chat.ValueObjects.ChatBadge>),
+        typeof(List<Domain.Chat.ValueObjects.ChatMessageFragment>),
     ];
 
     /// <summary>

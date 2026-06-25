@@ -9,7 +9,6 @@
 // -----------------------------------------------------------------------------
 
 using Microsoft.EntityFrameworkCore;
-using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Infrastructure.Platform.Persistence;
 using NomNomzBot.Infrastructure.Platform.Persistence.Repositories;

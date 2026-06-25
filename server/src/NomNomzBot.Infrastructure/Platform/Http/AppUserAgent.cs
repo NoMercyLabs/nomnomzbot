@@ -13,7 +13,7 @@ using System.Reflection;
 namespace NomNomzBot.Infrastructure.Platform.Http;
 
 /// <summary>
-/// The product User-Agent every outbound <see cref="System.Net.Http.HttpClient"/> sends by default — wired
+/// The product User-Agent every outbound <see cref="HttpClient"/> sends by default — wired
 /// once via <c>ConfigureHttpClientDefaults</c> so provider fetches, OAuth, Twitch, TTS and webhook calls all
 /// identify themselves uniformly. Stamped with the real build version so a provider (or our own logs) can see
 /// exactly which NomNomzBot release made the request. A client may still override its own User-Agent.

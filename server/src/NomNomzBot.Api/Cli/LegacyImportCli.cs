@@ -9,9 +9,6 @@
 // -----------------------------------------------------------------------------
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application;
 using NomNomzBot.Application.Abstractions.Persistence;
@@ -19,7 +16,6 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.EventStore;
 using NomNomzBot.Infrastructure;
 using NomNomzBot.Infrastructure.Analytics;
-using NomNomzBot.Infrastructure.EventStore;
 using NomNomzBot.Infrastructure.EventStore.LegacyImport;
 using NomNomzBot.Infrastructure.Platform.Persistence;
 

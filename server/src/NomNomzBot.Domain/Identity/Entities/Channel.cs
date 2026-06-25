@@ -12,7 +12,6 @@ using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform;
-using NomNomzBot.Domain.Platform.Entities;
 
 namespace NomNomzBot.Domain.Identity.Entities;
 

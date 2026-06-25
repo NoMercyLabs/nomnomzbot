@@ -18,7 +18,7 @@ namespace NomNomzBot.Domain.Commands.Entities;
 /// Append-only telemetry record for a pipeline run. PII is excluded from
 /// <see cref="StepLogsJson"/>; rows are TTL-purged. Schema: H.4 (commands-pipelines.md §1).
 /// </summary>
-public class PipelineExecution : BaseEntity
+public class PipelineExecution : BaseEntity, ITenantScoped
 {
     public long Id { get; set; }
 

@@ -10,11 +10,9 @@
 
 using System.Net;
 using System.Net.Http.Json;
-using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Domain.Music.Interfaces;
@@ -411,7 +409,7 @@ public sealed class SpotifyMusicProvider : IMusicProvider, IMusicRemoteProvider
     }
 
     private async Task<string?> RefreshTokenAsync(
-        Domain.Platform.Entities.Service service,
+        Service service,
         CancellationToken cancellationToken
     )
     {

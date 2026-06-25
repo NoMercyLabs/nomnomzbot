@@ -10,7 +10,6 @@
 
 using System.Net.Http.Headers;
 using Microsoft.Extensions.Options;
-using NomNomzBot.Infrastructure.Platform;
 
 namespace NomNomzBot.Infrastructure.Platform.Transport.Helix;
 

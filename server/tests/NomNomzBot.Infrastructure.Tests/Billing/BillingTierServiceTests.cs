@@ -10,7 +10,6 @@
 
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
-using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.DTOs.Billing;
 using NomNomzBot.Domain.Billing.Entities;
 using NomNomzBot.Domain.Billing.Enums;
