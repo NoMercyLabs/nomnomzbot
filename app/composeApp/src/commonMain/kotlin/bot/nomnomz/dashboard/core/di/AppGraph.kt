@@ -120,6 +120,9 @@ import bot.nomnomz.dashboard.core.network.LiveOpsApi
 import bot.nomnomz.dashboard.core.network.RestLiveOpsApi
 import bot.nomnomz.dashboard.core.realtime.DashboardHubClient
 import bot.nomnomz.dashboard.feature.language.state.LanguageController
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import bot.nomnomz.dashboard.feature.liveops.state.LiveOpsController
 import bot.nomnomz.dashboard.feature.setup.state.SetupController
 
@@ -146,6 +149,15 @@ class AppGraph {
     // that need live updates (ChatController → subscribeToHub). Connected once when a session is
     // established; the connect call is idempotent (re-entrant no-op when already connected).
     val dashboardHubClient: DashboardHubClient = DashboardHubClient()
+
+    // The streamer's Twitch chat color (#RRGGBB) — null until HomeController resolves the primary channel.
+    // App.kt reads this to supply the dynamic accent to NomNomzTheme (design-system §2).
+    private val _chatAccentColor: MutableStateFlow<String?> = MutableStateFlow(null)
+    val chatAccentColor: StateFlow<String?> = _chatAccentColor.asStateFlow()
+
+    internal fun setChatAccentColor(hex: String?) {
+        _chatAccentColor.value = hex
+    }
 
     // The single shared client reads base URL + token from the session on every request, so a
     // sign-in / connection switch re-targets the live client (frontend.md §3.1).
@@ -235,6 +247,7 @@ class AppGraph {
             hubClient = dashboardHubClient,
             baseUrl = sessionStore::baseUrl,
             accessToken = sessionStore::accessToken,
+            onChatColorResolved = ::setChatAccentColor,
         )
 
     val communityController: CommunityController =

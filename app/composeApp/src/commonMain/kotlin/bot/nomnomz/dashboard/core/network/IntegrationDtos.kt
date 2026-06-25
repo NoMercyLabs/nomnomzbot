@@ -29,6 +29,8 @@ data class ChannelSummary(
     val profileImageUrl: String? = null,
     val isLive: Boolean = false,
     val role: String = "",
+    /** The streamer's Twitch chat color (#RRGGBB). Null until the server has synced it. */
+    val chatColor: String? = null,
 )
 
 /**

@@ -130,3 +130,50 @@ internal val DarkTokens: Tokens = Tokens(
     sidebarRing = oklch(0.556, 0.0, 0.0),
     radius = Radii(),
 )
+
+// ─── Dynamic accent ───────────────────────────────────────────────────────────
+
+/**
+ * Returns a copy of this [Tokens] with the accent family (`primary`, `ring`, `sidebarPrimary`,
+ * `sidebarAccent`) tinted from [hexColor]. The tint is intentionally subtle: the parsed
+ * `#RRGGBB` is blended at low alpha over the neutral background so the hue reads as an
+ * atmosphere rather than a bold brand colour (design-system §2).
+ *
+ * Falls back silently to `this` (no-op) when [hexColor] is malformed.
+ */
+internal fun Tokens.withAccent(hexColor: String, scheme: Scheme): Tokens {
+    val raw: Color = parseHexColor(hexColor) ?: return this
+    // Blend at 15 % opacity over the background — subtle accent, not loud branding.
+    val subtleAlpha: Float = 0.15f
+    val tint: Color = raw.copy(alpha = subtleAlpha)
+    // A slightly stronger variant (35 %) for the ring / focus indicator.
+    val ringTint: Color = raw.copy(alpha = 0.35f)
+    return copy(
+        primary = tint,
+        ring = ringTint,
+        sidebarPrimary = tint,
+        sidebarAccent = tint,
+    )
+}
+
+/**
+ * Parses a `#RRGGBB` (or `#RGB`) hex string into a [Color]. Returns null when the string is
+ * absent or malformed rather than throwing, so callers can fall through to the default.
+ */
+private fun parseHexColor(hex: String): Color? {
+    val stripped: String = hex.trimStart('#')
+    val value: Long = stripped.toLongOrNull(16) ?: return null
+    return when (stripped.length) {
+        6 -> Color(
+            red = ((value shr 16) and 0xFF).toInt() / 255f,
+            green = ((value shr 8) and 0xFF).toInt() / 255f,
+            blue = (value and 0xFF).toInt() / 255f,
+        )
+        3 -> Color(
+            red = (((value shr 8) and 0xF) * 17).toInt() / 255f,
+            green = (((value shr 4) and 0xF) * 17).toInt() / 255f,
+            blue = ((value and 0xF) * 17).toInt() / 255f,
+        )
+        else -> null
+    }
+}

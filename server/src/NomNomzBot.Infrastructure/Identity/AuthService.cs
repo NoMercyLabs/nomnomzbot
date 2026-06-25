@@ -214,6 +214,17 @@ public sealed class AuthService : IAuthService
         }
         user.LastSeenAt = _timeProvider.GetUtcNow().UtcDateTime;
 
+        // Best-effort chat color sync (design-system §2): populate User.Color so the dashboard can derive the
+        // dynamic accent from the streamer's Twitch chat color. Failures are swallowed — the login must still
+        // succeed even when the /helix/chat/color call is unavailable or the scope is not yet granted.
+        string? chatColor = await GetChatColorFromTokenAsync(
+            tokens.AccessToken,
+            twitchUser.Id,
+            cancellationToken
+        );
+        if (chatColor is not null)
+            user.Color = chatColor;
+
         // First-admin bootstrap (§12): the configured App:InitialAdminTwitchId match (any deployment), OR — on
         // self-host, where the owner IS the admin — the FIRST account to onboard when no platform principal
         // exists yet. No raw SQL, idempotent.
@@ -1051,10 +1062,60 @@ public sealed class AuthService : IAuthService
         }
     }
 
+    /// <summary>
+    /// Fetches the Twitch user's chat name color from <c>GET /helix/chat/color</c> using their user token.
+    /// Returns <c>null</c> (never throws) — callers must treat this as best-effort decoration only.
+    /// </summary>
+    private async Task<string?> GetChatColorFromTokenAsync(
+        string accessToken,
+        string twitchUserId,
+        CancellationToken ct
+    )
+    {
+        try
+        {
+            string? clientId = await _credentials.GetClientIdAsync(TwitchProvider, ct);
+            if (string.IsNullOrWhiteSpace(clientId))
+                return null;
+
+            HttpRequestMessage request = new(
+                HttpMethod.Get,
+                $"https://api.twitch.tv/helix/chat/color?user_id={twitchUserId}"
+            );
+            request.Headers.Add("Authorization", $"Bearer {accessToken}");
+            request.Headers.Add("Client-Id", clientId);
+
+            HttpResponseMessage response = await _http.SendAsync(request, ct);
+            if (!response.IsSuccessStatusCode)
+                return null;
+
+            HelixDataResponse<HelixChatColor>? data = await response.Content.ReadFromJsonAsync<
+                HelixDataResponse<HelixChatColor>
+            >(cancellationToken: ct);
+
+            string? color = data?.Data?.FirstOrDefault()?.Color;
+            return string.IsNullOrWhiteSpace(color) ? null : color;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogDebug(ex, "Best-effort chat color fetch failed; continuing without it");
+            return null;
+        }
+    }
+
     private sealed class HelixDataResponse<T>
     {
         [JsonPropertyName("data")]
         public List<T>? Data { get; set; }
+    }
+
+    private sealed class HelixChatColor
+    {
+        [JsonPropertyName("user_id")]
+        public string UserId { get; set; } = null!;
+
+        [JsonPropertyName("color")]
+        public string? Color { get; set; }
     }
 
     private sealed class HelixUser

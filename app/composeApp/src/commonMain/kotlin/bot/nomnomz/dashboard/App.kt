@@ -70,7 +70,8 @@ fun App(graph: AppGraph = remember { AppGraph() }) {
     // below — not the theme tokens, the splash-hold state, or the session phase — which avoids rebuilding
     // (and GC-churning) the whole subtree on every locale flip while still re-rendering every visible
     // string live. `LocalSpacing` (from NomNomzTheme) stays in scope for the content beneath it.
-    NomNomzTheme(scheme = Scheme.Dark) {
+    val chatAccentColor: String? by graph.chatAccentColor.collectAsStateWithLifecycle()
+    NomNomzTheme(scheme = Scheme.Dark, accentHex = chatAccentColor) {
         val phase: SessionPhase by graph.sessionStore.phase.collectAsStateWithLifecycle()
         val spacing = LocalSpacing.current
         val scope = rememberCoroutineScope()

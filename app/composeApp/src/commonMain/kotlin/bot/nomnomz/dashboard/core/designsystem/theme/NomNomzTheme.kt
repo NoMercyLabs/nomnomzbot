@@ -16,6 +16,7 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.graphics.Color
 
 // The single theme root (frontend-design-system.md §3). It builds the active `Tokens`
 // from the scheme and provides LocalTokens/LocalScheme/LocalSpacing/LocalTypography.
@@ -42,9 +43,12 @@ val LocalTypography = staticCompositionLocalOf { DefaultTypography }
 @Composable
 fun NomNomzTheme(
     scheme: Scheme = Scheme.Dark,
+    /** The streamer's Twitch chat color as `#RRGGBB`. When non-null, overrides the accent tokens. */
+    accentHex: String? = null,
     content: @Composable () -> Unit,
 ) {
-    val tokens: Tokens = if (scheme == Scheme.Dark) DarkTokens else LightTokens
+    val base: Tokens = if (scheme == Scheme.Dark) DarkTokens else LightTokens
+    val tokens: Tokens = if (accentHex != null) base.withAccent(accentHex, scheme) else base
 
     val colorScheme = if (scheme == Scheme.Dark) {
         darkColorScheme(

@@ -107,7 +107,8 @@ public class ChannelService : IChannelService
                 c.IsLive,
                 "broadcaster",
                 null,
-                c.OverlayToken
+                c.OverlayToken,
+                c.User.Color
             ))
             .ToListAsync(cancellationToken);
 
@@ -151,7 +152,8 @@ public class ChannelService : IChannelService
                 c.IsLive,
                 c.OwnerUserId == userGuid ? "broadcaster" : "moderator",
                 null,
-                c.OverlayToken
+                c.OverlayToken,
+                c.User.Color
             ))
             .ToListAsync(cancellationToken);
 

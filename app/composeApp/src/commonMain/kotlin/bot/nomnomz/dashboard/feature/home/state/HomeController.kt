@@ -33,6 +33,8 @@ class HomeController(
     private val hubClient: DashboardHubClient? = null,
     private val baseUrl: () -> String? = { null },
     private val accessToken: () -> String? = { null },
+    /** Called once after the primary channel resolves with the streamer's chat color (#RRGGBB or null). */
+    private val onChatColorResolved: ((String?) -> Unit)? = null,
 ) {
     private val _state: MutableStateFlow<HomeState> = MutableStateFlow(HomeState.Loading)
 
@@ -51,6 +53,9 @@ class HomeController(
                 }
                 is ApiResult.Ok -> result.value
             }
+
+        // Propagate the streamer's chat color so the theme can apply the dynamic accent (design-system §2).
+        onChatColorResolved?.invoke(channel.chatColor)
 
         // Connect the real-time hub now that the channel is resolved — idempotent, so repeated [load]
         // calls (e.g. pull-to-refresh) don't open extra connections.
