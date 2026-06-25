@@ -46,6 +46,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -70,7 +71,11 @@ import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
 import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecision
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.economy_account_freeze
+import nomnomzbot.composeapp.generated.resources.economy_account_freeze_action
 import nomnomzbot.composeapp.generated.resources.economy_account_frozen
+import nomnomzbot.composeapp.generated.resources.economy_account_unfreeze
+import nomnomzbot.composeapp.generated.resources.economy_account_unfreeze_action
 import nomnomzbot.composeapp.generated.resources.economy_accounts_empty
 import nomnomzbot.composeapp.generated.resources.economy_accounts_row_description
 import nomnomzbot.composeapp.generated.resources.economy_accounts_title
@@ -137,6 +142,9 @@ fun EconomyScreen(controller: EconomyController, role: ManagementRole?) {
                     config = config,
                     payoutRules = payoutRules,
                     onSave = { edited -> scope.launch { controller.save(edited) } },
+                    onFreeze = { viewerUserId, frozen ->
+                        scope.launch { controller.freezeAccount(viewerUserId, frozen) }
+                    },
                 )
         }
     }
@@ -148,6 +156,7 @@ private fun ReadyContent(
     config: ManageDecision,
     payoutRules: ManageDecision,
     onSave: (CurrencyConfig) -> Unit,
+    onFreeze: (String, Boolean) -> Unit,
 ) {
     val spacing = LocalSpacing.current
     val loaded: CurrencyConfig = state.config
@@ -255,7 +264,7 @@ private fun ReadyContent(
 
         LeaderboardSection(entries = state.leaderboard)
 
-        AccountsSection(accounts = state.accounts)
+        AccountsSection(accounts = state.accounts, manage = config, onFreeze = onFreeze)
 
         EarningRulesSection(rules = state.earningRules)
     }
@@ -653,9 +662,14 @@ private fun LeaderboardRow(entry: LeaderboardEntry) {
 }
 
 // The account-admin list (economy.md §4): one row per viewer account — the holder (Twitch id), a frozen flag,
-// and the current balance. Read-only here; balance adjustments / freeze are a follow-up management surface.
+// the current balance, and a freeze / unfreeze action gated at the page's Editor floor. Balance adjustments are
+// a follow-up management surface.
 @Composable
-private fun AccountsSection(accounts: List<CurrencyAccountSummary>) {
+private fun AccountsSection(
+    accounts: List<CurrencyAccountSummary>,
+    manage: ManageDecision,
+    onFreeze: (String, Boolean) -> Unit,
+) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
@@ -682,12 +696,18 @@ private fun AccountsSection(accounts: List<CurrencyAccountSummary>) {
         contentPadding = PaddingValues(vertical = spacing.s1),
         verticalArrangement = Arrangement.spacedBy(spacing.s2),
     ) {
-        items(items = accounts, key = { it.id }) { account -> AccountRow(account = account) }
+        items(items = accounts, key = { it.id }) { account ->
+            AccountRow(account = account, manage = manage, onFreeze = onFreeze)
+        }
     }
 }
 
 @Composable
-private fun AccountRow(account: CurrencyAccountSummary) {
+private fun AccountRow(
+    account: CurrencyAccountSummary,
+    manage: ManageDecision,
+    onFreeze: (String, Boolean) -> Unit,
+) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
@@ -698,41 +718,74 @@ private fun AccountRow(account: CurrencyAccountSummary) {
             account.viewerTwitchUserId,
             account.balance,
         )
+    val freezeLabel: String =
+        stringResource(
+            if (account.isFrozen) Res.string.economy_account_unfreeze_action
+            else Res.string.economy_account_freeze_action,
+            account.viewerTwitchUserId,
+        )
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(tokens.radius.lg))
             .background(tokens.card)
-            .padding(horizontal = spacing.s4, vertical = spacing.s3)
-            .clearAndSetSemantics { contentDescription = rowDescription },
+            .padding(horizontal = spacing.s4, vertical = spacing.s3),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(spacing.s3),
     ) {
-        Text(
-            text = account.viewerTwitchUserId,
-            style = typography.base,
-            color = tokens.cardForeground,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f),
-        )
-        if (account.isFrozen) {
+        // The descriptive portion is one semantics node ("39863651, balance 1200"); the freeze button below keeps
+        // its own semantics so it stays individually reachable.
+        Row(
+            modifier = Modifier
+                .weight(1f)
+                .clearAndSetSemantics { contentDescription = rowDescription },
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(spacing.s3),
+        ) {
             Text(
-                text = stringResource(Res.string.economy_account_frozen),
-                style = typography.sm,
-                color = tokens.destructive,
+                text = account.viewerTwitchUserId,
+                style = typography.base,
+                color = tokens.cardForeground,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            if (account.isFrozen) {
+                Text(
+                    text = stringResource(Res.string.economy_account_frozen),
+                    style = typography.sm,
+                    color = tokens.destructive,
+                    maxLines = 1,
+                    modifier = Modifier.wrapContentWidth(),
+                )
+            }
+            Text(
+                text = account.balance.toString(),
+                style = typography.base,
+                color = tokens.primary,
                 maxLines = 1,
                 modifier = Modifier.wrapContentWidth(),
             )
         }
-        Text(
-            text = account.balance.toString(),
-            style = typography.base,
-            color = tokens.primary,
-            maxLines = 1,
-            modifier = Modifier.wrapContentWidth(),
-        )
+        // Freeze / unfreeze — Editor floor (ManageGate); the backend re-checks economy:account:freeze.
+        ManageGate(decision = manage) { enabled ->
+            TextButton(
+                onClick = { onFreeze(account.viewerUserId, !account.isFrozen) },
+                enabled = enabled,
+                modifier = Modifier.semantics { contentDescription = freezeLabel },
+            ) {
+                Text(
+                    text =
+                        stringResource(
+                            if (account.isFrozen) Res.string.economy_account_unfreeze
+                            else Res.string.economy_account_freeze
+                        ),
+                    color = if (enabled) tokens.primary else tokens.mutedForeground,
+                    maxLines = 1,
+                )
+            }
+        }
     }
 }
 

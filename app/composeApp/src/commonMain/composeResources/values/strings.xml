@@ -447,6 +447,10 @@
     <string name="economy_accounts_empty">No accounts yet</string>
     <string name="economy_accounts_row_description">%1$s, balance %2$d</string>
     <string name="economy_account_frozen">Frozen</string>
+    <string name="economy_account_freeze">Freeze</string>
+    <string name="economy_account_unfreeze">Unfreeze</string>
+    <string name="economy_account_freeze_action">Freeze %1$s</string>
+    <string name="economy_account_unfreeze_action">Unfreeze %1$s</string>
     <string name="economy_earning_title">Earning rules</string>
     <string name="economy_earning_empty">No earning rules yet</string>
     <string name="economy_earning_row_description">%1$s, rate %2$d</string>

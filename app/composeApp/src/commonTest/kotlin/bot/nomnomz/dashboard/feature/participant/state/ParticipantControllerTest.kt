@@ -544,6 +544,12 @@ private class FakeEconomyApi(
 
     override suspend fun earningRules(channelId: String): ApiResult<List<EarningRule>> =
         ApiResult.Ok(emptyList())
+
+    override suspend fun freezeAccount(
+        channelId: String,
+        viewerUserId: String,
+        frozen: Boolean,
+    ): ApiResult<Unit> = ApiResult.Ok(Unit)
 }
 
 private class FakeMusicApi(private val snapshot: ApiResult<MusicSnapshot>) : MusicApi {

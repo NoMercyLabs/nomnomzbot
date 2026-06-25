@@ -142,6 +142,26 @@ class EconomyController(
             }
     }
 
+    /**
+     * Freeze or unfreeze a viewer's account ([frozen]), then reload so the row reflects the new state. A frozen
+     * account can neither earn nor spend. No-ops when no channel is loaded; surfaces the error on the current
+     * Ready state (the page's [EconomyState.Ready.saveError] slot) on failure without losing the loaded page.
+     */
+    suspend fun freezeAccount(viewerUserId: String, frozen: Boolean) {
+        val target: String = channelId ?: return
+        when (
+            val result: ApiResult<Unit> = economyApi.freezeAccount(target, viewerUserId, frozen)
+        ) {
+            is ApiResult.Ok -> load()
+            is ApiResult.Failure -> {
+                val current: EconomyState = _state.value
+                if (current is EconomyState.Ready) {
+                    _state.value = current.copy(saveError = result.error.message)
+                }
+            }
+        }
+    }
+
     private companion object {
         // The top-holders window the Economy page surfaces — a fixed, bounded read (the backend caps it too).
         const val LEADERBOARD_TOP: Int = 25

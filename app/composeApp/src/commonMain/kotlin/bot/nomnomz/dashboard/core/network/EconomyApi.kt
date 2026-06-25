@@ -46,6 +46,13 @@ interface EconomyApi {
 
     /** The channel's earning rules — how viewers earn currency (per source). The full set, read-only here. */
     suspend fun earningRules(channelId: String): ApiResult<List<EarningRule>>
+
+    /** Freeze or unfreeze a viewer's account ([frozen]) — a frozen account can neither earn nor spend. */
+    suspend fun freezeAccount(
+        channelId: String,
+        viewerUserId: String,
+        frozen: Boolean,
+    ): ApiResult<Unit>
 }
 
 class RestEconomyApi(private val client: ApiClient) : EconomyApi {
@@ -106,7 +113,21 @@ class RestEconomyApi(private val client: ApiClient) : EconomyApi {
     // the `data` list directly, exactly like the leaderboard configs.
     override suspend fun earningRules(channelId: String): ApiResult<List<EarningRule>> =
         client.getEnvelope("api/v1/channels/$channelId/economy/earning-rules")
+
+    override suspend fun freezeAccount(
+        channelId: String,
+        viewerUserId: String,
+        frozen: Boolean,
+    ): ApiResult<Unit> =
+        client.postUnit(
+            "api/v1/channels/$channelId/economy/accounts/$viewerUserId/freeze",
+            FreezeAccountBody(frozen),
+        )
 }
+
+/** The freeze/unfreeze request body (backend `CurrencyController.FreezeBody`). camelCase `frozen`. */
+@Serializable
+data class FreezeAccountBody(val frozen: Boolean)
 
 /**
  * The channel's currency definition (backend `CurrencyConfigDto`). Field names mirror the DTO camelCase exactly.

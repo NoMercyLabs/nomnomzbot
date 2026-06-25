@@ -153,6 +153,35 @@ class EconomyControllerTest {
     }
 
     @Test
+    fun freezing_an_account_calls_the_api_with_the_viewer_and_flag_then_reloads() = runTest {
+        val economyApi =
+            FakeEconomyApi(
+                configResult = ApiResult.Ok(loadedConfig),
+                leaderboardResult = ApiResult.Ok(leaderboard),
+                accountsResult =
+                    ApiResult.Ok(
+                        listOf(
+                            CurrencyAccountSummary(
+                                id = "a1",
+                                viewerUserId = "v1",
+                                viewerTwitchUserId = "39863651",
+                                balance = 1200,
+                                isFrozen = false,
+                            )
+                        )
+                    ),
+            )
+        val controller =
+            EconomyController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), economyApi)
+        controller.load()
+
+        controller.freezeAccount("v1", frozen = true)
+
+        assertEquals("v1" to true, economyApi.lastFreeze) // addressed by the account's viewerUserId + the flag
+        assertTrue(controller.state.value is EconomyState.Ready) // reloaded; page intact
+    }
+
+    @Test
     fun load_seeds_a_default_form_when_the_economy_is_not_configured() = runTest {
         // A null config means the economy was never set up — the page must still render a (default) form so the
         // operator can create it, flagged not-configured, with whatever leaderboard exists (empty here).
@@ -345,4 +374,16 @@ private class FakeEconomyApi(
 
     override suspend fun earningRules(channelId: String): ApiResult<List<EarningRule>> =
         earningRulesResult
+
+    var lastFreeze: Pair<String, Boolean>? = null
+        private set
+
+    override suspend fun freezeAccount(
+        channelId: String,
+        viewerUserId: String,
+        frozen: Boolean,
+    ): ApiResult<Unit> {
+        lastFreeze = viewerUserId to frozen
+        return ApiResult.Ok(Unit)
+    }
 }
