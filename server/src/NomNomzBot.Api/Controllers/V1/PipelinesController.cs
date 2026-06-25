@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Models;
+using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
@@ -26,10 +27,12 @@ namespace NomNomzBot.Api.Controllers.V1;
 public class PipelinesController : BaseController
 {
     private readonly IPipelineService _pipelineService;
+    private readonly ICommandConfigValidator _validator;
 
-    public PipelinesController(IPipelineService pipelineService)
+    public PipelinesController(IPipelineService pipelineService, ICommandConfigValidator validator)
     {
         _pipelineService = pipelineService;
+        _validator = validator;
     }
 
     [RequireAction("pipelines:read")]
@@ -110,5 +113,22 @@ public class PipelinesController : BaseController
         if (result.IsFailure)
             return ResultResponse(result);
         return NoContent();
+    }
+
+    /// <summary>
+    /// Validates a pipeline graph without persisting it. Returns a <see cref="PipelineValidationResult"/>
+    /// so the editor can surface errors inline before the user hits Save.
+    /// </summary>
+    [RequireAction("pipelines:validate")]
+    [HttpPost("validate")]
+    [ProducesResponseType<StatusResponseDto<PipelineValidationResult>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> ValidatePipeline(
+        string channelId,
+        [FromBody] PipelineGraphInput body,
+        CancellationToken ct
+    )
+    {
+        Result<PipelineValidationResult> result = await _validator.ValidatePipelineAsync(body, ct);
+        return ResultResponse(result);
     }
 }

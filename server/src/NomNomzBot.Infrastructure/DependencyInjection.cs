@@ -485,6 +485,8 @@ public static class DependencyInjection
 
         // PipelineEngine (scoped — IPipelineEngine is not an I<X>Service, registered explicitly)
         services.AddScoped<IPipelineEngine, PipelineEngine>();
+        // Save-time, fail-closed validator (broker-pattern invariant + type registry check).
+        services.AddScoped<ICommandConfigValidator, CommandConfigValidator>();
 
         // Identity / tenant — HttpContext accessor + UnitOfWork are framework/infra, kept explicit.
         // The I<X>Service impls (ICurrentTenantService, IChannelAccessService, ICurrentUserService,

@@ -232,17 +232,23 @@ public sealed class SeedRunnerTests
 
         await using (SeedTestDbContext context = NewContext(db))
         {
-            (await context.Commands.CountAsync()).Should().Be(10, "5 defaults × 2 channels");
-            (await context.Commands.Where(c => c.BroadcasterId == alphaId).CountAsync())
+            (await context.ChannelBuiltinCommands.CountAsync())
+                .Should()
+                .Be(10, "5 defaults × 2 channels");
+            (
+                await context
+                    .ChannelBuiltinCommands.Where(c => c.BroadcasterId == alphaId)
+                    .CountAsync()
+            )
                 .Should()
                 .Be(5);
-            // Shape: every seeded default is an enabled template command.
-            (await context.Commands.Where(c => c.IsEnabled).CountAsync())
+            // Shape: every seeded default is an enabled builtin command row.
+            (await context.ChannelBuiltinCommands.Where(c => c.IsEnabled).CountAsync())
                 .Should()
                 .Be(10);
         }
 
-        // Second run — natural key (BroadcasterId, Name) already present, so nothing is added.
+        // Second run — natural key (BroadcasterId, BuiltinKey) already present, so nothing is added.
         await using (SeedTestDbContext context = NewContext(db))
         {
             await new DefaultCommandsSeeder(context).SeedAsync();
@@ -251,11 +257,11 @@ public sealed class SeedRunnerTests
 
         await using (SeedTestDbContext context = NewContext(db))
         {
-            (await context.Commands.CountAsync())
+            (await context.ChannelBuiltinCommands.CountAsync())
                 .Should()
-                .Be(10, "re-run upserts by (BroadcasterId, Name) — no duplicates");
+                .Be(10, "re-run upserts by (BroadcasterId, BuiltinKey) — no duplicates");
             context
-                .Commands.Select(c => new { c.BroadcasterId, c.Name })
+                .ChannelBuiltinCommands.Select(c => new { c.BroadcasterId, c.BuiltinKey })
                 .Should()
                 .OnlyHaveUniqueItems();
         }
