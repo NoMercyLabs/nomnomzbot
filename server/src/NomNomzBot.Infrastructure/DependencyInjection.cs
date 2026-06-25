@@ -22,6 +22,7 @@ using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.RateLimiting;
 using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Abstractions.Transport;
+using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Application.Contracts.Twitch;
@@ -34,6 +35,7 @@ using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Tts.Interfaces;
 using NomNomzBot.Infrastructure.BackgroundServices;
 using NomNomzBot.Infrastructure.Chat;
+using NomNomzBot.Infrastructure.Commands;
 using NomNomzBot.Infrastructure.Commands.Jobs;
 using NomNomzBot.Infrastructure.Moderation;
 using NomNomzBot.Infrastructure.Music;
@@ -519,6 +521,9 @@ public static class DependencyInjection
 
         // Auto-moderation engine consumed by concrete type — kept explicit.
         services.AddScoped<AutoModerationEngine>();
+
+        // Built-in command catalog — singleton (static data, no DB access, no request scope).
+        services.AddSingleton<IBuiltinCommandCatalog, BuiltinCommandCatalog>();
 
         // TTS providers (singleton, multi-binding) — special construction with config args,
         // kept explicit. ITtsService is singleton (stateful queues), also kept explicit.
