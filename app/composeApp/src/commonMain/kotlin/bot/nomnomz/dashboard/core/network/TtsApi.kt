@@ -29,6 +29,12 @@ interface TtsApi {
 
     /** The TTS voices available to the channel (across the configured providers). */
     suspend fun voices(channelId: String): ApiResult<List<TtsVoice>>
+
+    /**
+     * Synthesise [text] with [voiceId] and return the result (backend `POST /tts/test`). The result carries the
+     * base64-encoded audio and the provider's reported duration so the dashboard can play it back inline.
+     */
+    suspend fun testSpeak(channelId: String, request: TtsTestRequest): ApiResult<TtsTestResult>
 }
 
 class RestTtsApi(private val client: ApiClient) : TtsApi {
@@ -44,6 +50,10 @@ class RestTtsApi(private val client: ApiClient) : TtsApi {
     // StatusResponseDto envelope wrapping the voice list — getEnvelope reads the `data` list directly.
     override suspend fun voices(channelId: String): ApiResult<List<TtsVoice>> =
         client.getEnvelope("api/v1/channels/$channelId/tts/voices")
+
+    // The test response is a StatusResponseDto<TtsTestResultDto> envelope — getEnvelope unwraps `data`.
+    override suspend fun testSpeak(channelId: String, request: TtsTestRequest): ApiResult<TtsTestResult> =
+        client.postEnvelope("api/v1/channels/$channelId/tts/test", request)
 }
 
 /** The channel's TTS configuration (backend `TtsConfigDto`). Field names mirror the DTO camelCase exactly. */
@@ -70,6 +80,23 @@ data class TtsConfigUpdate(
     val minPermission: String? = null,
     val skipBotMessages: Boolean? = null,
     val readUsernames: Boolean? = null,
+)
+
+/** The test-speak request body (backend `TtsTestRequestDto`). camelCase; [voiceId] is the full provider voice id. */
+@Serializable
+data class TtsTestRequest(val text: String, val voiceId: String)
+
+/**
+ * The test-speak result (backend `TtsTestResultDto`). [audioBase64] is the synthesised audio encoded as base64
+ * (the dashboard uses it as a data URI for inline playback); [durationMs] is the provider's reported length;
+ * [provider] identifies which engine rendered it.
+ */
+@Serializable
+data class TtsTestResult(
+    val voiceId: String = "",
+    val provider: String = "",
+    val durationMs: Int = 0,
+    val audioBase64: String = "",
 )
 
 /**

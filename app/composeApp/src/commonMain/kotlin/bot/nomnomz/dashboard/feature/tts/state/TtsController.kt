@@ -16,6 +16,8 @@ import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.TtsApi
 import bot.nomnomz.dashboard.core.network.TtsConfig
 import bot.nomnomz.dashboard.core.network.TtsConfigUpdate
+import bot.nomnomz.dashboard.core.network.TtsTestRequest
+import bot.nomnomz.dashboard.core.network.TtsTestResult
 import bot.nomnomz.dashboard.core.network.TtsVoice
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -72,6 +74,27 @@ class TtsController(
     }
 
     /**
+     * Synthesise a test utterance with [voiceId] (the voice selected in the picker) and [text]. Stores the result
+     * on the Ready state so the screen can play the audio back inline via a data URI. Clears the previous test
+     * result before starting so the UI doesn't flash stale audio. Surfaces the error on failure.
+     */
+    suspend fun testSpeak(voiceId: String, text: String) {
+        val channel: String = channelId ?: return
+        val current: TtsState = _state.value
+        if (current !is TtsState.Ready) return
+        _state.value = current.copy(testResult = null, testError = null, testing = true)
+        _state.value =
+            when (val result: ApiResult<TtsTestResult> = ttsApi.testSpeak(channel, TtsTestRequest(text, voiceId))) {
+                is ApiResult.Failure ->
+                    (_state.value as? TtsState.Ready)?.copy(testing = false, testError = result.error.message)
+                        ?: current.copy(testing = false, testError = result.error.message)
+                is ApiResult.Ok ->
+                    (_state.value as? TtsState.Ready)?.copy(testing = false, testResult = result.value)
+                        ?: current.copy(testing = false, testResult = result.value)
+            }
+    }
+
+    /**
      * Persist [config] for the loaded channel. Sends the whole configuration as the update; the backend
      * echoes the saved values, which become the new loaded baseline ([TtsState.Ready.justSaved] flags the
      * confirmation). A failure surfaces on the current Ready state without discarding the in-progress edit.
@@ -124,6 +147,9 @@ sealed interface TtsState {
         val saving: Boolean = false,
         val justSaved: Boolean = false,
         val saveError: String? = null,
+        val testing: Boolean = false,
+        val testResult: TtsTestResult? = null,
+        val testError: String? = null,
     ) : TtsState
 
     data class Error(val detail: String) : TtsState

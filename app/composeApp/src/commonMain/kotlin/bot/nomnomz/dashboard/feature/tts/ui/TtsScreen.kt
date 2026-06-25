@@ -48,6 +48,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
@@ -56,6 +57,7 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.network.TtsConfig
+import bot.nomnomz.dashboard.core.network.TtsTestResult
 import bot.nomnomz.dashboard.core.network.TtsVoice
 import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
 import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
@@ -92,6 +94,11 @@ import nomnomzbot.composeapp.generated.resources.tts_voices_search
 import nomnomzbot.composeapp.generated.resources.tts_voices_use
 import nomnomzbot.composeapp.generated.resources.tts_voices_use_action
 import nomnomzbot.composeapp.generated.resources.tts_voices_title
+import nomnomzbot.composeapp.generated.resources.tts_test_error
+import nomnomzbot.composeapp.generated.resources.tts_test_play
+import nomnomzbot.composeapp.generated.resources.tts_test_prompt
+import nomnomzbot.composeapp.generated.resources.tts_test_success
+import nomnomzbot.composeapp.generated.resources.tts_test_title
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -122,6 +129,7 @@ fun TtsScreen(controller: TtsController, role: ManagementRole?) {
                     state = current,
                     manage = manage,
                     onSave = { edited -> scope.launch { controller.save(edited) } },
+                    onTestSpeak = { voiceId, text -> scope.launch { controller.testSpeak(voiceId, text) } },
                 )
         }
     }
@@ -139,7 +147,12 @@ private val PERMISSIONS: List<Pair<String, StringResource>> =
     )
 
 @Composable
-private fun ReadyContent(state: TtsState.Ready, manage: ManageDecision, onSave: (TtsConfig) -> Unit) {
+private fun ReadyContent(
+    state: TtsState.Ready,
+    manage: ManageDecision,
+    onSave: (TtsConfig) -> Unit,
+    onTestSpeak: (voiceId: String, text: String) -> Unit,
+) {
     val spacing = LocalSpacing.current
     val loaded: TtsConfig = state.config
 
@@ -209,6 +222,15 @@ private fun ReadyContent(state: TtsState.Ready, manage: ManageDecision, onSave: 
             currentVoiceId = defaultVoiceId,
             manage = manage,
             onSelect = { defaultVoiceId = it },
+        )
+
+        TestSpeakSection(
+            currentVoiceId = defaultVoiceId,
+            testing = state.testing,
+            testResult = state.testResult,
+            testError = state.testError,
+            manage = manage,
+            onTest = { voiceId, text -> onTestSpeak(voiceId, text) },
         )
     }
 }
@@ -650,6 +672,89 @@ private fun ErrorContent(detail: String, onRetry: () -> Unit) {
                 textAlign = TextAlign.Center,
             )
             TextButton(onClick = onRetry) { Text(text = stringResource(Res.string.tts_retry)) }
+        }
+    }
+}
+
+// The test-speak panel: a text input + "Play" button. On success the backend returns base64 audio that the
+// dashboard plays via a JS interop data URI. [testResult] carries the audio; [testError] surfaces synthesis
+// failures without losing the loaded config. Nothing renders if no voice is selected.
+@Composable
+private fun TestSpeakSection(
+    currentVoiceId: String,
+    testing: Boolean,
+    testResult: TtsTestResult?,
+    testError: String?,
+    manage: ManageDecision,
+    onTest: (voiceId: String, text: String) -> Unit,
+) {
+    if (currentVoiceId.isBlank()) return
+
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    var testText: String by remember { mutableStateOf("") }
+
+    Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
+        Text(
+            text = stringResource(Res.string.tts_test_title),
+            style = typography.lg,
+            color = tokens.cardForeground,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(spacing.s3),
+        ) {
+            AppTextField(
+                value = testText,
+                onValueChange = { testText = it },
+                label = stringResource(Res.string.tts_test_prompt),
+                modifier = Modifier.weight(1f),
+                enabled = !testing,
+            )
+            ManageGate(decision = manage) { enabled ->
+                Button(
+                    onClick = { if (testText.isNotBlank()) onTest(currentVoiceId, testText.trim()) },
+                    enabled = enabled && !testing && testText.isNotBlank(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = tokens.primary,
+                        contentColor = tokens.primaryForeground,
+                        disabledContainerColor = tokens.muted,
+                        disabledContentColor = tokens.mutedForeground,
+                    ),
+                ) {
+                    if (testing) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(spacing.s4),
+                            color = tokens.primaryForeground,
+                            strokeWidth = spacing.s1,
+                        )
+                    } else {
+                        Text(text = stringResource(Res.string.tts_test_play))
+                    }
+                }
+            }
+        }
+
+        testError?.let { error ->
+            Text(
+                text = stringResource(Res.string.tts_test_error, error),
+                style = typography.sm,
+                color = tokens.destructive,
+            )
+        }
+
+        testResult?.let { result ->
+            Text(
+                text = stringResource(Res.string.tts_test_success, result.provider, result.durationMs),
+                style = typography.sm,
+                color = tokens.mutedForeground,
+            )
         }
     }
 }

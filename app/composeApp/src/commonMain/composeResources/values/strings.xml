@@ -286,6 +286,11 @@
     <string name="tts_voices_use">Use</string>
     <string name="tts_voices_use_action">Use %1$s</string>
     <string name="tts_voices_more">Refine your search to narrow %1$d matches</string>
+    <string name="tts_test_title">Test voice</string>
+    <string name="tts_test_prompt">Type something to speak…</string>
+    <string name="tts_test_play">Play</string>
+    <string name="tts_test_success">Synthesised via %1$s (%2$d ms)</string>
+    <string name="tts_test_error">Test failed: %1$s</string>
     <string name="tts_label_min_permission">Minimum permission</string>
     <string name="tts_label_max_length">Max message length</string>
     <string name="tts_label_skip_bot_messages">Skip bot messages</string>
