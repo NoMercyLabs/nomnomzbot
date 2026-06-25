@@ -15,6 +15,7 @@ import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.DashboardApi
 import bot.nomnomz.dashboard.core.network.DashboardStats
+import bot.nomnomz.dashboard.core.realtime.DashboardHubClient
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -22,9 +23,16 @@ import kotlinx.coroutines.flow.asStateFlow
 // The Home page's state-holder (frontend-ia.md §3 — the live channel landing). Resolves the active channel,
 // then loads its real snapshot from the backend (no fabricated counts). The screen renders [state]; a pull /
 // reconnect calls [load] again.
+//
+// Real-time: when [hubClient] + [baseUrl] + [accessToken] are supplied, [load] connects the hub after the
+// channel resolves so all pages receive live push events for the duration of the shell session. The hub
+// client is idempotent on repeated [load] calls (reconnects if closed, no-ops if already live).
 class HomeController(
     private val channelsApi: ChannelsApi,
     private val dashboardApi: DashboardApi,
+    private val hubClient: DashboardHubClient? = null,
+    private val baseUrl: () -> String? = { null },
+    private val accessToken: () -> String? = { null },
 ) {
     private val _state: MutableStateFlow<HomeState> = MutableStateFlow(HomeState.Loading)
 
@@ -43,6 +51,14 @@ class HomeController(
                 }
                 is ApiResult.Ok -> result.value
             }
+
+        // Connect the real-time hub now that the channel is resolved — idempotent, so repeated [load]
+        // calls (e.g. pull-to-refresh) don't open extra connections.
+        val url: String? = baseUrl()
+        val token: String? = accessToken()
+        if (hubClient != null && url != null && token != null) {
+            hubClient.connect(url, token, channel.id)
+        }
 
         when (val result: ApiResult<DashboardStats> = dashboardApi.stats(channel.id)) {
             is ApiResult.Failure -> _state.value = HomeState.Error(result.error.message)

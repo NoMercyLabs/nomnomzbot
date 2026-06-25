@@ -118,6 +118,7 @@ import bot.nomnomz.dashboard.feature.tts.state.TtsController
 import bot.nomnomz.dashboard.feature.widgets.state.WidgetsController
 import bot.nomnomz.dashboard.core.network.LiveOpsApi
 import bot.nomnomz.dashboard.core.network.RestLiveOpsApi
+import bot.nomnomz.dashboard.core.realtime.DashboardHubClient
 import bot.nomnomz.dashboard.feature.language.state.LanguageController
 import bot.nomnomz.dashboard.feature.liveops.state.LiveOpsController
 import bot.nomnomz.dashboard.feature.setup.state.SetupController
@@ -140,6 +141,11 @@ class AppGraph {
     private val languageStore: LanguageStore = LanguagePreferenceStore()
 
     val languageController: LanguageController = LanguageController(languageStore)
+
+    // The SignalR hub client for real-time server push (DashboardHub). Shared across controllers
+    // that need live updates (ChatController → subscribeToHub). Connected once when a session is
+    // established; the connect call is idempotent (re-entrant no-op when already connected).
+    val dashboardHubClient: DashboardHubClient = DashboardHubClient()
 
     // The single shared client reads base URL + token from the session on every request, so a
     // sign-in / connection switch re-targets the live client (frontend.md §3.1).
@@ -223,7 +229,13 @@ class AppGraph {
         )
 
     val homeController: HomeController =
-        HomeController(channelsApi = channelsApi, dashboardApi = dashboardApi)
+        HomeController(
+            channelsApi = channelsApi,
+            dashboardApi = dashboardApi,
+            hubClient = dashboardHubClient,
+            baseUrl = sessionStore::baseUrl,
+            accessToken = sessionStore::accessToken,
+        )
 
     val communityController: CommunityController =
         CommunityController(channelsApi = channelsApi, communityApi = communityApi)

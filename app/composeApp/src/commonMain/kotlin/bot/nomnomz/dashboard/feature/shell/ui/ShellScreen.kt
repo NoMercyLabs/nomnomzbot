@@ -270,7 +270,11 @@ private fun ShellContent(
     Box(modifier = modifier) {
         when (selected) {
             ShellRoute.Dashboard -> HomeScreen(controller = graph.homeController, liveOpsController = graph.liveOpsController)
-            ShellRoute.Chat -> ChatScreen(controller = graph.chatController, role = role)
+            ShellRoute.Chat -> ChatScreen(
+                controller = graph.chatController,
+                role = role,
+                hubEvents = graph.dashboardHubClient.events,
+            )
             ShellRoute.Community -> CommunityScreen(controller = graph.communityController, role = role)
             ShellRoute.Commands -> CommandsScreen(controller = graph.commandsController, role = role)
             ShellRoute.Quotes -> QuotesScreen(controller = graph.quotesController, role = role)

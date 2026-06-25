@@ -15,15 +15,23 @@ import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.ChatApi
 import bot.nomnomz.dashboard.core.network.ChatMessage
+import bot.nomnomz.dashboard.core.realtime.HubChatMessage
+import bot.nomnomz.dashboard.core.realtime.HubEvent
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.filterIsInstance
 
 // The Chat page's state-holder (frontend-ia.md §3 — the Chat group). Resolves the active channel, then loads
 // its real recent chat from the backend (persisted from EventSub `channel.chat.message`; no fabricated lines).
 // It also drives the page's live actions — send a message as the bot, delete a single message, timeout a
 // chatter — each of which re-loads on success so the feed always reflects the backend's truth. The screen
 // renders [state]; a retry / reconnect (or a poll tick) calls [load] again.
+//
+// Real-time: [subscribeToHub] can be called once after [load] to forward live ChatMessage hub invocations
+// from DashboardHubClient directly into the Ready state so new messages appear without a poll. The existing
+// poll path remains the fallback when no hub client is wired.
 class ChatController(
     private val channelsApi: ChannelsApi,
     private val chatApi: ChatApi,
@@ -69,6 +77,24 @@ class ChatController(
         }
     }
 
+    /**
+     * Subscribe to [hubEvents], prepending each incoming [HubEvent.ChatMessage] to the Ready feed so new
+     * messages appear instantly without waiting for a poll tick. Must be called from a coroutine scope that
+     * outlives the page (e.g. the screen's LaunchedEffect). The subscription is cancelled when that scope
+     * cancels — no explicit teardown is needed.
+     */
+    suspend fun subscribeToHub(hubEvents: SharedFlow<HubEvent>) {
+        hubEvents.filterIsInstance<HubEvent.ChatMessage>().collect { evt ->
+            val current: ChatState = _state.value
+            if (current is ChatState.Ready) {
+                val newLine: ChatMessage = evt.message.toLocalMessage()
+                // Prepend the live message and cap the feed to 200 lines so the list doesn't grow unbounded.
+                val capped: List<ChatMessage> = (listOf(newLine) + current.messages).take(200)
+                _state.value = current.copy(messages = capped)
+            }
+        }
+    }
+
     /** Send [message] to chat as the bot, then reload so the sent line appears. Surfaces the error on failure. */
     suspend fun send(message: String) {
         val trimmed: String = message.trim()
@@ -109,6 +135,26 @@ class ChatController(
         const val NoChannelError: String = "No active channel — reconnect and try again."
     }
 }
+
+// ─── Hub adapter ─────────────────────────────────────────────────────────────
+
+private fun HubChatMessage.toLocalMessage(): ChatMessage =
+    ChatMessage(
+        id = id,
+        channelId = channelId,
+        userId = userId,
+        username = username,
+        displayName = displayName,
+        userType = userType,
+        color = color,
+        message = message,
+        messageType = messageType,
+        isCommand = isCommand,
+        isCheer = isCheer,
+        bitsAmount = if (bitsAmount > 0) bitsAmount else null,
+        replyToMessageId = replyToMessageId,
+        timestamp = timestamp,
+    )
 
 /** The Chat page render state. */
 sealed interface ChatState {

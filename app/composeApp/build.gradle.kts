@@ -62,6 +62,8 @@ kotlin {
             implementation(libs.ktor.client.core)
             implementation(libs.ktor.client.content.negotiation)
             implementation(libs.ktor.serialization.kotlinx.json)
+            // WebSocket transport for the SignalR hub client (DashboardHubClient).
+            implementation(libs.ktor.client.websockets)
         }
 
         commonTest.dependencies {

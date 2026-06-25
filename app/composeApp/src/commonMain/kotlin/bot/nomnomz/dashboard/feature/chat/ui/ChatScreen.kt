@@ -56,12 +56,14 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.network.ChatMessage
+import bot.nomnomz.dashboard.core.realtime.HubEvent
 import bot.nomnomz.dashboard.feature.chat.state.ChatController
 import bot.nomnomz.dashboard.feature.chat.state.ChatState
 import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
 import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
 import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecision
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.chat_action_error
@@ -94,7 +96,11 @@ import org.jetbrains.compose.resources.stringResource
 // message is moderatable: delete that one message or timeout its author — both only once confirmed in the
 // shared ConfirmDialog (design-system rule: destructive actions MUST confirm).
 @Composable
-fun ChatScreen(controller: ChatController, role: ManagementRole?) {
+fun ChatScreen(
+    controller: ChatController,
+    role: ManagementRole?,
+    hubEvents: SharedFlow<HubEvent>? = null,
+) {
     val state: ChatState by controller.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val spacing = LocalSpacing.current
@@ -112,6 +118,13 @@ fun ChatScreen(controller: ChatController, role: ManagementRole?) {
             delay(PollIntervalMillis)
             controller.load()
         }
+    }
+
+    // When the hub is connected, stream live ChatMessage invocations into the controller so new lines
+    // appear instantly — no poll tick needed. Runs concurrently with the poll loop; the poll remains the
+    // fallback/initial source of truth and also handles deletes/timeouts that the hub doesn't re-emit.
+    if (hubEvents != null) {
+        LaunchedEffect(hubEvents) { controller.subscribeToHub(hubEvents) }
     }
 
     Column(modifier = Modifier.fillMaxSize().padding(spacing.s6)) {
