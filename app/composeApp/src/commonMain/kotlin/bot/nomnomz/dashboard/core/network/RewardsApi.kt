@@ -40,6 +40,15 @@ interface RewardsApi {
 
     /** Delete a reward, addressed by its [rewardId] (the backend DELETE route is keyed by the reward id). */
     suspend fun delete(channelId: String, rewardId: String): ApiResult<Unit>
+
+    /**
+     * The channel-points redemption queue (backend `RewardsController.ListRedemptions`, newest-first). Pass
+     * [status] = "unfulfilled" for the pending lane, or null for the whole queue. Flat `PaginatedResponse`.
+     */
+    suspend fun redemptions(
+        channelId: String,
+        status: String? = null,
+    ): ApiResult<List<RedemptionSummary>>
 }
 
 class RestRewardsApi(private val client: ApiClient) : RewardsApi {
@@ -70,6 +79,24 @@ class RestRewardsApi(private val client: ApiClient) : RewardsApi {
 
     override suspend fun delete(channelId: String, rewardId: String): ApiResult<Unit> =
         client.deleteUnit("api/v1/channels/$channelId/rewards/$rewardId")
+
+    override suspend fun redemptions(
+        channelId: String,
+        status: String?,
+    ): ApiResult<List<RedemptionSummary>> {
+        // Flat PaginatedResponse like the rewards list — read with getDirect. First page only here; the pager
+        // layers on later. The optional status filters the lane (e.g. "unfulfilled" = pending).
+        val statusQuery: String = if (status.isNullOrBlank()) "" else "&status=$status"
+        return when (
+            val page: ApiResult<PaginatedEnvelope<RedemptionSummary>> =
+                client.getDirect(
+                    "api/v1/channels/$channelId/rewards/redemptions?page=1&pageSize=25$statusQuery"
+                )
+        ) {
+            is ApiResult.Failure -> ApiResult.Failure(page.error)
+            is ApiResult.Ok -> ApiResult.Ok(page.value.data)
+        }
+    }
 }
 
 /**
@@ -112,4 +139,22 @@ data class RewardSummary(
     val isEnabled: Boolean = false,
     val backgroundColor: String? = null,
     val imageUrl: String? = null,
+)
+
+/**
+ * A redemption-queue row (backend `RedemptionListItem`). camelCase serialized names; the client reads the
+ * subset the queue renders. [status] is `unfulfilled` (pending) / `fulfilled` / `canceled`; [redeemedAt] is the
+ * ISO-8601 redeem time. [userInput] is the viewer's text for input-required rewards (e.g. a song link).
+ */
+@Serializable
+data class RedemptionSummary(
+    val redemptionId: String,
+    val rewardId: String = "",
+    val rewardTitle: String = "",
+    val userId: String = "",
+    val userDisplayName: String = "",
+    val cost: Int = 0,
+    val userInput: String? = null,
+    val status: String = "",
+    val redeemedAt: String = "",
 )

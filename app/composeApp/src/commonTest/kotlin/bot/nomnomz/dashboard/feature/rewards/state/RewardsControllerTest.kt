@@ -15,6 +15,7 @@ import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.CreateRewardBody
+import bot.nomnomz.dashboard.core.network.RedemptionSummary
 import bot.nomnomz.dashboard.core.network.RewardSummary
 import bot.nomnomz.dashboard.core.network.RewardsApi
 import bot.nomnomz.dashboard.core.network.UpdateRewardBody
@@ -308,4 +309,10 @@ private class RecordingRewardsApi(
         }
         return writeResult
     }
+
+    // The redemption queue is not exercised by these reward-CRUD tests; the fake satisfies the interface.
+    override suspend fun redemptions(
+        channelId: String,
+        status: String?,
+    ): ApiResult<List<RedemptionSummary>> = ApiResult.Ok(emptyList())
 }
