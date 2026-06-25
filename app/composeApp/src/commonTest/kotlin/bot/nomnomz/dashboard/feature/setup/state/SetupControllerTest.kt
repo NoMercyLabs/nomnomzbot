@@ -86,21 +86,41 @@ class SetupControllerTest {
     }
 
     @Test
-    fun saving_with_a_blank_required_field_surfaces_an_error_and_does_not_call_the_backend() = runTest {
+    fun saving_a_confidential_provider_without_its_secret_surfaces_an_error() = runTest {
+        // Spotify is a confidential OAuth client: the client id alone is not enough — the secret is required, so
+        // a blank secret surfaces MissingFields and never calls the backend.
+        val api = FakeSystemApi(wizard = wizard(twitch = true, bot = true), ready = true)
+        val controller = controller(api)
+        controller.load()
+        val spotify: SetupStep = (controller.state.value as SetupState.Steps).steps.first { it.key == "spotify" }
+
+        controller.onFieldChange("spotify", "clientId", "spid")
+        controller.saveCredentials(spotify)
+
+        val steps: SetupState.Steps = controller.state.value as SetupState.Steps
+        val error: SetupError? = steps.error
+        assertTrue(error is SetupError.MissingFields && error.stepKey == "spotify")
+        assertNull(api.savedSpotify)
+    }
+
+    @Test
+    fun saving_twitch_without_a_secret_saves_because_the_secret_is_optional() = runTest {
+        // Twitch logs in secret-free via the Device Code Flow — the client id alone is a complete save, never a
+        // MissingFields error. The secret only re-enables the redirect flow as an enhancement.
         val api = FakeSystemApi(wizard = wizard(twitch = false, bot = true), ready = false)
         val controller = controller(api)
         controller.load()
         val twitch: SetupStep = (controller.state.value as SetupState.Steps).steps.first { it.key == "twitch_app" }
 
-        // Only the client id is filled — the secret is blank.
         controller.onFieldChange("twitch_app", "clientId", "abc123")
+        api.wizardAfter = wizard(twitch = true, bot = true)
+        api.readyAfter = true
         controller.saveCredentials(twitch)
 
-        val steps: SetupState.Steps = controller.state.value as SetupState.Steps
-        val error: SetupError? = steps.error
-        assertTrue(error is SetupError.MissingFields && error.stepKey == "twitch_app")
-        // The backend was never called with an incomplete credential pair.
-        assertNull(api.savedTwitchClientId)
+        // The save went through with the client id and an empty secret — no MissingFields, the backend was called.
+        assertEquals("abc123", api.savedTwitchClientId)
+        assertEquals("", api.savedTwitchClientSecret)
+        assertNull((controller.state.value as SetupState.Steps).error)
     }
 
     @Test

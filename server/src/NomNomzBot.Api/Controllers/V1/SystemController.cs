@@ -289,12 +289,17 @@ public class SystemController : BaseController
             return Forbid();
 
         await UpsertSystemConfig("twitch.client_id", request.ClientId, ct);
-        await UpsertSystemConfig(
-            "twitch.client_secret",
-            request.ClientSecret,
-            secure: true,
-            ct: ct
-        );
+        // The Twitch secret is OPTIONAL: the bot logs in secret-free via the Device Code Flow on the client id
+        // alone (the secret only re-enables the redirect/authorization-code flow). Storing an empty secret would
+        // make the system look secret-configured and then fail the redirect exchange instead of falling back to
+        // device code — so only persist a secret that was actually supplied.
+        if (!string.IsNullOrWhiteSpace(request.ClientSecret))
+            await UpsertSystemConfig(
+                "twitch.client_secret",
+                request.ClientSecret,
+                secure: true,
+                ct: ct
+            );
         if (!string.IsNullOrWhiteSpace(request.BotUsername))
             await UpsertSystemConfig("twitch.bot_username", request.BotUsername, ct);
         await _db.SaveChangesAsync(ct);

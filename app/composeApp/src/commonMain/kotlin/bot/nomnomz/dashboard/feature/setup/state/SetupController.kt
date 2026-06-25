@@ -94,7 +94,10 @@ class SetupController(
 
         val clientId: String = valueOf(step.key, FIELD_CLIENT_ID).trim()
         val clientSecret: String = valueOf(step.key, FIELD_CLIENT_SECRET).trim()
-        if (clientId.isEmpty() || clientSecret.isEmpty()) {
+        // Twitch logs in secret-free via the Device Code Flow (client id alone); the secret is an optional
+        // enhancement. The other providers are confidential OAuth clients and still need both fields.
+        val secretRequired: Boolean = step.key != STEP_TWITCH
+        if (clientId.isEmpty() || (secretRequired && clientSecret.isEmpty())) {
             _state.value = current.copy(busy = null, error = SetupError.MissingFields(step.key))
             return
         }
