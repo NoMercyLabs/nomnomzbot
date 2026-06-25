@@ -16,8 +16,10 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Models;
+using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Domain.Identity.Entities;
 using ConfigEntity = NomNomzBot.Domain.Platform.Entities.Configuration;
@@ -36,6 +38,8 @@ public class CommunityController : BaseController
     private readonly ITwitchSubscriptionsApi _subscriptions;
     private readonly ITwitchModerationApi _moderation;
     private readonly TimeProvider _timeProvider;
+    private readonly ICommunityStandingService _communityStanding;
+    private readonly ICurrentUserService _currentUser;
 
     public CommunityController(
         IApplicationDbContext db,
@@ -43,7 +47,9 @@ public class CommunityController : BaseController
         ITwitchModeratorsApi moderators,
         ITwitchSubscriptionsApi subscriptions,
         ITwitchModerationApi moderation,
-        TimeProvider timeProvider
+        TimeProvider timeProvider,
+        ICommunityStandingService communityStanding,
+        ICurrentUserService currentUser
     )
     {
         _db = db;
@@ -52,6 +58,8 @@ public class CommunityController : BaseController
         _subscriptions = subscriptions;
         _moderation = moderation;
         _timeProvider = timeProvider;
+        _communityStanding = communityStanding;
+        _currentUser = currentUser;
     }
 
     // ── DTOs ──────────────────────────────────────────────────────────────────
@@ -763,4 +771,43 @@ public class CommunityController : BaseController
         Result result = await _moderators.RemoveVipAsync(broadcasterId, userId, ct);
         return result.IsFailure ? ResultResponse(result) : NoContent();
     }
+
+    // ── Self community standing ───────────────────────────────────────────────
+
+    /// <summary>Returns the calling user's community standing in the given channel.</summary>
+    [HttpGet("me/standing")]
+    [ProducesResponseType<StatusResponseDto<SelfStandingDto>>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> GetMyStanding(string channelId, CancellationToken ct)
+    {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
+
+        if (!_currentUser.IsAuthenticated || _currentUser.UserId is null)
+            return UnauthorizedResponse("Not authenticated.");
+
+        if (!Guid.TryParse(_currentUser.UserId, out Guid callerId))
+            return UnauthorizedResponse("Invalid user id.");
+
+        NomNomzBot.Domain.Identity.Enums.CommunityStanding standing = NomNomzBot
+            .Domain
+            .Identity
+            .Enums
+            .CommunityStanding
+            .Everyone;
+        Result<NomNomzBot.Domain.Identity.Enums.CommunityStanding> standingResult =
+            await _communityStanding.GetStandingAsync(broadcasterId, callerId, ct);
+        if (standingResult.IsSuccess)
+            standing = standingResult.Value;
+
+        return Ok(
+            new StatusResponseDto<SelfStandingDto>
+            {
+                Data = new SelfStandingDto(standing.ToString(), (int)standing),
+            }
+        );
+    }
+
+    public record SelfStandingDto(string Standing, int LevelValue);
 }

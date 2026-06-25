@@ -329,6 +329,7 @@ public class UserService : IUserService
 
                 return new UserChannelAppearanceDto(
                     ch.Id.ToString(),
+                    ch.Id.ToString(),
                     ch.Name,
                     followDate,
                     msgs is not null ? msgs.MessageCount : 0,

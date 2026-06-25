@@ -76,6 +76,7 @@ public sealed record UserStatsDto(
 
 /// <summary>Channel appearance record for GDPR user data view.</summary>
 public sealed record UserChannelAppearanceDto(
+    string Id,
     string ChannelId,
     string ChannelName,
     string FollowDate,
