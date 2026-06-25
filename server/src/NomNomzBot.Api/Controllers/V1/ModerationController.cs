@@ -17,6 +17,7 @@ using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Moderation.Dtos;
 using NomNomzBot.Application.Moderation.Services;
 using ConfigEntity = NomNomzBot.Domain.Platform.Entities.Configuration;
@@ -32,16 +33,19 @@ public class ModerationController : BaseController
     private readonly IModerationService _moderationService;
     private readonly IApplicationDbContext _db;
     private readonly TimeProvider _timeProvider;
+    private readonly ITwitchChatApi _chatApi;
 
     public ModerationController(
         IModerationService moderationService,
         IApplicationDbContext db,
-        TimeProvider timeProvider
+        TimeProvider timeProvider,
+        ITwitchChatApi chatApi
     )
     {
         _moderationService = moderationService;
         _db = db;
         _timeProvider = timeProvider;
+        _chatApi = chatApi;
     }
 
     // ─── Rules ───────────────────────────────────────────────────────────────
@@ -472,5 +476,29 @@ public class ModerationController : BaseController
         if (result.IsFailure)
             return ResultResponse(result);
         return Ok(new StatusResponseDto<ModerationActionResult> { Data = result.Value });
+    }
+
+    // ─── Shoutout ─────────────────────────────────────────────────────────────
+
+    public record ShoutoutRequest(string TargetTwitchUserId);
+
+    [RequireAction("moderation:shoutout")]
+    [HttpPost("shoutout")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> Shoutout(
+        string channelId,
+        [FromBody] ShoutoutRequest request,
+        CancellationToken ct
+    )
+    {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
+
+        Result result = await _chatApi.SendShoutoutAsync(
+            broadcasterId,
+            request.TargetTwitchUserId,
+            ct
+        );
+        return result.IsFailure ? ResultResponse(result) : NoContent();
     }
 }

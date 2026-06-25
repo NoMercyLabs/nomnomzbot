@@ -82,6 +82,13 @@ interface ModerationApi {
 
     /** Today's moderation counters for the stats banner. */
     suspend fun stats(channelId: String): ApiResult<ModerationStats>
+
+    /**
+     * Send a chat announcement to [channelId]. [color] is one of `"blue"`, `"green"`, `"orange"`, `"purple"`,
+     * or `"primary"` (= the channel's accent) — defaults to `"primary"` when omitted. Requires
+     * `moderator:manage:announcements`.
+     */
+    suspend fun announce(channelId: String, message: String, color: String?): ApiResult<Unit>
 }
 
 class RestModerationApi(private val client: ApiClient) : ModerationApi {
@@ -170,6 +177,10 @@ class RestModerationApi(private val client: ApiClient) : ModerationApi {
 
     override suspend fun stats(channelId: String): ApiResult<ModerationStats> =
         client.getEnvelope("api/v1/channels/$channelId/moderation/stats")
+
+    // The POST body is a ChatController.AnnounceRequest (message, color?); the backend calls Helix on the tenant's behalf.
+    override suspend fun announce(channelId: String, message: String, color: String?): ApiResult<Unit> =
+        client.postUnit("api/v1/channels/$channelId/chat/announce", AnnounceBody(message, color))
 
     // The POST body is a PerformModerationActionRequest (action, targetUserId, durationSeconds?, reason?).
     // The backend is under ModerationController at /moderation/actions.
@@ -302,3 +313,7 @@ data class CreateModerationRuleBody(
 )
 
 // ModerationActionBody lives in ChatApi.kt (package-shared) — imported from there.
+
+/** Request body for the announce action (backend `ChatController.AnnounceRequest`). */
+@Serializable
+data class AnnounceBody(val message: String, val color: String? = null)

@@ -38,6 +38,15 @@ interface CommunityApi {
 
     /** Lift the ban on [userId]; the backend also clears it on Twitch. */
     suspend fun unban(channelId: String, userId: String): ApiResult<Unit>
+
+    /** Grant VIP status to [userId] on Twitch. Requires the channel's `channel:manage:vips` scope. */
+    suspend fun addVip(channelId: String, userId: String): ApiResult<Unit>
+
+    /** Revoke VIP status from [userId] on Twitch. Requires the channel's `channel:manage:vips` scope. */
+    suspend fun removeVip(channelId: String, userId: String): ApiResult<Unit>
+
+    /** Send a /shoutout to [targetTwitchUserId] in the channel. Requires `moderator:manage:shoutouts`. */
+    suspend fun shoutout(channelId: String, targetTwitchUserId: String): ApiResult<Unit>
 }
 
 class RestCommunityApi(private val client: ApiClient) : CommunityApi {
@@ -72,6 +81,18 @@ class RestCommunityApi(private val client: ApiClient) : CommunityApi {
 
     override suspend fun unban(channelId: String, userId: String): ApiResult<Unit> =
         client.deleteUnit("api/v1/channels/$channelId/community/$userId/ban")
+
+    override suspend fun addVip(channelId: String, userId: String): ApiResult<Unit> =
+        client.postUnit("api/v1/channels/$channelId/community/$userId/vip")
+
+    override suspend fun removeVip(channelId: String, userId: String): ApiResult<Unit> =
+        client.deleteUnit("api/v1/channels/$channelId/community/$userId/vip")
+
+    override suspend fun shoutout(channelId: String, targetTwitchUserId: String): ApiResult<Unit> =
+        client.postUnit(
+            "api/v1/channels/$channelId/moderation/shoutout",
+            ShoutoutBody(targetTwitchUserId),
+        )
 }
 
 /** The trust levels the backend `SetTrustLevelRequest` accepts — the closed set the row's picker offers. */
@@ -92,6 +113,10 @@ data class SetTrustLevelBody(val level: String)
 /** Request body for the ban write (backend `BanRequest`): the moderator-supplied reason. */
 @Serializable
 data class BanBody(val reason: String)
+
+/** Request body for the shoutout action (backend `ModerationController.ShoutoutRequest`). */
+@Serializable
+data class ShoutoutBody(val targetTwitchUserId: String)
 
 /**
  * A community member (backend `CommunityUserDto`): the viewer's identity plus the standing badges the row

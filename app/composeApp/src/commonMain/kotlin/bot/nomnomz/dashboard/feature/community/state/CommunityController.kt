@@ -78,6 +78,27 @@ class CommunityController(
         afterWrite(communityApi.unban(channel, userId))
     }
 
+    /** Grant VIP status to [userId], then reload so the badge reflects it. The screen confirms this first. */
+    suspend fun addVip(userId: String) {
+        val channel: String = channelId ?: return failWrite(NoChannelError)
+        afterWrite(communityApi.addVip(channel, userId))
+    }
+
+    /** Revoke VIP status from [userId], then reload so the badge drops. The screen confirms this first. */
+    suspend fun removeVip(userId: String) {
+        val channel: String = channelId ?: return failWrite(NoChannelError)
+        afterWrite(communityApi.removeVip(channel, userId))
+    }
+
+    /** Send a /shoutout to [targetTwitchUserId] in the channel. No page reload needed (fire and forget). */
+    suspend fun shoutout(targetTwitchUserId: String) {
+        val channel: String = channelId ?: return failWrite(NoChannelError)
+        when (val result: ApiResult<Unit> = communityApi.shoutout(channel, targetTwitchUserId)) {
+            is ApiResult.Ok -> Unit
+            is ApiResult.Failure -> failWrite(result.error.message)
+        }
+    }
+
     // A write either reloads the list (success) or surfaces its error over the current Ready list without
     // losing it (failure) — so a failed trust/ban/unban leaves the page intact with a visible reason.
     private suspend fun afterWrite(result: ApiResult<Unit>) {

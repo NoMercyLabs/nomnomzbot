@@ -284,6 +284,23 @@ class ModerationController(
         }
     }
 
+    /**
+     * Send a chat announcement with [message] and optional Twitch [color] (`"blue"`, `"green"`, `"orange"`,
+     * `"purple"`, `"primary"`). Does not reload the page — the banner is transient. Surfaces any error.
+     */
+    suspend fun sendAnnouncement(message: String, color: String?) {
+        val channel: String = channelId ?: return
+        when (val result: ApiResult<Unit> = moderationApi.announce(channel, message, color)) {
+            is ApiResult.Ok -> Unit
+            is ApiResult.Failure -> {
+                val current: ModerationState = _state.value
+                if (current is ModerationState.Ready) {
+                    _state.value = current.copy(actionError = result.error.message)
+                }
+            }
+        }
+    }
+
     // Reload on success; on failure surface the message on the current Ready state without losing the lists.
     private suspend fun afterWrite(result: ApiResult<Unit>) {
         when (result) {

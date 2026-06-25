@@ -132,6 +132,18 @@ import nomnomzbot.composeapp.generated.resources.moderation_action_type_ban
 import nomnomzbot.composeapp.generated.resources.moderation_action_type_timeout
 import nomnomzbot.composeapp.generated.resources.moderation_action_user_id
 import nomnomzbot.composeapp.generated.resources.moderation_action_user_id_required
+import nomnomzbot.composeapp.generated.resources.moderation_announce_action
+import nomnomzbot.composeapp.generated.resources.moderation_announce_color_blue
+import nomnomzbot.composeapp.generated.resources.moderation_announce_color_green
+import nomnomzbot.composeapp.generated.resources.moderation_announce_color_label
+import nomnomzbot.composeapp.generated.resources.moderation_announce_color_orange
+import nomnomzbot.composeapp.generated.resources.moderation_announce_color_primary
+import nomnomzbot.composeapp.generated.resources.moderation_announce_color_purple
+import nomnomzbot.composeapp.generated.resources.moderation_announce_dismiss
+import nomnomzbot.composeapp.generated.resources.moderation_announce_message_label
+import nomnomzbot.composeapp.generated.resources.moderation_announce_message_required
+import nomnomzbot.composeapp.generated.resources.moderation_announce_send
+import nomnomzbot.composeapp.generated.resources.moderation_announce_title
 import nomnomzbot.composeapp.generated.resources.moderation_retry
 import nomnomzbot.composeapp.generated.resources.moderation_unban_action
 import nomnomzbot.composeapp.generated.resources.moderation_unban_action_short
@@ -193,6 +205,9 @@ fun ModerationScreen(controller: ModerationController, role: ManagementRole?) {
                     onCreateRule = { name, type, action, duration, reason ->
                         scope.launch { controller.createRule(name, type, action, duration, reason) }
                     },
+                    onSendAnnouncement = { msg, color ->
+                        scope.launch { controller.sendAnnouncement(msg, color) }
+                    },
                 )
         }
     }
@@ -218,6 +233,7 @@ private fun BansList(
     onToggleRule: (Int, Boolean) -> Unit,
     onDeleteRule: (Int) -> Unit,
     onCreateRule: (name: String, type: String, action: String, durationSeconds: Int?, reason: String?) -> Unit,
+    onSendAnnouncement: (message: String, color: String?) -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -231,6 +247,8 @@ private fun BansList(
     var showActionDialog: Boolean by remember { mutableStateOf(false) }
     // Whether the "add filter rule" dialog is open.
     var showCreateRuleDialog: Boolean by remember { mutableStateOf(false) }
+    // Whether the "send announcement" dialog is open.
+    var showAnnounceDialog: Boolean by remember { mutableStateOf(false) }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -252,17 +270,30 @@ private fun BansList(
         item(key = "shield-toggle") {
             ShieldToggle(enabled = shieldEnabled, manage = manage, onToggle = onToggleShield)
         }
-        // "Moderate a viewer" button — always shown so a mod can ban/timeout someone not yet in the list.
+        // "Moderate a viewer" and "Send Announcement" quick-action buttons.
         item(key = "action-button") {
-            ManageGate(decision = manage) { enabled ->
-                TextButton(
-                    onClick = { showActionDialog = true },
-                    enabled = enabled,
-                ) {
-                    Text(
-                        text = stringResource(Res.string.moderation_action_apply),
-                        color = if (enabled) tokens.primary else tokens.mutedForeground,
-                    )
+            Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
+                ManageGate(decision = manage) { enabled ->
+                    TextButton(
+                        onClick = { showActionDialog = true },
+                        enabled = enabled,
+                    ) {
+                        Text(
+                            text = stringResource(Res.string.moderation_action_apply),
+                            color = if (enabled) tokens.primary else tokens.mutedForeground,
+                        )
+                    }
+                }
+                ManageGate(decision = manage) { enabled ->
+                    TextButton(
+                        onClick = { showAnnounceDialog = true },
+                        enabled = enabled,
+                    ) {
+                        Text(
+                            text = stringResource(Res.string.moderation_announce_action),
+                            color = if (enabled) tokens.primary else tokens.mutedForeground,
+                        )
+                    }
                 }
             }
         }
@@ -438,6 +469,16 @@ private fun BansList(
                 showCreateRuleDialog = false
             },
             onDismiss = { showCreateRuleDialog = false },
+        )
+    }
+
+    if (showAnnounceDialog) {
+        AnnounceDialog(
+            onConfirm = { msg, color ->
+                onSendAnnouncement(msg, color)
+                showAnnounceDialog = false
+            },
+            onDismiss = { showAnnounceDialog = false },
         )
     }
 }
@@ -1140,6 +1181,87 @@ private fun CreateRuleDialog(
         dismissButton = {
             TextButton(onClick = onDismiss) {
                 Text(stringResource(Res.string.moderation_rules_create_dismiss))
+            }
+        },
+        containerColor = tokens.card,
+    )
+}
+
+// Dialog to send a Twitch chat announcement with an optional color tint. The message is required; color
+// defaults to the channel's primary accent when null. The caller owns open/closed state.
+@Composable
+private fun AnnounceDialog(
+    onConfirm: (message: String, color: String?) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    var message: String by remember { mutableStateOf("") }
+    val messageError: Boolean = message.isBlank()
+    // null = "primary" (the Twitch default)
+    var selectedColor: String? by remember { mutableStateOf(null) }
+
+    val colorOptions: List<Pair<String?, String>> = listOf(
+        null to stringResource(Res.string.moderation_announce_color_primary),
+        "blue" to stringResource(Res.string.moderation_announce_color_blue),
+        "green" to stringResource(Res.string.moderation_announce_color_green),
+        "orange" to stringResource(Res.string.moderation_announce_color_orange),
+        "purple" to stringResource(Res.string.moderation_announce_color_purple),
+    )
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = stringResource(Res.string.moderation_announce_title),
+                style = typography.lg,
+                color = tokens.cardForeground,
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
+                AppTextField(
+                    value = message,
+                    onValueChange = { message = it },
+                    label = stringResource(Res.string.moderation_announce_message_label),
+                    isError = messageError && message.isNotEmpty(),
+                    errorText = if (messageError && message.isNotEmpty())
+                        stringResource(Res.string.moderation_announce_message_required) else null,
+                )
+                Text(
+                    text = stringResource(Res.string.moderation_announce_color_label),
+                    style = typography.sm,
+                    color = tokens.mutedForeground,
+                )
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    colorOptions.forEach { (colorKey, label) ->
+                        FilterChip(
+                            selected = selectedColor == colorKey,
+                            onClick = { selectedColor = colorKey },
+                            label = { Text(text = label, style = typography.xs) },
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    if (message.isNotBlank()) onConfirm(message.trim(), selectedColor)
+                },
+                enabled = message.isNotBlank(),
+            ) {
+                Text(stringResource(Res.string.moderation_announce_send))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(Res.string.moderation_announce_dismiss))
             }
         },
         containerColor = tokens.card,

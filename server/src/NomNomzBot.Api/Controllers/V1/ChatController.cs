@@ -16,6 +16,8 @@ using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Chat.ValueObjects;
 using ConfigEntity = NomNomzBot.Domain.Platform.Entities.Configuration;
@@ -30,11 +32,13 @@ public class ChatController : BaseController
 {
     private readonly IApplicationDbContext _db;
     private readonly IChatProvider _chat;
+    private readonly ITwitchChatApi _chatApi;
 
-    public ChatController(IApplicationDbContext db, IChatProvider chat)
+    public ChatController(IApplicationDbContext db, IChatProvider chat, ITwitchChatApi chatApi)
     {
         _db = db;
         _chat = chat;
+        _chatApi = chatApi;
     }
 
     // ── DTOs ──────────────────────────────────────────────────────────────────
@@ -297,5 +301,30 @@ public class ChatController : BaseController
 
         await _db.SaveChangesAsync(ct);
         return Ok(new StatusResponseDto<ChatSettingsDto> { Data = settings });
+    }
+
+    // ── Announcement ──────────────────────────────────────────────────────────
+
+    public record AnnounceRequest(string Message, string? Color = null);
+
+    [RequireAction("chat:announce")]
+    [HttpPost("announce")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> Announce(
+        string channelId,
+        [FromBody] AnnounceRequest request,
+        CancellationToken ct
+    )
+    {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
+
+        Result result = await _chatApi.SendAnnouncementAsync(
+            broadcasterId,
+            request.Message,
+            request.Color,
+            ct
+        );
+        return result.IsFailure ? ResultResponse(result) : NoContent();
     }
 }

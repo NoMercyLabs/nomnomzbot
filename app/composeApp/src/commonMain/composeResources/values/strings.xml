@@ -1253,4 +1253,23 @@
     <string name="webhooks_create_outbound_events">Event types (comma-separated)</string>
     <string name="webhooks_create_outbound_confirm">Create</string>
     <string name="webhooks_create_outbound_dismiss">Cancel</string>
+    <string name="moderation_announce_action">Send Announcement</string>
+    <string name="moderation_announce_title">Send Announcement</string>
+    <string name="moderation_announce_message_label">Message</string>
+    <string name="moderation_announce_message_required">Enter a message.</string>
+    <string name="moderation_announce_color_label">Color</string>
+    <string name="moderation_announce_color_primary">Primary (default)</string>
+    <string name="moderation_announce_color_blue">Blue</string>
+    <string name="moderation_announce_color_green">Green</string>
+    <string name="moderation_announce_color_orange">Orange</string>
+    <string name="moderation_announce_color_purple">Purple</string>
+    <string name="moderation_announce_send">Send</string>
+    <string name="moderation_announce_dismiss">Cancel</string>
+    <string name="community_shoutout_action">Shoutout</string>
+    <string name="community_shoutout_action_desc">Send shoutout to %1$s</string>
+    <string name="community_vip_grant">Grant VIP</string>
+    <string name="community_vip_grant_desc">Grant VIP to %1$s</string>
+    <string name="community_vip_revoke">Revoke VIP</string>
+    <string name="community_vip_revoke_desc">Revoke VIP from %1$s</string>
+    <string name="community_more_actions">More actions for %1$s</string>
 </resources>

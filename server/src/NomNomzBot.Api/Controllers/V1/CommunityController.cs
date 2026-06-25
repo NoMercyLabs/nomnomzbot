@@ -731,4 +731,36 @@ public class CommunityController : BaseController
 
         return NoContent();
     }
+
+    // ── Add VIP ───────────────────────────────────────────────────────────────
+
+    [RequireAction("moderation:vip")]
+    [HttpPost("{userId}/vip")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> AddVip(string channelId, string userId, CancellationToken ct)
+    {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
+
+        Result result = await _moderators.AddVipAsync(broadcasterId, userId, ct);
+        return result.IsFailure ? ResultResponse(result) : NoContent();
+    }
+
+    // ── Remove VIP ────────────────────────────────────────────────────────────
+
+    [RequireAction("moderation:vip")]
+    [HttpDelete("{userId}/vip")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> RemoveVip(
+        string channelId,
+        string userId,
+        CancellationToken ct
+    )
+    {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
+
+        Result result = await _moderators.RemoveVipAsync(broadcasterId, userId, ct);
+        return result.IsFailure ? ResultResponse(result) : NoContent();
+    }
 }

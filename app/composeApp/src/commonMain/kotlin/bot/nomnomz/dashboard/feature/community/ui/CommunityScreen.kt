@@ -81,10 +81,17 @@ import nomnomzbot.composeapp.generated.resources.community_trust_viewer
 import nomnomzbot.composeapp.generated.resources.community_trust_vip
 import nomnomzbot.composeapp.generated.resources.community_unban_action
 import nomnomzbot.composeapp.generated.resources.community_unban_action_short
+import nomnomzbot.composeapp.generated.resources.community_more_actions
+import nomnomzbot.composeapp.generated.resources.community_shoutout_action
+import nomnomzbot.composeapp.generated.resources.community_shoutout_action_desc
 import nomnomzbot.composeapp.generated.resources.community_unban_confirm
 import nomnomzbot.composeapp.generated.resources.community_unban_dismiss
 import nomnomzbot.composeapp.generated.resources.community_unban_message
 import nomnomzbot.composeapp.generated.resources.community_unban_title
+import nomnomzbot.composeapp.generated.resources.community_vip_grant
+import nomnomzbot.composeapp.generated.resources.community_vip_grant_desc
+import nomnomzbot.composeapp.generated.resources.community_vip_revoke
+import nomnomzbot.composeapp.generated.resources.community_vip_revoke_desc
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -120,6 +127,12 @@ fun CommunityScreen(controller: CommunityController, role: ManagementRole?) {
                     onSetTrust = { userId, level -> scope.launch { controller.setTrust(userId, level) } },
                     onBan = { userId, reason -> scope.launch { controller.ban(userId, reason) } },
                     onUnban = { userId -> scope.launch { controller.unban(userId) } },
+                    onShoutout = { userId -> scope.launch { controller.shoutout(userId) } },
+                    onVipToggle = { userId, isVip ->
+                        scope.launch {
+                            if (isVip) controller.removeVip(userId) else controller.addVip(userId)
+                        }
+                    },
                 )
         }
     }
@@ -133,6 +146,8 @@ private fun MemberList(
     onSetTrust: (userId: String, level: String) -> Unit,
     onBan: (userId: String, reason: String) -> Unit,
     onUnban: (userId: String) -> Unit,
+    onShoutout: (userId: String) -> Unit,
+    onVipToggle: (userId: String, isVip: Boolean) -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -163,6 +178,8 @@ private fun MemberList(
                 onSetTrust = { level -> onSetTrust(member.id, level) },
                 onBan = { pendingBan = member },
                 onUnban = { pendingUnban = member },
+                onShoutout = { onShoutout(member.id) },
+                onVipToggle = { onVipToggle(member.id, member.trustLevel == CommunityTrustLevel.Vip) },
             )
         }
     }
@@ -208,6 +225,8 @@ private fun MemberRow(
     onSetTrust: (level: String) -> Unit,
     onBan: () -> Unit,
     onUnban: () -> Unit,
+    onShoutout: () -> Unit,
+    onVipToggle: () -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -250,6 +269,88 @@ private fun MemberRow(
             UnbanButton(name = name, manage = manage, onUnban = onUnban)
         } else {
             BanButton(name = name, manage = manage, onBan = onBan)
+        }
+        MoreActionsMenu(
+            name = name,
+            isVip = member.trustLevel == CommunityTrustLevel.Vip,
+            manage = manage,
+            onShoutout = onShoutout,
+            onVipToggle = onVipToggle,
+        )
+    }
+}
+
+// Overflow menu (⋮) that holds the secondary per-member actions: /shoutout and VIP grant/revoke. Both are
+// gated behind the manage decision so they stay unreachable when the caller lacks the Moderator floor.
+@Composable
+private fun MoreActionsMenu(
+    name: String,
+    isVip: Boolean,
+    manage: ManageDecision,
+    onShoutout: () -> Unit,
+    onVipToggle: () -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val typography = LocalTypography.current
+    val moreDesc: String = stringResource(Res.string.community_more_actions, name)
+
+    var expanded: Boolean by remember { mutableStateOf(false) }
+
+    Box {
+        ManageGate(decision = manage) { enabled ->
+            TextButton(
+                onClick = { expanded = true },
+                enabled = enabled,
+                modifier = Modifier.clearAndSetSemantics {
+                    role = Role.Button
+                    contentDescription = moreDesc
+                },
+            ) {
+                Text(text = "⋮", color = tokens.mutedForeground)
+            }
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            val shoutoutLabel: String = stringResource(Res.string.community_shoutout_action_desc, name)
+            DropdownMenuItem(
+                text = {
+                    Text(
+                        text = stringResource(Res.string.community_shoutout_action),
+                        style = typography.sm,
+                        color = tokens.popoverForeground,
+                    )
+                },
+                modifier = Modifier.semantics {
+                    role = Role.Button
+                    contentDescription = shoutoutLabel
+                },
+                onClick = {
+                    expanded = false
+                    onShoutout()
+                },
+            )
+            val vipLabel: String = stringResource(
+                if (isVip) Res.string.community_vip_revoke_desc else Res.string.community_vip_grant_desc,
+                name,
+            )
+            DropdownMenuItem(
+                text = {
+                    Text(
+                        text = stringResource(
+                            if (isVip) Res.string.community_vip_revoke else Res.string.community_vip_grant
+                        ),
+                        style = typography.sm,
+                        color = if (isVip) tokens.destructive else tokens.popoverForeground,
+                    )
+                },
+                modifier = Modifier.semantics {
+                    role = Role.Button
+                    contentDescription = vipLabel
+                },
+                onClick = {
+                    expanded = false
+                    onVipToggle()
+                },
+            )
         }
     }
 }
