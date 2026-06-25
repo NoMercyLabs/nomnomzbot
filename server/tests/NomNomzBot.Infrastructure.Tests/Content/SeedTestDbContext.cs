@@ -266,6 +266,12 @@ public sealed class SeedTestDbContext : DbContext, IApplicationDbContext
         modelBuilder.Ignore<EventResponse>();
         modelBuilder.Ignore<WatchStreak>();
         modelBuilder.Ignore<Pipeline>();
+        modelBuilder.Ignore<PipelineStep>();
+        modelBuilder.Ignore<PipelineStepCondition>();
+        modelBuilder.Ignore<PipelineExecution>();
+        modelBuilder.Ignore<CommandCooldownState>();
+        modelBuilder.Ignore<NamedCounter>();
+        modelBuilder.Ignore<CommandUsage>();
         modelBuilder.Ignore<NomNomzBot.Domain.EventStore.Entities.EventJournal>();
         modelBuilder.Ignore<NomNomzBot.Domain.EventStore.Entities.TenantSequence>();
         modelBuilder.Ignore<NomNomzBot.Domain.EventStore.Entities.ProjectionCheckpoint>();
