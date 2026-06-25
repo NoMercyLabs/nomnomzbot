@@ -234,13 +234,16 @@ public class UserService : IUserService
         if (user is null)
             return Errors.NotFound<UserStatsDto>("User", userId);
 
+        // ChatMessage.UserId and WatchStreak.UserId are Twitch platform user IDs, not internal Guids.
+        string twitchUserId = user.TwitchUserId;
+
         int messageCount = await _db.ChatMessages.CountAsync(
-            m => m.UserId == userId,
+            m => m.UserId == twitchUserId,
             cancellationToken
         );
 
         int watchStreakCount = await _db.WatchStreaks.CountAsync(
-            w => w.UserId == userId,
+            w => w.UserId == twitchUserId,
             cancellationToken
         );
 
