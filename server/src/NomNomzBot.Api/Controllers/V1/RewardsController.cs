@@ -60,6 +60,29 @@ public class RewardsController : BaseController
         return GetPaginatedResponse(result.Value, request);
     }
 
+    /// <summary>The channel-points redemption queue (newest first); pass ?status=unfulfilled for the pending lane.</summary>
+    [RequireAction("reward:read")]
+    [HttpGet("redemptions")]
+    [ProducesResponseType<PaginatedResponse<RedemptionListItem>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> ListRedemptions(
+        string channelId,
+        [FromQuery] string? status,
+        [FromQuery] PageRequestDto request,
+        CancellationToken ct
+    )
+    {
+        PaginationParams pagination = new(request.Page, request.Take, request.Sort, request.Order);
+        Result<PagedList<RedemptionListItem>> result = await _rewardService.ListRedemptionsAsync(
+            channelId,
+            status,
+            pagination,
+            ct
+        );
+        if (result.IsFailure)
+            return ResultResponse(result);
+        return GetPaginatedResponse(result.Value, request);
+    }
+
     [RequireAction("reward:read")]
     [HttpGet("{rewardId}")]
     [ProducesResponseType<StatusResponseDto<RewardDetail>>(StatusCodes.Status200OK)]

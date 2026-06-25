@@ -20,6 +20,20 @@ public sealed record RewardListItem(
     DateTime CreatedAt
 );
 
+/// <summary>One entry in the channel-points redemption queue (rewards.md) — a redemption with its current
+/// status (<c>unfulfilled</c> / <c>fulfilled</c> / <c>canceled</c>), folded from the journal.</summary>
+public sealed record RedemptionListItem(
+    string RedemptionId,
+    string RewardId,
+    string RewardTitle,
+    string UserId,
+    string UserDisplayName,
+    int Cost,
+    string? UserInput,
+    string Status,
+    DateTime RedeemedAt
+);
+
 public sealed record RewardDetail(
     string Id,
     string Title,

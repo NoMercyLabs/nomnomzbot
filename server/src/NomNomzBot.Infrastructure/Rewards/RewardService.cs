@@ -161,7 +161,51 @@ public class RewardService : IRewardService
             .ToListAsync(cancellationToken);
 
         return Result.Success(
-            new PagedList<RewardListItem>(items, total, pagination.Page, pagination.PageSize)
+            new PagedList<RewardListItem>(items, pagination.Page, pagination.PageSize, total)
+        );
+    }
+
+    public async Task<Result<PagedList<RedemptionListItem>>> ListRedemptionsAsync(
+        string broadcasterId,
+        string? status,
+        PaginationParams pagination,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (!Guid.TryParse(broadcasterId, out Guid broadcaster))
+            return Result.Failure<PagedList<RedemptionListItem>>(
+                $"Invalid channel ID '{broadcasterId}'.",
+                "VALIDATION_FAILED"
+            );
+
+        IQueryable<Redemption> query = _db.Redemptions.Where(r => r.BroadcasterId == broadcaster);
+        if (!string.IsNullOrWhiteSpace(status))
+            query = query.Where(r => r.Status == status);
+
+        int total = await query.CountAsync(cancellationToken);
+
+        List<RedemptionListItem> items = await query
+            .OrderByDescending(r => r.RedeemedAt)
+            .Skip((pagination.Page - 1) * pagination.PageSize)
+            .Take(pagination.PageSize)
+            .Select(r => new RedemptionListItem(
+                r.RedemptionId,
+                r.RewardId,
+                r.RewardTitle,
+                r.UserId,
+                r.UserDisplayName,
+                r.Cost,
+                r.UserInput,
+                r.Status,
+                r.RedeemedAt
+            ))
+            .ToListAsync(cancellationToken);
+
+        // PagedList has two ctors with DIFFERENT arg orders; a List<T> binds to the (items, page, pageSize,
+        // totalCount) one, so pass in THAT order — (items, total, page, pageSize) silently sets TotalCount to the
+        // page size.
+        return Result.Success(
+            new PagedList<RedemptionListItem>(items, pagination.Page, pagination.PageSize, total)
         );
     }
 

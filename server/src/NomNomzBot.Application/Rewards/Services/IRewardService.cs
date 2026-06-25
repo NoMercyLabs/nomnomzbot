@@ -47,6 +47,17 @@ public interface IRewardService
         CancellationToken cancellationToken = default
     );
 
+    /// <summary>
+    /// The channel-points redemption queue for a channel (newest first), optionally filtered to a single
+    /// <paramref name="status"/> (<c>unfulfilled</c> for the pending queue). Reads the journal-folded read model.
+    /// </summary>
+    Task<Result<PagedList<RedemptionListItem>>> ListRedemptionsAsync(
+        string broadcasterId,
+        string? status,
+        PaginationParams pagination,
+        CancellationToken cancellationToken = default
+    );
+
     /// <summary>Get a single reward by ID.</summary>
     Task<Result<RewardDetail>> GetAsync(
         string broadcasterId,
