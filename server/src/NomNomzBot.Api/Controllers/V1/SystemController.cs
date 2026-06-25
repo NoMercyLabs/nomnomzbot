@@ -467,4 +467,23 @@ public class SystemController : BaseController
     // Reuse the provider's AAD shape so seal (here) and open (provider) agree exactly — one definition.
     private static TokenProtectionContext SystemCredentialsProviderContext(string key) =>
         NomNomzBot.Infrastructure.Platform.Configuration.SystemCredentialsProvider.ContextFor(key);
+
+    /// <summary>
+    /// Returns the full pronoun catalogue. Anonymous — the participant Me screen shows pronouns before login
+    /// and allows the user to pick their preferred pronoun without requiring authentication.
+    /// </summary>
+    [HttpGet("pronouns")]
+    [AllowAnonymous]
+    [ProducesResponseType<StatusResponseDto<List<PronounDto>>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetPronouns(CancellationToken ct)
+    {
+        List<PronounDto> pronouns = await _db
+            .Pronouns.OrderBy(p => p.Name)
+            .Select(p => new PronounDto(p.Id, p.Name, p.Subject, p.Object))
+            .ToListAsync(ct);
+
+        return Ok(new StatusResponseDto<List<PronounDto>> { Data = pronouns });
+    }
+
+    public sealed record PronounDto(int Id, string Name, string Subject, string Object);
 }

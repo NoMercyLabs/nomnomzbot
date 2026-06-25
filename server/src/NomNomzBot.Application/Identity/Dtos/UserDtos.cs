@@ -41,6 +41,7 @@ public sealed record UserProfileDto(
     string? ProfileImageUrl,
     string? Email,
     string? Pronoun,
+    int? PronounId,
     DateTime CreatedAt,
     DateTime LastLoginAt
 );

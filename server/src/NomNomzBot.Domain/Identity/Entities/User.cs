@@ -90,6 +90,7 @@ public class User : BaseEntity
 
     public DateTime? LastSeenAt { get; set; }
 
+    public int? PronounId { get; set; }
     public Pronoun? Pronoun { get; set; }
     public bool PronounManualOverride { get; set; }
 

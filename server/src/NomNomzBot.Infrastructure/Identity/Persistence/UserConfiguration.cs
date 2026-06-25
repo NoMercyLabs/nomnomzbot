@@ -56,13 +56,12 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
 
         builder.Property(e => e.PronounManualOverride).IsRequired();
 
-        // Shadow FK for Pronoun navigation
-        builder.Property<int?>("PronounId");
+        builder.Property(e => e.PronounId);
 
         builder
             .HasOne(e => e.Pronoun)
             .WithMany()
-            .HasForeignKey("PronounId")
+            .HasForeignKey(e => e.PronounId)
             .OnDelete(DeleteBehavior.SetNull);
 
         // Inverse of Channel.User (one-to-one; the channel's OwnerUserId FK targets this user).

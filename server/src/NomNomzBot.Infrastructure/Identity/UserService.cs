@@ -390,6 +390,7 @@ public class UserService : IUserService
             u.ProfileImageUrl,
             null,
             u.Pronoun?.Name,
+            u.PronounId,
             u.CreatedAt,
             u.UpdatedAt
         );
