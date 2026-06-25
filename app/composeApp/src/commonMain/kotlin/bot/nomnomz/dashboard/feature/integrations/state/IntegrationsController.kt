@@ -348,6 +348,20 @@ class IntegrationsController(
     }
 
     /**
+     * Disconnect the platform-shared bot account (admin-only), then refresh so the bot card reflects it. To
+     * CHANGE the bot, the operator disconnects here then connects the new account via [connectBot].
+     */
+    suspend fun disconnectBot() {
+        withBusy(
+            target = BusyTarget.Bot,
+            successMessage = Res.string.feedback_disconnected,
+            failureMessage = Res.string.feedback_disconnect_failed,
+        ) {
+            botAuthApi.disconnect()
+        }
+    }
+
+    /**
      * Start the one-click additive scope re-grant. The backend mints a Device Code Flow handle requesting
      * (granted ∪ missing); we surface the user code + verification URL (the screen opens it) and poll the
      * normal streamer device poll until the operator approves at twitch.tv/activate — on approval the widened

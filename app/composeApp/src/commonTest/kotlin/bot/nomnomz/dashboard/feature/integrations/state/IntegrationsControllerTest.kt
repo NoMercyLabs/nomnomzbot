@@ -129,6 +129,26 @@ class IntegrationsControllerTest {
     }
 
     @Test
+    fun disconnect_bot_calls_the_backend_then_reflects_the_disconnect() = runTest {
+        val bot = FakeBotAuthApi(status = BotStatus(connected = true, displayName = "NomNomzBot"))
+        val controller =
+            controller(
+                channels = FakeChannelsApi(ApiResult.Ok(channel)),
+                bot = bot,
+                integrations = FakeIntegrationsApi(emptyList()),
+                launcher = FakeConnectLauncher(),
+            )
+        controller.load()
+        assertTrue((controller.state.value as IntegrationsState.Ready).bot.connected)
+
+        controller.disconnectBot()
+
+        // The backend disconnect ran, and the post-disconnect re-read shows it (no optimistic flip).
+        assertTrue(bot.disconnectCalled)
+        assertEquals(false, (controller.state.value as IntegrationsState.Ready).bot.connected)
+    }
+
+    @Test
     fun connect_bot_uses_the_redirect_flow_when_a_secret_is_configured() = runTest {
         val bot = FakeBotAuthApi(status = BotStatus(connected = false), authorizeUrl = "https://id.twitch.tv/authorize?bot")
         val launcher = FakeConnectLauncher()
@@ -555,6 +575,14 @@ private class FakeBotAuthApi(
     }
 
     override suspend fun status(): ApiResult<BotStatus> = ApiResult.Ok(status)
+
+    var disconnectCalled: Boolean = false
+
+    override suspend fun disconnect(): ApiResult<Unit> {
+        disconnectCalled = true
+        status = BotStatus(connected = false) // the refresh() re-read then reflects the disconnect.
+        return ApiResult.Ok(Unit)
+    }
 }
 
 // A configurable [SystemApi] for the integrations tests. [status] drives the bot-connect method choice

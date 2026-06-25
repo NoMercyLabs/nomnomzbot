@@ -51,6 +51,13 @@ interface BotAuthApi {
 
     /** The current bot-account connection status — the authoritative connected check after a connect. */
     suspend fun status(): ApiResult<BotStatus>
+
+    /**
+     * Disconnect the platform-shared bot account, revoking its Twitch token server-side (admin-only). After this
+     * the operator can connect a different bot account via [start] / [startDeviceLogin] — this is how the bot is
+     * "changed": disconnect, then connect the new one.
+     */
+    suspend fun disconnect(): ApiResult<Unit>
 }
 
 class RestBotAuthApi(private val client: ApiClient) : BotAuthApi {
@@ -69,6 +76,9 @@ class RestBotAuthApi(private val client: ApiClient) : BotAuthApi {
 
     override suspend fun status(): ApiResult<BotStatus> =
         client.getEnvelope("api/v1/auth/twitch/bot/status")
+
+    override suspend fun disconnect(): ApiResult<Unit> =
+        client.deleteUnit("api/v1/auth/twitch/bot")
 }
 
 /** One bot device-login poll: the loop status, plus the connected bot on `authorized`. */

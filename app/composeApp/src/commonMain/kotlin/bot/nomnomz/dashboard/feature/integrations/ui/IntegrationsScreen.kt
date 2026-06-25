@@ -233,6 +233,7 @@ fun IntegrationsScreen(controller: IntegrationsController, role: ManagementRole?
                         busy = current.busy is BusyTarget.Bot || current.botDevice != null,
                         manage = manage,
                         onConnect = { scope.launch { controller.connectBot() } },
+                        onDisconnect = { scope.launch { controller.disconnectBot() } },
                     )
                     ProviderRow(
                         title = Res.string.integrations_spotify_title,
@@ -342,6 +343,7 @@ private fun BotRow(
     busy: Boolean,
     manage: ManageDecision,
     onConnect: () -> Unit,
+    onDisconnect: () -> Unit,
 ) {
     IntegrationCard(
         title = stringResource(Res.string.integrations_bot_title),
@@ -351,9 +353,10 @@ private fun BotRow(
         needsReauth = false,
         busy = busy,
         manage = manage,
-        // The bot is connected via the platform OAuth; there is no app-side disconnect on this screen.
         onConnect = onConnect,
-        onDisconnect = null,
+        // Disconnect is admin-gated server-side (the ManageGate hides it for non-admins). Disconnecting then
+        // connecting a different account is how the operator CHANGES the bot.
+        onDisconnect = if (connected) onDisconnect else null,
     )
 }
 
