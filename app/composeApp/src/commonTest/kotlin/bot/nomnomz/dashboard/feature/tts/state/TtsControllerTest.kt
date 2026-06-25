@@ -17,6 +17,7 @@ import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.TtsApi
 import bot.nomnomz.dashboard.core.network.TtsConfig
 import bot.nomnomz.dashboard.core.network.TtsConfigUpdate
+import bot.nomnomz.dashboard.core.network.TtsVoice
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -58,6 +59,34 @@ class TtsControllerTest {
         assertEquals("subscribers", config.minPermission)
         assertEquals(true, config.skipBotMessages)
         assertEquals(false, config.readUsernames)
+    }
+
+    @Test
+    fun load_surfaces_the_available_voices() = runTest {
+        val controller =
+            TtsController(
+                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                FakeTtsApi(
+                    result = ApiResult.Ok(TtsConfig(defaultVoiceId = "en-US-Brian")),
+                    voicesResult =
+                        ApiResult.Ok(
+                            listOf(
+                                TtsVoice(
+                                    id = "en-US-Brian",
+                                    displayName = "Brian",
+                                    locale = "en-US",
+                                    provider = "azure",
+                                )
+                            )
+                        ),
+                ),
+            )
+
+        controller.load()
+
+        val ready: TtsState.Ready = controller.state.value as TtsState.Ready
+        assertEquals(1, ready.voices.size)
+        assertEquals("Brian", ready.voices.first().displayName)
     }
 
     @Test
@@ -179,6 +208,7 @@ private class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : C
 private class FakeTtsApi(
     private val result: ApiResult<TtsConfig>,
     private val updateResult: ApiResult<TtsConfig> = ApiResult.Ok(TtsConfig()),
+    private val voicesResult: ApiResult<List<TtsVoice>> = ApiResult.Ok(emptyList()),
 ) : TtsApi {
     var lastUpdate: TtsConfigUpdate? = null
         private set
@@ -196,4 +226,6 @@ private class FakeTtsApi(
         lastUpdate = update
         return updateResult
     }
+
+    override suspend fun voices(channelId: String): ApiResult<List<TtsVoice>> = voicesResult
 }

@@ -16,6 +16,7 @@ import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.TtsApi
 import bot.nomnomz.dashboard.core.network.TtsConfig
 import bot.nomnomz.dashboard.core.network.TtsConfigUpdate
+import bot.nomnomz.dashboard.core.network.TtsVoice
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -51,10 +52,23 @@ class TtsController(
 
         channelId = channel.id
 
-        when (val result: ApiResult<TtsConfig> = ttsApi.config(channel.id)) {
-            is ApiResult.Failure -> _state.value = TtsState.Error(result.error.message)
-            is ApiResult.Ok -> _state.value = TtsState.Ready(result.value)
-        }
+        val config: TtsConfig =
+            when (val result: ApiResult<TtsConfig> = ttsApi.config(channel.id)) {
+                is ApiResult.Failure -> {
+                    _state.value = TtsState.Error(result.error.message)
+                    return
+                }
+                is ApiResult.Ok -> result.value
+            }
+
+        // The available voices (resilient — a failure degrades to an empty list; the config still shows).
+        val voices: List<TtsVoice> =
+            when (val result: ApiResult<List<TtsVoice>> = ttsApi.voices(channel.id)) {
+                is ApiResult.Failure -> emptyList()
+                is ApiResult.Ok -> result.value
+            }
+
+        _state.value = TtsState.Ready(config = config, voices = voices)
     }
 
     /**
@@ -84,7 +98,13 @@ class TtsController(
             when (val result: ApiResult<TtsConfig> = ttsApi.updateConfig(target, update)) {
                 is ApiResult.Failure ->
                     current.copy(saving = false, justSaved = false, saveError = result.error.message)
-                is ApiResult.Ok -> TtsState.Ready(config = result.value, justSaved = true)
+                is ApiResult.Ok ->
+                    current.copy(
+                        config = result.value,
+                        saving = false,
+                        justSaved = true,
+                        saveError = null,
+                    )
             }
     }
 }
@@ -100,6 +120,7 @@ sealed interface TtsState {
      */
     data class Ready(
         val config: TtsConfig,
+        val voices: List<TtsVoice> = emptyList(),
         val saving: Boolean = false,
         val justSaved: Boolean = false,
         val saveError: String? = null,

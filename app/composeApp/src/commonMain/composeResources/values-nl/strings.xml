@@ -275,6 +275,9 @@
     <string name="tts_status_enabled">TTS ingeschakeld</string>
     <string name="tts_status_disabled">TTS uitgeschakeld</string>
     <string name="tts_label_voice">Standaardstem</string>
+    <string name="tts_voices_title">Beschikbare stemmen</string>
+    <string name="tts_voices_count">%1$d stemmen om uit te kiezen</string>
+    <string name="tts_voices_default">Geselecteerd: %1$s</string>
     <string name="tts_label_min_permission">Minimale rechten</string>
     <string name="tts_label_max_length">Maximale berichtlengte</string>
     <string name="tts_label_skip_bot_messages">Botberichten overslaan</string>

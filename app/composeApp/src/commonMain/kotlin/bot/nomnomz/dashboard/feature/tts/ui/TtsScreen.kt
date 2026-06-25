@@ -54,6 +54,7 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.network.TtsConfig
+import bot.nomnomz.dashboard.core.network.TtsVoice
 import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
 import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
 import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecision
@@ -82,6 +83,9 @@ import nomnomzbot.composeapp.generated.resources.tts_saving
 import nomnomzbot.composeapp.generated.resources.tts_status_disabled
 import nomnomzbot.composeapp.generated.resources.tts_status_enabled
 import nomnomzbot.composeapp.generated.resources.tts_toggle_enabled
+import nomnomzbot.composeapp.generated.resources.tts_voices_count
+import nomnomzbot.composeapp.generated.resources.tts_voices_default
+import nomnomzbot.composeapp.generated.resources.tts_voices_title
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -193,6 +197,53 @@ private fun ReadyContent(state: TtsState.Ready, manage: ManageDecision, onSave: 
             manage = manage,
             onSave = { onSave(edited) },
         )
+
+        VoicesSummary(voices = state.voices, currentVoiceId = defaultVoiceId)
+    }
+}
+
+// A compact reference card under the form: how many TTS voices are available (so the operator knows the
+// `defaultVoiceId` field has real options) and which one their current selection resolves to. A full voice
+// picker is a follow-up; this lists nothing when the provider returned no voices.
+@Composable
+private fun VoicesSummary(voices: List<TtsVoice>, currentVoiceId: String) {
+    if (voices.isEmpty()) return
+
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    val current: TtsVoice? = voices.firstOrNull { it.id == currentVoiceId }
+    val selectedLabel: String? = current?.let { "${it.displayName} (${it.locale})" }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(tokens.radius.lg))
+            .background(tokens.card)
+            .padding(spacing.s4),
+        verticalArrangement = Arrangement.spacedBy(spacing.s1),
+    ) {
+        Text(
+            text = stringResource(Res.string.tts_voices_title),
+            style = typography.base,
+            color = tokens.cardForeground,
+            maxLines = 1,
+        )
+        Text(
+            text = stringResource(Res.string.tts_voices_count, voices.size),
+            style = typography.sm,
+            color = tokens.mutedForeground,
+            maxLines = 1,
+        )
+        if (selectedLabel != null) {
+            Text(
+                text = stringResource(Res.string.tts_voices_default, selectedLabel),
+                style = typography.sm,
+                color = tokens.mutedForeground,
+                maxLines = 1,
+            )
+        }
     }
 }
 

@@ -26,6 +26,9 @@ interface TtsApi {
 
     /** Persist [update]; the backend echoes the saved configuration back. */
     suspend fun updateConfig(channelId: String, update: TtsConfigUpdate): ApiResult<TtsConfig>
+
+    /** The TTS voices available to the channel (across the configured providers). */
+    suspend fun voices(channelId: String): ApiResult<List<TtsVoice>>
 }
 
 class RestTtsApi(private val client: ApiClient) : TtsApi {
@@ -37,6 +40,10 @@ class RestTtsApi(private val client: ApiClient) : TtsApi {
         update: TtsConfigUpdate,
     ): ApiResult<TtsConfig> =
         client.putEnvelope("api/v1/channels/$channelId/tts/config", update)
+
+    // StatusResponseDto envelope wrapping the voice list — getEnvelope reads the `data` list directly.
+    override suspend fun voices(channelId: String): ApiResult<List<TtsVoice>> =
+        client.getEnvelope("api/v1/channels/$channelId/tts/voices")
 }
 
 /** The channel's TTS configuration (backend `TtsConfigDto`). Field names mirror the DTO camelCase exactly. */
@@ -63,4 +70,20 @@ data class TtsConfigUpdate(
     val minPermission: String? = null,
     val skipBotMessages: Boolean? = null,
     val readUsernames: Boolean? = null,
+)
+
+/**
+ * One available TTS voice (backend `TtsVoiceDto`). camelCase mirror; the TTS page lists these so the operator
+ * sees the valid [id]s for `defaultVoiceId` alongside each voice's [displayName] / [locale] / [gender] /
+ * [provider]. [isDefault] marks a provider's default voice.
+ */
+@Serializable
+data class TtsVoice(
+    val id: String = "",
+    val name: String = "",
+    val displayName: String = "",
+    val locale: String = "",
+    val gender: String = "",
+    val provider: String = "",
+    val isDefault: Boolean = false,
 )

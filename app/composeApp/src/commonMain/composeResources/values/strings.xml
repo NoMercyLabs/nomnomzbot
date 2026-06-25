@@ -278,6 +278,9 @@
     <string name="tts_status_enabled">TTS enabled</string>
     <string name="tts_status_disabled">TTS disabled</string>
     <string name="tts_label_voice">Default voice</string>
+    <string name="tts_voices_title">Available voices</string>
+    <string name="tts_voices_count">%1$d voices to choose from</string>
+    <string name="tts_voices_default">Selected: %1$s</string>
     <string name="tts_label_min_permission">Minimum permission</string>
     <string name="tts_label_max_length">Max message length</string>
     <string name="tts_label_skip_bot_messages">Skip bot messages</string>
