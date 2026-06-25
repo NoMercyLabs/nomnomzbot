@@ -30,6 +30,19 @@ expect class RouteStore() {
     /** Persist [route] as the current location so a reload (web) restores it. A no-op storage write on jvm. */
     fun save(route: ShellRoute)
 
+    /**
+     * Push the connect screen as a history entry (`#/`) so a browser Back press from inside the shell returns
+     * to the connect / signed-out state instead of leaving the app. Called once when Connect → Shell. No-op on
+     * jvm (desktop has no browser history).
+     */
+    fun pushConnectEntry()
+
     /** Routes the user reached OUTSIDE the app — i.e. browser Back/Forward on web. Never emits on jvm. */
     val externalChanges: Flow<ShellRoute>
+
+    /**
+     * Fires when the browser Back/Forward lands on the bare `#/` entry pushed by [pushConnectEntry] — the
+     * signal to sign the operator out and return to the Connect screen. Never emits on jvm.
+     */
+    val disconnectRequests: Flow<Unit>
 }

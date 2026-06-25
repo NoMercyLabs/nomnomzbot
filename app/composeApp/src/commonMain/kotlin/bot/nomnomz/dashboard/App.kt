@@ -100,6 +100,31 @@ fun App(graph: AppGraph = remember { AppGraph() }) {
             else -> Destination.Connect
         }
 
+        // When the user actively signs in (Connect → Shell), push a `#/` history entry BEFORE the shell
+        // writes its first page route. This gives the browser Back button a meaningful "connect screen"
+        // entry to return to, so the operator can press Back from any shell page and land on the sign-in
+        // state instead of leaving the app entirely. Skipped on session-restore (the gate goes
+        // Splash → Shell without the operator ever seeing Connect — adding a history entry there would
+        // make Back misleadingly appear to "go back to the sign-in screen" from a session the app silently
+        // restored, which is confusing). We track whether the operator came through Connect explicitly
+        // with [enteredViaConnect].
+        var enteredViaConnect: Boolean by remember { mutableStateOf(false) }
+        LaunchedEffect(destination) {
+            when (destination) {
+                Destination.Connect, Destination.Setup -> enteredViaConnect = true
+                Destination.Shell -> if (enteredViaConnect) routeStore.pushConnectEntry()
+                else -> Unit
+            }
+        }
+
+        // When in the shell, collect disconnect signals from the route store (web Back pressing the `#/` entry
+        // we pushed on connect) and sign the operator out — returning them to the Connect screen.
+        LaunchedEffect(destination) {
+            if (destination == Destination.Shell) {
+                routeStore.disconnectRequests.collect { graph.sessionStore.disconnect() }
+            }
+        }
+
         AppEnvironment(tag = language.tag) {
             // Stack the destination under a persistent top-end language picker — one placement that's
             // reachable across the whole app: during onboarding (splash/connect/setup, so a Dutch-system

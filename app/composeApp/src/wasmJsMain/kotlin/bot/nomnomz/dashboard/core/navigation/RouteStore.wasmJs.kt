@@ -15,6 +15,8 @@ import kotlinx.browser.window
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.map
 import org.w3c.dom.events.Event
 
 // Web: the selected page lives in the URL fragment as `#/<slug>` (a fragment, so it never round-trips to the
@@ -40,13 +42,30 @@ actual class RouteStore actual constructor() {
         }
     }
 
-    actual val externalChanges: Flow<ShellRoute> = callbackFlow {
+    // Push `#/` as the connect/unauthenticated entry BEFORE the shell writes its first page route, so the
+    // browser's Back button from inside the shell lands here and the app can respond by signing out.
+    actual fun pushConnectEntry() {
+        window.history.pushState(null, "", HASH_PREFIX)
+    }
+
+    // One shared callbackFlow that re-emits the raw slug on every popstate — both [externalChanges] and
+    // [disconnectRequests] are derived from it. The slug is empty when the hash is bare `#/`.
+    private val popstateFlow: Flow<String> = callbackFlow {
         // Kotlin/Wasm's DOM `EventListener` is a JS-interop interface with no constructor, so the listener is a
         // plain `(Event) -> Unit` lambda held in a val — the SAME reference both subscribes and unsubscribes.
-        val listener: (Event) -> Unit = { trySend(ShellRouteSlug.parse(currentSlug())) }
+        val listener: (Event) -> Unit = { trySend(currentSlug()) }
         window.addEventListener("popstate", listener)
         awaitClose { window.removeEventListener("popstate", listener) }
     }
+
+    // Shell routes: popstate events whose slug is non-empty (i.e. `#/<slug>`, not the bare `#/` entry).
+    actual val externalChanges: Flow<ShellRoute> =
+        popstateFlow.filter { it.isNotEmpty() }.map { ShellRouteSlug.parse(it) }
+
+    // Disconnect signal: popstate lands on the bare `#/` entry pushed by [pushConnectEntry], meaning the
+    // operator pressed Back from the first shell page — sign them out.
+    actual val disconnectRequests: Flow<Unit> =
+        popstateFlow.filter { it.isEmpty() }.map { Unit }
 
     /** The slug portion of `#/<slug>` (empty when there is no route hash, e.g. the initial load). */
     private fun currentSlug(): String = window.location.hash.removePrefix(HASH_PREFIX)

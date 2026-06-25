@@ -28,5 +28,9 @@ actual class RouteStore actual constructor() {
         current = route
     }
 
+    actual fun pushConnectEntry() = Unit
+
     actual val externalChanges: Flow<ShellRoute> = emptyFlow()
+
+    actual val disconnectRequests: Flow<Unit> = emptyFlow()
 }
