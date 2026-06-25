@@ -90,46 +90,89 @@ public sealed class EventJournalService : IEventJournal
         if (requests.Count == 0)
             return Result.Success<IReadOnlyList<EventRecord>>([]);
 
+        // Dedupe the WHOLE batch against the DB in one chunked query instead of one lookup per row. The stored
+        // rows are loaded (not just their ids) so a duplicate returns the already-stored record — the journal's
+        // idempotency contract — without re-reading per row.
+        Dictionary<Guid, EventJournal> stored = await LoadStoredByEventIdAsync(
+            requests.Select(r => r.EventId).Distinct().ToList(),
+            cancellationToken
+        );
+
         await _unitOfWork.BeginTransactionAsync(cancellationToken);
         try
         {
-            List<EventRecord> results = [];
+            // The genuinely-new requests in arrival order (first occurrence wins; a later in-batch repeat of the
+            // same EventId reuses the first's row), grouped by sequence tenant so each tenant's positions come
+            // from ONE block reservation — arrival order within a tenant keeps positions monotonic-by-arrival,
+            // exactly as the old per-row NextAsync assigned them.
+            HashSet<Guid> seen = [];
+            Dictionary<Guid, List<AppendEventRequest>> newByTenant = [];
             foreach (AppendEventRequest request in requests)
             {
-                EventJournal? existing = await FindByEventIdAsync(
-                    request.EventId,
+                if (stored.ContainsKey(request.EventId) || !seen.Add(request.EventId))
+                    continue;
+                Guid sequenceTenant = request.BroadcasterId ?? Guid.Empty;
+                if (!newByTenant.TryGetValue(sequenceTenant, out List<AppendEventRequest>? slice))
+                    newByTenant[sequenceTenant] = slice = [];
+                slice.Add(request);
+            }
+
+            DateTime now = _clock.GetUtcNow().UtcDateTime;
+            Dictionary<Guid, EventJournal> appended = [];
+            List<EventJournal> toInsert = new(seen.Count);
+            foreach ((Guid sequenceTenant, List<AppendEventRequest> slice) in newByTenant)
+            {
+                // One block reservation for the whole tenant slice (replaces the per-row NextAsync); the caller
+                // assigns first..first+count-1 in arrival order.
+                Result<long> block = await _sequences.NextBlockAsync(
+                    sequenceTenant,
+                    ITenantSequenceAllocator.EventStreamPositionSequence,
+                    slice.Count,
                     cancellationToken
                 );
-                if (existing is not null)
-                {
-                    results.Add(Map(existing));
-                    continue;
-                }
-
-                Result<EventJournal> appended = await AppendOneAsync(request, cancellationToken);
-                if (appended.IsFailure)
+                if (block.IsFailure)
                 {
                     await _unitOfWork.RollbackTransactionAsync(cancellationToken);
                     return Result.Failure<IReadOnlyList<EventRecord>>(
-                        appended.ErrorMessage!,
-                        appended.ErrorCode,
-                        appended.ErrorDetail
+                        block.ErrorMessage!,
+                        block.ErrorCode,
+                        block.ErrorDetail
                     );
                 }
 
-                // Flush each row so the next dedupe lookup within the batch sees in-batch duplicates.
+                long position = block.Value;
+                foreach (AppendEventRequest request in slice)
+                {
+                    EventJournal entity = BuildJournalEntity(request, position++, now);
+                    appended[request.EventId] = entity;
+                    toInsert.Add(entity);
+                }
+            }
+
+            if (toInsert.Count > 0)
+            {
+                await _db.EventJournals.AddRangeAsync(toInsert, cancellationToken);
+                // ONE flush for the entire batch (was one SaveChanges per row).
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
-                results.Add(Map(appended.Value));
             }
 
             await _unitOfWork.CommitTransactionAsync(cancellationToken);
 
-            // Detach everything this batch tracked. Without this, the scoped DbContext accumulates every appended
-            // EventJournal (and TenantSequence) across the whole call sequence — a bulk backfill of tens of
-            // thousands of rows then makes each per-row SaveChanges re-scan an ever-growing change set (O(n²)),
-            // which is what makes a large legacy import crawl to a near-stall toward the end. The rows are already
-            // committed and all reads use AsNoTracking, so dropping the tracked graph is safe and keeps every batch
-            // O(batch).
+            // Results in original request order: a duplicate (stored or earlier-in-batch) returns its existing
+            // record; a new one returns the row just appended.
+            List<EventRecord> results = new(requests.Count);
+            foreach (AppendEventRequest request in requests)
+                results.Add(
+                    Map(
+                        stored.TryGetValue(request.EventId, out EventJournal? existing)
+                            ? existing
+                            : appended[request.EventId]
+                    )
+                );
+
+            // Detach everything this batch tracked so a long backfill stays O(batch), not O(total) (the scoped
+            // DbContext would otherwise accumulate every appended row). Rows are committed and reads use
+            // AsNoTracking, so dropping the tracked graph is safe.
             ClearChangeTracker();
 
             return Result.Success<IReadOnlyList<EventRecord>>(results);
@@ -167,12 +210,27 @@ public sealed class EventJournalService : IEventJournal
                 position.ErrorDetail
             );
 
-        DateTime now = _clock.GetUtcNow().UtcDateTime;
-        EventJournal entity = new()
+        EventJournal entity = BuildJournalEntity(
+            request,
+            position.Value,
+            _clock.GetUtcNow().UtcDateTime
+        );
+        await _db.EventJournals.AddAsync(entity, cancellationToken);
+        return Result.Success(entity);
+    }
+
+    // Materializes one journal row from a request at an already-allocated StreamPosition. Shared by the single
+    // and batch append paths so the row shape stays identical regardless of how the position was reserved.
+    private static EventJournal BuildJournalEntity(
+        AppendEventRequest request,
+        long position,
+        DateTime recordedAt
+    ) =>
+        new()
         {
             EventId = request.EventId,
             BroadcasterId = request.BroadcasterId,
-            StreamPosition = position.Value,
+            StreamPosition = position,
             EventType = request.EventType,
             EventVersion = request.EventVersion,
             Source = request.Source,
@@ -185,11 +243,35 @@ public sealed class EventJournalService : IEventJournal
             ActorTwitchUserId = request.ActorTwitchUserId,
             Metadata = request.MetadataJson,
             OccurredAt = DateTime.SpecifyKind(request.OccurredAt, DateTimeKind.Utc),
-            RecordedAt = now,
+            RecordedAt = recordedAt,
         };
 
-        await _db.EventJournals.AddAsync(entity, cancellationToken);
-        return Result.Success(entity);
+    // Loads the already-stored journal rows for the given event ids, keyed by EventId, chunking the IN-list so a
+    // large batch never exceeds the provider parameter limit. Used by the batch append to dedupe in one pass and
+    // to return the stored record for any duplicate (idempotency).
+    private async Task<Dictionary<Guid, EventJournal>> LoadStoredByEventIdAsync(
+        IReadOnlyList<Guid> eventIds,
+        CancellationToken cancellationToken
+    )
+    {
+        Dictionary<Guid, EventJournal> stored = [];
+        if (eventIds.Count == 0)
+            return stored;
+
+        const int chunkSize = 1000;
+        Guid[] ids = [.. eventIds];
+        for (int offset = 0; offset < ids.Length; offset += chunkSize)
+        {
+            Guid[] chunk = ids[offset..Math.Min(offset + chunkSize, ids.Length)];
+            List<EventJournal> rows = await _db
+                .EventJournals.AsNoTracking()
+                .Where(e => chunk.Contains(e.EventId))
+                .ToListAsync(cancellationToken);
+            foreach (EventJournal row in rows)
+                stored[row.EventId] = row;
+        }
+
+        return stored;
     }
 
     public async Task<Result<IReadOnlyList<EventRecord>>> ReadStreamAsync(

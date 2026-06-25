@@ -215,6 +215,98 @@ public sealed class EventJournalServiceTests
     }
 
     [Fact]
+    public async Task AppendBatch_MultiTenant_AllocatesPerTenantContiguousBlocks()
+    {
+        using SqliteTestDatabase database = SqliteTestDatabase.Open();
+        Guid tenantA = Guid.NewGuid();
+        Guid tenantB = Guid.NewGuid();
+
+        await using EventStoreTestDbContext db = database.NewContext();
+        EventJournalService journal = NewJournal(db);
+
+        // Two tenants interleaved in ONE batch: each must be numbered from 1 off its OWN block, with no bleed.
+        IReadOnlyList<AppendEventRequest> batch =
+        [
+            Request(tenantA, payload: "{\"a\":1}"),
+            Request(tenantB, payload: "{\"b\":1}"),
+            Request(tenantA, payload: "{\"a\":2}"),
+            Request(tenantB, payload: "{\"b\":2}"),
+            Request(tenantA, payload: "{\"a\":3}"),
+        ];
+
+        Result<IReadOnlyList<EventRecord>> result = await journal.AppendBatchAsync(batch);
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        // Results stay in REQUEST order; positions are per-tenant, monotonic by arrival.
+        result.Value.Select(e => e.StreamPosition).Should().Equal(1L, 1L, 2L, 2L, 3L);
+        result
+            .Value.Select(e => e.BroadcasterId)
+            .Should()
+            .Equal(new Guid?[] { tenantA, tenantB, tenantA, tenantB, tenantA });
+
+        Result<IReadOnlyList<EventRecord>> streamA = await journal.ReadStreamAsync(tenantA, 0, 100);
+        Result<IReadOnlyList<EventRecord>> streamB = await journal.ReadStreamAsync(tenantB, 0, 100);
+        streamA
+            .Value.Select(e => e.PayloadJson)
+            .Should()
+            .Equal("{\"a\":1}", "{\"a\":2}", "{\"a\":3}");
+        streamA.Value.Select(e => e.StreamPosition).Should().Equal(1L, 2L, 3L);
+        streamB.Value.Select(e => e.StreamPosition).Should().Equal(1L, 2L);
+        streamA.Value.Should().OnlyContain(e => e.BroadcasterId == tenantA);
+        streamB.Value.Should().OnlyContain(e => e.BroadcasterId == tenantB);
+    }
+
+    [Fact]
+    public async Task AppendBatch_DedupesAgainstStoredAndWithinBatch_NoDoubleAppend()
+    {
+        using SqliteTestDatabase database = SqliteTestDatabase.Open();
+        Guid tenant = Guid.NewGuid();
+        Guid alreadyStored = Guid.NewGuid();
+        Guid repeatedInBatch = Guid.NewGuid();
+        Guid fresh = Guid.NewGuid();
+
+        await using EventStoreTestDbContext db = database.NewContext();
+        EventJournalService journal = NewJournal(db);
+
+        // Seed one event (position 1) so the batch must dedupe against the DB, not just within itself.
+        Result<EventRecord> seed = await journal.AppendAsync(
+            Request(tenant, payload: "{\"seed\":1}", eventId: alreadyStored)
+        );
+        seed.IsSuccess.Should().BeTrue(seed.ErrorMessage);
+
+        IReadOnlyList<AppendEventRequest> batch =
+        [
+            Request(tenant, payload: "{\"x\":\"stored-dup\"}", eventId: alreadyStored),
+            Request(tenant, payload: "{\"x\":\"a\"}", eventId: repeatedInBatch),
+            Request(tenant, payload: "{\"x\":\"a-again\"}", eventId: repeatedInBatch),
+            Request(tenant, payload: "{\"x\":\"b\"}", eventId: fresh),
+        ];
+
+        Result<IReadOnlyList<EventRecord>> result = await journal.AppendBatchAsync(batch);
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        result.Value.Should().HaveCount(4, "every request gets a result row, in order");
+
+        // The DB duplicate returns the ALREADY-STORED record (its original position + payload), no re-append.
+        result.Value[0].EventId.Should().Be(alreadyStored);
+        result.Value[0].StreamPosition.Should().Be(1);
+        result.Value[0].PayloadJson.Should().Be("{\"seed\":1}");
+
+        // The in-batch duplicate's two slots resolve to the SAME newly-appended row (one position consumed).
+        result.Value[1].EventId.Should().Be(repeatedInBatch);
+        result.Value[2].EventId.Should().Be(repeatedInBatch);
+        result.Value[1].StreamPosition.Should().Be(2);
+        result.Value[2].StreamPosition.Should().Be(2);
+        result.Value[1].Id.Should().Be(result.Value[2].Id);
+        result.Value[2].PayloadJson.Should().Be("{\"x\":\"a\"}", "the first occurrence's row wins");
+
+        // The fresh event takes the next position; only two NEW events landed after the seed.
+        result.Value[3].EventId.Should().Be(fresh);
+        result.Value[3].StreamPosition.Should().Be(3);
+        (await journal.GetHeadPositionAsync(tenant)).Value.Should().Be(3);
+    }
+
+    [Fact]
     public async Task GetByEventId_Missing_FailsNotFound()
     {
         using SqliteTestDatabase database = SqliteTestDatabase.Open();
