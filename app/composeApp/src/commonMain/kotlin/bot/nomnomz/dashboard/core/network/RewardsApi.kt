@@ -49,6 +49,12 @@ interface RewardsApi {
         channelId: String,
         status: String? = null,
     ): ApiResult<List<RedemptionSummary>>
+
+    /** Fulfil a queued redemption (Helix FULFILLED) — it leaves the pending lane. */
+    suspend fun fulfillRedemption(channelId: String, redemptionId: String): ApiResult<Unit>
+
+    /** Refund a queued redemption (Helix CANCELED — the viewer's points are returned). */
+    suspend fun refundRedemption(channelId: String, redemptionId: String): ApiResult<Unit>
 }
 
 class RestRewardsApi(private val client: ApiClient) : RewardsApi {
@@ -97,6 +103,14 @@ class RestRewardsApi(private val client: ApiClient) : RewardsApi {
             is ApiResult.Ok -> ApiResult.Ok(page.value.data)
         }
     }
+
+    // Bodyless POSTs — the backend resolves the reward id from the queue read model and re-lists are driven by
+    // the controller, so any 2xx is success.
+    override suspend fun fulfillRedemption(channelId: String, redemptionId: String): ApiResult<Unit> =
+        client.postUnit("api/v1/channels/$channelId/rewards/redemptions/$redemptionId/fulfill")
+
+    override suspend fun refundRedemption(channelId: String, redemptionId: String): ApiResult<Unit> =
+        client.postUnit("api/v1/channels/$channelId/rewards/redemptions/$redemptionId/refund")
 }
 
 /**

@@ -95,6 +95,44 @@ class RewardsControllerTest {
     }
 
     @Test
+    fun fulfilling_a_redemption_calls_the_api_and_reloads_the_page() = runTest {
+        val api =
+            RecordingRewardsApi(
+                initial = ApiResult.Ok(listOf(RewardSummary(id = "r1", title = "Hydrate!"))),
+                redemptionQueue =
+                    listOf(
+                        RedemptionSummary(
+                            redemptionId = "x1",
+                            rewardTitle = "Hydrate!",
+                            userDisplayName = "Buyer",
+                            cost = 50,
+                            status = "unfulfilled",
+                        )
+                    ),
+            )
+        val controller =
+            RewardsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
+        controller.load()
+
+        controller.fulfillRedemption("x1")
+
+        assertEquals(listOf("x1"), api.fulfilled) // the api was called for that redemption
+        assertTrue(controller.state.value is RewardsState.Ready) // reloaded; page intact
+    }
+
+    @Test
+    fun refunding_a_redemption_calls_the_api() = runTest {
+        val api = RecordingRewardsApi(ApiResult.Ok(listOf(RewardSummary(id = "r1", title = "X"))))
+        val controller =
+            RewardsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
+        controller.load()
+
+        controller.refundRedemption("x9")
+
+        assertEquals(listOf("x9"), api.refunded)
+    }
+
+    @Test
     fun load_errors_when_no_channel_resolves() = runTest {
         val controller =
             RewardsController(
@@ -344,4 +382,17 @@ private class RecordingRewardsApi(
         channelId: String,
         status: String?,
     ): ApiResult<List<RedemptionSummary>> = ApiResult.Ok(redemptionQueue)
+
+    val fulfilled: MutableList<String> = mutableListOf()
+    val refunded: MutableList<String> = mutableListOf()
+
+    override suspend fun fulfillRedemption(channelId: String, redemptionId: String): ApiResult<Unit> {
+        fulfilled += redemptionId
+        return writeResult
+    }
+
+    override suspend fun refundRedemption(channelId: String, redemptionId: String): ApiResult<Unit> {
+        refunded += redemptionId
+        return writeResult
+    }
 }

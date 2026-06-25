@@ -219,6 +219,10 @@
     <string name="rewards_queue_title">Openstaande inwisselingen</string>
     <string name="rewards_queue_by">door %1$s</string>
     <string name="rewards_queue_row">%1$s, ingewisseld door %2$s, %3$s</string>
+    <string name="rewards_queue_fulfill">Voltooien</string>
+    <string name="rewards_queue_refund">Terugbetalen</string>
+    <string name="rewards_queue_fulfill_action">%1$s voltooien</string>
+    <string name="rewards_queue_refund_action">%1$s terugbetalen</string>
     <string name="rewards_enabled">Ingeschakeld</string>
     <string name="rewards_disabled">Uitgeschakeld</string>
     <string name="rewards_row_description">%1$s, %2$s, %3$s</string>

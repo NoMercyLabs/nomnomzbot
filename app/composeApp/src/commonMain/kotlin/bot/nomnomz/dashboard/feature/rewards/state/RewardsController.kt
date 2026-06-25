@@ -121,6 +121,18 @@ class RewardsController(
         afterWrite(rewardsApi.delete(channel, rewardId))
     }
 
+    /** Fulfil a queued redemption, then reload so it leaves the pending queue. Surfaces the error on failure. */
+    suspend fun fulfillRedemption(redemptionId: String) {
+        val channel: String = channelId ?: return failWrite(NoChannelError)
+        afterWrite(rewardsApi.fulfillRedemption(channel, redemptionId))
+    }
+
+    /** Refund a queued redemption (returns the viewer's points), then reload. Surfaces the error on failure. */
+    suspend fun refundRedemption(redemptionId: String) {
+        val channel: String = channelId ?: return failWrite(NoChannelError)
+        afterWrite(rewardsApi.refundRedemption(channel, redemptionId))
+    }
+
     // A write either reloads the list (success) or surfaces its error over the current Ready list without
     // losing it (failure) — so a failed toggle/delete leaves the page intact with a visible reason.
     private suspend fun afterWrite(result: ApiResult<Unit>) {

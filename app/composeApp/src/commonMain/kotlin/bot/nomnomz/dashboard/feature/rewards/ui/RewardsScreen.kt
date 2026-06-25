@@ -93,6 +93,10 @@ import nomnomzbot.composeapp.generated.resources.rewards_error
 import nomnomzbot.composeapp.generated.resources.rewards_loading
 import nomnomzbot.composeapp.generated.resources.rewards_new_action
 import nomnomzbot.composeapp.generated.resources.rewards_queue_by
+import nomnomzbot.composeapp.generated.resources.rewards_queue_fulfill
+import nomnomzbot.composeapp.generated.resources.rewards_queue_fulfill_action
+import nomnomzbot.composeapp.generated.resources.rewards_queue_refund
+import nomnomzbot.composeapp.generated.resources.rewards_queue_refund_action
 import nomnomzbot.composeapp.generated.resources.rewards_queue_row
 import nomnomzbot.composeapp.generated.resources.rewards_queue_title
 import nomnomzbot.composeapp.generated.resources.rewards_retry
@@ -145,6 +149,12 @@ fun RewardsScreen(controller: RewardsController, role: ManagementRole?) {
                         scope.launch { controller.toggleReward(reward.id, enabled) }
                     },
                     onDelete = { reward -> pendingDelete = reward },
+                    onFulfill = { redemption ->
+                        scope.launch { controller.fulfillRedemption(redemption.redemptionId) }
+                    },
+                    onRefund = { redemption ->
+                        scope.launch { controller.refundRedemption(redemption.redemptionId) }
+                    },
                 )
             is RewardsState.Ready ->
                 ManagedContent(
@@ -159,6 +169,12 @@ fun RewardsScreen(controller: RewardsController, role: ManagementRole?) {
                         scope.launch { controller.toggleReward(reward.id, enabled) }
                     },
                     onDelete = { reward -> pendingDelete = reward },
+                    onFulfill = { redemption ->
+                        scope.launch { controller.fulfillRedemption(redemption.redemptionId) }
+                    },
+                    onRefund = { redemption ->
+                        scope.launch { controller.refundRedemption(redemption.redemptionId) }
+                    },
                 )
         }
     }
@@ -207,6 +223,8 @@ private fun ManagedContent(
     onEdit: (RewardSummary) -> Unit,
     onToggle: (RewardSummary, Boolean) -> Unit,
     onDelete: (RewardSummary) -> Unit,
+    onFulfill: (RedemptionSummary) -> Unit,
+    onRefund: (RedemptionSummary) -> Unit,
 ) {
     val spacing = LocalSpacing.current
 
@@ -229,6 +247,8 @@ private fun ManagedContent(
                 onEdit = onEdit,
                 onToggle = onToggle,
                 onDelete = onDelete,
+                onFulfill = onFulfill,
+                onRefund = onRefund,
             )
         }
     }
@@ -295,6 +315,8 @@ private fun RewardList(
     onEdit: (RewardSummary) -> Unit,
     onToggle: (RewardSummary, Boolean) -> Unit,
     onDelete: (RewardSummary) -> Unit,
+    onFulfill: (RedemptionSummary) -> Unit,
+    onRefund: (RedemptionSummary) -> Unit,
 ) {
     val spacing = LocalSpacing.current
 
@@ -319,7 +341,12 @@ private fun RewardList(
         if (redemptions.isNotEmpty()) {
             item(key = "redemption-queue-header") { RedemptionsHeader() }
             items(items = redemptions, key = { it.redemptionId }) { redemption ->
-                RedemptionRow(redemption)
+                RedemptionRow(
+                    redemption = redemption,
+                    edit = edit,
+                    onFulfill = { onFulfill(redemption) },
+                    onRefund = { onRefund(redemption) },
+                )
             }
         }
     }
@@ -340,7 +367,12 @@ private fun RedemptionsHeader() {
 }
 
 @Composable
-private fun RedemptionRow(redemption: RedemptionSummary) {
+private fun RedemptionRow(
+    redemption: RedemptionSummary,
+    edit: ManageDecision,
+    onFulfill: () -> Unit,
+    onRefund: () -> Unit,
+) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
@@ -354,19 +386,26 @@ private fun RedemptionRow(redemption: RedemptionSummary) {
             redemption.userDisplayName,
             costLabel,
         )
+    val fulfillLabel: String =
+        stringResource(Res.string.rewards_queue_fulfill_action, redemption.rewardTitle)
+    val refundLabel: String =
+        stringResource(Res.string.rewards_queue_refund_action, redemption.rewardTitle)
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(tokens.radius.lg))
             .background(tokens.card)
-            .padding(spacing.s4)
-            .clearAndSetSemantics { contentDescription = rowDescription },
+            .padding(spacing.s4),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(spacing.s3),
     ) {
         Column(
-            modifier = Modifier.weight(1f),
+            modifier = Modifier
+                .weight(1f)
+                // One node for the redemption text: "Hydrate!, redeemed by Buyer, 50 points" — the action
+                // buttons keep their own semantics so they stay individually reachable.
+                .clearAndSetSemantics { contentDescription = rowDescription },
             verticalArrangement = Arrangement.spacedBy(spacing.s1),
         ) {
             Text(
@@ -394,6 +433,34 @@ private fun RedemptionRow(redemption: RedemptionSummary) {
             }
         }
         Text(text = costLabel, style = typography.sm, color = tokens.mutedForeground, maxLines = 1)
+
+        // Fulfil / refund gate at the page's Editor manage floor; the backend re-checks reward:manage.
+        ManageGate(decision = edit) { enabled ->
+            TextButton(
+                onClick = onFulfill,
+                enabled = enabled,
+                modifier = Modifier.semantics { contentDescription = fulfillLabel },
+            ) {
+                Text(
+                    text = stringResource(Res.string.rewards_queue_fulfill),
+                    color = if (enabled) tokens.primary else tokens.mutedForeground,
+                    maxLines = 1,
+                )
+            }
+        }
+        ManageGate(decision = edit) { enabled ->
+            TextButton(
+                onClick = onRefund,
+                enabled = enabled,
+                modifier = Modifier.semantics { contentDescription = refundLabel },
+            ) {
+                Text(
+                    text = stringResource(Res.string.rewards_queue_refund),
+                    color = if (enabled) tokens.destructive else tokens.mutedForeground,
+                    maxLines = 1,
+                )
+            }
+        }
     }
 }
 

@@ -222,6 +222,10 @@
     <string name="rewards_queue_title">Pending redemptions</string>
     <string name="rewards_queue_by">by %1$s</string>
     <string name="rewards_queue_row">%1$s, redeemed by %2$s, %3$s</string>
+    <string name="rewards_queue_fulfill">Fulfil</string>
+    <string name="rewards_queue_refund">Refund</string>
+    <string name="rewards_queue_fulfill_action">Fulfil %1$s</string>
+    <string name="rewards_queue_refund_action">Refund %1$s</string>
     <string name="rewards_enabled">Enabled</string>
     <string name="rewards_disabled">Disabled</string>
     <string name="rewards_row_description">%1$s, %2$s, %3$s</string>
