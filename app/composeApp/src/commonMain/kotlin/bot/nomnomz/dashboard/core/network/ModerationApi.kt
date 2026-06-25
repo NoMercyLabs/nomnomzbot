@@ -43,6 +43,9 @@ interface ModerationApi {
     /** The channel's blocked terms — words / phrases auto-removed from chat. */
     suspend fun blockedTerms(channelId: String): ApiResult<List<String>>
 
+    /** Add [term] to the channel's blocked-terms list. */
+    suspend fun addBlockedTerm(channelId: String, term: String): ApiResult<Unit>
+
     /** Remove [term] from the channel's blocked-terms list. */
     suspend fun removeBlockedTerm(channelId: String, term: String): ApiResult<Unit>
 }
@@ -84,6 +87,9 @@ class RestModerationApi(private val client: ApiClient) : ModerationApi {
     // Blocked terms are a single-value StatusResponseDto envelope ({ data: [ ... ] }) — getEnvelope reads the list.
     override suspend fun blockedTerms(channelId: String): ApiResult<List<String>> =
         client.getEnvelope("api/v1/channels/$channelId/moderation/blocked-terms")
+
+    override suspend fun addBlockedTerm(channelId: String, term: String): ApiResult<Unit> =
+        client.postUnit("api/v1/channels/$channelId/moderation/blocked-terms", AddTermBody(term))
 
     // The term rides the URL path, so it must be path-encoded (terms can be multi-word phrases).
     override suspend fun removeBlockedTerm(channelId: String, term: String): ApiResult<Unit> =
@@ -131,3 +137,7 @@ data class ShieldStatus(val enabled: Boolean = false)
 /** The Shield Mode toggle body (backend `ModerationController.SetShieldRequest`). camelCase `enabled`. */
 @Serializable
 data class SetShieldBody(val enabled: Boolean)
+
+/** The add-blocked-term body (backend `ModerationController.AddTermRequest`). camelCase `term`. */
+@Serializable
+data class AddTermBody(val term: String)

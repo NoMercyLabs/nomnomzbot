@@ -141,6 +141,12 @@ class ModerationController(
         }
     }
 
+    /** Add [term] to the blocked-terms list, then reload so it appears. Surfaces the error on failure. */
+    suspend fun addBlockedTerm(term: String) {
+        val channel: String = channelId ?: return
+        afterWrite(moderationApi.addBlockedTerm(channel, term))
+    }
+
     /** Remove [term] from the blocked-terms list, then reload so it drops off. Surfaces the error on failure. */
     suspend fun removeBlockedTerm(term: String) {
         val channel: String = channelId ?: return

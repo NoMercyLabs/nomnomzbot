@@ -41,6 +41,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
+import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
@@ -64,6 +65,8 @@ import nomnomzbot.composeapp.generated.resources.moderation_shield_disable_actio
 import nomnomzbot.composeapp.generated.resources.moderation_shield_enable
 import nomnomzbot.composeapp.generated.resources.moderation_shield_enable_action
 import nomnomzbot.composeapp.generated.resources.moderation_shield_title
+import nomnomzbot.composeapp.generated.resources.moderation_terms_add
+import nomnomzbot.composeapp.generated.resources.moderation_terms_add_label
 import nomnomzbot.composeapp.generated.resources.moderation_terms_remove
 import nomnomzbot.composeapp.generated.resources.moderation_terms_remove_action
 import nomnomzbot.composeapp.generated.resources.moderation_terms_title
@@ -120,6 +123,7 @@ fun ModerationScreen(controller: ModerationController, role: ManagementRole?) {
                     manage = manage,
                     onUnban = { userId -> scope.launch { controller.unban(userId) } },
                     onToggleShield = { on -> scope.launch { controller.setShieldMode(on) } },
+                    onAddTerm = { term -> scope.launch { controller.addBlockedTerm(term) } },
                     onRemoveTerm = { term -> scope.launch { controller.removeBlockedTerm(term) } },
                 )
         }
@@ -136,6 +140,7 @@ private fun BansList(
     manage: ManageDecision,
     onUnban: (userId: String) -> Unit,
     onToggleShield: (Boolean) -> Unit,
+    onAddTerm: (String) -> Unit,
     onRemoveTerm: (String) -> Unit,
 ) {
     val tokens = LocalTokens.current
@@ -186,18 +191,18 @@ private fun BansList(
             }
             items(items = modLog, key = { "log-${it.id}" }) { entry -> ModLogRow(entry = entry) }
         }
-        if (blockedTerms.isNotEmpty()) {
-            item(key = "terms-header") {
-                Text(
-                    text = stringResource(Res.string.moderation_terms_title),
-                    style = typography.lg,
-                    color = tokens.cardForeground,
-                    maxLines = 1,
-                )
-            }
-            items(items = blockedTerms, key = { "term-$it" }) { term ->
-                BlockedTermRow(term = term, manage = manage, onRemove = { onRemoveTerm(term) })
-            }
+        // Always shown in Ready so the add input is reachable even with no terms yet.
+        item(key = "terms-header") {
+            Text(
+                text = stringResource(Res.string.moderation_terms_title),
+                style = typography.lg,
+                color = tokens.cardForeground,
+                maxLines = 1,
+            )
+        }
+        item(key = "terms-add") { AddTermRow(manage = manage, onAdd = onAddTerm) }
+        items(items = blockedTerms, key = { "term-$it" }) { term ->
+            BlockedTermRow(term = term, manage = manage, onRemove = { onRemoveTerm(term) })
         }
     }
 
@@ -313,6 +318,48 @@ private fun ErrorContent(detail: String, onRetry: () -> Unit) {
                 textAlign = TextAlign.Center,
             )
             TextButton(onClick = onRetry) { Text(text = stringResource(Res.string.moderation_retry)) }
+        }
+    }
+}
+
+// The add-blocked-term input: the shared AppTextField + an Add button, both gated at the Editor manage floor.
+// Add is enabled only for a non-blank term; on submit it fires onAdd with the trimmed term and clears the field.
+@Composable
+private fun AddTermRow(manage: ManageDecision, onAdd: (String) -> Unit) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    var term: String by remember { mutableStateOf("") }
+
+    ManageGate(decision = manage) { enabled ->
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+        ) {
+            AppTextField(
+                value = term,
+                onValueChange = { term = it },
+                label = stringResource(Res.string.moderation_terms_add_label),
+                enabled = enabled,
+                modifier = Modifier.weight(1f),
+            )
+            val canSubmit: Boolean = enabled && term.isNotBlank()
+            TextButton(
+                onClick = {
+                    val trimmed: String = term.trim()
+                    if (trimmed.isNotEmpty()) {
+                        onAdd(trimmed)
+                        term = ""
+                    }
+                },
+                enabled = canSubmit,
+            ) {
+                Text(
+                    text = stringResource(Res.string.moderation_terms_add),
+                    color = if (canSubmit) tokens.primary else tokens.mutedForeground,
+                    maxLines = 1,
+                )
+            }
         }
     }
 }

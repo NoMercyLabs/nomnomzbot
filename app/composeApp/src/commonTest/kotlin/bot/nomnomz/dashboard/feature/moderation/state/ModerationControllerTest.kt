@@ -145,6 +145,20 @@ class ModerationControllerTest {
     }
 
     @Test
+    fun adding_a_blocked_term_calls_the_api_with_the_term() = runTest {
+        val moderationApi = FakeModerationApi(bansResults = listOf(ApiResult.Ok(emptyList())))
+        val controller =
+            ModerationController(
+                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                moderationApi,
+            )
+        controller.load()
+
+        controller.addBlockedTerm("badword")
+        assertEquals(listOf("badword"), moderationApi.addedTerms)
+    }
+
+    @Test
     fun load_is_empty_when_no_one_is_banned() = runTest {
         val controller =
             ModerationController(
@@ -332,6 +346,13 @@ private class FakeModerationApi(
 
     override suspend fun blockedTerms(channelId: String): ApiResult<List<String>> =
         blockedTermsResult
+
+    val addedTerms: MutableList<String> = mutableListOf()
+
+    override suspend fun addBlockedTerm(channelId: String, term: String): ApiResult<Unit> {
+        addedTerms.add(term)
+        return ApiResult.Ok(Unit)
+    }
 
     val removedTerms: MutableList<String> = mutableListOf()
 
