@@ -34,12 +34,13 @@ class ShellNavTest {
     fun moderator_sees_every_page_except_the_broadcaster_floored_pages() {
         val visible: List<NavPage> = ShellNav.visiblePagesFor(ManagementRole.Moderator)
 
-        // The Broadcaster-floored pages (Integrations, Discord, Roles) must be hidden from a Mod.
+        // The Broadcaster-floored pages (Integrations, Roles) must be hidden from a Mod.
         assertFalse(visible.any { it.route == ShellRoute.Integrations })
-        assertFalse(visible.any { it.route == ShellRoute.Discord })
         assertFalse(visible.any { it.route == ShellRoute.Roles })
-        // Everything else (incl. the Moderator-floored Settings) stays visible.
+        // Everything else stays visible — incl. Discord (read floor lowered Broadcaster→Moderator, frontend-ia.md
+        // §3 Connect), Moderation, and the Moderator-floored Settings.
         assertTrue(visible.any { it.route == ShellRoute.Dashboard })
+        assertTrue(visible.any { it.route == ShellRoute.Discord })
         assertTrue(visible.any { it.route == ShellRoute.Moderation })
         assertTrue(visible.any { it.route == ShellRoute.Settings })
         // Exactly the Broadcaster-floored pages are dropped — no more, no fewer.
@@ -58,19 +59,20 @@ class ShellNavTest {
     }
 
     @Test
-    fun pages_are_grouped_in_the_binding_ia_order_with_pinned_last() {
+    fun pages_are_grouped_in_the_binding_ia_order_with_setup_pinned_last() {
         val groupsInOrder: List<NavGroup> = ShellNav.pages.map { it.group }.distinct()
 
         assertEquals(
             listOf(
                 NavGroup.Home,
                 NavGroup.Chat,
+                NavGroup.Moderation,
                 NavGroup.Loyalty,
-                NavGroup.Media,
+                NavGroup.Music,
                 NavGroup.Stream,
-                NavGroup.Automation,
                 NavGroup.Community,
-                NavGroup.Pinned,
+                NavGroup.Connect,
+                NavGroup.Setup,
             ),
             groupsInOrder,
         )
@@ -154,8 +156,9 @@ class ShellNavTest {
         assertTrue(manageable.contains(ShellRoute.Pipelines))
         // ...and still the Moderator-floored ones (Editor > Moderator on the ladder)...
         assertTrue(manageable.contains(ShellRoute.Moderation))
-        // ...but never the Broadcaster-floored pages (Discord, Roles, Integrations).
-        assertFalse(manageable.contains(ShellRoute.Discord))
+        // ...and the SuperMod-floored Discord (Editor 30 > SuperMod 20, frontend-ia.md §3 Connect)...
+        assertTrue(manageable.contains(ShellRoute.Discord))
+        // ...but never the Broadcaster-floored pages (Roles, Integrations).
         assertFalse(manageable.contains(ShellRoute.Roles))
         assertFalse(manageable.contains(ShellRoute.Integrations))
     }

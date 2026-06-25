@@ -57,7 +57,7 @@ class ScreenWriteGateTest {
         assertTrue(ShellNav.canManage(ManagementRole.Broadcaster, ShellRoute.Rewards, ManageAction.RewardLifecycle))
     }
 
-    // ── Song Requests (Media group) — config at Editor, queue moderation drops to Moderator ──────────────────
+    // ── Song Requests (Music group) — config at Editor, queue moderation drops to Moderator ──────────────────
 
     @Test
     fun a_moderator_on_song_requests_can_moderate_the_queue_but_not_edit_config() {

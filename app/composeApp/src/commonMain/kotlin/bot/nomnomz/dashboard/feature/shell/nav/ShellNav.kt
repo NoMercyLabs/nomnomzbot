@@ -10,7 +10,7 @@
 
 package bot.nomnomz.dashboard.feature.shell.nav
 
-// The shell's sidebar information architecture (frontend-ia.md §3): the fifteen content pages, the group
+// The shell's sidebar information architecture (frontend-ia.md §3): the twenty-one content pages, the group
 // each sits in, and the role floors that gate it. This is the single source the sidebar renders and the
 // role gate filters — the route names mirror the §5 Route sealed interface (this model invents none). The
 // page CONTENT (the NavHost screens) lands page-by-page in later slices; this defines what the shell offers
@@ -41,16 +41,20 @@ enum class ShellRoute {
     Settings,
 }
 
-/** The labelled sidebar sections, in their binding IA order; [Pinned] is the bottom Integrations + Settings. */
+/**
+ * The labelled sidebar sections, in their binding IA order (frontend-ia.md §3): eight daily-driver FEATURE
+ * groups (top, scrolling) and the pinned, labelled [Setup] owner area at the bottom (divider-separated).
+ */
 enum class NavGroup {
     Home,
     Chat,
+    Moderation,
     Loyalty,
-    Media,
+    Music,
     Stream,
-    Automation,
     Community,
-    Pinned,
+    Connect,
+    Setup,
 }
 
 /**
@@ -73,24 +77,24 @@ object ShellNav {
             NavPage(ShellRoute.Dashboard, NavGroup.Home, ManagementRole.Moderator, null),
             NavPage(ShellRoute.Chat, NavGroup.Chat, ManagementRole.Moderator, ManagementRole.Moderator),
             NavPage(ShellRoute.Commands, NavGroup.Chat, ManagementRole.Moderator, ManagementRole.Editor),
-            NavPage(ShellRoute.Quotes, NavGroup.Chat, ManagementRole.Moderator, ManagementRole.Editor),
+            NavPage(ShellRoute.Pipelines, NavGroup.Chat, ManagementRole.Moderator, ManagementRole.Editor),
             NavPage(ShellRoute.Timers, NavGroup.Chat, ManagementRole.Moderator, ManagementRole.Editor),
-            NavPage(ShellRoute.Moderation, NavGroup.Chat, ManagementRole.Moderator, ManagementRole.Moderator),
+            NavPage(ShellRoute.Quotes, NavGroup.Chat, ManagementRole.Moderator, ManagementRole.Editor),
+            NavPage(ShellRoute.Moderation, NavGroup.Moderation, ManagementRole.Moderator, ManagementRole.Moderator),
             NavPage(ShellRoute.Rewards, NavGroup.Loyalty, ManagementRole.Moderator, ManagementRole.Editor),
             NavPage(ShellRoute.Economy, NavGroup.Loyalty, ManagementRole.Moderator, ManagementRole.Editor),
             NavPage(ShellRoute.Games, NavGroup.Loyalty, ManagementRole.Moderator, ManagementRole.Editor),
-            NavPage(ShellRoute.SongRequests, NavGroup.Media, ManagementRole.Moderator, ManagementRole.Editor),
-            NavPage(ShellRoute.Music, NavGroup.Media, ManagementRole.Moderator, ManagementRole.Editor),
-            NavPage(ShellRoute.Tts, NavGroup.Media, ManagementRole.Moderator, ManagementRole.Editor),
+            NavPage(ShellRoute.Music, NavGroup.Music, ManagementRole.Moderator, ManagementRole.Editor),
+            NavPage(ShellRoute.SongRequests, NavGroup.Music, ManagementRole.Moderator, ManagementRole.Editor),
+            NavPage(ShellRoute.Tts, NavGroup.Music, ManagementRole.Moderator, ManagementRole.Editor),
             NavPage(ShellRoute.Widgets, NavGroup.Stream, ManagementRole.Moderator, ManagementRole.Editor),
             NavPage(ShellRoute.Alerts, NavGroup.Stream, ManagementRole.Moderator, ManagementRole.Editor),
-            NavPage(ShellRoute.Discord, NavGroup.Stream, ManagementRole.Broadcaster, ManagementRole.Broadcaster),
             NavPage(ShellRoute.Analytics, NavGroup.Stream, ManagementRole.Moderator, null),
-            NavPage(ShellRoute.Pipelines, NavGroup.Automation, ManagementRole.Moderator, ManagementRole.Editor),
             NavPage(ShellRoute.Community, NavGroup.Community, ManagementRole.Moderator, ManagementRole.Moderator),
-            NavPage(ShellRoute.Roles, NavGroup.Community, ManagementRole.Broadcaster, ManagementRole.Broadcaster),
-            NavPage(ShellRoute.Integrations, NavGroup.Pinned, ManagementRole.Broadcaster, ManagementRole.Broadcaster),
-            NavPage(ShellRoute.Settings, NavGroup.Pinned, ManagementRole.Moderator, null),
+            NavPage(ShellRoute.Discord, NavGroup.Connect, ManagementRole.Moderator, ManagementRole.SuperMod),
+            NavPage(ShellRoute.Integrations, NavGroup.Setup, ManagementRole.Broadcaster, ManagementRole.Broadcaster),
+            NavPage(ShellRoute.Roles, NavGroup.Setup, ManagementRole.Broadcaster, ManagementRole.Broadcaster),
+            NavPage(ShellRoute.Settings, NavGroup.Setup, ManagementRole.Moderator, null),
         )
 
     /**

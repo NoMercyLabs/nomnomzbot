@@ -97,12 +97,14 @@ import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.app_name
 import nomnomzbot.composeapp.generated.resources.language_label
 import nomnomzbot.composeapp.generated.resources.language_system_default
-import nomnomzbot.composeapp.generated.resources.shell_group_automation
 import nomnomzbot.composeapp.generated.resources.shell_group_chat
 import nomnomzbot.composeapp.generated.resources.shell_group_community
+import nomnomzbot.composeapp.generated.resources.shell_group_connect
 import nomnomzbot.composeapp.generated.resources.shell_group_home
 import nomnomzbot.composeapp.generated.resources.shell_group_loyalty
-import nomnomzbot.composeapp.generated.resources.shell_group_media
+import nomnomzbot.composeapp.generated.resources.shell_group_moderation
+import nomnomzbot.composeapp.generated.resources.shell_group_music
+import nomnomzbot.composeapp.generated.resources.shell_group_setup
 import nomnomzbot.composeapp.generated.resources.shell_group_stream
 import nomnomzbot.composeapp.generated.resources.shell_nav_alerts
 import nomnomzbot.composeapp.generated.resources.shell_nav_analytics
@@ -309,8 +311,8 @@ private fun Sidebar(
 
     val visible: List<NavPage> = ShellNav.visiblePagesFor(role)
     val groups: Map<NavGroup, List<NavPage>> =
-        visible.filter { it.group != NavGroup.Pinned }.groupBy { it.group }
-    val pinned: List<NavPage> = visible.filter { it.group == NavGroup.Pinned }
+        visible.filter { it.group != NavGroup.Setup }.groupBy { it.group }
+    val pinned: List<NavPage> = visible.filter { it.group == NavGroup.Setup }
 
     Column(
         modifier = Modifier
@@ -344,6 +346,8 @@ private fun Sidebar(
                 modifier = Modifier.padding(vertical = spacing.s2),
             )
             Column(verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
+                // SETUP is a LABELLED pinned group (frontend-ia.md §3), not a headerless rail.
+                GroupLabel(label = NavGroup.Setup.label())
                 pinned.forEach { page ->
                     NavItem(route = page.route, selected = page.route == selected) { onSelect(page.route) }
                 }
@@ -642,12 +646,13 @@ private fun NavGroup.label(): String =
     when (this) {
         NavGroup.Home -> stringResource(Res.string.shell_group_home)
         NavGroup.Chat -> stringResource(Res.string.shell_group_chat)
+        NavGroup.Moderation -> stringResource(Res.string.shell_group_moderation)
         NavGroup.Loyalty -> stringResource(Res.string.shell_group_loyalty)
-        NavGroup.Media -> stringResource(Res.string.shell_group_media)
+        NavGroup.Music -> stringResource(Res.string.shell_group_music)
         NavGroup.Stream -> stringResource(Res.string.shell_group_stream)
-        NavGroup.Automation -> stringResource(Res.string.shell_group_automation)
         NavGroup.Community -> stringResource(Res.string.shell_group_community)
-        NavGroup.Pinned -> "" // pinned items render without a group header
+        NavGroup.Connect -> stringResource(Res.string.shell_group_connect)
+        NavGroup.Setup -> stringResource(Res.string.shell_group_setup)
     }
 
 @Composable

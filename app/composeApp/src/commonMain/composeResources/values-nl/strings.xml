@@ -116,10 +116,13 @@
     <string name="setup_field_youtube_clientSecret_label">Client Secret</string>
     <string name="shell_group_home">Home</string>
     <string name="shell_group_chat">Chat</string>
+    <string name="shell_group_moderation">Moderatie</string>
     <string name="shell_group_loyalty">Loyaliteit</string>
-    <string name="shell_group_media">Media</string>
+    <string name="shell_group_music">Muziek</string>
     <string name="shell_group_stream">Stream</string>
     <string name="shell_group_community">Community</string>
+    <string name="shell_group_connect">Verbinden</string>
+    <string name="shell_group_setup">Configuratie</string>
     <string name="shell_nav_dashboard">Dashboard</string>
     <string name="shell_nav_commands">Commando's</string>
     <string name="shell_nav_timers">Timers</string>
@@ -556,7 +559,6 @@
     <string name="shell_nav_roles">Rollen &amp; permits</string>
     <string name="shell_nav_music">Muziek</string>
     <string name="shell_nav_pipelines">Pijplijnen</string>
-    <string name="shell_group_automation">Automatisering</string>
 
     <!-- Chat page. -->
     <string name="chat_loading">Chat laden…</string>
