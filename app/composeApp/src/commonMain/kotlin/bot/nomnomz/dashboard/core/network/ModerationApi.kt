@@ -10,6 +10,7 @@
 
 package bot.nomnomz.dashboard.core.network
 
+import io.ktor.http.encodeURLPathPart
 import kotlinx.serialization.Serializable
 
 // The typed moderation facade. It renders the channel's currently-banned viewers and lets a moderator lift a
@@ -38,6 +39,12 @@ interface ModerationApi {
 
     /** Turn Shield Mode on or off ([enabled]). */
     suspend fun setShieldMode(channelId: String, enabled: Boolean): ApiResult<Unit>
+
+    /** The channel's blocked terms — words / phrases auto-removed from chat. */
+    suspend fun blockedTerms(channelId: String): ApiResult<List<String>>
+
+    /** Remove [term] from the channel's blocked-terms list. */
+    suspend fun removeBlockedTerm(channelId: String, term: String): ApiResult<Unit>
 }
 
 class RestModerationApi(private val client: ApiClient) : ModerationApi {
@@ -72,6 +79,16 @@ class RestModerationApi(private val client: ApiClient) : ModerationApi {
         client.patchUnit(
             "api/v1/channels/$channelId/moderation/shield",
             SetShieldBody(enabled),
+        )
+
+    // Blocked terms are a single-value StatusResponseDto envelope ({ data: [ ... ] }) — getEnvelope reads the list.
+    override suspend fun blockedTerms(channelId: String): ApiResult<List<String>> =
+        client.getEnvelope("api/v1/channels/$channelId/moderation/blocked-terms")
+
+    // The term rides the URL path, so it must be path-encoded (terms can be multi-word phrases).
+    override suspend fun removeBlockedTerm(channelId: String, term: String): ApiResult<Unit> =
+        client.deleteUnit(
+            "api/v1/channels/$channelId/moderation/blocked-terms/${term.encodeURLPathPart()}"
         )
 }
 

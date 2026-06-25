@@ -81,11 +81,23 @@ class ModerationController(
                 is ApiResult.Ok -> result.value.enabled
             }
 
-        // Empty only when there is genuinely nothing to show AND shield is off; if shield is on the page must
-        // render so its active state (and the toggle to lift it) stays visible.
+        // Blocked terms (auto-removed words/phrases). Resilient — a failure degrades to an empty list.
+        val blockedTerms: List<String> =
+            when (val result: ApiResult<List<String>> = moderationApi.blockedTerms(channel.id)) {
+                is ApiResult.Failure -> emptyList()
+                is ApiResult.Ok -> result.value
+            }
+
+        // Empty only when there is genuinely nothing to show AND shield is off; if shield is on, or there are
+        // blocked terms, the page renders so those controls stay visible.
         _state.value =
-            if (bans.isEmpty() && modLog.isEmpty() && !shieldEnabled) ModerationState.Empty
-            else ModerationState.Ready(bans, modLog, shieldEnabled)
+            if (
+                bans.isEmpty() && modLog.isEmpty() && blockedTerms.isEmpty() && !shieldEnabled
+            ) {
+                ModerationState.Empty
+            } else {
+                ModerationState.Ready(bans, modLog, shieldEnabled, blockedTerms)
+            }
     }
 
     /**
@@ -128,6 +140,25 @@ class ModerationController(
             }
         }
     }
+
+    /** Remove [term] from the blocked-terms list, then reload so it drops off. Surfaces the error on failure. */
+    suspend fun removeBlockedTerm(term: String) {
+        val channel: String = channelId ?: return
+        afterWrite(moderationApi.removeBlockedTerm(channel, term))
+    }
+
+    // Reload on success; on failure surface the message on the current Ready state without losing the lists.
+    private suspend fun afterWrite(result: ApiResult<Unit>) {
+        when (result) {
+            is ApiResult.Ok -> load()
+            is ApiResult.Failure -> {
+                val current: ModerationState = _state.value
+                if (current is ModerationState.Ready) {
+                    _state.value = current.copy(actionError = result.error.message)
+                }
+            }
+        }
+    }
 }
 
 /** The Moderation page render state. */
@@ -142,6 +173,7 @@ sealed interface ModerationState {
         val bans: List<BannedUser>,
         val modLog: List<ModLogEntry> = emptyList(),
         val shieldEnabled: Boolean = false,
+        val blockedTerms: List<String> = emptyList(),
         val actionError: String? = null,
     ) : ModerationState
 

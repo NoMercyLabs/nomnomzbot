@@ -201,6 +201,9 @@
     <string name="moderation_shield_disable">Uitschakelen</string>
     <string name="moderation_shield_enable_action">Schildmodus inschakelen</string>
     <string name="moderation_shield_disable_action">Schildmodus uitschakelen</string>
+    <string name="moderation_terms_title">Geblokkeerde termen</string>
+    <string name="moderation_terms_remove">Verwijderen</string>
+    <string name="moderation_terms_remove_action">%1$s verwijderen</string>
     <string name="moderation_no_reason">Geen reden opgegeven</string>
     <string name="moderation_banned_on">Verbannen op %1$s</string>
     <string name="moderation_banned_by">Verbannen door %1$s</string>

@@ -204,6 +204,9 @@
     <string name="moderation_shield_disable">Disable</string>
     <string name="moderation_shield_enable_action">Enable Shield Mode</string>
     <string name="moderation_shield_disable_action">Disable Shield Mode</string>
+    <string name="moderation_terms_title">Blocked terms</string>
+    <string name="moderation_terms_remove">Remove</string>
+    <string name="moderation_terms_remove_action">Remove %1$s</string>
     <string name="moderation_no_reason">No reason given</string>
     <string name="moderation_banned_on">Banned on %1$s</string>
     <string name="moderation_banned_by">Banned by %1$s</string>

@@ -122,6 +122,29 @@ class ModerationControllerTest {
     }
 
     @Test
+    fun load_surfaces_blocked_terms_and_removing_one_calls_the_api() = runTest {
+        val moderationApi =
+            FakeModerationApi(
+                bansResults = listOf(ApiResult.Ok(emptyList())),
+                blockedTermsResult = ApiResult.Ok(listOf("badword", "slur")),
+            )
+        val controller =
+            ModerationController(
+                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                moderationApi,
+            )
+
+        controller.load()
+
+        // No bans/log, but blocked terms keep the page Ready so they're visible + removable.
+        val ready: ModerationState.Ready = controller.state.value as ModerationState.Ready
+        assertEquals(listOf("badword", "slur"), ready.blockedTerms)
+
+        controller.removeBlockedTerm("badword")
+        assertEquals(listOf("badword"), moderationApi.removedTerms) // the term is sent to the api
+    }
+
+    @Test
     fun load_is_empty_when_no_one_is_banned() = runTest {
         val controller =
             ModerationController(
@@ -271,6 +294,7 @@ private class FakeModerationApi(
     private val unbanResult: ApiResult<Unit> = ApiResult.Ok(Unit),
     private val modLogResult: ApiResult<List<ModLogEntry>> = ApiResult.Ok(emptyList()),
     private val shieldResult: ApiResult<ShieldStatus> = ApiResult.Ok(ShieldStatus(false)),
+    private val blockedTermsResult: ApiResult<List<String>> = ApiResult.Ok(emptyList()),
 ) : ModerationApi {
     // Single-result convenience for the read-only tests (one bans() result, default-OK unban).
     constructor(
@@ -303,6 +327,16 @@ private class FakeModerationApi(
 
     override suspend fun setShieldMode(channelId: String, enabled: Boolean): ApiResult<Unit> {
         lastShieldToggle = enabled
+        return ApiResult.Ok(Unit)
+    }
+
+    override suspend fun blockedTerms(channelId: String): ApiResult<List<String>> =
+        blockedTermsResult
+
+    val removedTerms: MutableList<String> = mutableListOf()
+
+    override suspend fun removeBlockedTerm(channelId: String, term: String): ApiResult<Unit> {
+        removedTerms.add(term)
         return ApiResult.Ok(Unit)
     }
 }

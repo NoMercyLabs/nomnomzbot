@@ -64,6 +64,9 @@ import nomnomzbot.composeapp.generated.resources.moderation_shield_disable_actio
 import nomnomzbot.composeapp.generated.resources.moderation_shield_enable
 import nomnomzbot.composeapp.generated.resources.moderation_shield_enable_action
 import nomnomzbot.composeapp.generated.resources.moderation_shield_title
+import nomnomzbot.composeapp.generated.resources.moderation_terms_remove
+import nomnomzbot.composeapp.generated.resources.moderation_terms_remove_action
+import nomnomzbot.composeapp.generated.resources.moderation_terms_title
 import nomnomzbot.composeapp.generated.resources.moderation_banned_by
 import nomnomzbot.composeapp.generated.resources.moderation_banned_on
 import nomnomzbot.composeapp.generated.resources.moderation_empty
@@ -112,10 +115,12 @@ fun ModerationScreen(controller: ModerationController, role: ManagementRole?) {
                     bans = current.bans,
                     modLog = current.modLog,
                     shieldEnabled = current.shieldEnabled,
+                    blockedTerms = current.blockedTerms,
                     actionError = current.actionError,
                     manage = manage,
                     onUnban = { userId -> scope.launch { controller.unban(userId) } },
                     onToggleShield = { on -> scope.launch { controller.setShieldMode(on) } },
+                    onRemoveTerm = { term -> scope.launch { controller.removeBlockedTerm(term) } },
                 )
         }
     }
@@ -126,10 +131,12 @@ private fun BansList(
     bans: List<BannedUser>,
     modLog: List<ModLogEntry>,
     shieldEnabled: Boolean,
+    blockedTerms: List<String>,
     actionError: String?,
     manage: ManageDecision,
     onUnban: (userId: String) -> Unit,
     onToggleShield: (Boolean) -> Unit,
+    onRemoveTerm: (String) -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -178,6 +185,19 @@ private fun BansList(
                 )
             }
             items(items = modLog, key = { "log-${it.id}" }) { entry -> ModLogRow(entry = entry) }
+        }
+        if (blockedTerms.isNotEmpty()) {
+            item(key = "terms-header") {
+                Text(
+                    text = stringResource(Res.string.moderation_terms_title),
+                    style = typography.lg,
+                    color = tokens.cardForeground,
+                    maxLines = 1,
+                )
+            }
+            items(items = blockedTerms, key = { "term-$it" }) { term ->
+                BlockedTermRow(term = term, manage = manage, onRemove = { onRemoveTerm(term) })
+            }
         }
     }
 
@@ -293,6 +313,49 @@ private fun ErrorContent(detail: String, onRetry: () -> Unit) {
                 textAlign = TextAlign.Center,
             )
             TextButton(onClick = onRetry) { Text(text = stringResource(Res.string.moderation_retry)) }
+        }
+    }
+}
+
+// One blocked-term row: the term + a Remove action (Editor floor; the backend re-checks moderation:blocklist).
+// Removing a term un-blocks it, so the action reads in the neutral primary colour, not destructive.
+@Composable
+private fun BlockedTermRow(term: String, manage: ManageDecision, onRemove: () -> Unit) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    val removeLabel: String = stringResource(Res.string.moderation_terms_remove_action, term)
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(tokens.radius.lg))
+            .background(tokens.card)
+            .padding(horizontal = spacing.s4, vertical = spacing.s3),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(spacing.s3),
+    ) {
+        Text(
+            text = term,
+            style = typography.base,
+            color = tokens.cardForeground,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
+        ManageGate(decision = manage) { enabled ->
+            TextButton(
+                onClick = onRemove,
+                enabled = enabled,
+                modifier = Modifier.semantics { contentDescription = removeLabel },
+            ) {
+                Text(
+                    text = stringResource(Res.string.moderation_terms_remove),
+                    color = if (enabled) tokens.primary else tokens.mutedForeground,
+                    maxLines = 1,
+                )
+            }
         }
     }
 }
