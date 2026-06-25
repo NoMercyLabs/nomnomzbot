@@ -104,7 +104,7 @@ data class UpdateCommandBody(
  */
 @Serializable
 data class CommandSummary(
-    val id: Int = 0,
+    val id: String = "",
     val name: String = "",
     val type: String = "",
     val permission: String = "",

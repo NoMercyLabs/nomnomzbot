@@ -81,7 +81,7 @@ class TimersController(
 
     /** Update an existing timer with the dialog's fields, then reload the list on success. */
     suspend fun updateTimer(
-        id: Int,
+        id: String,
         name: String,
         message: String,
         intervalMinutes: Int,
@@ -99,7 +99,7 @@ class TimersController(
     }
 
     /** Delete a timer, then reload the list on success. */
-    suspend fun deleteTimer(id: Int) {
+    suspend fun deleteTimer(id: String) {
         val channelId: String = resolveChannelId() ?: return
         runWrite { timersApi.delete(channelId, id) }
     }
@@ -108,7 +108,7 @@ class TimersController(
      * Flip a timer's enabled state. The backend toggle endpoint flips the stored value server-side, so the
      * [enabled] the row clicked from is informational; the reload reflects the new truth either way.
      */
-    suspend fun toggleTimer(id: Int, enabled: Boolean) {
+    suspend fun toggleTimer(id: String, enabled: Boolean) {
         val channelId: String = resolveChannelId() ?: return
         runWrite { timersApi.toggle(channelId, id) }
     }

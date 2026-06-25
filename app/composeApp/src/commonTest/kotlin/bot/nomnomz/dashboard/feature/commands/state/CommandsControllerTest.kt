@@ -44,7 +44,7 @@ class CommandsControllerTest {
                     ApiResult.Ok(
                         listOf(
                             CommandSummary(
-                                id = 7,
+                                id = "00000007-0000-0000-0000-000000000007",
                                 name = "!hello",
                                 type = "text",
                                 permission = "everyone",
@@ -145,7 +145,7 @@ class CommandsControllerTest {
             RecordingCommandsApi(
                 ApiResult.Ok(
                     listOf(
-                        CommandSummary(id = 1, name = "!hi", isEnabled = true)
+                        CommandSummary(id = "00000001-0000-0000-0000-000000000001", name = "!hi", isEnabled = true)
                     )
                 )
             )
@@ -172,7 +172,7 @@ class CommandsControllerTest {
     fun delete_removes_the_command_then_reloads_to_empty() = runTest {
         val commandsApi =
             RecordingCommandsApi(
-                ApiResult.Ok(listOf(CommandSummary(id = 1, name = "!hi", isEnabled = true)))
+                ApiResult.Ok(listOf(CommandSummary(id = "00000001-0000-0000-0000-000000000001", name = "!hi", isEnabled = true)))
             )
         val controller =
             CommandsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), commandsApi)
@@ -190,7 +190,7 @@ class CommandsControllerTest {
     fun a_failed_write_surfaces_the_error_over_the_kept_list() = runTest {
         val commandsApi =
             RecordingCommandsApi(
-                ApiResult.Ok(listOf(CommandSummary(id = 1, name = "!hi", isEnabled = true))),
+                ApiResult.Ok(listOf(CommandSummary(id = "00000001-0000-0000-0000-000000000001", name = "!hi", isEnabled = true))),
                 writeResult = ApiResult.Failure(ApiError(403, "FORBIDDEN", "no permission")),
             )
         val controller =
@@ -212,7 +212,7 @@ class CommandsControllerTest {
         val controller =
             CommandsController(
                 FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
-                RecordingCommandsApi(ApiResult.Ok(listOf(CommandSummary(id = 1, name = "!hi", isEnabled = true)))),
+                RecordingCommandsApi(ApiResult.Ok(listOf(CommandSummary(id = "00000001-0000-0000-0000-000000000001", name = "!hi", isEnabled = true)))),
                 feedback,
             )
         controller.load()
@@ -230,7 +230,7 @@ class CommandsControllerTest {
         val controller =
             CommandsController(
                 FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
-                RecordingCommandsApi(ApiResult.Ok(listOf(CommandSummary(id = 1, name = "!hi", isEnabled = true)))),
+                RecordingCommandsApi(ApiResult.Ok(listOf(CommandSummary(id = "00000001-0000-0000-0000-000000000001", name = "!hi", isEnabled = true)))),
                 feedback,
             )
         controller.load()
@@ -249,7 +249,7 @@ class CommandsControllerTest {
             CommandsController(
                 FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 RecordingCommandsApi(
-                    ApiResult.Ok(listOf(CommandSummary(id = 1, name = "!hi", isEnabled = true))),
+                    ApiResult.Ok(listOf(CommandSummary(id = "00000001-0000-0000-0000-000000000001", name = "!hi", isEnabled = true))),
                     writeResult = ApiResult.Failure(ApiError(403, "FORBIDDEN", "no permission")),
                 ),
                 feedback,
@@ -296,7 +296,7 @@ private class RecordingCommandsApi(
         if (writeResult is ApiResult.Ok) {
             store +=
                 CommandSummary(
-                    id = store.size + 1,
+                    id = "cmd-${store.size + 1}",
                     name = body.name,
                     description = body.response,
                     isEnabled = body.isEnabled,

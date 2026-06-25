@@ -32,13 +32,13 @@ interface TimersApi {
     suspend fun create(channelId: String, request: CreateTimerRequest): ApiResult<Unit>
 
     /** Update an existing timer's name / message / interval / enabled state. */
-    suspend fun update(channelId: String, id: Int, request: UpdateTimerRequest): ApiResult<Unit>
+    suspend fun update(channelId: String, id: String, request: UpdateTimerRequest): ApiResult<Unit>
 
     /** Delete a timer (soft-delete on the backend). */
-    suspend fun delete(channelId: String, id: Int): ApiResult<Unit>
+    suspend fun delete(channelId: String, id: String): ApiResult<Unit>
 
     /** Flip a timer's enabled state server-side (the dedicated toggle endpoint, no body). */
-    suspend fun toggle(channelId: String, id: Int): ApiResult<Unit>
+    suspend fun toggle(channelId: String, id: String): ApiResult<Unit>
 }
 
 class RestTimersApi(private val client: ApiClient) : TimersApi {
@@ -61,13 +61,13 @@ class RestTimersApi(private val client: ApiClient) : TimersApi {
     override suspend fun create(channelId: String, request: CreateTimerRequest): ApiResult<Unit> =
         client.postUnit("api/v1/channels/$channelId/timers", request)
 
-    override suspend fun update(channelId: String, id: Int, request: UpdateTimerRequest): ApiResult<Unit> =
+    override suspend fun update(channelId: String, id: String, request: UpdateTimerRequest): ApiResult<Unit> =
         client.putUnit("api/v1/channels/$channelId/timers/$id", request)
 
-    override suspend fun delete(channelId: String, id: Int): ApiResult<Unit> =
+    override suspend fun delete(channelId: String, id: String): ApiResult<Unit> =
         client.deleteUnit("api/v1/channels/$channelId/timers/$id")
 
-    override suspend fun toggle(channelId: String, id: Int): ApiResult<Unit> =
+    override suspend fun toggle(channelId: String, id: String): ApiResult<Unit> =
         client.postUnit("api/v1/channels/$channelId/timers/$id/toggle")
 }
 
@@ -79,7 +79,7 @@ class RestTimersApi(private val client: ApiClient) : TimersApi {
  */
 @Serializable
 data class TimerSummary(
-    val id: Int,
+    val id: String = "",
     val name: String = "",
     val intervalMinutes: Int = 0,
     val isEnabled: Boolean = false,

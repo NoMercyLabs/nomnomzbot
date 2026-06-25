@@ -40,7 +40,7 @@ class TimersControllerTest {
                 FakeTimersApi(
                     listOf(
                         TimerSummary(
-                            id = 7,
+                            id = "00000007-0000-0000-0000-000000000007",
                             name = "Follow reminder",
                             intervalMinutes = 10,
                             isEnabled = true,
@@ -57,7 +57,7 @@ class TimersControllerTest {
         val timers: List<TimerSummary> = (state as TimersState.Ready).timers
         assertEquals(1, timers.size)
         val timer: TimerSummary = timers.first()
-        assertEquals(7, timer.id)
+        assertEquals("00000007-0000-0000-0000-000000000007", timer.id)
         assertEquals("Follow reminder", timer.name)
         assertEquals(10, timer.intervalMinutes)
         assertEquals(true, timer.isEnabled)
@@ -132,14 +132,15 @@ class TimersControllerTest {
     fun updateTimer_sends_the_edited_fields_and_reloads() = runTest {
         val api =
             FakeTimersApi(
-                listOf(TimerSummary(id = 3, name = "Old", intervalMinutes = 5, isEnabled = false, messageCount = 1))
+                listOf(TimerSummary(id = "00000003-0000-0000-0000-000000000003", name = "Old", intervalMinutes = 5, isEnabled = false, messageCount = 1))
             )
         val controller = TimersController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
         controller.load()
 
-        controller.updateTimer(id = 3, name = "New", message = "Updated", intervalMinutes = 15, enabled = true)
+        controller.updateTimer(id = "00000003-0000-0000-0000-000000000003", name = "New", message = "Updated", intervalMinutes = 15, enabled = true)
 
-        val update: UpdateTimerRequest = api.updated.getValue(3)
+        val updatedId = "00000003-0000-0000-0000-000000000003"
+        val update: UpdateTimerRequest = api.updated.getValue(updatedId)
         assertEquals("New", update.name)
         assertEquals(listOf("Updated"), update.messages)
         assertEquals(15, update.intervalMinutes)
@@ -147,7 +148,7 @@ class TimersControllerTest {
 
         val state: TimersState = controller.state.value
         assertTrue(state is TimersState.Ready)
-        val timer: TimerSummary = (state as TimersState.Ready).timers.single { it.id == 3 }
+        val timer: TimerSummary = (state as TimersState.Ready).timers.single { it.id == updatedId }
         assertEquals("New", timer.name)
         assertEquals(15, timer.intervalMinutes)
         assertEquals(true, timer.isEnabled)
@@ -157,31 +158,32 @@ class TimersControllerTest {
     fun toggleTimer_flips_the_row_server_side_and_reloads() = runTest {
         val api =
             FakeTimersApi(
-                listOf(TimerSummary(id = 9, name = "Ad", intervalMinutes = 30, isEnabled = true, messageCount = 2))
+                listOf(TimerSummary(id = "00000009-0000-0000-0000-000000000009", name = "Ad", intervalMinutes = 30, isEnabled = true, messageCount = 2))
             )
         val controller = TimersController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
         controller.load()
 
-        controller.toggleTimer(id = 9, enabled = false)
+        controller.toggleTimer(id = "00000009-0000-0000-0000-000000000009", enabled = false)
 
-        assertEquals(listOf(9), api.toggled)
+        assertEquals(listOf("00000009-0000-0000-0000-000000000009"), api.toggled)
         val state: TimersState = controller.state.value
         assertTrue(state is TimersState.Ready)
-        assertEquals(false, (state as TimersState.Ready).timers.single { it.id == 9 }.isEnabled)
+        val toggledId = "00000009-0000-0000-0000-000000000009"
+        assertEquals(false, (state as TimersState.Ready).timers.single { it.id == toggledId }.isEnabled)
     }
 
     @Test
     fun deleteTimer_removes_the_row_and_reloads_to_empty() = runTest {
         val api =
             FakeTimersApi(
-                listOf(TimerSummary(id = 4, name = "Solo", intervalMinutes = 10, isEnabled = true, messageCount = 1))
+                listOf(TimerSummary(id = "00000004-0000-0000-0000-000000000004", name = "Solo", intervalMinutes = 10, isEnabled = true, messageCount = 1))
             )
         val controller = TimersController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
         controller.load()
 
-        controller.deleteTimer(id = 4)
+        controller.deleteTimer(id = "00000004-0000-0000-0000-000000000004")
 
-        assertEquals(listOf(4), api.deleted)
+        assertEquals(listOf("00000004-0000-0000-0000-000000000004"), api.deleted)
         // The reload now sees an empty channel, so the page degrades to Empty rather than a stale row.
         assertTrue(controller.state.value is TimersState.Empty)
         assertNull(controller.writeError.value)
@@ -190,7 +192,7 @@ class TimersControllerTest {
     @Test
     fun createTimer_failure_surfaces_a_write_error_and_leaves_the_list_intact() = runTest {
         val existing: List<TimerSummary> =
-            listOf(TimerSummary(id = 1, name = "Keep", intervalMinutes = 10, isEnabled = true, messageCount = 1))
+            listOf(TimerSummary(id = "00000001-0000-0000-0000-000000000001", name = "Keep", intervalMinutes = 10, isEnabled = true, messageCount = 1))
         val api = FakeTimersApi(existing, writeFailure = ApiError(403, "FORBIDDEN", "not allowed"))
         val controller = TimersController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
         controller.load()
@@ -210,7 +212,7 @@ class TimersControllerTest {
         val api = FakeTimersApi(emptyList(), writeFailure = ApiError(500, "ERR", "boom"))
         val controller = TimersController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
         controller.load()
-        controller.deleteTimer(id = 1)
+        controller.deleteTimer(id = "00000001-0000-0000-0000-000000000001")
         assertEquals("boom", controller.writeError.value)
 
         controller.clearWriteError()
@@ -237,9 +239,9 @@ private class FakeTimersApi(
         private set
 
     val created: MutableList<CreateTimerRequest> = mutableListOf()
-    val updated: MutableMap<Int, UpdateTimerRequest> = mutableMapOf()
-    val deleted: MutableList<Int> = mutableListOf()
-    val toggled: MutableList<Int> = mutableListOf()
+    val updated: MutableMap<String, UpdateTimerRequest> = mutableMapOf()
+    val deleted: MutableList<String> = mutableListOf()
+    val toggled: MutableList<String> = mutableListOf()
 
     override suspend fun list(channelId: String): ApiResult<List<TimerSummary>> {
         listCalls++
@@ -249,7 +251,7 @@ private class FakeTimersApi(
     override suspend fun create(channelId: String, request: CreateTimerRequest): ApiResult<Unit> {
         writeFailure?.let { return ApiResult.Failure(it) }
         created += request
-        val nextId: Int = (rows.maxOfOrNull { it.id } ?: 0) + 1
+        val nextId: String = "test-timer-${rows.size + 1}"
         rows +=
             TimerSummary(
                 id = nextId,
@@ -261,7 +263,7 @@ private class FakeTimersApi(
         return ApiResult.Ok(Unit)
     }
 
-    override suspend fun update(channelId: String, id: Int, request: UpdateTimerRequest): ApiResult<Unit> {
+    override suspend fun update(channelId: String, id: String, request: UpdateTimerRequest): ApiResult<Unit> {
         writeFailure?.let { return ApiResult.Failure(it) }
         updated[id] = request
         val index: Int = rows.indexOfFirst { it.id == id }
@@ -278,14 +280,14 @@ private class FakeTimersApi(
         return ApiResult.Ok(Unit)
     }
 
-    override suspend fun delete(channelId: String, id: Int): ApiResult<Unit> {
+    override suspend fun delete(channelId: String, id: String): ApiResult<Unit> {
         writeFailure?.let { return ApiResult.Failure(it) }
         deleted += id
         rows.removeAll { it.id == id }
         return ApiResult.Ok(Unit)
     }
 
-    override suspend fun toggle(channelId: String, id: Int): ApiResult<Unit> {
+    override suspend fun toggle(channelId: String, id: String): ApiResult<Unit> {
         writeFailure?.let { return ApiResult.Failure(it) }
         toggled += id
         val index: Int = rows.indexOfFirst { it.id == id }
