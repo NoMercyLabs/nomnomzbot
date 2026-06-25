@@ -10,6 +10,7 @@
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using NomNomzBot.Application.Abstractions.Persistence;
@@ -75,12 +76,25 @@ internal static class AuthTestBuilder
     /// <summary>
     /// A real <see cref="ISystemCredentialsProvider"/> over the test context + REAL token protector, so a
     /// test proves the DB-vaulted-first → config-fallback resolution and the AAD binding for real (no stub).
+    /// Builds a minimal <see cref="ServiceCollection"/> to supply an <see cref="IServiceScopeFactory"/> that
+    /// hands back the same <paramref name="db"/> + <paramref name="protector"/> instances from inner scopes —
+    /// matching the production wiring without needing a full DI host.
     /// </summary>
     public static ISystemCredentialsProvider CredentialsProvider(
         AuthDbContext db,
         ITokenProtector protector,
         IConfiguration configuration
-    ) => new SystemCredentialsProvider(db, protector, configuration);
+    )
+    {
+        ServiceCollection services = new();
+        services.AddSingleton<IApplicationDbContext>(db);
+        services.AddSingleton<ITokenProtector>(protector);
+        ServiceProvider sp = services.BuildServiceProvider();
+        return new SystemCredentialsProvider(
+            sp.GetRequiredService<IServiceScopeFactory>(),
+            configuration
+        );
+    }
 }
 
 /// <summary>Records every published domain event so a test can assert the side effect actually fired.</summary>

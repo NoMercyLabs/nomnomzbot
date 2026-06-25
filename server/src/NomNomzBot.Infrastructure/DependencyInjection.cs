@@ -416,9 +416,9 @@ public static class DependencyInjection
         >();
 
         // System OAuth-app credential resolver (onboarding keystone) — the single DB-vaulted-first → config
-        // path the wizard saves to and the live OAuth flows read from. Scoped (DbContext + token protector);
-        // not I<X>Service-named, so explicit.
-        services.AddScoped<
+        // path the wizard saves to and the live OAuth flows read from. Singleton: creates its own scope per
+        // read (IServiceScopeFactory) so it never shares a DbContext with its caller.
+        services.AddSingleton<
             ISystemCredentialsProvider,
             Platform.Configuration.SystemCredentialsProvider
         >();

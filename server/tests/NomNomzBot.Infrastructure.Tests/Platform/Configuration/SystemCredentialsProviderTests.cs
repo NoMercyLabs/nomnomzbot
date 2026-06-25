@@ -10,6 +10,8 @@
 
 using FluentAssertions;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Infrastructure.Platform.Configuration;
@@ -39,7 +41,14 @@ public sealed class SystemCredentialsProviderTests
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
         ITokenProtector protector = AuthTestBuilder.RealTokenProtector(db, out _);
-        SystemCredentialsProvider provider = new(db, protector, config);
+        ServiceCollection services = new();
+        services.AddSingleton<IApplicationDbContext>(db);
+        services.AddSingleton<ITokenProtector>(protector);
+        ServiceProvider sp = services.BuildServiceProvider();
+        SystemCredentialsProvider provider = new(
+            sp.GetRequiredService<IServiceScopeFactory>(),
+            config
+        );
         return (provider, db, protector);
     }
 

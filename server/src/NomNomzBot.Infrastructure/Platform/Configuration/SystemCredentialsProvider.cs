@@ -10,6 +10,7 @@
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
@@ -23,11 +24,14 @@ namespace NomNomzBot.Infrastructure.Platform.Configuration;
 /// plain / <c>"{provider}.client_secret"</c> sealed) FIRST, then falls back to <c>{Provider}:ClientId/ClientSecret</c>
 /// from <see cref="IConfiguration"/> (env / appsettings). Every secret is sealed/opened under the AAD
 /// <c>("system", provider, field)</c> — a sealed value for one provider can never be opened as another's, and a
-/// raw DB read yields only sealed bytes. Scoped: it reads the per-request <see cref="IApplicationDbContext"/>.
+/// raw DB read yields only sealed bytes.
+///
+/// Opens a dedicated <see cref="IServiceScope"/> per read so that the credential lookup never shares a
+/// <see cref="IApplicationDbContext"/> instance with the caller. This prevents the "second operation started"
+/// concurrency exception that fires when a token refresh is triggered mid-query inside a Helix transport call.
 /// </summary>
 public sealed class SystemCredentialsProvider(
-    IApplicationDbContext db,
-    ITokenProtector protector,
+    IServiceScopeFactory scopeFactory,
     IConfiguration configuration
 ) : ISystemCredentialsProvider
 {
@@ -74,9 +78,16 @@ public sealed class SystemCredentialsProvider(
     /// Reads one system-scoped <c>Configuration</c> row: a sealed <see cref="ConfigEntity.SecureValue"/> is
     /// opened under the row's AAD; otherwise the plain <see cref="ConfigEntity.Value"/> is returned. Null when
     /// the row is absent or the sealed value fails to open (crypto-shredded / tampered) — never throws.
+    ///
+    /// Uses a fresh scope so that this DB read never races with the caller's in-flight DbContext operations.
     /// </summary>
     public async Task<string?> ReadConfigAsync(string key, CancellationToken cancellationToken)
     {
+        await using AsyncServiceScope scope = scopeFactory.CreateAsyncScope();
+        IApplicationDbContext db =
+            scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+        ITokenProtector protector = scope.ServiceProvider.GetRequiredService<ITokenProtector>();
+
         ConfigEntity? cfg = await db.Configurations.FirstOrDefaultAsync(
             c => c.BroadcasterId == null && c.Key == key,
             cancellationToken
