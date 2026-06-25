@@ -90,6 +90,20 @@ interface EconomyApi {
         channelId: String,
         request: CreateSavingsJarBody,
     ): ApiResult<SavingsJar>
+
+    /** Admin-adjust a viewer's balance (positive = credit, negative = debit). */
+    suspend fun adjustAccount(
+        channelId: String,
+        viewerUserId: String,
+        amount: Long,
+        reason: String?,
+    ): ApiResult<Unit>
+
+    /** The full catalog purchase history for the channel — first page. */
+    suspend fun catalogPurchases(channelId: String): ApiResult<List<CatalogPurchase>>
+
+    /** Refund a catalog purchase — credits the cost back to the buyer. */
+    suspend fun refundPurchase(channelId: String, purchaseId: String): ApiResult<Unit>
 }
 
 class RestEconomyApi(private val client: ApiClient) : EconomyApi {
@@ -204,11 +218,47 @@ class RestEconomyApi(private val client: ApiClient) : EconomyApi {
         request: CreateSavingsJarBody,
     ): ApiResult<SavingsJar> =
         client.postEnvelope("api/v1/channels/$channelId/economy/jars", request)
+
+    override suspend fun adjustAccount(
+        channelId: String,
+        viewerUserId: String,
+        amount: Long,
+        reason: String?,
+    ): ApiResult<Unit> =
+        client.postUnit(
+            "api/v1/channels/$channelId/economy/accounts/$viewerUserId/adjust",
+            AdminAdjustBody(amount, reason),
+        )
+
+    override suspend fun catalogPurchases(channelId: String): ApiResult<List<CatalogPurchase>> =
+        when (val page: ApiResult<PaginatedEnvelope<CatalogPurchase>> = client.getDirect("api/v1/channels/$channelId/economy/catalog/purchases?page=1&pageSize=50")) {
+            is ApiResult.Failure -> ApiResult.Failure(page.error)
+            is ApiResult.Ok -> ApiResult.Ok(page.value.data)
+        }
+
+    override suspend fun refundPurchase(channelId: String, purchaseId: String): ApiResult<Unit> =
+        client.postUnit("api/v1/channels/$channelId/economy/catalog/purchases/$purchaseId/refund", Unit)
 }
 
 /** The freeze/unfreeze request body (backend `CurrencyController.FreezeBody`). camelCase `frozen`. */
 @Serializable
 data class FreezeAccountBody(val frozen: Boolean)
+
+/** Admin balance adjustment (backend `AdminAdjustCommand`). Positive = credit, negative = debit. */
+@Serializable
+data class AdminAdjustBody(val amount: Long, val reason: String? = null)
+
+/** One catalog purchase (backend `CatalogPurchaseDto`). */
+@Serializable
+data class CatalogPurchase(
+    val id: String = "",
+    val catalogItemId: String = "",
+    val buyerUserId: String = "",
+    val costPaid: Long = 0,
+    val itemNameSnapshot: String = "",
+    val status: String = "",
+    val createdAt: String = "",
+)
 
 /**
  * A partial catalog-item update (backend `UpdateCatalogItemRequest`) — every field nullable, only the non-null

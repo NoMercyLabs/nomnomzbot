@@ -12,6 +12,7 @@ package bot.nomnomz.dashboard.feature.economy.state
 
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.CatalogItem
+import bot.nomnomz.dashboard.core.network.CatalogPurchase
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.CreateCatalogItemBody
@@ -110,6 +111,13 @@ class EconomyController(
                 is ApiResult.Ok -> result.value
             }
 
+        // Catalog purchase history. Same resilience contract.
+        val catalogPurchases: List<CatalogPurchase> =
+            when (val result: ApiResult<List<CatalogPurchase>> = economyApi.catalogPurchases(channel.id)) {
+                is ApiResult.Failure -> emptyList()
+                is ApiResult.Ok -> result.value
+            }
+
         _state.value =
             EconomyState.Ready(
                 // A null config means the economy was never set up; seed the form with sensible defaults so the
@@ -121,6 +129,7 @@ class EconomyController(
                 earningRules = earningRules,
                 catalog = catalog,
                 savingsJars = savingsJars,
+                catalogPurchases = catalogPurchases,
             )
     }
 
@@ -265,6 +274,18 @@ class EconomyController(
         }
     }
 
+    /** Admin-adjust a viewer's balance (positive = credit, negative = debit). Reloads on success. */
+    suspend fun adjustAccount(viewerUserId: String, amount: Long, reason: String?) {
+        val channel: String = channelId ?: return
+        afterWrite(economyApi.adjustAccount(channel, viewerUserId, amount, reason))
+    }
+
+    /** Refund a catalog purchase — credits the cost back to the buyer. Reloads on success. */
+    suspend fun refundPurchase(purchaseId: String) {
+        val channel: String = channelId ?: return
+        afterWrite(economyApi.refundPurchase(channel, purchaseId))
+    }
+
     // Reload on success; on failure surface the message on the current Ready state without losing the loaded page.
     private suspend fun afterWrite(result: ApiResult<*>) {
         when (result) {
@@ -302,6 +323,7 @@ sealed interface EconomyState {
         val earningRules: List<EarningRule> = emptyList(),
         val catalog: List<CatalogItem> = emptyList(),
         val savingsJars: List<SavingsJar> = emptyList(),
+        val catalogPurchases: List<CatalogPurchase> = emptyList(),
         val saving: Boolean = false,
         val justSaved: Boolean = false,
         val saveError: String? = null,

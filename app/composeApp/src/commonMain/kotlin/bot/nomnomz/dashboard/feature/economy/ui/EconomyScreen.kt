@@ -62,6 +62,7 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.designsystem.theme.Tokens
 import bot.nomnomz.dashboard.core.network.CatalogItem
+import bot.nomnomz.dashboard.core.network.CatalogPurchase
 import bot.nomnomz.dashboard.core.network.CreateCatalogItemBody
 import bot.nomnomz.dashboard.core.network.CreateSavingsJarBody
 import bot.nomnomz.dashboard.core.network.CurrencyAccountSummary
@@ -156,6 +157,22 @@ import nomnomzbot.composeapp.generated.resources.economy_saving
 import nomnomzbot.composeapp.generated.resources.economy_status_disabled
 import nomnomzbot.composeapp.generated.resources.economy_status_enabled
 import nomnomzbot.composeapp.generated.resources.economy_toggle_enabled
+import nomnomzbot.composeapp.generated.resources.economy_account_adjust
+import nomnomzbot.composeapp.generated.resources.economy_account_adjust_amount
+import nomnomzbot.composeapp.generated.resources.economy_account_adjust_amount_invalid
+import nomnomzbot.composeapp.generated.resources.economy_account_adjust_cancel
+import nomnomzbot.composeapp.generated.resources.economy_account_adjust_confirm
+import nomnomzbot.composeapp.generated.resources.economy_account_adjust_reason
+import nomnomzbot.composeapp.generated.resources.economy_account_adjust_title
+import nomnomzbot.composeapp.generated.resources.economy_purchases_buyer
+import nomnomzbot.composeapp.generated.resources.economy_purchases_empty
+import nomnomzbot.composeapp.generated.resources.economy_purchases_refund
+import nomnomzbot.composeapp.generated.resources.economy_purchases_refund_cancel
+import nomnomzbot.composeapp.generated.resources.economy_purchases_refund_confirm
+import nomnomzbot.composeapp.generated.resources.economy_purchases_refund_message
+import nomnomzbot.composeapp.generated.resources.economy_purchases_refund_title
+import nomnomzbot.composeapp.generated.resources.economy_purchases_status
+import nomnomzbot.composeapp.generated.resources.economy_purchases_title
 import org.jetbrains.compose.resources.stringResource
 
 // The Economy page (economy.md §4): an editable form over the channel's currency definition (name, symbol, earn
@@ -209,6 +226,12 @@ fun EconomyScreen(controller: EconomyController, role: ManagementRole?) {
                     onCreateSavingsJar = { request ->
                         scope.launch { controller.createSavingsJar(request) }
                     },
+                    onAdjustAccount = { viewerUserId, amount, reason ->
+                        scope.launch { controller.adjustAccount(viewerUserId, amount, reason) }
+                    },
+                    onRefundPurchase = { purchaseId ->
+                        scope.launch { controller.refundPurchase(purchaseId) }
+                    },
                 )
         }
     }
@@ -226,6 +249,8 @@ private fun ReadyContent(
     onDeleteCatalogItem: (String) -> Unit,
     onToggleEarningRule: (source: String, enabled: Boolean) -> Unit,
     onCreateSavingsJar: (CreateSavingsJarBody) -> Unit,
+    onAdjustAccount: (viewerUserId: String, amount: Long, reason: String?) -> Unit,
+    onRefundPurchase: (purchaseId: String) -> Unit,
 ) {
     val spacing = LocalSpacing.current
     val loaded: CurrencyConfig = state.config
@@ -333,7 +358,7 @@ private fun ReadyContent(
 
         LeaderboardSection(entries = state.leaderboard)
 
-        AccountsSection(accounts = state.accounts, manage = config, onFreeze = onFreeze)
+        AccountsSection(accounts = state.accounts, manage = config, onFreeze = onFreeze, onAdjust = onAdjustAccount)
 
         EarningRulesSection(
             rules = state.earningRules,
@@ -353,6 +378,12 @@ private fun ReadyContent(
             jars = state.savingsJars,
             manage = config,
             onCreate = onCreateSavingsJar,
+        )
+
+        CatalogPurchasesSection(
+            purchases = state.catalogPurchases,
+            manage = config,
+            onRefund = onRefundPurchase,
         )
     }
 
@@ -756,6 +787,7 @@ private fun AccountsSection(
     accounts: List<CurrencyAccountSummary>,
     manage: ManageDecision,
     onFreeze: (String, Boolean) -> Unit,
+    onAdjust: (viewerUserId: String, amount: Long, reason: String?) -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -784,7 +816,7 @@ private fun AccountsSection(
         verticalArrangement = Arrangement.spacedBy(spacing.s2),
     ) {
         items(items = accounts, key = { it.id }) { account ->
-            AccountRow(account = account, manage = manage, onFreeze = onFreeze)
+            AccountRow(account = account, manage = manage, onFreeze = onFreeze, onAdjust = onAdjust)
         }
     }
 }
@@ -794,7 +826,9 @@ private fun AccountRow(
     account: CurrencyAccountSummary,
     manage: ManageDecision,
     onFreeze: (String, Boolean) -> Unit,
+    onAdjust: (viewerUserId: String, amount: Long, reason: String?) -> Unit,
 ) {
+    var showAdjust: Boolean by remember { mutableStateOf(false) }
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
@@ -873,7 +907,70 @@ private fun AccountRow(
                 )
             }
         }
+        ManageGate(decision = manage) { enabled ->
+            TextButton(onClick = { showAdjust = true }, enabled = enabled) {
+                Text(
+                    text = stringResource(Res.string.economy_account_adjust),
+                    color = if (enabled) tokens.primary else tokens.mutedForeground,
+                    maxLines = 1,
+                )
+            }
+        }
     }
+
+    if (showAdjust) {
+        AccountAdjustDialog(
+            viewerLabel = account.viewerTwitchUserId,
+            onConfirm = { amount, reason -> showAdjust = false; onAdjust(account.viewerUserId, amount, reason) },
+            onDismiss = { showAdjust = false },
+        )
+    }
+}
+
+@Composable
+private fun AccountAdjustDialog(
+    viewerLabel: String,
+    onConfirm: (amount: Long, reason: String?) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    var amountText: String by remember { mutableStateOf("") }
+    var reason: String by remember { mutableStateOf("") }
+    val amount: Long? = amountText.toLongOrNull()
+    val amountValid: Boolean = amount != null
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(Res.string.economy_account_adjust_title, viewerLabel), style = typography.lg, color = tokens.cardForeground) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
+                AppTextField(
+                    value = amountText,
+                    onValueChange = { amountText = it.filter { c -> c == '-' || c.isDigit() } },
+                    label = stringResource(Res.string.economy_account_adjust_amount),
+                    isError = amountText.isNotBlank() && !amountValid,
+                    errorText = if (amountText.isNotBlank() && !amountValid) stringResource(Res.string.economy_account_adjust_amount_invalid) else null,
+                )
+                AppTextField(
+                    value = reason,
+                    onValueChange = { reason = it },
+                    label = stringResource(Res.string.economy_account_adjust_reason),
+                    isError = false,
+                    errorText = null,
+                )
+            }
+        },
+        confirmButton = {
+            Button(onClick = { if (amountValid) onConfirm(amount!!, reason.trim().ifBlank { null }) }, enabled = amountValid) {
+                Text(stringResource(Res.string.economy_account_adjust_confirm))
+            }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.economy_account_adjust_cancel)) } },
+        containerColor = tokens.card,
+    )
 }
 
 // The earning rules (economy.md §4): one row per source — the source key, a disabled flag, and the gain rate.
@@ -1445,6 +1542,69 @@ private fun CreateSavingsJarDialog(
         },
         containerColor = tokens.card,
     )
+}
+
+@Composable
+private fun CatalogPurchasesSection(
+    purchases: List<CatalogPurchase>,
+    manage: ManageDecision,
+    onRefund: (purchaseId: String) -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    var pendingRefund: CatalogPurchase? by remember { mutableStateOf(null) }
+
+    Text(text = stringResource(Res.string.economy_purchases_title), style = typography.lg, color = tokens.cardForeground)
+
+    if (purchases.isEmpty()) {
+        Text(text = stringResource(Res.string.economy_purchases_empty), style = typography.sm, color = tokens.mutedForeground)
+    } else {
+        LazyColumn(
+            modifier = Modifier.fillMaxWidth(),
+            contentPadding = PaddingValues(vertical = spacing.s1),
+            verticalArrangement = Arrangement.spacedBy(spacing.s2),
+        ) {
+            items(items = purchases, key = { it.id }) { purchase ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(tokens.radius.lg))
+                        .background(tokens.card)
+                        .padding(horizontal = spacing.s4, vertical = spacing.s3),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(spacing.s3),
+                ) {
+                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
+                        Text(text = purchase.itemNameSnapshot, style = typography.base, color = tokens.cardForeground, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
+                            Text(text = stringResource(Res.string.economy_purchases_buyer, purchase.buyerUserId), style = typography.xs, color = tokens.mutedForeground)
+                            Text(text = stringResource(Res.string.economy_purchases_status, purchase.status), style = typography.xs, color = tokens.mutedForeground)
+                        }
+                    }
+                    Text(text = purchase.costPaid.toString(), style = typography.base, color = tokens.primary)
+                    ManageGate(manage) { enabled ->
+                        TextButton(onClick = { pendingRefund = purchase }, enabled = enabled && purchase.status != "refunded") {
+                            Text(stringResource(Res.string.economy_purchases_refund), color = if (enabled && purchase.status != "refunded") tokens.destructive else tokens.mutedForeground)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    pendingRefund?.let { p ->
+        ConfirmDialog(
+            title = stringResource(Res.string.economy_purchases_refund_title),
+            message = stringResource(Res.string.economy_purchases_refund_message, p.itemNameSnapshot),
+            confirmLabel = stringResource(Res.string.economy_purchases_refund_confirm),
+            dismissLabel = stringResource(Res.string.economy_purchases_refund_cancel),
+            destructive = false,
+            onConfirm = { pendingRefund = null; onRefund(p.id) },
+            onDismiss = { pendingRefund = null },
+        )
+    }
 }
 
 // The shared switch color set: every slot driven by a token so the control reads on-theme in light + dark.

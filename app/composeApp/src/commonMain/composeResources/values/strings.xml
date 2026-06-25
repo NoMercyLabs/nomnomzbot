@@ -688,6 +688,24 @@
     <string name="federation_optin_remove_confirm">Remove</string>
     <string name="federation_optin_remove_cancel">Cancel</string>
 
+    <!-- Economy: account adjust + catalog purchases -->
+    <string name="economy_account_adjust">Adjust</string>
+    <string name="economy_account_adjust_title">Adjust balance — %1$s</string>
+    <string name="economy_account_adjust_amount">Amount (+ credit / − debit)</string>
+    <string name="economy_account_adjust_amount_invalid">Enter a non-zero integer (e.g. 100 or -50).</string>
+    <string name="economy_account_adjust_reason">Reason (optional)</string>
+    <string name="economy_account_adjust_confirm">Apply</string>
+    <string name="economy_account_adjust_cancel">Cancel</string>
+    <string name="economy_purchases_title">Purchase history</string>
+    <string name="economy_purchases_empty">No catalog purchases yet.</string>
+    <string name="economy_purchases_buyer">Buyer: %1$s</string>
+    <string name="economy_purchases_status">%1$s</string>
+    <string name="economy_purchases_refund">Refund</string>
+    <string name="economy_purchases_refund_title">Refund purchase?</string>
+    <string name="economy_purchases_refund_message">Refund "%1$s" and credit the buyer back?</string>
+    <string name="economy_purchases_refund_confirm">Refund</string>
+    <string name="economy_purchases_refund_cancel">Cancel</string>
+
     <!-- Code Scripts page -->
     <string name="scripts_title">Code Scripts</string>
     <string name="scripts_subtitle">Versioned Lua scripts attached to commands and pipeline actions.</string>

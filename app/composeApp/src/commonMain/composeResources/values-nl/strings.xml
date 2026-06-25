@@ -685,6 +685,24 @@
     <string name="federation_optin_remove_confirm">Verwijderen</string>
     <string name="federation_optin_remove_cancel">Annuleren</string>
 
+    <!-- Economy: account adjust + catalog purchases -->
+    <string name="economy_account_adjust">Aanpassen</string>
+    <string name="economy_account_adjust_title">Saldo aanpassen — %1$s</string>
+    <string name="economy_account_adjust_amount">Bedrag (+ bijschrijven / − afschrijven)</string>
+    <string name="economy_account_adjust_amount_invalid">Voer een geheel getal in (bijv. 100 of -50).</string>
+    <string name="economy_account_adjust_reason">Reden (optioneel)</string>
+    <string name="economy_account_adjust_confirm">Toepassen</string>
+    <string name="economy_account_adjust_cancel">Annuleren</string>
+    <string name="economy_purchases_title">Aankoopgeschiedenis</string>
+    <string name="economy_purchases_empty">Nog geen catalogusaankopen.</string>
+    <string name="economy_purchases_buyer">Koper: %1$s</string>
+    <string name="economy_purchases_status">%1$s</string>
+    <string name="economy_purchases_refund">Terugbetalen</string>
+    <string name="economy_purchases_refund_title">Aankoop terugbetalen?</string>
+    <string name="economy_purchases_refund_message">"%1$s" terugbetalen en de koper crediteren?</string>
+    <string name="economy_purchases_refund_confirm">Terugbetalen</string>
+    <string name="economy_purchases_refund_cancel">Annuleren</string>
+
     <!-- Code Scripts page -->
     <string name="scripts_title">Codescripts</string>
     <string name="scripts_subtitle">Versiegebonden Lua-scripts gekoppeld aan opdrachten en pijplijnacties.</string>
