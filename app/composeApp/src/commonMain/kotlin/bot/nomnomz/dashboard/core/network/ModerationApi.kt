@@ -63,6 +63,19 @@ interface ModerationApi {
 
     /** Delete a filter rule. */
     suspend fun deleteRule(channelId: String, ruleId: Int): ApiResult<Unit>
+
+    /**
+     * Perform a moderation action (ban / timeout / unban) on [targetUserId]. [action] is one of `"ban"`,
+     * `"timeout"`, or `"unban"`; [durationSeconds] is only required for `"timeout"` (ignored otherwise);
+     * [reason] is optional.
+     */
+    suspend fun performAction(
+        channelId: String,
+        action: String,
+        targetUserId: String,
+        durationSeconds: Int? = null,
+        reason: String? = null,
+    ): ApiResult<Unit>
 }
 
 class RestModerationApi(private val client: ApiClient) : ModerationApi {
@@ -142,6 +155,20 @@ class RestModerationApi(private val client: ApiClient) : ModerationApi {
 
     override suspend fun deleteRule(channelId: String, ruleId: Int): ApiResult<Unit> =
         client.deleteUnit("api/v1/channels/$channelId/moderation/rules/$ruleId")
+
+    // The POST body is a PerformModerationActionRequest (action, targetUserId, durationSeconds?, reason?).
+    // The backend is under ModerationController at /moderation/actions.
+    override suspend fun performAction(
+        channelId: String,
+        action: String,
+        targetUserId: String,
+        durationSeconds: Int?,
+        reason: String?,
+    ): ApiResult<Unit> =
+        client.postUnit(
+            "api/v1/channels/$channelId/moderation/actions",
+            ModerationActionBody(action, targetUserId, durationSeconds, reason),
+        )
 }
 
 /**
@@ -235,3 +262,5 @@ data class ModerationRule(
 /** A partial moderation-rule update (backend `UpdateModerationRuleRequest`) — a toggle sends just [isEnabled]. */
 @Serializable
 data class UpdateRuleBody(val isEnabled: Boolean? = null)
+
+// ModerationActionBody lives in ChatApi.kt (package-shared) — imported from there.

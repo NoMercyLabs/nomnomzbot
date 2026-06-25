@@ -25,6 +25,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.feedback_action_applied
+import nomnomzbot.composeapp.generated.resources.feedback_action_failed
 import nomnomzbot.composeapp.generated.resources.feedback_unban_failed
 import nomnomzbot.composeapp.generated.resources.feedback_unbanned
 
@@ -212,6 +214,36 @@ class ModerationController(
     suspend fun deleteRule(ruleId: Int) {
         val channel: String = channelId ?: return
         afterWrite(moderationApi.deleteRule(channel, ruleId))
+    }
+
+    /**
+     * Apply a moderation [action] (`"ban"` or `"timeout"`) to [targetUserId]. On success the page reloads so the new
+     * ban appears. On failure the error surfaces on the Ready state without losing the lists.
+     * [durationSeconds] is only required for `"timeout"` (ignored for ban). [reason] is optional.
+     */
+    suspend fun performAction(
+        action: String,
+        targetUserId: String,
+        durationSeconds: Int?,
+        reason: String?,
+    ) {
+        val channel: String = channelId ?: return
+        when (
+            val result: ApiResult<Unit> =
+                moderationApi.performAction(channel, action, targetUserId, durationSeconds, reason)
+        ) {
+            is ApiResult.Ok -> {
+                feedback.success(Res.string.feedback_action_applied)
+                load()
+            }
+            is ApiResult.Failure -> {
+                feedback.error(Res.string.feedback_action_failed, result.error.message)
+                val current: ModerationState = _state.value
+                if (current is ModerationState.Ready) {
+                    _state.value = current.copy(actionError = result.error.message)
+                }
+            }
+        }
     }
 
     // Reload on success; on failure surface the message on the current Ready state without losing the lists.

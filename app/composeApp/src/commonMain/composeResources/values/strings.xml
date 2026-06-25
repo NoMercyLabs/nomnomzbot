@@ -349,7 +349,17 @@
     <string name="moderation_unban_message">Unban %1$s? They'll be able to chat in your channel again.</string>
     <string name="moderation_unban_confirm">Unban</string>
     <string name="moderation_unban_dismiss">Cancel</string>
-    <string name="moderation_action_error">Could not unban: %1$s</string>
+    <string name="moderation_action_error">Action failed: %1$s</string>
+    <string name="moderation_action_apply">Moderate a viewer</string>
+    <string name="moderation_action_dialog_title">Moderate a viewer</string>
+    <string name="moderation_action_user_id">Twitch user ID</string>
+    <string name="moderation_action_reason">Reason (optional)</string>
+    <string name="moderation_action_duration">Duration in seconds</string>
+    <string name="moderation_action_type_ban">Ban</string>
+    <string name="moderation_action_type_timeout">Timeout</string>
+    <string name="moderation_action_confirm">Apply</string>
+    <string name="moderation_action_dismiss">Cancel</string>
+    <string name="moderation_action_user_id_required">Enter a Twitch user ID</string>
     <string name="tts_toggle_enabled">Enable TTS</string>
     <string name="tts_max_length_invalid">Enter a number between 1 and 500.</string>
     <string name="tts_permission_everyone">Everyone</string>
@@ -581,6 +591,8 @@
     <string name="feedback_command_save_failed">Couldn't save the command: %1$s</string>
     <string name="feedback_unbanned">Ban lifted</string>
     <string name="feedback_unban_failed">Couldn't lift the ban: %1$s</string>
+    <string name="feedback_action_applied">Action applied</string>
+    <string name="feedback_action_failed">Action failed: %1$s</string>
 
     <!-- Twitch application credentials (Settings card). -->
     <string name="twitch_app_section_title">Twitch application</string>

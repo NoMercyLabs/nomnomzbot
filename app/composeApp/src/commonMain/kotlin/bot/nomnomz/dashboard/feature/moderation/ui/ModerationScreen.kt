@@ -15,13 +15,18 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -104,6 +109,16 @@ import nomnomzbot.composeapp.generated.resources.moderation_rules_disable_action
 import nomnomzbot.composeapp.generated.resources.moderation_rules_enable
 import nomnomzbot.composeapp.generated.resources.moderation_rules_enable_action
 import nomnomzbot.composeapp.generated.resources.moderation_rules_title
+import nomnomzbot.composeapp.generated.resources.moderation_action_apply
+import nomnomzbot.composeapp.generated.resources.moderation_action_confirm
+import nomnomzbot.composeapp.generated.resources.moderation_action_dialog_title
+import nomnomzbot.composeapp.generated.resources.moderation_action_dismiss
+import nomnomzbot.composeapp.generated.resources.moderation_action_duration
+import nomnomzbot.composeapp.generated.resources.moderation_action_reason
+import nomnomzbot.composeapp.generated.resources.moderation_action_type_ban
+import nomnomzbot.composeapp.generated.resources.moderation_action_type_timeout
+import nomnomzbot.composeapp.generated.resources.moderation_action_user_id
+import nomnomzbot.composeapp.generated.resources.moderation_action_user_id_required
 import nomnomzbot.composeapp.generated.resources.moderation_retry
 import nomnomzbot.composeapp.generated.resources.moderation_unban_action
 import nomnomzbot.composeapp.generated.resources.moderation_unban_action_short
@@ -152,6 +167,9 @@ fun ModerationScreen(controller: ModerationController, role: ManagementRole?) {
                     actionError = current.actionError,
                     manage = manage,
                     onUnban = { userId -> scope.launch { controller.unban(userId) } },
+                    onPerformAction = { action, userId, duration, reason ->
+                        scope.launch { controller.performAction(action, userId, duration, reason) }
+                    },
                     onToggleShield = { on -> scope.launch { controller.setShieldMode(on) } },
                     onAddTerm = { term -> scope.launch { controller.addBlockedTerm(term) } },
                     onRemoveTerm = { term -> scope.launch { controller.removeBlockedTerm(term) } },
@@ -174,6 +192,7 @@ private fun BansList(
     actionError: String?,
     manage: ManageDecision,
     onUnban: (userId: String) -> Unit,
+    onPerformAction: (action: String, targetUserId: String, durationSeconds: Int?, reason: String?) -> Unit,
     onToggleShield: (Boolean) -> Unit,
     onAddTerm: (String) -> Unit,
     onRemoveTerm: (String) -> Unit,
@@ -189,6 +208,8 @@ private fun BansList(
     var pendingUnban: BannedUser? by remember { mutableStateOf(null) }
     // The filter rule awaiting delete confirmation, if any.
     var pendingDeleteRule: ModerationRule? by remember { mutableStateOf(null) }
+    // Whether the "moderate a viewer" action dialog is open.
+    var showActionDialog: Boolean by remember { mutableStateOf(false) }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -206,6 +227,20 @@ private fun BansList(
         }
         item(key = "shield-toggle") {
             ShieldToggle(enabled = shieldEnabled, manage = manage, onToggle = onToggleShield)
+        }
+        // "Moderate a viewer" button — always shown so a mod can ban/timeout someone not yet in the list.
+        item(key = "action-button") {
+            ManageGate(decision = manage) { enabled ->
+                TextButton(
+                    onClick = { showActionDialog = true },
+                    enabled = enabled,
+                ) {
+                    Text(
+                        text = stringResource(Res.string.moderation_action_apply),
+                        color = if (enabled) tokens.primary else tokens.mutedForeground,
+                    )
+                }
+            }
         }
         if (bans.isNotEmpty()) {
             item(key = "bans-header") {
@@ -346,6 +381,111 @@ private fun BansList(
             onDismiss = { pendingDeleteRule = null },
         )
     }
+
+    if (showActionDialog) {
+        ModerateViewerDialog(
+            onConfirm = { action, userId, duration, reason ->
+                onPerformAction(action, userId, duration, reason)
+                showActionDialog = false
+            },
+            onDismiss = { showActionDialog = false },
+        )
+    }
+}
+
+// Dialog to apply a ban or timeout to a viewer identified by their Twitch user ID.
+// The moderator selects the action type (ban vs timeout), optionally enters a reason and, for timeouts,
+// a duration in seconds (default 600 = 10 minutes). The caller owns open/closed state.
+@Composable
+private fun ModerateViewerDialog(
+    onConfirm: (action: String, targetUserId: String, durationSeconds: Int?, reason: String?) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val spacing = LocalSpacing.current
+    val tokens = LocalTokens.current
+    val typography = LocalTypography.current
+
+    var userId: String by remember { mutableStateOf("") }
+    var reason: String by remember { mutableStateOf("") }
+    var durationText: String by remember { mutableStateOf("600") }
+    var isBan: Boolean by remember { mutableStateOf(true) }
+    var showUserIdError: Boolean by remember { mutableStateOf(false) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = stringResource(Res.string.moderation_action_dialog_title),
+                style = typography.lg,
+                color = tokens.cardForeground,
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
+                AppTextField(
+                    value = userId,
+                    onValueChange = { userId = it; showUserIdError = false },
+                    label = stringResource(Res.string.moderation_action_user_id),
+                    isError = showUserIdError,
+                    errorText =
+                        if (showUserIdError) {
+                            stringResource(Res.string.moderation_action_user_id_required)
+                        } else {
+                            null
+                        },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
+                    FilterChip(
+                        selected = isBan,
+                        onClick = { isBan = true },
+                        label = { Text(stringResource(Res.string.moderation_action_type_ban)) },
+                    )
+                    FilterChip(
+                        selected = !isBan,
+                        onClick = { isBan = false },
+                        label = { Text(stringResource(Res.string.moderation_action_type_timeout)) },
+                    )
+                }
+                if (!isBan) {
+                    AppTextField(
+                        value = durationText,
+                        onValueChange = { durationText = it },
+                        label = stringResource(Res.string.moderation_action_duration),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+                AppTextField(
+                    value = reason,
+                    onValueChange = { reason = it },
+                    label = stringResource(Res.string.moderation_action_reason),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    if (userId.isBlank()) {
+                        showUserIdError = true
+                        return@Button
+                    }
+                    val action: String = if (isBan) "ban" else "timeout"
+                    val duration: Int? =
+                        if (!isBan) durationText.trim().toIntOrNull()?.takeIf { it > 0 } else null
+                    val reasonOrNull: String? = reason.trim().takeIf { it.isNotEmpty() }
+                    onConfirm(action, userId.trim(), duration, reasonOrNull)
+                },
+            ) {
+                Text(stringResource(Res.string.moderation_action_confirm))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(Res.string.moderation_action_dismiss))
+            }
+        },
+    )
 }
 
 @Composable
