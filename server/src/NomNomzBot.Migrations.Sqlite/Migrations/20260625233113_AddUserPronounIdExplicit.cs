@@ -13,15 +13,12 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
         {
             migrationBuilder.DropForeignKey(
                 name: "FK_Timers_Pipelines_PipelineId1",
-                table: "Timers");
+                table: "Timers"
+            );
 
-            migrationBuilder.DropIndex(
-                name: "IX_Timers_PipelineId1",
-                table: "Timers");
+            migrationBuilder.DropIndex(name: "IX_Timers_PipelineId1", table: "Timers");
 
-            migrationBuilder.DropColumn(
-                name: "PipelineId1",
-                table: "Timers");
+            migrationBuilder.DropColumn(name: "PipelineId1", table: "Timers");
         }
 
         /// <inheritdoc />
@@ -31,19 +28,22 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                 name: "PipelineId1",
                 table: "Timers",
                 type: "TEXT",
-                nullable: true);
+                nullable: true
+            );
 
             migrationBuilder.CreateIndex(
                 name: "IX_Timers_PipelineId1",
                 table: "Timers",
-                column: "PipelineId1");
+                column: "PipelineId1"
+            );
 
             migrationBuilder.AddForeignKey(
                 name: "FK_Timers_Pipelines_PipelineId1",
                 table: "Timers",
                 column: "PipelineId1",
                 principalTable: "Pipelines",
-                principalColumn: "Id");
+                principalColumn: "Id"
+            );
         }
     }
 }
