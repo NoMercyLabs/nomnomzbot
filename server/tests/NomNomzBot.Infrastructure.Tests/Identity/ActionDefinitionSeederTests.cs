@@ -116,4 +116,44 @@ public sealed class ActionDefinitionSeederTests
         row.FloorLevel.Should().Be(0);
         row.IsGrantableViaPermit.Should().BeTrue();
     }
+
+    [Fact]
+    public async Task Seeds_economy_account_read_at_the_moderator_floor_not_everyone()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        await SeedAsync(db);
+
+        ActionDefinition row = await db.ActionDefinitions.SingleAsync(a =>
+            a.ActionKey == "economy:account:read"
+        );
+        // Reading ANOTHER member's wallet floors at Moderator (10), not Everyone (0) — Everyone leaked every
+        // viewer's balance. Still community-plane: the participant's OWN read is the self-bound /accounts/me.
+        row.Plane.Should().Be(AuthPlane.Community);
+        row.FloorLevel.Should().Be(10);
+        row.DefaultLevel.Should().Be(10);
+    }
+
+    [Fact]
+    public async Task Reseeding_resyncs_a_drifted_floor_back_to_the_catalogue()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        await SeedAsync(db);
+        // Simulate a stale install that seeded the key at Everyone (0) under an older catalogue.
+        ActionDefinition stale = await db.ActionDefinitions.SingleAsync(a =>
+            a.ActionKey == "economy:account:read"
+        );
+        stale.FloorLevel = 0;
+        stale.DefaultLevel = 0;
+        await db.SaveChangesAsync();
+
+        await SeedAsync(db); // re-seed must re-sync the row to the catalogue, not skip it
+
+        ActionDefinition corrected = await db.ActionDefinitions.SingleAsync(a =>
+            a.ActionKey == "economy:account:read"
+        );
+        corrected
+            .FloorLevel.Should()
+            .Be(10, "the catalogue is authoritative and corrects a drifted floor on re-seed");
+        corrected.DefaultLevel.Should().Be(10);
+    }
 }

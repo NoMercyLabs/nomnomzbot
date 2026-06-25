@@ -44,26 +44,40 @@ public sealed class ActionDefinitionSeeder : ISeeder
 
     public async Task SeedAsync(CancellationToken ct = default)
     {
-        HashSet<string> present = (
-            await _db.ActionDefinitions.Select(a => a.ActionKey).ToListAsync(ct)
-        ).ToHashSet(StringComparer.Ordinal);
+        Dictionary<string, ActionDefinition> existing =
+            await _db.ActionDefinitions.ToDictionaryAsync(
+                a => a.ActionKey,
+                StringComparer.Ordinal,
+                ct
+            );
 
         foreach (ActionSeed seed in Catalogue)
         {
-            if (present.Contains(seed.Key))
-                continue;
-
-            _db.ActionDefinitions.Add(
-                new ActionDefinition
-                {
-                    ActionKey = seed.Key,
-                    Plane = seed.Plane,
-                    DefaultLevel = seed.DefaultLevel,
-                    FloorLevel = seed.FloorLevel,
-                    FloorTier = seed.Tier,
-                    IsGrantableViaPermit = seed.Grant,
-                }
-            );
+            if (existing.TryGetValue(seed.Key, out ActionDefinition? row))
+            {
+                // The catalogue is authoritative: re-sync plane/floor/tier so a CORRECTED default (e.g. a key that
+                // should be Moderator-floored rather than Everyone) takes effect on existing installs, not only on
+                // a fresh DB. Channel-specific customisations live in ChannelActionOverrides and are untouched.
+                row.Plane = seed.Plane;
+                row.DefaultLevel = seed.DefaultLevel;
+                row.FloorLevel = seed.FloorLevel;
+                row.FloorTier = seed.Tier;
+                row.IsGrantableViaPermit = seed.Grant;
+            }
+            else
+            {
+                _db.ActionDefinitions.Add(
+                    new ActionDefinition
+                    {
+                        ActionKey = seed.Key,
+                        Plane = seed.Plane,
+                        DefaultLevel = seed.DefaultLevel,
+                        FloorLevel = seed.FloorLevel,
+                        FloorTier = seed.Tier,
+                        IsGrantableViaPermit = seed.Grant,
+                    }
+                );
+            }
         }
     }
 
@@ -299,7 +313,20 @@ public sealed class ActionDefinitionSeeder : ISeeder
         C("economy:leaderboards:read");
         C("economy:leaderboards:opt-in");
         C("economy:leaderboards:opt-out");
-        C("economy:account:read");
+        // Reading ANOTHER member's wallet is a Moderator action (community plane, "self-or-Gate-2" per economy.md
+        // §5): a participant reads their OWN wallet via the self-bound GET /accounts/me (Everyone), so the keyed
+        // GET /accounts/{viewerUserId} route floors at Moderator. Seeding it at Everyone leaked every viewer's
+        // balance to every other viewer.
+        s.Add(
+            new ActionSeed(
+                "economy:account:read",
+                Mod,
+                Mod,
+                DangerTier.Low,
+                true,
+                AuthPlane.Community
+            )
+        );
         C("economy:consent:read");
         C("economy:consent:write");
         C("economy:consent:revoke");
