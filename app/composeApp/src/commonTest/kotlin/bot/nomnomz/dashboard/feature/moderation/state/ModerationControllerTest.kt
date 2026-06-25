@@ -18,6 +18,7 @@ import bot.nomnomz.dashboard.core.network.AutomodCapsFilter
 import bot.nomnomz.dashboard.core.network.AutomodConfig
 import bot.nomnomz.dashboard.core.network.BannedUser
 import bot.nomnomz.dashboard.core.network.ModLogEntry
+import bot.nomnomz.dashboard.core.network.ModerationRule
 import bot.nomnomz.dashboard.core.network.ShieldStatus
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
@@ -213,6 +214,37 @@ class ModerationControllerTest {
     }
 
     @Test
+    fun load_surfaces_filter_rules_and_toggle_delete_call_the_api() = runTest {
+        val moderationApi =
+            FakeModerationApi(
+                bansResults = listOf(ApiResult.Ok(emptyList())),
+                rulesResult =
+                    ApiResult.Ok(
+                        listOf(
+                            ModerationRule(id = 7, name = "No links", type = "link", isEnabled = true)
+                        )
+                    ),
+            )
+        val controller =
+            ModerationController(
+                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                moderationApi,
+            )
+        controller.load()
+
+        // A rule keeps the page Ready even with no bans/log; it lists, toggles, and deletes through the api.
+        val ready: ModerationState.Ready = controller.state.value as ModerationState.Ready
+        assertEquals(1, ready.rules.size)
+        assertEquals("No links", ready.rules.first().name)
+
+        controller.toggleRule(7, enabled = false)
+        assertEquals(7 to false, moderationApi.lastRuleToggle)
+
+        controller.deleteRule(7)
+        assertEquals(listOf(7), moderationApi.deletedRules)
+    }
+
+    @Test
     fun load_is_empty_when_no_one_is_banned() = runTest {
         val controller =
             ModerationController(
@@ -364,6 +396,7 @@ private class FakeModerationApi(
     private val shieldResult: ApiResult<ShieldStatus> = ApiResult.Ok(ShieldStatus(false)),
     private val blockedTermsResult: ApiResult<List<String>> = ApiResult.Ok(emptyList()),
     private val automodResult: ApiResult<AutomodConfig> = ApiResult.Ok(AutomodConfig()),
+    private val rulesResult: ApiResult<List<ModerationRule>> = ApiResult.Ok(emptyList()),
 ) : ModerationApi {
     // Single-result convenience for the read-only tests (one bans() result, default-OK unban).
     constructor(
@@ -423,6 +456,27 @@ private class FakeModerationApi(
 
     override suspend fun saveAutomod(channelId: String, config: AutomodConfig): ApiResult<Unit> {
         lastSavedAutomod = config
+        return ApiResult.Ok(Unit)
+    }
+
+    override suspend fun rules(channelId: String): ApiResult<List<ModerationRule>> = rulesResult
+
+    var lastRuleToggle: Pair<Int, Boolean>? = null
+        private set
+
+    override suspend fun setRuleEnabled(
+        channelId: String,
+        ruleId: Int,
+        enabled: Boolean,
+    ): ApiResult<Unit> {
+        lastRuleToggle = ruleId to enabled
+        return ApiResult.Ok(Unit)
+    }
+
+    val deletedRules: MutableList<Int> = mutableListOf()
+
+    override suspend fun deleteRule(channelId: String, ruleId: Int): ApiResult<Unit> {
+        deletedRules.add(ruleId)
         return ApiResult.Ok(Unit)
     }
 }

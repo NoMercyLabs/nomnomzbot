@@ -219,6 +219,17 @@
     <string name="moderation_automod_disable">Uitschakelen</string>
     <string name="moderation_automod_enable_action">%1$s-filter inschakelen</string>
     <string name="moderation_automod_disable_action">%1$s-filter uitschakelen</string>
+    <string name="moderation_rules_title">Filterregels</string>
+    <string name="moderation_rules_enable">Inschakelen</string>
+    <string name="moderation_rules_disable">Uitschakelen</string>
+    <string name="moderation_rules_enable_action">Regel %1$s inschakelen</string>
+    <string name="moderation_rules_disable_action">Regel %1$s uitschakelen</string>
+    <string name="moderation_rules_delete">Verwijderen</string>
+    <string name="moderation_rules_delete_action">Regel %1$s verwijderen</string>
+    <string name="moderation_rules_delete_title">Filterregel verwijderen?</string>
+    <string name="moderation_rules_delete_message">De regel %1$s verwijderen? Dit kan niet ongedaan worden gemaakt.</string>
+    <string name="moderation_rules_delete_confirm">Verwijderen</string>
+    <string name="moderation_rules_delete_dismiss">Annuleren</string>
     <string name="moderation_no_reason">Geen reden opgegeven</string>
     <string name="moderation_banned_on">Verbannen op %1$s</string>
     <string name="moderation_banned_by">Verbannen door %1$s</string>

@@ -19,6 +19,7 @@ import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.ModLogEntry
 import bot.nomnomz.dashboard.core.network.ModerationApi
+import bot.nomnomz.dashboard.core.network.ModerationRule
 import bot.nomnomz.dashboard.core.network.ShieldStatus
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -101,19 +102,27 @@ class ModerationController(
                 automod.bannedPhrases.enabled ||
                 automod.emoteSpam.enabled
 
+        // Filter rules (custom moderation rules). Resilient — a failure degrades to an empty list.
+        val rules: List<ModerationRule> =
+            when (val result: ApiResult<List<ModerationRule>> = moderationApi.rules(channel.id)) {
+                is ApiResult.Failure -> emptyList()
+                is ApiResult.Ok -> result.value
+            }
+
         // Empty only when there is genuinely nothing to show AND every always-on control (shield, automod) is off;
-        // if any is active the page renders so its state stays visible.
+        // if any is active, or there are filter rules, the page renders so its state stays visible.
         _state.value =
             if (
                 bans.isEmpty() &&
                     modLog.isEmpty() &&
                     blockedTerms.isEmpty() &&
+                    rules.isEmpty() &&
                     !shieldEnabled &&
                     !anyAutomodEnabled
             ) {
                 ModerationState.Empty
             } else {
-                ModerationState.Ready(bans, modLog, shieldEnabled, blockedTerms, automod)
+                ModerationState.Ready(bans, modLog, shieldEnabled, blockedTerms, automod, rules)
             }
     }
 
@@ -193,6 +202,18 @@ class ModerationController(
         afterWrite(moderationApi.saveAutomod(channel, updated))
     }
 
+    /** Enable or disable a filter rule ([enabled]), then reload. Surfaces the error on failure. */
+    suspend fun toggleRule(ruleId: Int, enabled: Boolean) {
+        val channel: String = channelId ?: return
+        afterWrite(moderationApi.setRuleEnabled(channel, ruleId, enabled))
+    }
+
+    /** Delete a filter rule, then reload so it drops off the list. Surfaces the error on failure. */
+    suspend fun deleteRule(ruleId: Int) {
+        val channel: String = channelId ?: return
+        afterWrite(moderationApi.deleteRule(channel, ruleId))
+    }
+
     // Reload on success; on failure surface the message on the current Ready state without losing the lists.
     private suspend fun afterWrite(result: ApiResult<Unit>) {
         when (result) {
@@ -221,6 +242,7 @@ sealed interface ModerationState {
         val shieldEnabled: Boolean = false,
         val blockedTerms: List<String> = emptyList(),
         val automod: AutomodConfig = AutomodConfig(),
+        val rules: List<ModerationRule> = emptyList(),
         val actionError: String? = null,
     ) : ModerationState
 

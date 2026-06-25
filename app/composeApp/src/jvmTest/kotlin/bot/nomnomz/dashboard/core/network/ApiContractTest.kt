@@ -74,6 +74,7 @@ class ApiContractTest {
             AutomodCapsFilter.serializer() to "AutomodCapsFilterDto",
             AutomodBannedPhrases.serializer() to "AutomodBannedPhrasesDto",
             AutomodEmoteSpam.serializer() to "AutomodEmoteSpamDto",
+            ModerationRule.serializer() to "ModerationRuleDetail",
         )
 
     @Test

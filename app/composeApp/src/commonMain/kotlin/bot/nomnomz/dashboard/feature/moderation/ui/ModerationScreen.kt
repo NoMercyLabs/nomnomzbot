@@ -50,6 +50,7 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.network.AutomodConfig
 import bot.nomnomz.dashboard.core.network.BannedUser
 import bot.nomnomz.dashboard.core.network.ModLogEntry
+import bot.nomnomz.dashboard.core.network.ModerationRule
 import bot.nomnomz.dashboard.feature.moderation.state.AutomodFilter
 import bot.nomnomz.dashboard.feature.moderation.state.ModerationController
 import bot.nomnomz.dashboard.feature.moderation.state.ModerationState
@@ -92,6 +93,17 @@ import nomnomzbot.composeapp.generated.resources.moderation_empty
 import nomnomzbot.composeapp.generated.resources.moderation_error
 import nomnomzbot.composeapp.generated.resources.moderation_loading
 import nomnomzbot.composeapp.generated.resources.moderation_no_reason
+import nomnomzbot.composeapp.generated.resources.moderation_rules_delete
+import nomnomzbot.composeapp.generated.resources.moderation_rules_delete_action
+import nomnomzbot.composeapp.generated.resources.moderation_rules_delete_confirm
+import nomnomzbot.composeapp.generated.resources.moderation_rules_delete_dismiss
+import nomnomzbot.composeapp.generated.resources.moderation_rules_delete_message
+import nomnomzbot.composeapp.generated.resources.moderation_rules_delete_title
+import nomnomzbot.composeapp.generated.resources.moderation_rules_disable
+import nomnomzbot.composeapp.generated.resources.moderation_rules_disable_action
+import nomnomzbot.composeapp.generated.resources.moderation_rules_enable
+import nomnomzbot.composeapp.generated.resources.moderation_rules_enable_action
+import nomnomzbot.composeapp.generated.resources.moderation_rules_title
 import nomnomzbot.composeapp.generated.resources.moderation_retry
 import nomnomzbot.composeapp.generated.resources.moderation_unban_action
 import nomnomzbot.composeapp.generated.resources.moderation_unban_action_short
@@ -136,6 +148,7 @@ fun ModerationScreen(controller: ModerationController, role: ManagementRole?) {
                     shieldEnabled = current.shieldEnabled,
                     blockedTerms = current.blockedTerms,
                     automod = current.automod,
+                    rules = current.rules,
                     actionError = current.actionError,
                     manage = manage,
                     onUnban = { userId -> scope.launch { controller.unban(userId) } },
@@ -143,6 +156,8 @@ fun ModerationScreen(controller: ModerationController, role: ManagementRole?) {
                     onAddTerm = { term -> scope.launch { controller.addBlockedTerm(term) } },
                     onRemoveTerm = { term -> scope.launch { controller.removeBlockedTerm(term) } },
                     onToggleFilter = { f -> scope.launch { controller.toggleAutomodFilter(f) } },
+                    onToggleRule = { id, on -> scope.launch { controller.toggleRule(id, on) } },
+                    onDeleteRule = { id -> scope.launch { controller.deleteRule(id) } },
                 )
         }
     }
@@ -155,6 +170,7 @@ private fun BansList(
     shieldEnabled: Boolean,
     blockedTerms: List<String>,
     automod: AutomodConfig,
+    rules: List<ModerationRule>,
     actionError: String?,
     manage: ManageDecision,
     onUnban: (userId: String) -> Unit,
@@ -162,6 +178,8 @@ private fun BansList(
     onAddTerm: (String) -> Unit,
     onRemoveTerm: (String) -> Unit,
     onToggleFilter: (AutomodFilter) -> Unit,
+    onToggleRule: (Int, Boolean) -> Unit,
+    onDeleteRule: (Int) -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -169,6 +187,8 @@ private fun BansList(
 
     // The ban awaiting confirmation, if any — the screen owns the dialog's open/closed state.
     var pendingUnban: BannedUser? by remember { mutableStateOf(null) }
+    // The filter rule awaiting delete confirmation, if any.
+    var pendingDeleteRule: ModerationRule? by remember { mutableStateOf(null) }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -276,6 +296,24 @@ private fun BansList(
                 onToggle = { onToggleFilter(AutomodFilter.Emotes) },
             )
         }
+        if (rules.isNotEmpty()) {
+            item(key = "rules-header") {
+                Text(
+                    text = stringResource(Res.string.moderation_rules_title),
+                    style = typography.lg,
+                    color = tokens.cardForeground,
+                    maxLines = 1,
+                )
+            }
+            items(items = rules, key = { "rule-${it.id}" }) { rule ->
+                RuleRow(
+                    rule = rule,
+                    manage = manage,
+                    onToggle = { onToggleRule(rule.id, !rule.isEnabled) },
+                    onDelete = { pendingDeleteRule = rule },
+                )
+            }
+        }
     }
 
     pendingUnban?.let { ban ->
@@ -291,6 +329,21 @@ private fun BansList(
                 pendingUnban = null
             },
             onDismiss = { pendingUnban = null },
+        )
+    }
+
+    pendingDeleteRule?.let { rule ->
+        ConfirmDialog(
+            title = stringResource(Res.string.moderation_rules_delete_title),
+            message = stringResource(Res.string.moderation_rules_delete_message, rule.name),
+            confirmLabel = stringResource(Res.string.moderation_rules_delete_confirm),
+            dismissLabel = stringResource(Res.string.moderation_rules_delete_dismiss),
+            destructive = true,
+            onConfirm = {
+                onDeleteRule(rule.id)
+                pendingDeleteRule = null
+            },
+            onDismiss = { pendingDeleteRule = null },
         )
     }
 }
@@ -394,8 +447,94 @@ private fun ErrorContent(detail: String, onRetry: () -> Unit) {
     }
 }
 
-// One AutoMod filter row: the filter name + an On/Off status, with the threshold detail (caps % / emote max)
-// shown when enabled. Read-only — the per-filter toggle / edit is a follow-up.
+// One filter-rule row: the rule name + its type, with Enable/Disable + Delete actions (Editor floor; the
+// backend re-checks moderation:filter:write). Delete is confirmed via a dialog. The rule editor (the settings
+// form) is a follow-up.
+@Composable
+private fun RuleRow(
+    rule: ModerationRule,
+    manage: ManageDecision,
+    onToggle: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    val toggleLabel: String =
+        stringResource(
+            if (rule.isEnabled) Res.string.moderation_rules_disable_action
+            else Res.string.moderation_rules_enable_action,
+            rule.name,
+        )
+    val deleteLabel: String = stringResource(Res.string.moderation_rules_delete_action, rule.name)
+    val rowDescription: String = "${rule.name}, ${rule.type}"
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(tokens.radius.lg))
+            .background(tokens.card)
+            .padding(horizontal = spacing.s4, vertical = spacing.s3),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+    ) {
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .clearAndSetSemantics { contentDescription = rowDescription },
+            verticalArrangement = Arrangement.spacedBy(spacing.s1),
+        ) {
+            Text(
+                text = rule.name,
+                style = typography.base,
+                color = tokens.cardForeground,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = rule.type,
+                style = typography.sm,
+                color = tokens.mutedForeground,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        ManageGate(decision = manage) { enabled ->
+            TextButton(
+                onClick = onToggle,
+                enabled = enabled,
+                modifier = Modifier.semantics { contentDescription = toggleLabel },
+            ) {
+                Text(
+                    text =
+                        stringResource(
+                            if (rule.isEnabled) Res.string.moderation_rules_disable
+                            else Res.string.moderation_rules_enable
+                        ),
+                    color = if (enabled) tokens.primary else tokens.mutedForeground,
+                    maxLines = 1,
+                )
+            }
+        }
+        ManageGate(decision = manage) { enabled ->
+            TextButton(
+                onClick = onDelete,
+                enabled = enabled,
+                modifier = Modifier.semantics { contentDescription = deleteLabel },
+            ) {
+                Text(
+                    text = stringResource(Res.string.moderation_rules_delete),
+                    color = if (enabled) tokens.destructive else tokens.mutedForeground,
+                    maxLines = 1,
+                )
+            }
+        }
+    }
+}
+
+// One AutoMod filter row: the filter name + an On/Off status (with the caps % / emote max detail when enabled)
+// plus an Enable/Disable action; the per-filter threshold / list editing is a follow-up.
 @Composable
 private fun AutomodRow(
     name: String,

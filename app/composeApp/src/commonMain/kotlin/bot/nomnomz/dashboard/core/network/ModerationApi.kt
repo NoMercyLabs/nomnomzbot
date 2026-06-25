@@ -54,6 +54,15 @@ interface ModerationApi {
 
     /** Persist the whole AutoMod [config] (the backend POST takes the full config; a toggle re-sends it). */
     suspend fun saveAutomod(channelId: String, config: AutomodConfig): ApiResult<Unit>
+
+    /** The channel's moderation filter rules (newest first). */
+    suspend fun rules(channelId: String): ApiResult<List<ModerationRule>>
+
+    /** Enable or disable a filter rule ([enabled]) — a partial PUT carrying only the flag. */
+    suspend fun setRuleEnabled(channelId: String, ruleId: Int, enabled: Boolean): ApiResult<Unit>
+
+    /** Delete a filter rule. */
+    suspend fun deleteRule(channelId: String, ruleId: Int): ApiResult<Unit>
 }
 
 class RestModerationApi(private val client: ApiClient) : ModerationApi {
@@ -110,6 +119,29 @@ class RestModerationApi(private val client: ApiClient) : ModerationApi {
     // The POST body IS the full AutomodConfigDto; the controller reloads after, so any 2xx is success.
     override suspend fun saveAutomod(channelId: String, config: AutomodConfig): ApiResult<Unit> =
         client.postUnit("api/v1/channels/$channelId/moderation/automod", config)
+
+    override suspend fun rules(channelId: String): ApiResult<List<ModerationRule>> =
+        when (
+            val page: ApiResult<PaginatedEnvelope<ModerationRule>> =
+                client.getDirect("api/v1/channels/$channelId/moderation/rules?page=1&pageSize=25")
+        ) {
+            is ApiResult.Failure -> ApiResult.Failure(page.error)
+            is ApiResult.Ok -> ApiResult.Ok(page.value.data)
+        }
+
+    // Partial PUT — only the flag; the rule's name / action / settings stay untouched on the backend.
+    override suspend fun setRuleEnabled(
+        channelId: String,
+        ruleId: Int,
+        enabled: Boolean,
+    ): ApiResult<Unit> =
+        client.putUnit(
+            "api/v1/channels/$channelId/moderation/rules/$ruleId",
+            UpdateRuleBody(isEnabled = enabled),
+        )
+
+    override suspend fun deleteRule(channelId: String, ruleId: Int): ApiResult<Unit> =
+        client.deleteUnit("api/v1/channels/$channelId/moderation/rules/$ruleId")
 }
 
 /**
@@ -183,3 +215,23 @@ data class AutomodBannedPhrases(val enabled: Boolean = false, val phrases: List<
 /** AutoMod emote-spam filter (backend `AutomodEmoteSpamDto`) — flags messages over [maxEmotes] emotes. */
 @Serializable
 data class AutomodEmoteSpam(val enabled: Boolean = false, val maxEmotes: Int = 0)
+
+/**
+ * A moderation filter rule (backend `ModerationRuleDetail` — the list-row projection). camelCase mirror; the page
+ * reads the subset the rules list shows ([name], [type], [action], [isEnabled], optional [durationSeconds] /
+ * [reason]) — the polymorphic `settings` dict + `exemptRoles` are edited in the (follow-up) rule editor.
+ */
+@Serializable
+data class ModerationRule(
+    val id: Int = 0,
+    val name: String = "",
+    val type: String = "",
+    val isEnabled: Boolean = false,
+    val action: String = "",
+    val durationSeconds: Int? = null,
+    val reason: String? = null,
+)
+
+/** A partial moderation-rule update (backend `UpdateModerationRuleRequest`) — a toggle sends just [isEnabled]. */
+@Serializable
+data class UpdateRuleBody(val isEnabled: Boolean? = null)

@@ -222,6 +222,17 @@
     <string name="moderation_automod_disable">Disable</string>
     <string name="moderation_automod_enable_action">Enable %1$s filter</string>
     <string name="moderation_automod_disable_action">Disable %1$s filter</string>
+    <string name="moderation_rules_title">Filter rules</string>
+    <string name="moderation_rules_enable">Enable</string>
+    <string name="moderation_rules_disable">Disable</string>
+    <string name="moderation_rules_enable_action">Enable rule %1$s</string>
+    <string name="moderation_rules_disable_action">Disable rule %1$s</string>
+    <string name="moderation_rules_delete">Delete</string>
+    <string name="moderation_rules_delete_action">Delete rule %1$s</string>
+    <string name="moderation_rules_delete_title">Delete filter rule?</string>
+    <string name="moderation_rules_delete_message">Delete the rule %1$s? This cannot be undone.</string>
+    <string name="moderation_rules_delete_confirm">Delete</string>
+    <string name="moderation_rules_delete_dismiss">Cancel</string>
     <string name="moderation_no_reason">No reason given</string>
     <string name="moderation_banned_on">Banned on %1$s</string>
     <string name="moderation_banned_by">Banned by %1$s</string>
