@@ -39,16 +39,16 @@ interface PipelinesApi {
     suspend fun list(channelId: String): ApiResult<List<PipelineSummary>>
 
     /** A single pipeline's full detail, including the decoded action-chain [PipelineGraph]. */
-    suspend fun get(channelId: String, id: Int): ApiResult<PipelineDetail>
+    suspend fun get(channelId: String, id: String): ApiResult<PipelineDetail>
 
     /** Create a new pipeline (name + optional description + the initial graph). Succeeds on the backend's 201. */
     suspend fun create(channelId: String, body: CreatePipelineBody): ApiResult<Unit>
 
     /** Update a pipeline — any null field is left untouched (partial patch). Used for rename, toggle, and graph edits. */
-    suspend fun update(channelId: String, id: Int, body: UpdatePipelineBody): ApiResult<Unit>
+    suspend fun update(channelId: String, id: String, body: UpdatePipelineBody): ApiResult<Unit>
 
     /** Delete a pipeline. */
-    suspend fun delete(channelId: String, id: Int): ApiResult<Unit>
+    suspend fun delete(channelId: String, id: String): ApiResult<Unit>
 }
 
 class RestPipelinesApi(private val client: ApiClient) : PipelinesApi {
@@ -65,7 +65,7 @@ class RestPipelinesApi(private val client: ApiClient) : PipelinesApi {
         }
     }
 
-    override suspend fun get(channelId: String, id: Int): ApiResult<PipelineDetail> =
+    override suspend fun get(channelId: String, id: String): ApiResult<PipelineDetail> =
         client.getEnvelope("api/v1/channels/$channelId/pipelines/$id")
 
     // The writes return `StatusResponseDto<PipelineDto>`, but the page reloads the list/detail on success rather
@@ -73,10 +73,10 @@ class RestPipelinesApi(private val client: ApiClient) : PipelinesApi {
     override suspend fun create(channelId: String, body: CreatePipelineBody): ApiResult<Unit> =
         client.postUnit("api/v1/channels/$channelId/pipelines", body)
 
-    override suspend fun update(channelId: String, id: Int, body: UpdatePipelineBody): ApiResult<Unit> =
+    override suspend fun update(channelId: String, id: String, body: UpdatePipelineBody): ApiResult<Unit> =
         client.putUnit("api/v1/channels/$channelId/pipelines/$id", body)
 
-    override suspend fun delete(channelId: String, id: Int): ApiResult<Unit> =
+    override suspend fun delete(channelId: String, id: String): ApiResult<Unit> =
         client.deleteUnit("api/v1/channels/$channelId/pipelines/$id")
 }
 
@@ -89,7 +89,7 @@ class RestPipelinesApi(private val client: ApiClient) : PipelinesApi {
  */
 @Serializable
 data class PipelineSummary(
-    val id: Int = 0,
+    val id: String = "",
     val name: String = "",
     val description: String? = null,
     val isEnabled: Boolean = false,
@@ -103,7 +103,7 @@ data class PipelineSummary(
  */
 @Serializable
 data class PipelineDetail(
-    val id: Int = 0,
+    val id: String = "",
     val name: String = "",
     val description: String? = null,
     val isEnabled: Boolean = false,

@@ -49,7 +49,7 @@ class PipelinesControllerTest {
                 okChannel(),
                 RecordingPipelinesApi(
                     listOf(
-                        PipelineSummary(id = 3, name = "Welcome", description = "greets", isEnabled = true, triggerCount = 9)
+                        PipelineSummary(id = "00000003-0000-0000-0000-000000000003", name = "Welcome", description = "greets", isEnabled = true, triggerCount = 9)
                     )
                 ),
             )
@@ -122,15 +122,15 @@ class PipelinesControllerTest {
 
     @Test
     fun toggle_patches_only_the_enabled_flag_then_reloads_with_the_flip() = runTest {
-        val api = RecordingPipelinesApi(listOf(PipelineSummary(id = 1, name = "p", isEnabled = true)))
+        val api = RecordingPipelinesApi(listOf(PipelineSummary(id = "00000001-0000-0000-0000-000000000001", name = "p", isEnabled = true)))
         val controller = PipelinesController(okChannel(), api)
         controller.load()
 
-        controller.togglePipeline(id = 1, enabled = false)
+        controller.togglePipeline(id = "00000001-0000-0000-0000-000000000001", enabled = false)
 
         // A toggle is a partial PUT carrying only isEnabled — name/graph untouched.
-        val update: Triple<Int, UpdatePipelineBody, Unit> = api.updated.single()
-        assertEquals(1, update.first)
+        val update: Triple<String, UpdatePipelineBody, Unit> = api.updated.single()
+        assertEquals("00000001-0000-0000-0000-000000000001", update.first)
         assertEquals(false, update.second.isEnabled)
         assertNull(update.second.name)
         assertNull(update.second.graph)
@@ -144,14 +144,14 @@ class PipelinesControllerTest {
     @Test
     fun delete_removes_the_pipeline_then_reloads_to_empty_and_says_deleted() = runTest {
         val feedback = RecordingFeedback()
-        val api = RecordingPipelinesApi(listOf(PipelineSummary(id = 1, name = "p", isEnabled = true)))
+        val api = RecordingPipelinesApi(listOf(PipelineSummary(id = "00000001-0000-0000-0000-000000000001", name = "p", isEnabled = true)))
         val controller = PipelinesController(okChannel(), api, feedback)
         controller.load()
         assertTrue(controller.state.value is PipelinesState.Ready)
 
-        controller.deletePipeline(id = 1)
+        controller.deletePipeline(id = "00000001-0000-0000-0000-000000000001")
 
-        assertEquals(listOf(1), api.deleted)
+        assertEquals(listOf("00000001-0000-0000-0000-000000000001"), api.deleted)
         assertTrue(controller.state.value is PipelinesState.Empty)
         assertEquals(FeedbackKind.Success, feedback.only.kind)
         assertEquals(Res.string.feedback_pipeline_deleted, feedback.only.label)
@@ -162,13 +162,13 @@ class PipelinesControllerTest {
         val feedback = RecordingFeedback()
         val api =
             RecordingPipelinesApi(
-                listOf(PipelineSummary(id = 1, name = "p", isEnabled = true)),
+                listOf(PipelineSummary(id = "00000001-0000-0000-0000-000000000001", name = "p", isEnabled = true)),
                 writeResult = ApiResult.Failure(ApiError(403, "FORBIDDEN", "no permission")),
             )
         val controller = PipelinesController(okChannel(), api, feedback)
         controller.load()
 
-        controller.deletePipeline(id = 1)
+        controller.deletePipeline(id = "00000001-0000-0000-0000-000000000001")
 
         // The list is kept (not blown away) and the failure surfaces on it + on the frame.
         val state: PipelinesState = controller.state.value
@@ -190,18 +190,18 @@ class PipelinesControllerTest {
             )
         val api =
             RecordingPipelinesApi(
-                listOf(PipelineSummary(id = 5, name = "Greeter", isEnabled = true)),
-                graphs = mutableMapOf(5 to seeded.toJson()),
+                listOf(PipelineSummary(id = "00000005-0000-0000-0000-000000000005", name = "Greeter", isEnabled = true)),
+                graphs = mutableMapOf("00000005-0000-0000-0000-000000000005" to seeded.toJson()),
             )
         val controller = PipelinesController(okChannel(), api)
         controller.load()
 
-        controller.openEditor(PipelineSummary(id = 5, name = "Greeter"))
+        controller.openEditor(PipelineSummary(id = "00000005-0000-0000-0000-000000000005", name = "Greeter"))
 
         val state: PipelinesState = controller.state.value
         assertTrue(state is PipelinesState.Editing)
         val editing: PipelinesState.Editing = state as PipelinesState.Editing
-        assertEquals(5, editing.pipelineId)
+        assertEquals("00000005-0000-0000-0000-000000000005", editing.pipelineId)
         assertEquals("Greeter", editing.name)
         assertEquals(1, editing.steps.size)
         assertEquals("send_message", editing.steps.first().action.type)
@@ -212,12 +212,12 @@ class PipelinesControllerTest {
     fun add_then_save_persists_the_new_block_into_the_pipeline_graph() = runTest {
         val api =
             RecordingPipelinesApi(
-                listOf(PipelineSummary(id = 5, name = "Greeter", isEnabled = true)),
-                graphs = mutableMapOf(5 to PipelineGraph().toJson()),
+                listOf(PipelineSummary(id = "00000005-0000-0000-0000-000000000005", name = "Greeter", isEnabled = true)),
+                graphs = mutableMapOf("00000005-0000-0000-0000-000000000005" to PipelineGraph().toJson()),
             )
         val controller = PipelinesController(okChannel(), api)
         controller.load()
-        controller.openEditor(PipelineSummary(id = 5, name = "Greeter"))
+        controller.openEditor(PipelineSummary(id = "00000005-0000-0000-0000-000000000005", name = "Greeter"))
 
         // Add an action block, then save the chain.
         controller.addStep(PipelineStep(action = PipelineNode("send_message", mapOf("message" to "welcome"))))
@@ -248,12 +248,12 @@ class PipelinesControllerTest {
             )
         val api =
             RecordingPipelinesApi(
-                listOf(PipelineSummary(id = 5, name = "Greeter", isEnabled = true)),
-                graphs = mutableMapOf(5 to seeded.toJson()),
+                listOf(PipelineSummary(id = "00000005-0000-0000-0000-000000000005", name = "Greeter", isEnabled = true)),
+                graphs = mutableMapOf("00000005-0000-0000-0000-000000000005" to seeded.toJson()),
             )
         val controller = PipelinesController(okChannel(), api)
         controller.load()
-        controller.openEditor(PipelineSummary(id = 5, name = "Greeter"))
+        controller.openEditor(PipelineSummary(id = "00000005-0000-0000-0000-000000000005", name = "Greeter"))
 
         controller.removeStep(0)
         controller.saveChain()
@@ -277,12 +277,12 @@ class PipelinesControllerTest {
             )
         val api =
             RecordingPipelinesApi(
-                listOf(PipelineSummary(id = 5, name = "Greeter", isEnabled = true)),
-                graphs = mutableMapOf(5 to seeded.toJson()),
+                listOf(PipelineSummary(id = "00000005-0000-0000-0000-000000000005", name = "Greeter", isEnabled = true)),
+                graphs = mutableMapOf("00000005-0000-0000-0000-000000000005" to seeded.toJson()),
             )
         val controller = PipelinesController(okChannel(), api)
         controller.load()
-        controller.openEditor(PipelineSummary(id = 5, name = "Greeter"))
+        controller.openEditor(PipelineSummary(id = "00000005-0000-0000-0000-000000000005", name = "Greeter"))
 
         controller.moveStepDown(0)
 
@@ -295,13 +295,13 @@ class PipelinesControllerTest {
         val feedback = RecordingFeedback()
         val api =
             RecordingPipelinesApi(
-                listOf(PipelineSummary(id = 5, name = "Greeter", isEnabled = true)),
-                graphs = mutableMapOf(5 to PipelineGraph().toJson()),
+                listOf(PipelineSummary(id = "00000005-0000-0000-0000-000000000005", name = "Greeter", isEnabled = true)),
+                graphs = mutableMapOf("00000005-0000-0000-0000-000000000005" to PipelineGraph().toJson()),
                 writeResult = ApiResult.Failure(ApiError(403, "FORBIDDEN", "denied")),
             )
         val controller = PipelinesController(okChannel(), api, feedback)
         controller.load()
-        controller.openEditor(PipelineSummary(id = 5, name = "Greeter"))
+        controller.openEditor(PipelineSummary(id = "00000005-0000-0000-0000-000000000005", name = "Greeter"))
         controller.addStep(PipelineStep(action = PipelineNode("stop")))
 
         controller.saveChain()
@@ -320,12 +320,12 @@ class PipelinesControllerTest {
         val feedback = RecordingFeedback()
         val api =
             RecordingPipelinesApi(
-                listOf(PipelineSummary(id = 5, name = "Greeter", isEnabled = true)),
-                graphs = mutableMapOf(5 to PipelineGraph().toJson()),
+                listOf(PipelineSummary(id = "00000005-0000-0000-0000-000000000005", name = "Greeter", isEnabled = true)),
+                graphs = mutableMapOf("00000005-0000-0000-0000-000000000005" to PipelineGraph().toJson()),
             )
         val controller = PipelinesController(okChannel(), api, feedback)
         controller.load()
-        controller.openEditor(PipelineSummary(id = 5, name = "Greeter"))
+        controller.openEditor(PipelineSummary(id = "00000005-0000-0000-0000-000000000005", name = "Greeter"))
         controller.addStep(PipelineStep(action = PipelineNode("stop")))
 
         controller.saveChain()
@@ -348,20 +348,20 @@ private class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : C
 private class RecordingPipelinesApi(
     initial: List<PipelineSummary>,
     private val listFailure: ApiError? = null,
-    private val graphs: MutableMap<Int, kotlinx.serialization.json.JsonObject> = mutableMapOf(),
+    private val graphs: MutableMap<String, kotlinx.serialization.json.JsonObject> = mutableMapOf(),
     private val writeResult: ApiResult<Unit> = ApiResult.Ok(Unit),
 ) : PipelinesApi {
     private val store: MutableList<PipelineSummary> = initial.toMutableList()
-    private var nextId: Int = (initial.maxOfOrNull { it.id } ?: 0) + 1
+    private var nextSeq: Int = 1
 
     val created: MutableList<CreatePipelineBody> = mutableListOf()
-    val updated: MutableList<Triple<Int, UpdatePipelineBody, Unit>> = mutableListOf()
-    val deleted: MutableList<Int> = mutableListOf()
+    val updated: MutableList<Triple<String, UpdatePipelineBody, Unit>> = mutableListOf()
+    val deleted: MutableList<String> = mutableListOf()
 
     override suspend fun list(channelId: String): ApiResult<List<PipelineSummary>> =
         listFailure?.let { ApiResult.Failure(it) } ?: ApiResult.Ok(store.toList())
 
-    override suspend fun get(channelId: String, id: Int): ApiResult<PipelineDetail> {
+    override suspend fun get(channelId: String, id: String): ApiResult<PipelineDetail> {
         val summary: PipelineSummary =
             store.firstOrNull { it.id == id }
                 ?: return ApiResult.Failure(ApiError(404, "NOT_FOUND", "no pipeline"))
@@ -380,14 +380,14 @@ private class RecordingPipelinesApi(
     override suspend fun create(channelId: String, body: CreatePipelineBody): ApiResult<Unit> {
         created += body
         if (writeResult is ApiResult.Ok) {
-            val id: Int = nextId++
+            val id: String = "test-pipeline-${nextSeq++}"
             store += PipelineSummary(id = id, name = body.name, description = body.description, isEnabled = body.isEnabled)
             graphs[id] = body.graph
         }
         return writeResult
     }
 
-    override suspend fun update(channelId: String, id: Int, body: UpdatePipelineBody): ApiResult<Unit> {
+    override suspend fun update(channelId: String, id: String, body: UpdatePipelineBody): ApiResult<Unit> {
         updated += Triple(id, body, Unit)
         if (writeResult is ApiResult.Ok) {
             val index: Int = store.indexOfFirst { it.id == id }
@@ -405,7 +405,7 @@ private class RecordingPipelinesApi(
         return writeResult
     }
 
-    override suspend fun delete(channelId: String, id: Int): ApiResult<Unit> {
+    override suspend fun delete(channelId: String, id: String): ApiResult<Unit> {
         deleted += id
         if (writeResult is ApiResult.Ok) {
             store.removeAll { it.id == id }

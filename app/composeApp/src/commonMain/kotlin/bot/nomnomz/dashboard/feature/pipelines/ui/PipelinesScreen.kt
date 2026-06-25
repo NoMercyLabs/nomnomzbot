@@ -1053,7 +1053,7 @@ private fun mutableStateMapFrom(source: Map<String, String>?): androidx.compose.
 }
 
 // The create/rename dialog seed: a null [id] is a create (blank), an id is a rename of that pipeline.
-private data class PipelineEditor(val id: Int?, val name: String, val description: String) {
+private data class PipelineEditor(val id: String?, val name: String, val description: String) {
     companion object {
         fun create(): PipelineEditor = PipelineEditor(id = null, name = "", description = "")
 

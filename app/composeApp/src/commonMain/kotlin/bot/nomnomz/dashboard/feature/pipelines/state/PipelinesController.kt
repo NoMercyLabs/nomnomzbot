@@ -93,7 +93,7 @@ class PipelinesController(
     }
 
     /** Rename / re-describe a pipeline, then reload the list. */
-    suspend fun renamePipeline(id: Int, name: String, description: String?) {
+    suspend fun renamePipeline(id: String, name: String, description: String?) {
         val channel: String = channelId ?: return failList(NoChannelError)
         afterListWrite(
             pipelinesApi.update(
@@ -105,13 +105,13 @@ class PipelinesController(
     }
 
     /** Flip a pipeline's enabled flag via the update endpoint (no dedicated toggle route). Reloads the list. */
-    suspend fun togglePipeline(id: Int, enabled: Boolean) {
+    suspend fun togglePipeline(id: String, enabled: Boolean) {
         val channel: String = channelId ?: return failList(NoChannelError)
         afterListWrite(pipelinesApi.update(channel, id, UpdatePipelineBody(isEnabled = enabled)))
     }
 
     /** Delete a pipeline, then reload the list. */
-    suspend fun deletePipeline(id: Int) {
+    suspend fun deletePipeline(id: String) {
         val channel: String = channelId ?: return failList(NoChannelError)
         afterListWrite(pipelinesApi.delete(channel, id), success = Res.string.feedback_pipeline_deleted)
     }
@@ -194,7 +194,7 @@ class PipelinesController(
 
     // ── internals ────────────────────────────────────────────────────────────
 
-    private suspend fun refetchEditing(channel: String, id: Int) {
+    private suspend fun refetchEditing(channel: String, id: String) {
         when (val result: ApiResult<PipelineDetail> = pipelinesApi.get(channel, id)) {
             is ApiResult.Failure -> failEdit(result.error.message)
             is ApiResult.Ok ->
@@ -266,7 +266,7 @@ sealed interface PipelinesState {
      * failed (kept over the edited chain so unsaved work is not lost).
      */
     data class Editing(
-        val pipelineId: Int,
+        val pipelineId: String,
         val name: String,
         val steps: List<PipelineStep>,
         val actionError: String? = null,
