@@ -119,6 +119,26 @@ public sealed class LegacyChannelEventMapper
             // A channel-info change (title / category). The payload carries no real Twitch event id, so it takes
             // the deterministic per-legacy-row id and the legacy capture time.
             "channel.update" => MapChannelUpdate(data, Envelope(row, targetBroadcasterId, data)),
+            // Stream lifecycle — go-live and end. Both keyed on the legacy row id (no event GUID in the payload).
+            "stream.online" => MapStreamOnline(
+                data,
+                Envelope(row, targetBroadcasterId, data, eventTimeKey: "StartedAt")
+            ),
+            "stream.offline" => MapStreamOffline(data, Envelope(row, targetBroadcasterId, data)),
+            // Shoutouts — created (we shout out another channel) and received (another shouts us out).
+            "channel.shoutout.create" => MapShoutoutCreate(
+                data,
+                Envelope(row, targetBroadcasterId, data, eventTimeKey: "StartedAt")
+            ),
+            "channel.shoutout.receive" => MapShoutoutReceive(
+                data,
+                Envelope(row, targetBroadcasterId, data, eventTimeKey: "StartedAt")
+            ),
+            // An ad break starting.
+            "channel.ad.break.begin" => MapAdBreakBegin(
+                data,
+                Envelope(row, targetBroadcasterId, data, eventTimeKey: "StartedAt")
+            ),
             _ => null,
         };
 
@@ -504,6 +524,83 @@ public sealed class LegacyChannelEventMapper
             BroadcasterDisplayName = Str(data, "BroadcasterUserName") ?? string.Empty,
             NewTitle = Str(data, "Title") ?? string.Empty,
             NewGameName = Str(data, "CategoryName") ?? string.Empty,
+        };
+
+    // A stream going live (stream.online). The legacy payload carries no title/category (those ride channel.update),
+    // so they default to empty; StartedAt is the real Twitch go-live time (the same as OccurredAt here).
+    private static ChannelOnlineEvent MapStreamOnline(JObject data, EventEnvelope env) =>
+        new()
+        {
+            EventId = env.EventId,
+            BroadcasterId = env.Tenant,
+            OccurredAt = env.OccurredAt,
+            BroadcasterDisplayName = Str(data, "BroadcasterUserName") ?? string.Empty,
+            StreamTitle = Str(data, "Title") ?? string.Empty,
+            GameName = Str(data, "CategoryName") ?? string.Empty,
+            StartedAt = env.OccurredAt,
+        };
+
+    // A stream ending (stream.offline). The payload has no duration and the mapper is stateless (it cannot pair
+    // this with its stream.online), so StreamDuration is zero — a stream-session projection derives the real span
+    // from the online/offline OccurredAt pair on replay. The end event itself is what must be journaled.
+    private static ChannelOfflineEvent MapStreamOffline(JObject data, EventEnvelope env) =>
+        new()
+        {
+            EventId = env.EventId,
+            BroadcasterId = env.Tenant,
+            OccurredAt = env.OccurredAt,
+            BroadcasterDisplayName = Str(data, "BroadcasterUserName") ?? string.Empty,
+            StreamDuration = TimeSpan.Zero,
+        };
+
+    // The broadcaster shouting OUT another channel (channel.shoutout.create) — the credit goes to the target.
+    private static ShoutoutSentEvent? MapShoutoutCreate(JObject data, EventEnvelope env)
+    {
+        string? toId = Str(data, "ToBroadcasterUserId");
+        if (toId is null)
+            return null;
+
+        return new ShoutoutSentEvent
+        {
+            EventId = env.EventId,
+            BroadcasterId = env.Tenant,
+            OccurredAt = env.OccurredAt,
+            ToUserId = toId,
+            ToDisplayName = Str(data, "ToBroadcasterUserName") ?? toId,
+        };
+    }
+
+    // The broadcaster RECEIVING a shoutout from another channel (channel.shoutout.receive).
+    private static ShoutoutReceivedEvent? MapShoutoutReceive(JObject data, EventEnvelope env)
+    {
+        string? fromId = Str(data, "FromBroadcasterUserId");
+        if (fromId is null)
+            return null;
+
+        return new ShoutoutReceivedEvent
+        {
+            EventId = env.EventId,
+            BroadcasterId = env.Tenant,
+            OccurredAt = env.OccurredAt,
+            FromBroadcasterId = fromId,
+            FromBroadcasterDisplayName = Str(data, "FromBroadcasterUserName") ?? fromId,
+            FromBroadcasterLogin = Str(data, "FromBroadcasterUserLogin") ?? fromId,
+            ViewerCount = Int(data, "ViewerCount") ?? 0,
+        };
+    }
+
+    // An ad break starting (channel.ad.break.begin). The requester is optional (an automatic break has none).
+    private static AdBreakBeganEvent MapAdBreakBegin(JObject data, EventEnvelope env) =>
+        new()
+        {
+            EventId = env.EventId,
+            BroadcasterId = env.Tenant,
+            OccurredAt = env.OccurredAt,
+            DurationSeconds = Int(data, "DurationSeconds") ?? 0,
+            IsAutomatic = Bool(data, "IsAutomatic") ?? false,
+            StartedAt = env.OccurredAt,
+            RequesterUserId = Str(data, "RequesterUserId"),
+            RequesterDisplayName = Str(data, "RequesterUserName"),
         };
 
     // ── chat payload helpers ────────────────────────────────────────────────────────────────────────────────

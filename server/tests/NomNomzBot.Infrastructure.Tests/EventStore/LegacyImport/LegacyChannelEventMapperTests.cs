@@ -308,6 +308,102 @@ public sealed class LegacyChannelEventMapperTests
     }
 
     [Fact]
+    public void Maps_stream_online_to_ChannelOnlineEvent_with_the_real_go_live_time()
+    {
+        AppendEventRequest? request = _mapper.Map(
+            Row(
+                "stream.online",
+                """{"Id":"324154525561","BroadcasterUserId":"39863651","BroadcasterUserName":"Stoney_Eagle","Type":"live","StartedAt":"2025-08-05T13:42:06+00:00"}"""
+            ),
+            Tenant
+        );
+
+        request!.EventType.Should().Be("ChannelOnlineEvent");
+        request
+            .OccurredAt.Should()
+            .Be(
+                DateTime.Parse("2025-08-05T13:42:06+00:00").ToUniversalTime(),
+                "the go-live time is the in-payload StartedAt, not the DB row time"
+            );
+        JObject.Parse(request.PayloadJson)["BroadcasterDisplayName"]!
+            .Value<string>()
+            .Should()
+            .Be("Stoney_Eagle");
+    }
+
+    [Fact]
+    public void Maps_stream_offline_to_ChannelOfflineEvent()
+    {
+        AppendEventRequest? request = _mapper.Map(
+            Row(
+                "stream.offline",
+                """{"BroadcasterUserId":"39863651","BroadcasterUserName":"Stoney_Eagle","BroadcasterUserLogin":"stoney_eagle"}"""
+            ),
+            Tenant
+        );
+
+        request!.EventType.Should().Be("ChannelOfflineEvent");
+        JObject.Parse(request.PayloadJson)["BroadcasterDisplayName"]!
+            .Value<string>()
+            .Should()
+            .Be("Stoney_Eagle");
+    }
+
+    [Fact]
+    public void Maps_shoutout_create_to_ShoutoutSentEvent_crediting_the_target_channel()
+    {
+        AppendEventRequest? request = _mapper.Map(
+            Row(
+                "channel.shoutout.create",
+                """{"ModeratorUserId":"42660213","ToBroadcasterUserId":"132799162","ToBroadcasterUserName":"kani_dev","ToBroadcasterUserLogin":"kani_dev","BroadcasterUserId":"39863651","ViewerCount":9,"StartedAt":"2025-08-21T16:00:00+00:00"}"""
+            ),
+            Tenant
+        );
+
+        request!.EventType.Should().Be("ShoutoutSentEvent");
+        JObject payload = JObject.Parse(request.PayloadJson);
+        payload["ToUserId"]!.Value<string>().Should().Be("132799162");
+        payload["ToDisplayName"]!.Value<string>().Should().Be("kani_dev");
+    }
+
+    [Fact]
+    public void Maps_shoutout_receive_to_ShoutoutReceivedEvent_with_the_origin_and_viewers()
+    {
+        AppendEventRequest? request = _mapper.Map(
+            Row(
+                "channel.shoutout.receive",
+                """{"FromBroadcasterUserId":"663947590","FromBroadcasterUserName":"Propz_tv","FromBroadcasterUserLogin":"propz_tv","BroadcasterUserId":"39863651","ViewerCount":22,"StartedAt":"2025-08-20T12:58:24+00:00"}"""
+            ),
+            Tenant
+        );
+
+        request!.EventType.Should().Be("ShoutoutReceivedEvent");
+        JObject payload = JObject.Parse(request.PayloadJson);
+        payload["FromBroadcasterId"]!.Value<string>().Should().Be("663947590");
+        payload["FromBroadcasterDisplayName"]!.Value<string>().Should().Be("Propz_tv");
+        payload["FromBroadcasterLogin"]!.Value<string>().Should().Be("propz_tv");
+        payload["ViewerCount"]!.Value<int>().Should().Be(22);
+    }
+
+    [Fact]
+    public void Maps_ad_break_begin_to_AdBreakBeganEvent_with_duration_and_requester()
+    {
+        AppendEventRequest? request = _mapper.Map(
+            Row(
+                "channel.ad.break.begin",
+                """{"DurationSeconds":30,"StartedAt":"2025-08-21T16:10:21.3858161+00:00","IsAutomatic":false,"BroadcasterUserId":"39863651","RequesterUserId":"39863651","RequesterUserName":"Stoney_Eagle"}"""
+            ),
+            Tenant
+        );
+
+        request!.EventType.Should().Be("AdBreakBeganEvent");
+        JObject payload = JObject.Parse(request.PayloadJson);
+        payload["DurationSeconds"]!.Value<int>().Should().Be(30);
+        payload["IsAutomatic"]!.Value<bool>().Should().BeFalse();
+        payload["RequesterDisplayName"]!.Value<string>().Should().Be("Stoney_Eagle");
+    }
+
+    [Fact]
     public void Maps_chat_message_to_ChatMessageReceivedEvent_with_the_REAL_twitch_message_id()
     {
         // The chat bulk (~28k rows) is the heart of the backfill. Its identity is the real Twitch MessageId GUID
