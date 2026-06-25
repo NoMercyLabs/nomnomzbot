@@ -10,6 +10,7 @@
 
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
@@ -20,10 +21,12 @@ namespace NomNomzBot.Infrastructure.Commands;
 public class CommandService : ICommandService
 {
     private readonly IApplicationDbContext _db;
+    private readonly IPipelineEngine _pipelineEngine;
 
-    public CommandService(IApplicationDbContext db)
+    public CommandService(IApplicationDbContext db, IPipelineEngine pipelineEngine)
     {
         _db = db;
+        _pipelineEngine = pipelineEngine;
     }
 
     public async Task<Result<CommandDto>> CreateAsync(
@@ -233,8 +236,34 @@ public class CommandService : ICommandService
         if (command is null)
             return Errors.NotFound<string>("Command", commandName);
 
-        // Template tier: return the template response directly.
-        // Pipeline tier: will be wired to IPipelineEngine in a follow-up slice.
+        if (command.Tier == "pipeline" && command.PipelineId.HasValue)
+        {
+            // Load the pipeline's graph cache to drive the engine (steps-first engine is Slice 4).
+            Pipeline? pipeline = await _db.Pipelines.FirstOrDefaultAsync(
+                p => p.Id == command.PipelineId.Value,
+                cancellationToken
+            );
+
+            string graphJson = pipeline?.GraphJsonCache ?? "{}";
+
+            PipelineRequest pipelineRequest = new()
+            {
+                BroadcasterId = broadcaster,
+                PipelineJson = graphJson,
+                TriggeredByUserId = userId,
+                TriggeredByDisplayName = userId,
+                RawMessage = input ?? string.Empty,
+            };
+
+            PipelineExecutionResult execResult = await _pipelineEngine.ExecuteAsync(
+                pipelineRequest,
+                cancellationToken
+            );
+
+            return Result.Success(execResult.Outcome.ToString());
+        }
+
+        // Template tier: pick a response.
         string? response =
             command.TemplateResponse
             ?? (command.TemplateResponses is { Count: > 0 } ? command.TemplateResponses[0] : null);
