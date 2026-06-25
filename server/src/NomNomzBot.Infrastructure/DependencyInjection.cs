@@ -12,16 +12,15 @@ using System.Reflection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Options;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Caching;
 using NomNomzBot.Application.Abstractions.Content;
-using NomNomzBot.Application.Abstractions.Eventing;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.RateLimiting;
 using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Abstractions.Transport;
+using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
@@ -36,7 +35,6 @@ using NomNomzBot.Domain.Tts.Interfaces;
 using NomNomzBot.Infrastructure.BackgroundServices;
 using NomNomzBot.Infrastructure.Chat;
 using NomNomzBot.Infrastructure.Commands;
-using NomNomzBot.Infrastructure.Commands.Jobs;
 using NomNomzBot.Infrastructure.Moderation;
 using NomNomzBot.Infrastructure.Music;
 using NomNomzBot.Infrastructure.Platform;
@@ -172,13 +170,11 @@ public static class DependencyInjection
         // the event store journal and post-commit hooks fire before delegation to live handlers (event-store §7).
         services.AddSingleton<EventLogger>();
         services.AddSingleton<EventBus>();
-        services.AddSingleton<NomNomzBot.Domain.Platform.Interfaces.IEventBus>(
-            sp => new NomNomzBot.Infrastructure.EventStore.JournalingEventBusDecorator(
-                sp.GetRequiredService<EventBus>(),
-                sp,
-                sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<NomNomzBot.Infrastructure.EventStore.JournalingEventBusDecorator>>()
-            )
-        );
+        services.AddSingleton<IEventBus>(sp => new EventStore.JournalingEventBusDecorator(
+            sp.GetRequiredService<EventBus>(),
+            sp,
+            sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<EventStore.JournalingEventBusDecorator>>()
+        ));
 
         // ── Auto-discovery (D5, backend-structure §4) ────────────────────────
         // One hand-rolled reflection scan binds every pluggable marker by convention.
@@ -200,48 +196,39 @@ public static class DependencyInjection
         services.AddImplementationsOf<IMusicProvider>(infrastructure, ServiceLifetime.Scoped);
 
         // Third-party emote providers (singleton — stateless HTTP-fetch adapters, multi-bound + registry-indexed).
-        services.AddImplementationsOf<NomNomzBot.Application.Chat.Services.IThirdPartyEmoteProvider>(
+        services.AddImplementationsOf<Application.Chat.Services.IThirdPartyEmoteProvider>(
             infrastructure,
             ServiceLifetime.Singleton
         );
         services.AddSingleton<
-            NomNomzBot.Application.Chat.Services.IThirdPartyEmoteProviderRegistry,
-            NomNomzBot.Infrastructure.Chat.ThirdPartyEmoteProviderRegistry
+            Application.Chat.Services.IThirdPartyEmoteProviderRegistry,
+            ThirdPartyEmoteProviderRegistry
         >();
         // Warms the third-party emote cache the decoration pipeline reads; driven by ChatDecorationRefreshService
         // (auto-discovered as a hosted worker). Stateless → singleton.
-        services.AddSingleton<NomNomzBot.Infrastructure.Chat.Jobs.ChatEmoteCacheWarmer>();
+        services.AddSingleton<Chat.Jobs.ChatEmoteCacheWarmer>();
         // Warms the Helix badge + cheermote caches; scoped (they use the scoped Helix client — resolved per worker scope).
-        services.AddScoped<NomNomzBot.Infrastructure.Chat.Jobs.ChatBadgeCacheWarmer>();
-        services.AddScoped<NomNomzBot.Infrastructure.Chat.Jobs.ChatCheermoteCacheWarmer>();
+        services.AddScoped<Chat.Jobs.ChatBadgeCacheWarmer>();
+        services.AddScoped<Chat.Jobs.ChatCheermoteCacheWarmer>();
 
         // Chat-decoration pipeline: the ordered adapters (multi-binding, discovered) + the thin orchestrator that runs
         // them per message. Scoped to match the per-message orchestrator and the scoped services some adapters use
         // (the link-preview adapter resolves the scoped ILinkPreviewService); the adapters are stateless.
-        services.AddImplementationsOf<NomNomzBot.Application.Chat.Services.IChatDecorationAdapter>(
+        services.AddImplementationsOf<Application.Chat.Services.IChatDecorationAdapter>(
             infrastructure,
             ServiceLifetime.Scoped
         );
         // Badge + cheermote resolvers (cache-only; not name-convention "*Service", so registered explicitly). Singleton.
+        services.AddSingleton<Application.Chat.Services.IChatBadgeResolver, ChatBadgeResolver>();
         services.AddSingleton<
-            NomNomzBot.Application.Chat.Services.IChatBadgeResolver,
-            NomNomzBot.Infrastructure.Chat.ChatBadgeResolver
-        >();
-        services.AddSingleton<
-            NomNomzBot.Application.Chat.Services.ICheermoteResolver,
-            NomNomzBot.Infrastructure.Chat.ChatCheermoteResolver
+            Application.Chat.Services.ICheermoteResolver,
+            ChatCheermoteResolver
         >();
         // Per-channel chat-colour memory backing the mention-colour step (cache-only). Stateless → singleton.
-        services.AddSingleton<
-            NomNomzBot.Application.Chat.Services.IChatColorMemory,
-            NomNomzBot.Infrastructure.Chat.ChatColorMemory
-        >();
+        services.AddSingleton<Application.Chat.Services.IChatColorMemory, ChatColorMemory>();
         // Scoped: it resolves the channel's feature toggles through the scoped IFeatureService (cache-backed, so the
         // hot path stays cheap). Consumes the singleton adapters + cache fine.
-        services.AddScoped<
-            NomNomzBot.Application.Chat.Services.IChatMessageDecorator,
-            NomNomzBot.Infrastructure.Chat.ChatMessageDecorator
-        >();
+        services.AddScoped<Application.Chat.Services.IChatMessageDecorator, ChatMessageDecorator>();
         // Every outbound HttpClient the factory builds (provider fetches, OAuth, Twitch, TTS, webhooks…) sends
         // the product User-Agent by default, stamped with the running build version. A client may still override.
         services.ConfigureHttpClientDefaults(builder =>
@@ -263,8 +250,8 @@ public static class DependencyInjection
         // The alejo.io pronoun reference client — fetched once at boot by PronounSeeder to keep the seeded
         // pronoun set current (the resilience pipeline owns the per-attempt 10s timeout + retries).
         services.AddSingleton<
-            NomNomzBot.Application.Identity.Services.IAlejoPronounClient,
-            NomNomzBot.Infrastructure.Identity.Providers.AlejoPronounClient
+            Application.Identity.Services.IAlejoPronounClient,
+            Identity.Providers.AlejoPronounClient
         >();
         services
             .AddHttpClient(
@@ -275,16 +262,16 @@ public static class DependencyInjection
 
         // Webhook HMAC primitives (stateless; not name-convention "*Service", so registered explicitly).
         services.AddSingleton<
-            NomNomzBot.Application.Contracts.Webhooks.IInboundSignatureVerifier,
-            NomNomzBot.Infrastructure.Webhooks.InboundSignatureVerifier
+            Application.Contracts.Webhooks.IInboundSignatureVerifier,
+            Webhooks.InboundSignatureVerifier
         >();
         services.AddSingleton<
-            NomNomzBot.Application.Contracts.Webhooks.IOutboundWebhookSigner,
-            NomNomzBot.Infrastructure.Webhooks.OutboundWebhookSigner
+            Application.Contracts.Webhooks.IOutboundWebhookSigner,
+            Webhooks.OutboundWebhookSigner
         >();
 
         // Inbound webhook adapters (transient — stateless, multi-binding by WebhookAdapterKind).
-        services.AddImplementationsOf<NomNomzBot.Application.Contracts.Webhooks.IInboundWebhookAdapter>(
+        services.AddImplementationsOf<Application.Contracts.Webhooks.IInboundWebhookAdapter>(
             infrastructure,
             ServiceLifetime.Transient
         );
@@ -295,71 +282,66 @@ public static class DependencyInjection
             .ConfigurePrimaryHttpMessageHandler(
                 NomNomzBot.Infrastructure.Sandbox.EgressHttpClient.CreateHandler
             )
-            .AddHttpMessageHandler(() =>
-                new NomNomzBot.Infrastructure.Sandbox.EgressSchemeHandler()
-            );
+            .AddHttpMessageHandler(() => new Sandbox.EgressSchemeHandler());
 
         // Webhook dispatchers (I*Dispatcher — not the name-convention "*Service", so registered explicitly).
         services.AddScoped<
-            NomNomzBot.Application.Contracts.Webhooks.IInboundWebhookDispatcher,
-            NomNomzBot.Infrastructure.Webhooks.InboundWebhookDispatcher
+            Application.Contracts.Webhooks.IInboundWebhookDispatcher,
+            Webhooks.InboundWebhookDispatcher
         >();
         services.AddScoped<
-            NomNomzBot.Application.Contracts.Webhooks.IOutboundWebhookDispatcher,
-            NomNomzBot.Infrastructure.Webhooks.OutboundWebhookDispatcher
+            Application.Contracts.Webhooks.IOutboundWebhookDispatcher,
+            Webhooks.OutboundWebhookDispatcher
         >();
         services.AddScoped<
-            NomNomzBot.Application.Contracts.Billing.IStripeWebhookHandler,
-            NomNomzBot.Infrastructure.Billing.StripeWebhookHandler
+            Application.Contracts.Billing.IStripeWebhookHandler,
+            Billing.StripeWebhookHandler
         >();
 
         // Outbound webhook retry drain (scoped processor + the hosted worker that ticks it).
-        services.AddScoped<NomNomzBot.Infrastructure.Webhooks.WebhookRetryProcessor>();
-        services.AddHostedService<NomNomzBot.Infrastructure.BackgroundServices.WebhookDeliveryWorker>();
+        services.AddScoped<Webhooks.WebhookRetryProcessor>();
+        services.AddHostedService<WebhookDeliveryWorker>();
 
         // Analytics — the shared viewer-as-User resolver the per-viewer projections fold through.
-        services.AddScoped<NomNomzBot.Infrastructure.Analytics.ViewerResolver>();
+        services.AddScoped<Analytics.ViewerResolver>();
         // The live-window resolver (watch-session gating; non-"*Service", so registered explicitly).
         services.AddScoped<
-            NomNomzBot.Application.Contracts.Analytics.ILiveWindowResolver,
-            NomNomzBot.Infrastructure.Analytics.LiveWindowResolver
+            Application.Contracts.Analytics.ILiveWindowResolver,
+            Analytics.LiveWindowResolver
         >();
 
         // The sandbox script executor — Jint on self-host (Wasmtime SaaS adapter is a separate profile binding).
         services.AddScoped<
-            NomNomzBot.Application.Contracts.CustomCode.IScriptExecutor,
-            NomNomzBot.Infrastructure.CustomCode.Jint.JintScriptExecutor
+            Application.Contracts.CustomCode.IScriptExecutor,
+            CustomCode.Jint.JintScriptExecutor
         >();
         // The script run orchestrator + capability broker (non-"*Service", so registered explicitly).
         services.AddScoped<
-            NomNomzBot.Application.Contracts.CustomCode.IScriptRunner,
-            NomNomzBot.Infrastructure.CustomCode.ScriptRunner
+            Application.Contracts.CustomCode.IScriptRunner,
+            CustomCode.ScriptRunner
         >();
         services.AddScoped<
-            NomNomzBot.Application.Contracts.CustomCode.IScriptCapabilityBroker,
-            NomNomzBot.Infrastructure.CustomCode.ScriptCapabilityBroker
+            Application.Contracts.CustomCode.IScriptCapabilityBroker,
+            CustomCode.ScriptCapabilityBroker
         >();
         services.AddScoped<
-            NomNomzBot.Application.Contracts.CustomCode.IScriptExecutionMeter,
-            NomNomzBot.Infrastructure.CustomCode.ScriptExecutionMeter
+            Application.Contracts.CustomCode.IScriptExecutionMeter,
+            CustomCode.ScriptExecutionMeter
         >();
-        services.AddScoped<
-            NomNomzBot.Application.Contracts.Billing.IStripeGateway,
-            NomNomzBot.Infrastructure.Billing.StripeGateway
-        >();
+        services.AddScoped<Application.Contracts.Billing.IStripeGateway, Billing.StripeGateway>();
 
         // Event store — projections, post-commit hooks, and upcasters are pluggable multi-bindings discovered
         // by convention (drop a file → it is live next boot), mirroring ICommandAction. Projections + hooks
         // touch the DbContext (scoped); upcasters are pure/stateless (singleton).
-        services.AddImplementationsOf<NomNomzBot.Application.Contracts.EventStore.IProjection>(
+        services.AddImplementationsOf<Application.Contracts.EventStore.IProjection>(
             infrastructure,
             ServiceLifetime.Scoped
         );
-        services.AddImplementationsOf<NomNomzBot.Application.Contracts.EventStore.IJournalPostCommitHook>(
+        services.AddImplementationsOf<Application.Contracts.EventStore.IJournalPostCommitHook>(
             infrastructure,
             ServiceLifetime.Scoped
         );
-        services.AddImplementationsOf<NomNomzBot.Application.Contracts.EventStore.IEventUpcaster>(
+        services.AddImplementationsOf<Application.Contracts.EventStore.IEventUpcaster>(
             infrastructure,
             ServiceLifetime.Singleton
         );
@@ -429,22 +411,22 @@ public static class DependencyInjection
 
         // OAuth token vault (identity-auth §3.4) — scoped (DbContext); not I<X>Service-named, so explicit.
         services.AddScoped<
-            NomNomzBot.Application.Identity.Services.IIntegrationTokenVault,
-            NomNomzBot.Infrastructure.Identity.IntegrationTokenVault
+            Application.Identity.Services.IIntegrationTokenVault,
+            Identity.IntegrationTokenVault
         >();
 
         // System OAuth-app credential resolver (onboarding keystone) — the single DB-vaulted-first → config
         // path the wizard saves to and the live OAuth flows read from. Scoped (DbContext + token protector);
         // not I<X>Service-named, so explicit.
         services.AddScoped<
-            NomNomzBot.Application.Common.Interfaces.ISystemCredentialsProvider,
-            NomNomzBot.Infrastructure.Platform.Configuration.SystemCredentialsProvider
+            ISystemCredentialsProvider,
+            Platform.Configuration.SystemCredentialsProvider
         >();
 
         // Generic OAuth connect (integrations-oauth §3.2) — provider descriptors registry (singleton, stateless).
         services.AddSingleton<
-            NomNomzBot.Application.Integrations.Services.IOAuthProviderRegistry,
-            NomNomzBot.Infrastructure.Integrations.OAuthProviderRegistry
+            Application.Integrations.Services.IOAuthProviderRegistry,
+            Integrations.OAuthProviderRegistry
         >();
         // The descriptor-driven connect flow's token-exchange / account-identity HTTP client.
         services.AddHttpClient("integration-oauth");
@@ -497,8 +479,8 @@ public static class DependencyInjection
         services.AddSingleton<ITrustService, TrustService>();
         // Game outcome RNG (stateless CSPRNG; not an I<X>Service, so registered explicitly).
         services.AddSingleton<
-            NomNomzBot.Application.Economy.Services.IGameRandomizer,
-            NomNomzBot.Infrastructure.Economy.CsprngGameRandomizer
+            Application.Economy.Services.IGameRandomizer,
+            Economy.CsprngGameRandomizer
         >();
 
         // PipelineEngine (scoped — IPipelineEngine is not an I<X>Service, registered explicitly)
@@ -522,8 +504,14 @@ public static class DependencyInjection
         // Auto-moderation engine consumed by concrete type — kept explicit.
         services.AddScoped<AutoModerationEngine>();
 
-        // Built-in command catalog — singleton (static data, no DB access, no request scope).
+        // Built-in commands (singletons, catalog built from the resolved enumerable).
+        services.AddSingleton<
+            IBuiltinCommand,
+            NomNomzBot.Infrastructure.Commands.Builtins.UptimeBuiltin
+        >();
         services.AddSingleton<IBuiltinCommandCatalog, BuiltinCommandCatalog>();
+        // Per-channel enable/disable toggle management.
+        services.AddScoped<IBuiltinCommandService, BuiltinCommandService>();
 
         // TTS providers (singleton, multi-binding) — special construction with config args,
         // kept explicit. ITtsService is singleton (stateful queues), also kept explicit.
@@ -557,27 +545,21 @@ public static class DependencyInjection
         // auto-discovered (IEventHandler<> / ICommandAction scans). The 8 discord:* Gate-2 action keys are seeded
         // by ActionDefinitionSeeder.
         services.AddScoped<
-            NomNomzBot.Application.Contracts.Discord.IDiscordNotificationDispatcher,
-            NomNomzBot.Infrastructure.Discord.DiscordNotificationDispatcher
+            Application.Contracts.Discord.IDiscordNotificationDispatcher,
+            Discord.DiscordNotificationDispatcher
         >();
         // Discord REST/gateway adapter — the only thing that talks to Discord. The named "discord" typed
         // HttpClient carries the resilience handler that honours Discord's 429 Retry-After (like Spotify/Twitch).
         services.AddHttpClient("discord").AddDiscordResilienceHandler();
         services.AddScoped<
-            NomNomzBot.Application.Contracts.Discord.IDiscordBotGateway,
-            NomNomzBot.Infrastructure.Discord.Gateway.DiscordRestBotGateway
+            Application.Contracts.Discord.IDiscordBotGateway,
+            Discord.Gateway.DiscordRestBotGateway
         >();
 
         // ChannelRegistry (singleton + hosted service — one instance serves IChannelRegistry
         // AND the hosted lifecycle, so it is wired explicitly and excluded from the worker scan).
-        services.AddSingleton<
-            NomNomzBot.Domain.Platform.Interfaces.IChannelRegistry,
-            ChannelRegistry
-        >();
-        services.AddHostedService(sp =>
-            (ChannelRegistry)
-                sp.GetRequiredService<NomNomzBot.Domain.Platform.Interfaces.IChannelRegistry>()
-        );
+        services.AddSingleton<IChannelRegistry, ChannelRegistry>();
+        services.AddHostedService(sp => (ChannelRegistry)sp.GetRequiredService<IChannelRegistry>());
 
         // BotLifecycleService, TimerService, and TokenRefreshService are auto-registered as
         // hosted services by AddHostedWorkers above. Content seeding is no longer a hosted
@@ -592,7 +574,7 @@ public static class DependencyInjection
         // Per-device-code poll rate limiter (singleton) — keeps the Device Code Flow poll within Twitch's
         // interval no matter how fast/many clients call us. Shared state, so it must outlive the scoped auth
         // services that consume it.
-        services.AddSingleton<Platform.Auth.DeviceCodePollThrottle>();
+        services.AddSingleton<DeviceCodePollThrottle>();
 
         // ── Helix transport plumbing (twitch-helix.md §3, §7) ────────────────
         // The named "twitch-helix" client carries the full Helix request pipeline:
@@ -698,7 +680,7 @@ public static class DependencyInjection
 
         // Top-level façade (twitch-helix.md §3.1) — composes the scoped sub-clients above into one
         // named-accessor surface for discoverability. Pure passthrough, scoped to share their lifetime.
-        services.AddScoped<ITwitchHelixClient, Platform.Transport.Helix.TwitchHelixClient>();
+        services.AddScoped<ITwitchHelixClient, TwitchHelixClient>();
 
         // ITwitchAuthService → TwitchAuthService is a scoped single-impl service discovered by
         // AddServicesByConvention above. (The legacy ITwitchApiService has been retired — every caller now
@@ -707,7 +689,7 @@ public static class DependencyInjection
         // Roles & permissions — the effective-level resolver (Gate-2 reads it). Not an I<X>Service, so it is
         // registered explicitly rather than by AddServicesByConvention. Scoped (reads the per-request DbContext).
         services.AddScoped<
-            NomNomzBot.Application.Contracts.Authorization.IRoleResolver,
+            Application.Contracts.Authorization.IRoleResolver,
             Identity.RoleResolver
         >();
 
@@ -748,7 +730,7 @@ public static class DependencyInjection
         services.AddSingleton<ITwitchEventSubService>(sp =>
             sp.GetRequiredService<TwitchEventSubHostedService>()
         );
-        services.AddSingleton<NomNomzBot.Application.Contracts.Platform.IEventSource>(sp =>
+        services.AddSingleton<Application.Contracts.Platform.IEventSource>(sp =>
             sp.GetRequiredService<TwitchEventSubHostedService>()
         );
         services.AddHostedService(sp => sp.GetRequiredService<TwitchEventSubHostedService>());
@@ -758,40 +740,40 @@ public static class DependencyInjection
         // The upcaster registry is pure over the singleton upcaster set (singleton). EventJournalRepository is
         // self-registered scoped by AddRepositoriesByConvention above (it derives from GenericRepository<T>).
         services.AddScoped<
-            NomNomzBot.Application.Contracts.EventStore.ITenantSequenceAllocator,
-            NomNomzBot.Infrastructure.EventStore.TenantSequenceAllocator
+            Application.Contracts.EventStore.ITenantSequenceAllocator,
+            EventStore.TenantSequenceAllocator
         >();
         services.AddScoped<
-            NomNomzBot.Application.Contracts.EventStore.IEventJournal,
-            NomNomzBot.Infrastructure.EventStore.EventJournalService
+            Application.Contracts.EventStore.IEventJournal,
+            EventStore.EventJournalService
         >();
         services.AddScoped<
-            NomNomzBot.Application.Contracts.EventStore.IEventStoreSubscriber,
-            NomNomzBot.Infrastructure.EventStore.EventStoreSubscriber
+            Application.Contracts.EventStore.IEventStoreSubscriber,
+            EventStore.EventStoreSubscriber
         >();
         services.AddScoped<
-            NomNomzBot.Application.Contracts.EventStore.IProjectionRunner,
-            NomNomzBot.Infrastructure.EventStore.ProjectionRunner
+            Application.Contracts.EventStore.IProjectionRunner,
+            EventStore.ProjectionRunner
         >();
         services.AddSingleton<
-            NomNomzBot.Application.Contracts.EventStore.IEventUpcasterRegistry,
-            NomNomzBot.Infrastructure.EventStore.EventUpcasterRegistry
+            Application.Contracts.EventStore.IEventUpcasterRegistry,
+            EventStore.EventUpcasterRegistry
         >();
         // The projection driver (event-store.md §3.3) — periodically advances every projection to the journal
         // head so live appends reach the read models (without it, projections only move during import/rebuild).
-        services.AddHostedService<NomNomzBot.Infrastructure.EventStore.EventStoreProjectionDriver>();
+        services.AddHostedService<EventStore.EventStoreProjectionDriver>();
 
         // Owner-gated legacy backfill — imports the legacy NoMercy bot's channel history onto the journal and
         // rebuilds projections from it. The locator (which legacy file to read) is a stateless seam; the service
         // composes the importer + projection runner.
         services.AddSingleton<
-            NomNomzBot.Infrastructure.EventStore.LegacyImport.ILegacyDatabaseLocator,
-            NomNomzBot.Infrastructure.EventStore.LegacyImport.DefaultLegacyDatabaseLocator
+            EventStore.LegacyImport.ILegacyDatabaseLocator,
+            EventStore.LegacyImport.DefaultLegacyDatabaseLocator
         >();
-        services.AddScoped<NomNomzBot.Infrastructure.Analytics.ChannelEventActorBackfill>();
+        services.AddScoped<Analytics.ChannelEventActorBackfill>();
         services.AddScoped<
-            NomNomzBot.Application.Contracts.EventStore.ILegacyChannelImportService,
-            NomNomzBot.Infrastructure.EventStore.LegacyImport.LegacyChannelImportService
+            Application.Contracts.EventStore.ILegacyChannelImportService,
+            EventStore.LegacyImport.LegacyChannelImportService
         >();
 
         return services;

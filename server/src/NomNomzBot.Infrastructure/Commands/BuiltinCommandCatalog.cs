@@ -8,61 +8,28 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-using NomNomzBot.Application.Commands.Services;
+using NomNomzBot.Application.Commands.Builtin;
 
 namespace NomNomzBot.Infrastructure.Commands;
 
 /// <summary>
-/// Singleton catalog of all built-in platform commands.
-/// Mirrors the entries in <c>DefaultCommandsSeeder</c> — keep both in sync.
+/// Singleton catalog built from all <see cref="IBuiltinCommand"/> implementations registered in DI.
+/// Catalog membership is defined by code; no DB seed rows.
 /// </summary>
 public sealed class BuiltinCommandCatalog : IBuiltinCommandCatalog
 {
-    private static readonly IReadOnlyList<BuiltinCommandDefinition> Entries =
-    [
-        new(
-            "!sr",
-            "everyone",
-            5,
-            "Request a song",
-            """{"steps":[{"action":{"type":"music_request"}}]}"""
-        ),
-        new(
-            "!skip",
-            "moderator",
-            0,
-            "Skip the current song",
-            """{"steps":[{"action":{"type":"music_skip"}}]}"""
-        ),
-        new(
-            "!queue",
-            "everyone",
-            10,
-            "Show the song queue",
-            """{"steps":[{"action":{"type":"music_queue"}}]}"""
-        ),
-        new(
-            "!volume",
-            "moderator",
-            0,
-            "Set the music volume",
-            """{"steps":[{"action":{"type":"music_volume"}}]}"""
-        ),
-        new(
-            "!song",
-            "everyone",
-            5,
-            "Show the current song",
-            """{"steps":[{"action":{"type":"music_current"}}]}"""
-        ),
-    ];
+    private readonly IReadOnlyDictionary<string, IBuiltinCommand> _commands;
 
-    private static readonly HashSet<string> Names = new(
-        Entries.Select(e => e.Name),
-        StringComparer.OrdinalIgnoreCase
-    );
+    public BuiltinCommandCatalog(IEnumerable<IBuiltinCommand> commands)
+    {
+        Dictionary<string, IBuiltinCommand> map = new(StringComparer.OrdinalIgnoreCase);
+        foreach (IBuiltinCommand cmd in commands)
+            map[cmd.BuiltinKey] = cmd;
+        _commands = map;
+    }
 
-    public IReadOnlyList<BuiltinCommandDefinition> GetAll() => Entries;
+    public IReadOnlyCollection<IBuiltinCommand> GetAll() => _commands.Values.ToList();
 
-    public bool IsBuiltin(string name) => Names.Contains(name);
+    public IBuiltinCommand? Get(string builtinKey) =>
+        _commands.TryGetValue(builtinKey, out IBuiltinCommand? cmd) ? cmd : null;
 }
