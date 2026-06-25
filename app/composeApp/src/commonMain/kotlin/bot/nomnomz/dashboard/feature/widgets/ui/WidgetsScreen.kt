@@ -16,12 +16,17 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -42,6 +47,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.CopyValue
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
@@ -76,6 +82,21 @@ import nomnomzbot.composeapp.generated.resources.widgets_toggle_action
 import nomnomzbot.composeapp.generated.resources.widgets_url_copied
 import nomnomzbot.composeapp.generated.resources.widgets_url_copy
 import nomnomzbot.composeapp.generated.resources.widgets_url_label
+import nomnomzbot.composeapp.generated.resources.widgets_clone_action
+import nomnomzbot.composeapp.generated.resources.widgets_clone_action_short
+import nomnomzbot.composeapp.generated.resources.widgets_create_action
+import nomnomzbot.composeapp.generated.resources.widgets_create_confirm
+import nomnomzbot.composeapp.generated.resources.widgets_create_dismiss
+import nomnomzbot.composeapp.generated.resources.widgets_create_name
+import nomnomzbot.composeapp.generated.resources.widgets_create_name_required
+import nomnomzbot.composeapp.generated.resources.widgets_create_title
+import nomnomzbot.composeapp.generated.resources.widgets_create_type
+import nomnomzbot.composeapp.generated.resources.widgets_rename_action
+import nomnomzbot.composeapp.generated.resources.widgets_rename_action_short
+import nomnomzbot.composeapp.generated.resources.widgets_rename_confirm
+import nomnomzbot.composeapp.generated.resources.widgets_rename_dismiss
+import nomnomzbot.composeapp.generated.resources.widgets_rename_name
+import nomnomzbot.composeapp.generated.resources.widgets_rename_title
 import nomnomzbot.composeapp.generated.resources.widgets_url_missing
 import org.jetbrains.compose.resources.stringResource
 
@@ -98,8 +119,10 @@ fun WidgetsScreen(controller: WidgetsController, role: ManagementRole?) {
     // (§7); the backend re-checks every write regardless.
     val manage: ManageDecision = rememberManageDecision(role, ShellRoute.Widgets)
 
-    // The delete-confirm target: the widget pending confirmation (id + name for the message), or null when none.
     var pendingDelete: PendingDelete? by remember { mutableStateOf(null) }
+    var pendingRename: WidgetSummary? by remember { mutableStateOf(null) }
+    var pendingClone: WidgetSummary? by remember { mutableStateOf(null) }
+    var showCreateDialog: Boolean by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) { controller.load() }
 
@@ -107,16 +130,29 @@ fun WidgetsScreen(controller: WidgetsController, role: ManagementRole?) {
         modifier = Modifier.fillMaxSize().background(tokens.background).padding(spacing.s6),
         verticalArrangement = Arrangement.spacedBy(spacing.s4),
     ) {
-        Text(
-            text = stringResource(Res.string.widgets_title),
-            style = typography.xl2,
-            color = tokens.foreground,
-        )
-        Text(
-            text = stringResource(Res.string.widgets_subtitle),
-            style = typography.sm,
-            color = tokens.mutedForeground,
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column {
+                Text(
+                    text = stringResource(Res.string.widgets_title),
+                    style = typography.xl2,
+                    color = tokens.foreground,
+                )
+                Text(
+                    text = stringResource(Res.string.widgets_subtitle),
+                    style = typography.sm,
+                    color = tokens.mutedForeground,
+                )
+            }
+            ManageGate(manage) {
+                Button(onClick = { showCreateDialog = true }) {
+                    Text(stringResource(Res.string.widgets_create_action))
+                }
+            }
+        }
 
         when (val current: WidgetsState = state) {
             is WidgetsState.Loading -> CenteredMessage(stringResource(Res.string.widgets_loading))
@@ -132,6 +168,8 @@ fun WidgetsScreen(controller: WidgetsController, role: ManagementRole?) {
                         scope.launch { controller.toggleWidget(widget.id, enabled) }
                     },
                     onDelete = { widget -> pendingDelete = PendingDelete(widget.id, widget.name) },
+                    onRename = { widget -> pendingRename = widget },
+                    onClone = { widget -> pendingClone = widget },
                 )
         }
     }
@@ -150,6 +188,42 @@ fun WidgetsScreen(controller: WidgetsController, role: ManagementRole?) {
             onDismiss = { pendingDelete = null },
         )
     }
+
+    pendingRename?.let { widget ->
+        RenameWidgetDialog(
+            currentName = widget.name,
+            onConfirm = { newName ->
+                pendingRename = null
+                scope.launch { controller.renameWidget(widget.id, newName) }
+            },
+            onDismiss = { pendingRename = null },
+        )
+    }
+
+    pendingClone?.let { widget ->
+        ConfirmDialog(
+            title = stringResource(Res.string.widgets_clone_action, widget.name),
+            message = "Create \"Copy of ${widget.name}\" with the same type?",
+            confirmLabel = stringResource(Res.string.widgets_clone_action_short),
+            dismissLabel = stringResource(Res.string.widgets_delete_cancel),
+            destructive = false,
+            onConfirm = {
+                pendingClone = null
+                scope.launch { controller.cloneWidget(widget.type, widget.name) }
+            },
+            onDismiss = { pendingClone = null },
+        )
+    }
+
+    if (showCreateDialog) {
+        CreateWidgetDialog(
+            onConfirm = { name, type ->
+                showCreateDialog = false
+                scope.launch { controller.createWidget(name, type) }
+            },
+            onDismiss = { showCreateDialog = false },
+        )
+    }
 }
 
 // The list-bearing content: an optional write-failure banner over the overlay rows. The header (title +
@@ -161,6 +235,8 @@ private fun ReadyContent(
     manage: ManageDecision,
     onToggle: (WidgetSummary, Boolean) -> Unit,
     onDelete: (WidgetSummary) -> Unit,
+    onRename: (WidgetSummary) -> Unit,
+    onClone: (WidgetSummary) -> Unit,
 ) {
     val spacing = LocalSpacing.current
 
@@ -169,7 +245,14 @@ private fun ReadyContent(
         verticalArrangement = Arrangement.spacedBy(spacing.s3),
     ) {
         actionError?.let { ActionErrorBanner(detail = it) }
-        WidgetList(widgets = widgets, manage = manage, onToggle = onToggle, onDelete = onDelete)
+        WidgetList(
+            widgets = widgets,
+            manage = manage,
+            onToggle = onToggle,
+            onDelete = onDelete,
+            onRename = onRename,
+            onClone = onClone,
+        )
     }
 }
 
@@ -197,6 +280,8 @@ private fun WidgetList(
     manage: ManageDecision,
     onToggle: (WidgetSummary, Boolean) -> Unit,
     onDelete: (WidgetSummary) -> Unit,
+    onRename: (WidgetSummary) -> Unit,
+    onClone: (WidgetSummary) -> Unit,
 ) {
     val spacing = LocalSpacing.current
 
@@ -211,6 +296,8 @@ private fun WidgetList(
                 manage = manage,
                 onToggle = { enabled -> onToggle(widget, enabled) },
                 onDelete = { onDelete(widget) },
+                onRename = { onRename(widget) },
+                onClone = { onClone(widget) },
             )
         }
     }
@@ -225,6 +312,8 @@ private fun WidgetRow(
     manage: ManageDecision,
     onToggle: (Boolean) -> Unit,
     onDelete: () -> Unit,
+    onRename: () -> Unit,
+    onClone: () -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -237,6 +326,8 @@ private fun WidgetRow(
         )
     val toggleLabel: String = stringResource(Res.string.widgets_toggle_action, widget.name)
     val deleteLabel: String = stringResource(Res.string.widgets_delete_action, widget.name)
+    val renameLabel: String = stringResource(Res.string.widgets_rename_action, widget.name)
+    val cloneLabel: String = stringResource(Res.string.widgets_clone_action, widget.name)
     val urlLabel: String = stringResource(Res.string.widgets_url_label)
 
     Column(
@@ -289,6 +380,32 @@ private fun WidgetRow(
                     ),
                     modifier = Modifier.semantics { contentDescription = toggleLabel },
                 )
+            }
+            ManageGate(decision = manage) { enabled ->
+                TextButton(
+                    onClick = onRename,
+                    enabled = enabled,
+                    modifier = Modifier.semantics { contentDescription = renameLabel },
+                ) {
+                    Text(
+                        text = stringResource(Res.string.widgets_rename_action_short),
+                        color = if (enabled) tokens.primary else tokens.mutedForeground,
+                        maxLines = 1,
+                    )
+                }
+            }
+            ManageGate(decision = manage) { enabled ->
+                TextButton(
+                    onClick = onClone,
+                    enabled = enabled,
+                    modifier = Modifier.semantics { contentDescription = cloneLabel },
+                ) {
+                    Text(
+                        text = stringResource(Res.string.widgets_clone_action_short),
+                        color = if (enabled) tokens.primary else tokens.mutedForeground,
+                        maxLines = 1,
+                    )
+                }
             }
             ManageGate(decision = manage) { enabled ->
                 TextButton(
@@ -361,3 +478,124 @@ private fun CenteredMessage(text: String) {
 
 // The delete-confirm target: the widget's id (the backend address) plus its name (for the confirm message).
 private data class PendingDelete(val id: String, val name: String)
+
+// Dialog to create a new widget. The operator enters a name and picks a type from the closed set the backend
+// supports. The caller owns open/closed state — it opens when the user clicks "Create Overlay".
+@Composable
+private fun CreateWidgetDialog(
+    onConfirm: (name: String, type: String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    val types: List<String> = listOf("alerts", "nowplaying", "chat", "goals", "countdown", "custom")
+
+    var name: String by remember { mutableStateOf("") }
+    var selectedType: String by remember { mutableStateOf(types.first()) }
+    var nameError: Boolean by remember { mutableStateOf(false) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = stringResource(Res.string.widgets_create_title),
+                style = typography.lg,
+                color = tokens.cardForeground,
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
+                AppTextField(
+                    value = name,
+                    onValueChange = { name = it; nameError = false },
+                    label = stringResource(Res.string.widgets_create_name),
+                    isError = nameError,
+                    errorText = if (nameError) stringResource(Res.string.widgets_create_name_required) else null,
+                )
+                Text(
+                    text = stringResource(Res.string.widgets_create_type),
+                    style = typography.sm,
+                    color = tokens.mutedForeground,
+                )
+                Column(verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
+                    types.chunked(3).forEach { row ->
+                        Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
+                            row.forEach { t ->
+                                FilterChip(
+                                    selected = selectedType == t,
+                                    onClick = { selectedType = t },
+                                    label = { Text(t, style = typography.xs) },
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    if (name.isBlank()) { nameError = true; return@Button }
+                    onConfirm(name.trim(), selectedType)
+                },
+            ) {
+                Text(stringResource(Res.string.widgets_create_confirm))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(Res.string.widgets_create_dismiss)) }
+        },
+        containerColor = tokens.card,
+    )
+}
+
+// Dialog to rename an existing widget. Pre-filled with the current name; the operator edits it and confirms.
+@Composable
+private fun RenameWidgetDialog(
+    currentName: String,
+    onConfirm: (newName: String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    var name: String by remember { mutableStateOf(currentName) }
+    var nameError: Boolean by remember { mutableStateOf(false) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = stringResource(Res.string.widgets_rename_title),
+                style = typography.lg,
+                color = tokens.cardForeground,
+            )
+        },
+        text = {
+            AppTextField(
+                value = name,
+                onValueChange = { name = it; nameError = false },
+                label = stringResource(Res.string.widgets_rename_name),
+                isError = nameError,
+                errorText = if (nameError) stringResource(Res.string.widgets_create_name_required) else null,
+            )
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    if (name.isBlank()) { nameError = true; return@Button }
+                    onConfirm(name.trim())
+                },
+            ) {
+                Text(stringResource(Res.string.widgets_rename_confirm))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(Res.string.widgets_rename_dismiss)) }
+        },
+        containerColor = tokens.card,
+    )
+}

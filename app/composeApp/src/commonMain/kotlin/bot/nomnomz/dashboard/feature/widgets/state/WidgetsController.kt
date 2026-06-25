@@ -13,6 +13,7 @@ package bot.nomnomz.dashboard.feature.widgets.state
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
+import bot.nomnomz.dashboard.core.network.CreateWidgetBody
 import bot.nomnomz.dashboard.core.network.WidgetSummary
 import bot.nomnomz.dashboard.core.network.WidgetsApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -75,6 +76,30 @@ class WidgetsController(
     suspend fun deleteWidget(widgetId: String) {
         val channel: String = channelId ?: return failWrite(NoChannelError)
         afterWrite(widgetsApi.delete(channel, widgetId))
+    }
+
+    /** Create a new widget with [name] and [type]. Reloads on success; surfaces error on failure. */
+    suspend fun createWidget(name: String, type: String) {
+        val channel: String = channelId ?: return failWrite(NoChannelError)
+        when (val result: ApiResult<WidgetSummary> = widgetsApi.create(channel, CreateWidgetBody(name, type))) {
+            is ApiResult.Ok -> load()
+            is ApiResult.Failure -> failWrite(result.error.message)
+        }
+    }
+
+    /** Rename a widget ([widgetId]) to [newName] via a partial PUT. Reloads on success. */
+    suspend fun renameWidget(widgetId: String, newName: String) {
+        val channel: String = channelId ?: return failWrite(NoChannelError)
+        afterWrite(widgetsApi.rename(channel, widgetId, newName))
+    }
+
+    /** Clone a widget by creating "Copy of [sourceName]" with the same [sourceType]. Reloads on success. */
+    suspend fun cloneWidget(sourceType: String, sourceName: String) {
+        val channel: String = channelId ?: return failWrite(NoChannelError)
+        when (val result: ApiResult<WidgetSummary> = widgetsApi.clone(channel, sourceType, sourceName)) {
+            is ApiResult.Ok -> load()
+            is ApiResult.Failure -> failWrite(result.error.message)
+        }
     }
 
     // A write either reloads the list (success) or surfaces its error over the current Ready list without

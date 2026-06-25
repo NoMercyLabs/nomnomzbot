@@ -35,6 +35,18 @@ interface WidgetsApi {
      * resolving once it is gone, so the screen confirms before calling this.
      */
     suspend fun delete(channelId: String, widgetId: String): ApiResult<Unit>
+
+    /** Create a new widget with [name] and [type]. Returns the created row (including the assigned [WidgetSummary.id]). */
+    suspend fun create(channelId: String, body: CreateWidgetBody): ApiResult<WidgetSummary>
+
+    /** Rename a widget — sends a partial PUT with only [name]. */
+    suspend fun rename(channelId: String, widgetId: String, name: String): ApiResult<Unit>
+
+    /**
+     * Clone a widget by creating a new one with the same [type] and "Copy of [sourceName]" as the name.
+     * The backend has no clone route, so the client re-issues a POST with the derived values.
+     */
+    suspend fun clone(channelId: String, sourceType: String, sourceName: String): ApiResult<WidgetSummary>
 }
 
 class RestWidgetsApi(private val client: ApiClient) : WidgetsApi {
@@ -65,15 +77,31 @@ class RestWidgetsApi(private val client: ApiClient) : WidgetsApi {
 
     override suspend fun delete(channelId: String, widgetId: String): ApiResult<Unit> =
         client.deleteUnit("api/v1/channels/$channelId/widgets/$widgetId")
+
+    // POST to the list endpoint; backend returns StatusResponseDto<WidgetDetail> — postEnvelope unwraps `.data`.
+    override suspend fun create(channelId: String, body: CreateWidgetBody): ApiResult<WidgetSummary> =
+        client.postEnvelope("api/v1/channels/$channelId/widgets", body)
+
+    // Partial PUT — only the name field changes; isEnabled / settings / eventSubscriptions stay as-is.
+    override suspend fun rename(channelId: String, widgetId: String, name: String): ApiResult<Unit> =
+        client.putUnit("api/v1/channels/$channelId/widgets/$widgetId", UpdateWidgetBody(name = name))
+
+    // Clone = POST with "Copy of <sourceName>" and the same type.
+    override suspend fun clone(channelId: String, sourceType: String, sourceName: String): ApiResult<WidgetSummary> =
+        client.postEnvelope("api/v1/channels/$channelId/widgets", CreateWidgetBody("Copy of $sourceName", sourceType))
 }
 
 /**
  * The update-widget request body (backend `UpdateWidgetRequest`) — every field nullable so an update is a
- * partial patch. A toggle sends only [isEnabled]; all other fields stay null and the backend leaves them
- * untouched. `explicitNulls = false` on the shared Json means null fields are omitted from the wire body.
+ * partial patch. A toggle sends only [isEnabled]; a rename sends only [name]; null fields are omitted from
+ * the wire body (`explicitNulls = false` on the shared Json).
  */
 @Serializable
-data class UpdateWidgetBody(val isEnabled: Boolean? = null)
+data class UpdateWidgetBody(val name: String? = null, val isEnabled: Boolean? = null)
+
+/** The create-widget request body (backend `CreateWidgetRequest`). Only [name] and [type] are required. */
+@Serializable
+data class CreateWidgetBody(val name: String, val type: String)
 
 /**
  * An overlay widget (backend `WidgetDetail`): its [id], display [name], the widget [type], whether it is live,
