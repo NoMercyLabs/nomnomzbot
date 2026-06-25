@@ -761,6 +761,51 @@
     <string name="discord_delete_message">De meldingsregel %1$s verwijderen? Dit kan niet ongedaan worden gemaakt.</string>
     <string name="discord_delete_confirm">Verwijderen</string>
     <string name="discord_delete_cancel">Annuleren</string>
+    <!-- Discord: servertoestemming -->
+    <string name="discord_consent_approved">Servertoestemming goedgekeurd</string>
+    <string name="discord_consent_pending">Servertoestemming in behandeling</string>
+    <string name="discord_consent_approve">Toestemming goedkeuren</string>
+    <string name="discord_consent_revoke">Toestemming intrekken</string>
+    <string name="discord_consent_approve_title">Servertoestemming goedkeuren</string>
+    <string name="discord_consent_discord_user_id">Discord gebruikers-ID (beheerder die goedkeurde)</string>
+    <string name="discord_consent_approve_action">Goedkeuren</string>
+    <string name="discord_consent_cancel">Annuleren</string>
+    <string name="discord_consent_revoke_title">Servertoestemming intrekken?</string>
+    <string name="discord_consent_revoke_message">De bot stopt met posten naar deze server totdat toestemming opnieuw wordt goedgekeurd.</string>
+    <string name="discord_consent_revoke_confirm">Intrekken</string>
+    <string name="discord_consent_revoke_dismiss">Annuleren</string>
+    <!-- Discord: meldingsrollen -->
+    <string name="discord_roles_title">Meldingsrollen</string>
+    <string name="discord_roles_empty">Nog geen meldingsrollen</string>
+    <string name="discord_roles_add">Rol toevoegen</string>
+    <string name="discord_roles_create_title">Meldingsrol toevoegen</string>
+    <string name="discord_roles_discord_role_id">Discord rol-ID</string>
+    <string name="discord_roles_role_name">Rolnaam (optioneel)</string>
+    <string name="discord_roles_self_assign">Zelftoewijs ingeschakeld</string>
+    <string name="discord_roles_role_id_required">Discord rol-ID is verplicht</string>
+    <string name="discord_roles_create">Aanmaken</string>
+    <string name="discord_roles_cancel">Annuleren</string>
+    <string name="discord_roles_delete_title">Rol verwijderen?</string>
+    <string name="discord_roles_delete_message">Meldingsrol %1$s verwijderen?</string>
+    <string name="discord_roles_delete_confirm">Verwijderen</string>
+    <string name="discord_roles_delete_cancel">Annuleren</string>
+    <string name="discord_roles_delete_action">Rol %1$s verwijderen</string>
+    <string name="discord_roles_post_button">Opt-in knop plaatsen</string>
+    <string name="discord_roles_post_button_title">Opt-in knop plaatsen</string>
+    <string name="discord_roles_button_channel_id">Discord kanaal-ID</string>
+    <string name="discord_roles_button_channel_required">Kanaal-ID is verplicht</string>
+    <string name="discord_roles_button_post">Plaatsen</string>
+    <string name="discord_roles_opt_in_count">%1$d aangemeld</string>
+    <!-- Discord: verzendlog -->
+    <string name="discord_log_title">Verzendlog</string>
+    <string name="discord_log_empty">Nog geen verzendingen</string>
+    <string name="discord_log_load">Log bekijken</string>
+    <string name="discord_log_loading">Log laden…</string>
+    <!-- Discord: voorvertoning -->
+    <string name="discord_preview_action">Voorbeeld</string>
+    <string name="discord_preview_title">Berichtvoorbeeld</string>
+    <string name="discord_preview_ping_label">Ping: %1$s</string>
+    <string name="discord_preview_close">Sluiten</string>
     <string name="discord_dialog_create_title">Nieuwe meldingsregel</string>
     <string name="discord_dialog_edit_title">Meldingsregel bewerken</string>
     <string name="discord_dialog_trigger_label">Triggergebeurtenis</string>

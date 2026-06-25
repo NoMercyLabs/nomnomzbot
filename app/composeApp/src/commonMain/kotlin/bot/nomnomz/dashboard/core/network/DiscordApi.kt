@@ -53,6 +53,58 @@ interface DiscordApi {
 
     /** Remove the rule [configId]. */
     suspend fun deleteConfig(channelId: String, configId: String): ApiResult<Unit>
+
+    /** Render a config's message template with live data to show what the next dispatch will look like. */
+    suspend fun previewConfig(channelId: String, configId: String): ApiResult<DiscordConfigPreview>
+
+    /** The notification roles configured for this connection (Discord role opt-in buttons). */
+    suspend fun roles(channelId: String, connectionId: String): ApiResult<List<DiscordNotificationRole>>
+
+    /** Create a new notification role for the connection. */
+    suspend fun createRole(
+        channelId: String,
+        connectionId: String,
+        body: CreateDiscordRoleBody,
+    ): ApiResult<DiscordNotificationRole>
+
+    /** Update the role's display name and self-assign flag. */
+    suspend fun updateRole(
+        channelId: String,
+        roleId: String,
+        body: UpdateDiscordRoleBody,
+    ): ApiResult<DiscordNotificationRole>
+
+    /** Delete a notification role. */
+    suspend fun deleteRole(channelId: String, roleId: String): ApiResult<Unit>
+
+    /**
+     * Post the opt-in button to [buttonChannelId]. The bot posts a Discord button component to the specified
+     * channel; viewers click it to self-assign the role. Returns the updated role (with [buttonMessageId] set).
+     */
+    suspend fun postRoleButton(
+        channelId: String,
+        roleId: String,
+        buttonChannelId: String,
+    ): ApiResult<DiscordNotificationRole>
+
+    /**
+     * Approve server consent for the connection. [approvedByDiscordUserId] is the Discord snowflake of the
+     * server admin who authorised the bot on the server side.
+     */
+    suspend fun approveServerConsent(
+        channelId: String,
+        connectionId: String,
+        approvedByDiscordUserId: String,
+    ): ApiResult<Unit>
+
+    /** Revoke server consent — the link will stop dispatching until re-approved. */
+    suspend fun revokeServerConsent(channelId: String, connectionId: String): ApiResult<Unit>
+
+    /** The recent dispatch log for this connection (newest-first, first page). */
+    suspend fun dispatchLog(
+        channelId: String,
+        connectionId: String,
+    ): ApiResult<List<DiscordDispatchLogEntry>>
 }
 
 class RestDiscordApi(private val client: ApiClient) : DiscordApi {
@@ -88,6 +140,84 @@ class RestDiscordApi(private val client: ApiClient) : DiscordApi {
 
     override suspend fun deleteConfig(channelId: String, configId: String): ApiResult<Unit> =
         client.deleteUnit("api/v1/channels/$channelId/discord/configs/$configId")
+
+    // StatusResponseDto<DiscordNotificationPreviewDto> envelope — getEnvelope unwraps `data`.
+    override suspend fun previewConfig(
+        channelId: String,
+        configId: String,
+    ): ApiResult<DiscordConfigPreview> =
+        client.getEnvelope("api/v1/channels/$channelId/discord/configs/$configId/preview")
+
+    // StatusResponseDto<IReadOnlyList<DiscordNotificationRoleDto>> envelope — getEnvelope unwraps `data` list.
+    override suspend fun roles(
+        channelId: String,
+        connectionId: String,
+    ): ApiResult<List<DiscordNotificationRole>> =
+        client.getEnvelope("api/v1/channels/$channelId/discord/connections/$connectionId/roles")
+
+    override suspend fun createRole(
+        channelId: String,
+        connectionId: String,
+        body: CreateDiscordRoleBody,
+    ): ApiResult<DiscordNotificationRole> =
+        client.postEnvelope(
+            "api/v1/channels/$channelId/discord/connections/$connectionId/roles",
+            body,
+        )
+
+    override suspend fun updateRole(
+        channelId: String,
+        roleId: String,
+        body: UpdateDiscordRoleBody,
+    ): ApiResult<DiscordNotificationRole> =
+        client.putEnvelope("api/v1/channels/$channelId/discord/roles/$roleId", body)
+
+    override suspend fun deleteRole(channelId: String, roleId: String): ApiResult<Unit> =
+        client.deleteUnit("api/v1/channels/$channelId/discord/roles/$roleId")
+
+    // Bodyless POST to the button sub-resource; the button channel id rides the body.
+    override suspend fun postRoleButton(
+        channelId: String,
+        roleId: String,
+        buttonChannelId: String,
+    ): ApiResult<DiscordNotificationRole> =
+        client.postEnvelope(
+            "api/v1/channels/$channelId/discord/roles/$roleId/button",
+            PostButtonBody(buttonChannelId),
+        )
+
+    override suspend fun approveServerConsent(
+        channelId: String,
+        connectionId: String,
+        approvedByDiscordUserId: String,
+    ): ApiResult<Unit> =
+        client.postUnit(
+            "api/v1/channels/$channelId/discord/connections/$connectionId/server-consent",
+            ServerConsentBody(approvedByDiscordUserId),
+        )
+
+    override suspend fun revokeServerConsent(
+        channelId: String,
+        connectionId: String,
+    ): ApiResult<Unit> =
+        client.deleteUnit(
+            "api/v1/channels/$channelId/discord/connections/$connectionId/server-consent"
+        )
+
+    // PaginatedResponse<DiscordDispatchLogDto> — getDirect + PaginatedEnvelope, first page only.
+    override suspend fun dispatchLog(
+        channelId: String,
+        connectionId: String,
+    ): ApiResult<List<DiscordDispatchLogEntry>> =
+        when (
+            val page: ApiResult<PaginatedEnvelope<DiscordDispatchLogEntry>> =
+                client.getDirect(
+                    "api/v1/channels/$channelId/discord/connections/$connectionId/dispatch-log?page=1&pageSize=25"
+                )
+        ) {
+            is ApiResult.Failure -> ApiResult.Failure(page.error)
+            is ApiResult.Ok -> ApiResult.Ok(page.value.data)
+        }
 }
 
 /**
@@ -186,4 +316,61 @@ data class UpdateDiscordConfigBody(
     val embedConfig: DiscordEmbed? = null,
     val milestoneType: String? = null,
     val milestoneThreshold: Int? = null,
+)
+
+/** Config preview result (backend `DiscordNotificationPreviewDto`). */
+@Serializable
+data class DiscordConfigPreview(
+    val renderedContent: String = "",
+    val renderedEmbed: DiscordEmbed? = null,
+    val pingRoleMention: String? = null,
+)
+
+/** One notification role (backend `DiscordNotificationRoleDto`). */
+@Serializable
+data class DiscordNotificationRole(
+    val id: String = "",
+    val guildConnectionId: String = "",
+    val discordRoleId: String = "",
+    val roleName: String? = null,
+    val selfAssignEnabled: Boolean = false,
+    val buttonMessageId: String? = null,
+    val buttonChannelId: String? = null,
+    val optInCount: Int = 0,
+    val createdAt: String = "",
+    val updatedAt: String = "",
+)
+
+/** Create a new notification role (backend `CreateDiscordNotificationRoleRequest`). */
+@Serializable
+data class CreateDiscordRoleBody(
+    val discordRoleId: String,
+    val roleName: String? = null,
+    val selfAssignEnabled: Boolean = false,
+)
+
+/** Update a notification role's display name and self-assign flag (backend `UpdateDiscordNotificationRoleRequest`). */
+@Serializable
+data class UpdateDiscordRoleBody(val roleName: String? = null, val selfAssignEnabled: Boolean)
+
+/** Post the opt-in button to a Discord channel (backend `PostOptInButtonRequest`). */
+@Serializable
+data class PostButtonBody(val buttonChannelId: String)
+
+/** Approve server consent (backend `ServerConsentRequest`). */
+@Serializable
+data class ServerConsentBody(val approvedByDiscordUserId: String)
+
+/** One dispatch log entry (backend `DiscordDispatchLogDto`). */
+@Serializable
+data class DiscordDispatchLogEntry(
+    val id: String = "",
+    val notificationConfigId: String = "",
+    val triggerType: String = "",
+    val dedupeKey: String = "",
+    val streamId: String? = null,
+    val postedMessageId: String? = null,
+    val status: String = "",
+    val error: String? = null,
+    val dispatchedAt: String = "",
 )

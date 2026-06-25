@@ -14,10 +14,16 @@ import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.CreateDiscordConfigBody
+import bot.nomnomz.dashboard.core.network.CreateDiscordRoleBody
 import bot.nomnomz.dashboard.core.network.DiscordApi
+import bot.nomnomz.dashboard.core.network.DiscordConfigPreview
+import bot.nomnomz.dashboard.core.network.DiscordDispatchLogEntry
 import bot.nomnomz.dashboard.core.network.DiscordGuildConnection
+import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.DiscordNotificationConfig
+import bot.nomnomz.dashboard.core.network.DiscordNotificationRole
 import bot.nomnomz.dashboard.core.network.UpdateDiscordConfigBody
+import bot.nomnomz.dashboard.core.network.UpdateDiscordRoleBody
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -145,6 +151,70 @@ class DiscordController(
     suspend fun deleteConfig(configId: String) {
         val channel: String = channelId ?: return failWrite(NoChannelError)
         afterWrite(discordApi.deleteConfig(channel, configId))
+    }
+
+    /**
+     * Fetch the rendered preview for a config — what the next dispatch will look like. Stores it on the Ready
+     * state; the screen shows it in a sheet/panel. Returns the preview so the caller can show it immediately, or
+     * surfaces the error on the Ready state on failure.
+     */
+    suspend fun previewConfig(configId: String): DiscordConfigPreview? {
+        val channel: String = channelId ?: return null
+        return when (val result: ApiResult<DiscordConfigPreview> = discordApi.previewConfig(channel, configId)) {
+            is ApiResult.Failure -> {
+                failWrite(result.error.message)
+                null
+            }
+            is ApiResult.Ok -> result.value
+        }
+    }
+
+    /** Load the notification roles for [connectionId]. Returns them directly (caller stores in UI state). */
+    suspend fun roles(connectionId: String): ApiResult<List<DiscordNotificationRole>> {
+        val channel: String = channelId ?: return ApiResult.Failure(ApiError(0, null, NoChannelError))
+        return discordApi.roles(channel, connectionId)
+    }
+
+    /** Create a new notification role for [connectionId]. Reloads on success; surfaces the error on failure. */
+    suspend fun createRole(connectionId: String, discordRoleId: String, roleName: String?, selfAssign: Boolean) {
+        val channel: String = channelId ?: return failWrite(NoChannelError)
+        afterWrite(
+            discordApi.createRole(
+                channel,
+                connectionId,
+                CreateDiscordRoleBody(discordRoleId = discordRoleId, roleName = roleName?.ifBlank { null }, selfAssignEnabled = selfAssign),
+            )
+        )
+    }
+
+    /** Delete the notification role [roleId]. Reloads on success; surfaces the error on failure. */
+    suspend fun deleteRole(roleId: String) {
+        val channel: String = channelId ?: return failWrite(NoChannelError)
+        afterWrite(discordApi.deleteRole(channel, roleId))
+    }
+
+    /** Post the opt-in button for [roleId] to [buttonChannelId]. Reloads on success; surfaces the error. */
+    suspend fun postRoleButton(roleId: String, buttonChannelId: String) {
+        val channel: String = channelId ?: return failWrite(NoChannelError)
+        afterWrite(discordApi.postRoleButton(channel, roleId, buttonChannelId))
+    }
+
+    /** Approve server consent for [connectionId]. Reloads on success; surfaces the error on failure. */
+    suspend fun approveServerConsent(connectionId: String, approvedByDiscordUserId: String) {
+        val channel: String = channelId ?: return failWrite(NoChannelError)
+        afterWrite(discordApi.approveServerConsent(channel, connectionId, approvedByDiscordUserId))
+    }
+
+    /** Revoke server consent for [connectionId]. Reloads on success; surfaces the error on failure. */
+    suspend fun revokeServerConsent(connectionId: String) {
+        val channel: String = channelId ?: return failWrite(NoChannelError)
+        afterWrite(discordApi.revokeServerConsent(channel, connectionId))
+    }
+
+    /** Fetch the dispatch log for [connectionId]. Returns it directly (caller stores in UI state). */
+    suspend fun dispatchLog(connectionId: String): ApiResult<List<DiscordDispatchLogEntry>> {
+        val channel: String = channelId ?: return ApiResult.Failure(ApiError(0, null, NoChannelError))
+        return discordApi.dispatchLog(channel, connectionId)
     }
 
     // ── internals ────────────────────────────────────────────────────────────

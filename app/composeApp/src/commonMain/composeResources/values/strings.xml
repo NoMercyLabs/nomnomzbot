@@ -764,6 +764,51 @@
     <string name="discord_delete_message">Delete the %1$s notification rule? This can't be undone.</string>
     <string name="discord_delete_confirm">Delete</string>
     <string name="discord_delete_cancel">Cancel</string>
+    <!-- Discord: server consent -->
+    <string name="discord_consent_approved">Server consent approved</string>
+    <string name="discord_consent_pending">Server consent pending</string>
+    <string name="discord_consent_approve">Approve consent</string>
+    <string name="discord_consent_revoke">Revoke consent</string>
+    <string name="discord_consent_approve_title">Approve Server Consent</string>
+    <string name="discord_consent_discord_user_id">Discord user ID (admin who approved)</string>
+    <string name="discord_consent_approve_action">Approve</string>
+    <string name="discord_consent_cancel">Cancel</string>
+    <string name="discord_consent_revoke_title">Revoke server consent?</string>
+    <string name="discord_consent_revoke_message">The bot will stop posting to this server until consent is re-approved.</string>
+    <string name="discord_consent_revoke_confirm">Revoke</string>
+    <string name="discord_consent_revoke_dismiss">Cancel</string>
+    <!-- Discord: notification roles -->
+    <string name="discord_roles_title">Notification Roles</string>
+    <string name="discord_roles_empty">No notification roles yet</string>
+    <string name="discord_roles_add">Add role</string>
+    <string name="discord_roles_create_title">Add Notification Role</string>
+    <string name="discord_roles_discord_role_id">Discord role ID</string>
+    <string name="discord_roles_role_name">Role name (optional)</string>
+    <string name="discord_roles_self_assign">Self-assign enabled</string>
+    <string name="discord_roles_role_id_required">Discord role ID is required</string>
+    <string name="discord_roles_create">Create</string>
+    <string name="discord_roles_cancel">Cancel</string>
+    <string name="discord_roles_delete_title">Remove role?</string>
+    <string name="discord_roles_delete_message">Remove notification role %1$s?</string>
+    <string name="discord_roles_delete_confirm">Remove</string>
+    <string name="discord_roles_delete_cancel">Cancel</string>
+    <string name="discord_roles_delete_action">Remove role %1$s</string>
+    <string name="discord_roles_post_button">Post opt-in button</string>
+    <string name="discord_roles_post_button_title">Post Opt-in Button</string>
+    <string name="discord_roles_button_channel_id">Discord channel ID</string>
+    <string name="discord_roles_button_channel_required">Channel ID is required</string>
+    <string name="discord_roles_button_post">Post</string>
+    <string name="discord_roles_opt_in_count">%1$d opted in</string>
+    <!-- Discord: dispatch log -->
+    <string name="discord_log_title">Dispatch Log</string>
+    <string name="discord_log_empty">No dispatches yet</string>
+    <string name="discord_log_load">View log</string>
+    <string name="discord_log_loading">Loading log…</string>
+    <!-- Discord: config preview -->
+    <string name="discord_preview_action">Preview</string>
+    <string name="discord_preview_title">Message Preview</string>
+    <string name="discord_preview_ping_label">Ping: %1$s</string>
+    <string name="discord_preview_close">Close</string>
     <string name="discord_dialog_create_title">New notification rule</string>
     <string name="discord_dialog_edit_title">Edit notification rule</string>
     <string name="discord_dialog_trigger_label">Trigger event</string>
