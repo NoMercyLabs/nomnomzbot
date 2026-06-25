@@ -16,9 +16,12 @@ import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.DashboardApi
 import bot.nomnomz.dashboard.core.network.DashboardStats
 import bot.nomnomz.dashboard.core.realtime.DashboardHubClient
+import bot.nomnomz.dashboard.core.realtime.HubEvent
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.filterIsInstance
 
 // The Home page's state-holder (frontend-ia.md §3 — the live channel landing). Resolves the active channel,
 // then loads its real snapshot from the backend (no fabricated counts). The screen renders [state]; a pull /
@@ -68,6 +71,23 @@ class HomeController(
         when (val result: ApiResult<DashboardStats> = dashboardApi.stats(channel.id)) {
             is ApiResult.Failure -> _state.value = HomeState.Error(result.error.message)
             is ApiResult.Ok -> _state.value = HomeState.Ready(result.value)
+        }
+    }
+
+    /**
+     * Subscribe to [hubEvents], updating the home state's `isLive` flag in real-time when the server
+     * pushes a [HubEvent.StreamStatusChanged] (e.g. the channel goes live / ends the stream). Must be
+     * called from a coroutine scope that outlives the home page. Cancelled automatically when that scope
+     * ends — no explicit teardown needed.
+     */
+    suspend fun subscribeToHub(hubEvents: SharedFlow<HubEvent>) {
+        hubEvents.filterIsInstance<HubEvent.StreamStatusChanged>().collect { evt ->
+            val current: HomeState = _state.value
+            if (current is HomeState.Ready) {
+                _state.value = current.copy(
+                    stats = current.stats.copy(isLive = evt.status.isLive)
+                )
+            }
         }
     }
 }

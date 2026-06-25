@@ -52,10 +52,12 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.network.DashboardStats
 import bot.nomnomz.dashboard.core.network.LiveOpsPoll
 import bot.nomnomz.dashboard.core.network.LiveOpsPrediction
+import bot.nomnomz.dashboard.core.realtime.HubEvent
 import bot.nomnomz.dashboard.feature.home.state.HomeController
 import bot.nomnomz.dashboard.feature.home.state.HomeState
 import bot.nomnomz.dashboard.feature.liveops.state.LiveOpsController
 import bot.nomnomz.dashboard.feature.liveops.state.LiveOpsState
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.home_error
@@ -106,7 +108,11 @@ import org.jetbrains.compose.resources.stringResource
 // all real data from [HomeController]. The screen is a pure projection of the controller's state; it loads on
 // first composition and offers a retry on failure.
 @Composable
-fun HomeScreen(controller: HomeController, liveOpsController: LiveOpsController) {
+fun HomeScreen(
+    controller: HomeController,
+    liveOpsController: LiveOpsController,
+    hubEvents: SharedFlow<HubEvent>? = null,
+) {
     val state: HomeState by controller.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val spacing = LocalSpacing.current
@@ -114,6 +120,11 @@ fun HomeScreen(controller: HomeController, liveOpsController: LiveOpsController)
     LaunchedEffect(Unit) {
         controller.load()
         liveOpsController.load()
+    }
+
+    // Real-time stream status: update isLive immediately when the hub fires stream.online/offline.
+    if (hubEvents != null) {
+        LaunchedEffect(hubEvents) { controller.subscribeToHub(hubEvents) }
     }
 
     Box(modifier = Modifier.fillMaxSize().padding(spacing.s6)) {
