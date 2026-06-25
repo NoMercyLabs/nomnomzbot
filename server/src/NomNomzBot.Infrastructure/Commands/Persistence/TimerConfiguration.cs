@@ -36,7 +36,7 @@ public class TimerConfiguration : IEntityTypeConfiguration<DomainTimer>
             .OnDelete(DeleteBehavior.Cascade);
 
         builder
-            .HasOne<Domain.Commands.Entities.Pipeline>()
+            .HasOne(e => e.Pipeline)
             .WithMany()
             .HasForeignKey(e => e.PipelineId)
             .OnDelete(DeleteBehavior.SetNull)
