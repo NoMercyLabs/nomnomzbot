@@ -85,6 +85,7 @@ import bot.nomnomz.dashboard.feature.widgets.ui.WidgetsScreen
 import bot.nomnomz.dashboard.feature.features.ui.FeaturesScreen
 import bot.nomnomz.dashboard.feature.webhooks.ui.WebhooksScreen
 import bot.nomnomz.dashboard.feature.federation.ui.FederationScreen
+import bot.nomnomz.dashboard.feature.codescripts.ui.CodeScriptsScreen
 import bot.nomnomz.dashboard.feature.language.state.AppLanguage
 import bot.nomnomz.dashboard.feature.language.state.LanguageController
 import bot.nomnomz.dashboard.feature.participant.ui.ParticipantShell
@@ -131,6 +132,7 @@ import nomnomzbot.composeapp.generated.resources.shell_nav_settings
 import nomnomzbot.composeapp.generated.resources.shell_nav_features
 import nomnomzbot.composeapp.generated.resources.shell_nav_webhooks
 import nomnomzbot.composeapp.generated.resources.shell_nav_federation
+import nomnomzbot.composeapp.generated.resources.shell_nav_code_scripts
 import nomnomzbot.composeapp.generated.resources.shell_nav_song_requests
 import nomnomzbot.composeapp.generated.resources.shell_nav_timers
 import nomnomzbot.composeapp.generated.resources.shell_nav_tts
@@ -301,6 +303,7 @@ private fun ShellContent(
             ShellRoute.Features -> FeaturesScreen(controller = graph.featuresController, role = role)
             ShellRoute.Webhooks -> WebhooksScreen(controller = graph.webhooksController, role = role)
             ShellRoute.Federation -> FederationScreen(controller = graph.federationController, role = role)
+            ShellRoute.CodeScripts -> CodeScriptsScreen(controller = graph.codeScriptsController, role = role)
         }
     }
 }
@@ -650,6 +653,7 @@ private fun ShellRoute.label(): String =
             ShellRoute.Features -> Res.string.shell_nav_features
             ShellRoute.Webhooks -> Res.string.shell_nav_webhooks
             ShellRoute.Federation -> Res.string.shell_nav_federation
+            ShellRoute.CodeScripts -> Res.string.shell_nav_code_scripts
         }
     )
 

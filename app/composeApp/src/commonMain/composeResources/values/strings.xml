@@ -687,6 +687,33 @@
     <string name="federation_optin_remove_message">Remove the "%1$s" opt-in from peer "%2$s"?</string>
     <string name="federation_optin_remove_confirm">Remove</string>
     <string name="federation_optin_remove_cancel">Cancel</string>
+
+    <!-- Code Scripts page -->
+    <string name="scripts_title">Code Scripts</string>
+    <string name="scripts_subtitle">Versioned Lua scripts attached to commands and pipeline actions.</string>
+    <string name="scripts_loading">Loading scripts…</string>
+    <string name="scripts_empty">No code scripts yet. Create one to get started.</string>
+    <string name="scripts_error">Failed to load scripts: %1$s</string>
+    <string name="scripts_retry">Retry</string>
+    <string name="scripts_action_error">Action failed: %1$s</string>
+    <string name="scripts_list_add">New script</string>
+    <string name="scripts_version_label">v%1$d</string>
+    <string name="scripts_status_label">%1$s</string>
+    <string name="scripts_close_editor">Close editor</string>
+    <string name="scripts_editor_source_label">Source</string>
+    <string name="scripts_editor_save">Save draft</string>
+    <string name="scripts_editor_publish">Save &amp; publish</string>
+    <string name="scripts_delete_title">Delete script?</string>
+    <string name="scripts_delete_message">Delete "%1$s"? This cannot be undone.</string>
+    <string name="scripts_delete_confirm">Delete</string>
+    <string name="scripts_delete_cancel">Cancel</string>
+    <string name="scripts_create_title">New script</string>
+    <string name="scripts_create_name">Name</string>
+    <string name="scripts_create_name_required">Name is required.</string>
+    <string name="scripts_create_description">Description (optional)</string>
+    <string name="scripts_create_source">Initial source code</string>
+    <string name="scripts_create_confirm">Create</string>
+    <string name="scripts_create_dismiss">Cancel</string>
     <string name="feedback_dismiss">Dismiss</string>
     <string name="feedback_connected">Connected</string>
     <string name="feedback_connect_failed">Couldn't connect: %1$s</string>
@@ -1141,6 +1168,7 @@
     <string name="shell_nav_features">Features</string>
     <string name="shell_nav_webhooks">Webhooks</string>
     <string name="shell_nav_federation">Federation</string>
+    <string name="shell_nav_code_scripts">Code Scripts</string>
 
     <!-- Features page -->
     <string name="features_title">Features</string>

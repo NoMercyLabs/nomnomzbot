@@ -39,6 +39,7 @@ import bot.nomnomz.dashboard.core.network.ParticipantApi
 import bot.nomnomz.dashboard.core.network.PipelinesApi
 import bot.nomnomz.dashboard.core.network.FeaturesApi
 import bot.nomnomz.dashboard.core.network.FederationApi
+import bot.nomnomz.dashboard.core.network.CodeScriptsApi
 import bot.nomnomz.dashboard.core.network.WebhooksApi
 import bot.nomnomz.dashboard.core.network.QuotesApi
 import bot.nomnomz.dashboard.core.network.RestAlertsApi
@@ -58,6 +59,7 @@ import bot.nomnomz.dashboard.core.network.RestParticipantApi
 import bot.nomnomz.dashboard.core.network.RestPipelinesApi
 import bot.nomnomz.dashboard.core.network.RestFeaturesApi
 import bot.nomnomz.dashboard.core.network.RestFederationApi
+import bot.nomnomz.dashboard.core.network.RestCodeScriptsApi
 import bot.nomnomz.dashboard.core.network.RestWebhooksApi
 import bot.nomnomz.dashboard.core.network.RestQuotesApi
 import bot.nomnomz.dashboard.core.network.RestRewardsApi
@@ -101,6 +103,7 @@ import bot.nomnomz.dashboard.feature.shell.nav.ParticipantStanding
 import bot.nomnomz.dashboard.feature.pipelines.state.PipelinesController
 import bot.nomnomz.dashboard.feature.features.state.FeaturesController
 import bot.nomnomz.dashboard.feature.federation.state.FederationController
+import bot.nomnomz.dashboard.feature.codescripts.state.CodeScriptsController
 import bot.nomnomz.dashboard.feature.webhooks.state.WebhooksController
 import bot.nomnomz.dashboard.feature.quotes.state.QuotesController
 import bot.nomnomz.dashboard.feature.rewards.state.RewardsController
@@ -174,6 +177,7 @@ class AppGraph {
     val featuresApi: FeaturesApi = RestFeaturesApi(apiClient)
     val webhooksApi: WebhooksApi = RestWebhooksApi(apiClient)
     val federationApi: FederationApi = RestFederationApi(apiClient)
+    val codeScriptsApi: CodeScriptsApi = RestCodeScriptsApi(apiClient)
 
     private val oauthLauncher: OAuthLauncher = OAuthLauncher()
     private val connectLauncher: ConnectLauncher = OAuthConnectLauncher(oauthLauncher)
@@ -303,6 +307,8 @@ class AppGraph {
 
     val federationController: FederationController =
         FederationController(channelsApi = channelsApi, federationApi = federationApi)
+
+    val codeScriptsController: CodeScriptsController = CodeScriptsController(api = codeScriptsApi)
 
     // The PARTICIPANT rung's controller is built PER resolved access (channel + caller's own user GUID + community
     // standing + permit capabilities), which the shell resolves at entry via /effective/me — unlike the management

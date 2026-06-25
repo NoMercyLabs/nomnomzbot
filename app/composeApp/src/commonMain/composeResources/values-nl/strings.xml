@@ -684,6 +684,33 @@
     <string name="federation_optin_remove_message">De opt-in "%1$s" van peer "%2$s" verwijderen?</string>
     <string name="federation_optin_remove_confirm">Verwijderen</string>
     <string name="federation_optin_remove_cancel">Annuleren</string>
+
+    <!-- Code Scripts page -->
+    <string name="scripts_title">Codescripts</string>
+    <string name="scripts_subtitle">Versiegebonden Lua-scripts gekoppeld aan opdrachten en pijplijnacties.</string>
+    <string name="scripts_loading">Scripts laden…</string>
+    <string name="scripts_empty">Nog geen codescripts. Maak er een aan om te beginnen.</string>
+    <string name="scripts_error">Scripts laden mislukt: %1$s</string>
+    <string name="scripts_retry">Opnieuw proberen</string>
+    <string name="scripts_action_error">Actie mislukt: %1$s</string>
+    <string name="scripts_list_add">Nieuw script</string>
+    <string name="scripts_version_label">v%1$d</string>
+    <string name="scripts_status_label">%1$s</string>
+    <string name="scripts_close_editor">Editor sluiten</string>
+    <string name="scripts_editor_source_label">Broncode</string>
+    <string name="scripts_editor_save">Concept opslaan</string>
+    <string name="scripts_editor_publish">Opslaan en publiceren</string>
+    <string name="scripts_delete_title">Script verwijderen?</string>
+    <string name="scripts_delete_message">"%1$s" verwijderen? Dit kan niet ongedaan worden gemaakt.</string>
+    <string name="scripts_delete_confirm">Verwijderen</string>
+    <string name="scripts_delete_cancel">Annuleren</string>
+    <string name="scripts_create_title">Nieuw script</string>
+    <string name="scripts_create_name">Naam</string>
+    <string name="scripts_create_name_required">Naam is verplicht.</string>
+    <string name="scripts_create_description">Omschrijving (optioneel)</string>
+    <string name="scripts_create_source">Initiële broncode</string>
+    <string name="scripts_create_confirm">Aanmaken</string>
+    <string name="scripts_create_dismiss">Annuleren</string>
     <string name="feedback_dismiss">Sluiten</string>
     <string name="feedback_connected">Verbonden</string>
     <string name="feedback_connect_failed">Verbinden mislukt: %1$s</string>
@@ -1128,6 +1155,7 @@
     <string name="shell_nav_features">Functies</string>
     <string name="shell_nav_webhooks">Webhooks</string>
     <string name="shell_nav_federation">Federatie</string>
+    <string name="shell_nav_code_scripts">Codescripts</string>
 
     <!-- Features page -->
     <string name="features_title">Functies</string>
