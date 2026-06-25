@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
+using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Contracts.EventStore;
@@ -37,7 +38,11 @@ public sealed class ViewerProfileProjectionTests
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
         ICurrentUserService currentUser = Substitute.For<ICurrentUserService>();
-        IUserService userService = new UserService(db, currentUser);
+        IUserService userService = new UserService(
+            db,
+            currentUser,
+            Substitute.For<IServiceScopeFactory>()
+        );
         return (new ViewerProfileProjection(db, new ViewerResolver(db, userService)), db);
     }
 

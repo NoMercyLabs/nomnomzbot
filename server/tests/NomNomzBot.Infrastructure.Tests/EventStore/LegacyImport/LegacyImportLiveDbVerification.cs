@@ -10,6 +10,7 @@
 
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Abstractions.Auth;
@@ -204,7 +205,11 @@ public sealed class LegacyImportLiveDbVerification
         );
 
         ICurrentUserService currentUser = Substitute.For<ICurrentUserService>();
-        IUserService userService = new UserService(db, currentUser);
+        IUserService userService = new UserService(
+            db,
+            currentUser,
+            Substitute.For<IServiceScopeFactory>()
+        );
         ViewerResolver resolver = new(db, userService);
         ILiveWindowResolver liveWindow = Substitute.For<ILiveWindowResolver>();
         liveWindow

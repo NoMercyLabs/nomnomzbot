@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
@@ -22,11 +23,17 @@ public class UserService : IUserService
 {
     private readonly IApplicationDbContext _db;
     private readonly ICurrentUserService _currentUser;
+    private readonly IServiceScopeFactory _scopeFactory;
 
-    public UserService(IApplicationDbContext db, ICurrentUserService currentUser)
+    public UserService(
+        IApplicationDbContext db,
+        ICurrentUserService currentUser,
+        IServiceScopeFactory scopeFactory
+    )
     {
         _db = db;
         _currentUser = currentUser;
+        _scopeFactory = scopeFactory;
     }
 
     public async Task<Result<CurrentUserDto>> GetCurrentUserAsync(
@@ -65,8 +72,15 @@ public class UserService : IUserService
         CancellationToken cancellationToken = default
     )
     {
+        // Use a dedicated scope so this call never races with other DB operations on the caller's
+        // scoped context (e.g. when the membership seeder calls GetOrCreateAsync inside a loop
+        // while the Helix token resolver runs a concurrent query on the same scope's DbContext).
+        using IServiceScope scope = _scopeFactory.CreateScope();
+        IApplicationDbContext db =
+            scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+
         // platformUserId is the external Twitch user id (the id seen in chat), not the internal key.
-        User? user = await _db.Users.FirstOrDefaultAsync(
+        User? user = await db.Users.FirstOrDefaultAsync(
             u => u.TwitchUserId == platformUserId,
             cancellationToken
         );
@@ -82,16 +96,15 @@ public class UserService : IUserService
                 Enabled = true,
             };
 
-            _db.Users.Add(user);
-            await _db.SaveChangesAsync(cancellationToken);
+            db.Users.Add(user);
+            await db.SaveChangesAsync(cancellationToken);
         }
         else
         {
-            // Update username/displayName in case they changed
             user.Username = username;
             user.UsernameNormalized = username.ToLowerInvariant();
             user.DisplayName = displayName;
-            await _db.SaveChangesAsync(cancellationToken);
+            await db.SaveChangesAsync(cancellationToken);
         }
 
         return Result.Success(ToDto(user));

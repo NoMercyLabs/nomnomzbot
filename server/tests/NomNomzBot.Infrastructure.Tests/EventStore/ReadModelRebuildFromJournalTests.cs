@@ -10,6 +10,7 @@
 
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Persistence;
@@ -168,7 +169,11 @@ public sealed class ReadModelRebuildFromJournalTests
     private static List<IProjection> BuildProjections(ReadModelRebuildDbContext db)
     {
         ICurrentUserService currentUser = Substitute.For<ICurrentUserService>();
-        IUserService userService = new UserService(db, currentUser);
+        IUserService userService = new UserService(
+            db,
+            currentUser,
+            Substitute.For<IServiceScopeFactory>()
+        );
         ViewerResolver resolver = new(db, userService);
 
         // Activity always falls inside one live window so watch-sessions open during replay exactly as on the

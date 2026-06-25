@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
+using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Contracts.Analytics;
@@ -39,7 +40,11 @@ public sealed class WatchSessionProjectionTests
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
         ICurrentUserService currentUser = Substitute.For<ICurrentUserService>();
-        IUserService userService = new UserService(db, currentUser);
+        IUserService userService = new UserService(
+            db,
+            currentUser,
+            Substitute.For<IServiceScopeFactory>()
+        );
         ILiveWindowResolver live = Substitute.For<ILiveWindowResolver>();
         live.GetCoveringStreamIdAsync(
                 Arg.Any<Guid>(),
