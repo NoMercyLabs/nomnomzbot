@@ -10,8 +10,11 @@
 
 using System.Collections.Concurrent;
 using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
+using NomNomzBot.Domain.Commands.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
 
 namespace NomNomzBot.Infrastructure.Platform.Pipeline;
@@ -19,16 +22,10 @@ namespace NomNomzBot.Infrastructure.Platform.Pipeline;
 /// <summary>
 /// Executes user-defined command pipelines.
 ///
-/// Pipeline JSON format:
-/// {
-///   "steps": [
-///     {
-///       "condition": { "type": "user_role", "min_role": "moderator" },
-///       "stop_on_match": false,
-///       "action": { "type": "send_message", "message": "Hello {user}!" }
-///     }
-///   ]
-/// }
+/// Step source priority:
+///   1. When PipelineRequest.PipelineId is set: load PipelineStep rows from the database,
+///      ordered by Order ascending. Falls back to GraphJsonCache if no rows found.
+///   2. When PipelineId is null: parse PipelineRequest.PipelineJson directly.
 ///
 /// Limits:
 ///   - Max 5 concurrent pipelines per channel
@@ -40,6 +37,12 @@ public sealed class PipelineEngine : IPipelineEngine
     private static readonly TimeSpan ExecutionTimeout = TimeSpan.FromMinutes(5);
     private const int MaxConcurrentPerChannel = 5;
 
+    private static readonly JsonSerializerOptions JsonOpts = new()
+    {
+        PropertyNameCaseInsensitive = true,
+    };
+
+    private readonly IApplicationDbContext _db;
     private readonly IChannelRegistry _registry;
     private readonly IEnumerable<ICommandAction> _actions;
     private readonly IEnumerable<ICommandCondition> _conditions;
@@ -51,6 +54,7 @@ public sealed class PipelineEngine : IPipelineEngine
     private readonly ConcurrentDictionary<Guid, int> _activeCount = new();
 
     public PipelineEngine(
+        IApplicationDbContext db,
         IChannelRegistry registry,
         IEnumerable<ICommandAction> actions,
         IEnumerable<ICommandCondition> conditions,
@@ -58,6 +62,7 @@ public sealed class PipelineEngine : IPipelineEngine
         TimeProvider timeProvider
     )
     {
+        _db = db;
         _registry = registry;
         _actions = actions;
         _conditions = conditions;
@@ -113,16 +118,23 @@ public sealed class PipelineEngine : IPipelineEngine
             };
         }
 
-        // Parse the pipeline definition
+        // Resolve the pipeline definition — DB steps take priority over graph JSON cache.
         PipelineDefinition? definition;
-        try
+        if (request.PipelineId.HasValue)
         {
-            definition = JsonSerializer.Deserialize<PipelineDefinition>(
-                request.PipelineJson,
-                new JsonSerializerOptions { PropertyNameCaseInsensitive = true }
-            );
+            definition = await LoadFromDbAsync(request.PipelineId.Value, ct);
+            if (definition is null || definition.Steps.Count == 0)
+            {
+                // Fall back to graph JSON cache if DB steps are absent.
+                definition = ParseJson(request.PipelineJson);
+            }
         }
-        catch (Exception ex)
+        else
+        {
+            definition = ParseJson(request.PipelineJson);
+        }
+
+        if (definition is null)
         {
             _activeCount.AddOrUpdate(request.BroadcasterId, 0, (_, v) => Math.Max(0, v - 1));
             return new()
@@ -130,11 +142,12 @@ public sealed class PipelineEngine : IPipelineEngine
                 ExecutionId = Guid.NewGuid().ToString("N")[..12],
                 Outcome = PipelineOutcome.Failed,
                 Duration = _timeProvider.GetUtcNow() - startedAt,
-                ErrorMessage = $"Invalid pipeline JSON: {ex.Message}",
+                ErrorMessage =
+                    "Invalid pipeline: could not parse JSON or load steps from database.",
             };
         }
 
-        if (definition is null || definition.Steps.Count == 0)
+        if (definition.Steps.Count == 0)
         {
             _activeCount.AddOrUpdate(request.BroadcasterId, 0, (_, v) => Math.Max(0, v - 1));
             return new()
@@ -351,10 +364,102 @@ public sealed class PipelineEngine : IPipelineEngine
 
         if (executor is null)
         {
-            _logger.LogWarning("Unknown action type '{Type}' — skipping", action.Type);
+            // Fail-CLOSED: unknown action type aborts the step (caller breaks on failure).
+            _logger.LogError("Unknown action type '{Type}' — fail-closed", action.Type);
             return ActionResult.Failure($"Unknown action type '{action.Type}'");
         }
 
         return await executor.ExecuteAsync(ctx, action);
+    }
+
+    // ─── Step resolution helpers ─────────────────────────────────────────────
+
+    private async Task<PipelineDefinition?> LoadFromDbAsync(Guid pipelineId, CancellationToken ct)
+    {
+        List<PipelineStep> rows = await _db
+            .PipelineSteps.Where(s => s.PipelineId == pipelineId && s.IsEnabled)
+            .OrderBy(s => s.Order)
+            .ToListAsync(ct);
+
+        if (rows.Count == 0)
+            return null;
+
+        PipelineDefinition definition = new();
+        foreach (PipelineStep row in rows)
+        {
+            ActionDefinition? action;
+            try
+            {
+                action = JsonSerializer.Deserialize<ActionDefinition>(row.ConfigJson, JsonOpts);
+            }
+            catch
+            {
+                action = null;
+            }
+
+            if (action is null)
+            {
+                _logger.LogWarning(
+                    "PipelineStep {StepId} has invalid ConfigJson — skipping",
+                    row.Id
+                );
+                continue;
+            }
+
+            // ActionType from the row overrides whatever may be embedded in ConfigJson.
+            action.Type = row.ActionType;
+
+            // Translate DB conditions to runtime ConditionDefinition list.
+            ConditionDefinition? condition = null;
+            if (row.Conditions is { Count: > 0 })
+            {
+                PipelineStepCondition first = row.Conditions.OrderBy(c => c.Order).First();
+                condition = new ConditionDefinition
+                {
+                    Type = first.ConditionType,
+                    Parameters = new Dictionary<string, JsonElement>
+                    {
+                        ["operator"] = JsonSerializer.SerializeToElement(
+                            first.Operator ?? "eq",
+                            JsonOpts
+                        ),
+                        ["left"] = JsonSerializer.SerializeToElement(
+                            first.LeftOperand ?? string.Empty,
+                            JsonOpts
+                        ),
+                        ["right"] = JsonSerializer.SerializeToElement(
+                            first.RightOperand ?? string.Empty,
+                            JsonOpts
+                        ),
+                        ["negate"] = JsonSerializer.SerializeToElement(first.Negate, JsonOpts),
+                    },
+                };
+            }
+
+            definition.Steps.Add(
+                new PipelineStepDefinition { Action = action, Condition = condition }
+            );
+        }
+
+        return definition;
+    }
+
+    private PipelineDefinition? ParseJson(string json)
+    {
+        if (string.IsNullOrWhiteSpace(json) || json == "{}")
+            return new PipelineDefinition();
+        try
+        {
+            PipelineDefinition? parsed = JsonSerializer.Deserialize<PipelineDefinition>(
+                json,
+                JsonOpts
+            );
+            return parsed ?? new PipelineDefinition();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError("Pipeline JSON parse failed: {Error}", ex.Message);
+            return null;
+        }
     }
 }

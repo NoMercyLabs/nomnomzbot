@@ -45,7 +45,12 @@ public class InfraPipelineEngineTests
             new RandomCondition(),
         };
 
+        // Tests pass PipelineJson directly — PipelineId is never set, so DB step lookup is never hit.
+        NomNomzBot.Application.Abstractions.Persistence.IApplicationDbContext db =
+            Substitute.For<NomNomzBot.Application.Abstractions.Persistence.IApplicationDbContext>();
+
         return new(
+            db,
             registry,
             actions,
             conditions,
@@ -110,8 +115,9 @@ public class InfraPipelineEngineTests
             """{"steps":[{"action":{"type":"does_not_exist"}},{"action":{"type":"stop"}}]}""";
         PipelineExecutionResult result = await engine.ExecuteAsync(BuildRequest(json));
 
-        // Unknown action is logged as warning and fails the step, but execution continues (fail-open)
-        result.StepLogs.Should().HaveCount(2);
+        // Unknown action fails the step; fail-CLOSED means the pipeline aborts after it.
+        result.StepLogs.Should().HaveCount(1);
+        result.StepLogs[0].Succeeded.Should().BeFalse();
     }
 
     // ─── Stop action ──────────────────────────────────────────────────────────

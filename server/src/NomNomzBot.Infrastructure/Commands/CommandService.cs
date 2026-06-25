@@ -249,6 +249,7 @@ public class CommandService : ICommandService
             PipelineRequest pipelineRequest = new()
             {
                 BroadcasterId = broadcaster,
+                PipelineId = command.PipelineId,
                 PipelineJson = graphJson,
                 TriggeredByUserId = userId,
                 TriggeredByDisplayName = userId,

@@ -24,7 +24,18 @@ public class PipelineRequest
 {
     /// <summary>The tenant (channel) Guid this pipeline runs for (schema §1.1, internal key).</summary>
     public required Guid BroadcasterId { get; init; }
-    public required string PipelineJson { get; init; }
+
+    /// <summary>
+    /// When set, the engine loads PipelineStep rows from the database (preferred path).
+    /// Falls back to <see cref="PipelineJson"/> if no steps are found.
+    /// </summary>
+    public Guid? PipelineId { get; init; }
+
+    /// <summary>
+    /// Legacy / fallback graph JSON. Used when PipelineId is null or has no DB steps.
+    /// </summary>
+    public string PipelineJson { get; init; } = "{}";
+
     public required string TriggeredByUserId { get; init; }
     public required string TriggeredByDisplayName { get; init; }
     public string? MessageId { get; init; }
