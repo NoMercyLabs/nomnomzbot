@@ -79,6 +79,9 @@ interface ModerationApi {
         durationSeconds: Int? = null,
         reason: String? = null,
     ): ApiResult<Unit>
+
+    /** Today's moderation counters for the stats banner. */
+    suspend fun stats(channelId: String): ApiResult<ModerationStats>
 }
 
 class RestModerationApi(private val client: ApiClient) : ModerationApi {
@@ -165,6 +168,9 @@ class RestModerationApi(private val client: ApiClient) : ModerationApi {
     override suspend fun deleteRule(channelId: String, ruleId: Int): ApiResult<Unit> =
         client.deleteUnit("api/v1/channels/$channelId/moderation/rules/$ruleId")
 
+    override suspend fun stats(channelId: String): ApiResult<ModerationStats> =
+        client.getEnvelope("api/v1/channels/$channelId/moderation/stats")
+
     // The POST body is a PerformModerationActionRequest (action, targetUserId, durationSeconds?, reason?).
     // The backend is under ModerationController at /moderation/actions.
     override suspend fun performAction(
@@ -179,6 +185,15 @@ class RestModerationApi(private val client: ApiClient) : ModerationApi {
             ModerationActionBody(action, targetUserId, durationSeconds, reason),
         )
 }
+
+/** Today's moderation counters (backend `GET /moderation/stats` anonymous object). */
+@Serializable
+data class ModerationStats(
+    val bansToday: Int = 0,
+    val timeouts: Int = 0,
+    val deletedMessages: Int = 0,
+    val automodActions: Int = 0,
+)
 
 /**
  * One banned viewer (backend `BannedUserDto`). Fields mirror the backend record's camelCase JSON exactly

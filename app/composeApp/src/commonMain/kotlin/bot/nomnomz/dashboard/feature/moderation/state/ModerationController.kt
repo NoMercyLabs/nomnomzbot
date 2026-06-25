@@ -21,6 +21,7 @@ import bot.nomnomz.dashboard.core.network.ModLogEntry
 import bot.nomnomz.dashboard.core.network.CreateModerationRuleBody
 import bot.nomnomz.dashboard.core.network.ModerationApi
 import bot.nomnomz.dashboard.core.network.ModerationRule
+import bot.nomnomz.dashboard.core.network.ModerationStats
 import bot.nomnomz.dashboard.core.network.ShieldStatus
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -112,6 +113,13 @@ class ModerationController(
                 is ApiResult.Ok -> result.value
             }
 
+        // Today's moderation counters for the stats banner. Resilient — a failure leaves all counters at zero.
+        val stats: ModerationStats =
+            when (val result: ApiResult<ModerationStats> = moderationApi.stats(channel.id)) {
+                is ApiResult.Failure -> ModerationStats()
+                is ApiResult.Ok -> result.value
+            }
+
         // Empty only when there is genuinely nothing to show AND every always-on control (shield, automod) is off;
         // if any is active, or there are filter rules, the page renders so its state stays visible.
         _state.value =
@@ -125,7 +133,7 @@ class ModerationController(
             ) {
                 ModerationState.Empty
             } else {
-                ModerationState.Ready(bans, modLog, shieldEnabled, blockedTerms, automod, rules)
+                ModerationState.Ready(bans, modLog, shieldEnabled, blockedTerms, automod, rules, stats = stats)
             }
     }
 
@@ -305,6 +313,7 @@ sealed interface ModerationState {
         val blockedTerms: List<String> = emptyList(),
         val automod: AutomodConfig = AutomodConfig(),
         val rules: List<ModerationRule> = emptyList(),
+        val stats: ModerationStats = ModerationStats(),
         val actionError: String? = null,
     ) : ModerationState
 

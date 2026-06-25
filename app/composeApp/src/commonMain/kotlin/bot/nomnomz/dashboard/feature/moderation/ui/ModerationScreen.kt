@@ -56,6 +56,7 @@ import bot.nomnomz.dashboard.core.network.AutomodConfig
 import bot.nomnomz.dashboard.core.network.BannedUser
 import bot.nomnomz.dashboard.core.network.ModLogEntry
 import bot.nomnomz.dashboard.core.network.ModerationRule
+import bot.nomnomz.dashboard.core.network.ModerationStats
 import bot.nomnomz.dashboard.feature.moderation.state.AutomodFilter
 import bot.nomnomz.dashboard.feature.moderation.state.ModerationController
 import bot.nomnomz.dashboard.feature.moderation.state.ModerationState
@@ -65,6 +66,10 @@ import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecision
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.moderation_action_error
+import nomnomzbot.composeapp.generated.resources.moderation_stats_automod
+import nomnomzbot.composeapp.generated.resources.moderation_stats_bans_today
+import nomnomzbot.composeapp.generated.resources.moderation_stats_deleted
+import nomnomzbot.composeapp.generated.resources.moderation_stats_timeouts
 import nomnomzbot.composeapp.generated.resources.moderation_automod_caps
 import nomnomzbot.composeapp.generated.resources.moderation_automod_caps_detail
 import nomnomzbot.composeapp.generated.resources.moderation_automod_disable
@@ -172,6 +177,7 @@ fun ModerationScreen(controller: ModerationController, role: ManagementRole?) {
                     blockedTerms = current.blockedTerms,
                     automod = current.automod,
                     rules = current.rules,
+                    stats = current.stats,
                     actionError = current.actionError,
                     manage = manage,
                     onUnban = { userId -> scope.launch { controller.unban(userId) } },
@@ -200,6 +206,7 @@ private fun BansList(
     blockedTerms: List<String>,
     automod: AutomodConfig,
     rules: List<ModerationRule>,
+    stats: ModerationStats,
     actionError: String?,
     manage: ManageDecision,
     onUnban: (userId: String) -> Unit,
@@ -238,6 +245,9 @@ private fun BansList(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.s1),
                 )
             }
+        }
+        item(key = "stats") {
+            ModerationStatsBanner(stats = stats)
         }
         item(key = "shield-toggle") {
             ShieldToggle(enabled = shieldEnabled, manage = manage, onToggle = onToggleShield)
@@ -888,6 +898,38 @@ private fun BlockedTermRow(term: String, manage: ManageDecision, onRemove: () ->
 
 // The page-level emergency Shield Mode toggle: a prominent row that turns Twitch's lockdown on/off. The title
 // reads destructive (red) when active. Editor floor (ManageGate); the backend re-checks moderation:shieldmode.
+@Composable
+private fun ModerationStatsBanner(stats: ModerationStats) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(tokens.radius.lg))
+            .background(tokens.card)
+            .padding(spacing.s3),
+        horizontalArrangement = Arrangement.spacedBy(spacing.s4),
+    ) {
+        StatChip(label = stringResource(Res.string.moderation_stats_bans_today), value = stats.bansToday)
+        StatChip(label = stringResource(Res.string.moderation_stats_timeouts), value = stats.timeouts)
+        StatChip(label = stringResource(Res.string.moderation_stats_deleted), value = stats.deletedMessages)
+        StatChip(label = stringResource(Res.string.moderation_stats_automod), value = stats.automodActions)
+    }
+}
+
+@Composable
+private fun StatChip(label: String, value: Int) {
+    val tokens = LocalTokens.current
+    val typography = LocalTypography.current
+
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(text = value.toString(), style = typography.xl, color = tokens.primary)
+        Text(text = label, style = typography.xs, color = tokens.mutedForeground)
+    }
+}
+
 @Composable
 private fun ShieldToggle(enabled: Boolean, manage: ManageDecision, onToggle: (Boolean) -> Unit) {
     val tokens = LocalTokens.current

@@ -359,6 +359,10 @@
     <string name="moderation_unban_message">%1$s ontbannen? Ze kunnen weer chatten in je kanaal.</string>
     <string name="moderation_unban_confirm">Ontban</string>
     <string name="moderation_unban_dismiss">Annuleren</string>
+    <string name="moderation_stats_bans_today">Bans vandaag</string>
+    <string name="moderation_stats_timeouts">Time-outs</string>
+    <string name="moderation_stats_deleted">Verwijderde berichten</string>
+    <string name="moderation_stats_automod">AutoMod</string>
     <string name="moderation_action_error">Actie mislukt: %1$s</string>
     <string name="moderation_action_apply">Kijker modereren</string>
     <string name="moderation_action_dialog_title">Kijker modereren</string>

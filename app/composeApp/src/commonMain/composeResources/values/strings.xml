@@ -362,6 +362,10 @@
     <string name="moderation_unban_message">Unban %1$s? They'll be able to chat in your channel again.</string>
     <string name="moderation_unban_confirm">Unban</string>
     <string name="moderation_unban_dismiss">Cancel</string>
+    <string name="moderation_stats_bans_today">Bans today</string>
+    <string name="moderation_stats_timeouts">Timeouts</string>
+    <string name="moderation_stats_deleted">Deleted msgs</string>
+    <string name="moderation_stats_automod">AutoMod</string>
     <string name="moderation_action_error">Action failed: %1$s</string>
     <string name="moderation_action_apply">Moderate a viewer</string>
     <string name="moderation_action_dialog_title">Moderate a viewer</string>
