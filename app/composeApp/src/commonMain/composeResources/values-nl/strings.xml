@@ -1048,6 +1048,19 @@
     <string name="music_token_rotate_message">De huidige deellink werkt direct niet meer.</string>
     <string name="music_token_rotate_confirm">Roteren</string>
     <string name="music_token_rotate_dismiss">Annuleren</string>
+    <!-- Music remote controls. -->
+    <string name="music_remote_title">Afspeelbediening</string>
+    <string name="music_shuffle_label">Willekeurig</string>
+    <string name="music_repeat_label">Herhalen</string>
+    <string name="music_repeat_off">Uit</string>
+    <string name="music_repeat_track">Nummer</string>
+    <string name="music_repeat_context">Afspeellijst</string>
+    <string name="music_devices_title">Apparaten</string>
+    <string name="music_devices_empty">Geen apparaten beschikbaar</string>
+    <string name="music_device_transfer">Naar %1$s</string>
+    <string name="music_playlists_title">Afspeellijsten</string>
+    <string name="music_playlists_empty">Geen afspeellijsten gevonden</string>
+    <string name="music_playlist_play">Afspelen: %1$s</string>
 
     <!-- Pipelines page. -->
     <string name="pipelines_title">Pijplijnen</string>

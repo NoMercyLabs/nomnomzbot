@@ -59,6 +59,29 @@ interface MusicApi {
 
     /** Rotate the SR-page token — the old share link stops working immediately. */
     suspend fun rotateSrPageToken(channelId: String): ApiResult<String>
+
+    // ── Extended remote controls (Spotify-specific; return Unit on success) ──────
+
+    /** Seek to [positionMs] in the current track. */
+    suspend fun seek(channelId: String, positionMs: Int): ApiResult<Unit>
+
+    /** Enable or disable shuffle. */
+    suspend fun setShuffle(channelId: String, enabled: Boolean): ApiResult<Unit>
+
+    /** Set repeat mode: "off", "track", or "context". */
+    suspend fun setRepeat(channelId: String, mode: String): ApiResult<Unit>
+
+    /** Transfer playback to another device. */
+    suspend fun transferPlayback(channelId: String, deviceId: String, play: Boolean = false): ApiResult<Unit>
+
+    /** Return available playback devices. */
+    suspend fun getDevices(channelId: String): ApiResult<List<MusicDevice>>
+
+    /** Return user playlists. */
+    suspend fun getPlaylists(channelId: String, offset: Int = 0, limit: Int = 20): ApiResult<List<MusicPlaylist>>
+
+    /** Start playback of a playlist or album by URI. */
+    suspend fun playContext(channelId: String, contextUri: String): ApiResult<Unit>
 }
 
 class RestMusicApi(private val client: ApiClient) : MusicApi {
@@ -95,6 +118,27 @@ class RestMusicApi(private val client: ApiClient) : MusicApi {
 
     override suspend fun rotateSrPageToken(channelId: String): ApiResult<String> =
         client.postEnvelope("api/v1/channels/$channelId/music/sr-page-token/rotate", Unit)
+
+    override suspend fun seek(channelId: String, positionMs: Int): ApiResult<Unit> =
+        client.postUnit("api/v1/channels/$channelId/music/seek", SeekBody(positionMs))
+
+    override suspend fun setShuffle(channelId: String, enabled: Boolean): ApiResult<Unit> =
+        client.patchUnit("api/v1/channels/$channelId/music/shuffle", ShuffleBody(enabled))
+
+    override suspend fun setRepeat(channelId: String, mode: String): ApiResult<Unit> =
+        client.patchUnit("api/v1/channels/$channelId/music/repeat", RepeatBody(mode))
+
+    override suspend fun transferPlayback(channelId: String, deviceId: String, play: Boolean): ApiResult<Unit> =
+        client.postUnit("api/v1/channels/$channelId/music/transfer", MusicTransferBody(deviceId, play))
+
+    override suspend fun getDevices(channelId: String): ApiResult<List<MusicDevice>> =
+        client.getEnvelope("api/v1/channels/$channelId/music/devices")
+
+    override suspend fun getPlaylists(channelId: String, offset: Int, limit: Int): ApiResult<List<MusicPlaylist>> =
+        client.getEnvelope("api/v1/channels/$channelId/music/playlists?offset=$offset&limit=$limit")
+
+    override suspend fun playContext(channelId: String, contextUri: String): ApiResult<Unit> =
+        client.postUnit("api/v1/channels/$channelId/music/play-context", PlayContextBody(contextUri))
 }
 
 /**
@@ -167,4 +211,43 @@ data class UpdateMusicConfigBody(
     val allowYouTube: Boolean? = null,
     val allowSpotify: Boolean? = null,
     val minTrustLevel: String? = null,
+)
+
+// ── Remote control request bodies ────────────────────────────────────────────
+
+@Serializable
+internal data class SeekBody(val positionMs: Int)
+
+@Serializable
+internal data class ShuffleBody(val enabled: Boolean)
+
+@Serializable
+internal data class RepeatBody(val mode: String)
+
+@Serializable
+internal data class MusicTransferBody(val deviceId: String, val play: Boolean = false)
+
+@Serializable
+internal data class PlayContextBody(val contextUri: String)
+
+// ── Remote control response models ───────────────────────────────────────────
+
+/** A playback device (backend `MusicDeviceDto`). */
+@Serializable
+data class MusicDevice(
+    val id: String = "",
+    val name: String = "",
+    val type: String = "",
+    val isActive: Boolean = false,
+    val volumePercent: Int = 0,
+)
+
+/** A user playlist (backend `MusicPlaylistDto`). */
+@Serializable
+data class MusicPlaylist(
+    val id: String = "",
+    val name: String = "",
+    val uri: String = "",
+    val trackCount: Int = 0,
+    val imageUrl: String? = null,
 )

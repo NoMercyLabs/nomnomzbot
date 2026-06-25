@@ -1051,6 +1051,19 @@
     <string name="music_token_rotate_message">The current share link will stop working immediately.</string>
     <string name="music_token_rotate_confirm">Rotate</string>
     <string name="music_token_rotate_dismiss">Cancel</string>
+    <!-- Music remote controls (shuffle / repeat / devices / playlists). -->
+    <string name="music_remote_title">Playback Controls</string>
+    <string name="music_shuffle_label">Shuffle</string>
+    <string name="music_repeat_label">Repeat</string>
+    <string name="music_repeat_off">Off</string>
+    <string name="music_repeat_track">Track</string>
+    <string name="music_repeat_context">Playlist</string>
+    <string name="music_devices_title">Devices</string>
+    <string name="music_devices_empty">No devices available</string>
+    <string name="music_device_transfer">Switch to %1$s</string>
+    <string name="music_playlists_title">Playlists</string>
+    <string name="music_playlists_empty">No playlists found</string>
+    <string name="music_playlist_play">Play %1$s</string>
 
     <!-- Pipelines page. -->
     <string name="pipelines_title">Pipelines</string>

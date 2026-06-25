@@ -56,6 +56,8 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.network.MusicConfig
+import bot.nomnomz.dashboard.core.network.MusicDevice
+import bot.nomnomz.dashboard.core.network.MusicPlaylist
 import bot.nomnomz.dashboard.core.network.MusicTrack
 import bot.nomnomz.dashboard.core.network.NowPlaying
 import bot.nomnomz.dashboard.core.network.UpdateMusicConfigBody
@@ -115,6 +117,15 @@ import nomnomzbot.composeapp.generated.resources.music_token_rotate_title
 import nomnomzbot.composeapp.generated.resources.music_token_rotate_message
 import nomnomzbot.composeapp.generated.resources.music_token_rotate_confirm
 import nomnomzbot.composeapp.generated.resources.music_token_rotate_dismiss
+import nomnomzbot.composeapp.generated.resources.music_remote_title
+import nomnomzbot.composeapp.generated.resources.music_shuffle_label
+import nomnomzbot.composeapp.generated.resources.music_repeat_off
+import nomnomzbot.composeapp.generated.resources.music_repeat_track
+import nomnomzbot.composeapp.generated.resources.music_repeat_context
+import nomnomzbot.composeapp.generated.resources.music_devices_title
+import nomnomzbot.composeapp.generated.resources.music_device_transfer
+import nomnomzbot.composeapp.generated.resources.music_playlists_title
+import nomnomzbot.composeapp.generated.resources.music_playlist_play
 import org.jetbrains.compose.resources.stringResource
 
 // The Music page: the channel's live playback, made controllable — every track is real data from
@@ -150,6 +161,8 @@ fun MusicScreen(controller: MusicController, role: ManagementRole?) {
                     queue = current.queue,
                     config = current.config,
                     srPageToken = current.srPageToken,
+                    devices = current.devices,
+                    playlists = current.playlists,
                     actionError = current.actionError,
                     manage = manage,
                     onPlay = { scope.launch { controller.resume() } },
@@ -159,6 +172,10 @@ fun MusicScreen(controller: MusicController, role: ManagementRole?) {
                     onAddToQueue = { query, requestedBy -> scope.launch { controller.addToQueue(query, requestedBy) } },
                     onSaveConfig = { body -> scope.launch { controller.updateConfig(body) } },
                     onRotateToken = { scope.launch { controller.rotateSrPageToken() } },
+                    onSetShuffle = { enabled -> scope.launch { controller.setShuffle(enabled) } },
+                    onSetRepeat = { mode -> scope.launch { controller.setRepeat(mode) } },
+                    onTransfer = { deviceId -> scope.launch { controller.transferPlayback(deviceId, play = true) } },
+                    onPlayPlaylist = { uri -> scope.launch { controller.playContext(uri) } },
                 )
         }
     }
@@ -170,6 +187,8 @@ private fun ReadyContent(
     queue: List<MusicTrack>,
     config: MusicConfig?,
     srPageToken: String?,
+    devices: List<MusicDevice>,
+    playlists: List<MusicPlaylist>,
     actionError: String?,
     manage: ManageDecision,
     onPlay: () -> Unit,
@@ -179,6 +198,10 @@ private fun ReadyContent(
     onAddToQueue: (query: String, requestedBy: String) -> Unit,
     onSaveConfig: (UpdateMusicConfigBody) -> Unit,
     onRotateToken: () -> Unit,
+    onSetShuffle: (Boolean) -> Unit,
+    onSetRepeat: (String) -> Unit,
+    onTransfer: (deviceId: String) -> Unit,
+    onPlayPlaylist: (uri: String) -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -246,6 +269,20 @@ private fun ReadyContent(
         if (srPageToken != null) {
             HorizontalDivider(color = tokens.border)
             SrTokenSection(token = srPageToken, manage = manage, onRotate = { pendingRotate = true })
+        }
+
+        // ── Remote controls (shuffle / repeat / devices / playlists) ──────
+        if (devices.isNotEmpty() || playlists.isNotEmpty()) {
+            HorizontalDivider(color = tokens.border)
+            RemoteControlsSection(
+                devices = devices,
+                playlists = playlists,
+                manage = manage,
+                onSetShuffle = onSetShuffle,
+                onSetRepeat = onSetRepeat,
+                onTransfer = onTransfer,
+                onPlayPlaylist = onPlayPlaylist,
+            )
         }
     }
 
@@ -823,6 +860,112 @@ private fun SrTokenSection(token: String, manage: ManageDecision, onRotate: () -
                     text = stringResource(Res.string.music_token_rotate),
                     color = if (enabled) tokens.destructive else tokens.mutedForeground,
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun RemoteControlsSection(
+    devices: List<MusicDevice>,
+    playlists: List<MusicPlaylist>,
+    manage: ManageDecision,
+    onSetShuffle: (Boolean) -> Unit,
+    onSetRepeat: (String) -> Unit,
+    onTransfer: (deviceId: String) -> Unit,
+    onPlayPlaylist: (uri: String) -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
+        Text(
+            text = stringResource(Res.string.music_remote_title),
+            style = typography.sm,
+            color = tokens.mutedForeground,
+            modifier = Modifier.padding(horizontal = spacing.s1),
+        )
+
+        // Shuffle / repeat quick-actions
+        Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
+            Button(
+                onClick = { if (manage.isAllowed) onSetShuffle(true) },
+                enabled = manage.isAllowed,
+                colors = ButtonDefaults.buttonColors(containerColor = tokens.secondary),
+                modifier = Modifier.weight(1f),
+            ) {
+                Text(
+                    text = stringResource(Res.string.music_shuffle_label),
+                    style = typography.sm,
+                    color = tokens.secondaryForeground,
+                )
+            }
+            listOf(
+                "off" to Res.string.music_repeat_off,
+                "track" to Res.string.music_repeat_track,
+                "context" to Res.string.music_repeat_context,
+            ).forEach { (mode, labelRes) ->
+                Button(
+                    onClick = { if (manage.isAllowed) onSetRepeat(mode) },
+                    enabled = manage.isAllowed,
+                    colors = ButtonDefaults.buttonColors(containerColor = tokens.secondary),
+                ) {
+                    Text(
+                        text = stringResource(labelRes),
+                        style = typography.sm,
+                        color = tokens.secondaryForeground,
+                    )
+                }
+            }
+        }
+
+        // Devices
+        if (devices.isNotEmpty()) {
+            Text(
+                text = stringResource(Res.string.music_devices_title),
+                style = typography.sm,
+                color = tokens.mutedForeground,
+                modifier = Modifier.padding(horizontal = spacing.s1),
+            )
+            Column(verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
+                devices.forEach { device ->
+                    TextButton(
+                        onClick = { if (manage.isAllowed) onTransfer(device.id) },
+                        enabled = manage.isAllowed && !device.isActive,
+                    ) {
+                        Text(
+                            text = stringResource(Res.string.music_device_transfer, device.name),
+                            style = typography.sm,
+                            color = if (device.isActive) tokens.accent else tokens.foreground,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+            }
+        }
+
+        // Playlists
+        if (playlists.isNotEmpty()) {
+            Text(
+                text = stringResource(Res.string.music_playlists_title),
+                style = typography.sm,
+                color = tokens.mutedForeground,
+                modifier = Modifier.padding(horizontal = spacing.s1),
+            )
+            Column(verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
+                playlists.forEach { playlist ->
+                    TextButton(onClick = { if (manage.isAllowed) onPlayPlaylist(playlist.uri) }, enabled = manage.isAllowed) {
+                        Text(
+                            text = stringResource(Res.string.music_playlist_play, playlist.name),
+                            style = typography.sm,
+                            color = tokens.foreground,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
             }
         }
     }

@@ -18,6 +18,8 @@ import bot.nomnomz.dashboard.core.network.MusicConfig
 import bot.nomnomz.dashboard.core.network.MusicSnapshot
 import bot.nomnomz.dashboard.core.network.MusicTrack
 import bot.nomnomz.dashboard.core.network.NowPlaying
+import bot.nomnomz.dashboard.core.network.MusicDevice
+import bot.nomnomz.dashboard.core.network.MusicPlaylist
 import bot.nomnomz.dashboard.core.network.MusicSongRequestBody
 import bot.nomnomz.dashboard.core.network.UpdateMusicConfigBody
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -80,6 +82,19 @@ class MusicController(
                 is ApiResult.Ok -> result.value
             }
 
+        // Devices and playlists are resilient — failures degrade to empty lists.
+        val devices: List<MusicDevice> =
+            when (val result: ApiResult<List<MusicDevice>> = musicApi.getDevices(channel.id)) {
+                is ApiResult.Failure -> emptyList()
+                is ApiResult.Ok -> result.value
+            }
+
+        val playlists: List<MusicPlaylist> =
+            when (val result: ApiResult<List<MusicPlaylist>> = musicApi.getPlaylists(channel.id)) {
+                is ApiResult.Failure -> emptyList()
+                is ApiResult.Ok -> result.value
+            }
+
         _state.value =
             if (snapshot.nowPlaying == null && snapshot.queue.isEmpty() && config == null) MusicState.Empty
             else MusicState.Ready(
@@ -87,6 +102,8 @@ class MusicController(
                 queue = snapshot.queue,
                 config = config,
                 srPageToken = srToken,
+                devices = devices,
+                playlists = playlists,
             )
     }
 
@@ -134,6 +151,28 @@ class MusicController(
                 }
             }
         }
+    }
+
+    /** Seek to [positionMs] in the current track. */
+    suspend fun seek(positionMs: Int) = control { channel -> musicApi.seek(channel, positionMs) }
+
+    /** Enable or disable shuffle. */
+    suspend fun setShuffle(enabled: Boolean) = control { channel -> musicApi.setShuffle(channel, enabled) }
+
+    /** Set repeat mode: "off", "track", or "context". */
+    suspend fun setRepeat(mode: String) = control { channel -> musicApi.setRepeat(channel, mode) }
+
+    /** Transfer playback to another device. */
+    suspend fun transferPlayback(deviceId: String, play: Boolean = false) =
+        control { channel -> musicApi.transferPlayback(channel, deviceId, play) }
+
+    /** Start playback of a playlist or album context URI. */
+    suspend fun playContext(contextUri: String) = control { channel -> musicApi.playContext(channel, contextUri) }
+
+    /** Clear the last action error. */
+    fun clearError() {
+        val current: MusicState = _state.value
+        if (current is MusicState.Ready) _state.value = current.copy(actionError = null)
     }
 
     /** Pause playback. Reloads the snapshot on success; surfaces the error on the Ready state on failure. */
@@ -186,6 +225,8 @@ sealed interface MusicState {
         val queue: List<MusicTrack>,
         val config: MusicConfig? = null,
         val srPageToken: String? = null,
+        val devices: List<MusicDevice> = emptyList(),
+        val playlists: List<MusicPlaylist> = emptyList(),
         val actionError: String? = null,
     ) : MusicState
 
