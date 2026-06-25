@@ -113,7 +113,7 @@ public sealed class AuthService : IAuthService
         _sessions = sessions;
         _eventBus = eventBus;
         _credentials = credentials;
-        _http = httpClientFactory.CreateClient("twitch-helix");
+        _http = httpClientFactory.CreateClient("twitch-auth");
         _timeProvider = timeProvider;
         _logger = logger;
         _baseUrl = configuration["App:BaseUrl"] ?? "http://localhost:5080";
@@ -1024,6 +1024,7 @@ public sealed class AuthService : IAuthService
                     clientId.Length >= 4 ? clientId[^4..] : clientId,
                     detail.Length > 300 ? detail[..300] : detail
                 );
+
                 return null;
             }
 
