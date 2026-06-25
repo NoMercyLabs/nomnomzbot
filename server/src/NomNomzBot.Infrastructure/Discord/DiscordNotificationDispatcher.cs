@@ -245,7 +245,7 @@ public sealed class DiscordNotificationDispatcher : IDiscordNotificationDispatch
             .ToListAsync(ct);
 
         return Result.Success(
-            new PagedList<DiscordDispatchLogDto>(items, total, safePage, safeSize)
+            new PagedList<DiscordDispatchLogDto>(items, safePage, safeSize, total)
         );
     }
 

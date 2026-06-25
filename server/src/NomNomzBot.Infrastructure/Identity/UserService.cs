@@ -146,7 +146,7 @@ public class UserService : IUserService
             .ToListAsync(cancellationToken);
 
         return Result.Success(
-            new PagedList<UserSearchResult>(items, total, pagination.Page, pagination.PageSize)
+            new PagedList<UserSearchResult>(items, pagination.Page, pagination.PageSize, total)
         );
     }
 
@@ -328,7 +328,7 @@ public class UserService : IUserService
             .ToListAsync(cancellationToken);
 
         return Result.Success(
-            new PagedList<AdminUserDto>(items, total, pagination.Page, pagination.PageSize)
+            new PagedList<AdminUserDto>(items, pagination.Page, pagination.PageSize, total)
         );
     }
 

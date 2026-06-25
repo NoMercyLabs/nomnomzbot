@@ -334,9 +334,9 @@ public class ModerationService : IModerationService
         return Result.Success(
             new PagedList<ModerationRuleListItem>(
                 items,
-                total,
                 pagination.Page,
-                pagination.PageSize
+                pagination.PageSize,
+                total
             )
         );
     }
@@ -389,7 +389,7 @@ public class ModerationService : IModerationService
             .ToList();
 
         return Result.Success(
-            new PagedList<ModerationActionLog>(items, total, pagination.Page, pagination.PageSize)
+            new PagedList<ModerationActionLog>(items, pagination.Page, pagination.PageSize, total)
         );
     }
 

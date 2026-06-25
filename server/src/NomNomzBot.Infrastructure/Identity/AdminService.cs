@@ -84,7 +84,7 @@ public sealed class AdminService : IAdminService
             .ToListAsync(ct);
 
         return Result.Success(
-            new PagedList<AdminChannelDto>(items, total, pagination.Page, pagination.PageSize)
+            new PagedList<AdminChannelDto>(items, pagination.Page, pagination.PageSize, total)
         );
     }
 
@@ -112,7 +112,7 @@ public sealed class AdminService : IAdminService
             .ToListAsync(ct);
 
         return Result.Success(
-            new PagedList<AdminUserDto>(items, total, pagination.Page, pagination.PageSize)
+            new PagedList<AdminUserDto>(items, pagination.Page, pagination.PageSize, total)
         );
     }
 

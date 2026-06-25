@@ -131,7 +131,7 @@ public class WidgetService : IWidgetService
     {
         if (!Guid.TryParse(broadcasterId, out Guid broadcasterGuid))
             return Result.Success(
-                new PagedList<WidgetDetail>([], 0, pagination.Page, pagination.PageSize)
+                new PagedList<WidgetDetail>([], pagination.Page, pagination.PageSize, 0)
             );
 
         IQueryable<Widget> query = _db
@@ -151,7 +151,7 @@ public class WidgetService : IWidgetService
             .ToList();
 
         return Result.Success(
-            new PagedList<WidgetDetail>(items, total, pagination.Page, pagination.PageSize)
+            new PagedList<WidgetDetail>(items, pagination.Page, pagination.PageSize, total)
         );
     }
 

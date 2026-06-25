@@ -57,7 +57,7 @@ public class EventResponseService : IEventResponseService
             .ToListAsync(cancellationToken);
 
         return Result.Success(
-            new PagedList<EventResponseListItem>(items, total, pagination.Page, pagination.PageSize)
+            new PagedList<EventResponseListItem>(items, pagination.Page, pagination.PageSize, total)
         );
     }
 

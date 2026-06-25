@@ -57,7 +57,7 @@ public class TimerManagementService : ITimerManagementService
             .ToListAsync(cancellationToken);
 
         return Result.Success(
-            new PagedList<TimerListItem>(items, total, pagination.Page, pagination.PageSize)
+            new PagedList<TimerListItem>(items, pagination.Page, pagination.PageSize, total)
         );
     }
 

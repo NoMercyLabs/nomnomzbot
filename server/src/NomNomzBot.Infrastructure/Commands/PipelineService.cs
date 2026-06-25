@@ -58,7 +58,7 @@ public class PipelineService : IPipelineService
             .ToListAsync(ct);
 
         return Result.Success(
-            new PagedList<PipelineListItemDto>(items, total, pagination.Page, pagination.PageSize)
+            new PagedList<PipelineListItemDto>(items, pagination.Page, pagination.PageSize, total)
         );
     }
 

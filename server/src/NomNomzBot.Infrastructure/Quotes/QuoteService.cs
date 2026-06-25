@@ -197,7 +197,7 @@ public sealed class QuoteService : IQuoteService
             .ToListAsync(ct);
 
         return Result.Success(
-            new PagedList<QuoteDto>(items, total, pagination.Page, pagination.PageSize)
+            new PagedList<QuoteDto>(items, pagination.Page, pagination.PageSize, total)
         );
     }
 

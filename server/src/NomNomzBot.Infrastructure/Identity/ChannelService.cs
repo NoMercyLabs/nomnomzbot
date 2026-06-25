@@ -156,7 +156,7 @@ public class ChannelService : IChannelService
             .ToListAsync(cancellationToken);
 
         return Result.Success(
-            new PagedList<ChannelSummaryDto>(items, total, pagination.Page, pagination.PageSize)
+            new PagedList<ChannelSummaryDto>(items, pagination.Page, pagination.PageSize, total)
         );
     }
 

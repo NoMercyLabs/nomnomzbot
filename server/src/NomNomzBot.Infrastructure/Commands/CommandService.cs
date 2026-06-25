@@ -194,7 +194,7 @@ public class CommandService : ICommandService
             .ToListAsync(cancellationToken);
 
         return Result.Success(
-            new PagedList<CommandListItem>(items, total, pagination.Page, pagination.PageSize)
+            new PagedList<CommandListItem>(items, pagination.Page, pagination.PageSize, total)
         );
     }
 
