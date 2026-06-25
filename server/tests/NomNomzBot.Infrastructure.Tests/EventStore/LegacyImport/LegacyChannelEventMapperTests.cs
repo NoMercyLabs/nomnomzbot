@@ -670,4 +670,94 @@ public sealed class LegacyChannelEventMapperTests
         payload["Level"]!.Value<int>().Should().Be(2);
         payload["Total"]!.Value<int>().Should().Be(2500);
     }
+
+    // ── predictions ──────────────────────────────────────────────────────────
+
+    [Fact]
+    public void Maps_prediction_begin_to_PredictionBeganEvent_with_outcomes_and_derived_window()
+    {
+        AppendEventRequest? request = _mapper.Map(
+            Row(
+                "channel.prediction.begin",
+                """{"Id":"pred-001","Title":"Will I beat the boss?","BroadcasterUserId":"39863651","StartedAt":"2025-09-10T18:00:00+00:00","LocksAt":"2025-09-10T18:02:00+00:00","Outcomes":[{"Id":"out-1","Title":"Yes","Color":"BLUE","Users":0,"ChannelPoints":0},{"Id":"out-2","Title":"No","Color":"PINK","Users":0,"ChannelPoints":0}]}"""
+            ),
+            Tenant
+        );
+
+        request.Should().NotBeNull();
+        request!.EventType.Should().Be("PredictionBeganEvent");
+        request
+            .OccurredAt.Should()
+            .Be(
+                DateTime.Parse("2025-09-10T18:00:00+00:00").ToUniversalTime(),
+                "OccurredAt is the real StartedAt from the payload"
+            );
+
+        JObject payload = JObject.Parse(request.PayloadJson);
+        payload["PredictionId"]!.Value<string>().Should().Be("pred-001");
+        payload["Title"]!.Value<string>().Should().Be("Will I beat the boss?");
+        payload["WindowSeconds"]!.Value<int>().Should().Be(120, "LocksAt is 2 min after StartedAt");
+
+        JArray outcomes = (JArray)payload["Outcomes"]!;
+        outcomes.Should().HaveCount(2);
+        outcomes[0]["Id"]!.Value<string>().Should().Be("out-1");
+        outcomes[0]["Title"]!.Value<string>().Should().Be("Yes");
+        outcomes[0]["Color"]!.Value<string>().Should().Be("BLUE");
+    }
+
+    [Fact]
+    public void Maps_prediction_end_to_PredictionEndedEvent_with_winning_outcome()
+    {
+        AppendEventRequest? request = _mapper.Map(
+            Row(
+                "channel.prediction.end",
+                """{"Id":"pred-001","Title":"Will I beat the boss?","BroadcasterUserId":"39863651","EndedAt":"2025-09-10T18:03:00+00:00","Status":"resolved","WinningOutcomeId":"out-1","Outcomes":[{"Id":"out-1","Title":"Yes","Color":"BLUE","Users":7,"ChannelPoints":4200},{"Id":"out-2","Title":"No","Color":"PINK","Users":3,"ChannelPoints":900}]}"""
+            ),
+            Tenant
+        );
+
+        request.Should().NotBeNull();
+        request!.EventType.Should().Be("PredictionEndedEvent");
+        request
+            .OccurredAt.Should()
+            .Be(
+                DateTime.Parse("2025-09-10T18:03:00+00:00").ToUniversalTime(),
+                "OccurredAt is the real EndedAt from the payload"
+            );
+
+        JObject payload = JObject.Parse(request.PayloadJson);
+        payload["Status"]!.Value<string>().Should().Be("resolved");
+        payload["WinningOutcomeId"]!.Value<string>().Should().Be("out-1");
+
+        JArray outcomes = (JArray)payload["Outcomes"]!;
+        outcomes[0]["ChannelPoints"]!.Value<int>().Should().Be(4200);
+        outcomes[0]["Users"]!.Value<int>().Should().Be(7);
+    }
+
+    [Fact]
+    public void Maps_prediction_lock_to_PredictionLockedEvent()
+    {
+        AppendEventRequest? request = _mapper.Map(
+            Row(
+                "channel.prediction.lock",
+                """{"Id":"pred-001","Title":"Will I beat the boss?","BroadcasterUserId":"39863651","Outcomes":[{"Id":"out-1","Title":"Yes","Color":"BLUE","Users":7,"ChannelPoints":4200}]}"""
+            ),
+            Tenant
+        );
+
+        request.Should().NotBeNull();
+        request!.EventType.Should().Be("PredictionLockedEvent");
+        JObject.Parse(request.PayloadJson)["PredictionId"]!.Value<string>().Should().Be("pred-001");
+    }
+
+    [Fact]
+    public void Returns_null_for_unknown_event_types()
+    {
+        AppendEventRequest? request = _mapper.Map(
+            Row("channel.unknown.type", """{"BroadcasterUserId":"39863651"}"""),
+            Tenant
+        );
+
+        request.Should().BeNull("unmapped types are silently skipped by the importer");
+    }
 }

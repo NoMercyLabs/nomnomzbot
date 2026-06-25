@@ -162,6 +162,23 @@ public sealed class LegacyChannelEventMapper
                 data,
                 Envelope(row, targetBroadcasterId, data, eventTimeKey: "EndedAt")
             ),
+            // Predictions — begin / progress / lock / end (TwitchLib PascalCase payload).
+            "channel.prediction.begin" => MapPredictionBegan(
+                data,
+                Envelope(row, targetBroadcasterId, data, eventTimeKey: "StartedAt")
+            ),
+            "channel.prediction.progress" => MapPredictionProgress(
+                data,
+                Envelope(row, targetBroadcasterId, data)
+            ),
+            "channel.prediction.lock" => MapPredictionLocked(
+                data,
+                Envelope(row, targetBroadcasterId, data)
+            ),
+            "channel.prediction.end" => MapPredictionEnded(
+                data,
+                Envelope(row, targetBroadcasterId, data, eventTimeKey: "EndedAt")
+            ),
             _ => null,
         };
 
@@ -790,6 +807,120 @@ public sealed class LegacyChannelEventMapper
             TopContributions = ReadTopContributions(data),
             EndedAt = ReadDateTimeOffset(data, "EndedAt") ?? env.OccurredAt,
         };
+    }
+
+    // ── predictions ─────────────────────────────────────────────────────────────────────────────────────────
+    // TwitchLib PascalCase prediction shape: Id, Title, Outcomes[]{Id,Title,Users,ChannelPoints,Color},
+    // StartedAt, LocksAt (begin/progress/lock); Status, WinningOutcomeId (end).
+    private static PredictionBeganEvent? MapPredictionBegan(JObject data, EventEnvelope env)
+    {
+        string? id = Str(data, "Id");
+        string? title = Str(data, "Title");
+        if (id is null || title is null)
+            return null;
+
+        DateTimeOffset locksAt =
+            ReadDateTimeOffset(data, "LocksAt") ?? env.OccurredAt.AddMinutes(2);
+        int windowSeconds = (int)(locksAt - env.OccurredAt).TotalSeconds;
+        if (windowSeconds < 0)
+            windowSeconds = 0;
+
+        return new PredictionBeganEvent
+        {
+            EventId = env.EventId,
+            BroadcasterId = env.Tenant,
+            OccurredAt = env.OccurredAt,
+            PredictionId = id,
+            Title = title,
+            Outcomes = ReadPredictionOutcomes(data),
+            WindowSeconds = windowSeconds,
+            LocksAt = locksAt,
+        };
+    }
+
+    private static PredictionProgressEvent? MapPredictionProgress(JObject data, EventEnvelope env)
+    {
+        string? id = Str(data, "Id");
+        string? title = Str(data, "Title");
+        if (id is null || title is null)
+            return null;
+
+        return new PredictionProgressEvent
+        {
+            EventId = env.EventId,
+            BroadcasterId = env.Tenant,
+            OccurredAt = env.OccurredAt,
+            PredictionId = id,
+            Title = title,
+            Outcomes = ReadPredictionOutcomes(data),
+            LocksAt = ReadDateTimeOffset(data, "LocksAt") ?? env.OccurredAt,
+        };
+    }
+
+    private static PredictionLockedEvent? MapPredictionLocked(JObject data, EventEnvelope env)
+    {
+        string? id = Str(data, "Id");
+        string? title = Str(data, "Title");
+        if (id is null || title is null)
+            return null;
+
+        return new PredictionLockedEvent
+        {
+            EventId = env.EventId,
+            BroadcasterId = env.Tenant,
+            OccurredAt = env.OccurredAt,
+            PredictionId = id,
+            Title = title,
+            Outcomes = ReadPredictionOutcomes(data),
+        };
+    }
+
+    private static PredictionEndedEvent? MapPredictionEnded(JObject data, EventEnvelope env)
+    {
+        string? id = Str(data, "Id");
+        string? title = Str(data, "Title");
+        if (id is null || title is null)
+            return null;
+
+        return new PredictionEndedEvent
+        {
+            EventId = env.EventId,
+            BroadcasterId = env.Tenant,
+            OccurredAt = env.OccurredAt,
+            PredictionId = id,
+            Title = title,
+            Status = Str(data, "Status") ?? "resolved",
+            Outcomes = ReadPredictionOutcomes(data),
+            WinningOutcomeId = Str(data, "WinningOutcomeId"),
+        };
+    }
+
+    private static IReadOnlyList<PredictionOutcome> ReadPredictionOutcomes(JObject data)
+    {
+        if (data["Outcomes"] is not JArray array)
+            return [];
+
+        List<PredictionOutcome> result = new(array.Count);
+        foreach (JToken token in array)
+        {
+            if (token is not JObject outcome)
+                continue;
+            string? outcomeId = Str(outcome, "Id");
+            string? outcomeTitle = Str(outcome, "Title");
+            if (outcomeId is null || outcomeTitle is null)
+                continue;
+            result.Add(
+                new PredictionOutcome(
+                    outcomeId,
+                    outcomeTitle,
+                    Int(outcome, "ChannelPoints") ?? 0,
+                    Int(outcome, "Users") ?? 0,
+                    Str(outcome, "Color") ?? "BLUE"
+                )
+            );
+        }
+
+        return result;
     }
 
     private static IReadOnlyList<HypeTrainContribution> ReadTopContributions(JObject data)
