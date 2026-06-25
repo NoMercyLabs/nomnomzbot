@@ -24,15 +24,26 @@ public sealed class LiveWindowResolver(IApplicationDbContext db) : ILiveWindowRe
     )
     {
         DateTimeOffset instant = new(DateTime.SpecifyKind(at, DateTimeKind.Utc), TimeSpan.Zero);
-        return await db
-            .Streams.Where(s =>
-                s.ChannelId == broadcasterId
-                && s.StartedAt != null
-                && s.StartedAt <= instant
-                && (s.EndedAt == null || s.EndedAt >= instant)
-            )
+
+        // The DateTimeOffset window comparison does not translate on the SQLite (self-host lite) provider — it
+        // faulted the WatchSessionProjection's driver tick every pass. Filter the channel's streams in SQL
+        // (ChannelId + StartedAt present — both translatable) and evaluate the time window in memory; Streams hold
+        // one row per session, so a channel's set is tiny. The anonymous projection avoids materialising the whole
+        // entity (and the Stream/System.IO.Stream name clash).
+        var sessions = await db
+            .Streams.Where(s => s.ChannelId == broadcasterId && s.StartedAt != null)
+            .Select(s => new
+            {
+                s.Id,
+                s.StartedAt,
+                s.EndedAt,
+            })
+            .ToListAsync(ct);
+
+        return sessions
+            .Where(s => s.StartedAt <= instant && (s.EndedAt == null || s.EndedAt >= instant))
             .OrderByDescending(s => s.StartedAt)
             .Select(s => s.Id)
-            .FirstOrDefaultAsync(ct);
+            .FirstOrDefault();
     }
 }
