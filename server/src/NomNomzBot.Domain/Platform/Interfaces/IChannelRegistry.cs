@@ -95,6 +95,9 @@ public class CachedCommand
     public required int UserCooldown { get; init; }
     public required string Permission { get; init; }
     public required string Type { get; init; }
+
+    /// <summary>Resolved pipeline JSON — either the command's own inline steps or the bound
+    /// Pipeline entity's GraphJson (loaded by ChannelRegistry at cache-warm time).</summary>
     public string? PipelineJson { get; init; }
     public string[] Aliases { get; init; } = [];
 }

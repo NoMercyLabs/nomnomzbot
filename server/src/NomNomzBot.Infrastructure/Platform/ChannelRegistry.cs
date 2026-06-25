@@ -163,7 +163,8 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
                 UserCooldown = c.CooldownPerUser ? c.CooldownSeconds : 0,
                 Permission = c.Permission,
                 Type = c.Type,
-                PipelineJson = c.PipelineJson,
+                // Prefer the bound Pipeline entity's JSON; fall back to the inline PipelineJson.
+                PipelineJson = c.Pipeline != null ? c.Pipeline.GraphJson : c.PipelineJson,
                 Aliases = c.Aliases.ToArray(),
             })
             .ToListAsync(ct);

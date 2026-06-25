@@ -22,4 +22,9 @@ public sealed class PipelineStepDefinition
 
     [JsonPropertyName("stop_on_match")]
     public bool StopOnMatch { get; set; }
+
+    /// <summary>When <c>true</c>, a failed action does not abort the pipeline — the engine
+    /// continues to the next step. Defaults to <c>false</c> (fail-closed).</summary>
+    [JsonPropertyName("continue_on_error")]
+    public bool ContinueOnError { get; set; }
 }

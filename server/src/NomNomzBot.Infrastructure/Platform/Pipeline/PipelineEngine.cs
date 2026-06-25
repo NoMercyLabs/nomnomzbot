@@ -277,9 +277,8 @@ public sealed class PipelineEngine : IPipelineEngine
                         ErrorMessage = ex.Message,
                     }
                 );
-                // Continue to next step on action failure (fail-open)
-                executed++;
-                continue;
+                // Fail-CLOSED: an unhandled exception from an action aborts the pipeline.
+                break;
             }
 
             ctx.StepLogs.Add(
@@ -295,7 +294,14 @@ public sealed class PipelineEngine : IPipelineEngine
             );
 
             if (actionResult.Succeeded)
+            {
                 executed++;
+            }
+            else if (!step.ContinueOnError)
+            {
+                // Fail-CLOSED: a failed action stops the pipeline unless the step opts in to continue.
+                break;
+            }
 
             // Check stop flag
             if (ctx.ShouldStop || (step.StopOnMatch && actionResult.Succeeded))
@@ -322,11 +328,12 @@ public sealed class PipelineEngine : IPipelineEngine
 
         if (evaluator is null)
         {
-            _logger.LogWarning(
-                "Unknown condition type '{Type}' — treating as true",
+            // Fail-CLOSED: an unrecognized condition type blocks execution rather than permitting it.
+            _logger.LogError(
+                "Unknown condition type '{Type}' — blocking step (fail-closed)",
                 condition.Type
             );
-            return true;
+            return false;
         }
 
         return evaluator.Evaluate(ctx, condition);

@@ -782,6 +782,9 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                         .HasColumnType("TEXT")
                         .HasDefaultValue("everyone");
 
+                    b.Property<int?>("PipelineId")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("PipelineJson")
                         .HasColumnType("TEXT");
 
@@ -804,6 +807,9 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("PipelineId")
+                        .HasDatabaseName("IX_Command_PipelineId");
 
                     b.HasIndex("BroadcasterId", "IsEnabled")
                         .HasDatabaseName("IX_Command_BroadcasterId_IsEnabled");
@@ -5452,7 +5458,14 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("NomNomzBot.Domain.Commands.Entities.Pipeline", "Pipeline")
+                        .WithMany()
+                        .HasForeignKey("PipelineId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.Navigation("Channel");
+
+                    b.Navigation("Pipeline");
                 });
 
             modelBuilder.Entity("NomNomzBot.Domain.Commands.Entities.EventResponse", b =>

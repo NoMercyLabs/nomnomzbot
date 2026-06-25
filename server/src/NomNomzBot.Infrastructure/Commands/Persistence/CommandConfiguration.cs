@@ -57,6 +57,15 @@ public class CommandConfiguration : IEntityTypeConfiguration<Command>
             .OnDelete(DeleteBehavior.Cascade);
 
         builder
+            .HasOne(e => e.Pipeline)
+            .WithMany()
+            .HasForeignKey(e => e.PipelineId)
+            .OnDelete(DeleteBehavior.SetNull)
+            .IsRequired(false);
+
+        builder.HasIndex(e => e.PipelineId).HasDatabaseName("IX_Command_PipelineId");
+
+        builder
             .HasIndex(e => new { e.Name, e.BroadcasterId })
             .IsUnique()
             .HasDatabaseName("IX_Command_Name_BroadcasterId");

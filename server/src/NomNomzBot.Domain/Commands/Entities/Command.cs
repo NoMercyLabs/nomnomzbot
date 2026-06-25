@@ -34,7 +34,20 @@ public class Command : SoftDeletableEntity, ITenantScoped
 
     public List<string> Responses { get; set; } = [];
 
+    /// <summary>
+    /// Inline pipeline JSON — used when the command carries its own pipeline steps without a
+    /// separate named Pipeline entity. Prefer <see cref="PipelineId"/> when binding to a shared
+    /// Pipeline; this field is the fallback for legacy / one-off steps.
+    /// </summary>
     public string? PipelineJson { get; set; }
+
+    /// <summary>FK to a named <see cref="Pipeline"/> entity. When set, the channel registry
+    /// loads the pipeline's <see cref="Pipeline.GraphJson"/> into <c>CachedCommand.PipelineJson</c>
+    /// so the engine always works from a single resolved JSON blob.</summary>
+    public int? PipelineId { get; set; }
+
+    [ForeignKey(nameof(PipelineId))]
+    public virtual Pipeline? Pipeline { get; set; }
 
     public bool IsEnabled { get; set; } = true;
 
