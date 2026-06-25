@@ -250,6 +250,64 @@ public sealed class LegacyChannelEventMapperTests
     }
 
     [Fact]
+    public void Maps_redemption_update_to_RewardRedemptionUpdatedEvent_distinct_from_the_matching_add()
+    {
+        // The .update payload's Id IS the redemption id — the SAME value the matching .add carries.
+        AppendEventRequest? update = _mapper.Map(
+            Row(
+                "channel.points.custom.reward.redemption.update",
+                """{"Id":"b44c2590-d413-4335-8341-dc1537967837","UserId":"107107327","UserName":"mahybe","Status":"fulfilled","Reward":{"Id":"ac53c1f0-ac09-436d-a57c-21842f2bc828","Title":"Dunglish for 5 minutes","Cost":5000},"RedeemedAt":"2025-08-14T17:30:11.6612797+00:00"}""",
+                id: "redemption-update-row"
+            ),
+            Tenant
+        );
+
+        update.Should().NotBeNull();
+        update!.EventType.Should().Be("RewardRedemptionUpdatedEvent");
+        JObject payload = JObject.Parse(update.PayloadJson);
+        payload["Status"]!.Value<string>().Should().Be("fulfilled");
+        payload["RedemptionId"]!
+            .Value<string>()
+            .Should()
+            .Be("b44c2590-d413-4335-8341-dc1537967837");
+        payload["RewardTitle"]!.Value<string>().Should().Be("Dunglish for 5 minutes");
+        payload["UserDisplayName"]!.Value<string>().Should().Be("mahybe");
+
+        // The update must NOT reuse the redemption id as its EventId: the matching .add already derives ITS EventId
+        // from that id, so reusing it would collide and the journal would dedup the status change away.
+        AppendEventRequest? add = _mapper.Map(
+            Row(
+                "channel.points.custom.reward.redemption.add",
+                """{"Id":"b44c2590-d413-4335-8341-dc1537967837","UserId":"107107327","UserName":"mahybe","Status":"unfulfilled","Reward":{"Id":"ac53c1f0-ac09-436d-a57c-21842f2bc828","Title":"Dunglish for 5 minutes","Cost":5000},"RedeemedAt":"2025-08-14T17:30:11.6612797+00:00"}""",
+                id: "redemption-add-row"
+            ),
+            Tenant
+        );
+        update.EventId.Should().NotBe(add!.EventId);
+    }
+
+    [Fact]
+    public void Maps_channel_update_to_ChannelUpdatedEvent_with_the_new_title_and_category()
+    {
+        AppendEventRequest? request = _mapper.Map(
+            Row(
+                "channel.update",
+                """{"BroadcasterUserId":"39863651","BroadcasterUserName":"Stoney_Eagle","Title":"FFMpeg shenanigans","CategoryId":"1469308723","CategoryName":"Software and Game Development"}"""
+            ),
+            Tenant
+        );
+
+        request.Should().NotBeNull();
+        request!.EventType.Should().Be("ChannelUpdatedEvent");
+        request.BroadcasterId.Should().Be(Tenant);
+
+        JObject payload = JObject.Parse(request.PayloadJson);
+        payload["BroadcasterDisplayName"]!.Value<string>().Should().Be("Stoney_Eagle");
+        payload["NewTitle"]!.Value<string>().Should().Be("FFMpeg shenanigans");
+        payload["NewGameName"]!.Value<string>().Should().Be("Software and Game Development");
+    }
+
+    [Fact]
     public void Maps_chat_message_to_ChatMessageReceivedEvent_with_the_REAL_twitch_message_id()
     {
         // The chat bulk (~28k rows) is the heart of the backfill. Its identity is the real Twitch MessageId GUID
@@ -394,8 +452,7 @@ public sealed class LegacyChannelEventMapperTests
     }
 
     [Theory]
-    [InlineData("channel.update")]
-    [InlineData("channel.points.custom.reward.update")]
+    [InlineData("channel.points.custom.reward.update")] // a reward DEFINITION edit (not a redemption) — not journaled
     [InlineData("channel.poll.progress")]
     [InlineData("websocket.error")]
     [InlineData("channel.vip.add")]

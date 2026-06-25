@@ -109,6 +109,16 @@ public sealed class LegacyChannelEventMapper
                     realIdKey: "Id"
                 )
             ),
+            // A redemption STATUS change (fulfilled / canceled). Its payload Id is the SAME redemption id as the
+            // matching .add, so it must NOT reuse realIdKey:"Id" — that would derive the add's EventId and be
+            // deduped away. The deterministic per-legacy-row id keeps the status transition a distinct event.
+            "channel.points.custom.reward.redemption.update" => MapRedemptionUpdate(
+                data,
+                Envelope(row, targetBroadcasterId, data, eventTimeKey: "RedeemedAt")
+            ),
+            // A channel-info change (title / category). The payload carries no real Twitch event id, so it takes
+            // the deterministic per-legacy-row id and the legacy capture time.
+            "channel.update" => MapChannelUpdate(data, Envelope(row, targetBroadcasterId, data)),
             _ => null,
         };
 
@@ -454,6 +464,47 @@ public sealed class LegacyChannelEventMapper
             UserInput = Str(data, "UserInput"),
         };
     }
+
+    // A redemption STATUS transition (channel.points.custom.reward.redemption.update) — a queued redemption marked
+    // fulfilled or canceled. Same Reward + viewer shape as the .add; surfaces the new Status. Skips a payload with
+    // no viewer/reward (anonymous/garbage), like the .add does.
+    private static RewardRedemptionUpdatedEvent? MapRedemptionUpdate(
+        JObject data,
+        EventEnvelope env
+    )
+    {
+        string? userId = Str(data, "UserId");
+        JObject? reward = data["Reward"] as JObject;
+        string? rewardId = reward?["Id"]?.Value<string>();
+        if (userId is null || rewardId is null)
+            return null;
+
+        return new RewardRedemptionUpdatedEvent
+        {
+            EventId = env.EventId,
+            BroadcasterId = env.Tenant,
+            OccurredAt = env.OccurredAt,
+            RedemptionId = Str(data, "Id") ?? env.EventId.ToString(),
+            RewardId = rewardId,
+            RewardTitle = reward!["Title"]?.Value<string>() ?? string.Empty,
+            UserId = userId,
+            UserDisplayName = Str(data, "UserName") ?? userId,
+            Status = Str(data, "Status") ?? "unknown",
+        };
+    }
+
+    // A channel-info change (channel.update) — the broadcaster's stream title and/or category changed. Always
+    // valid (no viewer to attribute); missing fields default to empty rather than skipping the event.
+    private static ChannelUpdatedEvent MapChannelUpdate(JObject data, EventEnvelope env) =>
+        new()
+        {
+            EventId = env.EventId,
+            BroadcasterId = env.Tenant,
+            OccurredAt = env.OccurredAt,
+            BroadcasterDisplayName = Str(data, "BroadcasterUserName") ?? string.Empty,
+            NewTitle = Str(data, "Title") ?? string.Empty,
+            NewGameName = Str(data, "CategoryName") ?? string.Empty,
+        };
 
     // ── chat payload helpers ────────────────────────────────────────────────────────────────────────────────
     // The plain text of a legacy Message object: its Text, else the joined fragment texts (mirrors the live reader).
