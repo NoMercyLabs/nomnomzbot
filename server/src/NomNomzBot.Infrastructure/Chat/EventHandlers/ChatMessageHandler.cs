@@ -223,10 +223,39 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
             }
             else
             {
-                // Simple response command — pick a response (round-robin or random)
+                // Simple response command — pick a response (round-robin or random).
+                // If the command has no template responses (misconfigured or a builtin key that
+                // lives in the Commands table for metadata purposes), fall through to the builtin
+                // catalog so the code-defined handler still fires (e.g. !sr, !song, !uptime).
                 string response = PickResponse(command.TemplateResponses);
                 if (string.IsNullOrEmpty(response))
+                {
+                    IBuiltinCommand? builtin = _builtins.Get(commandName);
+                    if (builtin is null)
+                        return;
+
+                    BuiltinCommandContext builtinFallbackCtx = new()
+                    {
+                        BroadcasterId = @event.BroadcasterId,
+                        TriggeringUserId = @event.UserId,
+                        TriggeringUserDisplayName = @event.UserDisplayName,
+                        Args = args,
+                        CancellationToken = cancellationToken,
+                    };
+
+                    Application.Common.Models.Result<string> builtinFallbackResult =
+                        await builtin.ExecuteAsync(builtinFallbackCtx, cancellationToken);
+                    if (
+                        builtinFallbackResult.IsSuccess
+                        && !string.IsNullOrEmpty(builtinFallbackResult.Value)
+                    )
+                        await _chat.SendMessageAsync(
+                            @event.BroadcasterId,
+                            builtinFallbackResult.Value,
+                            cancellationToken
+                        );
                     return;
+                }
 
                 // Build template context
                 Dictionary<string, string> variables = BuildInitialVariables(@event, args);

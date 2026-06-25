@@ -139,12 +139,16 @@ public sealed class EventSubConditionBuilder : IEventSubConditionBuilder
         "channel.chat.user_message_update",
     ];
 
-    /// <summary>Topics Twitch documents as requiring no authorization — they ride the app/bot token.</summary>
-    private static readonly HashSet<string> AppTokenEvents =
-    [
-        "channel.update",
-        "channel.raid",
-        "stream.online",
-        "stream.offline",
-    ];
+    /// <summary>
+    /// Topics that can ride the app/bot token (no broadcaster-user authorization required). These topics also
+    /// accept a broadcaster user token, which is used as the fallback when no app client secret is configured
+    /// (self-host + public client scenario). The effective token choice is made by the transport layer: if an
+    /// app access token is available it is preferred; otherwise the broadcaster's user token is used instead.
+    ///
+    /// Only <c>channel.update</c> stays here — it is the sole topic that requires the app token in some
+    /// Twitch configurations. <c>stream.online</c>, <c>stream.offline</c>, and <c>channel.raid</c> have been
+    /// moved to the user-token path because they work equally well with a broadcaster token and the app token
+    /// requires a client_secret that is unavailable in self-host public-client deployments.
+    /// </summary>
+    private static readonly HashSet<string> AppTokenEvents = ["channel.update"];
 }

@@ -169,9 +169,12 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
 
         foreach (CachedCommand cmd in commands)
         {
-            ctx.Commands[cmd.Name] = cmd;
+            // ChatMessageHandler parses the trigger by stripping the leading '!' and lowercasing, so registry
+            // keys must match that form — "sr" not "!sr". Strip here so any command stored with or without the
+            // prefix resolves correctly from either direction.
+            ctx.Commands[cmd.Name.TrimStart('!').ToLowerInvariant()] = cmd;
             foreach (string alias in cmd.Aliases)
-                ctx.Commands[alias] = cmd;
+                ctx.Commands[alias.TrimStart('!').ToLowerInvariant()] = cmd;
         }
 
         _logger.LogDebug(

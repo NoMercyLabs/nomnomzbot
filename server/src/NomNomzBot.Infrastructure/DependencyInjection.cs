@@ -517,6 +517,22 @@ public static class DependencyInjection
             IBuiltinCommand,
             NomNomzBot.Infrastructure.Commands.Builtins.SongRequestBuiltin
         >();
+        services.AddScoped<
+            IBuiltinCommand,
+            NomNomzBot.Infrastructure.Commands.Builtins.SkipBuiltin
+        >();
+        services.AddScoped<
+            IBuiltinCommand,
+            NomNomzBot.Infrastructure.Commands.Builtins.QueueBuiltin
+        >();
+        services.AddScoped<
+            IBuiltinCommand,
+            NomNomzBot.Infrastructure.Commands.Builtins.VolumeBuiltin
+        >();
+        services.AddScoped<
+            IBuiltinCommand,
+            NomNomzBot.Infrastructure.Commands.Builtins.CurrentSongBuiltin
+        >();
         services.AddScoped<IBuiltinCommandCatalog, BuiltinCommandCatalog>();
         // Per-channel enable/disable toggle management.
         services.AddScoped<IBuiltinCommandService, BuiltinCommandService>();

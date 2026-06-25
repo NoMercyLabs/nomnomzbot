@@ -72,6 +72,7 @@ public sealed class AuthService : IAuthService
         "bits:read",
         "channel:manage:redemptions",
         "channel:read:redemptions",
+        "channel:moderate",
         "moderator:manage:banned_users",
         "moderator:manage:chat_messages",
         "moderator:read:followers",
