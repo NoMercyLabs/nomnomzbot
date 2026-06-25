@@ -106,6 +106,10 @@ public class DiscordOAuthController : BaseController
             + "&response_type=code"
             + $"&redirect_uri={Uri.EscapeDataString(redirectUri)}"
             + $"&scope={Uri.EscapeDataString(DiscordScopes)}"
+            // The bot joins a SERVER, so request the guild-install context explicitly (integration_type=0 =
+            // GUILD_INSTALL). Without it, an app that also offers user-install fails Discord's authorize with
+            // "installation type not supported for this application." (The app must also enable Guild Install.)
+            + "&integration_type=0"
             + $"&state={Uri.EscapeDataString(state)}";
 
         return Redirect(authUrl);

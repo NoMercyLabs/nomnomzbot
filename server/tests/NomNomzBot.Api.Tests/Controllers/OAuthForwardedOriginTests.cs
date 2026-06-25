@@ -79,6 +79,9 @@ public sealed class OAuthForwardedOriginTests
 
         RedirectResult redirect = result.Should().BeOfType<RedirectResult>().Subject;
         redirect.Url.Should().StartWith("https://discord.com/api/oauth2/authorize");
+        // The bot install requests the guild-install context, so Discord doesn't reject it with
+        // "installation type not supported for this application."
+        redirect.Url.Should().Contain("integration_type=0");
         // The redirect_uri Discord is told to call back is the tunnel origin, never localhost.
         Uri.UnescapeDataString(redirect.Url)
             .Should()

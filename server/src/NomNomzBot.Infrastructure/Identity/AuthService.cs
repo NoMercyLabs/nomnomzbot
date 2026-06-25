@@ -1013,7 +1013,19 @@ public sealed class AuthService : IAuthService
         {
             HttpResponseMessage response = await _http.SendAsync(request, ct);
             if (!response.IsSuccessStatusCode)
+            {
+                // Log WHY so a "Failed to fetch Twitch user info." login failure is diagnosable instead of a
+                // silent null: the Helix status + body (e.g. "invalid OAuth token") and the client-id suffix,
+                // which surfaces a token/Client-Id client mismatch.
+                string detail = await response.Content.ReadAsStringAsync(ct);
+                _logger.LogWarning(
+                    "Twitch GET /helix/users returned {Status} (Client-Id …{ClientIdSuffix}): {Detail}",
+                    (int)response.StatusCode,
+                    clientId.Length >= 4 ? clientId[^4..] : clientId,
+                    detail.Length > 300 ? detail[..300] : detail
+                );
                 return null;
+            }
 
             HelixDataResponse<HelixUser>? data = await response.Content.ReadFromJsonAsync<
                 HelixDataResponse<HelixUser>
