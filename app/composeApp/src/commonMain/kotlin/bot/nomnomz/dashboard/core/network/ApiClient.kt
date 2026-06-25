@@ -15,6 +15,7 @@ import io.ktor.client.call.body
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.defaultRequest
 import io.ktor.client.request.delete
+import io.ktor.client.request.patch
 import io.ktor.client.request.forms.MultiPartFormDataContent
 import io.ktor.client.request.forms.formData
 import io.ktor.client.request.get
@@ -138,6 +139,17 @@ class ApiClient(
     internal suspend fun putUnit(path: String, body: Any? = null): ApiResult<Unit> =
         unit(path) { url ->
             httpClient.put(url) {
+                if (body != null) {
+                    contentType(ContentType.Application.Json)
+                    setBody(body)
+                }
+            }
+        }
+
+    /** PATCHes an optional JSON [body] and treats any 2xx as success, ignoring the response body. */
+    internal suspend fun patchUnit(path: String, body: Any? = null): ApiResult<Unit> =
+        unit(path) { url ->
+            httpClient.patch(url) {
                 if (body != null) {
                     contentType(ContentType.Application.Json)
                     setBody(body)

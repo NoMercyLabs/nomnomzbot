@@ -80,7 +80,11 @@ import nomnomzbot.composeapp.generated.resources.economy_account_unfreeze_action
 import nomnomzbot.composeapp.generated.resources.economy_accounts_empty
 import nomnomzbot.composeapp.generated.resources.economy_accounts_row_description
 import nomnomzbot.composeapp.generated.resources.economy_accounts_title
+import nomnomzbot.composeapp.generated.resources.economy_catalog_disable
+import nomnomzbot.composeapp.generated.resources.economy_catalog_disable_action
 import nomnomzbot.composeapp.generated.resources.economy_catalog_disabled
+import nomnomzbot.composeapp.generated.resources.economy_catalog_enable
+import nomnomzbot.composeapp.generated.resources.economy_catalog_enable_action
 import nomnomzbot.composeapp.generated.resources.economy_catalog_empty
 import nomnomzbot.composeapp.generated.resources.economy_catalog_row_description
 import nomnomzbot.composeapp.generated.resources.economy_catalog_stock
@@ -151,6 +155,9 @@ fun EconomyScreen(controller: EconomyController, role: ManagementRole?) {
                     onFreeze = { viewerUserId, frozen ->
                         scope.launch { controller.freezeAccount(viewerUserId, frozen) }
                     },
+                    onToggleCatalog = { itemId, enabled ->
+                        scope.launch { controller.setCatalogItemEnabled(itemId, enabled) }
+                    },
                 )
         }
     }
@@ -163,6 +170,7 @@ private fun ReadyContent(
     payoutRules: ManageDecision,
     onSave: (CurrencyConfig) -> Unit,
     onFreeze: (String, Boolean) -> Unit,
+    onToggleCatalog: (String, Boolean) -> Unit,
 ) {
     val spacing = LocalSpacing.current
     val loaded: CurrencyConfig = state.config
@@ -274,7 +282,7 @@ private fun ReadyContent(
 
         EarningRulesSection(rules = state.earningRules)
 
-        CatalogSection(catalog = state.catalog)
+        CatalogSection(catalog = state.catalog, manage = config, onToggle = onToggleCatalog)
     }
 
     pendingDisable?.let { edit ->
@@ -880,7 +888,11 @@ private fun EarningRuleRow(rule: EarningRule) {
 // The store catalog (economy.md §4): one row per item — the name, a disabled flag, stock (for limited items),
 // and the cost. Read-only here; create / edit / delete + purchase history are a follow-up management surface.
 @Composable
-private fun CatalogSection(catalog: List<CatalogItem>) {
+private fun CatalogSection(
+    catalog: List<CatalogItem>,
+    manage: ManageDecision,
+    onToggle: (String, Boolean) -> Unit,
+) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
@@ -907,69 +919,107 @@ private fun CatalogSection(catalog: List<CatalogItem>) {
         contentPadding = PaddingValues(vertical = spacing.s1),
         verticalArrangement = Arrangement.spacedBy(spacing.s2),
     ) {
-        items(items = catalog, key = { it.id }) { item -> CatalogItemRow(item = item) }
+        items(items = catalog, key = { it.id }) { item ->
+            CatalogItemRow(item = item, manage = manage, onToggle = onToggle)
+        }
     }
 }
 
 @Composable
-private fun CatalogItemRow(item: CatalogItem) {
+private fun CatalogItemRow(
+    item: CatalogItem,
+    manage: ManageDecision,
+    onToggle: (String, Boolean) -> Unit,
+) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
 
     val rowDescription: String =
         stringResource(Res.string.economy_catalog_row_description, item.name, item.cost)
+    val toggleLabel: String =
+        stringResource(
+            if (item.isEnabled) Res.string.economy_catalog_disable_action
+            else Res.string.economy_catalog_enable_action,
+            item.name,
+        )
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(tokens.radius.lg))
             .background(tokens.card)
-            .padding(horizontal = spacing.s4, vertical = spacing.s3)
-            .clearAndSetSemantics { contentDescription = rowDescription },
+            .padding(horizontal = spacing.s4, vertical = spacing.s3),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(spacing.s3),
     ) {
-        Text(
-            text = item.name,
-            style = typography.base,
-            color = tokens.cardForeground,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f),
-        )
-        if (!item.isEnabled) {
+        // The descriptive portion is one semantics node; the enable/disable button keeps its own.
+        Row(
+            modifier = Modifier
+                .weight(1f)
+                .clearAndSetSemantics { contentDescription = rowDescription },
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(spacing.s3),
+        ) {
             Text(
-                text = stringResource(Res.string.economy_catalog_disabled),
-                style = typography.sm,
-                color = tokens.mutedForeground,
+                text = item.name,
+                style = typography.base,
+                color = tokens.cardForeground,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            if (!item.isEnabled) {
+                Text(
+                    text = stringResource(Res.string.economy_catalog_disabled),
+                    style = typography.sm,
+                    color = tokens.mutedForeground,
+                    maxLines = 1,
+                    modifier = Modifier.wrapContentWidth(),
+                )
+            }
+            // Stock only for limited items — a null stockLimit means unlimited, so show nothing.
+            val limit: Int? = item.stockLimit
+            if (limit != null) {
+                Text(
+                    text =
+                        stringResource(
+                            Res.string.economy_catalog_stock,
+                            item.stockRemaining ?: 0,
+                            limit,
+                        ),
+                    style = typography.sm,
+                    color = tokens.mutedForeground,
+                    maxLines = 1,
+                    modifier = Modifier.wrapContentWidth(),
+                )
+            }
+            Text(
+                text = item.cost.toString(),
+                style = typography.base,
+                color = tokens.primary,
                 maxLines = 1,
                 modifier = Modifier.wrapContentWidth(),
             )
         }
-        // Stock only for limited items — a null stockLimit means unlimited, so show nothing.
-        val limit: Int? = item.stockLimit
-        if (limit != null) {
-            Text(
-                text =
-                    stringResource(
-                        Res.string.economy_catalog_stock,
-                        item.stockRemaining ?: 0,
-                        limit,
-                    ),
-                style = typography.sm,
-                color = tokens.mutedForeground,
-                maxLines = 1,
-                modifier = Modifier.wrapContentWidth(),
-            )
+        // Enable / disable — Editor floor (ManageGate); the backend re-checks economy:catalog:update.
+        ManageGate(decision = manage) { enabled ->
+            TextButton(
+                onClick = { onToggle(item.id, !item.isEnabled) },
+                enabled = enabled,
+                modifier = Modifier.semantics { contentDescription = toggleLabel },
+            ) {
+                Text(
+                    text =
+                        stringResource(
+                            if (item.isEnabled) Res.string.economy_catalog_disable
+                            else Res.string.economy_catalog_enable
+                        ),
+                    color = if (enabled) tokens.primary else tokens.mutedForeground,
+                    maxLines = 1,
+                )
+            }
         }
-        Text(
-            text = item.cost.toString(),
-            style = typography.base,
-            color = tokens.primary,
-            maxLines = 1,
-            modifier = Modifier.wrapContentWidth(),
-        )
     }
 }
 

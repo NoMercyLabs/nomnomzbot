@@ -553,6 +553,12 @@ private class FakeEconomyApi(
 
     override suspend fun catalog(channelId: String): ApiResult<List<CatalogItem>> =
         ApiResult.Ok(emptyList())
+
+    override suspend fun setCatalogItemEnabled(
+        channelId: String,
+        itemId: String,
+        enabled: Boolean,
+    ): ApiResult<Unit> = ApiResult.Ok(Unit)
 }
 
 private class FakeMusicApi(private val snapshot: ApiResult<MusicSnapshot>) : MusicApi {

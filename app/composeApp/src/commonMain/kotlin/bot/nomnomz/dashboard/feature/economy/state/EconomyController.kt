@@ -171,6 +171,25 @@ class EconomyController(
         }
     }
 
+    /**
+     * Enable or disable a catalog item ([enabled]), then reload so the row reflects the new state. No-ops when no
+     * channel is loaded; surfaces the error on the current Ready state's [EconomyState.Ready.saveError] on failure.
+     */
+    suspend fun setCatalogItemEnabled(itemId: String, enabled: Boolean) {
+        val target: String = channelId ?: return
+        when (
+            val result: ApiResult<Unit> = economyApi.setCatalogItemEnabled(target, itemId, enabled)
+        ) {
+            is ApiResult.Ok -> load()
+            is ApiResult.Failure -> {
+                val current: EconomyState = _state.value
+                if (current is EconomyState.Ready) {
+                    _state.value = current.copy(saveError = result.error.message)
+                }
+            }
+        }
+    }
+
     private companion object {
         // The top-holders window the Economy page surfaces — a fixed, bounded read (the backend caps it too).
         const val LEADERBOARD_TOP: Int = 25

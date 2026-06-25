@@ -56,6 +56,13 @@ interface EconomyApi {
 
     /** The channel's store catalog — the items viewers buy with currency. First page only here. */
     suspend fun catalog(channelId: String): ApiResult<List<CatalogItem>>
+
+    /** Enable or disable a catalog item ([enabled]) — a partial PATCH carrying only the flag. */
+    suspend fun setCatalogItemEnabled(
+        channelId: String,
+        itemId: String,
+        enabled: Boolean,
+    ): ApiResult<Unit>
 }
 
 class RestEconomyApi(private val client: ApiClient) : EconomyApi {
@@ -135,11 +142,28 @@ class RestEconomyApi(private val client: ApiClient) : EconomyApi {
             is ApiResult.Failure -> ApiResult.Failure(page.error)
             is ApiResult.Ok -> ApiResult.Ok(page.value.data)
         }
+
+    override suspend fun setCatalogItemEnabled(
+        channelId: String,
+        itemId: String,
+        enabled: Boolean,
+    ): ApiResult<Unit> =
+        client.patchUnit(
+            "api/v1/channels/$channelId/economy/catalog/$itemId",
+            UpdateCatalogItemBody(isEnabled = enabled),
+        )
 }
 
 /** The freeze/unfreeze request body (backend `CurrencyController.FreezeBody`). camelCase `frozen`. */
 @Serializable
 data class FreezeAccountBody(val frozen: Boolean)
+
+/**
+ * A partial catalog-item update (backend `UpdateCatalogItemRequest`) — every field nullable, only the non-null
+ * ones apply. A toggle sends just [isEnabled]; `explicitNulls = false` on the shared Json omits the rest.
+ */
+@Serializable
+data class UpdateCatalogItemBody(val isEnabled: Boolean? = null)
 
 // The store-item DTO `CatalogItem` (backend `CatalogItemDto`) is declared once in ParticipantApi.kt and shared —
 // the Economy page's catalog read returns that same type rather than re-declaring it (one DTO per backend shape).

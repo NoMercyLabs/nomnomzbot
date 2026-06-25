@@ -460,6 +460,10 @@
     <string name="economy_catalog_row_description">%1$s, cost %2$d</string>
     <string name="economy_catalog_disabled">Disabled</string>
     <string name="economy_catalog_stock">%1$d / %2$d left</string>
+    <string name="economy_catalog_enable">Enable</string>
+    <string name="economy_catalog_disable">Disable</string>
+    <string name="economy_catalog_enable_action">Enable %1$s</string>
+    <string name="economy_catalog_disable_action">Disable %1$s</string>
     <string name="alerts_title">Alerts &amp; Events</string>
     <string name="alerts_loading">Loading your alerts…</string>
     <string name="alerts_error">Could not load your alerts: %1$s</string>

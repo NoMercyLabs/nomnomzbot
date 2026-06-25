@@ -215,6 +215,27 @@ class EconomyControllerTest {
     }
 
     @Test
+    fun toggling_a_catalog_item_calls_the_api_with_the_item_and_flag_then_reloads() = runTest {
+        val economyApi =
+            FakeEconomyApi(
+                configResult = ApiResult.Ok(loadedConfig),
+                leaderboardResult = ApiResult.Ok(leaderboard),
+                catalogResult =
+                    ApiResult.Ok(
+                        listOf(CatalogItem(id = "c1", name = "Hydrate", cost = 50, isEnabled = true))
+                    ),
+            )
+        val controller =
+            EconomyController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), economyApi)
+        controller.load()
+
+        controller.setCatalogItemEnabled("c1", enabled = false)
+
+        assertEquals("c1" to false, economyApi.lastCatalogToggle) // addressed by item id + the flag
+        assertTrue(controller.state.value is EconomyState.Ready) // reloaded; page intact
+    }
+
+    @Test
     fun load_seeds_a_default_form_when_the_economy_is_not_configured() = runTest {
         // A null config means the economy was never set up — the page must still render a (default) form so the
         // operator can create it, flagged not-configured, with whatever leaderboard exists (empty here).
@@ -422,4 +443,16 @@ private class FakeEconomyApi(
     }
 
     override suspend fun catalog(channelId: String): ApiResult<List<CatalogItem>> = catalogResult
+
+    var lastCatalogToggle: Pair<String, Boolean>? = null
+        private set
+
+    override suspend fun setCatalogItemEnabled(
+        channelId: String,
+        itemId: String,
+        enabled: Boolean,
+    ): ApiResult<Unit> {
+        lastCatalogToggle = itemId to enabled
+        return ApiResult.Ok(Unit)
+    }
 }
