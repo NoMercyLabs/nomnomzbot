@@ -29,6 +29,10 @@ public sealed class ViewerProfileProjection(IApplicationDbContext db, ViewerReso
     private static readonly HashSet<string> Subscribed = new(StringComparer.Ordinal)
     {
         "ChatMessageReceivedEvent",
+        "NewFollowerEvent",
+        "RewardRedeemedEvent",
+        "NewSubscriptionEvent",
+        "ResubscriptionEvent",
     };
 
     public string Name => "viewer-profile";
@@ -65,8 +69,26 @@ public sealed class ViewerProfileProjection(IApplicationDbContext db, ViewerReso
         profile.DisplayNameSnapshot = identity.Value.Display;
         profile.FirstSeenAt ??= @event.OccurredAt;
         profile.LastSeenAt = @event.OccurredAt;
-        profile.TotalMessages++;
-        profile.IsSubscriber = payload["IsSubscriber"]?.Value<bool?>() ?? false;
+
+        // Fold the aggregate this event type contributes to the per-viewer profile.
+        switch (@event.EventType)
+        {
+            case "ChatMessageReceivedEvent":
+                profile.TotalMessages++;
+                profile.IsSubscriber = payload["IsSubscriber"]?.Value<bool?>() ?? false;
+                break;
+            case "NewFollowerEvent":
+                profile.IsFollower = true;
+                break;
+            case "RewardRedeemedEvent":
+                profile.TotalRedemptions++;
+                break;
+            case "NewSubscriptionEvent":
+            case "ResubscriptionEvent":
+                profile.IsSubscriber = true;
+                profile.SubTier = payload["Tier"]?.Value<string>() ?? profile.SubTier;
+                break;
+        }
 
         await db.SaveChangesAsync(cancellationToken);
         return Result.Success();

@@ -76,6 +76,27 @@ public sealed class ViewerProfileProjectionTests
             Now
         );
 
+    private static EventRecord Event(string eventType, object payload) =>
+        new(
+            ++_seq,
+            Guid.NewGuid(),
+            Channel,
+            _seq,
+            eventType,
+            1,
+            "domain",
+            JsonConvert.SerializeObject(payload),
+            false,
+            null,
+            null,
+            null,
+            null,
+            null,
+            "{}",
+            Now,
+            Now
+        );
+
     [Fact]
     public async Task Creates_the_viewer_as_a_user_and_counts_their_messages()
     {
@@ -118,5 +139,86 @@ public sealed class ViewerProfileProjectionTests
         ViewerProfile profile = db.ViewerProfiles.Single();
         profile.TotalMessages.Should().Be(0);
         profile.LastSeenAt.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Folding_a_follow_marks_the_viewer_a_follower_without_counting_a_message()
+    {
+        (ViewerProfileProjection sut, AuthDbContext db) = Build();
+
+        await sut.ApplyAsync(
+            Event(
+                "NewFollowerEvent",
+                new
+                {
+                    UserId = "t1",
+                    UserLogin = "fan",
+                    UserDisplayName = "Fan",
+                }
+            )
+        );
+
+        ViewerProfile profile = db.ViewerProfiles.Single();
+        profile.IsFollower.Should().BeTrue();
+        profile.ViewerTwitchUserId.Should().Be("t1");
+        profile.TotalMessages.Should().Be(0); // a follow is not a chat message
+    }
+
+    [Fact]
+    public async Task Folding_redemptions_counts_them_per_viewer()
+    {
+        (ViewerProfileProjection sut, AuthDbContext db) = Build();
+
+        await sut.ApplyAsync(
+            Event(
+                "RewardRedeemedEvent",
+                new
+                {
+                    UserId = "t1",
+                    UserDisplayName = "Buyer",
+                    RewardTitle = "Hydrate",
+                    Cost = 100,
+                }
+            )
+        );
+        await sut.ApplyAsync(
+            Event(
+                "RewardRedeemedEvent",
+                new
+                {
+                    UserId = "t1",
+                    UserDisplayName = "Buyer",
+                    RewardTitle = "Hydrate",
+                    Cost = 100,
+                }
+            )
+        );
+
+        ViewerProfile profile = db.ViewerProfiles.Single();
+        profile.TotalRedemptions.Should().Be(2);
+        profile.IsFollower.Should().BeFalse();
+        profile.TotalMessages.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Folding_a_subscription_marks_the_viewer_a_subscriber_with_their_tier()
+    {
+        (ViewerProfileProjection sut, AuthDbContext db) = Build();
+
+        await sut.ApplyAsync(
+            Event(
+                "NewSubscriptionEvent",
+                new
+                {
+                    UserId = "t1",
+                    UserDisplayName = "Sub",
+                    Tier = "1000",
+                }
+            )
+        );
+
+        ViewerProfile profile = db.ViewerProfiles.Single();
+        profile.IsSubscriber.Should().BeTrue();
+        profile.SubTier.Should().Be("1000");
     }
 }
