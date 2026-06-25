@@ -115,6 +115,24 @@ public class CurrencyController(
         return GetPaginatedResponse(result.Value, request);
     }
 
+    /// <summary>
+    /// The caller's OWN wallet on this channel — the <c>self</c> arm of economy.md §5's
+    /// <c>economy:account:read</c> "self-or-Gate-2". It binds the subject to the authenticated caller and can
+    /// only ever return that caller's account, so it carries no Gate-2 floor (community / Everyone): a
+    /// participant reads their own balance here without the Moderator <c>economy:account:read</c> the keyed
+    /// <c>accounts/{viewerUserId}</c> route demands. <c>me</c> is a literal, so it never shadows the guid route.
+    /// </summary>
+    [HttpGet("accounts/me")]
+    [ProducesResponseType<StatusResponseDto<CurrencyAccountDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetMyAccount(string channelId, CancellationToken ct)
+    {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
+        if (!TryGetCaller(out Guid caller))
+            return UnauthenticatedResponse();
+        return ResultResponse(await accounts.GetOrCreateAccountAsync(broadcasterId, caller, ct));
+    }
+
     [HttpGet("accounts/{viewerUserId:guid}")]
     [RequireAction("economy:account:read")]
     public async Task<IActionResult> GetAccount(

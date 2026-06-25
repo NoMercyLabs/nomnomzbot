@@ -142,6 +142,47 @@ public sealed class CurrencyControllerTests
     }
 
     [Fact]
+    public async Task GetMyAccount_binds_the_subject_to_the_caller_and_returns_that_wallet()
+    {
+        (CurrencyController controller, _, ICurrencyAccountService accounts) = Build();
+        CurrencyAccountDto callerWallet = new(
+            Guid.NewGuid(),
+            Caller,
+            "tw-caller",
+            250,
+            300,
+            50,
+            false,
+            null
+        );
+        // Stub ONLY the caller's wallet; any other subject would return the NSubstitute default (null Result),
+        // so the Ok below can only happen if the controller bound the caller — not a spoofable route/body value.
+        accounts
+            .GetOrCreateAccountAsync(Channel, Caller, Arg.Any<CancellationToken>())
+            .Returns(Result.Success(callerWallet));
+
+        IActionResult result = await controller.GetMyAccount(Channel.ToString(), default);
+
+        result.Should().BeOfType<OkObjectResult>();
+        await accounts
+            .Received(1)
+            .GetOrCreateAccountAsync(Channel, Caller, Arg.Any<CancellationToken>());
+        await accounts
+            .DidNotReceive()
+            .GetOrCreateAccountAsync(Channel, RouteViewer, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task GetMyAccount_rejects_a_malformed_channel_id()
+    {
+        (CurrencyController controller, _, _) = Build();
+
+        IActionResult result = await controller.GetMyAccount("not-a-guid", default);
+
+        result.Should().BeOfType<BadRequestObjectResult>();
+    }
+
+    [Fact]
     public async Task GetConfig_rejects_a_malformed_channel_id()
     {
         (CurrencyController controller, _, _) = Build();

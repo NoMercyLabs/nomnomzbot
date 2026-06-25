@@ -214,8 +214,8 @@ class ParticipantControllerTest {
         assertEquals(1, ready.catalog.size)
         assertEquals(1, ready.jars.size)
         assertFalse(ready.canTransfer)
-        // The wallet read addressed the caller's own id on the channel.
-        assertEquals(listOf(channelId to callerId), api.accountCalls)
+        // The wallet read hit the channel's self-bound /me route; the caller's id is bound server-side from the JWT.
+        assertEquals(listOf(channelId), api.accountCalls)
     }
 
     @Test
@@ -417,7 +417,7 @@ private class FakeParticipantApi(
     private val channels: List<ChannelAppearance> = emptyList(),
     private val songRequestResult: ApiResult<Unit> = ApiResult.Ok(Unit),
 ) : ParticipantApi {
-    val accountCalls: MutableList<Pair<String, String>> = mutableListOf()
+    val accountCalls: MutableList<String> = mutableListOf()
     val purchaseCalls: MutableList<Pair<String, String>> = mutableListOf()
     val jarContributions: MutableList<Triple<String, String, Long>> = mutableListOf()
     val transferCalls: MutableList<TransferCall> = mutableListOf()
@@ -430,8 +430,8 @@ private class FakeParticipantApi(
     val activityCalls: MutableList<String> = mutableListOf()
     val channelsCalls: MutableList<String> = mutableListOf()
 
-    override suspend fun myAccount(channelId: String, viewerUserId: String): ApiResult<CurrencyAccount> {
-        accountCalls.add(channelId to viewerUserId)
+    override suspend fun myAccount(channelId: String): ApiResult<CurrencyAccount> {
+        accountCalls.add(channelId)
         return ApiResult.Ok(account)
     }
 

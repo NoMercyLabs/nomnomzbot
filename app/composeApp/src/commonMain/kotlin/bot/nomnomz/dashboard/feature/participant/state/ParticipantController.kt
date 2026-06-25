@@ -231,7 +231,7 @@ class ParticipantController(
         }
 
         val account: CurrencyAccount =
-            when (val result: ApiResult<CurrencyAccount> = participantApi.myAccount(channelId, userId!!)) {
+            when (val result: ApiResult<CurrencyAccount> = participantApi.myAccount(channelId)) {
                 is ApiResult.Failure -> {
                     _store.value = StoreState.Error(result.error.message)
                     return

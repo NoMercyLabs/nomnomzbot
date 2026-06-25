@@ -21,7 +21,7 @@ import kotlinx.serialization.Serializable
 // re-checks every write regardless, so passing the id is for the route, not trust.
 //
 // Backend routes (all under `api/v1/channels/{channelId}`):
-//   CurrencyController             GET  economy/accounts/{viewerUserId}                 → StatusResponseDto<CurrencyAccountDto>   (economy:account:read)
+//   CurrencyController             GET  economy/accounts/me                             → StatusResponseDto<CurrencyAccountDto>   (community/Everyone — self-bound)
 //                                  POST economy/transfer                  (TransferCommand)            (economy:transfer:write)
 //   CatalogController              GET  economy/catalog                                 → PaginatedResponse<CatalogItemDto>      (economy:catalog:read)
 //                                  POST economy/catalog/{itemId}/purchase (PurchaseRequest)            (economy:catalog:purchase)
@@ -33,8 +33,8 @@ import kotlinx.serialization.Serializable
 //                                  GET  economy/games/history                           → PaginatedResponse<GamePlayDto>         (economy:games:history:read)
 //   MusicController                POST music/queue                       (SongRequestDto)             (Everyone — no action floor)
 interface ParticipantApi {
-    /** The caller's own wallet on [channelId] for their [viewerUserId] (the backend get-or-creates it). */
-    suspend fun myAccount(channelId: String, viewerUserId: String): ApiResult<CurrencyAccount>
+    /** The caller's own wallet on [channelId] (the backend binds the subject from the JWT and get-or-creates it). */
+    suspend fun myAccount(channelId: String): ApiResult<CurrencyAccount>
 
     /** The channel's purchasable store items the caller may read (first page). */
     suspend fun catalog(channelId: String): ApiResult<List<CatalogItem>>
@@ -87,8 +87,8 @@ interface ParticipantApi {
 
 class RestParticipantApi(private val client: ApiClient) : ParticipantApi {
 
-    override suspend fun myAccount(channelId: String, viewerUserId: String): ApiResult<CurrencyAccount> =
-        client.getEnvelope("api/v1/channels/$channelId/economy/accounts/$viewerUserId")
+    override suspend fun myAccount(channelId: String): ApiResult<CurrencyAccount> =
+        client.getEnvelope("api/v1/channels/$channelId/economy/accounts/me")
 
     override suspend fun catalog(channelId: String): ApiResult<List<CatalogItem>> =
         // PaginatedResponse is the flat `{ data: [...] }` body (not the single-value envelope), so getDirect.
