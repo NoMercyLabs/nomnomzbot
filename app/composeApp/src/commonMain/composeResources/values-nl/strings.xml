@@ -1079,4 +1079,70 @@
     <string name="participant_me_channels_title">Kanalen waar je aan deelneemt</string>
     <string name="participant_me_channels_empty">Nog geen kanaalactiviteit.</string>
     <string name="participant_me_channels_row">%1$s · %2$d berichten · %3$s</string>
+
+    <!-- Shell nav -->
+    <string name="shell_nav_features">Functies</string>
+    <string name="shell_nav_webhooks">Webhooks</string>
+
+    <!-- Features page -->
+    <string name="features_title">Functies</string>
+    <string name="features_subtitle">Schakel optionele botfuncties in of uit voor jouw kanaal.</string>
+    <string name="features_loading">Functies laden…</string>
+    <string name="features_empty">Geen functievlaggen gevonden voor dit kanaal.</string>
+    <string name="features_error">Functies laden mislukt: %1$s</string>
+    <string name="features_retry">Opnieuw proberen</string>
+    <string name="features_action_error">Schakelen mislukt: %1$s</string>
+    <string name="features_toggle_action">Zet %1$s aan/uit</string>
+    <string name="features_scopes_label">Vereiste machtigingen</string>
+
+    <!-- Webhooks page -->
+    <string name="webhooks_title">Webhooks</string>
+    <string name="webhooks_subtitle">Ontvang gebeurtenissen van externe diensten of verstuur meldingen naar je eigen endpoints.</string>
+    <string name="webhooks_loading">Webhooks laden…</string>
+    <string name="webhooks_error">Webhooks laden mislukt: %1$s</string>
+    <string name="webhooks_retry">Opnieuw proberen</string>
+    <string name="webhooks_action_error">Actie mislukt: %1$s</string>
+    <string name="webhooks_inbound_title">Inkomende endpoints</string>
+    <string name="webhooks_inbound_add">Endpoint toevoegen</string>
+    <string name="webhooks_outbound_title">Uitgaande endpoints</string>
+    <string name="webhooks_outbound_add">Endpoint toevoegen</string>
+    <string name="webhooks_adapter_label">Adapter</string>
+    <string name="webhooks_url_label">Ingest-URL</string>
+    <string name="webhooks_receive_count">%1$d ontvangen</string>
+    <string name="webhooks_failures_label">%1$d opeenvolgende fouten</string>
+    <string name="webhooks_outbound_disabled_reason">Reden voor uitschakeling</string>
+    <string name="webhooks_outbound_reenable">Opnieuw inschakelen</string>
+    <string name="webhooks_outbound_test">Testen</string>
+    <string name="webhooks_rotate_inbound_token">Token vernieuwen</string>
+    <string name="webhooks_rotate_outbound_secret">Geheim vernieuwen</string>
+    <string name="webhooks_test_result_title">Testresultaat</string>
+    <string name="webhooks_test_success">Afgeleverd</string>
+    <string name="webhooks_test_failed">Mislukt</string>
+    <string name="webhooks_secret_once_title">Ondertekeningsgeheim</string>
+    <string name="webhooks_secret_once_message">Kopieer dit geheim nu — het wordt niet opnieuw getoond.</string>
+    <string name="webhooks_secret_once_dismiss">Klaar</string>
+    <string name="webhooks_delete_title">Endpoint verwijderen</string>
+    <string name="webhooks_delete_message">Wil je "%1$s" verwijderen? Dit kan niet ongedaan worden gemaakt.</string>
+    <string name="webhooks_delete_confirm">Verwijderen</string>
+    <string name="webhooks_delete_cancel">Annuleren</string>
+    <string name="webhooks_reenable_title">Endpoint opnieuw inschakelen</string>
+    <string name="webhooks_reenable_message">"%1$s" opnieuw inschakelen? Het endpoint ontvangt weer bezorgingen.</string>
+    <string name="webhooks_reenable_confirm">Inschakelen</string>
+    <string name="webhooks_reenable_cancel">Annuleren</string>
+    <string name="webhooks_create_inbound_title">Inkomend endpoint toevoegen</string>
+    <string name="webhooks_create_inbound_name">Naam</string>
+    <string name="webhooks_create_inbound_name_required">Naam is verplicht.</string>
+    <string name="webhooks_create_inbound_adapter">Adapter (bijv. generic, streamlabs)</string>
+    <string name="webhooks_create_inbound_secret">Verificatiegeheim</string>
+    <string name="webhooks_create_inbound_confirm">Aanmaken</string>
+    <string name="webhooks_create_inbound_dismiss">Annuleren</string>
+    <string name="webhooks_create_outbound_title">Uitgaand endpoint toevoegen</string>
+    <string name="webhooks_create_outbound_name">Naam</string>
+    <string name="webhooks_create_outbound_name_required">Naam is verplicht.</string>
+    <string name="webhooks_create_outbound_fqdn">Doelhost (bijv. https://voorbeeld.nl)</string>
+    <string name="webhooks_create_outbound_fqdn_required">Doelhost is verplicht.</string>
+    <string name="webhooks_create_outbound_path">Pad (optioneel, bijv. /webhook)</string>
+    <string name="webhooks_create_outbound_events">Gebeurtenistypen (kommagescheiden)</string>
+    <string name="webhooks_create_outbound_confirm">Aanmaken</string>
+    <string name="webhooks_create_outbound_dismiss">Annuleren</string>
 </resources>

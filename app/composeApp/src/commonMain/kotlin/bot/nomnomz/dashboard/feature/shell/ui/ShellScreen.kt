@@ -82,6 +82,8 @@ import bot.nomnomz.dashboard.feature.songrequests.ui.SongRequestsScreen
 import bot.nomnomz.dashboard.feature.timers.ui.TimersScreen
 import bot.nomnomz.dashboard.feature.tts.ui.TtsScreen
 import bot.nomnomz.dashboard.feature.widgets.ui.WidgetsScreen
+import bot.nomnomz.dashboard.feature.features.ui.FeaturesScreen
+import bot.nomnomz.dashboard.feature.webhooks.ui.WebhooksScreen
 import bot.nomnomz.dashboard.feature.language.state.AppLanguage
 import bot.nomnomz.dashboard.feature.language.state.LanguageController
 import bot.nomnomz.dashboard.feature.participant.ui.ParticipantShell
@@ -125,6 +127,8 @@ import nomnomzbot.composeapp.generated.resources.shell_nav_quotes
 import nomnomzbot.composeapp.generated.resources.shell_nav_rewards
 import nomnomzbot.composeapp.generated.resources.shell_nav_roles
 import nomnomzbot.composeapp.generated.resources.shell_nav_settings
+import nomnomzbot.composeapp.generated.resources.shell_nav_features
+import nomnomzbot.composeapp.generated.resources.shell_nav_webhooks
 import nomnomzbot.composeapp.generated.resources.shell_nav_song_requests
 import nomnomzbot.composeapp.generated.resources.shell_nav_timers
 import nomnomzbot.composeapp.generated.resources.shell_nav_tts
@@ -292,6 +296,8 @@ private fun ShellContent(
             ShellRoute.Economy -> EconomyScreen(controller = graph.economyController, role = role)
             ShellRoute.Alerts -> AlertsScreen(controller = graph.alertsController, role = role)
             ShellRoute.Widgets -> WidgetsScreen(controller = graph.widgetsController, role = role)
+            ShellRoute.Features -> FeaturesScreen(controller = graph.featuresController, role = role)
+            ShellRoute.Webhooks -> WebhooksScreen(controller = graph.webhooksController, role = role)
         }
     }
 }
@@ -638,6 +644,8 @@ private fun ShellRoute.label(): String =
             ShellRoute.Roles -> Res.string.shell_nav_roles
             ShellRoute.Integrations -> Res.string.shell_nav_integrations
             ShellRoute.Settings -> Res.string.shell_nav_settings
+            ShellRoute.Features -> Res.string.shell_nav_features
+            ShellRoute.Webhooks -> Res.string.shell_nav_webhooks
         }
     )
 

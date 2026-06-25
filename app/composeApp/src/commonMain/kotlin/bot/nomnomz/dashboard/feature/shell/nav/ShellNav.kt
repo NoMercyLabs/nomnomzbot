@@ -38,6 +38,8 @@ enum class ShellRoute {
     Community,
     Roles,
     Integrations,
+    Features,
+    Webhooks,
     Settings,
 }
 
@@ -94,6 +96,8 @@ object ShellNav {
             NavPage(ShellRoute.Discord, NavGroup.Connect, ManagementRole.Moderator, ManagementRole.SuperMod),
             NavPage(ShellRoute.Integrations, NavGroup.Setup, ManagementRole.Broadcaster, ManagementRole.Broadcaster),
             NavPage(ShellRoute.Roles, NavGroup.Setup, ManagementRole.Broadcaster, ManagementRole.Broadcaster),
+            NavPage(ShellRoute.Features, NavGroup.Setup, ManagementRole.Broadcaster, ManagementRole.Broadcaster),
+            NavPage(ShellRoute.Webhooks, NavGroup.Connect, ManagementRole.Broadcaster, ManagementRole.Broadcaster),
             NavPage(ShellRoute.Settings, NavGroup.Setup, ManagementRole.Moderator, null),
         )
 

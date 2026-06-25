@@ -1092,4 +1092,70 @@
     <string name="participant_me_channels_title">Channels you take part in</string>
     <string name="participant_me_channels_empty">No channel activity yet.</string>
     <string name="participant_me_channels_row">%1$s · %2$d messages · %3$s</string>
+
+    <!-- Shell nav -->
+    <string name="shell_nav_features">Features</string>
+    <string name="shell_nav_webhooks">Webhooks</string>
+
+    <!-- Features page -->
+    <string name="features_title">Features</string>
+    <string name="features_subtitle">Enable or disable optional bot capabilities for your channel.</string>
+    <string name="features_loading">Loading features…</string>
+    <string name="features_empty">No feature flags found for this channel.</string>
+    <string name="features_error">Failed to load features: %1$s</string>
+    <string name="features_retry">Retry</string>
+    <string name="features_action_error">Toggle failed: %1$s</string>
+    <string name="features_toggle_action">Toggle %1$s</string>
+    <string name="features_scopes_label">Required scopes</string>
+
+    <!-- Webhooks page -->
+    <string name="webhooks_title">Webhooks</string>
+    <string name="webhooks_subtitle">Receive events from external services or push notifications to your own endpoints.</string>
+    <string name="webhooks_loading">Loading webhooks…</string>
+    <string name="webhooks_error">Failed to load webhooks: %1$s</string>
+    <string name="webhooks_retry">Retry</string>
+    <string name="webhooks_action_error">Action failed: %1$s</string>
+    <string name="webhooks_inbound_title">Inbound endpoints</string>
+    <string name="webhooks_inbound_add">Add endpoint</string>
+    <string name="webhooks_outbound_title">Outbound endpoints</string>
+    <string name="webhooks_outbound_add">Add endpoint</string>
+    <string name="webhooks_adapter_label">Adapter</string>
+    <string name="webhooks_url_label">Ingest URL</string>
+    <string name="webhooks_receive_count">%1$d received</string>
+    <string name="webhooks_failures_label">%1$d consecutive failures</string>
+    <string name="webhooks_outbound_disabled_reason">Disabled reason</string>
+    <string name="webhooks_outbound_reenable">Re-enable</string>
+    <string name="webhooks_outbound_test">Test</string>
+    <string name="webhooks_rotate_inbound_token">Rotate token</string>
+    <string name="webhooks_rotate_outbound_secret">Rotate secret</string>
+    <string name="webhooks_test_result_title">Test delivery result</string>
+    <string name="webhooks_test_success">Delivered</string>
+    <string name="webhooks_test_failed">Failed</string>
+    <string name="webhooks_secret_once_title">Signing secret</string>
+    <string name="webhooks_secret_once_message">Copy this secret now — it will not be shown again.</string>
+    <string name="webhooks_secret_once_dismiss">Done</string>
+    <string name="webhooks_delete_title">Delete endpoint</string>
+    <string name="webhooks_delete_message">Are you sure you want to delete "%1$s"? This cannot be undone.</string>
+    <string name="webhooks_delete_confirm">Delete</string>
+    <string name="webhooks_delete_cancel">Cancel</string>
+    <string name="webhooks_reenable_title">Re-enable endpoint</string>
+    <string name="webhooks_reenable_message">Re-enable "%1$s"? The endpoint will start receiving deliveries again.</string>
+    <string name="webhooks_reenable_confirm">Re-enable</string>
+    <string name="webhooks_reenable_cancel">Cancel</string>
+    <string name="webhooks_create_inbound_title">Add inbound endpoint</string>
+    <string name="webhooks_create_inbound_name">Name</string>
+    <string name="webhooks_create_inbound_name_required">Name is required.</string>
+    <string name="webhooks_create_inbound_adapter">Adapter (e.g. generic, streamlabs)</string>
+    <string name="webhooks_create_inbound_secret">Verification secret</string>
+    <string name="webhooks_create_inbound_confirm">Create</string>
+    <string name="webhooks_create_inbound_dismiss">Cancel</string>
+    <string name="webhooks_create_outbound_title">Add outbound endpoint</string>
+    <string name="webhooks_create_outbound_name">Name</string>
+    <string name="webhooks_create_outbound_name_required">Name is required.</string>
+    <string name="webhooks_create_outbound_fqdn">Target host (e.g. https://example.com)</string>
+    <string name="webhooks_create_outbound_fqdn_required">Target host is required.</string>
+    <string name="webhooks_create_outbound_path">Path (optional, e.g. /webhook)</string>
+    <string name="webhooks_create_outbound_events">Event types (comma-separated)</string>
+    <string name="webhooks_create_outbound_confirm">Create</string>
+    <string name="webhooks_create_outbound_dismiss">Cancel</string>
 </resources>
