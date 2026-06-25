@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Domain.Economy.Entities;
@@ -24,10 +25,12 @@ namespace NomNomzBot.Infrastructure.Economy.EventHandlers;
 /// <see cref="EarningRule.IsEnabled">disabled</see> so the broadcaster must opt in per-source from the Earning
 /// Rules page. The defaults are tuned for a mid-sized stream: 1 currency per chat message, 100 per follow, 200 per
 /// subscription/gift, 1 per bit cheered, 500 per raid. Idempotent: existing rules are skipped so a backfill or
-/// re-onboard never duplicates rows.
+/// re-onboard never duplicates rows. Uses <see cref="IServiceScopeFactory"/> to create its own
+/// <see cref="IApplicationDbContext"/> scope so it never contends with parallel onboarding seed handlers that
+/// share the EventBus dispatch scope.
 /// </summary>
 public sealed class EarningRuleSeedOnOnboardingHandler(
-    IApplicationDbContext db,
+    IServiceScopeFactory scopeFactory,
     ILogger<EarningRuleSeedOnOnboardingHandler> logger
 ) : IEventHandler<ChannelOnboardedEvent>
 {
@@ -59,6 +62,10 @@ public sealed class EarningRuleSeedOnOnboardingHandler(
 
         try
         {
+            await using AsyncServiceScope scope = scopeFactory.CreateAsyncScope();
+            IApplicationDbContext db =
+                scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+
             HashSet<EarningSource> existing = (
                 await db
                     .EarningRules.Where(r =>
