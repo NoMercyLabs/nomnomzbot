@@ -55,6 +55,13 @@ interface RewardsApi {
 
     /** Refund a queued redemption (Helix CANCELED — the viewer's points are returned). */
     suspend fun refundRedemption(channelId: String, redemptionId: String): ApiResult<Unit>
+
+    /**
+     * Trigger a full re-pull of the channel's custom rewards from Twitch (backend `POST /rewards/sync`). Useful
+     * when rewards were created/modified directly on the Twitch dashboard and the bot's read model is stale.
+     * The backend echoes a plain 200 with a status message; no body needed here.
+     */
+    suspend fun sync(channelId: String): ApiResult<Unit>
 }
 
 class RestRewardsApi(private val client: ApiClient) : RewardsApi {
@@ -111,6 +118,10 @@ class RestRewardsApi(private val client: ApiClient) : RewardsApi {
 
     override suspend fun refundRedemption(channelId: String, redemptionId: String): ApiResult<Unit> =
         client.postUnit("api/v1/channels/$channelId/rewards/redemptions/$redemptionId/refund")
+
+    // Bodyless POST — the backend re-pulls from Twitch and returns a plain status message; no body needed.
+    override suspend fun sync(channelId: String): ApiResult<Unit> =
+        client.postUnit("api/v1/channels/$channelId/rewards/sync")
 }
 
 /**

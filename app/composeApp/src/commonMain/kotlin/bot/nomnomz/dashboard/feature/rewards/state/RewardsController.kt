@@ -133,6 +133,15 @@ class RewardsController(
         afterWrite(rewardsApi.refundRedemption(channel, redemptionId))
     }
 
+    /**
+     * Trigger a full re-pull from Twitch so the local read model catches up with rewards created or modified
+     * directly on the Twitch dashboard. Reloads on success; surfaces the error on failure.
+     */
+    suspend fun sync() {
+        val channel: String = channelId ?: return failWrite(NoChannelError)
+        afterWrite(rewardsApi.sync(channel))
+    }
+
     // A write either reloads the list (success) or surfaces its error over the current Ready list without
     // losing it (failure) — so a failed toggle/delete leaves the page intact with a visible reason.
     private suspend fun afterWrite(result: ApiResult<Unit>) {

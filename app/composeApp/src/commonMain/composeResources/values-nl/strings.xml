@@ -370,6 +370,7 @@
     <string name="tts_save_error">Kon de TTS-instellingen niet opslaan: %1$s</string>
     <string name="rewards_title">Beloningen</string>
     <string name="rewards_new_action">+ Nieuwe beloning</string>
+    <string name="rewards_sync_action">Synchroniseren met Twitch</string>
     <string name="rewards_toggle_action">%1$s in-/uitschakelen</string>
     <string name="rewards_edit_action">%1$s bewerken</string>
     <string name="rewards_edit_action_short">Bewerken</string>

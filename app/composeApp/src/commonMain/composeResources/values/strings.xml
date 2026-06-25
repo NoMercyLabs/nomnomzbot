@@ -373,6 +373,7 @@
     <string name="tts_save_error">Couldn't save TTS settings: %1$s</string>
     <string name="rewards_title">Rewards</string>
     <string name="rewards_new_action">+ New reward</string>
+    <string name="rewards_sync_action">Sync from Twitch</string>
     <string name="rewards_toggle_action">Toggle %1$s</string>
     <string name="rewards_edit_action">Edit %1$s</string>
     <string name="rewards_edit_action_short">Edit</string>

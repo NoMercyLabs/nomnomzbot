@@ -92,6 +92,7 @@ import nomnomzbot.composeapp.generated.resources.rewards_enabled
 import nomnomzbot.composeapp.generated.resources.rewards_error
 import nomnomzbot.composeapp.generated.resources.rewards_loading
 import nomnomzbot.composeapp.generated.resources.rewards_new_action
+import nomnomzbot.composeapp.generated.resources.rewards_sync_action
 import nomnomzbot.composeapp.generated.resources.rewards_queue_by
 import nomnomzbot.composeapp.generated.resources.rewards_queue_fulfill
 import nomnomzbot.composeapp.generated.resources.rewards_queue_fulfill_action
@@ -144,6 +145,7 @@ fun RewardsScreen(controller: RewardsController, role: ManagementRole?) {
                     edit = edit,
                     lifecycle = lifecycle,
                     onNew = { editor = RewardEditor.create() },
+                    onSync = { scope.launch { controller.sync() } },
                     onEdit = { reward -> editor = RewardEditor.edit(reward) },
                     onToggle = { reward, enabled ->
                         scope.launch { controller.toggleReward(reward.id, enabled) }
@@ -164,6 +166,7 @@ fun RewardsScreen(controller: RewardsController, role: ManagementRole?) {
                     edit = edit,
                     lifecycle = lifecycle,
                     onNew = { editor = RewardEditor.create() },
+                    onSync = { scope.launch { controller.sync() } },
                     onEdit = { reward -> editor = RewardEditor.edit(reward) },
                     onToggle = { reward, enabled ->
                         scope.launch { controller.toggleReward(reward.id, enabled) }
@@ -220,6 +223,7 @@ private fun ManagedContent(
     edit: ManageDecision,
     lifecycle: ManageDecision,
     onNew: () -> Unit,
+    onSync: () -> Unit,
     onEdit: (RewardSummary) -> Unit,
     onToggle: (RewardSummary, Boolean) -> Unit,
     onDelete: (RewardSummary) -> Unit,
@@ -232,8 +236,8 @@ private fun ManagedContent(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(spacing.s4),
     ) {
-        // Creating a reward is the Broadcaster-only lifecycle action — the New button gates on [lifecycle].
-        Header(lifecycle = lifecycle, onNew = onNew)
+        // Creating/syncing rewards are Broadcaster-only lifecycle actions — the New + Sync buttons gate on [lifecycle].
+        Header(lifecycle = lifecycle, onNew = onNew, onSync = onSync)
         actionError?.let { ActionErrorBanner(detail = it) }
 
         if (rewards.isEmpty() && redemptions.isEmpty()) {
@@ -255,10 +259,11 @@ private fun ManagedContent(
 }
 
 @Composable
-private fun Header(lifecycle: ManageDecision, onNew: () -> Unit) {
+private fun Header(lifecycle: ManageDecision, onNew: () -> Unit, onSync: () -> Unit) {
     val tokens = LocalTokens.current
     val typography = LocalTypography.current
     val newLabel: String = stringResource(Res.string.rewards_new_action)
+    val syncLabel: String = stringResource(Res.string.rewards_sync_action)
 
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -269,8 +274,20 @@ private fun Header(lifecycle: ManageDecision, onNew: () -> Unit) {
             text = stringResource(Res.string.rewards_title),
             style = typography.xl2,
             color = tokens.foreground,
+            modifier = Modifier.weight(1f),
         )
         ManageGate(decision = lifecycle) { enabled ->
+            TextButton(
+                onClick = onSync,
+                enabled = enabled,
+                modifier = Modifier.semantics { contentDescription = syncLabel },
+            ) {
+                Text(
+                    text = syncLabel,
+                    color = if (enabled) tokens.primary else tokens.mutedForeground,
+                    maxLines = 1,
+                )
+            }
             Button(
                 onClick = onNew,
                 enabled = enabled,
