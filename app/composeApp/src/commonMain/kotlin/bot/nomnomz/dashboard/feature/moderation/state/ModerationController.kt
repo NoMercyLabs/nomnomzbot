@@ -18,6 +18,7 @@ import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.ModLogEntry
 import bot.nomnomz.dashboard.core.network.ModerationApi
+import bot.nomnomz.dashboard.core.network.ShieldStatus
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -73,9 +74,18 @@ class ModerationController(
                 is ApiResult.Ok -> result.value
             }
 
+        // Emergency Shield Mode (resilient — a failure leaves it reported off rather than blanking the page).
+        val shieldEnabled: Boolean =
+            when (val result: ApiResult<ShieldStatus> = moderationApi.shieldMode(channel.id)) {
+                is ApiResult.Failure -> false
+                is ApiResult.Ok -> result.value.enabled
+            }
+
+        // Empty only when there is genuinely nothing to show AND shield is off; if shield is on the page must
+        // render so its active state (and the toggle to lift it) stays visible.
         _state.value =
-            if (bans.isEmpty() && modLog.isEmpty()) ModerationState.Empty
-            else ModerationState.Ready(bans, modLog)
+            if (bans.isEmpty() && modLog.isEmpty() && !shieldEnabled) ModerationState.Empty
+            else ModerationState.Ready(bans, modLog, shieldEnabled)
     }
 
     /**
@@ -101,6 +111,23 @@ class ModerationController(
             }
         }
     }
+
+    /**
+     * Turn emergency Shield Mode on or off ([enabled]), then reload so the page reflects it. Surfaces the error
+     * on the current Ready state on failure; no-ops when no channel is loaded.
+     */
+    suspend fun setShieldMode(enabled: Boolean) {
+        val channel: String = channelId ?: return
+        when (val result: ApiResult<Unit> = moderationApi.setShieldMode(channel, enabled)) {
+            is ApiResult.Ok -> load()
+            is ApiResult.Failure -> {
+                val current: ModerationState = _state.value
+                if (current is ModerationState.Ready) {
+                    _state.value = current.copy(actionError = result.error.message)
+                }
+            }
+        }
+    }
 }
 
 /** The Moderation page render state. */
@@ -114,6 +141,7 @@ sealed interface ModerationState {
     data class Ready(
         val bans: List<BannedUser>,
         val modLog: List<ModLogEntry> = emptyList(),
+        val shieldEnabled: Boolean = false,
         val actionError: String? = null,
     ) : ModerationState
 

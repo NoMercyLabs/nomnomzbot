@@ -32,6 +32,12 @@ interface ModerationApi {
 
     /** The channel's recent moderator action log — newest first (bans / timeouts / unbans / deletes / etc.). */
     suspend fun modLog(channelId: String): ApiResult<List<ModLogEntry>>
+
+    /** Whether emergency Shield Mode is active for the channel. */
+    suspend fun shieldMode(channelId: String): ApiResult<ShieldStatus>
+
+    /** Turn Shield Mode on or off ([enabled]). */
+    suspend fun setShieldMode(channelId: String, enabled: Boolean): ApiResult<Unit>
 }
 
 class RestModerationApi(private val client: ApiClient) : ModerationApi {
@@ -57,6 +63,16 @@ class RestModerationApi(private val client: ApiClient) : ModerationApi {
             is ApiResult.Failure -> ApiResult.Failure(page.error)
             is ApiResult.Ok -> ApiResult.Ok(page.value.data)
         }
+
+    // Shield mode is a single-value StatusResponseDto envelope ({ data: { enabled } }), so getEnvelope reads it.
+    override suspend fun shieldMode(channelId: String): ApiResult<ShieldStatus> =
+        client.getEnvelope("api/v1/channels/$channelId/moderation/shield")
+
+    override suspend fun setShieldMode(channelId: String, enabled: Boolean): ApiResult<Unit> =
+        client.patchUnit(
+            "api/v1/channels/$channelId/moderation/shield",
+            SetShieldBody(enabled),
+        )
 }
 
 /**
@@ -90,3 +106,11 @@ data class ModLogEntry(
     val timestamp: String = "",
     val duration: Int? = null,
 )
+
+/** The Shield Mode status — the backend's anonymous `{ enabled }` payload (no named backend DTO to guard). */
+@Serializable
+data class ShieldStatus(val enabled: Boolean = false)
+
+/** The Shield Mode toggle body (backend `ModerationController.SetShieldRequest`). camelCase `enabled`. */
+@Serializable
+data class SetShieldBody(val enabled: Boolean)

@@ -34,6 +34,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -58,6 +59,11 @@ import nomnomzbot.composeapp.generated.resources.moderation_bans_title
 import nomnomzbot.composeapp.generated.resources.moderation_log_by
 import nomnomzbot.composeapp.generated.resources.moderation_log_row_description
 import nomnomzbot.composeapp.generated.resources.moderation_log_title
+import nomnomzbot.composeapp.generated.resources.moderation_shield_disable
+import nomnomzbot.composeapp.generated.resources.moderation_shield_disable_action
+import nomnomzbot.composeapp.generated.resources.moderation_shield_enable
+import nomnomzbot.composeapp.generated.resources.moderation_shield_enable_action
+import nomnomzbot.composeapp.generated.resources.moderation_shield_title
 import nomnomzbot.composeapp.generated.resources.moderation_banned_by
 import nomnomzbot.composeapp.generated.resources.moderation_banned_on
 import nomnomzbot.composeapp.generated.resources.moderation_empty
@@ -105,9 +111,11 @@ fun ModerationScreen(controller: ModerationController, role: ManagementRole?) {
                 BansList(
                     bans = current.bans,
                     modLog = current.modLog,
+                    shieldEnabled = current.shieldEnabled,
                     actionError = current.actionError,
                     manage = manage,
                     onUnban = { userId -> scope.launch { controller.unban(userId) } },
+                    onToggleShield = { on -> scope.launch { controller.setShieldMode(on) } },
                 )
         }
     }
@@ -117,9 +125,11 @@ fun ModerationScreen(controller: ModerationController, role: ManagementRole?) {
 private fun BansList(
     bans: List<BannedUser>,
     modLog: List<ModLogEntry>,
+    shieldEnabled: Boolean,
     actionError: String?,
     manage: ManageDecision,
     onUnban: (userId: String) -> Unit,
+    onToggleShield: (Boolean) -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -141,6 +151,9 @@ private fun BansList(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.s1),
                 )
             }
+        }
+        item(key = "shield-toggle") {
+            ShieldToggle(enabled = shieldEnabled, manage = manage, onToggle = onToggleShield)
         }
         if (bans.isNotEmpty()) {
             item(key = "bans-header") {
@@ -280,6 +293,56 @@ private fun ErrorContent(detail: String, onRetry: () -> Unit) {
                 textAlign = TextAlign.Center,
             )
             TextButton(onClick = onRetry) { Text(text = stringResource(Res.string.moderation_retry)) }
+        }
+    }
+}
+
+// The page-level emergency Shield Mode toggle: a prominent row that turns Twitch's lockdown on/off. The title
+// reads destructive (red) when active. Editor floor (ManageGate); the backend re-checks moderation:shieldmode.
+@Composable
+private fun ShieldToggle(enabled: Boolean, manage: ManageDecision, onToggle: (Boolean) -> Unit) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    val actionLabel: String =
+        stringResource(
+            if (enabled) Res.string.moderation_shield_disable_action
+            else Res.string.moderation_shield_enable_action
+        )
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(tokens.radius.lg))
+            .background(tokens.card)
+            .padding(horizontal = spacing.s4, vertical = spacing.s3),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(spacing.s3),
+    ) {
+        Text(
+            text = stringResource(Res.string.moderation_shield_title),
+            style = typography.base,
+            color = if (enabled) tokens.destructive else tokens.cardForeground,
+            maxLines = 1,
+            modifier = Modifier.weight(1f),
+        )
+        ManageGate(decision = manage) { canManage ->
+            TextButton(
+                onClick = { onToggle(!enabled) },
+                enabled = canManage,
+                modifier = Modifier.semantics { contentDescription = actionLabel },
+            ) {
+                Text(
+                    text =
+                        stringResource(
+                            if (enabled) Res.string.moderation_shield_disable
+                            else Res.string.moderation_shield_enable
+                        ),
+                    color = if (canManage) tokens.primary else tokens.mutedForeground,
+                    maxLines = 1,
+                )
+            }
         }
     }
 }

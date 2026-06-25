@@ -16,6 +16,7 @@ import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.BannedUser
 import bot.nomnomz.dashboard.core.network.ModLogEntry
+import bot.nomnomz.dashboard.core.network.ShieldStatus
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.ModerationApi
@@ -95,6 +96,29 @@ class ModerationControllerTest {
         assertEquals(1, ready.modLog.size)
         assertEquals("timeout", ready.modLog.first().action)
         assertEquals("Baduser", ready.modLog.first().target)
+    }
+
+    @Test
+    fun shield_mode_on_keeps_the_page_ready_and_toggling_calls_the_api() = runTest {
+        val moderationApi =
+            FakeModerationApi(
+                bansResults = listOf(ApiResult.Ok(emptyList())),
+                shieldResult = ApiResult.Ok(ShieldStatus(enabled = true)),
+            )
+        val controller =
+            ModerationController(
+                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                moderationApi,
+            )
+
+        controller.load()
+
+        // No bans and no log, but shield is on → the page is Ready (so the active shield shows), not Empty.
+        val ready: ModerationState.Ready = controller.state.value as ModerationState.Ready
+        assertTrue(ready.shieldEnabled)
+
+        controller.setShieldMode(false)
+        assertEquals(false, moderationApi.lastShieldToggle) // the toggle is sent to the api
     }
 
     @Test
@@ -246,6 +270,7 @@ private class FakeModerationApi(
     private val bansResults: List<ApiResult<List<BannedUser>>>,
     private val unbanResult: ApiResult<Unit> = ApiResult.Ok(Unit),
     private val modLogResult: ApiResult<List<ModLogEntry>> = ApiResult.Ok(emptyList()),
+    private val shieldResult: ApiResult<ShieldStatus> = ApiResult.Ok(ShieldStatus(false)),
 ) : ModerationApi {
     // Single-result convenience for the read-only tests (one bans() result, default-OK unban).
     constructor(
@@ -270,4 +295,14 @@ private class FakeModerationApi(
     }
 
     override suspend fun modLog(channelId: String): ApiResult<List<ModLogEntry>> = modLogResult
+
+    var lastShieldToggle: Boolean? = null
+        private set
+
+    override suspend fun shieldMode(channelId: String): ApiResult<ShieldStatus> = shieldResult
+
+    override suspend fun setShieldMode(channelId: String, enabled: Boolean): ApiResult<Unit> {
+        lastShieldToggle = enabled
+        return ApiResult.Ok(Unit)
+    }
 }
