@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -46,6 +47,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
+import bot.nomnomz.dashboard.core.network.AutomodConfig
 import bot.nomnomz.dashboard.core.network.BannedUser
 import bot.nomnomz.dashboard.core.network.ModLogEntry
 import bot.nomnomz.dashboard.feature.moderation.state.ModerationController
@@ -56,6 +58,15 @@ import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecision
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.moderation_action_error
+import nomnomzbot.composeapp.generated.resources.moderation_automod_caps
+import nomnomzbot.composeapp.generated.resources.moderation_automod_caps_detail
+import nomnomzbot.composeapp.generated.resources.moderation_automod_emote_detail
+import nomnomzbot.composeapp.generated.resources.moderation_automod_emotes
+import nomnomzbot.composeapp.generated.resources.moderation_automod_link
+import nomnomzbot.composeapp.generated.resources.moderation_automod_off
+import nomnomzbot.composeapp.generated.resources.moderation_automod_on
+import nomnomzbot.composeapp.generated.resources.moderation_automod_phrases
+import nomnomzbot.composeapp.generated.resources.moderation_automod_title
 import nomnomzbot.composeapp.generated.resources.moderation_bans_title
 import nomnomzbot.composeapp.generated.resources.moderation_log_by
 import nomnomzbot.composeapp.generated.resources.moderation_log_row_description
@@ -119,6 +130,7 @@ fun ModerationScreen(controller: ModerationController, role: ManagementRole?) {
                     modLog = current.modLog,
                     shieldEnabled = current.shieldEnabled,
                     blockedTerms = current.blockedTerms,
+                    automod = current.automod,
                     actionError = current.actionError,
                     manage = manage,
                     onUnban = { userId -> scope.launch { controller.unban(userId) } },
@@ -136,6 +148,7 @@ private fun BansList(
     modLog: List<ModLogEntry>,
     shieldEnabled: Boolean,
     blockedTerms: List<String>,
+    automod: AutomodConfig,
     actionError: String?,
     manage: ManageDecision,
     onUnban: (userId: String) -> Unit,
@@ -203,6 +216,50 @@ private fun BansList(
         item(key = "terms-add") { AddTermRow(manage = manage, onAdd = onAddTerm) }
         items(items = blockedTerms, key = { "term-$it" }) { term ->
             BlockedTermRow(term = term, manage = manage, onRemove = { onRemoveTerm(term) })
+        }
+        item(key = "automod-header") {
+            Text(
+                text = stringResource(Res.string.moderation_automod_title),
+                style = typography.lg,
+                color = tokens.cardForeground,
+                maxLines = 1,
+            )
+        }
+        item(key = "automod-link") {
+            AutomodRow(
+                name = stringResource(Res.string.moderation_automod_link),
+                enabled = automod.linkFilter.enabled,
+                detail = null,
+            )
+        }
+        item(key = "automod-caps") {
+            AutomodRow(
+                name = stringResource(Res.string.moderation_automod_caps),
+                enabled = automod.capsFilter.enabled,
+                detail =
+                    stringResource(
+                        Res.string.moderation_automod_caps_detail,
+                        automod.capsFilter.threshold,
+                    ),
+            )
+        }
+        item(key = "automod-phrases") {
+            AutomodRow(
+                name = stringResource(Res.string.moderation_automod_phrases),
+                enabled = automod.bannedPhrases.enabled,
+                detail = null,
+            )
+        }
+        item(key = "automod-emotes") {
+            AutomodRow(
+                name = stringResource(Res.string.moderation_automod_emotes),
+                enabled = automod.emoteSpam.enabled,
+                detail =
+                    stringResource(
+                        Res.string.moderation_automod_emote_detail,
+                        automod.emoteSpam.maxEmotes,
+                    ),
+            )
         }
     }
 
@@ -319,6 +376,58 @@ private fun ErrorContent(detail: String, onRetry: () -> Unit) {
             )
             TextButton(onClick = onRetry) { Text(text = stringResource(Res.string.moderation_retry)) }
         }
+    }
+}
+
+// One AutoMod filter row: the filter name + an On/Off status, with the threshold detail (caps % / emote max)
+// shown when enabled. Read-only — the per-filter toggle / edit is a follow-up.
+@Composable
+private fun AutomodRow(name: String, enabled: Boolean, detail: String?) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    val statusWord: String =
+        stringResource(
+            if (enabled) Res.string.moderation_automod_on else Res.string.moderation_automod_off
+        )
+    val rowDescription: String =
+        if (enabled && detail != null) "$name, $statusWord, $detail" else "$name, $statusWord"
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(tokens.radius.lg))
+            .background(tokens.card)
+            .padding(horizontal = spacing.s4, vertical = spacing.s3)
+            .clearAndSetSemantics { contentDescription = rowDescription },
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(spacing.s3),
+    ) {
+        Text(
+            text = name,
+            style = typography.base,
+            color = tokens.cardForeground,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
+        if (enabled && detail != null) {
+            Text(
+                text = detail,
+                style = typography.sm,
+                color = tokens.mutedForeground,
+                maxLines = 1,
+                modifier = Modifier.wrapContentWidth(),
+            )
+        }
+        Text(
+            text = statusWord,
+            style = typography.sm,
+            color = if (enabled) tokens.primary else tokens.mutedForeground,
+            maxLines = 1,
+            modifier = Modifier.wrapContentWidth(),
+        )
     }
 }
 

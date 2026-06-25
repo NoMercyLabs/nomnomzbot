@@ -69,6 +69,11 @@ class ApiContractTest {
             EarningRule.serializer() to "EarningRuleDto",
             CatalogItem.serializer() to "CatalogItemDto",
             ModLogEntry.serializer() to "ModLogEntryDto",
+            AutomodConfig.serializer() to "AutomodConfigDto",
+            AutomodLinkFilter.serializer() to "AutomodLinkFilterDto",
+            AutomodCapsFilter.serializer() to "AutomodCapsFilterDto",
+            AutomodBannedPhrases.serializer() to "AutomodBannedPhrasesDto",
+            AutomodEmoteSpam.serializer() to "AutomodEmoteSpamDto",
         )
 
     @Test

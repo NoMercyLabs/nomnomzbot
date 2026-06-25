@@ -14,6 +14,8 @@ import bot.nomnomz.dashboard.core.feedback.FeedbackKind
 import bot.nomnomz.dashboard.core.feedback.RecordingFeedback
 import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
+import bot.nomnomz.dashboard.core.network.AutomodCapsFilter
+import bot.nomnomz.dashboard.core.network.AutomodConfig
 import bot.nomnomz.dashboard.core.network.BannedUser
 import bot.nomnomz.dashboard.core.network.ModLogEntry
 import bot.nomnomz.dashboard.core.network.ShieldStatus
@@ -156,6 +158,30 @@ class ModerationControllerTest {
 
         controller.addBlockedTerm("badword")
         assertEquals(listOf("badword"), moderationApi.addedTerms)
+    }
+
+    @Test
+    fun load_surfaces_the_automod_config_and_an_enabled_filter_keeps_the_page_ready() = runTest {
+        val moderationApi =
+            FakeModerationApi(
+                bansResults = listOf(ApiResult.Ok(emptyList())),
+                automodResult =
+                    ApiResult.Ok(
+                        AutomodConfig(capsFilter = AutomodCapsFilter(enabled = true, threshold = 75))
+                    ),
+            )
+        val controller =
+            ModerationController(
+                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                moderationApi,
+            )
+
+        controller.load()
+
+        // No bans/log/terms, but an enabled AutoMod filter keeps the page Ready so the config shows.
+        val ready: ModerationState.Ready = controller.state.value as ModerationState.Ready
+        assertTrue(ready.automod.capsFilter.enabled)
+        assertEquals(75, ready.automod.capsFilter.threshold)
     }
 
     @Test
@@ -309,6 +335,7 @@ private class FakeModerationApi(
     private val modLogResult: ApiResult<List<ModLogEntry>> = ApiResult.Ok(emptyList()),
     private val shieldResult: ApiResult<ShieldStatus> = ApiResult.Ok(ShieldStatus(false)),
     private val blockedTermsResult: ApiResult<List<String>> = ApiResult.Ok(emptyList()),
+    private val automodResult: ApiResult<AutomodConfig> = ApiResult.Ok(AutomodConfig()),
 ) : ModerationApi {
     // Single-result convenience for the read-only tests (one bans() result, default-OK unban).
     constructor(
@@ -360,4 +387,6 @@ private class FakeModerationApi(
         removedTerms.add(term)
         return ApiResult.Ok(Unit)
     }
+
+    override suspend fun automod(channelId: String): ApiResult<AutomodConfig> = automodResult
 }

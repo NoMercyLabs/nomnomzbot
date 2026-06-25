@@ -48,6 +48,9 @@ interface ModerationApi {
 
     /** Remove [term] from the channel's blocked-terms list. */
     suspend fun removeBlockedTerm(channelId: String, term: String): ApiResult<Unit>
+
+    /** The channel's AutoMod filter configuration (link / caps / banned-phrases / emote-spam). */
+    suspend fun automod(channelId: String): ApiResult<AutomodConfig>
 }
 
 class RestModerationApi(private val client: ApiClient) : ModerationApi {
@@ -96,6 +99,10 @@ class RestModerationApi(private val client: ApiClient) : ModerationApi {
         client.deleteUnit(
             "api/v1/channels/$channelId/moderation/blocked-terms/${term.encodeURLPathPart()}"
         )
+
+    // AutoMod is a single-value StatusResponseDto envelope ({ data: { … } }) — getEnvelope reads the config.
+    override suspend fun automod(channelId: String): ApiResult<AutomodConfig> =
+        client.getEnvelope("api/v1/channels/$channelId/moderation/automod")
 }
 
 /**
@@ -141,3 +148,31 @@ data class SetShieldBody(val enabled: Boolean)
 /** The add-blocked-term body (backend `ModerationController.AddTermRequest`). camelCase `term`. */
 @Serializable
 data class AddTermBody(val term: String)
+
+/**
+ * The channel's AutoMod filter configuration (backend `AutomodConfigDto`) — four independent filters. camelCase
+ * mirror; surfaced read-only for now (the per-filter toggle / edit is a follow-up).
+ */
+@Serializable
+data class AutomodConfig(
+    val linkFilter: AutomodLinkFilter = AutomodLinkFilter(),
+    val capsFilter: AutomodCapsFilter = AutomodCapsFilter(),
+    val bannedPhrases: AutomodBannedPhrases = AutomodBannedPhrases(),
+    val emoteSpam: AutomodEmoteSpam = AutomodEmoteSpam(),
+)
+
+/** AutoMod link filter (backend `AutomodLinkFilterDto`) — blocks links except the [whitelist]. */
+@Serializable
+data class AutomodLinkFilter(val enabled: Boolean = false, val whitelist: List<String> = emptyList())
+
+/** AutoMod caps filter (backend `AutomodCapsFilterDto`) — flags messages over [threshold]% caps. */
+@Serializable
+data class AutomodCapsFilter(val enabled: Boolean = false, val threshold: Int = 0)
+
+/** AutoMod banned-phrases filter (backend `AutomodBannedPhrasesDto`) — blocks the listed [phrases]. */
+@Serializable
+data class AutomodBannedPhrases(val enabled: Boolean = false, val phrases: List<String> = emptyList())
+
+/** AutoMod emote-spam filter (backend `AutomodEmoteSpamDto`) — flags messages over [maxEmotes] emotes. */
+@Serializable
+data class AutomodEmoteSpam(val enabled: Boolean = false, val maxEmotes: Int = 0)

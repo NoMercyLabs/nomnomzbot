@@ -209,6 +209,15 @@
     <string name="moderation_terms_remove_action">Remove %1$s</string>
     <string name="moderation_terms_add_label">Add a term</string>
     <string name="moderation_terms_add">Add</string>
+    <string name="moderation_automod_title">AutoMod filters</string>
+    <string name="moderation_automod_link">Links</string>
+    <string name="moderation_automod_caps">Caps</string>
+    <string name="moderation_automod_phrases">Banned phrases</string>
+    <string name="moderation_automod_emotes">Emote spam</string>
+    <string name="moderation_automod_on">On</string>
+    <string name="moderation_automod_off">Off</string>
+    <string name="moderation_automod_caps_detail">%1$d%% caps</string>
+    <string name="moderation_automod_emote_detail">max %1$d emotes</string>
     <string name="moderation_no_reason">No reason given</string>
     <string name="moderation_banned_on">Banned on %1$s</string>
     <string name="moderation_banned_by">Banned by %1$s</string>

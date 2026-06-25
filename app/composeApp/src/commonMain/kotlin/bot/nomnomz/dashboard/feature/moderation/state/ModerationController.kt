@@ -13,6 +13,7 @@ package bot.nomnomz.dashboard.feature.moderation.state
 import bot.nomnomz.dashboard.core.feedback.Feedback
 import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
 import bot.nomnomz.dashboard.core.network.ApiResult
+import bot.nomnomz.dashboard.core.network.AutomodConfig
 import bot.nomnomz.dashboard.core.network.BannedUser
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
@@ -88,15 +89,31 @@ class ModerationController(
                 is ApiResult.Ok -> result.value
             }
 
-        // Empty only when there is genuinely nothing to show AND shield is off; if shield is on, or there are
-        // blocked terms, the page renders so those controls stay visible.
+        // The AutoMod filter config (resilient — a failure leaves the filters reported off/default).
+        val automod: AutomodConfig =
+            when (val result: ApiResult<AutomodConfig> = moderationApi.automod(channel.id)) {
+                is ApiResult.Failure -> AutomodConfig()
+                is ApiResult.Ok -> result.value
+            }
+        val anyAutomodEnabled: Boolean =
+            automod.linkFilter.enabled ||
+                automod.capsFilter.enabled ||
+                automod.bannedPhrases.enabled ||
+                automod.emoteSpam.enabled
+
+        // Empty only when there is genuinely nothing to show AND every always-on control (shield, automod) is off;
+        // if any is active the page renders so its state stays visible.
         _state.value =
             if (
-                bans.isEmpty() && modLog.isEmpty() && blockedTerms.isEmpty() && !shieldEnabled
+                bans.isEmpty() &&
+                    modLog.isEmpty() &&
+                    blockedTerms.isEmpty() &&
+                    !shieldEnabled &&
+                    !anyAutomodEnabled
             ) {
                 ModerationState.Empty
             } else {
-                ModerationState.Ready(bans, modLog, shieldEnabled, blockedTerms)
+                ModerationState.Ready(bans, modLog, shieldEnabled, blockedTerms, automod)
             }
     }
 
@@ -180,6 +197,7 @@ sealed interface ModerationState {
         val modLog: List<ModLogEntry> = emptyList(),
         val shieldEnabled: Boolean = false,
         val blockedTerms: List<String> = emptyList(),
+        val automod: AutomodConfig = AutomodConfig(),
         val actionError: String? = null,
     ) : ModerationState
 

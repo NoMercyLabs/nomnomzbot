@@ -206,6 +206,15 @@
     <string name="moderation_terms_remove_action">%1$s verwijderen</string>
     <string name="moderation_terms_add_label">Term toevoegen</string>
     <string name="moderation_terms_add">Toevoegen</string>
+    <string name="moderation_automod_title">AutoMod-filters</string>
+    <string name="moderation_automod_link">Links</string>
+    <string name="moderation_automod_caps">Hoofdletters</string>
+    <string name="moderation_automod_phrases">Verboden zinnen</string>
+    <string name="moderation_automod_emotes">Emote-spam</string>
+    <string name="moderation_automod_on">Aan</string>
+    <string name="moderation_automod_off">Uit</string>
+    <string name="moderation_automod_caps_detail">%1$d%% hoofdletters</string>
+    <string name="moderation_automod_emote_detail">max %1$d emotes</string>
     <string name="moderation_no_reason">Geen reden opgegeven</string>
     <string name="moderation_banned_on">Verbannen op %1$s</string>
     <string name="moderation_banned_by">Verbannen door %1$s</string>
