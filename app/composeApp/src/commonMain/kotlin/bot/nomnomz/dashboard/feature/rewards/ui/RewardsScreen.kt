@@ -57,6 +57,7 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.designsystem.theme.Tokens
+import bot.nomnomz.dashboard.core.network.RedemptionSummary
 import bot.nomnomz.dashboard.core.network.RewardSummary
 import bot.nomnomz.dashboard.feature.rewards.state.RewardsController
 import bot.nomnomz.dashboard.feature.rewards.state.RewardsState
@@ -91,6 +92,9 @@ import nomnomzbot.composeapp.generated.resources.rewards_enabled
 import nomnomzbot.composeapp.generated.resources.rewards_error
 import nomnomzbot.composeapp.generated.resources.rewards_loading
 import nomnomzbot.composeapp.generated.resources.rewards_new_action
+import nomnomzbot.composeapp.generated.resources.rewards_queue_by
+import nomnomzbot.composeapp.generated.resources.rewards_queue_row
+import nomnomzbot.composeapp.generated.resources.rewards_queue_title
 import nomnomzbot.composeapp.generated.resources.rewards_retry
 import nomnomzbot.composeapp.generated.resources.rewards_row_description
 import nomnomzbot.composeapp.generated.resources.rewards_title
@@ -131,6 +135,7 @@ fun RewardsScreen(controller: RewardsController, role: ManagementRole?) {
             is RewardsState.Empty ->
                 ManagedContent(
                     rewards = emptyList(),
+                    redemptions = emptyList(),
                     actionError = null,
                     edit = edit,
                     lifecycle = lifecycle,
@@ -144,6 +149,7 @@ fun RewardsScreen(controller: RewardsController, role: ManagementRole?) {
             is RewardsState.Ready ->
                 ManagedContent(
                     rewards = current.rewards,
+                    redemptions = current.redemptions,
                     actionError = current.actionError,
                     edit = edit,
                     lifecycle = lifecycle,
@@ -193,6 +199,7 @@ fun RewardsScreen(controller: RewardsController, role: ManagementRole?) {
 @Composable
 private fun ManagedContent(
     rewards: List<RewardSummary>,
+    redemptions: List<RedemptionSummary>,
     actionError: String?,
     edit: ManageDecision,
     lifecycle: ManageDecision,
@@ -211,11 +218,12 @@ private fun ManagedContent(
         Header(lifecycle = lifecycle, onNew = onNew)
         actionError?.let { ActionErrorBanner(detail = it) }
 
-        if (rewards.isEmpty()) {
+        if (rewards.isEmpty() && redemptions.isEmpty()) {
             CenteredMessage(stringResource(Res.string.rewards_empty))
         } else {
             RewardList(
                 rewards = rewards,
+                redemptions = redemptions,
                 edit = edit,
                 lifecycle = lifecycle,
                 onEdit = onEdit,
@@ -281,6 +289,7 @@ private fun ActionErrorBanner(detail: String) {
 @Composable
 private fun RewardList(
     rewards: List<RewardSummary>,
+    redemptions: List<RedemptionSummary>,
     edit: ManageDecision,
     lifecycle: ManageDecision,
     onEdit: (RewardSummary) -> Unit,
@@ -304,6 +313,87 @@ private fun RewardList(
                 onDelete = { onDelete(reward) },
             )
         }
+
+        // The pending redemption queue (read-only for now — fulfil/refund actions land with their backend
+        // endpoints). A labelled section beneath the rewards so the whole page scrolls as one.
+        if (redemptions.isNotEmpty()) {
+            item(key = "redemption-queue-header") { RedemptionsHeader() }
+            items(items = redemptions, key = { it.redemptionId }) { redemption ->
+                RedemptionRow(redemption)
+            }
+        }
+    }
+}
+
+@Composable
+private fun RedemptionsHeader() {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    Text(
+        text = stringResource(Res.string.rewards_queue_title),
+        style = typography.lg,
+        color = tokens.foreground,
+        modifier = Modifier.padding(top = spacing.s3, bottom = spacing.s1),
+    )
+}
+
+@Composable
+private fun RedemptionRow(redemption: RedemptionSummary) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    val costLabel: String = stringResource(Res.string.rewards_cost, redemption.cost)
+    val byLabel: String = stringResource(Res.string.rewards_queue_by, redemption.userDisplayName)
+    val rowDescription: String =
+        stringResource(
+            Res.string.rewards_queue_row,
+            redemption.rewardTitle,
+            redemption.userDisplayName,
+            costLabel,
+        )
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(tokens.radius.lg))
+            .background(tokens.card)
+            .padding(spacing.s4)
+            .clearAndSetSemantics { contentDescription = rowDescription },
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(spacing.s3),
+    ) {
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(spacing.s1),
+        ) {
+            Text(
+                text = redemption.rewardTitle,
+                style = typography.base,
+                color = tokens.cardForeground,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = byLabel,
+                style = typography.sm,
+                color = tokens.mutedForeground,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            redemption.userInput?.takeIf { it.isNotBlank() }?.let { input ->
+                Text(
+                    text = input,
+                    style = typography.sm,
+                    color = tokens.mutedForeground,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+        Text(text = costLabel, style = typography.sm, color = tokens.mutedForeground, maxLines = 1)
     }
 }
 

@@ -14,6 +14,7 @@ import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.CreateRewardBody
+import bot.nomnomz.dashboard.core.network.RedemptionSummary
 import bot.nomnomz.dashboard.core.network.RewardSummary
 import bot.nomnomz.dashboard.core.network.RewardsApi
 import bot.nomnomz.dashboard.core.network.UpdateRewardBody
@@ -52,13 +53,28 @@ class RewardsController(
             }
         channelId = channel.id
 
-        when (val result: ApiResult<List<RewardSummary>> = rewardsApi.list(channel.id)) {
-            is ApiResult.Failure -> _state.value = RewardsState.Error(result.error.message)
-            is ApiResult.Ok ->
-                _state.value =
-                    if (result.value.isEmpty()) RewardsState.Empty
-                    else RewardsState.Ready(result.value)
-        }
+        val rewards: List<RewardSummary> =
+            when (val result: ApiResult<List<RewardSummary>> = rewardsApi.list(channel.id)) {
+                is ApiResult.Failure -> {
+                    _state.value = RewardsState.Error(result.error.message)
+                    return
+                }
+                is ApiResult.Ok -> result.value
+            }
+
+        // The pending redemption queue (status=unfulfilled). A failure here must NOT blank the page — the rewards
+        // loaded fine — so it degrades to an empty queue rather than erroring the whole screen.
+        val redemptions: List<RedemptionSummary> =
+            when (val result: ApiResult<List<RedemptionSummary>> =
+                rewardsApi.redemptions(channel.id, status = "unfulfilled")
+            ) {
+                is ApiResult.Failure -> emptyList()
+                is ApiResult.Ok -> result.value
+            }
+
+        _state.value =
+            if (rewards.isEmpty() && redemptions.isEmpty()) RewardsState.Empty
+            else RewardsState.Ready(rewards, redemptions)
     }
 
     /** Create a reward, then reload so the new row appears. Surfaces the error on failure. */
@@ -131,10 +147,15 @@ sealed interface RewardsState {
     data object Loading : RewardsState
 
     /**
-     * The channel's rewards are listed. [actionError] is non-null only when the last create/edit/toggle/delete
-     * failed — the screen surfaces it as a transient banner while keeping the list rendered.
+     * The channel's rewards are listed, alongside the [redemptions] pending in the queue (status=unfulfilled,
+     * newest-first). [actionError] is non-null only when the last create/edit/toggle/delete failed — the screen
+     * surfaces it as a transient banner while keeping the list rendered.
      */
-    data class Ready(val rewards: List<RewardSummary>, val actionError: String? = null) : RewardsState
+    data class Ready(
+        val rewards: List<RewardSummary>,
+        val redemptions: List<RedemptionSummary> = emptyList(),
+        val actionError: String? = null,
+    ) : RewardsState
 
     data object Empty : RewardsState
 

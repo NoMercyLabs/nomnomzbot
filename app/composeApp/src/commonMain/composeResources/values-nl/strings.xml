@@ -216,6 +216,9 @@
     <string name="rewards_error">Kon de beloningen niet laden: %1$s</string>
     <string name="rewards_retry">Opnieuw</string>
     <string name="rewards_cost">%1$d punten</string>
+    <string name="rewards_queue_title">Openstaande inwisselingen</string>
+    <string name="rewards_queue_by">door %1$s</string>
+    <string name="rewards_queue_row">%1$s, ingewisseld door %2$s, %3$s</string>
     <string name="rewards_enabled">Ingeschakeld</string>
     <string name="rewards_disabled">Uitgeschakeld</string>
     <string name="rewards_row_description">%1$s, %2$s, %3$s</string>

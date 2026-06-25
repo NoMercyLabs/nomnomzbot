@@ -66,6 +66,35 @@ class RewardsControllerTest {
     }
 
     @Test
+    fun load_surfaces_the_pending_redemption_queue_alongside_the_rewards() = runTest {
+        val controller =
+            RewardsController(
+                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                RecordingRewardsApi(
+                    initial = ApiResult.Ok(listOf(RewardSummary(id = "r1", title = "Hydrate!"))),
+                    redemptionQueue =
+                        listOf(
+                            RedemptionSummary(
+                                redemptionId = "x1",
+                                rewardTitle = "Hydrate!",
+                                userDisplayName = "Buyer",
+                                cost = 50,
+                                status = "unfulfilled",
+                            )
+                        ),
+                ),
+            )
+
+        controller.load()
+
+        val ready: RewardsState.Ready = controller.state.value as RewardsState.Ready
+        assertEquals(1, ready.redemptions.size)
+        assertEquals("Buyer", ready.redemptions.first().userDisplayName)
+        assertEquals("unfulfilled", ready.redemptions.first().status)
+        assertEquals(1, ready.rewards.size) // the rewards still load alongside the queue
+    }
+
+    @Test
     fun load_errors_when_no_channel_resolves() = runTest {
         val controller =
             RewardsController(
@@ -253,6 +282,7 @@ private class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : C
 private class RecordingRewardsApi(
     initial: ApiResult<List<RewardSummary>>,
     private val writeResult: ApiResult<Unit> = ApiResult.Ok(Unit),
+    private val redemptionQueue: List<RedemptionSummary> = emptyList(),
 ) : RewardsApi {
     private val listFailure: ApiError? = (initial as? ApiResult.Failure)?.error
     private val store: MutableList<RewardSummary> =
@@ -310,9 +340,8 @@ private class RecordingRewardsApi(
         return writeResult
     }
 
-    // The redemption queue is not exercised by these reward-CRUD tests; the fake satisfies the interface.
     override suspend fun redemptions(
         channelId: String,
         status: String?,
-    ): ApiResult<List<RedemptionSummary>> = ApiResult.Ok(emptyList())
+    ): ApiResult<List<RedemptionSummary>> = ApiResult.Ok(redemptionQueue)
 }
