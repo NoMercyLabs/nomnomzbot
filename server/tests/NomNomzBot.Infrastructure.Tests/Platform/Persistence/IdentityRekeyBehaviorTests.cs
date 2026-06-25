@@ -58,6 +58,8 @@ public sealed class IdentityRekeyBehaviorTests
             : base(options) => _tenant = tenant;
 
         public DbSet<User> Users => Set<User>();
+        public DbSet<NomNomzBot.Domain.Rewards.Entities.Redemption> Redemptions =>
+            Set<NomNomzBot.Domain.Rewards.Entities.Redemption>();
         public DbSet<ConsentRecord> ConsentRecords => Set<ConsentRecord>();
         public DbSet<Channel> Channels => Set<Channel>();
         public DbSet<Command> Commands => Set<Command>();
@@ -337,6 +339,8 @@ public sealed class IdentityRekeyBehaviorTests
     private sealed class ResolverDb(RekeyTestContext inner) : IApplicationDbContext
     {
         public DbSet<User> Users => inner.Users;
+        public DbSet<NomNomzBot.Domain.Rewards.Entities.Redemption> Redemptions =>
+            inner.Redemptions;
         public DbSet<ConsentRecord> ConsentRecords => inner.ConsentRecords;
         public DbSet<Channel> Channels => inner.Channels;
         public DbSet<Command> Commands => inner.Commands;

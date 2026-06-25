@@ -109,6 +109,8 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
         : base(options) { }
 
     public DbSet<User> Users => Set<User>();
+    public DbSet<NomNomzBot.Domain.Rewards.Entities.Redemption> Redemptions =>
+        Set<NomNomzBot.Domain.Rewards.Entities.Redemption>();
     public DbSet<ConsentRecord> ConsentRecords => Set<ConsentRecord>();
     public DbSet<Channel> Channels => Set<Channel>();
     public DbSet<AuthSession> AuthSessions => Set<AuthSession>();

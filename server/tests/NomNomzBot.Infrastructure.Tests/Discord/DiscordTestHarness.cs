@@ -35,6 +35,8 @@ internal sealed class DiscordTestDbContext : DbContext, IApplicationDbContext
         : base(options) { }
 
     public DbSet<DiscordGuildConnection> DiscordGuildConnections => Set<DiscordGuildConnection>();
+    public DbSet<NomNomzBot.Domain.Rewards.Entities.Redemption> Redemptions =>
+        Set<NomNomzBot.Domain.Rewards.Entities.Redemption>();
     public DbSet<DiscordNotificationConfig> DiscordNotificationConfigs =>
         Set<DiscordNotificationConfig>();
     public DbSet<DiscordNotificationRole> DiscordNotificationRoles =>

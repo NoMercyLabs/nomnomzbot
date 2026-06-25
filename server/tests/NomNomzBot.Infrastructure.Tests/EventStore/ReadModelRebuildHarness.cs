@@ -36,6 +36,8 @@ internal sealed class ReadModelRebuildDbContext : DbContext, IApplicationDbConte
 
     // ── Journal + the five read models + Users (the only mapped tables) ──
     public DbSet<EventJournal> EventJournals => Set<EventJournal>();
+    public DbSet<NomNomzBot.Domain.Rewards.Entities.Redemption> Redemptions =>
+        Set<NomNomzBot.Domain.Rewards.Entities.Redemption>();
     public DbSet<TenantSequence> TenantSequences => Set<TenantSequence>();
     public DbSet<ProjectionCheckpoint> ProjectionCheckpoints => Set<ProjectionCheckpoint>();
     public DbSet<ViewerProfile> ViewerProfiles => Set<ViewerProfile>();

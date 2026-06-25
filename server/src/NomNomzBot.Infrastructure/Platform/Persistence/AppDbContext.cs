@@ -53,6 +53,7 @@ public class AppDbContext : DbContext, IApplicationDbContext
     // Bot features
     public DbSet<Command> Commands => Set<Command>();
     public DbSet<Reward> Rewards => Set<Reward>();
+    public DbSet<Redemption> Redemptions => Set<Redemption>();
     public DbSet<NomNomzBot.Domain.Quotes.Entities.Quote> Quotes =>
         Set<NomNomzBot.Domain.Quotes.Entities.Quote>();
     public DbSet<Widget> Widgets => Set<Widget>();

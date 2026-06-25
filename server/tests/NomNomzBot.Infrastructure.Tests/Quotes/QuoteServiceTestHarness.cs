@@ -35,6 +35,8 @@ internal sealed class QuoteTestDbContext : DbContext, IApplicationDbContext
         : base(options) { }
 
     public DbSet<Quote> Quotes => Set<Quote>();
+    public DbSet<NomNomzBot.Domain.Rewards.Entities.Redemption> Redemptions =>
+        Set<NomNomzBot.Domain.Rewards.Entities.Redemption>();
     public DbSet<TenantSequence> TenantSequences => Set<TenantSequence>();
     public DbSet<Channel> Channels => Set<Channel>();
 

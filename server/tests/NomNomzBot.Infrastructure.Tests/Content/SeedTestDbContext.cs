@@ -43,6 +43,8 @@ public sealed class SeedTestDbContext : DbContext, IApplicationDbContext
 
     // ── Entities the seeders touch ───────────────────────────────────────────
     public DbSet<TtsVoice> TtsVoices => Set<TtsVoice>();
+    public DbSet<NomNomzBot.Domain.Rewards.Entities.Redemption> Redemptions =>
+        Set<NomNomzBot.Domain.Rewards.Entities.Redemption>();
     public DbSet<Pronoun> Pronouns => Set<Pronoun>();
     public DbSet<Configuration> Configurations => Set<Configuration>();
     public DbSet<Channel> Channels => Set<Channel>();

@@ -4758,6 +4758,68 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.ToTable("Quotes");
                 });
 
+            modelBuilder.Entity("NomNomzBot.Domain.Rewards.Entities.Redemption", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid>("BroadcasterId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Cost")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("RedeemedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RedemptionId")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RewardId")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RewardTitle")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UserDisplayName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UserInput")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BroadcasterId", "RedemptionId")
+                        .IsUnique();
+
+                    b.HasIndex("BroadcasterId", "Status", "RedeemedAt");
+
+                    b.ToTable("Redemptions");
+                });
+
             modelBuilder.Entity("NomNomzBot.Domain.Rewards.Entities.Reward", b =>
                 {
                     b.Property<Guid>("Id")

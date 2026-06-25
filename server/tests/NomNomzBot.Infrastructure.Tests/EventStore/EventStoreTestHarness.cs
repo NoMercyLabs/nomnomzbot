@@ -30,6 +30,8 @@ internal sealed class EventStoreTestDbContext : DbContext, IApplicationDbContext
         : base(options) { }
 
     public DbSet<EventJournal> EventJournals => Set<EventJournal>();
+    public DbSet<NomNomzBot.Domain.Rewards.Entities.Redemption> Redemptions =>
+        Set<NomNomzBot.Domain.Rewards.Entities.Redemption>();
     public DbSet<TenantSequence> TenantSequences => Set<TenantSequence>();
     public DbSet<ProjectionCheckpoint> ProjectionCheckpoints => Set<ProjectionCheckpoint>();
     public DbSet<NomNomzBot.Domain.Identity.Entities.ChannelMembership> ChannelMemberships =>
