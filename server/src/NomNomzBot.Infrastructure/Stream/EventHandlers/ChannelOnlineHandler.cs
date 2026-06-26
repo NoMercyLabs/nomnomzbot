@@ -108,19 +108,22 @@ public sealed class ChannelOnlineHandler : IEventHandler<ChannelOnlineEvent>
 
         await db.SaveChangesAsync(cancellationToken);
 
-        // Reset per-session in-memory state and populate live tracking
-        ChannelContext? channelCtx = _registry.Get(broadcasterId);
-        if (channelCtx is not null)
-        {
-            channelCtx.IsLive = true;
-            channelCtx.CurrentStreamId = streamId;
-            channelCtx.WentLiveAt = @event.StartedAt;
-            channelCtx.CurrentTitle = title;
-            channelCtx.CurrentGame = gameName;
-            channelCtx.SessionChatters.Clear();
-            channelCtx.LastShoutoutPerUser.Clear();
-            channelCtx.LastGlobalShoutout = null;
-        }
+        // Reset per-session in-memory state and populate live tracking.
+        // GetOrCreateAsync ensures the channel is in the registry even after an eviction window.
+        ChannelContext channelCtx = await _registry.GetOrCreateAsync(
+            broadcasterId,
+            channel.TwitchChannelId ?? broadcasterId.ToString(),
+            channel.Name,
+            cancellationToken
+        );
+        channelCtx.IsLive = true;
+        channelCtx.CurrentStreamId = streamId;
+        channelCtx.WentLiveAt = @event.StartedAt;
+        channelCtx.CurrentTitle = title;
+        channelCtx.CurrentGame = gameName;
+        channelCtx.SessionChatters.Clear();
+        channelCtx.LastShoutoutPerUser.Clear();
+        channelCtx.LastGlobalShoutout = null;
 
         _logger.LogInformation(
             "Channel {BroadcasterId} is now LIVE: {Title} playing {Game}",

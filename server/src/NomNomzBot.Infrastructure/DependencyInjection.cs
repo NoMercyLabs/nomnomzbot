@@ -584,6 +584,8 @@ public static class DependencyInjection
         // AND the hosted lifecycle, so it is wired explicitly and excluded from the worker scan).
         services.AddSingleton<IChannelRegistry, ChannelRegistry>();
         services.AddHostedService(sp => (ChannelRegistry)sp.GetRequiredService<IChannelRegistry>());
+        // Populates the registry from DB on startup so commands and timers fire from the first message.
+        services.AddHostedService<ChannelRegistryBootstrapService>();
 
         // BotLifecycleService, TimerService, and TokenRefreshService are auto-registered as
         // hosted services by AddHostedWorkers above. Content seeding is no longer a hosted

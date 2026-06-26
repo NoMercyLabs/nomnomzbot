@@ -8,7 +8,10 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.RateLimiting;
 using NomNomzBot.Application.Abstractions.Templating;
@@ -16,6 +19,7 @@ using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Identity;
+using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform.Interfaces;
 
@@ -35,6 +39,7 @@ namespace NomNomzBot.Infrastructure.Chat.EventHandlers;
 public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
 {
     private readonly IChannelRegistry _registry;
+    private readonly IServiceScopeFactory _scopeFactory;
     private readonly ICooldownManager _cooldowns;
     private readonly IChatProvider _chat;
     private readonly IPipelineEngine _pipeline;
@@ -45,6 +50,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
 
     public ChatMessageHandler(
         IChannelRegistry registry,
+        IServiceScopeFactory scopeFactory,
         ICooldownManager cooldowns,
         IChatProvider chat,
         IPipelineEngine pipeline,
@@ -55,6 +61,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
     )
     {
         _registry = registry;
+        _scopeFactory = scopeFactory;
         _cooldowns = cooldowns;
         _chat = chat;
         _pipeline = pipeline;
@@ -94,7 +101,17 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
 
         ChannelContext? ctx = _registry.Get(@event.BroadcasterId);
         if (ctx is null)
-            return; // channel not registered
+        {
+            // Channel missed the startup bootstrap (new channel, or registry was cold).
+            // Lazy-load it now so this and subsequent messages process correctly.
+            ctx = await EnsureChannelLoadedAsync(
+                @event.BroadcasterId,
+                @event.TwitchBroadcasterId,
+                cancellationToken
+            );
+            if (ctx is null)
+                return;
+        }
 
         ctx.LastActivityAt = _timeProvider.GetUtcNow();
         ctx.SessionChatters.TryAdd(@event.UserId, @event.UserDisplayName);
@@ -339,4 +356,50 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
                 @event.Badges
             )
         );
+
+    // Called at most once per channel per process lifetime (or after an eviction window).
+    // Looks up the channel name from DB so the registry context is fully populated.
+    private async Task<ChannelContext?> EnsureChannelLoadedAsync(
+        Guid broadcasterId,
+        string twitchBroadcasterId,
+        CancellationToken ct
+    )
+    {
+        try
+        {
+            using IServiceScope scope = _scopeFactory.CreateScope();
+            IApplicationDbContext db =
+                scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+
+            Channel? channel = await db
+                .Channels.IgnoreQueryFilters()
+                .Where(c => c.Id == broadcasterId)
+                .FirstOrDefaultAsync(ct);
+
+            if (channel is null)
+            {
+                _logger.LogWarning(
+                    "ChatMessageHandler: channel {BroadcasterId} not found in DB — dropping message",
+                    broadcasterId
+                );
+                return null;
+            }
+
+            return await _registry.GetOrCreateAsync(
+                broadcasterId,
+                twitchBroadcasterId,
+                channel.Name,
+                ct
+            );
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "ChatMessageHandler: failed to lazy-load channel {BroadcasterId}",
+                broadcasterId
+            );
+            return null;
+        }
+    }
 }
