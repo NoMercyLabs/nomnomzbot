@@ -107,6 +107,21 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
     public ChannelContext? Get(Guid broadcasterId) =>
         _channels.TryGetValue(broadcasterId, out ChannelContext? ctx) ? ctx : null;
 
+    public async Task InvalidateCommandsAsync(Guid broadcasterId, CancellationToken ct = default)
+    {
+        if (!_channels.TryGetValue(broadcasterId, out ChannelContext? ctx))
+            return;
+
+        ctx.Commands.Clear();
+        await LoadCommandsAsync(ctx, ct);
+
+        _logger.LogDebug(
+            "Reloaded {Count} commands for channel {BroadcasterId}",
+            ctx.Commands.Count,
+            broadcasterId
+        );
+    }
+
     public async Task RemoveAsync(Guid broadcasterId, CancellationToken ct = default)
     {
         if (!_channels.TryRemove(broadcasterId, out ChannelContext? ctx))

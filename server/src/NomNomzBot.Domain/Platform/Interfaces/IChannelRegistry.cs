@@ -27,6 +27,15 @@ public interface IChannelRegistry
         CancellationToken ct = default
     );
     ChannelContext? Get(Guid broadcasterId);
+
+    /// <summary>
+    /// Reloads the command cache for an already-registered channel.
+    /// Call after any Create/Update/Delete/Toggle on a command so the
+    /// in-process handler picks up the change without a restart.
+    /// No-ops if the channel is not yet in the registry.
+    /// </summary>
+    Task InvalidateCommandsAsync(Guid broadcasterId, CancellationToken ct = default);
+
     Task RemoveAsync(Guid broadcasterId, CancellationToken ct = default);
     IReadOnlyCollection<ChannelContext> GetAll();
     IReadOnlyCollection<ChannelContext> GetLiveChannels();

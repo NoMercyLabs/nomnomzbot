@@ -15,6 +15,7 @@ using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Domain.Commands.Entities;
+using NomNomzBot.Domain.Platform.Interfaces;
 
 namespace NomNomzBot.Infrastructure.Commands;
 
@@ -22,11 +23,17 @@ public class CommandService : ICommandService
 {
     private readonly IApplicationDbContext _db;
     private readonly IPipelineEngine _pipelineEngine;
+    private readonly IChannelRegistry _registry;
 
-    public CommandService(IApplicationDbContext db, IPipelineEngine pipelineEngine)
+    public CommandService(
+        IApplicationDbContext db,
+        IPipelineEngine pipelineEngine,
+        IChannelRegistry registry
+    )
     {
         _db = db;
         _pipelineEngine = pipelineEngine;
+        _registry = registry;
     }
 
     public async Task<Result<CommandDto>> CreateAsync(
@@ -70,6 +77,7 @@ public class CommandService : ICommandService
 
         _db.Commands.Add(command);
         await _db.SaveChangesAsync(cancellationToken);
+        await _registry.InvalidateCommandsAsync(broadcaster, cancellationToken);
 
         return Result.Success(ToDto(command));
     }
@@ -119,6 +127,7 @@ public class CommandService : ICommandService
             command.IsEnabled = request.IsEnabled.Value;
 
         await _db.SaveChangesAsync(cancellationToken);
+        await _registry.InvalidateCommandsAsync(broadcaster, cancellationToken);
 
         return Result.Success(ToDto(command));
     }
@@ -144,6 +153,7 @@ public class CommandService : ICommandService
 
         _db.Commands.Remove(command);
         await _db.SaveChangesAsync(cancellationToken);
+        await _registry.InvalidateCommandsAsync(broadcaster, cancellationToken);
 
         return Result.Success();
     }
