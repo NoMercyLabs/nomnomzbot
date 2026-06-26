@@ -102,7 +102,7 @@ data class UpdateAlertBody(
  */
 @Serializable
 data class AlertSummary(
-    val id: Int = 0,
+    val id: String = "",
     val eventType: String = "",
     val isEnabled: Boolean = false,
     val responseType: String = "",
@@ -115,7 +115,7 @@ data class AlertSummary(
  */
 @Serializable
 data class AlertDetail(
-    val id: Int = 0,
+    val id: String = "",
     val eventType: String = "",
     val isEnabled: Boolean = false,
     val responseType: String = "",
