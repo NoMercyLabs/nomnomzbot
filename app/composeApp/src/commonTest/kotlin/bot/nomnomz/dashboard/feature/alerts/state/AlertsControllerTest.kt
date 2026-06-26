@@ -40,7 +40,7 @@ class AlertsControllerTest {
                     ApiResult.Ok(
                         listOf(
                             AlertSummary(
-                                id = 7,
+                                id = "7",
                                 eventType = "channel.follow",
                                 isEnabled = true,
                                 responseType = "chat_message",
@@ -138,7 +138,7 @@ class AlertsControllerTest {
             RecordingAlertsApi(
                 ApiResult.Ok(
                     listOf(
-                        AlertSummary(id = 1, eventType = "channel.raid", isEnabled = true)
+                        AlertSummary(id = "1", eventType = "channel.raid", isEnabled = true)
                     )
                 ),
                 detailMessage = "old",
@@ -166,7 +166,7 @@ class AlertsControllerTest {
         val alertsApi =
             RecordingAlertsApi(
                 ApiResult.Ok(
-                    listOf(AlertSummary(id = 1, eventType = "channel.cheer", isEnabled = true))
+                    listOf(AlertSummary(id = "1", eventType = "channel.cheer", isEnabled = true))
                 )
             )
         val controller =
@@ -192,7 +192,7 @@ class AlertsControllerTest {
     fun delete_removes_the_event_response_then_reloads_to_empty() = runTest {
         val alertsApi =
             RecordingAlertsApi(
-                ApiResult.Ok(listOf(AlertSummary(id = 1, eventType = "channel.follow", isEnabled = true)))
+                ApiResult.Ok(listOf(AlertSummary(id = "1", eventType = "channel.follow", isEnabled = true)))
             )
         val controller =
             AlertsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), alertsApi)
@@ -210,7 +210,7 @@ class AlertsControllerTest {
     fun a_failed_write_surfaces_the_error_over_the_kept_list() = runTest {
         val alertsApi =
             RecordingAlertsApi(
-                ApiResult.Ok(listOf(AlertSummary(id = 1, eventType = "channel.follow", isEnabled = true))),
+                ApiResult.Ok(listOf(AlertSummary(id = "1", eventType = "channel.follow", isEnabled = true))),
                 writeResult = ApiResult.Failure(ApiError(403, "FORBIDDEN", "no permission")),
             )
         val controller =
@@ -230,7 +230,7 @@ class AlertsControllerTest {
     fun detail_reads_the_message_for_the_edit_dialog() = runTest {
         val alertsApi =
             RecordingAlertsApi(
-                ApiResult.Ok(listOf(AlertSummary(id = 1, eventType = "channel.follow"))),
+                ApiResult.Ok(listOf(AlertSummary(id = "1", eventType = "channel.follow"))),
                 detailMessage = "Thanks for the follow!",
             )
         val controller =
@@ -247,7 +247,7 @@ class AlertsControllerTest {
     fun a_failed_detail_fetch_surfaces_the_error_over_the_kept_list() = runTest {
         val alertsApi =
             RecordingAlertsApi(
-                ApiResult.Ok(listOf(AlertSummary(id = 1, eventType = "channel.follow"))),
+                ApiResult.Ok(listOf(AlertSummary(id = "1", eventType = "channel.follow"))),
                 detailResult = ApiResult.Failure(ApiError(500, "ERR", "detail boom")),
             )
         val controller =
@@ -329,7 +329,7 @@ private class RecordingAlertsApi(
             } else {
                 store +=
                     AlertSummary(
-                        id = store.size + 1,
+                        id = (store.size + 1).toString(),
                         eventType = eventType,
                         isEnabled = body.isEnabled ?: true,
                         responseType = body.responseType ?: "chat_message",
