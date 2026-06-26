@@ -22,7 +22,7 @@ public sealed class CheerEventHandler
     : TwitchAlertHandlerBase<CheerEvent>,
         IEventHandler<CheerEvent>
 {
-    protected override string EventTypeKey => "cheer";
+    protected override string EventTypeKey => "channel.cheer";
 
     public CheerEventHandler(
         IServiceScopeFactory s,

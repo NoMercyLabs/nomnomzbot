@@ -22,7 +22,7 @@ public sealed class FollowEventHandler
     : TwitchAlertHandlerBase<FollowEvent>,
         IEventHandler<FollowEvent>
 {
-    protected override string EventTypeKey => "follow";
+    protected override string EventTypeKey => "channel.follow";
 
     public FollowEventHandler(
         IServiceScopeFactory s,
@@ -53,7 +53,7 @@ public sealed class NewFollowerEventHandler
     : TwitchAlertHandlerBase<NewFollowerEvent>,
         IEventHandler<NewFollowerEvent>
 {
-    protected override string EventTypeKey => "follow";
+    protected override string EventTypeKey => "channel.follow";
 
     public NewFollowerEventHandler(
         IServiceScopeFactory s,

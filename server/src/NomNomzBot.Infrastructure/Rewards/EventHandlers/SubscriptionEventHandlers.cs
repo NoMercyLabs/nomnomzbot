@@ -22,7 +22,7 @@ public sealed class NewSubscriptionEventHandler
     : TwitchAlertHandlerBase<NewSubscriptionEvent>,
         IEventHandler<NewSubscriptionEvent>
 {
-    protected override string EventTypeKey => "subscription";
+    protected override string EventTypeKey => "channel.subscribe";
 
     public NewSubscriptionEventHandler(
         IServiceScopeFactory s,
@@ -52,7 +52,7 @@ public sealed class ResubscriptionEventHandler
     : TwitchAlertHandlerBase<ResubscriptionEvent>,
         IEventHandler<ResubscriptionEvent>
 {
-    protected override string EventTypeKey => "resub";
+    protected override string EventTypeKey => "channel.subscription.message";
 
     public ResubscriptionEventHandler(
         IServiceScopeFactory s,
@@ -85,7 +85,7 @@ public sealed class GiftSubscriptionEventHandler
     : TwitchAlertHandlerBase<GiftSubscriptionEvent>,
         IEventHandler<GiftSubscriptionEvent>
 {
-    protected override string EventTypeKey => "gift_sub";
+    protected override string EventTypeKey => "channel.subscription.gift";
 
     public GiftSubscriptionEventHandler(
         IServiceScopeFactory s,

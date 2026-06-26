@@ -25,7 +25,7 @@ public sealed class PollBeganHandler
     : TwitchAlertHandlerBase<PollBeganEvent>,
         IEventHandler<PollBeganEvent>
 {
-    protected override string EventTypeKey => "poll_begin";
+    protected override string EventTypeKey => "channel.poll.begin";
 
     public PollBeganHandler(IServiceScopeFactory s, IPipelineEngine p, ILogger<PollBeganHandler> l)
         : base(s, p, l) { }
@@ -52,7 +52,7 @@ public sealed class PollEndedHandler
     : TwitchAlertHandlerBase<PollEndedEvent>,
         IEventHandler<PollEndedEvent>
 {
-    protected override string EventTypeKey => "poll_end";
+    protected override string EventTypeKey => "channel.poll.end";
 
     public PollEndedHandler(IServiceScopeFactory s, IPipelineEngine p, ILogger<PollEndedHandler> l)
         : base(s, p, l) { }

@@ -20,7 +20,7 @@ namespace NomNomzBot.Infrastructure.Stream.EventHandlers;
 /// <summary>Handles incoming raid events.</summary>
 public sealed class RaidEventHandler : TwitchAlertHandlerBase<RaidEvent>, IEventHandler<RaidEvent>
 {
-    protected override string EventTypeKey => "raid";
+    protected override string EventTypeKey => "channel.raid";
 
     public RaidEventHandler(IServiceScopeFactory s, IPipelineEngine p, ILogger<RaidEventHandler> l)
         : base(s, p, l) { }

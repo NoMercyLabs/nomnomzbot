@@ -22,7 +22,7 @@ public sealed class HypeTrainBeganHandler
     : TwitchAlertHandlerBase<HypeTrainBeganEvent>,
         IEventHandler<HypeTrainBeganEvent>
 {
-    protected override string EventTypeKey => "hype_train_begin";
+    protected override string EventTypeKey => "channel.hype_train.begin";
 
     public HypeTrainBeganHandler(
         IServiceScopeFactory s,
@@ -53,7 +53,7 @@ public sealed class HypeTrainEndedHandler
     : TwitchAlertHandlerBase<HypeTrainEndedEvent>,
         IEventHandler<HypeTrainEndedEvent>
 {
-    protected override string EventTypeKey => "hype_train_end";
+    protected override string EventTypeKey => "channel.hype_train.end";
 
     public HypeTrainEndedHandler(
         IServiceScopeFactory s,

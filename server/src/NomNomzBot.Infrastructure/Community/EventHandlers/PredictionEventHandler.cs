@@ -22,7 +22,7 @@ public sealed class PredictionBeganHandler
     : TwitchAlertHandlerBase<PredictionBeganEvent>,
         IEventHandler<PredictionBeganEvent>
 {
-    protected override string EventTypeKey => "prediction_begin";
+    protected override string EventTypeKey => "channel.prediction.begin";
 
     public PredictionBeganHandler(
         IServiceScopeFactory s,
@@ -53,7 +53,7 @@ public sealed class PredictionLockedHandler
     : TwitchAlertHandlerBase<PredictionLockedEvent>,
         IEventHandler<PredictionLockedEvent>
 {
-    protected override string EventTypeKey => "prediction_lock";
+    protected override string EventTypeKey => "channel.prediction.lock";
 
     public PredictionLockedHandler(
         IServiceScopeFactory s,
@@ -83,7 +83,7 @@ public sealed class PredictionEndedHandler
     : TwitchAlertHandlerBase<PredictionEndedEvent>,
         IEventHandler<PredictionEndedEvent>
 {
-    protected override string EventTypeKey => "prediction_end";
+    protected override string EventTypeKey => "channel.prediction.end";
 
     public PredictionEndedHandler(
         IServiceScopeFactory s,
