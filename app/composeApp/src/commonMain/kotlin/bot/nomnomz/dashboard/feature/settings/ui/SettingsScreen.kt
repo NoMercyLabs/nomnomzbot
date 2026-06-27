@@ -108,6 +108,12 @@ import nomnomzbot.composeapp.generated.resources.settings_reset_confirm_message
 import nomnomzbot.composeapp.generated.resources.settings_reset_confirm_ok
 import nomnomzbot.composeapp.generated.resources.settings_reset_confirm_cancel
 import nomnomzbot.composeapp.generated.resources.settings_channel_action_error
+import nomnomzbot.composeapp.generated.resources.settings_delete_channel
+import nomnomzbot.composeapp.generated.resources.settings_delete_channel_desc
+import nomnomzbot.composeapp.generated.resources.settings_delete_confirm_cancel
+import nomnomzbot.composeapp.generated.resources.settings_delete_confirm_message
+import nomnomzbot.composeapp.generated.resources.settings_delete_confirm_ok
+import nomnomzbot.composeapp.generated.resources.settings_delete_confirm_title
 import org.jetbrains.compose.resources.stringResource
 
 // The Settings page: an editable form over the channel's stream metadata — the live status plus the editable
@@ -121,10 +127,16 @@ fun SettingsScreen(
     controller: SettingsController,
     journalController: JournalPortabilityController,
     role: ManagementRole?,
+    onChannelDeleted: () -> Unit = {},
 ) {
     val state: SettingsState by controller.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val spacing = LocalSpacing.current
+
+    // Navigate to onboarding as a side-effect of the ChannelDeleted terminal state.
+    LaunchedEffect(state) {
+        if (state is SettingsState.ChannelDeleted) onChannelDeleted()
+    }
 
     // Settings gates PER SECTION, each at its own floor (frontend-ia.md §5) — the page has no single manage
     // floor. Stream info (the broadcast title/category/tags, "Bot basics" tier) is an Editor write; the Event
@@ -136,6 +148,7 @@ fun SettingsScreen(
 
     var pendingLeave: Boolean by remember { mutableStateOf(false) }
     var pendingReset: Boolean by remember { mutableStateOf(false) }
+    var pendingDelete: Boolean by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) { controller.load() }
 
@@ -160,6 +173,8 @@ fun SettingsScreen(
                             scope.launch { controller.save(title, gameName, tags) }
                         },
                     )
+                is SettingsState.ChannelDeleted ->
+                    CenteredMessage(stringResource(Res.string.settings_loading))
             }
         }
 
@@ -171,6 +186,7 @@ fun SettingsScreen(
                 onJoin = { scope.launch { controller.joinBot() } },
                 onLeave = { pendingLeave = true },
                 onReset = { pendingReset = true },
+                onDelete = { pendingDelete = true },
             )
         }
 
@@ -204,6 +220,21 @@ fun SettingsScreen(
                 scope.launch { controller.resetConfig() }
             },
             onDismiss = { pendingReset = false },
+        )
+    }
+
+    if (pendingDelete) {
+        ConfirmDialog(
+            title = stringResource(Res.string.settings_delete_confirm_title),
+            message = stringResource(Res.string.settings_delete_confirm_message),
+            confirmLabel = stringResource(Res.string.settings_delete_confirm_ok),
+            dismissLabel = stringResource(Res.string.settings_delete_confirm_cancel),
+            destructive = true,
+            onConfirm = {
+                pendingDelete = false
+                scope.launch { controller.deleteChannel() }
+            },
+            onDismiss = { pendingDelete = false },
         )
     }
 }
@@ -472,8 +503,8 @@ private fun CenteredMessage(text: String) {
     }
 }
 
-// Channel management section: join/leave/reset actions, all gated at the Broadcaster floor (setup:write).
-// Join is non-destructive and shows no confirm dialog. Leave and Reset are confirmed before executing.
+// Channel management section: join/leave/reset/delete actions, all gated at the Broadcaster floor (setup:write).
+// Join is non-destructive and shows no confirm dialog. Leave, Reset, and Delete are confirmed before executing.
 @Composable
 private fun ChannelManagementSection(
     actionError: String?,
@@ -481,6 +512,7 @@ private fun ChannelManagementSection(
     onJoin: () -> Unit,
     onLeave: () -> Unit,
     onReset: () -> Unit,
+    onDelete: () -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -541,6 +573,16 @@ private fun ChannelManagementSection(
             destructive = true,
             manage = manage,
             onClick = onReset,
+        )
+
+        // Delete channel
+        ChannelActionRow(
+            label = stringResource(Res.string.settings_delete_channel),
+            description = stringResource(Res.string.settings_delete_channel_desc),
+            buttonLabel = stringResource(Res.string.settings_delete_channel),
+            destructive = true,
+            manage = manage,
+            onClick = onDelete,
         )
     }
 }

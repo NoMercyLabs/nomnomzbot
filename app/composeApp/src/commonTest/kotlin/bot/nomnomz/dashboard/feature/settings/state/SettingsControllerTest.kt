@@ -144,6 +144,45 @@ class SettingsControllerTest {
     }
 
     @Test
+    fun delete_channel_transitions_to_channel_deleted_on_success() = runTest {
+        val controller =
+            SettingsController(
+                FakeChannelsApi(
+                    ApiResult.Ok(ChannelSummary(id = "ch1")),
+                    deleteResult = ApiResult.Ok(Unit),
+                ),
+                FakeStreamApi(ApiResult.Ok(StreamInfo(title = "Stream"))),
+            )
+        controller.load()
+        assertTrue(controller.state.value is SettingsState.Ready)
+
+        controller.deleteChannel()
+
+        assertTrue(controller.state.value is SettingsState.ChannelDeleted)
+    }
+
+    @Test
+    fun delete_channel_surfaces_error_and_keeps_ready_state_on_failure() = runTest {
+        val controller =
+            SettingsController(
+                FakeChannelsApi(
+                    ApiResult.Ok(ChannelSummary(id = "ch1")),
+                    deleteResult = ApiResult.Failure(ApiError(403, "FORBIDDEN", "Missing scope.")),
+                ),
+                FakeStreamApi(ApiResult.Ok(StreamInfo(title = "Stream"))),
+            )
+        controller.load()
+        assertTrue(controller.state.value is SettingsState.Ready)
+
+        controller.deleteChannel()
+
+        // Stays Ready (so the user keeps the page) and surfaces the error.
+        val state: SettingsState = controller.state.value
+        assertTrue(state is SettingsState.Ready)
+        assertEquals("Missing scope.", (state as SettingsState.Ready).channelActionError)
+    }
+
+    @Test
     fun save_failure_surfaces_the_error_without_losing_the_loaded_info() = runTest {
         val loaded =
             StreamInfo(
@@ -176,7 +215,10 @@ class SettingsControllerTest {
     }
 }
 
-private class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : ChannelsApi {
+private class FakeChannelsApi(
+    private val result: ApiResult<ChannelSummary>,
+    private val deleteResult: ApiResult<Unit> = ApiResult.Ok(Unit),
+) : ChannelsApi {
     override suspend fun primaryChannel(): ApiResult<ChannelSummary> = result
 
     override suspend fun list(): ApiResult<List<ChannelSummary>> = ApiResult.Ok(emptyList())
@@ -186,6 +228,8 @@ private class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : C
     override suspend fun leave(channelId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
 
     override suspend fun reset(channelId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+
+    override suspend fun deleteChannel(channelId: String): ApiResult<Unit> = deleteResult
 }
 
 private class FakeStreamApi(

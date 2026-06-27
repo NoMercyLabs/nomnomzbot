@@ -392,6 +392,8 @@ private class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : C
     override suspend fun leave(channelId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
 
     override suspend fun reset(channelId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+
+    override suspend fun deleteChannel(channelId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
 }
 
 /** A captured capability-grant call (channel, user, action key, reason) — a Triple can't carry four fields. */

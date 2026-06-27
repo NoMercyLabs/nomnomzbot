@@ -347,6 +347,8 @@ private class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : C
     override suspend fun leave(channelId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
 
     override suspend fun reset(channelId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+
+    override suspend fun deleteChannel(channelId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
 }
 
 // A recording fake that behaves like the backend store: list() returns the live summaries, get() returns the

@@ -551,6 +551,12 @@
     <string name="settings_reset_confirm_ok">Herstellen</string>
     <string name="settings_reset_confirm_cancel">Annuleren</string>
     <string name="settings_channel_action_error">Actie mislukt: %1$s</string>
+    <string name="settings_delete_channel">Kanaal verwijderen</string>
+    <string name="settings_delete_channel_desc">Verwijder dit kanaal en alle bijbehorende data permanent. Je moet opnieuw de installatiewizard doorlopen.</string>
+    <string name="settings_delete_confirm_title">Kanaal verwijderen?</string>
+    <string name="settings_delete_confirm_message">Dit verwijdert alle kanaaldata permanent — commando\'s, pijplijnen, timers, economie, gebeurtenissen en elke opgeslagen instelling. Dit kan niet ongedaan worden gemaakt. Je keert terug naar de installatiewizard.</string>
+    <string name="settings_delete_confirm_ok">Permanent verwijderen</string>
+    <string name="settings_delete_confirm_cancel">Annuleren</string>
     <string name="economy_loading">Je economie laden…</string>
     <string name="economy_error">Kon je economie niet laden: %1$s</string>
     <string name="economy_retry">Opnieuw proberen</string>
@@ -1333,4 +1339,6 @@
     <string name="community_vip_revoke">VIP intrekken</string>
     <string name="community_vip_revoke_desc">VIP intrekken van %1$s</string>
     <string name="community_more_actions">Meer acties voor %1$s</string>
+    <string name="community_top_chatters_title">Meest Actieve Chatters</string>
+    <string name="community_top_chatters_messages">%1$d berichten</string>
 </resources>

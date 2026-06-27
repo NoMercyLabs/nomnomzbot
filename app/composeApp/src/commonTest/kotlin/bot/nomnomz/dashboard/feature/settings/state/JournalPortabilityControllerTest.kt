@@ -182,6 +182,8 @@ private class FakeJournalChannelsApi(private val result: ApiResult<ChannelSummar
     override suspend fun leave(channelId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
 
     override suspend fun reset(channelId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+
+    override suspend fun deleteChannel(channelId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
 }
 
 private class FakeEventStoreApi(

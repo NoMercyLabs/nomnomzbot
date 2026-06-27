@@ -40,6 +40,9 @@ interface ChannelsApi {
 
     /** Reset all channel configuration to defaults (clears all stored Configuration entries). */
     suspend fun reset(channelId: String): ApiResult<Unit>
+
+    /** Permanently delete the channel record and all its data. Irreversible — requires re-onboarding. */
+    suspend fun deleteChannel(channelId: String): ApiResult<Unit>
 }
 
 class RestChannelsApi(
@@ -88,6 +91,9 @@ class RestChannelsApi(
 
     override suspend fun reset(channelId: String): ApiResult<Unit> =
         client.postUnit("api/v1/channels/$channelId/reset")
+
+    override suspend fun deleteChannel(channelId: String): ApiResult<Unit> =
+        client.deleteUnit("api/v1/channels/$channelId")
 
     private suspend fun fetchPage(): ApiResult<PaginatedEnvelope<ChannelSummary>> =
         client.getDirect("api/v1/channels?page=1&pageSize=100")

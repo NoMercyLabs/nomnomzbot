@@ -230,6 +230,7 @@ fun ShellScreen(
                         selected = selected,
                         graph = graph,
                         role = role,
+                        onChannelDeleted = onLogout,
                         modifier = Modifier.weight(1f).fillMaxWidth(),
                     )
                 }
@@ -255,6 +256,7 @@ fun ShellScreen(
                         selected = selected,
                         graph = graph,
                         role = role,
+                        onChannelDeleted = onLogout,
                         modifier = Modifier.weight(1f).fillMaxWidth(),
                     )
                 }
@@ -273,6 +275,7 @@ private fun ShellContent(
     selected: ShellRoute,
     graph: AppGraph,
     role: ManagementRole,
+    onChannelDeleted: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     Box(modifier = modifier) {
@@ -312,6 +315,7 @@ private fun ShellContent(
                     controller = graph.settingsController,
                     journalController = graph.journalPortabilityController,
                     role = role,
+                    onChannelDeleted = onChannelDeleted,
                 )
             ShellRoute.Economy -> EconomyScreen(controller = graph.economyController, role = role)
             ShellRoute.Alerts -> AlertsScreen(controller = graph.alertsController, role = role)

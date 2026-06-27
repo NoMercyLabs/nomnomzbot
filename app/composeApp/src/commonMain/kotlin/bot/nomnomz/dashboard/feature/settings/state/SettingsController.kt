@@ -104,6 +104,23 @@ class SettingsController(
         applyChannelAction(channelsApi.reset(target))
     }
 
+    /**
+     * Permanently delete the channel record and all its data (irreversible). On success the state
+     * advances to [SettingsState.ChannelDeleted] — the screen must react by routing the operator
+     * back to the onboarding wizard so they can start fresh.
+     */
+    suspend fun deleteChannel() {
+        val target: String = channelId ?: return
+        val current: SettingsState = _state.value
+        if (current !is SettingsState.Ready) return
+        _state.value = current.copy(channelActionError = null)
+        when (val result: ApiResult<Unit> = channelsApi.deleteChannel(target)) {
+            is ApiResult.Ok -> _state.value = SettingsState.ChannelDeleted
+            is ApiResult.Failure ->
+                _state.value = current.copy(channelActionError = result.error.message)
+        }
+    }
+
     private fun applyChannelAction(result: ApiResult<Unit>) {
         val current: SettingsState = _state.value
         val channelError: String? = if (result is ApiResult.Failure) result.error.message else null
@@ -120,8 +137,8 @@ sealed interface SettingsState {
     /**
      * The loaded stream info plus the in-flight save signals: [saving] while a write is pending, [justSaved]
      * right after a successful save (the "Saved" confirmation), and [saveError] when the last save failed.
-     * [channelActionError] is set when a channel-management action (join/leave/reset) fails; cleared on next
-     * successful action. The screen seeds its editable form from [info].
+     * [channelActionError] is set when a channel-management action (join/leave/reset/delete) fails; cleared on
+     * next successful action. The screen seeds its editable form from [info].
      */
     data class Ready(
         val info: StreamInfo,
@@ -130,6 +147,9 @@ sealed interface SettingsState {
         val saveError: String? = null,
         val channelActionError: String? = null,
     ) : SettingsState
+
+    /** The channel was permanently deleted. The screen must navigate the operator to onboarding. */
+    data object ChannelDeleted : SettingsState
 
     data class Error(val detail: String) : SettingsState
 }

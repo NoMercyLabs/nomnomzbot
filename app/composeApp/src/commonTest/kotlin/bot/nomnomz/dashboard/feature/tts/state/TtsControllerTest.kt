@@ -213,6 +213,8 @@ private class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : C
     override suspend fun leave(channelId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
 
     override suspend fun reset(channelId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+
+    override suspend fun deleteChannel(channelId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
 }
 
 private class FakeTtsApi(
