@@ -24,6 +24,8 @@ import bot.nomnomz.dashboard.core.network.AuthApi
 import bot.nomnomz.dashboard.core.network.BotAuthApi
 import bot.nomnomz.dashboard.core.network.AlertsApi
 import bot.nomnomz.dashboard.core.network.AnalyticsApi
+import bot.nomnomz.dashboard.core.network.BuiltinsApi
+import bot.nomnomz.dashboard.core.network.RestBuiltinsApi
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.ChatApi
 import bot.nomnomz.dashboard.core.network.CommandsApi
@@ -176,6 +178,7 @@ class AppGraph {
     val dashboardApi: DashboardApi = RestDashboardApi(apiClient)
     val communityApi: CommunityApi = RestCommunityApi(apiClient)
     val commandsApi: CommandsApi = RestCommandsApi(apiClient)
+    val builtinsApi: BuiltinsApi = RestBuiltinsApi(apiClient)
     val timersApi: TimersApi = RestTimersApi(apiClient)
     val moderationApi: ModerationApi = RestModerationApi(apiClient)
     val analyticsApi: AnalyticsApi = RestAnalyticsApi(apiClient)
@@ -254,7 +257,7 @@ class AppGraph {
         CommunityController(channelsApi = channelsApi, communityApi = communityApi)
 
     val commandsController: CommandsController =
-        CommandsController(channelsApi = channelsApi, commandsApi = commandsApi, feedback = feedbackController)
+        CommandsController(channelsApi = channelsApi, commandsApi = commandsApi, builtinsApi = builtinsApi, feedback = feedbackController)
 
     val timersController: TimersController =
         TimersController(channelsApi = channelsApi, timersApi = timersApi)

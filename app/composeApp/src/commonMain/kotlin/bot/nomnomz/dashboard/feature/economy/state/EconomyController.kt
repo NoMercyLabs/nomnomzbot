@@ -281,7 +281,7 @@ class EconomyController(
     }
 
     /** Refund a catalog purchase — credits the cost back to the buyer. Reloads on success. */
-    suspend fun refundPurchase(purchaseId: String) {
+    suspend fun refundPurchase(purchaseId: Long) {
         val channel: String = channelId ?: return
         afterWrite(economyApi.refundPurchase(channel, purchaseId))
     }

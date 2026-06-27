@@ -210,6 +210,8 @@
     <string name="commands_badge_enabled">Ingeschakeld</string>
     <string name="commands_badge_disabled">Uitgeschakeld</string>
     <string name="commands_no_description">Geen beschrijving</string>
+    <string name="commands_builtins_section">Ingebouwde opdrachten</string>
+    <string name="commands_builtins_toggle">%1$s in-/uitschakelen</string>
     <string name="timers_loading">Je timers laden…</string>
     <string name="timers_empty">Nog geen timers</string>
     <string name="timers_error">Kon timers niet laden: %1$s</string>

@@ -250,7 +250,7 @@ private fun ReadyContent(
     onToggleEarningRule: (source: String, enabled: Boolean) -> Unit,
     onCreateSavingsJar: (CreateSavingsJarBody) -> Unit,
     onAdjustAccount: (viewerUserId: String, amount: Long, reason: String?) -> Unit,
-    onRefundPurchase: (purchaseId: String) -> Unit,
+    onRefundPurchase: (purchaseId: Long) -> Unit,
 ) {
     val spacing = LocalSpacing.current
     val loaded: CurrencyConfig = state.config
@@ -1548,7 +1548,7 @@ private fun CreateSavingsJarDialog(
 private fun CatalogPurchasesSection(
     purchases: List<CatalogPurchase>,
     manage: ManageDecision,
-    onRefund: (purchaseId: String) -> Unit,
+    onRefund: (purchaseId: Long) -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current

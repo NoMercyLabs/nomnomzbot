@@ -103,7 +103,7 @@ interface EconomyApi {
     suspend fun catalogPurchases(channelId: String): ApiResult<List<CatalogPurchase>>
 
     /** Refund a catalog purchase — credits the cost back to the buyer. */
-    suspend fun refundPurchase(channelId: String, purchaseId: String): ApiResult<Unit>
+    suspend fun refundPurchase(channelId: String, purchaseId: Long): ApiResult<Unit>
 }
 
 class RestEconomyApi(private val client: ApiClient) : EconomyApi {
@@ -236,7 +236,7 @@ class RestEconomyApi(private val client: ApiClient) : EconomyApi {
             is ApiResult.Ok -> ApiResult.Ok(page.value.data)
         }
 
-    override suspend fun refundPurchase(channelId: String, purchaseId: String): ApiResult<Unit> =
+    override suspend fun refundPurchase(channelId: String, purchaseId: Long): ApiResult<Unit> =
         client.postUnit("api/v1/channels/$channelId/economy/catalog/purchases/$purchaseId/refund", Unit)
 }
 

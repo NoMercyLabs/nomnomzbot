@@ -55,6 +55,7 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.designsystem.theme.Tokens
+import bot.nomnomz.dashboard.core.network.BuiltinCommand
 import bot.nomnomz.dashboard.core.network.CommandSummary
 import bot.nomnomz.dashboard.feature.commands.state.CommandsController
 import bot.nomnomz.dashboard.feature.commands.state.CommandsState
@@ -90,6 +91,8 @@ import nomnomzbot.composeapp.generated.resources.commands_no_description
 import nomnomzbot.composeapp.generated.resources.commands_retry
 import nomnomzbot.composeapp.generated.resources.commands_title
 import nomnomzbot.composeapp.generated.resources.commands_toggle_action
+import nomnomzbot.composeapp.generated.resources.commands_builtins_section
+import nomnomzbot.composeapp.generated.resources.commands_builtins_toggle
 import org.jetbrains.compose.resources.stringResource
 
 // The Commands page (frontend-ia.md §3, Chat group): the channel's custom chat commands, all real data from
@@ -122,6 +125,7 @@ fun CommandsScreen(controller: CommandsController, role: ManagementRole?) {
             is CommandsState.Empty ->
                 ManagedContent(
                     commands = emptyList(),
+                    builtins = emptyList(),
                     actionError = null,
                     manage = manage,
                     onNew = { editor = CommandEditor.create() },
@@ -130,10 +134,14 @@ fun CommandsScreen(controller: CommandsController, role: ManagementRole?) {
                         scope.launch { controller.toggleCommand(command.name, enabled) }
                     },
                     onDelete = { command -> pendingDelete = command.name },
+                    onToggleBuiltin = { builtinKey, enabled ->
+                        scope.launch { controller.toggleBuiltin(builtinKey, enabled) }
+                    },
                 )
             is CommandsState.Ready ->
                 ManagedContent(
                     commands = current.commands,
+                    builtins = current.builtins,
                     actionError = current.actionError,
                     manage = manage,
                     onNew = { editor = CommandEditor.create() },
@@ -142,6 +150,9 @@ fun CommandsScreen(controller: CommandsController, role: ManagementRole?) {
                         scope.launch { controller.toggleCommand(command.name, enabled) }
                     },
                     onDelete = { command -> pendingDelete = command.name },
+                    onToggleBuiltin = { builtinKey, enabled ->
+                        scope.launch { controller.toggleBuiltin(builtinKey, enabled) }
+                    },
                 )
         }
     }
@@ -182,12 +193,14 @@ fun CommandsScreen(controller: CommandsController, role: ManagementRole?) {
 @Composable
 private fun ManagedContent(
     commands: List<CommandSummary>,
+    builtins: List<BuiltinCommand>,
     actionError: String?,
     manage: ManageDecision,
     onNew: () -> Unit,
     onEdit: (CommandSummary) -> Unit,
     onToggle: (CommandSummary, Boolean) -> Unit,
     onDelete: (CommandSummary) -> Unit,
+    onToggleBuiltin: (builtinKey: String, Boolean) -> Unit,
 ) {
     val spacing = LocalSpacing.current
 
@@ -198,6 +211,10 @@ private fun ManagedContent(
         Header(manage = manage, onNew = onNew)
         actionError?.let { ActionErrorBanner(detail = it) }
 
+        if (builtins.isNotEmpty()) {
+            BuiltinCommandList(builtins = builtins, manage = manage, onToggle = onToggleBuiltin)
+        }
+
         if (commands.isEmpty()) {
             CenteredMessage(stringResource(Res.string.commands_empty))
         } else {
@@ -207,6 +224,72 @@ private fun ManagedContent(
                 onEdit = onEdit,
                 onToggle = onToggle,
                 onDelete = onDelete,
+            )
+        }
+    }
+}
+
+@Composable
+private fun BuiltinCommandList(
+    builtins: List<BuiltinCommand>,
+    manage: ManageDecision,
+    onToggle: (builtinKey: String, Boolean) -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val typography = LocalTypography.current
+    val spacing = LocalSpacing.current
+
+    Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
+        Text(
+            text = stringResource(Res.string.commands_builtins_section),
+            style = typography.sm,
+            color = tokens.mutedForeground,
+        )
+        builtins.forEach { builtin ->
+            BuiltinRow(builtin = builtin, manage = manage, onToggle = { enabled -> onToggle(builtin.builtinKey, enabled) })
+        }
+    }
+}
+
+@Composable
+private fun BuiltinRow(
+    builtin: BuiltinCommand,
+    manage: ManageDecision,
+    onToggle: (Boolean) -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+    val toggleLabel: String = stringResource(Res.string.commands_builtins_toggle, builtin.name)
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(tokens.radius.lg))
+            .background(tokens.card)
+            .padding(spacing.s4),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Text(
+            text = builtin.name,
+            style = typography.base,
+            color = tokens.cardForeground,
+            modifier = Modifier.weight(1f),
+        )
+        ManageGate(decision = manage) { enabled ->
+            Switch(
+                checked = builtin.isEnabled,
+                onCheckedChange = onToggle,
+                enabled = enabled,
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = tokens.primaryForeground,
+                    checkedTrackColor = tokens.primary,
+                    uncheckedThumbColor = tokens.mutedForeground,
+                    uncheckedTrackColor = tokens.muted,
+                    uncheckedBorderColor = tokens.border,
+                ),
+                modifier = Modifier.semantics { contentDescription = toggleLabel },
             )
         }
     }
