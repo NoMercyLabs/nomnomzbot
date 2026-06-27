@@ -61,15 +61,20 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.designsystem.theme.Tokens
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.ui.unit.dp
 import bot.nomnomz.dashboard.core.network.CatalogItem
 import bot.nomnomz.dashboard.core.network.CatalogPurchase
 import bot.nomnomz.dashboard.core.network.CreateCatalogItemBody
 import bot.nomnomz.dashboard.core.network.CreateSavingsJarBody
 import bot.nomnomz.dashboard.core.network.CurrencyAccountSummary
 import bot.nomnomz.dashboard.core.network.CurrencyConfig
+import bot.nomnomz.dashboard.core.network.CurrencyLedgerEntry
 import bot.nomnomz.dashboard.core.network.EarningRule
 import bot.nomnomz.dashboard.core.network.LeaderboardEntry
 import bot.nomnomz.dashboard.core.network.SavingsJar
+import bot.nomnomz.dashboard.core.network.TransferBody
 import bot.nomnomz.dashboard.feature.economy.state.EconomyController
 import bot.nomnomz.dashboard.feature.economy.state.EconomyState
 import bot.nomnomz.dashboard.feature.shell.nav.ManageAction
@@ -111,6 +116,11 @@ import nomnomzbot.composeapp.generated.resources.economy_catalog_row_description
 import nomnomzbot.composeapp.generated.resources.economy_catalog_stock
 import nomnomzbot.composeapp.generated.resources.economy_catalog_title
 import nomnomzbot.composeapp.generated.resources.economy_disable_confirm_cancel
+import nomnomzbot.composeapp.generated.resources.economy_earning_delete
+import nomnomzbot.composeapp.generated.resources.economy_earning_delete_cancel
+import nomnomzbot.composeapp.generated.resources.economy_earning_delete_confirm
+import nomnomzbot.composeapp.generated.resources.economy_earning_delete_message
+import nomnomzbot.composeapp.generated.resources.economy_earning_delete_title
 import nomnomzbot.composeapp.generated.resources.economy_earning_disable
 import nomnomzbot.composeapp.generated.resources.economy_earning_disable_action
 import nomnomzbot.composeapp.generated.resources.economy_earning_disabled
@@ -164,6 +174,21 @@ import nomnomzbot.composeapp.generated.resources.economy_account_adjust_cancel
 import nomnomzbot.composeapp.generated.resources.economy_account_adjust_confirm
 import nomnomzbot.composeapp.generated.resources.economy_account_adjust_reason
 import nomnomzbot.composeapp.generated.resources.economy_account_adjust_title
+import nomnomzbot.composeapp.generated.resources.economy_account_ledger
+import nomnomzbot.composeapp.generated.resources.economy_ledger_close
+import nomnomzbot.composeapp.generated.resources.economy_ledger_empty
+import nomnomzbot.composeapp.generated.resources.economy_ledger_error
+import nomnomzbot.composeapp.generated.resources.economy_ledger_title
+import nomnomzbot.composeapp.generated.resources.economy_transfer
+import nomnomzbot.composeapp.generated.resources.economy_transfer_amount
+import nomnomzbot.composeapp.generated.resources.economy_transfer_amount_invalid
+import nomnomzbot.composeapp.generated.resources.economy_transfer_cancel
+import nomnomzbot.composeapp.generated.resources.economy_transfer_confirm
+import nomnomzbot.composeapp.generated.resources.economy_transfer_from
+import nomnomzbot.composeapp.generated.resources.economy_transfer_reason
+import nomnomzbot.composeapp.generated.resources.economy_transfer_same_account
+import nomnomzbot.composeapp.generated.resources.economy_transfer_title
+import nomnomzbot.composeapp.generated.resources.economy_transfer_to
 import nomnomzbot.composeapp.generated.resources.economy_purchases_buyer
 import nomnomzbot.composeapp.generated.resources.economy_purchases_empty
 import nomnomzbot.composeapp.generated.resources.economy_purchases_refund
@@ -223,11 +248,18 @@ fun EconomyScreen(controller: EconomyController, role: ManagementRole?) {
                     onToggleEarningRule = { source, enabled ->
                         scope.launch { controller.toggleEarningRule(source, enabled) }
                     },
+                    onDeleteEarningRule = { ruleId ->
+                        scope.launch { controller.deleteEarningRule(ruleId) }
+                    },
                     onCreateSavingsJar = { request ->
                         scope.launch { controller.createSavingsJar(request) }
                     },
                     onAdjustAccount = { viewerUserId, amount, reason ->
                         scope.launch { controller.adjustAccount(viewerUserId, amount, reason) }
+                    },
+                    loadLedger = controller::loadLedger,
+                    onTransfer = { request ->
+                        scope.launch { controller.transfer(request) }
                     },
                     onRefundPurchase = { purchaseId ->
                         scope.launch { controller.refundPurchase(purchaseId) }
@@ -248,8 +280,11 @@ private fun ReadyContent(
     onCreateCatalogItem: (CreateCatalogItemBody) -> Unit,
     onDeleteCatalogItem: (String) -> Unit,
     onToggleEarningRule: (source: String, enabled: Boolean) -> Unit,
+    onDeleteEarningRule: (ruleId: String) -> Unit,
     onCreateSavingsJar: (CreateSavingsJarBody) -> Unit,
     onAdjustAccount: (viewerUserId: String, amount: Long, reason: String?) -> Unit,
+    loadLedger: suspend (viewerUserId: String) -> List<CurrencyLedgerEntry>?,
+    onTransfer: (TransferBody) -> Unit,
     onRefundPurchase: (purchaseId: Long) -> Unit,
 ) {
     val spacing = LocalSpacing.current
@@ -358,12 +393,20 @@ private fun ReadyContent(
 
         LeaderboardSection(entries = state.leaderboard)
 
-        AccountsSection(accounts = state.accounts, manage = config, onFreeze = onFreeze, onAdjust = onAdjustAccount)
+        AccountsSection(
+            accounts = state.accounts,
+            manage = config,
+            onFreeze = onFreeze,
+            onAdjust = onAdjustAccount,
+            loadLedger = loadLedger,
+            onTransfer = onTransfer,
+        )
 
         EarningRulesSection(
             rules = state.earningRules,
             manage = payoutRules,
             onToggle = onToggleEarningRule,
+            onDelete = onDeleteEarningRule,
         )
 
         CatalogSection(
@@ -788,18 +831,34 @@ private fun AccountsSection(
     manage: ManageDecision,
     onFreeze: (String, Boolean) -> Unit,
     onAdjust: (viewerUserId: String, amount: Long, reason: String?) -> Unit,
+    loadLedger: suspend (viewerUserId: String) -> List<CurrencyLedgerEntry>?,
+    onTransfer: (TransferBody) -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
 
-    Text(
-        text = stringResource(Res.string.economy_accounts_title),
-        style = typography.lg,
-        color = tokens.cardForeground,
-        maxLines = 1,
-        overflow = TextOverflow.Ellipsis,
-    )
+    var showTransfer: Boolean by remember { mutableStateOf(false) }
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Text(
+            text = stringResource(Res.string.economy_accounts_title),
+            style = typography.lg,
+            color = tokens.cardForeground,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
+        ManageGate(decision = manage) { enabled ->
+            TextButton(onClick = { showTransfer = true }, enabled = enabled) {
+                Text(stringResource(Res.string.economy_transfer))
+            }
+        }
+    }
 
     if (accounts.isEmpty()) {
         Text(
@@ -807,17 +866,30 @@ private fun AccountsSection(
             style = typography.sm,
             color = tokens.mutedForeground,
         )
-        return
+    } else {
+        LazyColumn(
+            modifier = Modifier.fillMaxWidth(),
+            contentPadding = PaddingValues(vertical = spacing.s1),
+            verticalArrangement = Arrangement.spacedBy(spacing.s2),
+        ) {
+            items(items = accounts, key = { it.id }) { account ->
+                AccountRow(
+                    account = account,
+                    manage = manage,
+                    onFreeze = onFreeze,
+                    onAdjust = onAdjust,
+                    loadLedger = loadLedger,
+                )
+            }
+        }
     }
 
-    LazyColumn(
-        modifier = Modifier.fillMaxWidth(),
-        contentPadding = PaddingValues(vertical = spacing.s1),
-        verticalArrangement = Arrangement.spacedBy(spacing.s2),
-    ) {
-        items(items = accounts, key = { it.id }) { account ->
-            AccountRow(account = account, manage = manage, onFreeze = onFreeze, onAdjust = onAdjust)
-        }
+    if (showTransfer) {
+        TransferDialog(
+            accounts = accounts,
+            onConfirm = { request -> showTransfer = false; onTransfer(request) },
+            onDismiss = { showTransfer = false },
+        )
     }
 }
 
@@ -827,8 +899,20 @@ private fun AccountRow(
     manage: ManageDecision,
     onFreeze: (String, Boolean) -> Unit,
     onAdjust: (viewerUserId: String, amount: Long, reason: String?) -> Unit,
+    loadLedger: suspend (viewerUserId: String) -> List<CurrencyLedgerEntry>?,
 ) {
     var showAdjust: Boolean by remember { mutableStateOf(false) }
+    var showLedger: Boolean by remember { mutableStateOf(false) }
+    var ledgerEntries: List<CurrencyLedgerEntry>? by remember { mutableStateOf(null) }
+    var ledgerLoading: Boolean by remember { mutableStateOf(false) }
+
+    LaunchedEffect(showLedger) {
+        if (showLedger && ledgerEntries == null) {
+            ledgerLoading = true
+            ledgerEntries = loadLedger(account.viewerUserId)
+            ledgerLoading = false
+        }
+    }
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
@@ -916,6 +1000,13 @@ private fun AccountRow(
                 )
             }
         }
+        TextButton(onClick = { showLedger = true }) {
+            Text(
+                text = stringResource(Res.string.economy_account_ledger),
+                color = tokens.primary,
+                maxLines = 1,
+            )
+        }
     }
 
     if (showAdjust) {
@@ -923,6 +1014,15 @@ private fun AccountRow(
             viewerLabel = account.viewerTwitchUserId,
             onConfirm = { amount, reason -> showAdjust = false; onAdjust(account.viewerUserId, amount, reason) },
             onDismiss = { showAdjust = false },
+        )
+    }
+
+    if (showLedger) {
+        LedgerDialog(
+            viewerLabel = account.viewerTwitchUserId,
+            loading = ledgerLoading,
+            entries = ledgerEntries,
+            onDismiss = { showLedger = false; ledgerEntries = null },
         )
     }
 }
@@ -973,13 +1073,168 @@ private fun AccountAdjustDialog(
     )
 }
 
+@Composable
+private fun LedgerDialog(
+    viewerLabel: String,
+    loading: Boolean,
+    entries: List<CurrencyLedgerEntry>?,
+    onDismiss: () -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                stringResource(Res.string.economy_ledger_title, viewerLabel),
+                style = typography.lg,
+                color = tokens.cardForeground,
+            )
+        },
+        text = {
+            when {
+                loading -> Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+                entries == null -> Text(
+                    stringResource(Res.string.economy_ledger_error),
+                    style = typography.sm,
+                    color = tokens.destructive,
+                )
+                entries.isEmpty() -> Text(
+                    stringResource(Res.string.economy_ledger_empty),
+                    style = typography.sm,
+                    color = tokens.mutedForeground,
+                )
+                else -> LazyColumn(
+                    modifier = Modifier.heightIn(max = 400.dp),
+                    verticalArrangement = Arrangement.spacedBy(spacing.s2),
+                ) {
+                    items(entries, key = { it.id }) { entry ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = entry.entryType,
+                                    style = typography.sm,
+                                    color = tokens.cardForeground,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                                entry.reason?.let { r ->
+                                    Text(
+                                        text = r,
+                                        style = typography.xs,
+                                        color = tokens.mutedForeground,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                }
+                            }
+                            Text(
+                                text = if (entry.amount >= 0) "+${entry.amount}" else "${entry.amount}",
+                                style = typography.sm,
+                                color = if (entry.amount >= 0) tokens.primary else tokens.destructive,
+                                maxLines = 1,
+                            )
+                        }
+                        HorizontalDivider(color = tokens.border)
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.economy_ledger_close)) } },
+        containerColor = tokens.card,
+    )
+}
+
+@Composable
+private fun TransferDialog(
+    accounts: List<CurrencyAccountSummary>,
+    onConfirm: (TransferBody) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    var fromId: String by remember { mutableStateOf(accounts.firstOrNull()?.viewerUserId.orEmpty()) }
+    var toId: String by remember { mutableStateOf("") }
+    var amountText: String by remember { mutableStateOf("") }
+    var reason: String by remember { mutableStateOf("") }
+
+    val amount: Long? = amountText.toLongOrNull()?.takeIf { it > 0 }
+    val canConfirm: Boolean = fromId.isNotBlank() && toId.isNotBlank() && fromId != toId && amount != null
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                stringResource(Res.string.economy_transfer_title),
+                style = typography.lg,
+                color = tokens.cardForeground,
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
+                AppTextField(
+                    value = fromId,
+                    onValueChange = { fromId = it },
+                    label = stringResource(Res.string.economy_transfer_from),
+                    isError = false,
+                    errorText = null,
+                )
+                AppTextField(
+                    value = toId,
+                    onValueChange = { toId = it },
+                    label = stringResource(Res.string.economy_transfer_to),
+                    isError = toId.isNotBlank() && toId == fromId,
+                    errorText = if (toId.isNotBlank() && toId == fromId) stringResource(Res.string.economy_transfer_same_account) else null,
+                )
+                AppTextField(
+                    value = amountText,
+                    onValueChange = { amountText = it.filter(Char::isDigit) },
+                    label = stringResource(Res.string.economy_transfer_amount),
+                    isError = amountText.isNotBlank() && amount == null,
+                    errorText = if (amountText.isNotBlank() && amount == null) stringResource(Res.string.economy_transfer_amount_invalid) else null,
+                )
+                AppTextField(
+                    value = reason,
+                    onValueChange = { reason = it },
+                    label = stringResource(Res.string.economy_transfer_reason),
+                    isError = false,
+                    errorText = null,
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    if (canConfirm) {
+                        onConfirm(TransferBody(fromViewerUserId = fromId, toViewerUserId = toId, amount = amount!!, reason = reason.trim().ifBlank { null }))
+                    }
+                },
+                enabled = canConfirm,
+            ) {
+                Text(stringResource(Res.string.economy_transfer_confirm))
+            }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.economy_transfer_cancel)) } },
+        containerColor = tokens.card,
+    )
+}
+
 // The earning rules (economy.md §4): one row per source — the source key, a disabled flag, and the gain rate.
-// Read-only here; rate / cap editing is a follow-up management surface.
 @Composable
 private fun EarningRulesSection(
     rules: List<EarningRule>,
     manage: ManageDecision,
     onToggle: (source: String, enabled: Boolean) -> Unit,
+    onDelete: (ruleId: String) -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -1008,16 +1263,28 @@ private fun EarningRulesSection(
         verticalArrangement = Arrangement.spacedBy(spacing.s2),
     ) {
         items(items = rules, key = { it.id }) { rule ->
-            EarningRuleRow(rule = rule, manage = manage, onToggle = { onToggle(rule.source, !rule.isEnabled) })
+            EarningRuleRow(
+                rule = rule,
+                manage = manage,
+                onToggle = { onToggle(rule.source, !rule.isEnabled) },
+                onDelete = { onDelete(rule.id) },
+            )
         }
     }
 }
 
 @Composable
-private fun EarningRuleRow(rule: EarningRule, manage: ManageDecision, onToggle: () -> Unit) {
+private fun EarningRuleRow(
+    rule: EarningRule,
+    manage: ManageDecision,
+    onToggle: () -> Unit,
+    onDelete: () -> Unit,
+) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
+
+    var pendingDelete: Boolean by remember { mutableStateOf(false) }
 
     val rowDescription: String =
         stringResource(Res.string.economy_earning_row_description, rule.source, rule.rate)
@@ -1079,6 +1346,27 @@ private fun EarningRuleRow(rule: EarningRule, manage: ManageDecision, onToggle: 
                 )
             }
         }
+        ManageGate(decision = manage) { enabled ->
+            TextButton(onClick = { pendingDelete = true }, enabled = enabled) {
+                Text(
+                    text = stringResource(Res.string.economy_earning_delete),
+                    color = if (enabled) tokens.destructive else tokens.mutedForeground,
+                    maxLines = 1,
+                )
+            }
+        }
+    }
+
+    if (pendingDelete) {
+        ConfirmDialog(
+            title = stringResource(Res.string.economy_earning_delete_title),
+            message = stringResource(Res.string.economy_earning_delete_message, rule.source),
+            confirmLabel = stringResource(Res.string.economy_earning_delete_confirm),
+            dismissLabel = stringResource(Res.string.economy_earning_delete_cancel),
+            destructive = true,
+            onConfirm = { pendingDelete = false; onDelete() },
+            onDismiss = { pendingDelete = false },
+        )
     }
 }
 

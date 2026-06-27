@@ -76,6 +76,8 @@ class ApiContractTest {
             AutomodEmoteSpam.serializer() to "AutomodEmoteSpamDto",
             ModerationRule.serializer() to "ModerationRuleDetail",
             TtsVoice.serializer() to "TtsVoiceDto",
+            UserStats.serializer() to "UserStatsDto",
+            CurrencyLedgerEntry.serializer() to "CurrencyLedgerEntryDto",
         )
 
     @Test

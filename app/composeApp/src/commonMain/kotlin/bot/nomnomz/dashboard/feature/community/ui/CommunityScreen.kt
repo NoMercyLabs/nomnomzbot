@@ -703,7 +703,7 @@ private fun ViewerStatsDialog(
                     }
                     else -> {
                         StatRow(label = stringResource(Res.string.community_stats_messages), value = stats.messageCount.toString())
-                        StatRow(label = stringResource(Res.string.community_stats_watch_hours), value = "%.1f".format(stats.watchHours))
+                        StatRow(label = stringResource(Res.string.community_stats_watch_hours), value = stats.watchHours.toFixed1())
                         StatRow(label = stringResource(Res.string.community_stats_commands_used), value = stats.commandsUsed.toString())
                         StatRow(
                             label = stringResource(Res.string.community_stats_first_seen),
@@ -800,6 +800,12 @@ private fun StatRow(label: String, value: String) {
         Text(text = label, style = typography.sm, color = tokens.mutedForeground, modifier = Modifier.padding(end = spacing.s2))
         Text(text = value, style = typography.sm, color = tokens.foreground)
     }
+}
+
+/** Format a [Double] to one decimal place without JVM-only String.format. */
+private fun Double.toFixed1(): String {
+    val scaled: Long = (this * 10).toLong()
+    return "${scaled / 10}.${kotlin.math.abs(scaled % 10)}"
 }
 
 /** The member's best display name: display name, then login, then the raw id. */

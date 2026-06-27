@@ -104,6 +104,15 @@ interface EconomyApi {
 
     /** Refund a catalog purchase — credits the cost back to the buyer. */
     suspend fun refundPurchase(channelId: String, purchaseId: Long): ApiResult<Unit>
+
+    /** Delete a custom earning rule permanently (built-in sources auto-recreate; this removes custom overrides). */
+    suspend fun deleteEarningRule(channelId: String, ruleId: String): ApiResult<Unit>
+
+    /** Transaction ledger for a specific account — first page (newest first). */
+    suspend fun ledger(channelId: String, viewerUserId: String): ApiResult<List<CurrencyLedgerEntry>>
+
+    /** Transfer [amount] from one viewer's account to another. Broadcaster/Editor only. */
+    suspend fun transfer(channelId: String, request: TransferBody): ApiResult<Unit>
 }
 
 class RestEconomyApi(private val client: ApiClient) : EconomyApi {
@@ -238,6 +247,26 @@ class RestEconomyApi(private val client: ApiClient) : EconomyApi {
 
     override suspend fun refundPurchase(channelId: String, purchaseId: Long): ApiResult<Unit> =
         client.postUnit("api/v1/channels/$channelId/economy/catalog/purchases/$purchaseId/refund", Unit)
+
+    override suspend fun deleteEarningRule(channelId: String, ruleId: String): ApiResult<Unit> =
+        client.deleteUnit("api/v1/channels/$channelId/economy/earning-rules/$ruleId")
+
+    override suspend fun ledger(
+        channelId: String,
+        viewerUserId: String,
+    ): ApiResult<List<CurrencyLedgerEntry>> =
+        when (
+            val page: ApiResult<PaginatedEnvelope<CurrencyLedgerEntry>> =
+                client.getDirect(
+                    "api/v1/channels/$channelId/economy/accounts/$viewerUserId/ledger?page=1&pageSize=50"
+                )
+        ) {
+            is ApiResult.Failure -> ApiResult.Failure(page.error)
+            is ApiResult.Ok -> ApiResult.Ok(page.value.data)
+        }
+
+    override suspend fun transfer(channelId: String, request: TransferBody): ApiResult<Unit> =
+        client.postUnit("api/v1/channels/$channelId/economy/transfer", request)
 }
 
 /** The freeze/unfreeze request body (backend `CurrencyController.FreezeBody`). camelCase `frozen`. */
@@ -412,3 +441,20 @@ data class EarningRule(
     val minRoleLevel: Int? = null,
     val configSchemaVersion: Int = 0,
 )
+
+/**
+ * One immutable ledger movement (backend `CurrencyLedgerEntryDto`). camelCase mirror; [entryType] / [sourceType]
+ * are opaque tokens — the UI displays them as-is. [amount] is signed (positive = credit, negative = debit).
+ */
+@Serializable
+data class CurrencyLedgerEntry(
+    val id: Long = 0,
+    val amount: Long = 0,
+    val balanceAfter: Long = 0,
+    val entryType: String = "",
+    val sourceType: String? = null,
+    val reason: String? = null,
+    val createdAt: String = "",
+)
+
+// TransferBody is declared in ParticipantApi.kt (same package) and shared here.

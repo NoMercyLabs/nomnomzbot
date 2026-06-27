@@ -21,8 +21,10 @@ import bot.nomnomz.dashboard.core.network.CreateCatalogItemBody
 import bot.nomnomz.dashboard.core.network.CreateSavingsJarBody
 import bot.nomnomz.dashboard.core.network.CurrencyAccount
 import bot.nomnomz.dashboard.core.network.CurrencyAccountSummary
+import bot.nomnomz.dashboard.core.network.CurrencyLedgerEntry
 import bot.nomnomz.dashboard.core.network.EarningRule
 import bot.nomnomz.dashboard.core.network.CurrencyConfig
+import bot.nomnomz.dashboard.core.network.TransferBody
 import bot.nomnomz.dashboard.core.network.DashboardApi
 import bot.nomnomz.dashboard.core.network.DashboardStats
 import bot.nomnomz.dashboard.core.network.EconomyApi
@@ -612,6 +614,13 @@ private class FakeEconomyApi(
     override suspend fun catalogPurchases(channelId: String): ApiResult<List<CatalogPurchase>> = ApiResult.Ok(emptyList())
 
     override suspend fun refundPurchase(channelId: String, purchaseId: Long): ApiResult<Unit> = ApiResult.Ok(Unit)
+
+    override suspend fun deleteEarningRule(channelId: String, ruleId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+
+    override suspend fun ledger(channelId: String, viewerUserId: String): ApiResult<List<CurrencyLedgerEntry>> =
+        ApiResult.Ok(emptyList())
+
+    override suspend fun transfer(channelId: String, request: TransferBody): ApiResult<Unit> = ApiResult.Ok(Unit)
 }
 
 private class FakeMusicApi(private val snapshot: ApiResult<MusicSnapshot>) : MusicApi {

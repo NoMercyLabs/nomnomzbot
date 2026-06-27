@@ -19,10 +19,12 @@ import bot.nomnomz.dashboard.core.network.CreateCatalogItemBody
 import bot.nomnomz.dashboard.core.network.CreateSavingsJarBody
 import bot.nomnomz.dashboard.core.network.CurrencyAccountSummary
 import bot.nomnomz.dashboard.core.network.CurrencyConfig
+import bot.nomnomz.dashboard.core.network.CurrencyLedgerEntry
 import bot.nomnomz.dashboard.core.network.EarningRule
 import bot.nomnomz.dashboard.core.network.EconomyApi
 import bot.nomnomz.dashboard.core.network.LeaderboardEntry
 import bot.nomnomz.dashboard.core.network.SavingsJar
+import bot.nomnomz.dashboard.core.network.TransferBody
 import bot.nomnomz.dashboard.core.network.UpsertCurrencyConfig
 import bot.nomnomz.dashboard.core.network.UpsertEarningRuleBody
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -284,6 +286,30 @@ class EconomyController(
     suspend fun refundPurchase(purchaseId: Long) {
         val channel: String = channelId ?: return
         afterWrite(economyApi.refundPurchase(channel, purchaseId))
+    }
+
+    /** Delete an earning rule permanently. Reloads on success. */
+    suspend fun deleteEarningRule(ruleId: String) {
+        val channel: String = channelId ?: return
+        afterWrite(economyApi.deleteEarningRule(channel, ruleId))
+    }
+
+    /**
+     * Load the ledger for [viewerUserId] (first 50 entries). Returns the entries on success, or null on failure.
+     * The screen drives its own loading state for the per-account detail panel.
+     */
+    suspend fun loadLedger(viewerUserId: String): List<CurrencyLedgerEntry>? {
+        val channel: String = channelId ?: return null
+        return when (val result: ApiResult<List<CurrencyLedgerEntry>> = economyApi.ledger(channel, viewerUserId)) {
+            is ApiResult.Ok -> result.value
+            is ApiResult.Failure -> null
+        }
+    }
+
+    /** Transfer [amount] from one viewer to another. Reloads on success. */
+    suspend fun transfer(request: TransferBody) {
+        val channel: String = channelId ?: return
+        afterWrite(economyApi.transfer(channel, request))
     }
 
     // Reload on success; on failure surface the message on the current Ready state without losing the loaded page.

@@ -5029,7 +5029,7 @@
     "/api/v{version}/channels/{channelId}/economy/catalog": {
       "get": {
         "tags": [
-          "Economy — Catalog"
+          "Economy \u00e2\u20ac\u201d Catalog"
         ],
         "parameters": [
           {
@@ -5169,7 +5169,7 @@
       },
       "post": {
         "tags": [
-          "Economy — Catalog"
+          "Economy \u00e2\u20ac\u201d Catalog"
         ],
         "parameters": [
           {
@@ -5276,7 +5276,7 @@
     "/api/v{version}/channels/{channelId}/economy/catalog/{itemId}": {
       "get": {
         "tags": [
-          "Economy — Catalog"
+          "Economy \u00e2\u20ac\u201d Catalog"
         ],
         "parameters": [
           {
@@ -5370,7 +5370,7 @@
       },
       "patch": {
         "tags": [
-          "Economy — Catalog"
+          "Economy \u00e2\u20ac\u201d Catalog"
         ],
         "parameters": [
           {
@@ -5484,7 +5484,7 @@
       },
       "delete": {
         "tags": [
-          "Economy — Catalog"
+          "Economy \u00e2\u20ac\u201d Catalog"
         ],
         "parameters": [
           {
@@ -5580,7 +5580,7 @@
     "/api/v{version}/channels/{channelId}/economy/catalog/{itemId}/purchase": {
       "post": {
         "tags": [
-          "Economy — Catalog"
+          "Economy \u00e2\u20ac\u201d Catalog"
         ],
         "parameters": [
           {
@@ -5696,7 +5696,7 @@
     "/api/v{version}/channels/{channelId}/economy/catalog/purchases": {
       "get": {
         "tags": [
-          "Economy — Catalog"
+          "Economy \u00e2\u20ac\u201d Catalog"
         ],
         "parameters": [
           {
@@ -5861,7 +5861,7 @@
     "/api/v{version}/channels/{channelId}/economy/catalog/purchases/{purchaseId}/refund": {
       "post": {
         "tags": [
-          "Economy — Catalog"
+          "Economy \u00e2\u20ac\u201d Catalog"
         ],
         "parameters": [
           {
@@ -7248,7 +7248,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           }
         }
@@ -9619,7 +9619,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           }
         }
@@ -10365,7 +10365,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           }
         }
@@ -10464,7 +10464,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           }
         }
@@ -10473,7 +10473,7 @@
     "/api/v{version}/channels/{channelId}/economy/config": {
       "get": {
         "tags": [
-          "Economy — Currency"
+          "Economy \u00e2\u20ac\u201d Currency"
         ],
         "parameters": [
           {
@@ -10558,7 +10558,7 @@
       },
       "put": {
         "tags": [
-          "Economy — Currency"
+          "Economy \u00e2\u20ac\u201d Currency"
         ],
         "parameters": [
           {
@@ -10665,7 +10665,7 @@
     "/api/v{version}/channels/{channelId}/economy/earning-rules": {
       "get": {
         "tags": [
-          "Economy — Currency"
+          "Economy \u00e2\u20ac\u201d Currency"
         ],
         "parameters": [
           {
@@ -10760,7 +10760,7 @@
       },
       "put": {
         "tags": [
-          "Economy — Currency"
+          "Economy \u00e2\u20ac\u201d Currency"
         ],
         "parameters": [
           {
@@ -10867,7 +10867,7 @@
     "/api/v{version}/channels/{channelId}/economy/earning-rules/{ruleId}": {
       "delete": {
         "tags": [
-          "Economy — Currency"
+          "Economy \u00e2\u20ac\u201d Currency"
         ],
         "parameters": [
           {
@@ -10963,7 +10963,7 @@
     "/api/v{version}/channels/{channelId}/economy/accounts": {
       "get": {
         "tags": [
-          "Economy — Currency"
+          "Economy \u00e2\u20ac\u201d Currency"
         ],
         "parameters": [
           {
@@ -11105,7 +11105,7 @@
     "/api/v{version}/channels/{channelId}/economy/accounts/me": {
       "get": {
         "tags": [
-          "Economy — Currency"
+          "Economy \u00e2\u20ac\u201d Currency"
         ],
         "parameters": [
           {
@@ -11202,7 +11202,7 @@
     "/api/v{version}/channels/{channelId}/economy/accounts/{viewerUserId}": {
       "get": {
         "tags": [
-          "Economy — Currency"
+          "Economy \u00e2\u20ac\u201d Currency"
         ],
         "parameters": [
           {
@@ -11298,7 +11298,7 @@
     "/api/v{version}/channels/{channelId}/economy/accounts/{viewerUserId}/ledger": {
       "get": {
         "tags": [
-          "Economy — Currency"
+          "Economy \u00e2\u20ac\u201d Currency"
         ],
         "parameters": [
           {
@@ -11449,7 +11449,7 @@
     "/api/v{version}/channels/{channelId}/economy/accounts/{viewerUserId}/adjust": {
       "post": {
         "tags": [
-          "Economy — Currency"
+          "Economy \u00e2\u20ac\u201d Currency"
         ],
         "parameters": [
           {
@@ -11565,7 +11565,7 @@
     "/api/v{version}/channels/{channelId}/economy/accounts/{viewerUserId}/freeze": {
       "post": {
         "tags": [
-          "Economy — Currency"
+          "Economy \u00e2\u20ac\u201d Currency"
         ],
         "parameters": [
           {
@@ -11681,7 +11681,7 @@
     "/api/v{version}/channels/{channelId}/economy/transfer": {
       "post": {
         "tags": [
-          "Economy — Currency"
+          "Economy \u00e2\u20ac\u201d Currency"
         ],
         "parameters": [
           {
@@ -14406,7 +14406,7 @@
     "/api/v{version}/channels/{channelId}/economy/leaderboards/configs": {
       "get": {
         "tags": [
-          "Economy — Leaderboards"
+          "Economy \u00e2\u20ac\u201d Leaderboards"
         ],
         "parameters": [
           {
@@ -14491,7 +14491,7 @@
       },
       "put": {
         "tags": [
-          "Economy — Leaderboards"
+          "Economy \u00e2\u20ac\u201d Leaderboards"
         ],
         "parameters": [
           {
@@ -14598,7 +14598,7 @@
     "/api/v{version}/channels/{channelId}/economy/leaderboards/configs/{configId}": {
       "delete": {
         "tags": [
-          "Economy — Leaderboards"
+          "Economy \u00e2\u20ac\u201d Leaderboards"
         ],
         "parameters": [
           {
@@ -14694,7 +14694,7 @@
     "/api/v{version}/channels/{channelId}/economy/leaderboards/{configId}": {
       "get": {
         "tags": [
-          "Economy — Leaderboards"
+          "Economy \u00e2\u20ac\u201d Leaderboards"
         ],
         "parameters": [
           {
@@ -14802,7 +14802,7 @@
     "/api/v{version}/channels/{channelId}/economy/leaderboards/opt-out/{viewerUserId}": {
       "post": {
         "tags": [
-          "Economy — Leaderboards"
+          "Economy \u00e2\u20ac\u201d Leaderboards"
         ],
         "parameters": [
           {
@@ -14898,7 +14898,7 @@
     "/api/v{version}/channels/{channelId}/economy/leaderboards/opt-in/{viewerUserId}": {
       "post": {
         "tags": [
-          "Economy — Leaderboards"
+          "Economy \u00e2\u20ac\u201d Leaderboards"
         ],
         "parameters": [
           {
@@ -15454,7 +15454,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           }
         }
@@ -15547,7 +15547,7 @@
           "200": {
             "description": "OK",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           }
         }
@@ -17636,7 +17636,7 @@
     "/api/v{version}/channels/{channelId}/economy/games": {
       "get": {
         "tags": [
-          "Economy — Games"
+          "Economy \u00e2\u20ac\u201d Games"
         ],
         "parameters": [
           {
@@ -17721,7 +17721,7 @@
       },
       "put": {
         "tags": [
-          "Economy — Games"
+          "Economy \u00e2\u20ac\u201d Games"
         ],
         "parameters": [
           {
@@ -17828,7 +17828,7 @@
     "/api/v{version}/channels/{channelId}/economy/games/{gameConfigId}/play": {
       "post": {
         "tags": [
-          "Economy — Games"
+          "Economy \u00e2\u20ac\u201d Games"
         ],
         "parameters": [
           {
@@ -17944,7 +17944,7 @@
     "/api/v{version}/channels/{channelId}/economy/games/history": {
       "get": {
         "tags": [
-          "Economy — Games"
+          "Economy \u00e2\u20ac\u201d Games"
         ],
         "parameters": [
           {
@@ -18109,7 +18109,7 @@
     "/api/v{version}/channels/{channelId}/economy/games/consent/{viewerUserId}": {
       "get": {
         "tags": [
-          "Economy — Games"
+          "Economy \u00e2\u20ac\u201d Games"
         ],
         "parameters": [
           {
@@ -18203,7 +18203,7 @@
       },
       "delete": {
         "tags": [
-          "Economy — Games"
+          "Economy \u00e2\u20ac\u201d Games"
         ],
         "parameters": [
           {
@@ -18299,7 +18299,7 @@
     "/api/v{version}/channels/{channelId}/economy/games/consent": {
       "post": {
         "tags": [
-          "Economy — Games"
+          "Economy \u00e2\u20ac\u201d Games"
         ],
         "parameters": [
           {
@@ -19037,7 +19037,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           }
         }
@@ -19522,7 +19522,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           }
         }
@@ -21682,7 +21682,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           }
         }
@@ -23388,7 +23388,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           }
         }
@@ -25364,7 +25364,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           }
         }
@@ -26074,7 +26074,7 @@
     "/api/v{version}/channels/{channelId}/economy/jars": {
       "get": {
         "tags": [
-          "Economy — Savings Jars"
+          "Economy \u00e2\u20ac\u201d Savings Jars"
         ],
         "parameters": [
           {
@@ -26159,7 +26159,7 @@
       },
       "post": {
         "tags": [
-          "Economy — Savings Jars"
+          "Economy \u00e2\u20ac\u201d Savings Jars"
         ],
         "parameters": [
           {
@@ -26266,7 +26266,7 @@
     "/api/v{version}/channels/{channelId}/economy/jars/{jarId}": {
       "get": {
         "tags": [
-          "Economy — Savings Jars"
+          "Economy \u00e2\u20ac\u201d Savings Jars"
         ],
         "parameters": [
           {
@@ -26362,7 +26362,7 @@
     "/api/v{version}/channels/{channelId}/economy/jars/{jarId}/invite": {
       "post": {
         "tags": [
-          "Economy — Savings Jars"
+          "Economy \u00e2\u20ac\u201d Savings Jars"
         ],
         "parameters": [
           {
@@ -26478,7 +26478,7 @@
     "/api/v{version}/channels/{channelId}/economy/jars/memberships/{membershipId}/accept": {
       "post": {
         "tags": [
-          "Economy — Savings Jars"
+          "Economy \u00e2\u20ac\u201d Savings Jars"
         ],
         "parameters": [
           {
@@ -26574,7 +26574,7 @@
     "/api/v{version}/channels/{channelId}/economy/jars/memberships/{membershipId}": {
       "delete": {
         "tags": [
-          "Economy — Savings Jars"
+          "Economy \u00e2\u20ac\u201d Savings Jars"
         ],
         "parameters": [
           {
@@ -26670,7 +26670,7 @@
     "/api/v{version}/channels/{channelId}/economy/jars/{jarId}/contribute": {
       "post": {
         "tags": [
-          "Economy — Savings Jars"
+          "Economy \u00e2\u20ac\u201d Savings Jars"
         ],
         "parameters": [
           {
@@ -26786,7 +26786,7 @@
     "/api/v{version}/channels/{channelId}/economy/jars/{jarId}/withdraw": {
       "post": {
         "tags": [
-          "Economy — Savings Jars"
+          "Economy \u00e2\u20ac\u201d Savings Jars"
         ],
         "parameters": [
           {
@@ -26902,7 +26902,7 @@
     "/api/v{version}/channels/{channelId}/economy/jars/{jarId}/history": {
       "get": {
         "tags": [
-          "Economy — Savings Jars"
+          "Economy \u00e2\u20ac\u201d Savings Jars"
         ],
         "parameters": [
           {
@@ -29279,7 +29279,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           }
         }
@@ -30816,7 +30816,7 @@
           "200": {
             "description": "OK",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           }
         }
@@ -32997,7 +32997,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           }
         }
@@ -34792,7 +34792,7 @@
               "type": "string"
             }
           },
-          "pipeline": { },
+          "pipeline": {},
           "cooldownSeconds": {
             "maximum": 86400,
             "minimum": 0,
@@ -35115,7 +35115,7 @@
           "isEnabled": {
             "type": "boolean"
           },
-          "graph": { }
+          "graph": {}
         }
       },
       "CreateRewardRequest": {
@@ -36238,7 +36238,6 @@
           "isEnabled",
           "responseType",
           "message",
-          "pipelineJson",
           "metadata",
           "createdAt",
           "updatedAt"
@@ -36268,12 +36267,6 @@
               "string"
             ]
           },
-          "pipelineJson": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
           "metadata": {
             "type": "object",
             "additionalProperties": {
@@ -36287,6 +36280,13 @@
           "updatedAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "pipelineId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
           }
         }
       },
@@ -37332,7 +37332,7 @@
           }
         }
       },
-      "JsonElement": { },
+      "JsonElement": {},
       "LeaderboardEntryDto": {
         "required": [
           "rank",
@@ -39250,7 +39250,7 @@
           "isEnabled": {
             "type": "boolean"
           },
-          "graph": { },
+          "graph": {},
           "triggerCount": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
@@ -41864,7 +41864,7 @@
           "status": {
             "type": "string"
           },
-          "data": { },
+          "data": {},
           "message": {
             "type": [
               "null",
@@ -43121,7 +43121,7 @@
               "type": "string"
             }
           },
-          "pipeline": { },
+          "pipeline": {},
           "cooldownSeconds": {
             "maximum": 86400,
             "minimum": 0,
@@ -43512,7 +43512,7 @@
               "boolean"
             ]
           },
-          "graph": { }
+          "graph": {}
         }
       },
       "UpdateRewardRequest": {
@@ -44457,7 +44457,7 @@
       "name": "Billing"
     },
     {
-      "name": "Economy — Catalog"
+      "name": "Economy \u00e2\u20ac\u201d Catalog"
     },
     {
       "name": "Channel Bot"
@@ -44481,7 +44481,7 @@
       "name": "Community"
     },
     {
-      "name": "Economy — Currency"
+      "name": "Economy \u00e2\u20ac\u201d Currency"
     },
     {
       "name": "Dashboard"
@@ -44493,7 +44493,7 @@
       "name": "Integration OAuth"
     },
     {
-      "name": "Economy — Leaderboards"
+      "name": "Economy \u00e2\u20ac\u201d Leaderboards"
     },
     {
       "name": "EventResponses"
@@ -44511,7 +44511,7 @@
       "name": "Features"
     },
     {
-      "name": "Economy — Games"
+      "name": "Economy \u00e2\u20ac\u201d Games"
     },
     {
       "name": "Integrations"
@@ -44547,7 +44547,7 @@
       "name": "Roles"
     },
     {
-      "name": "Economy — Savings Jars"
+      "name": "Economy \u00e2\u20ac\u201d Savings Jars"
     },
     {
       "name": "Stream"

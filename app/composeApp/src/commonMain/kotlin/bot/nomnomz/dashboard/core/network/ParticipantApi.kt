@@ -347,7 +347,7 @@ private data class JarContributeBody(val amount: Long)
 
 /** Request body for a points transfer (backend `TransferCommand`); the actor is bound server-side. */
 @Serializable
-private data class TransferBody(
+data class TransferBody(
     val fromViewerUserId: String,
     val toViewerUserId: String,
     val amount: Long,
