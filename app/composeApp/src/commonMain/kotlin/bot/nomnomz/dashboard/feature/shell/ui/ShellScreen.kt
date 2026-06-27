@@ -317,6 +317,7 @@ private fun ShellContent(
                 SettingsScreen(
                     controller = graph.settingsController,
                     journalController = graph.journalPortabilityController,
+                    channelBotController = graph.channelBotController,
                     role = role,
                     onChannelDeleted = onChannelDeleted,
                 )

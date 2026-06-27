@@ -43,6 +43,22 @@ interface ChannelsApi {
 
     /** Permanently delete the channel record and all its data. Irreversible — requires re-onboarding. */
     suspend fun deleteChannel(channelId: String): ApiResult<Unit>
+
+    // ── White-label channel bot (ChannelBotController) ────────────────────────
+    // The channel's own dedicated bot identity (separate from the platform-shared bot).
+    // Connecting a white-label bot makes bot messages appear from a channel-specific account.
+
+    /** The granted Twitch OAuth scopes for this channel's broadcaster token. */
+    suspend fun channelScopes(channelId: String): ApiResult<ChannelScopesResponse>
+
+    /** Start Twitch OAuth for this channel's white-label bot; returns the authorize URL to open. */
+    suspend fun startChannelBotConnect(channelId: String): ApiResult<OAuthStart>
+
+    /** Whether a white-label bot account is connected to this channel. */
+    suspend fun channelBotStatus(channelId: String): ApiResult<ChannelBotStatusDetail>
+
+    /** Revoke and remove the channel's white-label bot account connection. */
+    suspend fun disconnectChannelBot(channelId: String): ApiResult<Unit>
 }
 
 class RestChannelsApi(
@@ -95,6 +111,18 @@ class RestChannelsApi(
     override suspend fun deleteChannel(channelId: String): ApiResult<Unit> =
         client.deleteUnit("api/v1/channels/$channelId")
 
+    override suspend fun channelScopes(channelId: String): ApiResult<ChannelScopesResponse> =
+        client.getEnvelope("api/v1/channels/$channelId/scopes")
+
+    override suspend fun startChannelBotConnect(channelId: String): ApiResult<OAuthStart> =
+        client.getEnvelope("api/v1/channels/$channelId/bot/connect")
+
+    override suspend fun channelBotStatus(channelId: String): ApiResult<ChannelBotStatusDetail> =
+        client.getEnvelope("api/v1/channels/$channelId/bot/status")
+
+    override suspend fun disconnectChannelBot(channelId: String): ApiResult<Unit> =
+        client.deleteUnit("api/v1/channels/$channelId/bot")
+
     private suspend fun fetchPage(): ApiResult<PaginatedEnvelope<ChannelSummary>> =
         client.getDirect("api/v1/channels?page=1&pageSize=100")
 }
@@ -102,3 +130,25 @@ class RestChannelsApi(
 /** The backend `PaginatedResponse<T>` shape — a flat `data` array plus paging metadata we ignore here. */
 @Serializable
 data class PaginatedEnvelope<T>(val data: List<T> = emptyList())
+
+/** The channel's white-label bot status (`BotStatusDto`). Same shape as the platform bot status. */
+typealias ChannelBotStatusDetail = BotStatus
+
+/** One broadcaster-token scope row (`ChannelBotController.ScopeDto`). */
+@Serializable
+data class ChannelScope(
+    val scope: String,
+    val name: String = "",
+    val description: String = "",
+    val category: String = "",
+    val granted: Boolean = false,
+    val required: Boolean = false,
+)
+
+/** The full scopes status response for a channel (`ScopesResponseDto`). */
+@Serializable
+data class ChannelScopesResponse(
+    val permissions: List<ChannelScope> = emptyList(),
+    val grantedCount: Int = 0,
+    val totalCount: Int = 0,
+)

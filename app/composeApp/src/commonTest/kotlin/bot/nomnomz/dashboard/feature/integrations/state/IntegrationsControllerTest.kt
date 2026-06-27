@@ -1,4 +1,4 @@
-// -----------------------------------------------------------------------------
+﻿// -----------------------------------------------------------------------------
 //  Copyright (c) NoMercy Labs.
 //
 //  This file is part of NomNomzBot, free software licensed under the GNU Affero
@@ -37,6 +37,7 @@ import bot.nomnomz.dashboard.core.network.SystemChecks
 import bot.nomnomz.dashboard.core.network.SystemStatus
 import bot.nomnomz.dashboard.core.network.TwitchDiagnosticsApi
 import bot.nomnomz.dashboard.core.network.BotOAuthUrl
+import bot.nomnomz.dashboard.core.network.EventSubSubscription
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -538,6 +539,10 @@ private class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : C
     override suspend fun reset(channelId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
 
     override suspend fun deleteChannel(channelId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+    override suspend fun channelScopes(channelId: String) = error("stub")
+    override suspend fun startChannelBotConnect(channelId: String) = error("stub")
+    override suspend fun channelBotStatus(channelId: String) = error("stub")
+    override suspend fun disconnectChannelBot(channelId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
 }
 
 private class FakeBotAuthApi(
@@ -770,6 +775,9 @@ private class FakeTwitchDiagnosticsApi(
         lastRegrantRequestedScopes = regrant.requestedScopes
         return ApiResult.Ok(regrant)
     }
+
+    override suspend fun subscriptions(channelId: String): ApiResult<List<EventSubSubscription>> = ApiResult.Ok(emptyList())
+    override suspend fun reconcile(channelId: String) = error("stub")
 }
 
 private class FakeAuthApi(private val pollStatuses: List<String> = emptyList()) : AuthApi {

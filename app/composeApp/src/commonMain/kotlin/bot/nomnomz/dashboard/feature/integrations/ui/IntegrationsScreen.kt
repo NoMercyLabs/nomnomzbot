@@ -18,9 +18,13 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -43,6 +47,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
+import bot.nomnomz.dashboard.core.network.EventSubSubscription
 import bot.nomnomz.dashboard.core.network.MissingScope
 import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
 import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
@@ -67,6 +72,12 @@ import nomnomzbot.composeapp.generated.resources.integrations_action_disconnect
 import nomnomzbot.composeapp.generated.resources.integrations_action_reauth
 import nomnomzbot.composeapp.generated.resources.integrations_action_retry
 import nomnomzbot.composeapp.generated.resources.integrations_bot_device_cancel
+import nomnomzbot.composeapp.generated.resources.integrations_eventsub_empty
+import nomnomzbot.composeapp.generated.resources.integrations_eventsub_reconcile
+import nomnomzbot.composeapp.generated.resources.integrations_eventsub_status_disabled
+import nomnomzbot.composeapp.generated.resources.integrations_eventsub_status_enabled
+import nomnomzbot.composeapp.generated.resources.integrations_eventsub_subtitle
+import nomnomzbot.composeapp.generated.resources.integrations_eventsub_title
 import nomnomzbot.composeapp.generated.resources.integrations_bot_device_instruction
 import nomnomzbot.composeapp.generated.resources.integrations_bot_device_open
 import nomnomzbot.composeapp.generated.resources.integrations_bot_device_title
@@ -272,6 +283,11 @@ fun IntegrationsScreen(
                         manage = manage,
                         onConnect = { openModal = ConnectModalProvider.Discord; stage = ConnectStage.Intro },
                         onDisconnect = { scope.launch { controller.disconnect(DISCORD) } },
+                    )
+                    EventSubSubscriptionsSection(
+                        subscriptions = current.eventSubSubscriptions,
+                        manage = manage,
+                        onReconcile = { scope.launch { controller.reconcileEventSub() } },
                     )
                 }
         }
@@ -606,6 +622,94 @@ private fun BotDevicePanel(device: BotDeviceState, onCancel: () -> Unit) {
             }
             TextButton(onClick = onCancel) {
                 Text(stringResource(Res.string.integrations_bot_device_cancel), maxLines = 1)
+            }
+        }
+    }
+}
+
+// A card showing all active Twitch EventSub subscriptions for the channel, with a one-click reconcile
+// that repairs any drift between the bot's subscription database and the live Twitch state.
+@Composable
+private fun EventSubSubscriptionsSection(
+    subscriptions: List<EventSubSubscription>,
+    manage: ManageDecision,
+    onReconcile: () -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    Column(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(tokens.radius.lg))
+                .background(tokens.card)
+                .padding(spacing.s4),
+        verticalArrangement = Arrangement.spacedBy(spacing.s3),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(Res.string.integrations_eventsub_title),
+                    style = typography.base,
+                    color = tokens.cardForeground,
+                )
+                Text(
+                    text = stringResource(Res.string.integrations_eventsub_subtitle),
+                    style = typography.xs,
+                    color = tokens.mutedForeground,
+                )
+            }
+            ManageGate(decision = manage) { enabled: Boolean ->
+                OutlinedButton(onClick = onReconcile, enabled = enabled) {
+                    Text(stringResource(Res.string.integrations_eventsub_reconcile), maxLines = 1)
+                }
+            }
+        }
+
+        if (subscriptions.isEmpty()) {
+            Text(
+                text = stringResource(Res.string.integrations_eventsub_empty),
+                style = typography.sm,
+                color = tokens.mutedForeground,
+            )
+        } else {
+            Column(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = spacing.s16 * 4)
+                        .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(spacing.s0_5),
+            ) {
+                subscriptions.forEach { sub: EventSubSubscription ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = spacing.s0_5),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = sub.eventType,
+                            style = typography.xs,
+                            color = tokens.foreground,
+                            modifier = Modifier.weight(1f),
+                        )
+                        Text(
+                            text =
+                                stringResource(
+                                    if (sub.enabled) Res.string.integrations_eventsub_status_enabled
+                                    else Res.string.integrations_eventsub_status_disabled
+                                ),
+                            style = typography.xs,
+                            color = if (sub.enabled) tokens.primary else tokens.mutedForeground,
+                        )
+                    }
+                }
             }
         }
     }

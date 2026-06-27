@@ -115,6 +115,7 @@ import bot.nomnomz.dashboard.feature.webhooks.state.WebhooksController
 import bot.nomnomz.dashboard.feature.quotes.state.QuotesController
 import bot.nomnomz.dashboard.feature.rewards.state.RewardsController
 import bot.nomnomz.dashboard.feature.roles.state.RolesController
+import bot.nomnomz.dashboard.feature.settings.state.ChannelBotController
 import bot.nomnomz.dashboard.feature.settings.state.JournalPortabilityController
 import bot.nomnomz.dashboard.feature.settings.state.SettingsController
 import bot.nomnomz.dashboard.feature.shell.state.ChannelSwitcherController
@@ -301,6 +302,8 @@ class AppGraph {
 
     val settingsController: SettingsController =
         SettingsController(channelsApi = channelsApi, streamApi = streamApi)
+
+    val channelBotController: ChannelBotController = ChannelBotController(channelsApi = channelsApi)
 
     val twitchAppCredentialsController: TwitchAppCredentialsController =
         TwitchAppCredentialsController(

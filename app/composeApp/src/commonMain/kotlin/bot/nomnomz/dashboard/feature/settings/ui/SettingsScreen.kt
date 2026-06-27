@@ -50,7 +50,15 @@ import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.ui.platform.LocalUriHandler
+import bot.nomnomz.dashboard.core.network.ChannelScope
 import bot.nomnomz.dashboard.core.network.StreamInfo
+import bot.nomnomz.dashboard.feature.settings.state.ChannelBotController
+import bot.nomnomz.dashboard.feature.settings.state.ChannelBotState
 import bot.nomnomz.dashboard.feature.settings.state.JournalPortabilityController
 import bot.nomnomz.dashboard.feature.settings.state.JournalPortabilityState
 import bot.nomnomz.dashboard.feature.settings.state.SettingsController
@@ -114,6 +122,19 @@ import nomnomzbot.composeapp.generated.resources.settings_delete_confirm_cancel
 import nomnomzbot.composeapp.generated.resources.settings_delete_confirm_message
 import nomnomzbot.composeapp.generated.resources.settings_delete_confirm_ok
 import nomnomzbot.composeapp.generated.resources.settings_delete_confirm_title
+import nomnomzbot.composeapp.generated.resources.settings_channel_bot_connect
+import nomnomzbot.composeapp.generated.resources.settings_channel_bot_connected_as
+import nomnomzbot.composeapp.generated.resources.settings_channel_bot_disconnect
+import nomnomzbot.composeapp.generated.resources.settings_channel_bot_disconnect_cancel
+import nomnomzbot.composeapp.generated.resources.settings_channel_bot_disconnect_confirm
+import nomnomzbot.composeapp.generated.resources.settings_channel_bot_disconnect_message
+import nomnomzbot.composeapp.generated.resources.settings_channel_bot_disconnect_title
+import nomnomzbot.composeapp.generated.resources.settings_channel_bot_not_connected
+import nomnomzbot.composeapp.generated.resources.settings_channel_bot_scopes_empty
+import nomnomzbot.composeapp.generated.resources.settings_channel_bot_scopes_granted
+import nomnomzbot.composeapp.generated.resources.settings_channel_bot_scopes_title
+import nomnomzbot.composeapp.generated.resources.settings_channel_bot_subtitle
+import nomnomzbot.composeapp.generated.resources.settings_channel_bot_title
 import org.jetbrains.compose.resources.stringResource
 
 // The Settings page: an editable form over the channel's stream metadata — the live status plus the editable
@@ -126,6 +147,7 @@ import org.jetbrains.compose.resources.stringResource
 fun SettingsScreen(
     controller: SettingsController,
     journalController: JournalPortabilityController,
+    channelBotController: ChannelBotController,
     role: ManagementRole?,
     onChannelDeleted: () -> Unit = {},
 ) {
@@ -189,6 +211,8 @@ fun SettingsScreen(
                 onDelete = { pendingDelete = true },
             )
         }
+
+        ChannelBotSection(controller = channelBotController, manage = ownerManage)
 
         EventJournalSection(controller = journalController, manage = ownerManage)
     }
@@ -625,6 +649,175 @@ private fun ChannelActionRow(
                 )
             }
         }
+    }
+}
+
+// The channel white-label bot card: shows the bot connection status and lets a Broadcaster connect or
+// disconnect the channel's own dedicated bot account. Also surfaces the broadcaster-token scope list so
+// the operator knows what's granted without having to visit Twitch directly.
+@Composable
+private fun ChannelBotSection(controller: ChannelBotController, manage: ManageDecision) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+    val scope = rememberCoroutineScope()
+    val uriHandler = LocalUriHandler.current
+
+    val state: ChannelBotState by controller.state.collectAsStateWithLifecycle()
+    var pendingDisconnect: Boolean by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) { controller.load() }
+
+    Column(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(tokens.radius.lg))
+                .background(tokens.card)
+                .padding(spacing.s4),
+        verticalArrangement = Arrangement.spacedBy(spacing.s3),
+    ) {
+        Text(
+            text = stringResource(Res.string.settings_channel_bot_title),
+            style = typography.xl,
+            color = tokens.cardForeground,
+        )
+        Text(
+            text = stringResource(Res.string.settings_channel_bot_subtitle),
+            style = typography.sm,
+            color = tokens.mutedForeground,
+        )
+
+        when (val current: ChannelBotState = state) {
+            ChannelBotState.Loading ->
+                Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(modifier = Modifier.size(spacing.s6))
+                }
+
+            is ChannelBotState.Error ->
+                Text(text = current.detail, style = typography.sm, color = tokens.destructive)
+
+            is ChannelBotState.Ready -> {
+                // Connection status
+                Text(
+                    text =
+                        if (current.connected)
+                            stringResource(
+                                Res.string.settings_channel_bot_connected_as,
+                                current.login ?: "",
+                            )
+                        else stringResource(Res.string.settings_channel_bot_not_connected),
+                    style = typography.sm,
+                    color = if (current.connected) tokens.primary else tokens.mutedForeground,
+                )
+
+                current.actionError?.let { err: String ->
+                    Text(text = err, style = typography.xs, color = tokens.destructive)
+                }
+
+                // Connect / Disconnect buttons
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    if (current.connected) {
+                        ManageGate(decision = manage) { enabled: Boolean ->
+                            OutlinedButton(
+                                onClick = { pendingDisconnect = true },
+                                enabled = enabled && !current.busy,
+                            ) {
+                                Text(stringResource(Res.string.settings_channel_bot_disconnect), maxLines = 1)
+                            }
+                        }
+                    } else {
+                        ManageGate(decision = manage) { enabled: Boolean ->
+                            Button(
+                                onClick = {
+                                    scope.launch {
+                                        val url: String? = controller.startConnect()
+                                        if (url != null) uriHandler.openUri(url)
+                                    }
+                                },
+                                enabled = enabled && !current.busy,
+                            ) {
+                                if (current.busy) {
+                                    CircularProgressIndicator(modifier = Modifier.size(spacing.s4))
+                                } else {
+                                    Text(stringResource(Res.string.settings_channel_bot_connect), maxLines = 1)
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Granted scopes summary
+                if (current.scopes.isNotEmpty()) {
+                    val grantedCount: Int = current.scopes.count { it.granted }
+                    Text(
+                        text =
+                            stringResource(
+                                Res.string.settings_channel_bot_scopes_title,
+                            ),
+                        style = typography.sm,
+                        color = tokens.cardForeground,
+                    )
+                    Text(
+                        text = stringResource(Res.string.settings_channel_bot_scopes_granted, grantedCount, current.scopes.size),
+                        style = typography.xs,
+                        color = tokens.mutedForeground,
+                    )
+                    Column(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .heightIn(max = spacing.s16 * 3)
+                                .verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(spacing.s0_5),
+                    ) {
+                        current.scopes.forEach { item: ChannelScope ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(
+                                    text = item.scope,
+                                    style = typography.xs,
+                                    color = tokens.foreground,
+                                    modifier = Modifier.weight(1f),
+                                )
+                                Text(
+                                    text = if (item.granted) "✓" else "–",
+                                    style = typography.xs,
+                                    color = if (item.granted) tokens.primary else tokens.mutedForeground,
+                                )
+                            }
+                        }
+                    }
+                } else if (current.connected) {
+                    Text(
+                        text = stringResource(Res.string.settings_channel_bot_scopes_empty),
+                        style = typography.xs,
+                        color = tokens.mutedForeground,
+                    )
+                }
+            }
+        }
+    }
+
+    if (pendingDisconnect) {
+        ConfirmDialog(
+            title = stringResource(Res.string.settings_channel_bot_disconnect_title),
+            message = stringResource(Res.string.settings_channel_bot_disconnect_message),
+            confirmLabel = stringResource(Res.string.settings_channel_bot_disconnect_confirm),
+            dismissLabel = stringResource(Res.string.settings_channel_bot_disconnect_cancel),
+            destructive = true,
+            onConfirm = {
+                pendingDisconnect = false
+                scope.launch { controller.disconnect() }
+            },
+            onDismiss = { pendingDisconnect = false },
+        )
     }
 }
 

@@ -28,6 +28,12 @@ interface TwitchDiagnosticsApi {
 
     /** Start the additive re-grant (granted ∪ missing) as a streamer device authorization. */
     suspend fun startRegrant(): ApiResult<ScopeRegrantStart>
+
+    /** This channel's registered EventSub subscriptions (from the registry, no Twitch call). */
+    suspend fun subscriptions(channelId: String): ApiResult<List<EventSubSubscription>>
+
+    /** Reconcile this channel's registry against Twitch's actual subscription list. */
+    suspend fun reconcile(channelId: String): ApiResult<EventSubReconcileReport>
 }
 
 class RestTwitchDiagnosticsApi(private val client: ApiClient) : TwitchDiagnosticsApi {
@@ -36,6 +42,16 @@ class RestTwitchDiagnosticsApi(private val client: ApiClient) : TwitchDiagnostic
 
     override suspend fun startRegrant(): ApiResult<ScopeRegrantStart> =
         client.postEnvelope("api/v1/twitch/diagnostics/regrant")
+
+    override suspend fun subscriptions(channelId: String): ApiResult<List<EventSubSubscription>> =
+        when (val r: ApiResult<PaginatedEnvelope<EventSubSubscription>> =
+            client.getDirect("api/v1/channels/$channelId/eventsub/subscriptions?page=1&pageSize=100")) {
+            is ApiResult.Failure -> ApiResult.Failure(r.error)
+            is ApiResult.Ok -> ApiResult.Ok(r.value.data)
+        }
+
+    override suspend fun reconcile(channelId: String): ApiResult<EventSubReconcileReport> =
+        client.postEnvelope("api/v1/channels/$channelId/eventsub/reconcile")
 }
 
 /**
@@ -72,4 +88,29 @@ data class ScopeRegrantStart(
     val interval: Int = 5,
     val expiresIn: Int = 1800,
     val requestedScopes: List<String> = emptyList(),
+)
+
+/** One registry row (`EventSubSubscriptionDto`): the registered topic, its status, and any last error. */
+@Serializable
+data class EventSubSubscription(
+    val id: String,
+    val eventType: String,
+    val version: String = "",
+    val transport: String = "",
+    val status: String,
+    val enabled: Boolean,
+    val cost: Int? = null,
+    val twitchSubscriptionId: String? = null,
+    val lastError: String? = null,
+    val createdAt: String = "",
+)
+
+/** The outcome of a registry reconcile pass (`EventSubReconcileReportDto`). */
+@Serializable
+data class EventSubReconcileReport(
+    val created: Int = 0,
+    val revoked: Int = 0,
+    val repaired: Int = 0,
+    val unchanged: Int = 0,
+    val errors: List<String> = emptyList(),
 )

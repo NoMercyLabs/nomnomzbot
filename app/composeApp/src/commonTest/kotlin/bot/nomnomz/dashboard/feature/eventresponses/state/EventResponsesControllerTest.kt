@@ -1,4 +1,4 @@
-// -----------------------------------------------------------------------------
+﻿// -----------------------------------------------------------------------------
 //  Copyright (c) NoMercy Labs.
 //
 //  This file is part of NomNomzBot, free software licensed under the GNU Affero
@@ -192,6 +192,10 @@ private class FakeChannelsApi(
     override suspend fun leave(channelId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
     override suspend fun reset(channelId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
     override suspend fun deleteChannel(channelId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+    override suspend fun channelScopes(channelId: String) = error("stub")
+    override suspend fun startChannelBotConnect(channelId: String) = error("stub")
+    override suspend fun channelBotStatus(channelId: String) = error("stub")
+    override suspend fun disconnectChannelBot(channelId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
 }
 
 private class RecordingEventResponsesApi(

@@ -1,4 +1,4 @@
-// -----------------------------------------------------------------------------
+﻿// -----------------------------------------------------------------------------
 //  Copyright (c) NoMercy Labs.
 //
 //  This file is part of NomNomzBot, free software licensed under the GNU Affero
@@ -233,6 +233,10 @@ private class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : C
     override suspend fun reset(channelId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
 
     override suspend fun deleteChannel(channelId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+    override suspend fun channelScopes(channelId: String) = error("stub")
+    override suspend fun startChannelBotConnect(channelId: String) = error("stub")
+    override suspend fun channelBotStatus(channelId: String) = error("stub")
+    override suspend fun disconnectChannelBot(channelId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
 }
 
 // A stateful fake backing the timer list: writes mutate an in-memory list (so a reload reflects them), every

@@ -33,6 +33,8 @@ import bot.nomnomz.dashboard.core.network.SystemApi
 import bot.nomnomz.dashboard.core.network.SystemCheck
 import bot.nomnomz.dashboard.core.network.SystemChecks
 import bot.nomnomz.dashboard.core.network.SystemStatus
+import bot.nomnomz.dashboard.core.network.EventSubReconcileReport
+import bot.nomnomz.dashboard.core.network.EventSubSubscription
 import bot.nomnomz.dashboard.core.network.TwitchDiagnosticsApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -129,6 +131,12 @@ class IntegrationsController(
                 is ApiResult.Failure -> null
             }
 
+        val eventSubSubscriptions: List<EventSubSubscription> =
+            when (val result: ApiResult<List<EventSubSubscription>> = diagnosticsApi.subscriptions(id)) {
+                is ApiResult.Ok -> result.value
+                is ApiResult.Failure -> emptyList()
+            }
+
         // Preserve any in-flight panels across a refresh (their poll loops refresh mid-flow).
         val ready: IntegrationsState.Ready? = _state.value as? IntegrationsState.Ready
         _state.value =
@@ -140,6 +148,7 @@ class IntegrationsController(
                 busy = null,
                 regrant = ready?.regrant,
                 botDevice = ready?.botDevice,
+                eventSubSubscriptions = eventSubSubscriptions,
             )
     }
 
@@ -460,6 +469,21 @@ class IntegrationsController(
             needsReauth = needsReauth,
         )
 
+    /**
+     * Reconcile this channel's EventSub registry against Twitch's actual subscription list.
+     * Re-creates missing subscriptions and prunes orphans; reloads the list on completion.
+     */
+    suspend fun reconcileEventSub(): EventSubReconcileReport? {
+        val id: String = channelId ?: return null
+        return when (val result: ApiResult<EventSubReconcileReport> = diagnosticsApi.reconcile(id)) {
+            is ApiResult.Ok -> {
+                refresh()
+                result.value
+            }
+            is ApiResult.Failure -> null
+        }
+    }
+
     /** Project an [OAuthStart] result to just its authorize URL for the launcher to open. */
     private fun ApiResult<OAuthStart>.mapToAuthorizeUrl(): ApiResult<String> =
         when (this) {
@@ -492,6 +516,8 @@ sealed interface IntegrationsState {
         val regrant: RegrantState?,
         // The in-flight secret-free bot device login (null unless one is awaiting approval at twitch.tv/activate).
         val botDevice: BotDeviceState? = null,
+        // Registered EventSub topics; empty when the read failed (non-fatal).
+        val eventSubSubscriptions: List<EventSubSubscription> = emptyList(),
     ) : IntegrationsState
 
     data class Error(val detail: String) : IntegrationsState
