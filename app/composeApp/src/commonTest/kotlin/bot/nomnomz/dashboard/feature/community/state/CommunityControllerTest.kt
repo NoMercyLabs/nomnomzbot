@@ -14,6 +14,7 @@ import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
+import bot.nomnomz.dashboard.core.network.ChatActivityEntry
 import bot.nomnomz.dashboard.core.network.CommunityApi
 import bot.nomnomz.dashboard.core.network.CommunityMember
 import bot.nomnomz.dashboard.core.network.CommunityTrustLevel
@@ -266,6 +267,8 @@ private class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : C
     override suspend fun leave(channelId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
 
     override suspend fun reset(channelId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+
+    override suspend fun deleteChannel(channelId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
 }
 
 private class FakeCommunityApi(
@@ -283,6 +286,9 @@ private class FakeCommunityApi(
     val trustCalls: MutableList<Triple<String, String, String>> = mutableListOf()
     val banCalls: MutableList<Triple<String, String, String>> = mutableListOf()
     val unbanCalls: MutableList<Pair<String, String>> = mutableListOf()
+
+    override suspend fun topChatters(channelId: String): ApiResult<List<ChatActivityEntry>> =
+        ApiResult.Ok(emptyList())
 
     override suspend fun members(channelId: String): ApiResult<List<CommunityMember>> {
         // Walk through the configured sequence; the last entry repeats once the script runs out.

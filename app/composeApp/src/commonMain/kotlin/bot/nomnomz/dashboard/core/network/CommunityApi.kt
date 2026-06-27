@@ -17,11 +17,12 @@ import kotlinx.serialization.Serializable
 // trust level, ban them, or lift a ban. State holders depend on this interface and fake it in tests without
 // HTTP.
 //
-// Backend routes (CommunityController):
-//   GET    /api/v1/channels/{channelId}/community            →  PaginatedResponse<CommunityUserDto>
-//   PUT    /api/v1/channels/{channelId}/community/{userId}/trust  (SetTrustLevelRequest)  →  StatusResponseDto<UserDetailDto>
-//   POST   /api/v1/channels/{channelId}/community/{userId}/ban    (BanRequest)            →  204 No Content
-//   DELETE /api/v1/channels/{channelId}/community/{userId}/ban                            →  204 No Content
+// Backend routes (CommunityController / RewardsController):
+//   GET    /api/v1/channels/{channelId}/community                    →  PaginatedResponse<CommunityUserDto>
+//   GET    /api/v1/channels/{channelId}/rewards/leaderboard          →  StatusResponseDto<List<LeaderboardEntryDto>>
+//   PUT    /api/v1/channels/{channelId}/community/{userId}/trust      →  StatusResponseDto<UserDetailDto>
+//   POST   /api/v1/channels/{channelId}/community/{userId}/ban        →  204 No Content
+//   DELETE /api/v1/channels/{channelId}/community/{userId}/ban        →  204 No Content
 // The list is a `PaginatedResponse<CommunityUserDto>` (a flat `{ data: [...] }`), so it is read with getDirect
 // like the channel list. The writes treat any 2xx as success (the trust PUT returns the refreshed user, which
 // the controller re-derives by reloading the list — so it is read through putUnit), and `userId` is the Twitch
@@ -29,6 +30,13 @@ import kotlinx.serialization.Serializable
 interface CommunityApi {
     /** The channel's community — the first page of viewers (chatters + mods) the backend resolves. */
     suspend fun members(channelId: String): ApiResult<List<CommunityMember>>
+
+    /**
+     * Top chatters by message volume — up to 50 rows ranked by message count (backend `RewardsController
+     * .GetLeaderboard`, `GET /rewards/leaderboard`). The endpoint lives in `RewardsController` for historical
+     * reasons but is community analytics: it surfaces who is most active in chat.
+     */
+    suspend fun topChatters(channelId: String): ApiResult<List<ChatActivityEntry>>
 
     /** Set [userId]'s trust [level] (one of [CommunityTrustLevel]). Non-destructive; takes effect directly. */
     suspend fun setTrust(channelId: String, userId: String, level: String): ApiResult<Unit>
@@ -64,6 +72,9 @@ class RestCommunityApi(private val client: ApiClient) : CommunityApi {
             is ApiResult.Ok -> ApiResult.Ok(page.value.data)
         }
     }
+
+    override suspend fun topChatters(channelId: String): ApiResult<List<ChatActivityEntry>> =
+        client.getEnvelope("api/v1/channels/$channelId/rewards/leaderboard")
 
     override suspend fun setTrust(channelId: String, userId: String, level: String): ApiResult<Unit> =
         // The endpoint returns the refreshed UserDetailDto, but the page re-derives its state by reloading the
@@ -131,4 +142,17 @@ data class CommunityMember(
     val profileImageUrl: String? = null,
     val trustLevel: String = "viewer",
     val isBanned: Boolean = false,
+)
+
+/**
+ * A chat-activity leaderboard row (backend `LeaderboardEntryDto` from `RewardsController.GetLeaderboard`):
+ * [rank] (1-based), [userId] (Twitch user id), [displayName], and [points] which is the viewer's all-time
+ * message count (the field is named "points" on the wire for historical reasons).
+ */
+@Serializable
+data class ChatActivityEntry(
+    val rank: Int = 0,
+    val userId: String = "",
+    val displayName: String = "",
+    val points: Int = 0,
 )

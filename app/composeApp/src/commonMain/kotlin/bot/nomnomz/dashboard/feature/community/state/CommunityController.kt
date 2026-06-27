@@ -13,6 +13,7 @@ package bot.nomnomz.dashboard.feature.community.state
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
+import bot.nomnomz.dashboard.core.network.ChatActivityEntry
 import bot.nomnomz.dashboard.core.network.CommunityApi
 import bot.nomnomz.dashboard.core.network.CommunityMember
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -51,13 +52,25 @@ class CommunityController(
             }
         channelId = channel.id
 
-        when (val result: ApiResult<List<CommunityMember>> = communityApi.members(channel.id)) {
-            is ApiResult.Failure -> _state.value = CommunityState.Error(result.error.message)
-            is ApiResult.Ok ->
-                _state.value =
-                    if (result.value.isEmpty()) CommunityState.Empty
-                    else CommunityState.Ready(result.value)
-        }
+        val members: List<CommunityMember> =
+            when (val result: ApiResult<List<CommunityMember>> = communityApi.members(channel.id)) {
+                is ApiResult.Failure -> {
+                    _state.value = CommunityState.Error(result.error.message)
+                    return
+                }
+                is ApiResult.Ok -> result.value
+            }
+
+        // Top chatters is supplementary — a failure just surfaces an empty leaderboard, not a page error.
+        val topChatters: List<ChatActivityEntry> =
+            when (val result: ApiResult<List<ChatActivityEntry>> = communityApi.topChatters(channel.id)) {
+                is ApiResult.Ok -> result.value
+                is ApiResult.Failure -> emptyList()
+            }
+
+        _state.value =
+            if (members.isEmpty() && topChatters.isEmpty()) CommunityState.Empty
+            else CommunityState.Ready(members, topChatters)
     }
 
     /** Set [userId]'s trust [level] (non-destructive), then reload so the row's badge reflects it. */
@@ -125,11 +138,15 @@ sealed interface CommunityState {
     data object Loading : CommunityState
 
     /**
-     * The channel's members are listed. [actionError] is non-null only when the last set-trust/ban/unban
+     * The channel's members are listed. [topChatters] are the top 50 by message count (empty when the
+     * leaderboard call fails). [actionError] is non-null only when the last set-trust/ban/unban/vip/shoutout
      * failed — the screen surfaces it as a transient banner while keeping the list rendered.
      */
-    data class Ready(val members: List<CommunityMember>, val actionError: String? = null) :
-        CommunityState
+    data class Ready(
+        val members: List<CommunityMember>,
+        val topChatters: List<ChatActivityEntry> = emptyList(),
+        val actionError: String? = null,
+    ) : CommunityState
 
     data object Empty : CommunityState
 

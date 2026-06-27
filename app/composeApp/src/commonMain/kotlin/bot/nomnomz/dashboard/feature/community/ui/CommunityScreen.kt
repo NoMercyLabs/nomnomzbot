@@ -50,6 +50,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
+import bot.nomnomz.dashboard.core.network.ChatActivityEntry
 import bot.nomnomz.dashboard.core.network.CommunityMember
 import bot.nomnomz.dashboard.core.network.CommunityTrustLevel
 import bot.nomnomz.dashboard.feature.community.state.CommunityController
@@ -83,6 +84,8 @@ import nomnomzbot.composeapp.generated.resources.community_unban_action
 import nomnomzbot.composeapp.generated.resources.community_unban_action_short
 import nomnomzbot.composeapp.generated.resources.community_more_actions
 import nomnomzbot.composeapp.generated.resources.community_shoutout_action
+import nomnomzbot.composeapp.generated.resources.community_top_chatters_messages
+import nomnomzbot.composeapp.generated.resources.community_top_chatters_title
 import nomnomzbot.composeapp.generated.resources.community_shoutout_action_desc
 import nomnomzbot.composeapp.generated.resources.community_unban_confirm
 import nomnomzbot.composeapp.generated.resources.community_unban_dismiss
@@ -122,6 +125,7 @@ fun CommunityScreen(controller: CommunityController, role: ManagementRole?) {
             is CommunityState.Ready ->
                 MemberList(
                     members = current.members,
+                    topChatters = current.topChatters,
                     actionError = current.actionError,
                     manage = manage,
                     onSetTrust = { userId, level -> scope.launch { controller.setTrust(userId, level) } },
@@ -141,6 +145,7 @@ fun CommunityScreen(controller: CommunityController, role: ManagementRole?) {
 @Composable
 private fun MemberList(
     members: List<CommunityMember>,
+    topChatters: List<ChatActivityEntry>,
     actionError: String?,
     manage: ManageDecision,
     onSetTrust: (userId: String, level: String) -> Unit,
@@ -168,6 +173,57 @@ private fun MemberList(
                     style = typography.sm,
                     color = tokens.destructive,
                     modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.s1),
+                )
+            }
+        }
+        if (topChatters.isNotEmpty()) {
+            item(key = "top-chatters-header") {
+                Text(
+                    text = stringResource(Res.string.community_top_chatters_title),
+                    style = typography.sm,
+                    color = tokens.mutedForeground,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = spacing.s1, vertical = spacing.s1),
+                )
+            }
+            items(items = topChatters.take(10), key = { it.userId + "-chatter" }) { entry ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(spacing.s2))
+                        .background(tokens.card)
+                        .padding(horizontal = spacing.s3, vertical = spacing.s2),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = "#${entry.rank}",
+                            style = typography.sm,
+                            color = tokens.mutedForeground,
+                        )
+                        Text(
+                            text = entry.displayName.ifBlank { entry.userId },
+                            style = typography.sm,
+                            color = tokens.foreground,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                    Text(
+                        text = stringResource(Res.string.community_top_chatters_messages, entry.points),
+                        style = typography.sm,
+                        color = tokens.mutedForeground,
+                    )
+                }
+            }
+            item(key = "top-chatters-spacer") {
+                androidx.compose.foundation.layout.Spacer(
+                    modifier = Modifier.padding(top = spacing.s2),
                 )
             }
         }
