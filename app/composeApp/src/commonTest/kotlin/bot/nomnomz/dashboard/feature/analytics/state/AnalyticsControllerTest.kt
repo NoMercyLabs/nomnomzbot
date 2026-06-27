@@ -16,6 +16,8 @@ import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
+import bot.nomnomz.dashboard.core.network.DailyMetricRow
+import bot.nomnomz.dashboard.core.network.TopViewerEntry
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -105,6 +107,66 @@ class AnalyticsControllerTest {
         assertTrue(controller.state.value is AnalyticsState.Error)
     }
 
+    @Test
+    fun load_includes_daily_rows_and_top_viewers_in_ready_state() = runTest {
+        val daily: List<DailyMetricRow> = listOf(
+            DailyMetricRow(
+                activityDate = "2026-06-01",
+                uniqueChatters = 10,
+                totalMessages = 500,
+                newFollowers = 3,
+                peakViewers = 42,
+            ),
+        )
+        val top: List<TopViewerEntry> = listOf(
+            TopViewerEntry(viewerUserId = "u1", displayName = "Alice", metricValue = 350),
+            TopViewerEntry(viewerUserId = "u2", displayName = "Bob", metricValue = 150),
+        )
+        val controller =
+            AnalyticsController(
+                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                FakeAnalyticsApi(
+                    summaryResult = ApiResult.Ok(AnalyticsSummary(totalMessages = 500)),
+                    dailyResult = ApiResult.Ok(daily),
+                    topViewersResult = ApiResult.Ok(top),
+                ),
+            )
+
+        controller.load()
+
+        val state: AnalyticsState = controller.state.value
+        assertTrue(state is AnalyticsState.Ready)
+        val ready: AnalyticsState.Ready = state as AnalyticsState.Ready
+        assertEquals(1, ready.daily.size)
+        assertEquals("2026-06-01", ready.daily[0].activityDate)
+        assertEquals(42, ready.daily[0].peakViewers)
+        assertEquals(2, ready.topViewers.size)
+        assertEquals("Alice", ready.topViewers[0].displayName)
+        assertEquals(350L, ready.topViewers[0].metricValue)
+    }
+
+    @Test
+    fun load_tolerates_daily_and_top_viewer_failures_and_stays_ready() = runTest {
+        val controller =
+            AnalyticsController(
+                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                FakeAnalyticsApi(
+                    summaryResult = ApiResult.Ok(AnalyticsSummary(totalMessages = 1)),
+                    dailyResult = ApiResult.Failure(ApiError(500, "ERR", "daily down")),
+                    topViewersResult = ApiResult.Failure(ApiError(500, "ERR", "top down")),
+                ),
+            )
+
+        controller.load()
+
+        // Summary success → Ready even when daily + topViewers fail; those lists are just empty.
+        val state: AnalyticsState = controller.state.value
+        assertTrue(state is AnalyticsState.Ready)
+        val ready: AnalyticsState.Ready = state as AnalyticsState.Ready
+        assertTrue(ready.daily.isEmpty())
+        assertTrue(ready.topViewers.isEmpty())
+    }
+
     private companion object {
         val ISO_DATE = Regex("""\d{4}-\d{2}-\d{2}""")
     }
@@ -124,10 +186,16 @@ private class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : C
     override suspend fun deleteChannel(channelId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
 }
 
-private class FakeAnalyticsApi(private val result: ApiResult<AnalyticsSummary>) : AnalyticsApi {
+private class FakeAnalyticsApi(
+    private val summaryResult: ApiResult<AnalyticsSummary>,
+    private val dailyResult: ApiResult<List<DailyMetricRow>> = ApiResult.Ok(emptyList()),
+    private val topViewersResult: ApiResult<List<TopViewerEntry>> = ApiResult.Ok(emptyList()),
+) : AnalyticsApi {
     var requestedChannelId: String? = null
     var requestedFrom: String? = null
     var requestedTo: String? = null
+
+    constructor(result: ApiResult<AnalyticsSummary>) : this(summaryResult = result)
 
     override suspend fun summary(
         channelId: String,
@@ -137,6 +205,20 @@ private class FakeAnalyticsApi(private val result: ApiResult<AnalyticsSummary>) 
         requestedChannelId = channelId
         requestedFrom = from
         requestedTo = to
-        return result
+        return summaryResult
     }
+
+    override suspend fun daily(
+        channelId: String,
+        from: String,
+        to: String,
+    ): ApiResult<List<DailyMetricRow>> = dailyResult
+
+    override suspend fun topViewers(
+        channelId: String,
+        metric: String,
+        from: String,
+        to: String,
+        top: Int,
+    ): ApiResult<List<TopViewerEntry>> = topViewersResult
 }

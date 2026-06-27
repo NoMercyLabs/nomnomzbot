@@ -12,18 +12,31 @@ package bot.nomnomz.dashboard.core.network
 
 import kotlinx.serialization.Serializable
 
-// The typed analytics facade — the channel's headline totals the Analytics page renders. Real data only:
+// The typed analytics facade — the channel analytics the Analytics page renders. Real data only:
 // the backend folds these from the per-day analytics rows (analytics.md §4), nothing fabricated. State
 // holders depend on this interface and fake it in tests without HTTP.
 //
-// Backend route (AnalyticsController, channel/management plane):
-//   GET /api/v1/channels/{channelId}/analytics/channel/summary?from=YYYY-MM-DD&to=YYYY-MM-DD
-//     →  StatusResponseDto<ChannelAnalyticsSummaryDto>
+// Backend routes (AnalyticsController, channel/management plane):
+//   GET /api/v1/channels/{channelId}/analytics/channel/summary?from=…&to=…
+//   GET /api/v1/channels/{channelId}/analytics/channel/daily?from=…&to=…
+//   GET /api/v1/channels/{channelId}/analytics/channel/top-viewers?metric=…&from=…&to=…&top=…
 // The range is required and validated server-side (from <= to, span <= 366 days); the caller passes
 // inclusive `yyyy-MM-dd` dates.
 interface AnalyticsApi {
     /** The channel's headline totals over the inclusive `[from, to]` day range. */
     suspend fun summary(channelId: String, from: String, to: String): ApiResult<AnalyticsSummary>
+
+    /** Per-day time-series over the inclusive `[from, to]` range (used for trend charts). */
+    suspend fun daily(channelId: String, from: String, to: String): ApiResult<List<DailyMetricRow>>
+
+    /** Top-N viewers ranked by [metric] (`Messages`, `WatchSeconds`, `Commands`, etc.) over the range. */
+    suspend fun topViewers(
+        channelId: String,
+        metric: String,
+        from: String,
+        to: String,
+        top: Int,
+    ): ApiResult<List<TopViewerEntry>>
 }
 
 class RestAnalyticsApi(private val client: ApiClient) : AnalyticsApi {
@@ -33,6 +46,24 @@ class RestAnalyticsApi(private val client: ApiClient) : AnalyticsApi {
         to: String,
     ): ApiResult<AnalyticsSummary> =
         client.getEnvelope("api/v1/channels/$channelId/analytics/channel/summary?from=$from&to=$to")
+
+    override suspend fun daily(
+        channelId: String,
+        from: String,
+        to: String,
+    ): ApiResult<List<DailyMetricRow>> =
+        client.getEnvelope("api/v1/channels/$channelId/analytics/channel/daily?from=$from&to=$to")
+
+    override suspend fun topViewers(
+        channelId: String,
+        metric: String,
+        from: String,
+        to: String,
+        top: Int,
+    ): ApiResult<List<TopViewerEntry>> =
+        client.getEnvelope(
+            "api/v1/channels/$channelId/analytics/channel/top-viewers?metric=$metric&from=$from&to=$to&top=$top"
+        )
 }
 
 /**
@@ -53,4 +84,23 @@ data class AnalyticsSummary(
     val currencySpentTotal: Long = 0,
     /** Peak concurrent viewers across the range, or null when the range has no recorded days. */
     val peakViewers: Int? = null,
+)
+
+/** One day of the per-channel aggregate (backend `ChannelAnalyticsDailyDto`) — the time-series / chart row. */
+@Serializable
+data class DailyMetricRow(
+    val activityDate: String = "",
+    val uniqueChatters: Int = 0,
+    val totalMessages: Long = 0,
+    val newFollowers: Int = 0,
+    val newSubscribers: Int = 0,
+    val peakViewers: Int? = null,
+)
+
+/** A channel's top viewer over a range by the chosen metric (backend `TopViewerDto`). */
+@Serializable
+data class TopViewerEntry(
+    val viewerUserId: String = "",
+    val displayName: String? = null,
+    val metricValue: Long = 0,
 )

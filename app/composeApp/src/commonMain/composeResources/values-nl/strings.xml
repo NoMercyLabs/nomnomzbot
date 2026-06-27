@@ -288,6 +288,11 @@
     <string name="analytics_stat_currency_earned">Valuta verdiend</string>
     <string name="analytics_stat_currency_spent">Valuta uitgegeven</string>
     <string name="analytics_stat_peak_viewers">Piek aan kijkers</string>
+    <string name="analytics_daily_title">Dagelijkse trends</string>
+    <string name="analytics_daily_empty">Geen dagelijkse gegevens voor deze periode</string>
+    <string name="analytics_top_viewers_title">Topkijkers (op berichten)</string>
+    <string name="analytics_top_viewers_empty">Geen kijkersgegevens voor deze periode</string>
+    <string name="analytics_top_viewers_rank">#%1$d</string>
     <string name="rewards_loading">Je beloningen laden…</string>
     <string name="rewards_empty">Nog geen beloningen</string>
     <string name="rewards_error">Kon de beloningen niet laden: %1$s</string>

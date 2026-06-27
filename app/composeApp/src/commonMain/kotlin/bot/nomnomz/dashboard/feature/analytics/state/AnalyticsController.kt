@@ -15,8 +15,12 @@ import bot.nomnomz.dashboard.core.network.AnalyticsSummary
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
+import bot.nomnomz.dashboard.core.network.DailyMetricRow
+import bot.nomnomz.dashboard.core.network.TopViewerEntry
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -33,7 +37,7 @@ class AnalyticsController(
     /** The page render state: loading / ready (with the summary) / error. */
     val state: StateFlow<AnalyticsState> = _state.asStateFlow()
 
-    /** Resolve the active channel, then load its summary over the trailing window. */
+    /** Resolve the active channel, then load summary + daily trends + top viewers concurrently. */
     suspend fun load() {
         _state.value = AnalyticsState.Loading
 
@@ -49,12 +53,37 @@ class AnalyticsController(
         val to: String = today()
         val from: String = daysBefore(to, WINDOW_DAYS - 1)
 
-        when (
-            val result: ApiResult<AnalyticsSummary> =
-                analyticsApi.summary(channel.id, from = from, to = to)
-        ) {
-            is ApiResult.Failure -> _state.value = AnalyticsState.Error(result.error.message)
-            is ApiResult.Ok -> _state.value = AnalyticsState.Ready(result.value)
+        coroutineScope {
+            val summaryDeferred =
+                async { analyticsApi.summary(channel.id, from = from, to = to) }
+            val dailyDeferred =
+                async { analyticsApi.daily(channel.id, from = from, to = to) }
+            val topDeferred =
+                async {
+                    analyticsApi.topViewers(
+                        channel.id,
+                        metric = "Messages",
+                        from = from,
+                        to = to,
+                        top = 10,
+                    )
+                }
+
+            val summaryResult: ApiResult<AnalyticsSummary> = summaryDeferred.await()
+            val dailyResult: ApiResult<List<DailyMetricRow>> = dailyDeferred.await()
+            val topResult: ApiResult<List<TopViewerEntry>> = topDeferred.await()
+
+            if (summaryResult is ApiResult.Failure) {
+                _state.value = AnalyticsState.Error(summaryResult.error.message)
+                return@coroutineScope
+            }
+
+            _state.value =
+                AnalyticsState.Ready(
+                    summary = (summaryResult as ApiResult.Ok).value,
+                    daily = (dailyResult as? ApiResult.Ok)?.value ?: emptyList(),
+                    topViewers = (topResult as? ApiResult.Ok)?.value ?: emptyList(),
+                )
         }
     }
 
@@ -113,7 +142,11 @@ private fun isoDate(epochDay: Long): String {
 sealed interface AnalyticsState {
     data object Loading : AnalyticsState
 
-    data class Ready(val summary: AnalyticsSummary) : AnalyticsState
+    data class Ready(
+        val summary: AnalyticsSummary,
+        val daily: List<DailyMetricRow> = emptyList(),
+        val topViewers: List<TopViewerEntry> = emptyList(),
+    ) : AnalyticsState
 
     data class Error(val detail: String) : AnalyticsState
 }
