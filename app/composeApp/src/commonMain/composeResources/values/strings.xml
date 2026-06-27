@@ -459,6 +459,9 @@
     <string name="games_dialog_18plus_label">Requires 18+</string>
     <string name="games_dialog_save">Save</string>
     <string name="games_dialog_cancel">Cancel</string>
+    <string name="games_history_title">Play History</string>
+    <string name="games_history_empty">No plays recorded yet</string>
+    <string name="games_history_row">%1$s — bet %2$d → %3$s (%4$+d)</string>
     <string name="songrequests_skip">Skip</string>
     <string name="songrequests_pause">Pause</string>
     <string name="songrequests_resume">Resume</string>

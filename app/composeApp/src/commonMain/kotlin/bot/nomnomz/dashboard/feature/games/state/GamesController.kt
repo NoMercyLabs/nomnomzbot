@@ -13,9 +13,13 @@ package bot.nomnomz.dashboard.feature.games.state
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
+import bot.nomnomz.dashboard.core.network.GamePlayEntry
 import bot.nomnomz.dashboard.core.network.GameSummary
 import bot.nomnomz.dashboard.core.network.GamesApi
+import bot.nomnomz.dashboard.core.network.PaginatedEnvelope
 import bot.nomnomz.dashboard.core.network.UpsertGameConfigBody
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -38,7 +42,7 @@ class GamesController(
     // re-resolve the channel. Null until the first successful resolve.
     private var channelId: String? = null
 
-    /** Resolve the active channel, then load its configured games. */
+    /** Resolve the active channel, then load its configured games and recent play history. */
     suspend fun load() {
         _state.value = GamesState.Loading
 
@@ -52,13 +56,31 @@ class GamesController(
             }
         channelId = channel.id
 
-        when (val result: ApiResult<List<GameSummary>> = gamesApi.list(channel.id)) {
-            is ApiResult.Failure -> _state.value = GamesState.Error(result.error.message)
-            is ApiResult.Ok ->
-                _state.value =
-                    if (result.value.isEmpty()) GamesState.Empty
-                    else GamesState.Ready(result.value)
+        coroutineScope {
+            val gamesDeferred = async { gamesApi.list(channel.id) }
+            val historyDeferred = async { gamesApi.history(channel.id) }
+
+            val gamesResult: ApiResult<List<GameSummary>> = gamesDeferred.await()
+            val history: List<GamePlayEntry> =
+                when (val r: ApiResult<PaginatedEnvelope<GamePlayEntry>> = historyDeferred.await()) {
+                    is ApiResult.Ok -> r.value.data
+                    is ApiResult.Failure -> emptyList()
+                }
+
+            when (gamesResult) {
+                is ApiResult.Failure -> _state.value = GamesState.Error(gamesResult.error.message)
+                is ApiResult.Ok ->
+                    _state.value =
+                        if (gamesResult.value.isEmpty()) GamesState.Empty
+                        else GamesState.Ready(games = gamesResult.value, history = history)
+            }
         }
+    }
+
+    /** Revoke a viewer's 18+ age-consent grant (Broadcaster/Editor manages consent on behalf of the viewer). */
+    suspend fun revokeConsent(viewerUserId: String) {
+        val channel: String = channelId ?: return failWrite(NoChannelError)
+        afterWrite(gamesApi.revokeConsent(channel, viewerUserId))
     }
 
     /**
@@ -149,9 +171,14 @@ sealed interface GamesState {
 
     /**
      * The channel's games are listed. [actionError] is non-null only when the last toggle/edit failed — the
-     * screen surfaces it as a transient banner while keeping the list rendered.
+     * screen surfaces it as a transient banner while keeping the list rendered. [history] carries the first page
+     * of recent plays (empty when the feature is unused or the caller lacks `economy:games:history:read`).
      */
-    data class Ready(val games: List<GameSummary>, val actionError: String? = null) : GamesState
+    data class Ready(
+        val games: List<GameSummary>,
+        val history: List<GamePlayEntry> = emptyList(),
+        val actionError: String? = null,
+    ) : GamesState
 
     data object Empty : GamesState
 

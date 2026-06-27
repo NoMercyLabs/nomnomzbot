@@ -55,6 +55,7 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.designsystem.theme.Tokens
+import bot.nomnomz.dashboard.core.network.GamePlayEntry
 import bot.nomnomz.dashboard.core.network.GameSummary
 import bot.nomnomz.dashboard.feature.games.state.GamesController
 import bot.nomnomz.dashboard.feature.games.state.GamesState
@@ -73,6 +74,8 @@ import nomnomzbot.composeapp.generated.resources.games_dialog_max_bet_label
 import nomnomzbot.composeapp.generated.resources.games_dialog_min_bet_label
 import nomnomzbot.composeapp.generated.resources.games_dialog_save
 import nomnomzbot.composeapp.generated.resources.games_dialog_title
+import nomnomzbot.composeapp.generated.resources.games_history_empty
+import nomnomzbot.composeapp.generated.resources.games_history_title
 import nomnomzbot.composeapp.generated.resources.games_disabled
 import nomnomzbot.composeapp.generated.resources.games_edit_action
 import nomnomzbot.composeapp.generated.resources.games_edit_action_short
@@ -116,6 +119,7 @@ fun GamesScreen(controller: GamesController, role: ManagementRole?) {
             is GamesState.Ready ->
                 ManagedContent(
                     games = current.games,
+                    history = current.history,
                     actionError = current.actionError,
                     manage = manage,
                     onToggle = { game, enabled ->
@@ -140,24 +144,59 @@ fun GamesScreen(controller: GamesController, role: ManagementRole?) {
     }
 }
 
-// The list with an optional write-failure banner above it. The header is omitted (no create action — the catalog
-// is fixed); the banner surfaces a failed toggle/edit without clearing the rows.
+// The list with an optional write-failure banner above it. The catalog header is omitted (no create action — the
+// catalog is fixed); the history section follows beneath with the first page of recent plays.
 @Composable
 private fun ManagedContent(
     games: List<GameSummary>,
+    history: List<GamePlayEntry>,
     actionError: String?,
     manage: ManageDecision,
     onToggle: (GameSummary, Boolean) -> Unit,
     onEdit: (GameSummary) -> Unit,
 ) {
     val spacing = LocalSpacing.current
+    val tokens = LocalTokens.current
+    val typography = LocalTypography.current
 
-    Column(
+    LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(spacing.s4),
+        contentPadding = PaddingValues(vertical = spacing.s1),
+        verticalArrangement = Arrangement.spacedBy(spacing.s2),
     ) {
-        actionError?.let { ActionErrorBanner(detail = it) }
-        GameList(games = games, manage = manage, onToggle = onToggle, onEdit = onEdit)
+        actionError?.let { detail ->
+            item(key = "action-error") { ActionErrorBanner(detail = detail) }
+        }
+        items(items = games, key = { game -> game.id }) { game ->
+            GameRow(
+                game = game,
+                manage = manage,
+                onToggle = { enabled -> onToggle(game, enabled) },
+                onEdit = { onEdit(game) },
+            )
+        }
+        item(key = "history-header") {
+            Text(
+                text = stringResource(Res.string.games_history_title),
+                style = typography.sm,
+                color = tokens.mutedForeground,
+                modifier = Modifier.padding(horizontal = spacing.s1, vertical = spacing.s2),
+            )
+        }
+        if (history.isEmpty()) {
+            item(key = "history-empty") {
+                Text(
+                    text = stringResource(Res.string.games_history_empty),
+                    style = typography.sm,
+                    color = tokens.mutedForeground,
+                    modifier = Modifier.padding(horizontal = spacing.s1),
+                )
+            }
+        } else {
+            items(items = history, key = { play -> "play-${play.id}" }) { play ->
+                HistoryRow(play = play)
+            }
+        }
     }
 }
 
@@ -180,27 +219,38 @@ private fun ActionErrorBanner(detail: String) {
 }
 
 @Composable
-private fun GameList(
-    games: List<GameSummary>,
-    manage: ManageDecision,
-    onToggle: (GameSummary, Boolean) -> Unit,
-    onEdit: (GameSummary) -> Unit,
-) {
+private fun HistoryRow(play: GamePlayEntry) {
+    val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
 
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(vertical = spacing.s1),
-        verticalArrangement = Arrangement.spacedBy(spacing.s2),
+    val netColor = if (play.netResult >= 0) tokens.primary else tokens.destructive
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(tokens.radius.lg))
+            .background(tokens.card)
+            .padding(horizontal = spacing.s4, vertical = spacing.s2),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        items(items = games, key = { game -> game.id }) { game ->
-            GameRow(
-                game = game,
-                manage = manage,
-                onToggle = { enabled -> onToggle(game, enabled) },
-                onEdit = { onEdit(game) },
-            )
-        }
+        Text(
+            text = play.outcome.replaceFirstChar { it.uppercase() },
+            style = typography.sm,
+            color = tokens.cardForeground,
+            modifier = Modifier.weight(1f),
+        )
+        Text(
+            text = "${play.betAmount} → ${play.payoutAmount}",
+            style = typography.sm,
+            color = tokens.mutedForeground,
+        )
+        Text(
+            text = if (play.netResult >= 0) "+${play.netResult}" else "${play.netResult}",
+            style = typography.sm,
+            color = netColor,
+            modifier = Modifier.padding(start = spacing.s3),
+        )
     }
 }
 

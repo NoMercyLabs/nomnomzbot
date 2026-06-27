@@ -20,8 +20,10 @@ import kotlinx.serialization.json.JsonObject
 // tests without HTTP.
 //
 // Backend routes (GamesController):
-//   GET /api/v1/channels/{channelId}/economy/games  →  StatusResponseDto<List<GameConfigDto>>
-//   PUT /api/v1/channels/{channelId}/economy/games  →  StatusResponseDto<GameConfigDto>
+//   GET    /api/v1/channels/{channelId}/economy/games          →  StatusResponseDto<List<GameConfigDto>>
+//   PUT    /api/v1/channels/{channelId}/economy/games          →  StatusResponseDto<GameConfigDto>
+//   GET    /api/v1/channels/{channelId}/economy/games/history  →  PaginatedResponse<GamePlayDto>
+//   DELETE /api/v1/channels/{channelId}/economy/games/consent/{viewerUserId}  →  StatusResponseDto
 //
 // Games are a fixed catalog of built-in game types — the controller exposes no create or delete route. The only
 // write is the upsert PUT, addressed by `gameType` in the body (the service keys on `(BroadcasterId, GameType)`),
@@ -35,6 +37,12 @@ interface GamesApi {
 
     /** Upsert a game's config (full PUT, addressed by [UpsertGameConfigBody.gameType]). */
     suspend fun upsert(channelId: String, body: UpsertGameConfigBody): ApiResult<Unit>
+
+    /** Paginated game-play history for this channel (Moderator+). Optionally filter by game or player. */
+    suspend fun history(channelId: String, page: Int = 1, pageSize: Int = 25): ApiResult<PaginatedEnvelope<GamePlayEntry>>
+
+    /** Revoke a viewer's age-consent grant (Broadcaster/Editor). */
+    suspend fun revokeConsent(channelId: String, viewerUserId: String): ApiResult<Unit>
 }
 
 class RestGamesApi(private val client: ApiClient) : GamesApi {
@@ -45,7 +53,37 @@ class RestGamesApi(private val client: ApiClient) : GamesApi {
     // every write, so the body is irrelevant here — any 2xx is success.
     override suspend fun upsert(channelId: String, body: UpsertGameConfigBody): ApiResult<Unit> =
         client.putUnit("api/v1/channels/$channelId/economy/games", body)
+
+    override suspend fun history(
+        channelId: String,
+        page: Int,
+        pageSize: Int,
+    ): ApiResult<PaginatedEnvelope<GamePlayEntry>> =
+        client.getDirect(
+            "api/v1/channels/$channelId/economy/games/history?page=$page&pageSize=$pageSize"
+        )
+
+    override suspend fun revokeConsent(channelId: String, viewerUserId: String): ApiResult<Unit> =
+        client.deleteUnit(
+            "api/v1/channels/$channelId/economy/games/consent/$viewerUserId"
+        )
 }
+
+/**
+ * One game-play history row (backend `GamePlayDto`): identity of the play + the settled outcome + amounts.
+ * Used on the management history tab (Moderator+); contains no PII beyond the player UUID.
+ */
+@Serializable
+data class GamePlayEntry(
+    val id: Long,
+    val gameConfigId: String,
+    val playerUserId: String,
+    val betAmount: Long,
+    val outcome: String,
+    val payoutAmount: Long,
+    val netResult: Long,
+    val createdAt: String,
+)
 
 /**
  * One configured mini-game (backend `GameConfigDto`): the game's identity plus its full config. The field names

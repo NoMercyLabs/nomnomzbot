@@ -456,6 +456,9 @@
     <string name="games_dialog_18plus_label">Vereist 18+</string>
     <string name="games_dialog_save">Opslaan</string>
     <string name="games_dialog_cancel">Annuleren</string>
+    <string name="games_history_title">Speelgeschiedenis</string>
+    <string name="games_history_empty">Nog geen spellen geregistreerd</string>
+    <string name="games_history_row">%1$s — inzet %2$d → %3$s (%4$+d)</string>
     <string name="songrequests_skip">Overslaan</string>
     <string name="songrequests_pause">Pauzeren</string>
     <string name="songrequests_resume">Hervatten</string>

@@ -14,8 +14,10 @@ import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
+import bot.nomnomz.dashboard.core.network.GamePlayEntry
 import bot.nomnomz.dashboard.core.network.GameSummary
 import bot.nomnomz.dashboard.core.network.GamesApi
+import bot.nomnomz.dashboard.core.network.PaginatedEnvelope
 import bot.nomnomz.dashboard.core.network.UpsertGameConfigBody
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -287,6 +289,16 @@ private class RecordingGamesApi(
 
     override suspend fun list(channelId: String): ApiResult<List<GameSummary>> =
         listFailure?.let { ApiResult.Failure(it) } ?: ApiResult.Ok(store.toList())
+
+    override suspend fun history(
+        channelId: String,
+        page: Int,
+        pageSize: Int,
+    ): ApiResult<PaginatedEnvelope<GamePlayEntry>> =
+        ApiResult.Ok(PaginatedEnvelope(data = emptyList()))
+
+    override suspend fun revokeConsent(channelId: String, viewerUserId: String): ApiResult<Unit> =
+        ApiResult.Ok(Unit)
 
     override suspend fun upsert(channelId: String, body: UpsertGameConfigBody): ApiResult<Unit> {
         upserted += body
