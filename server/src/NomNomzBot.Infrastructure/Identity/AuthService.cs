@@ -81,6 +81,7 @@ public sealed class AuthService : IAuthService
         "channel:manage:polls",
         "channel:read:predictions",
         "channel:manage:predictions",
+        "channel:read:hype_train",
     ];
 
     private static readonly string[] BotScopes =
