@@ -12,6 +12,7 @@ using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
 using NomNomzBot.Application.Abstractions.Auth;
+using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Contracts.EventStore;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Analytics.Entities;
@@ -38,11 +39,11 @@ public sealed class ViewerProfileProjectionTests
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
         ICurrentUserService currentUser = Substitute.For<ICurrentUserService>();
-        IUserService userService = new UserService(
-            db,
-            currentUser,
-            Substitute.For<IServiceScopeFactory>()
-        );
+        ServiceCollection services = new();
+        services.AddSingleton<IApplicationDbContext>(db);
+        ServiceProvider provider = services.BuildServiceProvider();
+        IServiceScopeFactory scopeFactory = provider.GetRequiredService<IServiceScopeFactory>();
+        IUserService userService = new UserService(db, currentUser, scopeFactory);
         return (new ViewerProfileProjection(db, new ViewerResolver(db, userService)), db);
     }
 

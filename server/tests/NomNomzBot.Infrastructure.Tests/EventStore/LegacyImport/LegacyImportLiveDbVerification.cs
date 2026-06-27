@@ -205,11 +205,26 @@ public sealed class LegacyImportLiveDbVerification
         );
 
         ICurrentUserService currentUser = Substitute.For<ICurrentUserService>();
-        IUserService userService = new UserService(
-            db,
-            currentUser,
-            Substitute.For<IServiceScopeFactory>()
+        // Spawn a fresh AppDbContext per scope (same SQLite file, separate instance) so that
+        // UserService.GetOrCreateAsync's SaveChangesAsync does not share the outer change tracker
+        // and cannot inadvertently flush its pending state.
+        string connectionString = db.Database.GetConnectionString() ?? string.Empty;
+        ServiceCollection services = new();
+        services.AddDbContext<AppDbContext>(o =>
+            o.UseSqlite(connectionString)
+                .AddInterceptors(
+                    new NomNomzBot.Infrastructure.Platform.Persistence.Interceptors.AuditableEntityInterceptor(
+                        clock
+                    ),
+                    new NomNomzBot.Infrastructure.Platform.Persistence.Interceptors.SoftDeleteInterceptor(
+                        clock
+                    )
+                )
         );
+        services.AddScoped<IApplicationDbContext>(sp => sp.GetRequiredService<AppDbContext>());
+        ServiceProvider provider = services.BuildServiceProvider();
+        IServiceScopeFactory scopeFactory = provider.GetRequiredService<IServiceScopeFactory>();
+        IUserService userService = new UserService(db, currentUser, scopeFactory);
         ViewerResolver resolver = new(db, userService);
         ILiveWindowResolver liveWindow = Substitute.For<ILiveWindowResolver>();
         liveWindow

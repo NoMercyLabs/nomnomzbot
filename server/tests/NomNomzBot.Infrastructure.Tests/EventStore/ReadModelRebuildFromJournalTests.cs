@@ -169,11 +169,16 @@ public sealed class ReadModelRebuildFromJournalTests
     private static List<IProjection> BuildProjections(ReadModelRebuildDbContext db)
     {
         ICurrentUserService currentUser = Substitute.For<ICurrentUserService>();
-        IUserService userService = new UserService(
-            db,
-            currentUser,
-            Substitute.For<IServiceScopeFactory>()
-        );
+
+        // UserService.GetOrCreateAsync creates its own scope per call (concurrency safety — see commit 0294b46).
+        // Provide a real IServiceScopeFactory whose scopes resolve IApplicationDbContext to the test's db so
+        // the scoped get-or-create can find Users without hitting a missing-registration exception.
+        ServiceCollection services = new();
+        services.AddSingleton<IApplicationDbContext>(db);
+        ServiceProvider provider = services.BuildServiceProvider();
+        IServiceScopeFactory scopeFactory = provider.GetRequiredService<IServiceScopeFactory>();
+
+        IUserService userService = new UserService(db, currentUser, scopeFactory);
         ViewerResolver resolver = new(db, userService);
 
         // Activity always falls inside one live window so watch-sessions open during replay exactly as on the
