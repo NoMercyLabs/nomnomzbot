@@ -139,13 +139,14 @@ fun App(graph: AppGraph = remember { AppGraph() }) {
                         Destination.Shell -> {
                             val user: SessionUser? by
                                 graph.sessionStore.user.collectAsStateWithLifecycle()
-                            // Resolve the caller's REAL Plane-B role from the backend (/effective/me) once per
-                            // shell entry, then gate the sidebar + write affordances off it (frontend-ia.md §7).
-                            // This replaces the old `role = Broadcaster` hardcode: a delegated Mod/Editor sees
-                            // only their surface, and a viewer (null role) gets the participation-only surface.
+                            // Resolve the caller's REAL Plane-B role from the backend (/effective/me). The key is
+                            // the active channel id so that switching channels in the sidebar immediately re-resolves
+                            // the role for the new channel (the management surface re-gates without a re-login).
+                            val activeChannelId: String? by
+                                graph.channelSwitcherController.activeChannelId.collectAsStateWithLifecycle()
                             val access: ShellAccess by
                                 graph.shellAccessController.state.collectAsStateWithLifecycle()
-                            LaunchedEffect(Unit) { graph.shellAccessController.load() }
+                            LaunchedEffect(activeChannelId) { graph.shellAccessController.load() }
                             when (val resolved: ShellAccess = access) {
                                 // Hold the splash under the one-shot role probe so the shell never flashes the
                                 // wrong (over-granted) surface before the real role lands.
