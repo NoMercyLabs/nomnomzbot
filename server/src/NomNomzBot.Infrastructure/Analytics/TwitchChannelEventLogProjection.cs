@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -110,7 +111,26 @@ public sealed class TwitchChannelEventLogProjection(IApplicationDbContext db) : 
         row.Data = BuildData(@event);
         row.UpdatedAt = occurredAt;
 
-        await db.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException ex)
+            when (ex.InnerException is SqliteException { SqliteErrorCode: 19 } && row.Id == id)
+        {
+            // Concurrent writer (e.g. TwitchAlertHandlerBase) beat us to this row. Detach our pending
+            // insert, reload the committed row, and update it in-place — the fold is idempotent.
+            if (db is DbContext ctx)
+                ctx.Entry(row).State = EntityState.Detached;
+            ChannelEvent existing = await db.ChannelEvents.FirstAsync(
+                e => e.Id == id,
+                cancellationToken
+            );
+            existing.Data = row.Data;
+            existing.UpdatedAt = row.UpdatedAt;
+            await db.SaveChangesAsync(cancellationToken);
+        }
+
         return Result.Success();
     }
 
