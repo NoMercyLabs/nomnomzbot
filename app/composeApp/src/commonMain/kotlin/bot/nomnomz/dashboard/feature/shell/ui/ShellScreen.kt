@@ -55,8 +55,12 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.connection.SessionUser
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
+import bot.nomnomz.dashboard.core.network.ChannelSummary
+import bot.nomnomz.dashboard.feature.shell.state.ChannelSwitcherController
+import bot.nomnomz.dashboard.feature.shell.state.SwitcherState
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.di.AppGraph
@@ -143,6 +147,7 @@ import nomnomzbot.composeapp.generated.resources.shell_role_editor
 import nomnomzbot.composeapp.generated.resources.shell_role_moderator
 import nomnomzbot.composeapp.generated.resources.shell_role_supermod
 import nomnomzbot.composeapp.generated.resources.shell_role_viewer
+import nomnomzbot.composeapp.generated.resources.shell_channel_pick
 import nomnomzbot.composeapp.generated.resources.shell_topbar_channel_label
 import nomnomzbot.composeapp.generated.resources.shell_topbar_hub_label
 import org.jetbrains.compose.resources.stringResource
@@ -186,6 +191,7 @@ fun ShellScreen(
     var selected: ShellRoute by remember { mutableStateOf(routeStore.initialRoute()) }
     LaunchedEffect(selected) { routeStore.save(selected) }
     LaunchedEffect(routeStore) { routeStore.externalChanges.collect { selected = it } }
+    LaunchedEffect(Unit) { graph.channelSwitcherController.load() }
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize().background(tokens.background)) {
         val compact: Boolean = maxWidth < CompactBreakpoint
@@ -207,6 +213,7 @@ fun ShellScreen(
                                 scope.launch { drawerState.close() }
                             },
                             user = user,
+                            channelSwitcher = graph.channelSwitcherController,
                             languageController = languageController,
                             onLogout = onLogout,
                         )
@@ -238,6 +245,7 @@ fun ShellScreen(
                     selected = selected,
                     onSelect = { selected = it },
                     user = user,
+                    channelSwitcher = graph.channelSwitcherController,
                     languageController = languageController,
                     onLogout = onLogout,
                 )
@@ -322,6 +330,7 @@ private fun Sidebar(
     selected: ShellRoute,
     onSelect: (ShellRoute) -> Unit,
     user: SessionUser?,
+    channelSwitcher: ChannelSwitcherController,
     languageController: LanguageController,
     onLogout: () -> Unit,
 ) {
@@ -345,8 +354,10 @@ private fun Sidebar(
             text = stringResource(Res.string.app_name),
             style = typography.lg,
             color = tokens.sidebarForeground,
-            modifier = Modifier.padding(start = spacing.s2, top = spacing.s2, bottom = spacing.s3),
+            modifier = Modifier.padding(start = spacing.s2, top = spacing.s2, bottom = spacing.s1),
         )
+
+        ChannelPickerBlock(switcher = channelSwitcher)
 
         Column(
             modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()),
@@ -384,6 +395,69 @@ private fun Sidebar(
             languageController = languageController,
             onLogout = onLogout,
         )
+    }
+}
+
+// A compact channel-picker block for the sidebar. Shows the active channel name; tapping opens a dropdown
+// to switch to another managed channel. Only visible when the user manages more than one channel (a
+// single-channel operator sees no picker — no clutter for the common case).
+@Composable
+private fun ChannelPickerBlock(switcher: ChannelSwitcherController) {
+    val state: SwitcherState by switcher.state.collectAsStateWithLifecycle()
+    val activeId: String? by switcher.activeChannelId.collectAsStateWithLifecycle()
+    val channels: List<ChannelSummary> = when (val s = state) {
+        is SwitcherState.Ready -> s.channels
+        else -> emptyList()
+    }
+    if (channels.size < 2) return
+
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    val active: ChannelSummary? = channels.firstOrNull { it.id == activeId } ?: channels.firstOrNull()
+    var open: Boolean by remember { mutableStateOf(false) }
+    val label: String = stringResource(Res.string.shell_channel_pick)
+
+    Box(modifier = Modifier.padding(horizontal = spacing.s1, vertical = spacing.s1)) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(tokens.radius.md))
+                .background(tokens.sidebarAccent)
+                .clickable { open = true }
+                .semantics { contentDescription = label }
+                .padding(horizontal = spacing.s2, vertical = spacing.s2),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Text(
+                text = active?.displayName?.takeIf { it.isNotBlank() } ?: active?.login ?: "",
+                style = typography.sm,
+                color = tokens.sidebarAccentForeground,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            Text(text = "⌄", style = typography.sm, color = tokens.mutedForeground)
+        }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            channels.forEach { channel ->
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            text = channel.displayName.takeIf { it.isNotBlank() } ?: channel.login,
+                            style = typography.sm,
+                            color = if (channel.id == activeId) tokens.primary else tokens.popoverForeground,
+                        )
+                    },
+                    onClick = {
+                        open = false
+                        switcher.select(channel.id)
+                    },
+                )
+            }
+        }
     }
 }
 

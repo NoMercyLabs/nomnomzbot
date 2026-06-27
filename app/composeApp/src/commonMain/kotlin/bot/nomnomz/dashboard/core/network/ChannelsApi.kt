@@ -25,6 +25,9 @@ interface ChannelsApi {
      * screen is single-channel for this slice; the multi-channel switcher layers on later.
      */
     suspend fun primaryChannel(): ApiResult<ChannelSummary>
+
+    /** All channels the signed-in user owns or moderates — used by the channel switcher. */
+    suspend fun list(): ApiResult<List<ChannelSummary>>
 }
 
 class RestChannelsApi(private val client: ApiClient) : ChannelsApi {
@@ -32,10 +35,7 @@ class RestChannelsApi(private val client: ApiClient) : ChannelsApi {
     override suspend fun primaryChannel(): ApiResult<ChannelSummary> {
         // The channel list is a PaginatedResponse (a flat `{ data: [...] }`), not a StatusResponseDto, so
         // it is read with getDirect (whole-body deserialize) rather than getEnvelope's `data: T` unwrap.
-        return when (
-            val page: ApiResult<PaginatedEnvelope<ChannelSummary>> =
-                client.getDirect("api/v1/channels?page=1&pageSize=25")
-        ) {
+        return when (val page: ApiResult<PaginatedEnvelope<ChannelSummary>> = fetchPage()) {
             is ApiResult.Failure -> ApiResult.Failure(page.error)
             is ApiResult.Ok -> {
                 val first: ChannelSummary? = page.value.data.firstOrNull()
@@ -53,6 +53,15 @@ class RestChannelsApi(private val client: ApiClient) : ChannelsApi {
             }
         }
     }
+
+    override suspend fun list(): ApiResult<List<ChannelSummary>> =
+        when (val page: ApiResult<PaginatedEnvelope<ChannelSummary>> = fetchPage()) {
+            is ApiResult.Failure -> ApiResult.Failure(page.error)
+            is ApiResult.Ok -> ApiResult.Ok(page.value.data)
+        }
+
+    private suspend fun fetchPage(): ApiResult<PaginatedEnvelope<ChannelSummary>> =
+        client.getDirect("api/v1/channels?page=1&pageSize=100")
 }
 
 /** The backend `PaginatedResponse<T>` shape — a flat `data` array plus paging metadata we ignore here. */

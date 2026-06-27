@@ -142,6 +142,7 @@
     <string name="shell_nav_menu_open">Navigatie openen</string>
     <string name="shell_content_placeholder">Dit werkgebied wordt gebouwd — de tools komen in een volgende stap.</string>
     <string name="shell_topbar_channel_label">Actief kanaal: %1$s</string>
+    <string name="shell_channel_pick">Kanaal wisselen</string>
     <string name="shell_topbar_hub_label">Realtime verbinding</string>
     <string name="shell_role_moderator">Moderator</string>
     <string name="shell_role_supermod">Super Mod</string>

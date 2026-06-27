@@ -112,6 +112,7 @@ import bot.nomnomz.dashboard.feature.rewards.state.RewardsController
 import bot.nomnomz.dashboard.feature.roles.state.RolesController
 import bot.nomnomz.dashboard.feature.settings.state.JournalPortabilityController
 import bot.nomnomz.dashboard.feature.settings.state.SettingsController
+import bot.nomnomz.dashboard.feature.shell.state.ChannelSwitcherController
 import bot.nomnomz.dashboard.feature.shell.state.ShellAccessController
 import bot.nomnomz.dashboard.feature.settings.state.TwitchAppCredentialsController
 import bot.nomnomz.dashboard.feature.songrequests.state.SongRequestsController
@@ -242,6 +243,9 @@ class AppGraph {
             systemApi = systemApi,
             feedback = feedbackController,
         )
+
+    val channelSwitcherController: ChannelSwitcherController =
+        ChannelSwitcherController(channelsApi = channelsApi, sessionStore = sessionStore)
 
     val homeController: HomeController =
         HomeController(

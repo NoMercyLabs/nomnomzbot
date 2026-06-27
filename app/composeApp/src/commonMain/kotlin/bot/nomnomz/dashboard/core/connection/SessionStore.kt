@@ -30,6 +30,11 @@ class SessionStore(
     private val _activeProfile: MutableStateFlow<ConnectionProfile?> = MutableStateFlow(null)
     private val _user: MutableStateFlow<SessionUser?> = MutableStateFlow(null)
 
+    // The operator-selected active channel. Null until the first channel list resolves on login.
+    // Controllers read this instead of resolving the "first" channel every load, enabling the multi-
+    // channel switcher to propagate across all pages without per-controller changes.
+    private val _activeChannelId: MutableStateFlow<String?> = MutableStateFlow(null)
+
     private var tokens: SessionTokens? = null
 
     /** The current session phase the gate observes. */
@@ -40,6 +45,19 @@ class SessionStore(
 
     /** The signed-in streamer, surfaced to the shell once /me resolves. */
     val user: StateFlow<SessionUser?> = _user.asStateFlow()
+
+    /** The currently-selected managed channel, or null while loading. */
+    val activeChannelId: StateFlow<String?> = _activeChannelId.asStateFlow()
+
+    /** Switch the active managed channel. Each page controller picks this up on its next load. */
+    fun switchChannel(channelId: String) {
+        _activeChannelId.value = channelId
+    }
+
+    /** Set the active channel on first login (the user's own channel). */
+    fun setDefaultChannel(channelId: String) {
+        if (_activeChannelId.value == null) _activeChannelId.value = channelId
+    }
 
     /** The active backend base URL the [ApiClient] targets; null when not connected. */
     fun baseUrl(): String? = _activeProfile.value?.baseUrl
@@ -122,6 +140,7 @@ class SessionStore(
         _activeProfile.value = null
         tokens = null
         _user.value = null
+        _activeChannelId.value = null
         _phase.value = SessionPhase.NotConnected
     }
 
@@ -132,6 +151,7 @@ class SessionStore(
         tokens = null
         _user.value = null
         _activeProfile.value = null
+        _activeChannelId.value = null
         _phase.value = SessionPhase.NotConnected
     }
 }
