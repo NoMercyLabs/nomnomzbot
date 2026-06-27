@@ -117,7 +117,7 @@ data class CommandSummary(
     val cooldownSeconds: Int = 0,
     val description: String? = null,
     val aliases: List<String> = emptyList(),
-    val usageCount: Int = 0,
+    val useCount: Long = 0,
     val createdAt: String = "",
     val templateResponse: String? = null,
     val pipelineId: String? = null,

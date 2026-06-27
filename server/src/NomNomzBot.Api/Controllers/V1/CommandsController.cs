@@ -34,7 +34,7 @@ public class CommandsController : BaseController
 
     [RequireAction("commands:read")]
     [HttpGet]
-    [ProducesResponseType<PaginatedResponse<CommandDto>>(StatusCodes.Status200OK)]
+    [ProducesResponseType<PaginatedResponse<CommandListItem>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> ListCommands(
         string channelId,
         [FromQuery] PageRequestDto request,

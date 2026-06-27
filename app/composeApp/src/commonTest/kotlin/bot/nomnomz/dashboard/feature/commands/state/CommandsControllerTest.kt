@@ -56,7 +56,7 @@ class CommandsControllerTest {
                             isEnabled = true,
                             cooldownSeconds = 5,
                             description = "Greets the chat",
-                            usageCount = 42,
+                            useCount = 42,
                         )
                     )
                 ),
@@ -72,7 +72,7 @@ class CommandsControllerTest {
         assertEquals("!hello", command.name)
         assertEquals(true, command.isEnabled)
         assertEquals("Greets the chat", command.description)
-        assertEquals(42, command.usageCount)
+        assertEquals(42, command.useCount)
     }
 
     @Test

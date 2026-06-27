@@ -34381,23 +34381,29 @@
         "required": [
           "id",
           "name",
-          "type",
-          "permission",
+          "tier",
+          "minPermissionLevel",
           "isEnabled",
-          "response",
-          "responses",
-          "pipeline",
           "cooldownSeconds",
           "cooldownPerUser",
-          "description",
           "aliases",
-          "usageCount",
+          "useCount",
           "createdAt",
           "updatedAt"
         ],
         "type": "object",
         "properties": {
           "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "tier": {
+            "type": "string"
+          },
+          "minPermissionLevel": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "integer",
@@ -34405,25 +34411,16 @@
             ],
             "format": "int32"
           },
-          "name": {
-            "type": "string"
-          },
-          "type": {
-            "type": "string"
-          },
-          "permission": {
-            "type": "string"
-          },
           "isEnabled": {
             "type": "boolean"
           },
-          "response": {
+          "templateResponse": {
             "type": [
               "null",
               "string"
             ]
           },
-          "responses": {
+          "templateResponses": {
             "type": [
               "null",
               "array"
@@ -34432,7 +34429,13 @@
               "type": "string"
             }
           },
-          "pipeline": { },
+          "pipelineId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
           "cooldownSeconds": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
@@ -34456,13 +34459,13 @@
               "type": "string"
             }
           },
-          "usageCount": {
+          "useCount": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "integer",
               "string"
             ],
-            "format": "int32"
+            "format": "int64"
           },
           "createdAt": {
             "type": "string",
