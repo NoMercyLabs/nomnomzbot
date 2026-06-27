@@ -251,7 +251,7 @@ data class AdminAdjustBody(val amount: Long, val reason: String? = null)
 /** One catalog purchase (backend `CatalogPurchaseDto`). */
 @Serializable
 data class CatalogPurchase(
-    val id: String = "",
+    val id: Long = 0,
     val catalogItemId: String = "",
     val buyerUserId: String = "",
     val costPaid: Long = 0,
