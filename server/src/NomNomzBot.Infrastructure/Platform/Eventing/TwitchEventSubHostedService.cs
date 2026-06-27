@@ -480,6 +480,31 @@ public sealed class TwitchEventSubHostedService
             row.LastError = created.ErrorMessage;
             await db.SaveChangesAsync(ct);
             await PublishStatusChangedAsync(row, oldStatus, "failed", created.ErrorMessage, ct);
+
+            // When Twitch 403 body says "Missing required scope <scope>", publish the reauth event so
+            // MissingScopeRecordingHandler can record it and the dashboard can surface an action-required flow.
+            string? missingScope = ExtractMissingScope(created.ErrorDetail);
+            if (missingScope is not null)
+            {
+                _logger.LogWarning(
+                    "EventSub subscription {EventType} for {BroadcasterId} blocked: missing scope '{Scope}'",
+                    eventType,
+                    broadcasterId,
+                    missingScope
+                );
+                await _eventBus.PublishAsync(
+                    new TwitchHelixReauthRequiredEvent
+                    {
+                        BroadcasterId = broadcasterId,
+                        Provider = "twitch",
+                        ServiceName = "twitch",
+                        Reason = "missing_scope",
+                        MissingScope = missingScope,
+                    },
+                    ct
+                );
+            }
+
             return Result.Failure<EventSubSubscriptionDto>(
                 created.ErrorMessage!,
                 created.ErrorCode,
@@ -714,6 +739,29 @@ public sealed class TwitchEventSubHostedService
             },
             ct
         );
+
+    // Twitch 403 body for a missing scope: {"error":"Forbidden","status":403,"message":"Missing required scope channel:read:hype_train"}
+    // Returns the scope token, or null when the body doesn't match.
+    private static string? ExtractMissingScope(string? errorDetail)
+    {
+        if (string.IsNullOrWhiteSpace(errorDetail))
+            return null;
+        try
+        {
+            JsonDocument doc = JsonDocument.Parse(errorDetail);
+            if (
+                doc.RootElement.TryGetProperty("message", out JsonElement msg)
+                && msg.GetString() is string text
+                && text.StartsWith("Missing required scope ", StringComparison.OrdinalIgnoreCase)
+            )
+                return text["Missing required scope ".Length..].Trim();
+        }
+        catch (JsonException)
+        {
+            // not a JSON body — ignore
+        }
+        return null;
+    }
 
     private static EventSubSubscriptionDto ToDto(EventSubSubscription row) =>
         new(
