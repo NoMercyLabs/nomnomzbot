@@ -42,6 +42,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
@@ -336,6 +338,7 @@ private fun SrTokenSection(
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
+    val clipboard = LocalClipboardManager.current
 
     Column(
         modifier = Modifier
@@ -364,7 +367,7 @@ private fun SrTokenSection(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            TextButton(onClick = { /* clipboard copy — TODO: platform clipboard API */ }) {
+            TextButton(onClick = { clipboard.setText(AnnotatedString(token)) }) {
                 Text(
                     text = stringResource(Res.string.songrequests_token_copy),
                     color = tokens.primary,

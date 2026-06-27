@@ -46,14 +46,17 @@ public sealed class SystemCredentialsProvider(
         if (string.IsNullOrWhiteSpace(clientId))
             return null;
 
-        // Secret is optional — the device-code flow needs only the client ID. If the DB value is
-        // present but undecryptable (stale after ENCRYPTION_KEY rotation), treat it as absent rather
-        // than blocking the whole auth path; callers that strictly require a secret check for it.
+        // Both fields must be present — GetAsync signals "fully configured" (client id + secret). If the
+        // DB secret is present but undecryptable (stale after ENCRYPTION_KEY rotation), treat it as absent.
+        // Callers that only need the client id (e.g. device-code flows) use GetClientIdAsync instead.
         string? clientSecret =
             await ReadConfigAsync($"{provider}.client_secret", cancellationToken)
             ?? configuration[$"{section}:ClientSecret"];
 
-        return new SystemAppCredentials(clientId, clientSecret ?? string.Empty);
+        if (string.IsNullOrWhiteSpace(clientSecret))
+            return null;
+
+        return new SystemAppCredentials(clientId, clientSecret);
     }
 
     public async Task<string?> GetClientIdAsync(
