@@ -28,6 +28,20 @@ public class FeatureService : IFeatureService
         _timeProvider = timeProvider;
     }
 
+    // The static catalogue of all opt-in channel features.
+    // key → (label, description, required Twitch scopes)
+    private static readonly IReadOnlyDictionary<
+        string,
+        (string Label, string Description, string[] Scopes)
+    > Catalogue = new Dictionary<string, (string, string, string[])>(StringComparer.Ordinal)
+    {
+        ["custom_code"] = (
+            "Custom Code",
+            "Author Lua scripts to use as pipeline actions for advanced automation.",
+            []
+        ),
+    };
+
     public async Task<Result<List<FeatureStatusDto>>> GetFeaturesAsync(
         string channelId,
         CancellationToken cancellationToken = default
@@ -36,17 +50,47 @@ public class FeatureService : IFeatureService
         if (!Guid.TryParse(channelId, out Guid broadcasterId))
             return Result.Success(new List<FeatureStatusDto>());
 
-        List<FeatureStatusDto> features = await _db
-            .ChannelFeatures.Where(f => f.BroadcasterId == broadcasterId)
-            .Select(f => new FeatureStatusDto(
-                f.FeatureKey,
-                f.IsEnabled,
-                f.EnabledAt,
-                f.RequiredScopes
-            ))
-            .ToListAsync(cancellationToken);
+        // Index existing opt-in rows so we can left-join the catalogue.
+        Dictionary<string, ChannelFeature> existing = (
+            await _db
+                .ChannelFeatures.Where(f => f.BroadcasterId == broadcasterId)
+                .ToListAsync(cancellationToken)
+        ).ToDictionary(f => f.FeatureKey, StringComparer.Ordinal);
+
+        // Return every catalogue entry; fall back to disabled/no-scopes when no row exists yet.
+        List<FeatureStatusDto> features =
+        [
+            .. Catalogue.Select(entry =>
+            {
+                existing.TryGetValue(entry.Key, out ChannelFeature? row);
+                return new FeatureStatusDto(
+                    entry.Key,
+                    entry.Value.Label,
+                    entry.Value.Description,
+                    row?.IsEnabled ?? false,
+                    row?.EnabledAt,
+                    row?.RequiredScopes ?? entry.Value.Scopes
+                );
+            }),
+        ];
 
         return Result.Success(features);
+    }
+
+    public async Task<bool> IsFeatureEnabledAsync(
+        string channelId,
+        string featureKey,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return false;
+
+        ChannelFeature? row = await _db.ChannelFeatures.FirstOrDefaultAsync(
+            f => f.BroadcasterId == broadcasterId && f.FeatureKey == featureKey,
+            cancellationToken
+        );
+        return row is { IsEnabled: true };
     }
 
     public async Task<Result<FeatureStatusDto>> ToggleFeatureAsync(
@@ -85,9 +129,15 @@ public class FeatureService : IFeatureService
 
         await _db.SaveChangesAsync(cancellationToken);
 
+        Catalogue.TryGetValue(
+            feature.FeatureKey,
+            out (string Label, string Description, string[] Scopes) meta
+        );
         return Result.Success(
             new FeatureStatusDto(
                 feature.FeatureKey,
+                meta.Label ?? feature.FeatureKey,
+                meta.Description ?? string.Empty,
                 feature.IsEnabled,
                 feature.EnabledAt,
                 feature.RequiredScopes

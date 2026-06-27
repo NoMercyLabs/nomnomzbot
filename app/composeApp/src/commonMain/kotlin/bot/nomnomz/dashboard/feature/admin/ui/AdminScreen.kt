@@ -279,7 +279,7 @@ private fun SystemTab(state: AdminState) {
         state.system?.let { sys ->
             StatCard(label = stringResource(Res.string.admin_system_version), value = sys.botVersion)
             StatCard(label = stringResource(Res.string.admin_system_memory), value = sys.memoryUsageMb.toString())
-            StatCard(label = stringResource(Res.string.admin_system_cpu), value = "%.1f".format(sys.cpuPercent))
+            StatCard(label = stringResource(Res.string.admin_system_cpu), value = "${(sys.cpuPercent * 10).toLong().let { t -> "${t / 10}.${t % 10}" }}%")
 
             Spacer(modifier = Modifier.height(spacing.s2))
             sys.services.forEach { svc ->

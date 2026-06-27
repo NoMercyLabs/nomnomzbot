@@ -149,20 +149,29 @@ private fun FeatureRow(
                 modifier = Modifier
                     .weight(1f)
                     .clearAndSetSemantics {
-                        contentDescription = "${feature.featureKey}, ${if (feature.isEnabled) "enabled" else "disabled"}."
+                        contentDescription = "${feature.label.ifEmpty { feature.featureKey }}, ${if (feature.isEnabled) "enabled" else "disabled"}."
                     },
                 verticalArrangement = Arrangement.spacedBy(spacing.s1),
             ) {
                 Text(
-                    text = feature.featureKey,
+                    text = feature.label.ifEmpty { feature.featureKey },
                     style = typography.base,
                     color = tokens.cardForeground,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
+                if (feature.description.isNotEmpty()) {
+                    Text(
+                        text = feature.description,
+                        style = typography.xs,
+                        color = tokens.mutedForeground,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
                 feature.enabledAt?.let { at ->
                     Text(
-                        text = at.substringBefore('T'),
+                        text = "Enabled ${at.substringBefore('T')}",
                         style = typography.xs,
                         color = tokens.mutedForeground,
                         maxLines = 1,

@@ -7560,7 +7560,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           }
         }
@@ -8621,7 +8621,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           }
         }
@@ -10044,7 +10044,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           }
         }
@@ -10790,7 +10790,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           }
         }
@@ -10889,7 +10889,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           }
         }
@@ -10990,7 +10990,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           }
         }
@@ -11089,7 +11089,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           }
         }
@@ -16176,7 +16176,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           }
         }
@@ -16269,7 +16269,7 @@
           "200": {
             "description": "OK",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           }
         }
@@ -19759,7 +19759,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           }
         }
@@ -20641,7 +20641,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           }
         }
@@ -21534,7 +21534,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           }
         }
@@ -23086,7 +23086,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           }
         }
@@ -23807,7 +23807,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           }
         }
@@ -24211,13 +24211,13 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           },
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           }
         }
@@ -24330,13 +24330,13 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           },
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           }
         }
@@ -24449,13 +24449,13 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           },
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           }
         }
@@ -24665,13 +24665,13 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           },
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           }
         }
@@ -24907,13 +24907,13 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           },
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           }
         }
@@ -26325,7 +26325,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           }
         }
@@ -28418,7 +28418,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           }
         }
@@ -32419,7 +32419,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           }
         }
@@ -33955,7 +33955,7 @@
           "200": {
             "description": "OK",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           }
         }
@@ -36136,7 +36136,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           }
         }
@@ -38437,7 +38437,7 @@
             "maxLength": 30,
             "type": "string"
           },
-          "graphJsonCache": { }
+          "graphJsonCache": {}
         }
       },
       "CreatePollDto": {
@@ -39892,6 +39892,8 @@
       "FeatureStatusDto": {
         "required": [
           "featureKey",
+          "label",
+          "description",
           "isEnabled",
           "enabledAt",
           "requiredScopes"
@@ -39899,6 +39901,12 @@
         "type": "object",
         "properties": {
           "featureKey": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "description": {
             "type": "string"
           },
           "isEnabled": {
@@ -40850,7 +40858,7 @@
           }
         }
       },
-      "JsonElement": { },
+      "JsonElement": {},
       "LeaderboardEntryDto": {
         "required": [
           "rank",
@@ -46056,7 +46064,7 @@
           "status": {
             "type": "string"
           },
-          "data": { },
+          "data": {},
           "message": {
             "type": [
               "null",
@@ -48654,7 +48662,7 @@
               "string"
             ]
           },
-          "graphJsonCache": { }
+          "graphJsonCache": {}
         }
       },
       "UpdateRewardRequest": {

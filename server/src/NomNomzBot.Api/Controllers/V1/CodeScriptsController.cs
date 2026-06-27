@@ -13,25 +13,30 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Models;
-using NomNomzBot.Application.Abstractions.Platform;
+using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.CustomCode;
+using NomNomzBot.Application.Platform.Services;
 
 namespace NomNomzBot.Api.Controllers.V1;
 
 /// <summary>
 /// Custom-code authoring (custom-code.md §5) — management plane, Broadcaster floor, Critical tier
 /// (<c>code:script:author</c>, per-user delegable via permit only). Tenant is resolved from the authenticated
-/// principal (not the route — IDOR fix). The whole controller is gated behind the <c>custom_code</c> feature flag;
-/// no endpoint runs a script — execution is the <c>run_code</c> pipeline action.
+/// principal (not the route — IDOR fix). The whole controller is gated behind the <c>custom_code</c> channel
+/// feature; the broadcaster enables it on the Features page. No endpoint runs a script — execution is
+/// the <c>run_code</c> pipeline action.
 /// </summary>
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/code-scripts")]
 [Authorize]
 [RequireAction("code:script:author")]
 [Tags("Custom Code")]
-public class CodeScriptsController(ICodeScriptService scripts, IFeatureFlagService featureFlags)
-    : BaseController
+public class CodeScriptsController(
+    ICodeScriptService scripts,
+    IFeatureService featureService,
+    ICurrentTenantService tenant
+) : BaseController
 {
     [HttpGet]
     public async Task<IActionResult> List([FromQuery] PageRequestDto request, CancellationToken ct)
@@ -133,8 +138,15 @@ public class CodeScriptsController(ICodeScriptService scripts, IFeatureFlagServi
             : ResultResponse(await scripts.DeleteAsync(id, ct));
     }
 
-    private async Task<Result> FeatureGateAsync(CancellationToken ct) =>
-        await featureFlags.IsEnabledAsync("custom_code", ct)
+    private async Task<Result> FeatureGateAsync(CancellationToken ct)
+    {
+        string channelId = tenant.BroadcasterId?.ToString() ?? string.Empty;
+        bool enabled = await featureService.IsFeatureEnabledAsync(channelId, "custom_code", ct);
+        return enabled
             ? Result.Success()
-            : Result.Failure("Custom code is not enabled for this channel.", "FEATURE_DISABLED");
+            : Result.Failure(
+                "Custom code is not enabled for this channel. Enable it on the Features page.",
+                "FEATURE_DISABLED"
+            );
+    }
 }

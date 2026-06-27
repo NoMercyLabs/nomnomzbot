@@ -18,7 +18,7 @@ namespace NomNomzBot.Application.Platform.Services;
 /// </summary>
 public interface IFeatureService
 {
-    /// <summary>List the feature toggles configured for a channel.</summary>
+    /// <summary>List ALL known features for a channel, each with its current opt-in state.</summary>
     Task<Result<List<FeatureStatusDto>>> GetFeaturesAsync(
         string channelId,
         CancellationToken cancellationToken = default
@@ -26,6 +26,13 @@ public interface IFeatureService
 
     /// <summary>Toggle a feature for a channel, creating it (enabled) if it does not yet exist.</summary>
     Task<Result<FeatureStatusDto>> ToggleFeatureAsync(
+        string channelId,
+        string featureKey,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>Returns true when the channel has opted-in and enabled <paramref name="featureKey"/>.</summary>
+    Task<bool> IsFeatureEnabledAsync(
         string channelId,
         string featureKey,
         CancellationToken cancellationToken = default

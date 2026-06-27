@@ -38,13 +38,16 @@ class RestFeaturesApi(private val client: ApiClient) : FeaturesApi {
 }
 
 /**
- * One feature flag (backend `FeatureStatusDto`). [featureKey] is the machine-stable key (e.g. `"tts"`);
+ * One feature flag (backend `FeatureStatusDto`). [featureKey] is the machine-stable key (e.g. `"custom_code"`);
+ * [label] is the human-readable display name; [description] explains what the feature does;
  * [isEnabled] is the current state; [enabledAt] is the timestamp the flag was turned on (null when off);
  * [requiredScopes] lists the Twitch OAuth scopes the backend needs to activate this feature.
  */
 @Serializable
 data class FeatureStatus(
     val featureKey: String = "",
+    val label: String = "",
+    val description: String = "",
     val isEnabled: Boolean = false,
     val enabledAt: String? = null,
     val requiredScopes: List<String> = emptyList(),

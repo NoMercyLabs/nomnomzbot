@@ -1314,8 +1314,11 @@ private fun InvoiceRow(invoice: BillingInvoice, onView: (String) -> Unit) {
         "open" -> stringResource(Res.string.settings_billing_invoice_open)
         else -> stringResource(Res.string.settings_billing_invoice_void)
     }
-    val amountFormatted: String =
-        "${invoice.currency.uppercase()} %.2f".format(invoice.amountPaidCents / 100.0)
+    val amountFormatted: String = run {
+        val euros = invoice.amountPaidCents / 100
+        val cents = invoice.amountPaidCents % 100
+        "${invoice.currency.uppercase()} $euros.${cents.toString().padStart(2, '0')}"
+    }
     Row(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,

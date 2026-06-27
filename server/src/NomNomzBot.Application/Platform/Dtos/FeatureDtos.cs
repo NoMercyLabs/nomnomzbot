@@ -13,6 +13,8 @@ namespace NomNomzBot.Application.Platform.Dtos;
 /// <summary>The enablement status of a single channel feature.</summary>
 public record FeatureStatusDto(
     string FeatureKey,
+    string Label,
+    string Description,
     bool IsEnabled,
     DateTime? EnabledAt,
     string[] RequiredScopes
