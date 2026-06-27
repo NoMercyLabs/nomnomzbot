@@ -136,9 +136,13 @@ public sealed class ChannelAnalyticsService(IApplicationDbContext db) : IChannel
             )
             .ToListAsync(ct);
 
-        Dictionary<Guid, ViewerProfile> profileByUser = await db
-            .ViewerProfiles.Where(p => p.BroadcasterId == broadcasterId)
-            .ToDictionaryAsync(p => p.ViewerUserId, ct);
+        // Deduplicate before building the dictionary — a viewer can have >1 profile row when
+        // the projection replayed after a schema migration (idempotency guard missed the upsert).
+        Dictionary<Guid, ViewerProfile> profileByUser = (
+            await db.ViewerProfiles.Where(p => p.BroadcasterId == broadcasterId).ToListAsync(ct)
+        )
+            .GroupBy(p => p.ViewerUserId)
+            .ToDictionary(g => g.Key, g => g.First());
 
         List<TopViewerDto> ranked =
         [

@@ -118,9 +118,10 @@ public class StreamController : BaseController
             DateTime? lastStreamedAt = null;
             if (!ctx.IsLive)
             {
+                // SQLite cannot ORDER BY DateTimeOffset — sort by UUIDv7 Id (time-ordered) instead.
                 lastStreamedAt = await _db
                     .Streams.Where(s => s.ChannelId == tenantId && s.EndedAt != null)
-                    .OrderByDescending(s => s.EndedAt)
+                    .OrderByDescending(s => s.Id)
                     .Select(s => (DateTime?)s.EndedAt!.Value.UtcDateTime)
                     .FirstOrDefaultAsync(ct);
             }

@@ -220,13 +220,18 @@ public class RewardsController : BaseController
         if (!Guid.TryParse(channelId, out Guid broadcasterId))
             return BadRequestResponse("Invalid channel id.");
 
-        List<ChatterTally> topChatters = await _db
-            .ChatMessages.Where(m => m.BroadcasterId == broadcasterId)
-            .GroupBy(m => m.UserId)
-            .Select(g => new ChatterTally(g.Key, g.Count()))
+        // GroupBy+Select(new record)+OrderByDescending cannot be translated by the SQLite EF provider
+        // — materialize after the GroupBy, then sort in memory.
+        List<ChatterTally> topChatters = (
+            await _db
+                .ChatMessages.Where(m => m.BroadcasterId == broadcasterId)
+                .GroupBy(m => m.UserId)
+                .Select(g => new ChatterTally(g.Key, g.Count()))
+                .ToListAsync(ct)
+        )
             .OrderByDescending(t => t.Count)
             .Take(50)
-            .ToListAsync(ct);
+            .ToList();
 
         // ChatMessage.UserId holds the Twitch user string id — join on User.TwitchUserId.
         List<string> userIds = topChatters.Select(t => t.UserId).ToList();
