@@ -37,6 +37,7 @@ public class BillingController(
 {
     [HttpGet("subscription")]
     [RequireAction("billing:read")]
+    [ProducesResponseType<StatusResponseDto<SubscriptionDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetSubscription(string channelId, CancellationToken ct)
     {
         if (!Guid.TryParse(channelId, out Guid broadcasterId))
@@ -46,6 +47,7 @@ public class BillingController(
 
     [HttpGet("tiers")]
     [RequireAction("billing:read")]
+    [ProducesResponseType<StatusResponseDto<IReadOnlyList<TierDto>>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetTiers(string channelId, CancellationToken ct)
     {
         if (!Guid.TryParse(channelId, out Guid _))
@@ -55,6 +57,7 @@ public class BillingController(
 
     [HttpGet("entitlement")]
     [RequireAction("billing:read")]
+    [ProducesResponseType<StatusResponseDto<EntitlementDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetEntitlement(string channelId, CancellationToken ct)
     {
         if (!Guid.TryParse(channelId, out Guid broadcasterId))
@@ -64,6 +67,9 @@ public class BillingController(
 
     [HttpGet("usage")]
     [RequireAction("billing:read")]
+    [ProducesResponseType<StatusResponseDto<IReadOnlyList<UsageMetricDto>>>(
+        StatusCodes.Status200OK
+    )]
     public async Task<IActionResult> GetUsage(string channelId, CancellationToken ct)
     {
         if (!Guid.TryParse(channelId, out Guid broadcasterId))
@@ -95,6 +101,7 @@ public class BillingController(
 
     [HttpPost("checkout")]
     [RequireAction("billing:manage")]
+    [ProducesResponseType<StatusResponseDto<CheckoutSessionDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> Checkout(
         string channelId,
         [FromBody] StartCheckoutRequest request,
@@ -143,6 +150,7 @@ public class BillingController(
 
     [HttpPost("portal")]
     [RequireAction("billing:manage")]
+    [ProducesResponseType<StatusResponseDto<BillingPortalDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> Portal(string channelId, CancellationToken ct)
     {
         if (!Guid.TryParse(channelId, out Guid broadcasterId))
@@ -154,6 +162,7 @@ public class BillingController(
 
     [HttpGet("founders-badge")]
     [RequireAction("billing:read")]
+    [ProducesResponseType<StatusResponseDto<FoundersBadgeDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetFoundersBadge(string channelId, CancellationToken ct)
     {
         if (!Guid.TryParse(channelId, out Guid broadcasterId))
@@ -163,6 +172,7 @@ public class BillingController(
 
     [HttpPost("invite/validate")]
     [RequireAction("billing:read")]
+    [ProducesResponseType<StatusResponseDto<InviteCodeValidationDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> ValidateInvite(
         string channelId,
         [FromBody] InviteCodeRequest request,
@@ -176,6 +186,7 @@ public class BillingController(
 
     [HttpPost("invite/redeem")]
     [RequireAction("billing:manage")]
+    [ProducesResponseType<StatusResponseDto<RedeemInviteCodeResultDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> RedeemInvite(
         string channelId,
         [FromBody] InviteCodeRequest request,

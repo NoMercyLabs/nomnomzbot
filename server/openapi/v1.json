@@ -3744,6 +3744,16 @@
                 }
               }
             }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfSubscriptionDto"
+                }
+              }
+            }
           }
         }
       }
@@ -3828,6 +3838,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfIReadOnlyListOfTierDto"
                 }
               }
             }
@@ -3918,6 +3938,16 @@
                 }
               }
             }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfEntitlementDto"
+                }
+              }
+            }
           }
         }
       }
@@ -4002,6 +4032,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfIReadOnlyListOfUsageMetricDto"
                 }
               }
             }
@@ -4251,6 +4291,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfCheckoutSessionDto"
                 }
               }
             }
@@ -4642,6 +4692,16 @@
                 }
               }
             }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfBillingPortalDto"
+                }
+              }
+            }
           }
         }
       }
@@ -4726,6 +4786,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfFoundersBadgeDto"
                 }
               }
             }
@@ -4836,6 +4906,16 @@
                 }
               }
             }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfInviteCodeValidationDto"
+                }
+              }
+            }
           }
         }
       }
@@ -4943,6 +5023,16 @@
                 }
               }
             }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfRedeemInviteCodeResultDto"
+                }
+              }
+            }
           }
         }
       }
@@ -5026,10 +5116,232 @@
         }
       }
     },
+    "/api/v{version}/channels/{channelId}/builtins": {
+      "get": {
+        "tags": [
+          "Commands"
+        ],
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfIReadOnlyListOfBuiltinCommandDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/channels/{channelId}/builtins/{builtinKey}": {
+      "patch": {
+        "tags": [
+          "Commands"
+        ],
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "builtinKey",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetBuiltinEnabledRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetBuiltinEnabledRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetBuiltinEnabledRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v{version}/channels/{channelId}/economy/catalog": {
       "get": {
         "tags": [
-          "Economy \u00e2\u20ac\u201d Catalog"
+          "Economy — Catalog"
         ],
         "parameters": [
           {
@@ -5169,7 +5481,7 @@
       },
       "post": {
         "tags": [
-          "Economy \u00e2\u20ac\u201d Catalog"
+          "Economy — Catalog"
         ],
         "parameters": [
           {
@@ -5276,7 +5588,7 @@
     "/api/v{version}/channels/{channelId}/economy/catalog/{itemId}": {
       "get": {
         "tags": [
-          "Economy \u00e2\u20ac\u201d Catalog"
+          "Economy — Catalog"
         ],
         "parameters": [
           {
@@ -5370,7 +5682,7 @@
       },
       "patch": {
         "tags": [
-          "Economy \u00e2\u20ac\u201d Catalog"
+          "Economy — Catalog"
         ],
         "parameters": [
           {
@@ -5484,7 +5796,7 @@
       },
       "delete": {
         "tags": [
-          "Economy \u00e2\u20ac\u201d Catalog"
+          "Economy — Catalog"
         ],
         "parameters": [
           {
@@ -5580,7 +5892,7 @@
     "/api/v{version}/channels/{channelId}/economy/catalog/{itemId}/purchase": {
       "post": {
         "tags": [
-          "Economy \u00e2\u20ac\u201d Catalog"
+          "Economy — Catalog"
         ],
         "parameters": [
           {
@@ -5696,7 +6008,7 @@
     "/api/v{version}/channels/{channelId}/economy/catalog/purchases": {
       "get": {
         "tags": [
-          "Economy \u00e2\u20ac\u201d Catalog"
+          "Economy — Catalog"
         ],
         "parameters": [
           {
@@ -5861,7 +6173,7 @@
     "/api/v{version}/channels/{channelId}/economy/catalog/purchases/{purchaseId}/refund": {
       "post": {
         "tags": [
-          "Economy \u00e2\u20ac\u201d Catalog"
+          "Economy — Catalog"
         ],
         "parameters": [
           {
@@ -7248,7 +7560,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           }
         }
@@ -8197,6 +8509,119 @@
                   "$ref": "#/components/schemas/StatusResponseDtoOfChatSettingsDto"
                 }
               }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/channels/{channelId}/chat/announce": {
+      "post": {
+        "tags": [
+          "Chat"
+        ],
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnnounceRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnnounceRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnnounceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "No Content",
+            "content": {
+              "application/json": { }
             }
           }
         }
@@ -9175,7 +9600,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PaginatedResponseOfCommandDto"
+                  "$ref": "#/components/schemas/PaginatedResponseOfCommandListItem"
                 }
               }
             }
@@ -9619,7 +10044,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           }
         }
@@ -10365,7 +10790,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           }
         }
@@ -10464,7 +10889,304 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/channels/{channelId}/community/{userId}/vip": {
+      "post": {
+        "tags": [
+          "Community"
+        ],
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "No Content",
+            "content": {
+              "application/json": { }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Community"
+        ],
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "No Content",
+            "content": {
+              "application/json": { }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/channels/{channelId}/community/me/standing": {
+      "get": {
+        "tags": [
+          "Community"
+        ],
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfSelfStandingDto"
+                }
+              }
             }
           }
         }
@@ -10473,7 +11195,7 @@
     "/api/v{version}/channels/{channelId}/economy/config": {
       "get": {
         "tags": [
-          "Economy \u00e2\u20ac\u201d Currency"
+          "Economy — Currency"
         ],
         "parameters": [
           {
@@ -10558,7 +11280,7 @@
       },
       "put": {
         "tags": [
-          "Economy \u00e2\u20ac\u201d Currency"
+          "Economy — Currency"
         ],
         "parameters": [
           {
@@ -10665,7 +11387,7 @@
     "/api/v{version}/channels/{channelId}/economy/earning-rules": {
       "get": {
         "tags": [
-          "Economy \u00e2\u20ac\u201d Currency"
+          "Economy — Currency"
         ],
         "parameters": [
           {
@@ -10760,7 +11482,7 @@
       },
       "put": {
         "tags": [
-          "Economy \u00e2\u20ac\u201d Currency"
+          "Economy — Currency"
         ],
         "parameters": [
           {
@@ -10867,7 +11589,7 @@
     "/api/v{version}/channels/{channelId}/economy/earning-rules/{ruleId}": {
       "delete": {
         "tags": [
-          "Economy \u00e2\u20ac\u201d Currency"
+          "Economy — Currency"
         ],
         "parameters": [
           {
@@ -10963,7 +11685,7 @@
     "/api/v{version}/channels/{channelId}/economy/accounts": {
       "get": {
         "tags": [
-          "Economy \u00e2\u20ac\u201d Currency"
+          "Economy — Currency"
         ],
         "parameters": [
           {
@@ -11105,7 +11827,7 @@
     "/api/v{version}/channels/{channelId}/economy/accounts/me": {
       "get": {
         "tags": [
-          "Economy \u00e2\u20ac\u201d Currency"
+          "Economy — Currency"
         ],
         "parameters": [
           {
@@ -11202,7 +11924,7 @@
     "/api/v{version}/channels/{channelId}/economy/accounts/{viewerUserId}": {
       "get": {
         "tags": [
-          "Economy \u00e2\u20ac\u201d Currency"
+          "Economy — Currency"
         ],
         "parameters": [
           {
@@ -11298,7 +12020,7 @@
     "/api/v{version}/channels/{channelId}/economy/accounts/{viewerUserId}/ledger": {
       "get": {
         "tags": [
-          "Economy \u00e2\u20ac\u201d Currency"
+          "Economy — Currency"
         ],
         "parameters": [
           {
@@ -11449,7 +12171,7 @@
     "/api/v{version}/channels/{channelId}/economy/accounts/{viewerUserId}/adjust": {
       "post": {
         "tags": [
-          "Economy \u00e2\u20ac\u201d Currency"
+          "Economy — Currency"
         ],
         "parameters": [
           {
@@ -11565,7 +12287,7 @@
     "/api/v{version}/channels/{channelId}/economy/accounts/{viewerUserId}/freeze": {
       "post": {
         "tags": [
-          "Economy \u00e2\u20ac\u201d Currency"
+          "Economy — Currency"
         ],
         "parameters": [
           {
@@ -11681,7 +12403,7 @@
     "/api/v{version}/channels/{channelId}/economy/transfer": {
       "post": {
         "tags": [
-          "Economy \u00e2\u20ac\u201d Currency"
+          "Economy — Currency"
         ],
         "parameters": [
           {
@@ -14406,7 +15128,7 @@
     "/api/v{version}/channels/{channelId}/economy/leaderboards/configs": {
       "get": {
         "tags": [
-          "Economy \u00e2\u20ac\u201d Leaderboards"
+          "Economy — Leaderboards"
         ],
         "parameters": [
           {
@@ -14491,7 +15213,7 @@
       },
       "put": {
         "tags": [
-          "Economy \u00e2\u20ac\u201d Leaderboards"
+          "Economy — Leaderboards"
         ],
         "parameters": [
           {
@@ -14598,7 +15320,7 @@
     "/api/v{version}/channels/{channelId}/economy/leaderboards/configs/{configId}": {
       "delete": {
         "tags": [
-          "Economy \u00e2\u20ac\u201d Leaderboards"
+          "Economy — Leaderboards"
         ],
         "parameters": [
           {
@@ -14694,7 +15416,7 @@
     "/api/v{version}/channels/{channelId}/economy/leaderboards/{configId}": {
       "get": {
         "tags": [
-          "Economy \u00e2\u20ac\u201d Leaderboards"
+          "Economy — Leaderboards"
         ],
         "parameters": [
           {
@@ -14802,7 +15524,7 @@
     "/api/v{version}/channels/{channelId}/economy/leaderboards/opt-out/{viewerUserId}": {
       "post": {
         "tags": [
-          "Economy \u00e2\u20ac\u201d Leaderboards"
+          "Economy — Leaderboards"
         ],
         "parameters": [
           {
@@ -14898,7 +15620,7 @@
     "/api/v{version}/channels/{channelId}/economy/leaderboards/opt-in/{viewerUserId}": {
       "post": {
         "tags": [
-          "Economy \u00e2\u20ac\u201d Leaderboards"
+          "Economy — Leaderboards"
         ],
         "parameters": [
           {
@@ -15454,7 +16176,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           }
         }
@@ -15547,7 +16269,7 @@
           "200": {
             "description": "OK",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           }
         }
@@ -17636,7 +18358,7 @@
     "/api/v{version}/channels/{channelId}/economy/games": {
       "get": {
         "tags": [
-          "Economy \u00e2\u20ac\u201d Games"
+          "Economy — Games"
         ],
         "parameters": [
           {
@@ -17721,7 +18443,7 @@
       },
       "put": {
         "tags": [
-          "Economy \u00e2\u20ac\u201d Games"
+          "Economy — Games"
         ],
         "parameters": [
           {
@@ -17828,7 +18550,7 @@
     "/api/v{version}/channels/{channelId}/economy/games/{gameConfigId}/play": {
       "post": {
         "tags": [
-          "Economy \u00e2\u20ac\u201d Games"
+          "Economy — Games"
         ],
         "parameters": [
           {
@@ -17944,7 +18666,7 @@
     "/api/v{version}/channels/{channelId}/economy/games/history": {
       "get": {
         "tags": [
-          "Economy \u00e2\u20ac\u201d Games"
+          "Economy — Games"
         ],
         "parameters": [
           {
@@ -18109,7 +18831,7 @@
     "/api/v{version}/channels/{channelId}/economy/games/consent/{viewerUserId}": {
       "get": {
         "tags": [
-          "Economy \u00e2\u20ac\u201d Games"
+          "Economy — Games"
         ],
         "parameters": [
           {
@@ -18203,7 +18925,7 @@
       },
       "delete": {
         "tags": [
-          "Economy \u00e2\u20ac\u201d Games"
+          "Economy — Games"
         ],
         "parameters": [
           {
@@ -18299,7 +19021,7 @@
     "/api/v{version}/channels/{channelId}/economy/games/consent": {
       "post": {
         "tags": [
-          "Economy \u00e2\u20ac\u201d Games"
+          "Economy — Games"
         ],
         "parameters": [
           {
@@ -19037,7 +19759,1297 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/channels/{channelId}/live-ops/polls": {
+      "get": {
+        "tags": [
+          "LiveOps"
+        ],
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "LiveOps"
+        ],
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePollDto"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePollDto"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePollDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfTwitchPoll"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/channels/{channelId}/live-ops/polls/{pollId}/end": {
+      "patch": {
+        "tags": [
+          "LiveOps"
+        ],
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "pollId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EndPollDto"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EndPollDto"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/EndPollDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfTwitchPoll"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/channels/{channelId}/live-ops/predictions": {
+      "get": {
+        "tags": [
+          "LiveOps"
+        ],
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "LiveOps"
+        ],
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePredictionDto"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePredictionDto"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePredictionDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfTwitchPrediction"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/channels/{channelId}/live-ops/predictions/{predictionId}/end": {
+      "patch": {
+        "tags": [
+          "LiveOps"
+        ],
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "predictionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EndPredictionDto"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EndPredictionDto"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/EndPredictionDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfTwitchPrediction"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/channels/{channelId}/live-ops/raids": {
+      "post": {
+        "tags": [
+          "LiveOps"
+        ],
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StartRaidDto"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StartRaidDto"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/StartRaidDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfTwitchRaid"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "LiveOps"
+        ],
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "No Content",
+            "content": {
+              "application/json": { }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/channels/{channelId}/live-ops/ads/schedule": {
+      "get": {
+        "tags": [
+          "LiveOps"
+        ],
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfTwitchAdSchedule"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/channels/{channelId}/live-ops/ads/commercial": {
+      "post": {
+        "tags": [
+          "LiveOps"
+        ],
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StartCommercialDto"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StartCommercialDto"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/StartCommercialDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfTwitchCommercial"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/channels/{channelId}/live-ops/ads/snooze": {
+      "post": {
+        "tags": [
+          "LiveOps"
+        ],
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfTwitchAdSnooze"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/channels/{channelId}/live-ops/clips": {
+      "post": {
+        "tags": [
+          "LiveOps"
+        ],
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfTwitchClipStub"
+                }
+              }
             }
           }
         }
@@ -19522,7 +21534,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           }
         }
@@ -20967,6 +22979,119 @@
         }
       }
     },
+    "/api/v{version}/channels/{channelId}/moderation/shoutout": {
+      "post": {
+        "tags": [
+          "Moderation"
+        ],
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShoutoutRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShoutoutRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShoutoutRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "No Content",
+            "content": {
+              "application/json": { }
+            }
+          }
+        }
+      }
+    },
     "/api/v{version}/channels/{channelId}/music/config": {
       "get": {
         "tags": [
@@ -21682,7 +23807,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           }
         }
@@ -21974,6 +24099,821 @@
                   "$ref": "#/components/schemas/StatusResponseDtoOfObject"
                 }
               }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/channels/{channelId}/music/seek": {
+      "post": {
+        "tags": [
+          "Music"
+        ],
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SeekDto"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SeekDto"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/SeekDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "No Content",
+            "content": {
+              "application/json": { }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/json": { }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/channels/{channelId}/music/shuffle": {
+      "patch": {
+        "tags": [
+          "Music"
+        ],
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShuffleDto"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShuffleDto"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShuffleDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "No Content",
+            "content": {
+              "application/json": { }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/json": { }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/channels/{channelId}/music/repeat": {
+      "patch": {
+        "tags": [
+          "Music"
+        ],
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RepeatDto"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RepeatDto"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/RepeatDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "No Content",
+            "content": {
+              "application/json": { }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/json": { }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/channels/{channelId}/music/devices": {
+      "get": {
+        "tags": [
+          "Music"
+        ],
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfIReadOnlyListOfMusicDeviceDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/channels/{channelId}/music/transfer": {
+      "post": {
+        "tags": [
+          "Music"
+        ],
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransferDto"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransferDto"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransferDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "No Content",
+            "content": {
+              "application/json": { }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/json": { }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/channels/{channelId}/music/playlists": {
+      "get": {
+        "tags": [
+          "Music"
+        ],
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32",
+              "default": 0
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32",
+              "default": 20
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfIReadOnlyListOfMusicPlaylistDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/channels/{channelId}/music/play-context": {
+      "post": {
+        "tags": [
+          "Music"
+        ],
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlayContextDto"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlayContextDto"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlayContextDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "No Content",
+            "content": {
+              "application/json": { }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/json": { }
             }
           }
         }
@@ -23080,9 +26020,8 @@
             "in": "path",
             "required": true,
             "schema": {
-              "pattern": "^-?(?:0|[1-9]\\d*)$",
-              "type": "integer",
-              "format": "int32"
+              "type": "string",
+              "format": "uuid"
             }
           },
           {
@@ -23185,9 +26124,8 @@
             "in": "path",
             "required": true,
             "schema": {
-              "pattern": "^-?(?:0|[1-9]\\d*)$",
-              "type": "integer",
-              "format": "int32"
+              "type": "string",
+              "format": "uuid"
             }
           },
           {
@@ -23310,9 +26248,8 @@
             "in": "path",
             "required": true,
             "schema": {
-              "pattern": "^-?(?:0|[1-9]\\d*)$",
-              "type": "integer",
-              "format": "int32"
+              "type": "string",
+              "format": "uuid"
             }
           },
           {
@@ -23388,7 +26325,124 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/channels/{channelId}/pipelines/validate": {
+      "post": {
+        "tags": [
+          "Pipelines"
+        ],
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PipelineGraphInput"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PipelineGraphInput"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/PipelineGraphInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfPipelineValidationResult"
+                }
+              }
             }
           }
         }
@@ -25364,7 +28418,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           }
         }
@@ -26074,7 +29128,7 @@
     "/api/v{version}/channels/{channelId}/economy/jars": {
       "get": {
         "tags": [
-          "Economy \u00e2\u20ac\u201d Savings Jars"
+          "Economy — Savings Jars"
         ],
         "parameters": [
           {
@@ -26159,7 +29213,7 @@
       },
       "post": {
         "tags": [
-          "Economy \u00e2\u20ac\u201d Savings Jars"
+          "Economy — Savings Jars"
         ],
         "parameters": [
           {
@@ -26266,7 +29320,7 @@
     "/api/v{version}/channels/{channelId}/economy/jars/{jarId}": {
       "get": {
         "tags": [
-          "Economy \u00e2\u20ac\u201d Savings Jars"
+          "Economy — Savings Jars"
         ],
         "parameters": [
           {
@@ -26362,7 +29416,7 @@
     "/api/v{version}/channels/{channelId}/economy/jars/{jarId}/invite": {
       "post": {
         "tags": [
-          "Economy \u00e2\u20ac\u201d Savings Jars"
+          "Economy — Savings Jars"
         ],
         "parameters": [
           {
@@ -26478,7 +29532,7 @@
     "/api/v{version}/channels/{channelId}/economy/jars/memberships/{membershipId}/accept": {
       "post": {
         "tags": [
-          "Economy \u00e2\u20ac\u201d Savings Jars"
+          "Economy — Savings Jars"
         ],
         "parameters": [
           {
@@ -26574,7 +29628,7 @@
     "/api/v{version}/channels/{channelId}/economy/jars/memberships/{membershipId}": {
       "delete": {
         "tags": [
-          "Economy \u00e2\u20ac\u201d Savings Jars"
+          "Economy — Savings Jars"
         ],
         "parameters": [
           {
@@ -26670,7 +29724,7 @@
     "/api/v{version}/channels/{channelId}/economy/jars/{jarId}/contribute": {
       "post": {
         "tags": [
-          "Economy \u00e2\u20ac\u201d Savings Jars"
+          "Economy — Savings Jars"
         ],
         "parameters": [
           {
@@ -26786,7 +29840,7 @@
     "/api/v{version}/channels/{channelId}/economy/jars/{jarId}/withdraw": {
       "post": {
         "tags": [
-          "Economy \u00e2\u20ac\u201d Savings Jars"
+          "Economy — Savings Jars"
         ],
         "parameters": [
           {
@@ -26902,7 +29956,7 @@
     "/api/v{version}/channels/{channelId}/economy/jars/{jarId}/history": {
       "get": {
         "tags": [
-          "Economy \u00e2\u20ac\u201d Savings Jars"
+          "Economy — Savings Jars"
         ],
         "parameters": [
           {
@@ -28695,6 +31749,95 @@
         }
       }
     },
+    "/api/v{version}/system/pronouns": {
+      "get": {
+        "tags": [
+          "System"
+        ],
+        "parameters": [
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfListOfPronounDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v{version}/channels/{channelId}/timers": {
       "get": {
         "tags": [
@@ -28971,9 +32114,8 @@
             "in": "path",
             "required": true,
             "schema": {
-              "pattern": "^-?(?:0|[1-9]\\d*)$",
-              "type": "integer",
-              "format": "int32"
+              "type": "string",
+              "format": "uuid"
             }
           },
           {
@@ -29076,9 +32218,8 @@
             "in": "path",
             "required": true,
             "schema": {
-              "pattern": "^-?(?:0|[1-9]\\d*)$",
-              "type": "integer",
-              "format": "int32"
+              "type": "string",
+              "format": "uuid"
             }
           },
           {
@@ -29201,9 +32342,8 @@
             "in": "path",
             "required": true,
             "schema": {
-              "pattern": "^-?(?:0|[1-9]\\d*)$",
-              "type": "integer",
-              "format": "int32"
+              "type": "string",
+              "format": "uuid"
             }
           },
           {
@@ -29279,7 +32419,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           }
         }
@@ -29304,9 +32444,8 @@
             "in": "path",
             "required": true,
             "schema": {
-              "pattern": "^-?(?:0|[1-9]\\d*)$",
-              "type": "integer",
-              "format": "int32"
+              "type": "string",
+              "format": "uuid"
             }
           },
           {
@@ -30816,7 +33955,7 @@
           "200": {
             "description": "OK",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           }
         }
@@ -32997,7 +36136,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           }
         }
@@ -33374,6 +36513,23 @@
           }
         }
       },
+      "AnnounceRequest": {
+        "required": [
+          "message"
+        ],
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "color": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
       "AuthResultDto": {
         "required": [
           "accessToken",
@@ -33582,6 +36738,17 @@
           }
         }
       },
+      "BillingPortalDto": {
+        "required": [
+          "portalUrl"
+        ],
+        "type": "object",
+        "properties": {
+          "portalUrl": {
+            "type": "string"
+          }
+        }
+      },
       "BotStatusDto": {
         "required": [
           "connected",
@@ -33611,6 +36778,43 @@
               "null",
               "string"
             ]
+          }
+        }
+      },
+      "BuiltinCommandDto": {
+        "required": [
+          "builtinKey",
+          "name",
+          "isEnabled",
+          "defaultCooldownSeconds",
+          "defaultMinPermissionLevel"
+        ],
+        "type": "object",
+        "properties": {
+          "builtinKey": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "isEnabled": {
+            "type": "boolean"
+          },
+          "defaultCooldownSeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "defaultMinPermissionLevel": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
           }
         }
       },
@@ -34355,6 +37559,21 @@
           }
         }
       },
+      "CheckoutSessionDto": {
+        "required": [
+          "checkoutUrl",
+          "stripeSessionId"
+        ],
+        "type": "object",
+        "properties": {
+          "checkoutUrl": {
+            "type": "string"
+          },
+          "stripeSessionId": {
+            "type": "string"
+          }
+        }
+      },
       "CheermoteImage": {
         "required": [
           "urls",
@@ -34384,8 +37603,12 @@
           "tier",
           "minPermissionLevel",
           "isEnabled",
+          "templateResponse",
+          "templateResponses",
+          "pipelineId",
           "cooldownSeconds",
           "cooldownPerUser",
+          "description",
           "aliases",
           "useCount",
           "createdAt",
@@ -34474,6 +37697,91 @@
           "updatedAt": {
             "type": "string",
             "format": "date-time"
+          }
+        }
+      },
+      "CommandListItem": {
+        "required": [
+          "id",
+          "name",
+          "tier",
+          "minPermissionLevel",
+          "isEnabled",
+          "cooldownSeconds",
+          "description",
+          "aliases",
+          "useCount",
+          "createdAt",
+          "templateResponse",
+          "pipelineId"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "tier": {
+            "type": "string"
+          },
+          "minPermissionLevel": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "isEnabled": {
+            "type": "boolean"
+          },
+          "cooldownSeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "aliases": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "useCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "templateResponse": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "pipelineId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
           }
         }
       },
@@ -34761,8 +38069,7 @@
       },
       "CreateCommandDto": {
         "required": [
-          "name",
-          "type"
+          "name"
         ],
         "type": "object",
         "properties": {
@@ -34770,20 +38077,25 @@
             "maxLength": 100,
             "type": "string"
           },
-          "type": {
+          "tier": {
             "type": "string"
           },
-          "permission": {
-            "type": "string"
+          "minPermissionLevel": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
           },
-          "response": {
+          "templateResponse": {
             "maxLength": 2000,
             "type": [
               "null",
               "string"
             ]
           },
-          "responses": {
+          "templateResponses": {
             "type": [
               "null",
               "array"
@@ -34792,7 +38104,13 @@
               "type": "string"
             }
           },
-          "pipeline": {},
+          "pipelineId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
           "cooldownSeconds": {
             "maximum": 86400,
             "minimum": 0,
@@ -35115,7 +38433,78 @@
           "isEnabled": {
             "type": "boolean"
           },
-          "graph": {}
+          "triggerKind": {
+            "maxLength": 30,
+            "type": "string"
+          },
+          "graphJsonCache": { }
+        }
+      },
+      "CreatePollDto": {
+        "required": [
+          "title",
+          "choices",
+          "durationSeconds"
+        ],
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "choices": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "durationSeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "channelPointsVotingEnabled": {
+            "type": "boolean",
+            "default": false
+          },
+          "channelPointsPerVote": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32",
+            "default": 0
+          }
+        }
+      },
+      "CreatePredictionDto": {
+        "required": [
+          "title",
+          "outcomes",
+          "predictionWindowSeconds"
+        ],
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "outcomes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "predictionWindowSeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
         }
       },
       "CreateRewardRequest": {
@@ -35253,11 +38642,17 @@
             "type": "string"
           },
           "messages": {
-            "minItems": 1,
             "type": "array",
             "items": {
               "type": "string"
             }
+          },
+          "pipelineId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
           },
           "intervalMinutes": {
             "maximum": 1440,
@@ -36188,6 +39583,65 @@
       "EmoteProvider": {
         "type": "integer"
       },
+      "EndPollDto": {
+        "required": [
+          "status"
+        ],
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          }
+        }
+      },
+      "EndPredictionDto": {
+        "required": [
+          "status"
+        ],
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "winningOutcomeId": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "EntitlementDto": {
+        "required": [
+          "tierKey",
+          "allowsCustomBotName",
+          "prioritySupport",
+          "limits"
+        ],
+        "type": "object",
+        "properties": {
+          "tierKey": {
+            "type": "string"
+          },
+          "allowsCustomBotName": {
+            "type": "boolean"
+          },
+          "prioritySupport": {
+            "type": "boolean"
+          },
+          "limits": {
+            "type": "object",
+            "additionalProperties": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int64"
+            }
+          }
+        }
+      },
       "EventJournalImportSummary": {
         "required": [
           "totalLines",
@@ -36238,6 +39692,7 @@
           "isEnabled",
           "responseType",
           "message",
+          "pipelineId",
           "metadata",
           "createdAt",
           "updatedAt"
@@ -36245,12 +39700,8 @@
         "type": "object",
         "properties": {
           "id": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
+            "type": "string",
+            "format": "uuid"
           },
           "eventType": {
             "type": "string"
@@ -36267,6 +39718,13 @@
               "string"
             ]
           },
+          "pipelineId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
           "metadata": {
             "type": "object",
             "additionalProperties": {
@@ -36280,13 +39738,6 @@
           "updatedAt": {
             "type": "string",
             "format": "date-time"
-          },
-          "pipelineId": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "format": "uuid"
           }
         }
       },
@@ -36301,12 +39752,8 @@
         "type": "object",
         "properties": {
           "id": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
+            "type": "string",
+            "format": "uuid"
           },
           "eventType": {
             "type": "string"
@@ -36573,6 +40020,34 @@
           },
           "isActive": {
             "type": "boolean"
+          }
+        }
+      },
+      "FoundersBadgeDto": {
+        "required": [
+          "id",
+          "grantedAt",
+          "isActive",
+          "inviteCode"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "grantedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "isActive": {
+            "type": "boolean"
+          },
+          "inviteCode": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -37115,6 +40590,49 @@
           }
         }
       },
+      "InviteCodeValidationDto": {
+        "required": [
+          "isValid",
+          "code",
+          "grantsFoundersBadge",
+          "grantsTierKey",
+          "remainingRedemptions",
+          "expiresAt"
+        ],
+        "type": "object",
+        "properties": {
+          "isValid": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "grantsFoundersBadge": {
+            "type": "boolean"
+          },
+          "grantsTierKey": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "remainingRedemptions": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "expiresAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
       "InvoiceDto": {
         "required": [
           "id",
@@ -37332,7 +40850,7 @@
           }
         }
       },
-      "JsonElement": {},
+      "JsonElement": { },
       "LeaderboardEntryDto": {
         "required": [
           "rank",
@@ -37722,6 +41240,73 @@
           },
           "minTrustLevel": {
             "type": "string"
+          }
+        }
+      },
+      "MusicDeviceDto": {
+        "required": [
+          "id",
+          "name",
+          "type",
+          "isActive",
+          "volumePercent"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "isActive": {
+            "type": "boolean"
+          },
+          "volumePercent": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "MusicPlaylistDto": {
+        "required": [
+          "id",
+          "name",
+          "uri",
+          "trackCount",
+          "imageUrl"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "uri": {
+            "type": "string"
+          },
+          "trackCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "imageUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -38219,13 +41804,13 @@
           }
         }
       },
-      "PaginatedResponseOfCommandDto": {
+      "PaginatedResponseOfCommandListItem": {
         "type": "object",
         "properties": {
           "data": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/CommandDto"
+              "$ref": "#/components/schemas/CommandListItem"
             }
           },
           "nextPage": {
@@ -39219,7 +42804,8 @@
           "name",
           "description",
           "isEnabled",
-          "graph",
+          "triggerKind",
+          "graphJsonCache",
           "triggerCount",
           "lastTriggeredAt",
           "createdAt",
@@ -39228,12 +42814,8 @@
         "type": "object",
         "properties": {
           "id": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
+            "type": "string",
+            "format": "uuid"
           },
           "channelId": {
             "type": "string"
@@ -39250,14 +42832,26 @@
           "isEnabled": {
             "type": "boolean"
           },
-          "graph": {},
+          "triggerKind": {
+            "type": "string"
+          },
+          "graphJsonCache": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/JsonElement"
+              }
+            ]
+          },
           "triggerCount": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "integer",
               "string"
             ],
-            "format": "int32"
+            "format": "int64"
           },
           "lastTriggeredAt": {
             "type": [
@@ -39276,6 +42870,20 @@
           }
         }
       },
+      "PipelineGraphInput": {
+        "required": [
+          "steps"
+        ],
+        "type": "object",
+        "properties": {
+          "steps": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PipelineStepInput"
+            }
+          }
+        }
+      },
       "PipelineListItemDto": {
         "required": [
           "id",
@@ -39289,12 +42897,8 @@
         "type": "object",
         "properties": {
           "id": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
+            "type": "string",
+            "format": "uuid"
           },
           "name": {
             "type": "string"
@@ -39314,7 +42918,7 @@
               "integer",
               "string"
             ],
-            "format": "int32"
+            "format": "int64"
           },
           "lastTriggeredAt": {
             "type": [
@@ -39326,6 +42930,57 @@
           "updatedAt": {
             "type": "string",
             "format": "date-time"
+          }
+        }
+      },
+      "PipelineStepInput": {
+        "required": [
+          "actionType",
+          "config"
+        ],
+        "type": "object",
+        "properties": {
+          "actionType": {
+            "type": "string"
+          },
+          "config": {
+            "type": "object"
+          },
+          "conditionType": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "conditionParams": {
+            "type": [
+              "null",
+              "object"
+            ]
+          },
+          "isEnabled": {
+            "type": "boolean",
+            "default": true
+          }
+        }
+      },
+      "PipelineValidationResult": {
+        "type": "object",
+        "properties": {
+          "isValid": {
+            "type": "boolean"
+          },
+          "errorCode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "errorMessage": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -39344,6 +42999,17 @@
             "type": "string"
           },
           "type": {
+            "type": "string"
+          }
+        }
+      },
+      "PlayContextDto": {
+        "required": [
+          "contextUri"
+        ],
+        "type": "object",
+        "properties": {
+          "contextUri": {
             "type": "string"
           }
         }
@@ -39394,6 +43060,44 @@
           }
         }
       },
+      "ProblemDetails": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "title": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "status": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "detail": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "instance": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
       "ProjectionRebuildResult": {
         "required": [
           "projectionName",
@@ -39411,6 +43115,34 @@
               "string"
             ],
             "format": "int64"
+          }
+        }
+      },
+      "PronounDto": {
+        "required": [
+          "id",
+          "name",
+          "subject",
+          "object"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "name": {
+            "type": "string"
+          },
+          "subject": {
+            "type": "string"
+          },
+          "object": {
+            "type": "string"
           }
         }
       },
@@ -39553,6 +43285,35 @@
           }
         }
       },
+      "RedeemInviteCodeResultDto": {
+        "required": [
+          "grantedFoundersBadge",
+          "grantedTierKey",
+          "foundersBadge"
+        ],
+        "type": "object",
+        "properties": {
+          "grantedFoundersBadge": {
+            "type": "boolean"
+          },
+          "grantedTierKey": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "foundersBadge": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/FoundersBadgeDto"
+              }
+            ]
+          }
+        }
+      },
       "RedemptionListItem": {
         "required": [
           "redemptionId",
@@ -39672,6 +43433,17 @@
             "type": "string"
           },
           "algorithm": {
+            "type": "string"
+          }
+        }
+      },
+      "RepeatDto": {
+        "required": [
+          "mode"
+        ],
+        "type": "object",
+        "properties": {
+          "mode": {
             "type": "string"
           }
         }
@@ -39946,6 +43718,42 @@
           }
         }
       },
+      "SeekDto": {
+        "required": [
+          "positionMs"
+        ],
+        "type": "object",
+        "properties": {
+          "positionMs": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "SelfStandingDto": {
+        "required": [
+          "standing",
+          "levelValue"
+        ],
+        "type": "object",
+        "properties": {
+          "standing": {
+            "type": "string"
+          },
+          "levelValue": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
       "SendChatMessageRequest": {
         "required": [
           "message"
@@ -40015,6 +43823,17 @@
         "type": "object",
         "properties": {
           "optedOut": {
+            "type": "boolean"
+          }
+        }
+      },
+      "SetBuiltinEnabledRequest": {
+        "required": [
+          "enabled"
+        ],
+        "type": "object",
+        "properties": {
+          "enabled": {
             "type": "boolean"
           }
         }
@@ -40280,6 +44099,28 @@
           }
         }
       },
+      "ShoutoutRequest": {
+        "required": [
+          "targetTwitchUserId"
+        ],
+        "type": "object",
+        "properties": {
+          "targetTwitchUserId": {
+            "type": "string"
+          }
+        }
+      },
+      "ShuffleDto": {
+        "required": [
+          "enabled"
+        ],
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          }
+        }
+      },
       "SongRequestDto": {
         "required": [
           "query"
@@ -40321,6 +44162,33 @@
               "null",
               "string"
             ]
+          }
+        }
+      },
+      "StartCommercialDto": {
+        "required": [
+          "lengthSeconds"
+        ],
+        "type": "object",
+        "properties": {
+          "lengthSeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "StartRaidDto": {
+        "required": [
+          "targetTwitchBroadcasterId"
+        ],
+        "type": "object",
+        "properties": {
+          "targetTwitchBroadcasterId": {
+            "type": "string"
           }
         }
       },
@@ -40397,6 +44265,36 @@
               },
               {
                 "$ref": "#/components/schemas/AutomodConfigDto"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
+      "StatusResponseDtoOfBillingPortalDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/BillingPortalDto"
               }
             ]
           },
@@ -40510,6 +44408,36 @@
               },
               {
                 "$ref": "#/components/schemas/ChatSettingsDto"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
+      "StatusResponseDtoOfCheckoutSessionDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/CheckoutSessionDto"
               }
             ]
           },
@@ -40887,6 +44815,36 @@
           }
         }
       },
+      "StatusResponseDtoOfEntitlementDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/EntitlementDto"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
       "StatusResponseDtoOfEventJournalImportSummary": {
         "type": "object",
         "properties": {
@@ -41037,6 +44995,36 @@
           }
         }
       },
+      "StatusResponseDtoOfFoundersBadgeDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/FoundersBadgeDto"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
       "StatusResponseDtoOfIntegrationsResponse": {
         "type": "object",
         "properties": {
@@ -41052,6 +45040,65 @@
                 "$ref": "#/components/schemas/IntegrationsResponse"
               }
             ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
+      "StatusResponseDtoOfInviteCodeValidationDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/InviteCodeValidationDto"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
+      "StatusResponseDtoOfIReadOnlyListOfBuiltinCommandDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/BuiltinCommandDto"
+            }
           },
           "message": {
             "type": [
@@ -41212,6 +45259,64 @@
           }
         }
       },
+      "StatusResponseDtoOfIReadOnlyListOfMusicDeviceDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/MusicDeviceDto"
+            }
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
+      "StatusResponseDtoOfIReadOnlyListOfMusicPlaylistDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/MusicPlaylistDto"
+            }
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
       "StatusResponseDtoOfIReadOnlyListOfProjectionRebuildResult": {
         "type": "object",
         "properties": {
@@ -41241,6 +45346,35 @@
           }
         }
       },
+      "StatusResponseDtoOfIReadOnlyListOfTierDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/TierDto"
+            }
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
       "StatusResponseDtoOfIReadOnlyListOfTtsVoiceDto": {
         "type": "object",
         "properties": {
@@ -41254,6 +45388,35 @@
             ],
             "items": {
               "$ref": "#/components/schemas/TtsVoiceDto"
+            }
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
+      "StatusResponseDtoOfIReadOnlyListOfUsageMetricDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/UsageMetricDto"
             }
           },
           "message": {
@@ -41545,6 +45708,35 @@
             ],
             "items": {
               "$ref": "#/components/schemas/PlatformEventDto"
+            }
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
+      "StatusResponseDtoOfListOfPronounDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/PronounDto"
             }
           },
           "message": {
@@ -41864,7 +46056,7 @@
           "status": {
             "type": "string"
           },
-          "data": {},
+          "data": { },
           "message": {
             "type": [
               "null",
@@ -41909,6 +46101,36 @@
           }
         }
       },
+      "StatusResponseDtoOfPipelineValidationResult": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PipelineValidationResult"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
       "StatusResponseDtoOfQuoteDto": {
         "type": "object",
         "properties": {
@@ -41922,6 +46144,36 @@
               },
               {
                 "$ref": "#/components/schemas/QuoteDto"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
+      "StatusResponseDtoOfRedeemInviteCodeResultDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/RedeemInviteCodeResultDto"
               }
             ]
           },
@@ -42012,6 +46264,36 @@
               },
               {
                 "$ref": "#/components/schemas/ScopesResponseDto"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
+      "StatusResponseDtoOfSelfStandingDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/SelfStandingDto"
               }
             ]
           },
@@ -42145,6 +46427,36 @@
           }
         }
       },
+      "StatusResponseDtoOfSubscriptionDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/SubscriptionDto"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
       "StatusResponseDtoOfSystemStatusDto": {
         "type": "object",
         "properties": {
@@ -42248,6 +46560,216 @@
               },
               {
                 "$ref": "#/components/schemas/TtsTestResultDto"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
+      "StatusResponseDtoOfTwitchAdSchedule": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/TwitchAdSchedule"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
+      "StatusResponseDtoOfTwitchAdSnooze": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/TwitchAdSnooze"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
+      "StatusResponseDtoOfTwitchClipStub": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/TwitchClipStub"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
+      "StatusResponseDtoOfTwitchCommercial": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/TwitchCommercial"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
+      "StatusResponseDtoOfTwitchPoll": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/TwitchPoll"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
+      "StatusResponseDtoOfTwitchPrediction": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/TwitchPrediction"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
+      "StatusResponseDtoOfTwitchRaid": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/TwitchRaid"
               }
             ]
           },
@@ -42539,6 +47061,75 @@
           }
         }
       },
+      "SubscriptionDto": {
+        "required": [
+          "id",
+          "broadcasterId",
+          "tierKey",
+          "tierDisplayName",
+          "status",
+          "cancelAtPeriodEnd",
+          "currentPeriodEnd",
+          "trialEndsAt",
+          "gracePeriodEndsAt",
+          "isInviteOnlyGrant",
+          "allowsCustomBotName",
+          "prioritySupport"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "broadcasterId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "tierKey": {
+            "type": "string"
+          },
+          "tierDisplayName": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "cancelAtPeriodEnd": {
+            "type": "boolean"
+          },
+          "currentPeriodEnd": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "trialEndsAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "gracePeriodEndsAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "isInviteOnlyGrant": {
+            "type": "boolean"
+          },
+          "allowsCustomBotName": {
+            "type": "boolean"
+          },
+          "prioritySupport": {
+            "type": "boolean"
+          }
+        }
+      },
       "SystemChecks": {
         "required": [
           "twitchApp",
@@ -42602,6 +47193,83 @@
           }
         }
       },
+      "TierDto": {
+        "required": [
+          "id",
+          "key",
+          "displayName",
+          "priceCents",
+          "currency",
+          "allowsCustomBotName",
+          "prioritySupport",
+          "sortOrder",
+          "limits"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "key": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "priceCents": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "allowsCustomBotName": {
+            "type": "boolean"
+          },
+          "prioritySupport": {
+            "type": "boolean"
+          },
+          "sortOrder": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "limits": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TierLimitDto"
+            }
+          }
+        }
+      },
+      "TierLimitDto": {
+        "required": [
+          "limitKey",
+          "limitValue"
+        ],
+        "type": "object",
+        "properties": {
+          "limitKey": {
+            "type": "string"
+          },
+          "limitValue": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          }
+        }
+      },
       "TimerDto": {
         "required": [
           "id",
@@ -42610,6 +47278,7 @@
           "intervalMinutes",
           "minChatActivity",
           "isEnabled",
+          "pipelineId",
           "lastFiredAt",
           "nextMessageIndex",
           "createdAt",
@@ -42618,12 +47287,8 @@
         "type": "object",
         "properties": {
           "id": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
+            "type": "string",
+            "format": "uuid"
           },
           "name": {
             "type": "string"
@@ -42652,6 +47317,13 @@
           },
           "isEnabled": {
             "type": "boolean"
+          },
+          "pipelineId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
           },
           "lastFiredAt": {
             "type": [
@@ -42691,12 +47363,8 @@
         "type": "object",
         "properties": {
           "id": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
+            "type": "string",
+            "format": "uuid"
           },
           "name": {
             "type": "string"
@@ -42774,6 +47442,21 @@
               "string"
             ],
             "format": "uuid"
+          }
+        }
+      },
+      "TransferDto": {
+        "required": [
+          "deviceId"
+        ],
+        "type": "object",
+        "properties": {
+          "deviceId": {
+            "type": "string"
+          },
+          "play": {
+            "type": "boolean",
+            "default": false
           }
         }
       },
@@ -42889,6 +47572,448 @@
             "type": "string"
           },
           "isDefault": {
+            "type": "boolean"
+          }
+        }
+      },
+      "TwitchAdSchedule": {
+        "required": [
+          "snoozeCount",
+          "snoozeRefreshAt",
+          "nextAdAt",
+          "duration",
+          "lastAdAt",
+          "prerollFreeTime"
+        ],
+        "type": "object",
+        "properties": {
+          "snoozeCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "snoozeRefreshAt": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "nextAdAt": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "duration": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "lastAdAt": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "prerollFreeTime": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "TwitchAdSnooze": {
+        "required": [
+          "snoozeCount",
+          "snoozeRefreshAt",
+          "nextAdAt"
+        ],
+        "type": "object",
+        "properties": {
+          "snoozeCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "snoozeRefreshAt": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "nextAdAt": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "TwitchClipStub": {
+        "required": [
+          "id",
+          "editUrl"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "editUrl": {
+            "type": "string"
+          }
+        }
+      },
+      "TwitchCommercial": {
+        "required": [
+          "length",
+          "message",
+          "retryAfter"
+        ],
+        "type": "object",
+        "properties": {
+          "length": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "message": {
+            "type": "string"
+          },
+          "retryAfter": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "TwitchPoll": {
+        "required": [
+          "id",
+          "broadcasterId",
+          "broadcasterName",
+          "broadcasterLogin",
+          "title",
+          "choices",
+          "bitsVotingEnabled",
+          "bitsPerVote",
+          "channelPointsVotingEnabled",
+          "channelPointsPerVote",
+          "status",
+          "duration",
+          "startedAt",
+          "endedAt"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "broadcasterId": {
+            "type": "string"
+          },
+          "broadcasterName": {
+            "type": "string"
+          },
+          "broadcasterLogin": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "choices": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TwitchPollChoice"
+            }
+          },
+          "bitsVotingEnabled": {
+            "type": "boolean"
+          },
+          "bitsPerVote": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "channelPointsVotingEnabled": {
+            "type": "boolean"
+          },
+          "channelPointsPerVote": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "status": {
+            "type": "string"
+          },
+          "duration": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
+      "TwitchPollChoice": {
+        "required": [
+          "id",
+          "title",
+          "votes",
+          "channelPointsVotes",
+          "bitsVotes"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "votes": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "channelPointsVotes": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "bitsVotes": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "TwitchPrediction": {
+        "required": [
+          "id",
+          "broadcasterId",
+          "broadcasterName",
+          "broadcasterLogin",
+          "title",
+          "winningOutcomeId",
+          "outcomes",
+          "predictionWindow",
+          "status",
+          "createdAt",
+          "endedAt",
+          "lockedAt"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "broadcasterId": {
+            "type": "string"
+          },
+          "broadcasterName": {
+            "type": "string"
+          },
+          "broadcasterLogin": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "winningOutcomeId": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "outcomes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TwitchPredictionOutcome"
+            }
+          },
+          "predictionWindow": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "status": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "lockedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
+      "TwitchPredictionOutcome": {
+        "required": [
+          "id",
+          "title",
+          "users",
+          "channelPoints",
+          "topPredictors",
+          "color"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "users": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "channelPoints": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "topPredictors": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/TwitchPredictionTopPredictor"
+            }
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      },
+      "TwitchPredictionTopPredictor": {
+        "required": [
+          "userId",
+          "userName",
+          "userLogin",
+          "channelPointsUsed",
+          "channelPointsWon"
+        ],
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string"
+          },
+          "userName": {
+            "type": "string"
+          },
+          "userLogin": {
+            "type": "string"
+          },
+          "channelPointsUsed": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "channelPointsWon": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "TwitchRaid": {
+        "required": [
+          "createdAt",
+          "isMature"
+        ],
+        "type": "object",
+        "properties": {
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "isMature": {
             "type": "boolean"
           }
         }
@@ -43093,26 +48218,29 @@
       "UpdateCommandDto": {
         "type": "object",
         "properties": {
-          "type": {
+          "tier": {
             "type": [
               "null",
               "string"
             ]
           },
-          "permission": {
+          "minPermissionLevel": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "null",
+              "integer",
               "string"
-            ]
+            ],
+            "format": "int32"
           },
-          "response": {
+          "templateResponse": {
             "maxLength": 2000,
             "type": [
               "null",
               "string"
             ]
           },
-          "responses": {
+          "templateResponses": {
             "type": [
               "null",
               "array"
@@ -43121,7 +48249,13 @@
               "type": "string"
             }
           },
-          "pipeline": {},
+          "pipelineId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
           "cooldownSeconds": {
             "maximum": 86400,
             "minimum": 0,
@@ -43262,11 +48396,12 @@
               "string"
             ]
           },
-          "pipelineJson": {
+          "pipelineId": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "format": "uuid"
           },
           "metadata": {
             "type": [
@@ -43512,7 +48647,14 @@
               "boolean"
             ]
           },
-          "graph": {}
+          "triggerKind": {
+            "maxLength": 30,
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "graphJsonCache": { }
         }
       },
       "UpdateRewardRequest": {
@@ -43668,6 +48810,13 @@
               "type": "string"
             }
           },
+          "pipelineId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
           "intervalMinutes": {
             "maximum": 1440,
             "minimum": 1,
@@ -43771,6 +48920,15 @@
               "null",
               "string"
             ]
+          },
+          "pronounId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
           }
         }
       },
@@ -44112,8 +49270,58 @@
           }
         }
       },
+      "UsageMetricDto": {
+        "required": [
+          "metricKey",
+          "used",
+          "limit",
+          "remaining",
+          "periodStart",
+          "periodEnd"
+        ],
+        "type": "object",
+        "properties": {
+          "metricKey": {
+            "type": "string"
+          },
+          "used": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "limit": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "remaining": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "periodStart": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "periodEnd": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
       "UserChannelAppearanceDto": {
         "required": [
+          "id",
+          "channelId",
           "channelName",
           "followDate",
           "messages",
@@ -44121,6 +49329,12 @@
         ],
         "type": "object",
         "properties": {
+          "id": {
+            "type": "string"
+          },
+          "channelId": {
+            "type": "string"
+          },
           "channelName": {
             "type": "string"
           },
@@ -44276,6 +49490,7 @@
           "profileImageUrl",
           "email",
           "pronoun",
+          "pronounId",
           "createdAt",
           "lastLoginAt"
         ],
@@ -44307,6 +49522,15 @@
               "null",
               "string"
             ]
+          },
+          "pronounId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
           },
           "createdAt": {
             "type": "string",
@@ -44457,7 +49681,10 @@
       "name": "Billing"
     },
     {
-      "name": "Economy \u00e2\u20ac\u201d Catalog"
+      "name": "Commands"
+    },
+    {
+      "name": "Economy — Catalog"
     },
     {
       "name": "Channel Bot"
@@ -44475,13 +49702,10 @@
       "name": "Custom Code"
     },
     {
-      "name": "Commands"
-    },
-    {
       "name": "Community"
     },
     {
-      "name": "Economy \u00e2\u20ac\u201d Currency"
+      "name": "Economy — Currency"
     },
     {
       "name": "Dashboard"
@@ -44493,7 +49717,7 @@
       "name": "Integration OAuth"
     },
     {
-      "name": "Economy \u00e2\u20ac\u201d Leaderboards"
+      "name": "Economy — Leaderboards"
     },
     {
       "name": "EventResponses"
@@ -44511,10 +49735,13 @@
       "name": "Features"
     },
     {
-      "name": "Economy \u00e2\u20ac\u201d Games"
+      "name": "Economy — Games"
     },
     {
       "name": "Integrations"
+    },
+    {
+      "name": "LiveOps"
     },
     {
       "name": "Moderation"
@@ -44547,7 +49774,7 @@
       "name": "Roles"
     },
     {
-      "name": "Economy \u00e2\u20ac\u201d Savings Jars"
+      "name": "Economy — Savings Jars"
     },
     {
       "name": "Stream"

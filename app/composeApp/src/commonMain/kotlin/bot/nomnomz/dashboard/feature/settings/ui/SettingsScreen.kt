@@ -41,6 +41,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -55,8 +56,13 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.ui.platform.LocalUriHandler
+import bot.nomnomz.dashboard.core.network.BillingInvoice
+import bot.nomnomz.dashboard.core.network.BillingSubscription
 import bot.nomnomz.dashboard.core.network.ChannelScope
+import bot.nomnomz.dashboard.core.network.InviteCodeValidation
 import bot.nomnomz.dashboard.core.network.StreamInfo
+import bot.nomnomz.dashboard.feature.settings.state.BillingController
+import bot.nomnomz.dashboard.feature.settings.state.BillingState
 import bot.nomnomz.dashboard.feature.settings.state.ChannelBotController
 import bot.nomnomz.dashboard.feature.settings.state.ChannelBotState
 import bot.nomnomz.dashboard.feature.settings.state.JournalPortabilityController
@@ -135,6 +141,39 @@ import nomnomzbot.composeapp.generated.resources.settings_channel_bot_scopes_gra
 import nomnomzbot.composeapp.generated.resources.settings_channel_bot_scopes_title
 import nomnomzbot.composeapp.generated.resources.settings_channel_bot_subtitle
 import nomnomzbot.composeapp.generated.resources.settings_channel_bot_title
+import nomnomzbot.composeapp.generated.resources.settings_billing_cancel_confirm
+import nomnomzbot.composeapp.generated.resources.settings_billing_cancel_dismiss
+import nomnomzbot.composeapp.generated.resources.settings_billing_cancel_message
+import nomnomzbot.composeapp.generated.resources.settings_billing_cancel_title
+import nomnomzbot.composeapp.generated.resources.settings_billing_cancels
+import nomnomzbot.composeapp.generated.resources.settings_billing_current_plan
+import nomnomzbot.composeapp.generated.resources.settings_billing_founders_badge
+import nomnomzbot.composeapp.generated.resources.settings_billing_founders_badge_granted
+import nomnomzbot.composeapp.generated.resources.settings_billing_invite_invalid
+import nomnomzbot.composeapp.generated.resources.settings_billing_invite_placeholder
+import nomnomzbot.composeapp.generated.resources.settings_billing_invite_redeem
+import nomnomzbot.composeapp.generated.resources.settings_billing_invite_title
+import nomnomzbot.composeapp.generated.resources.settings_billing_invite_valid
+import nomnomzbot.composeapp.generated.resources.settings_billing_invite_validate
+import nomnomzbot.composeapp.generated.resources.settings_billing_invoice_open
+import nomnomzbot.composeapp.generated.resources.settings_billing_invoice_paid
+import nomnomzbot.composeapp.generated.resources.settings_billing_invoice_view
+import nomnomzbot.composeapp.generated.resources.settings_billing_invoice_void
+import nomnomzbot.composeapp.generated.resources.settings_billing_invoices_title
+import nomnomzbot.composeapp.generated.resources.settings_billing_manage
+import nomnomzbot.composeapp.generated.resources.settings_billing_renews
+import nomnomzbot.composeapp.generated.resources.settings_billing_resume
+import nomnomzbot.composeapp.generated.resources.settings_billing_self_host
+import nomnomzbot.composeapp.generated.resources.settings_billing_self_host_detail
+import nomnomzbot.composeapp.generated.resources.settings_billing_status_active
+import nomnomzbot.composeapp.generated.resources.settings_billing_status_canceled
+import nomnomzbot.composeapp.generated.resources.settings_billing_status_past_due
+import nomnomzbot.composeapp.generated.resources.settings_billing_status_trialing
+import nomnomzbot.composeapp.generated.resources.settings_billing_status_unknown
+import nomnomzbot.composeapp.generated.resources.settings_billing_subtitle
+import nomnomzbot.composeapp.generated.resources.settings_billing_title
+import nomnomzbot.composeapp.generated.resources.settings_billing_usage_of
+import nomnomzbot.composeapp.generated.resources.settings_billing_usage_title
 import org.jetbrains.compose.resources.stringResource
 
 // The Settings page: an editable form over the channel's stream metadata — the live status plus the editable
@@ -148,6 +187,7 @@ fun SettingsScreen(
     controller: SettingsController,
     journalController: JournalPortabilityController,
     channelBotController: ChannelBotController,
+    billingController: BillingController,
     role: ManagementRole?,
     onChannelDeleted: () -> Unit = {},
 ) {
@@ -213,6 +253,8 @@ fun SettingsScreen(
         }
 
         ChannelBotSection(controller = channelBotController, manage = ownerManage)
+
+        BillingSection(controller = billingController, manage = ownerManage)
 
         EventJournalSection(controller = journalController, manage = ownerManage)
     }
@@ -1000,5 +1042,374 @@ private fun RowScope.JournalStatus(state: JournalPortabilityState, onDismiss: ()
             TextButton(onClick = onDismiss) { Text(stringResource(Res.string.journal_dismiss)) }
         }
         else -> Box(modifier = Modifier.weight(1f))
+    }
+}
+
+// ── Billing section ──────────────────────────────────────────────────────────
+
+@Composable
+private fun BillingSection(controller: BillingController, manage: ManageDecision) {
+    val state: BillingState by controller.state.collectAsStateWithLifecycle()
+    val tokens = LocalTokens.current
+    val typography = LocalTypography.current
+    val spacing = LocalSpacing.current
+    val scope = rememberCoroutineScope()
+    val uriHandler = LocalUriHandler.current
+
+    LaunchedEffect(Unit) { controller.load() }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(tokens.card, RoundedCornerShape(spacing.s2))
+            .padding(spacing.s4),
+        verticalArrangement = Arrangement.spacedBy(spacing.s3),
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Column {
+                Text(
+                    text = stringResource(Res.string.settings_billing_title),
+                    style = typography.sm.copy(fontWeight = FontWeight.SemiBold),
+                    color = tokens.cardForeground,
+                )
+                Text(
+                    text = stringResource(Res.string.settings_billing_subtitle),
+                    style = typography.xs,
+                    color = tokens.mutedForeground,
+                )
+            }
+        }
+
+        when (val current: BillingState = state) {
+            BillingState.Loading -> {
+                Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(modifier = Modifier.size(spacing.s6))
+                }
+            }
+            is BillingState.Error -> {
+                Text(
+                    text = current.detail,
+                    style = typography.sm,
+                    color = tokens.destructive,
+                )
+            }
+            is BillingState.Ready -> {
+                BillingReadyContent(
+                    state = current,
+                    manage = manage,
+                    onManage = {
+                        scope.launch {
+                            val url: String? = controller.openPortal()
+                            if (url != null) uriHandler.openUri(url)
+                        }
+                    },
+                    onResume = { scope.launch { controller.resume() } },
+                    onCancel = { scope.launch { controller.cancel() } },
+                    onRedeemInvite = { code -> scope.launch { controller.redeemInvite(code) } },
+                )
+                if (current.actionError != null) {
+                    Text(
+                        text = current.actionError,
+                        style = typography.xs,
+                        color = tokens.destructive,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun BillingReadyContent(
+    state: BillingState.Ready,
+    manage: ManageDecision,
+    onManage: () -> Unit,
+    onResume: () -> Unit,
+    onCancel: () -> Unit,
+    onRedeemInvite: (String) -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val typography = LocalTypography.current
+    val spacing = LocalSpacing.current
+    val uriHandler = LocalUriHandler.current
+
+    // ── Current plan row ──────────────────────────────────────────────────────
+    Column(verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
+        Text(
+            text = stringResource(Res.string.settings_billing_current_plan),
+            style = typography.xs,
+            color = tokens.mutedForeground,
+        )
+        Row(
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Column {
+                Text(
+                    text = if (state.isSelfHost) stringResource(Res.string.settings_billing_self_host)
+                    else state.subscription.tierDisplayName,
+                    style = typography.sm.copy(fontWeight = FontWeight.SemiBold),
+                    color = tokens.cardForeground,
+                )
+                if (state.isSelfHost) {
+                    Text(
+                        text = stringResource(Res.string.settings_billing_self_host_detail),
+                        style = typography.xs,
+                        color = tokens.mutedForeground,
+                    )
+                } else {
+                    BillingStatusBadge(subscription = state.subscription)
+                }
+            }
+            if (!state.isSelfHost) {
+                ManageGate(manage) {
+                    if (state.subscription.cancelAtPeriodEnd) {
+                        OutlinedButton(onClick = onResume) {
+                            Text(
+                                stringResource(Res.string.settings_billing_resume),
+                                style = typography.sm,
+                            )
+                        }
+                    } else {
+                        OutlinedButton(onClick = onManage) {
+                            Text(
+                                stringResource(Res.string.settings_billing_manage),
+                                style = typography.sm,
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // ── Usage metrics (SaaS only, when data is present) ───────────────────────
+    if (!state.isSelfHost && state.usage.isNotEmpty()) {
+        Column(verticalArrangement = Arrangement.spacedBy(spacing.s1_5)) {
+            Text(
+                text = stringResource(Res.string.settings_billing_usage_title),
+                style = typography.xs,
+                color = tokens.mutedForeground,
+            )
+            state.usage.forEach { metric ->
+                Row(
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(
+                        text = metric.metricKey,
+                        style = typography.xs,
+                        color = tokens.mutedForeground,
+                    )
+                    Text(
+                        text = stringResource(
+                            Res.string.settings_billing_usage_of,
+                            metric.used.toInt(),
+                            metric.limit.toInt(),
+                        ),
+                        style = typography.xs,
+                        color = tokens.cardForeground,
+                    )
+                }
+            }
+        }
+    }
+
+    // ── Invoices (SaaS only) ──────────────────────────────────────────────────
+    if (!state.isSelfHost && state.invoices.isNotEmpty()) {
+        Column(verticalArrangement = Arrangement.spacedBy(spacing.s1_5)) {
+            Text(
+                text = stringResource(Res.string.settings_billing_invoices_title),
+                style = typography.xs,
+                color = tokens.mutedForeground,
+            )
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = spacing.s16 * 3)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(spacing.s1),
+            ) {
+                state.invoices.forEach { invoice ->
+                    InvoiceRow(invoice = invoice, onView = { url -> uriHandler.openUri(url) })
+                }
+            }
+        }
+    }
+
+    // ── Invite code ───────────────────────────────────────────────────────────
+    BillingInviteSection(onRedeem = onRedeemInvite)
+
+    // ── Founder's badge ───────────────────────────────────────────────────────
+    if (state.foundersBadge != null && state.foundersBadge.isActive) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = stringResource(Res.string.settings_billing_founders_badge),
+                style = typography.sm.copy(fontWeight = FontWeight.SemiBold),
+                color = tokens.cardForeground,
+            )
+            Text(
+                text = stringResource(
+                    Res.string.settings_billing_founders_badge_granted,
+                    state.foundersBadge.grantedAt,
+                ),
+                style = typography.xs,
+                color = tokens.mutedForeground,
+            )
+        }
+    }
+}
+
+@Composable
+private fun BillingStatusBadge(subscription: BillingSubscription) {
+    val tokens = LocalTokens.current
+    val typography = LocalTypography.current
+    val spacing = LocalSpacing.current
+    val label: String = when (subscription.status.lowercase()) {
+        "active" -> stringResource(Res.string.settings_billing_status_active)
+        "trialing" -> stringResource(Res.string.settings_billing_status_trialing)
+        "canceled", "cancelled" -> stringResource(Res.string.settings_billing_status_canceled)
+        "past_due" -> stringResource(Res.string.settings_billing_status_past_due)
+        else -> stringResource(Res.string.settings_billing_status_unknown, subscription.status)
+    }
+    val periodLabel: String? = when {
+        subscription.cancelAtPeriodEnd && subscription.currentPeriodEnd != null ->
+            stringResource(Res.string.settings_billing_cancels, subscription.currentPeriodEnd)
+        subscription.currentPeriodEnd != null ->
+            stringResource(Res.string.settings_billing_renews, subscription.currentPeriodEnd)
+        else -> null
+    }
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier = Modifier
+                .background(tokens.muted, RoundedCornerShape(spacing.s1))
+                .padding(horizontal = spacing.s2, vertical = spacing.s0_5),
+        ) {
+            Text(text = label, style = typography.xs, color = tokens.mutedForeground)
+        }
+        if (periodLabel != null) {
+            Text(text = periodLabel, style = typography.xs, color = tokens.mutedForeground)
+        }
+    }
+}
+
+@Composable
+private fun InvoiceRow(invoice: BillingInvoice, onView: (String) -> Unit) {
+    val tokens = LocalTokens.current
+    val typography = LocalTypography.current
+    val spacing = LocalSpacing.current
+    val statusLabel: String = when (invoice.status.lowercase()) {
+        "paid" -> stringResource(Res.string.settings_billing_invoice_paid)
+        "open" -> stringResource(Res.string.settings_billing_invoice_open)
+        else -> stringResource(Res.string.settings_billing_invoice_void)
+    }
+    val amountFormatted: String =
+        "${invoice.currency.uppercase()} %.2f".format(invoice.amountPaidCents / 100.0)
+    Row(
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = invoice.number ?: invoice.id,
+                style = typography.xs,
+                color = tokens.cardForeground,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = "$statusLabel · $amountFormatted",
+                style = typography.xs,
+                color = tokens.mutedForeground,
+            )
+        }
+        if (invoice.hostedInvoiceUrl != null) {
+            TextButton(onClick = { onView(invoice.hostedInvoiceUrl) }) {
+                Text(
+                    text = stringResource(Res.string.settings_billing_invoice_view),
+                    style = typography.xs,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun BillingInviteSection(onRedeem: (String) -> Unit) {
+    val tokens = LocalTokens.current
+    val typography = LocalTypography.current
+    val spacing = LocalSpacing.current
+    val scope = rememberCoroutineScope()
+    var code: String by remember { mutableStateOf("") }
+    var validationLabel: String? by remember { mutableStateOf(null) }
+    var pendingRedeem: Boolean by remember { mutableStateOf(false) }
+
+    Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
+        Text(
+            text = stringResource(Res.string.settings_billing_invite_title),
+            style = typography.xs,
+            color = tokens.mutedForeground,
+        )
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            OutlinedTextField(
+                value = code,
+                onValueChange = { code = it; validationLabel = null },
+                placeholder = {
+                    Text(
+                        text = stringResource(Res.string.settings_billing_invite_placeholder),
+                        style = typography.sm,
+                    )
+                },
+                singleLine = true,
+                modifier = Modifier.weight(1f),
+            )
+            OutlinedButton(
+                onClick = { pendingRedeem = true },
+                enabled = code.isNotBlank(),
+            ) {
+                Text(
+                    text = stringResource(Res.string.settings_billing_invite_redeem),
+                    style = typography.sm,
+                )
+            }
+        }
+        if (validationLabel != null) {
+            Text(
+                text = validationLabel!!,
+                style = typography.xs,
+                color = tokens.mutedForeground,
+            )
+        }
+    }
+
+    if (pendingRedeem) {
+        ConfirmDialog(
+            title = stringResource(Res.string.settings_billing_invite_redeem),
+            message = code,
+            confirmLabel = stringResource(Res.string.settings_billing_invite_redeem),
+            dismissLabel = stringResource(Res.string.settings_billing_cancel_dismiss),
+            destructive = false,
+            onConfirm = {
+                pendingRedeem = false
+                scope.launch { onRedeem(code); code = "" }
+            },
+            onDismiss = { pendingRedeem = false },
+        )
     }
 }

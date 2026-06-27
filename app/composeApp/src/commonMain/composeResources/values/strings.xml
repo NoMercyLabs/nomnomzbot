@@ -1514,4 +1514,39 @@
     <string name="event_type_channel_prediction_begin">Prediction Started</string>
     <string name="event_type_channel_points_redemption">Reward Redeemed</string>
     <string name="event_type_unknown">%1$s</string>
+
+    <!-- Billing section (Settings → Billing) -->
+    <string name="settings_billing_title">Billing</string>
+    <string name="settings_billing_subtitle">Subscription plan and usage</string>
+    <string name="settings_billing_current_plan">Current plan</string>
+    <string name="settings_billing_status_active">Active</string>
+    <string name="settings_billing_status_trialing">Trial</string>
+    <string name="settings_billing_status_canceled">Cancelled</string>
+    <string name="settings_billing_status_past_due">Past due</string>
+    <string name="settings_billing_status_unknown">%1$s</string>
+    <string name="settings_billing_renews">Renews %1$s</string>
+    <string name="settings_billing_cancels">Cancels %1$s</string>
+    <string name="settings_billing_self_host">Self-Hosted (Free)</string>
+    <string name="settings_billing_self_host_detail">All limits are unlimited on self-hosted installs.</string>
+    <string name="settings_billing_manage">Manage subscription</string>
+    <string name="settings_billing_resume">Resume subscription</string>
+    <string name="settings_billing_usage_title">Usage this period</string>
+    <string name="settings_billing_usage_of">%1$d / %2$d</string>
+    <string name="settings_billing_invoices_title">Invoices</string>
+    <string name="settings_billing_invoice_paid">Paid</string>
+    <string name="settings_billing_invoice_open">Open</string>
+    <string name="settings_billing_invoice_void">Void</string>
+    <string name="settings_billing_invoice_view">View</string>
+    <string name="settings_billing_invite_title">Invite code</string>
+    <string name="settings_billing_invite_placeholder">Enter invite code</string>
+    <string name="settings_billing_invite_validate">Validate</string>
+    <string name="settings_billing_invite_redeem">Redeem</string>
+    <string name="settings_billing_invite_valid">Valid — grants %1$s</string>
+    <string name="settings_billing_invite_invalid">Invalid or expired code</string>
+    <string name="settings_billing_founders_badge">Founder\'s Badge</string>
+    <string name="settings_billing_founders_badge_granted">Granted %1$s</string>
+    <string name="settings_billing_cancel_title">Cancel subscription?</string>
+    <string name="settings_billing_cancel_message">Your subscription stays active until the end of the current billing period.</string>
+    <string name="settings_billing_cancel_confirm">Cancel subscription</string>
+    <string name="settings_billing_cancel_dismiss">Keep subscription</string>
 </resources>

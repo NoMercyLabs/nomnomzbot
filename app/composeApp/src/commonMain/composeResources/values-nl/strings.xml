@@ -1500,4 +1500,39 @@
     <string name="event_type_channel_prediction_begin">Voorspelling gestart</string>
     <string name="event_type_channel_points_redemption">Beloning ingewisseld</string>
     <string name="event_type_unknown">%1$s</string>
+
+    <!-- Facturatie sectie (Instellingen → Facturatie) -->
+    <string name="settings_billing_title">Facturatie</string>
+    <string name="settings_billing_subtitle">Abonnementsplan en gebruik</string>
+    <string name="settings_billing_current_plan">Huidig plan</string>
+    <string name="settings_billing_status_active">Actief</string>
+    <string name="settings_billing_status_trialing">Proefperiode</string>
+    <string name="settings_billing_status_canceled">Geannuleerd</string>
+    <string name="settings_billing_status_past_due">Achterstallig</string>
+    <string name="settings_billing_status_unknown">%1$s</string>
+    <string name="settings_billing_renews">Verlengt %1$s</string>
+    <string name="settings_billing_cancels">Eindigt %1$s</string>
+    <string name="settings_billing_self_host">Zelf gehost (Gratis)</string>
+    <string name="settings_billing_self_host_detail">Alle limieten zijn onbeperkt op zelf-gehoste installaties.</string>
+    <string name="settings_billing_manage">Abonnement beheren</string>
+    <string name="settings_billing_resume">Abonnement hervatten</string>
+    <string name="settings_billing_usage_title">Gebruik deze periode</string>
+    <string name="settings_billing_usage_of">%1$d / %2$d</string>
+    <string name="settings_billing_invoices_title">Facturen</string>
+    <string name="settings_billing_invoice_paid">Betaald</string>
+    <string name="settings_billing_invoice_open">Open</string>
+    <string name="settings_billing_invoice_void">Ongeldig</string>
+    <string name="settings_billing_invoice_view">Bekijken</string>
+    <string name="settings_billing_invite_title">Uitnodigingscode</string>
+    <string name="settings_billing_invite_placeholder">Voer uitnodigingscode in</string>
+    <string name="settings_billing_invite_validate">Valideren</string>
+    <string name="settings_billing_invite_redeem">Inwisselen</string>
+    <string name="settings_billing_invite_valid">Geldig — verleent %1$s</string>
+    <string name="settings_billing_invite_invalid">Ongeldige of verlopen code</string>
+    <string name="settings_billing_founders_badge">Oprichtersbadge</string>
+    <string name="settings_billing_founders_badge_granted">Verleend %1$s</string>
+    <string name="settings_billing_cancel_title">Abonnement annuleren?</string>
+    <string name="settings_billing_cancel_message">Je abonnement blijft actief tot het einde van de huidige facturatieperiode.</string>
+    <string name="settings_billing_cancel_confirm">Annuleren</string>
+    <string name="settings_billing_cancel_dismiss">Abonnement behouden</string>
 </resources>

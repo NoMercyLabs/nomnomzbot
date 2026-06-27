@@ -78,6 +78,17 @@ class ApiContractTest {
             TtsVoice.serializer() to "TtsVoiceDto",
             UserStats.serializer() to "UserStatsDto",
             CurrencyLedgerEntry.serializer() to "CurrencyLedgerEntryDto",
+            BillingSubscription.serializer() to "SubscriptionDto",
+            BillingTier.serializer() to "TierDto",
+            BillingTierLimit.serializer() to "TierLimitDto",
+            BillingEntitlement.serializer() to "EntitlementDto",
+            BillingUsageMetric.serializer() to "UsageMetricDto",
+            BillingInvoice.serializer() to "InvoiceDto",
+            CheckoutSession.serializer() to "CheckoutSessionDto",
+            BillingPortal.serializer() to "BillingPortalDto",
+            FoundersBadge.serializer() to "FoundersBadgeDto",
+            InviteCodeValidation.serializer() to "InviteCodeValidationDto",
+            InviteRedeemResult.serializer() to "RedeemInviteCodeResultDto",
         )
 
     @Test

@@ -63,6 +63,8 @@ import bot.nomnomz.dashboard.core.network.RestParticipantApi
 import bot.nomnomz.dashboard.core.network.RestPipelinesApi
 import bot.nomnomz.dashboard.core.network.RestFeaturesApi
 import bot.nomnomz.dashboard.core.network.RestFederationApi
+import bot.nomnomz.dashboard.core.network.BillingApi
+import bot.nomnomz.dashboard.core.network.RestBillingApi
 import bot.nomnomz.dashboard.core.network.RestCodeScriptsApi
 import bot.nomnomz.dashboard.core.network.RestWebhooksApi
 import bot.nomnomz.dashboard.core.network.RestQuotesApi
@@ -115,6 +117,7 @@ import bot.nomnomz.dashboard.feature.webhooks.state.WebhooksController
 import bot.nomnomz.dashboard.feature.quotes.state.QuotesController
 import bot.nomnomz.dashboard.feature.rewards.state.RewardsController
 import bot.nomnomz.dashboard.feature.roles.state.RolesController
+import bot.nomnomz.dashboard.feature.settings.state.BillingController
 import bot.nomnomz.dashboard.feature.settings.state.ChannelBotController
 import bot.nomnomz.dashboard.feature.settings.state.JournalPortabilityController
 import bot.nomnomz.dashboard.feature.settings.state.SettingsController
@@ -212,6 +215,7 @@ class AppGraph {
     val federationApi: FederationApi = RestFederationApi(apiClient)
     val codeScriptsApi: CodeScriptsApi = RestCodeScriptsApi(apiClient)
     val liveOpsApi: LiveOpsApi = RestLiveOpsApi(apiClient)
+    val billingApi: BillingApi = RestBillingApi(apiClient)
 
     private val oauthLauncher: OAuthLauncher = OAuthLauncher()
     private val connectLauncher: ConnectLauncher = OAuthConnectLauncher(oauthLauncher)
@@ -304,6 +308,9 @@ class AppGraph {
         SettingsController(channelsApi = channelsApi, streamApi = streamApi)
 
     val channelBotController: ChannelBotController = ChannelBotController(channelsApi = channelsApi)
+
+    val billingController: BillingController =
+        BillingController(channelsApi = channelsApi, billingApi = billingApi)
 
     val twitchAppCredentialsController: TwitchAppCredentialsController =
         TwitchAppCredentialsController(
