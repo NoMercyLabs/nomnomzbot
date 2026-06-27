@@ -360,6 +360,9 @@
     <string name="commands_dialog_create">Aanmaken</string>
     <string name="commands_dialog_save">Opslaan</string>
     <string name="commands_dialog_cancel">Annuleren</string>
+    <string name="commands_dialog_pipeline_label">Pipeline (optioneel)</string>
+    <string name="commands_dialog_pipeline_none">Geen — alleen tekstantwoord</string>
+    <string name="commands_dialog_response_optional">Antwoord (optioneel als pipeline gekoppeld)</string>
     <string name="commands_delete_title">Commando verwijderen?</string>
     <string name="commands_delete_message">%1$s verwijderen? Dit kan niet ongedaan worden gemaakt.</string>
     <string name="commands_delete_confirm">Verwijderen</string>

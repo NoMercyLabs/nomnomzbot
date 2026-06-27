@@ -261,7 +261,13 @@ class AppGraph {
         CommunityController(channelsApi = channelsApi, communityApi = communityApi)
 
     val commandsController: CommandsController =
-        CommandsController(channelsApi = channelsApi, commandsApi = commandsApi, builtinsApi = builtinsApi, feedback = feedbackController)
+        CommandsController(
+            channelsApi = channelsApi,
+            commandsApi = commandsApi,
+            builtinsApi = builtinsApi,
+            pipelinesApi = pipelinesApi,
+            feedback = feedbackController,
+        )
 
     val timersController: TimersController =
         TimersController(channelsApi = channelsApi, timersApi = timersApi)

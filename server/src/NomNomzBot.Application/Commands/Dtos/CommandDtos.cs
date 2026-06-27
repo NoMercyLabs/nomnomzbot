@@ -31,7 +31,8 @@ public sealed record CommandDto(
     DateTime UpdatedAt
 );
 
-/// <summary>Lightweight command info for list views.</summary>
+/// <summary>Lightweight command info for list views — includes the response text and pipeline id so the edit
+/// form can pre-fill without a separate detail fetch.</summary>
 public sealed record CommandListItem(
     Guid Id,
     string Name,
@@ -42,7 +43,9 @@ public sealed record CommandListItem(
     string? Description,
     List<string> Aliases,
     long UseCount,
-    DateTime CreatedAt
+    DateTime CreatedAt,
+    string? TemplateResponse,
+    Guid? PipelineId
 );
 
 /// <summary>Request to create a new command.</summary>

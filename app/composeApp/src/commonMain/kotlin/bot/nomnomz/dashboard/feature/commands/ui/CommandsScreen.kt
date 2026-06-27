@@ -11,6 +11,7 @@
 package bot.nomnomz.dashboard.feature.commands.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,6 +26,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Switch
@@ -57,6 +60,7 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.designsystem.theme.Tokens
 import bot.nomnomz.dashboard.core.network.BuiltinCommand
 import bot.nomnomz.dashboard.core.network.CommandSummary
+import bot.nomnomz.dashboard.core.network.PipelineSummary
 import bot.nomnomz.dashboard.feature.commands.state.CommandsController
 import bot.nomnomz.dashboard.feature.commands.state.CommandsState
 import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
@@ -93,6 +97,9 @@ import nomnomzbot.composeapp.generated.resources.commands_title
 import nomnomzbot.composeapp.generated.resources.commands_toggle_action
 import nomnomzbot.composeapp.generated.resources.commands_builtins_section
 import nomnomzbot.composeapp.generated.resources.commands_builtins_toggle
+import nomnomzbot.composeapp.generated.resources.commands_dialog_pipeline_label
+import nomnomzbot.composeapp.generated.resources.commands_dialog_pipeline_none
+import nomnomzbot.composeapp.generated.resources.commands_dialog_response_optional
 import org.jetbrains.compose.resources.stringResource
 
 // The Commands page (frontend-ia.md §3, Chat group): the channel's custom chat commands, all real data from
@@ -126,6 +133,7 @@ fun CommandsScreen(controller: CommandsController, role: ManagementRole?) {
                 ManagedContent(
                     commands = emptyList(),
                     builtins = emptyList(),
+                    pipelines = current.pipelines,
                     actionError = null,
                     manage = manage,
                     onNew = { editor = CommandEditor.create() },
@@ -142,6 +150,7 @@ fun CommandsScreen(controller: CommandsController, role: ManagementRole?) {
                 ManagedContent(
                     commands = current.commands,
                     builtins = current.builtins,
+                    pipelines = current.pipelines,
                     actionError = current.actionError,
                     manage = manage,
                     onNew = { editor = CommandEditor.create() },
@@ -158,14 +167,21 @@ fun CommandsScreen(controller: CommandsController, role: ManagementRole?) {
     }
 
     editor?.let { open ->
+        // Resolve the current pipeline list from state (non-null pipelines come from Ready or Empty).
+        val pipelines: List<PipelineSummary> = when (val s: CommandsState = state) {
+            is CommandsState.Ready -> s.pipelines
+            is CommandsState.Empty -> s.pipelines
+            else -> emptyList()
+        }
         CommandFormDialog(
             editor = open,
+            pipelines = pipelines,
             onDismiss = { editor = null },
-            onSubmit = { name, response, enabled ->
+            onSubmit = { name, templateResponse, pipelineId, enabled ->
                 editor = null
                 scope.launch {
-                    if (open.isEdit) controller.updateCommand(name, response, enabled)
-                    else controller.createCommand(name, response, enabled)
+                    if (open.isEdit) controller.updateCommand(name, templateResponse, pipelineId, enabled)
+                    else controller.createCommand(name, templateResponse, pipelineId, enabled)
                 }
             },
         )
@@ -194,6 +210,7 @@ fun CommandsScreen(controller: CommandsController, role: ManagementRole?) {
 private fun ManagedContent(
     commands: List<CommandSummary>,
     builtins: List<BuiltinCommand>,
+    pipelines: List<PipelineSummary>,
     actionError: String?,
     manage: ManageDecision,
     onNew: () -> Unit,
@@ -474,23 +491,29 @@ private fun CommandRow(
     }
 }
 
-// One composable for both create and edit (DRY): an empty [editor] = create, a pre-filled one = edit. The
-// affirmative button is disabled until both name and response are non-blank, so an empty command can never be
-// submitted. On edit the name is read-only — it is the backend's address for the row.
+// One composable for both create and edit (DRY): an empty [editor] = create, a pre-filled one = edit.
+// A command requires EITHER a non-blank response OR a pipeline (or both). The submit button is disabled
+// until that invariant is satisfied. On edit the name is read-only — it is the backend's address for the row.
 @Composable
 private fun CommandFormDialog(
     editor: CommandEditor,
+    pipelines: List<PipelineSummary>,
     onDismiss: () -> Unit,
-    onSubmit: (name: String, response: String, enabled: Boolean) -> Unit,
+    onSubmit: (name: String, templateResponse: String?, pipelineId: String?, enabled: Boolean) -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
 
     var name: String by remember { mutableStateOf(editor.name) }
     var response: String by remember { mutableStateOf(editor.response) }
+    var selectedPipelineId: String? by remember { mutableStateOf(editor.pipelineId) }
     var enabled: Boolean by remember { mutableStateOf(editor.isEnabled) }
+    var pipelineMenuOpen: Boolean by remember { mutableStateOf(false) }
 
-    val canSubmit: Boolean = name.isNotBlank() && response.isNotBlank()
+    // Submit requires name + (response OR pipeline).
+    val hasPipeline: Boolean = selectedPipelineId != null
+    val canSubmit: Boolean = name.isNotBlank() && (response.isNotBlank() || hasPipeline)
+
     val title: String =
         stringResource(
             if (editor.isEdit) Res.string.commands_dialog_edit_title
@@ -501,6 +524,15 @@ private fun CommandFormDialog(
             if (editor.isEdit) Res.string.commands_dialog_save else Res.string.commands_dialog_create
         )
     val enabledLabel: String = stringResource(Res.string.commands_dialog_enabled_label)
+    val pipelineLabel: String = stringResource(Res.string.commands_dialog_pipeline_label)
+    val pipelineNoneLabel: String = stringResource(Res.string.commands_dialog_pipeline_none)
+    val responseLabel: String =
+        if (hasPipeline) stringResource(Res.string.commands_dialog_response_optional)
+        else stringResource(Res.string.commands_dialog_response_label)
+
+    // The display label for the selected pipeline (or the "none" placeholder).
+    val selectedPipelineName: String =
+        selectedPipelineId?.let { id -> pipelines.firstOrNull { it.id == id }?.name } ?: pipelineNoneLabel
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -523,9 +555,47 @@ private fun CommandFormDialog(
                     value = response,
                     onValueChange = { response = it },
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text(stringResource(Res.string.commands_dialog_response_label)) },
+                    label = { Text(responseLabel) },
                     colors = fieldColors(),
                 )
+                // Pipeline selector — only shown when there are pipelines to attach.
+                if (pipelines.isNotEmpty()) {
+                    Box {
+                        OutlinedTextField(
+                            value = selectedPipelineName,
+                            onValueChange = {},
+                            readOnly = true,
+                            singleLine = true,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { pipelineMenuOpen = true },
+                            label = { Text(pipelineLabel) },
+                            colors = fieldColors(),
+                        )
+                        DropdownMenu(
+                            expanded = pipelineMenuOpen,
+                            onDismissRequest = { pipelineMenuOpen = false },
+                        ) {
+                            // "None" clears the attachment.
+                            DropdownMenuItem(
+                                text = { Text(pipelineNoneLabel, color = tokens.mutedForeground) },
+                                onClick = {
+                                    selectedPipelineId = null
+                                    pipelineMenuOpen = false
+                                },
+                            )
+                            pipelines.forEach { pipeline ->
+                                DropdownMenuItem(
+                                    text = { Text(pipeline.name, color = tokens.cardForeground) },
+                                    onClick = {
+                                        selectedPipelineId = pipeline.id
+                                        pipelineMenuOpen = false
+                                    },
+                                )
+                            }
+                        }
+                    }
+                }
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
@@ -548,7 +618,12 @@ private fun CommandFormDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = { onSubmit(name, response, enabled) }, enabled = canSubmit) {
+            TextButton(
+                onClick = {
+                    onSubmit(name, response.takeIf { it.isNotBlank() }, selectedPipelineId, enabled)
+                },
+                enabled = canSubmit,
+            ) {
                 Text(
                     text = submitLabel,
                     color = if (canSubmit) tokens.primary else tokens.mutedForeground,
@@ -618,26 +693,28 @@ private fun CenteredMessage(text: String) {
 
 // The create/edit dialog's seed: an empty editor opens a blank create form; one seeded from a command opens a
 // pre-filled edit form. [isEdit] decides create-vs-update on submit and locks the name field (the backend
-// addresses a command by name).
+// addresses a command by name). [pipelineId] pre-selects the attached pipeline in the dropdown.
 private data class CommandEditor(
     val isEdit: Boolean,
     val name: String,
     val response: String,
     val isEnabled: Boolean,
+    val pipelineId: String? = null,
 ) {
     companion object {
         fun create(): CommandEditor =
-            CommandEditor(isEdit = false, name = "", response = "", isEnabled = true)
+            CommandEditor(isEdit = false, name = "", response = "", isEnabled = true, pipelineId = null)
 
         fun edit(command: CommandSummary): CommandEditor =
             CommandEditor(
                 isEdit = true,
                 name = command.name,
-                // The list item carries the description as the editable snippet; the full response text lives on
-                // the detail DTO. The edit form seeds the response field from the description so the operator
-                // sees the current text, and the update sends it back as the response.
-                response = command.description.orEmpty(),
+                // Seed the response from the stored templateResponse (the actual response text), not the
+                // description (a short blurb shown in the list). Defaults to empty when no response is set
+                // (pipeline-only commands).
+                response = command.templateResponse.orEmpty(),
                 isEnabled = command.isEnabled,
+                pipelineId = command.pipelineId,
             )
     }
 }

@@ -363,6 +363,9 @@
     <string name="commands_dialog_create">Create</string>
     <string name="commands_dialog_save">Save</string>
     <string name="commands_dialog_cancel">Cancel</string>
+    <string name="commands_dialog_pipeline_label">Pipeline (optional)</string>
+    <string name="commands_dialog_pipeline_none">None — text response only</string>
+    <string name="commands_dialog_response_optional">Response (optional when pipeline attached)</string>
     <string name="commands_delete_title">Delete command?</string>
     <string name="commands_delete_message">Delete %1$s? This can't be undone.</string>
     <string name="commands_delete_confirm">Delete</string>

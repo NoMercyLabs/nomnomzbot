@@ -212,7 +212,9 @@ public class CommandService : ICommandService
                 c.Description,
                 c.Aliases,
                 c.UseCount,
-                c.CreatedAt
+                c.CreatedAt,
+                c.TemplateResponse,
+                c.PipelineId
             ))
             .ToListAsync(cancellationToken);
 

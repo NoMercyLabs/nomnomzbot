@@ -72,46 +72,53 @@ class RestCommandsApi(private val client: ApiClient) : CommandsApi {
 }
 
 /**
- * The create-command request body (backend `CreateCommandDto`). camelCase JSON. [name] and [response] are
- * the essentials the create dialog collects; [type] defaults to a plain text command and [permission] to
- * everyone, matching the backend defaults. [isEnabled] lets a command be created already-on (the default).
+ * The create-command request body (backend `CreateCommandDto`). [name] and [templateResponse] are the
+ * essentials for a text command; attach a [pipelineId] to run a visual pipeline instead. A command may
+ * carry both — the pipeline runs first and the template response is a fallback. [tier] is computed here:
+ * "pipeline" when a pipeline id is set, otherwise "template". [isEnabled] lets a command be created
+ * already-on (the default).
  */
 @Serializable
 data class CreateCommandBody(
     val name: String,
-    val response: String,
-    val type: String = "text",
-    val permission: String = "everyone",
+    val templateResponse: String? = null,
+    val pipelineId: String? = null,
+    val tier: String = if (pipelineId != null) "pipeline" else "template",
     val isEnabled: Boolean = true,
 )
 
 /**
  * The update-command request body (backend `UpdateCommandDto`) — every field nullable so an update is a
- * partial patch. A toggle sends only [isEnabled]; an edit sends [response] (and may flip [isEnabled]); all
+ * partial patch. A toggle sends only [isEnabled]; an edit sends [templateResponse] and/or [pipelineId]; all
  * other fields stay null and the backend leaves them untouched. `explicitNulls = false` on the shared Json
  * means null fields are omitted from the wire body.
  */
 @Serializable
 data class UpdateCommandBody(
-    val response: String? = null,
+    val templateResponse: String? = null,
+    val pipelineId: String? = null,
+    val tier: String? = null,
     val isEnabled: Boolean? = null,
 )
 
 /**
- * A custom chat command's list-view item (backend `CommandListItem`): the trigger [name], who may run it,
- * whether it is live, its cooldown, an optional [description], aliases, and the lifetime usage count. The
- * full response text / pipeline lives on the detail DTO, not the list item.
+ * A custom chat command's list-view item (backend `CommandListItem`): the trigger [name], whether it is
+ * live, its cooldown, the optional [templateResponse] (pre-filled in the edit form), the attached
+ * [pipelineId] (also pre-filled in the edit form), an optional [description], aliases, and lifetime usage.
+ * These fields are included in the list so the edit dialog can open without a separate detail fetch.
  */
 @Serializable
 data class CommandSummary(
     val id: String = "",
     val name: String = "",
-    val type: String = "",
-    val permission: String = "",
+    val tier: String = "",
+    val minPermissionLevel: Int = 0,
     val isEnabled: Boolean = false,
     val cooldownSeconds: Int = 0,
     val description: String? = null,
     val aliases: List<String> = emptyList(),
     val usageCount: Int = 0,
     val createdAt: String = "",
+    val templateResponse: String? = null,
+    val pipelineId: String? = null,
 )

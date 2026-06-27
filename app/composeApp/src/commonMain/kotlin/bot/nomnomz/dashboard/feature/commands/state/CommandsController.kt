@@ -20,6 +20,8 @@ import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.CommandSummary
 import bot.nomnomz.dashboard.core.network.CommandsApi
 import bot.nomnomz.dashboard.core.network.CreateCommandBody
+import bot.nomnomz.dashboard.core.network.PipelineSummary
+import bot.nomnomz.dashboard.core.network.PipelinesApi
 import bot.nomnomz.dashboard.core.network.UpdateCommandBody
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -30,13 +32,15 @@ import nomnomzbot.composeapp.generated.resources.feedback_command_saved
 import nomnomzbot.composeapp.generated.resources.feedback_command_save_failed
 
 // The Commands page's state-holder (frontend-ia.md §3 — the Chat group). Resolves the active channel, then
-// lists its real custom commands from the backend (no fabricated rows). It also drives the page's writes —
-// create / edit / toggle / delete — each of which re-lists on success so the screen always reflects the
-// backend's truth. The screen renders [state]; a retry / reconnect calls [load] again.
+// lists its real custom commands and the available pipelines (for the pipeline-attach selector) from the
+// backend (no fabricated rows). It also drives the page's writes — create / edit / toggle / delete — each
+// of which re-lists on success so the screen always reflects the backend's truth. The screen renders
+// [state]; a retry / reconnect calls [load] again.
 class CommandsController(
     private val channelsApi: ChannelsApi,
     private val commandsApi: CommandsApi,
     private val builtinsApi: BuiltinsApi,
+    private val pipelinesApi: PipelinesApi,
     private val feedback: Feedback = NoOpFeedback,
 ) {
     private val _state: MutableStateFlow<CommandsState> = MutableStateFlow(CommandsState.Loading)
@@ -48,7 +52,7 @@ class CommandsController(
     // re-resolve the channel. Null until the first successful resolve.
     private var channelId: String? = null
 
-    /** Resolve the active channel, then list its commands and built-in commands. */
+    /** Resolve the active channel, then list its commands, built-in commands, and available pipelines. */
     suspend fun load() {
         _state.value = CommandsState.Loading
 
@@ -64,6 +68,7 @@ class CommandsController(
 
         val commandsResult: ApiResult<List<CommandSummary>> = commandsApi.list(channel.id)
         val builtinsResult: ApiResult<List<BuiltinCommand>> = builtinsApi.list(channel.id)
+        val pipelinesResult: ApiResult<List<PipelineSummary>> = pipelinesApi.list(channel.id)
 
         when (commandsResult) {
             is ApiResult.Failure -> {
@@ -76,25 +81,65 @@ class CommandsController(
         val commands: List<CommandSummary> = (commandsResult as ApiResult.Ok).value
         val builtins: List<BuiltinCommand> =
             if (builtinsResult is ApiResult.Ok) builtinsResult.value else emptyList()
+        val pipelines: List<PipelineSummary> =
+            if (pipelinesResult is ApiResult.Ok) pipelinesResult.value else emptyList()
 
         _state.value =
-            if (commands.isEmpty() && builtins.isEmpty()) CommandsState.Empty
-            else CommandsState.Ready(commands = commands, builtins = builtins)
-    }
-
-    /** Create a command, then reload so the new row appears. Surfaces the error on failure. */
-    suspend fun createCommand(name: String, response: String, isEnabled: Boolean) {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
-        afterWrite(commandsApi.create(channel, CreateCommandBody(name, response, isEnabled = isEnabled)))
+            if (commands.isEmpty() && builtins.isEmpty()) CommandsState.Empty(pipelines = pipelines)
+            else CommandsState.Ready(commands = commands, builtins = builtins, pipelines = pipelines)
     }
 
     /**
-     * Edit a command's response (and enabled flag), addressed by its current [name]. Reloads on success.
-     * Surfaces the error on failure.
+     * Create a command, then reload so the new row appears. A command either responds with a text
+     * [templateResponse], runs a [pipelineId], or both (pipeline runs first; response is a fallback).
      */
-    suspend fun updateCommand(name: String, response: String, isEnabled: Boolean) {
+    suspend fun createCommand(
+        name: String,
+        templateResponse: String?,
+        pipelineId: String?,
+        isEnabled: Boolean,
+    ) {
         val channel: String = channelId ?: return failWrite(NoChannelError)
-        afterWrite(commandsApi.update(channel, name, UpdateCommandBody(response = response, isEnabled = isEnabled)))
+        afterWrite(
+            commandsApi.create(
+                channel,
+                CreateCommandBody(
+                    name = name,
+                    templateResponse = templateResponse?.takeIf { it.isNotBlank() },
+                    pipelineId = pipelineId,
+                    isEnabled = isEnabled,
+                ),
+            )
+        )
+    }
+
+    /**
+     * Edit a command's response text and/or pipeline, addressed by its current [name]. Reloads on success.
+     */
+    suspend fun updateCommand(
+        name: String,
+        templateResponse: String?,
+        pipelineId: String?,
+        isEnabled: Boolean,
+    ) {
+        val channel: String = channelId ?: return failWrite(NoChannelError)
+        val tier: String? = when {
+            pipelineId != null -> "pipeline"
+            templateResponse?.isNotBlank() == true -> "template"
+            else -> null
+        }
+        afterWrite(
+            commandsApi.update(
+                channel,
+                name,
+                UpdateCommandBody(
+                    templateResponse = templateResponse?.takeIf { it.isNotBlank() },
+                    pipelineId = pipelineId,
+                    tier = tier,
+                    isEnabled = isEnabled,
+                ),
+            )
+        )
     }
 
     /** Flip a command's enabled flag via the update endpoint (no dedicated toggle route). Reloads on success. */
@@ -151,17 +196,21 @@ sealed interface CommandsState {
     data object Loading : CommandsState
 
     /**
-     * The channel's commands are listed. [builtins] are the platform-defined commands (music, etc.); [commands]
-     * are the user's custom commands. [actionError] is non-null only when the last create/edit/toggle/delete
-     * failed — the screen surfaces it as a transient banner while keeping the list rendered.
+     * The channel's commands are listed. [builtins] are the platform-defined commands (music, etc.);
+     * [commands] are the user's custom commands; [pipelines] is the channel's pipeline list (for the
+     * attach-pipeline selector in the create/edit dialog). [actionError] is non-null only when the last
+     * create/edit/toggle/delete failed — the screen surfaces it as a transient banner while keeping the
+     * list rendered.
      */
     data class Ready(
         val commands: List<CommandSummary>,
         val builtins: List<BuiltinCommand> = emptyList(),
+        val pipelines: List<PipelineSummary> = emptyList(),
         val actionError: String? = null,
     ) : CommandsState
 
-    data object Empty : CommandsState
+    /** No commands yet, but the channel is onboarded. Carries [pipelines] so the create dialog still works. */
+    data class Empty(val pipelines: List<PipelineSummary> = emptyList()) : CommandsState
 
     data class Error(val detail: String) : CommandsState
 }
