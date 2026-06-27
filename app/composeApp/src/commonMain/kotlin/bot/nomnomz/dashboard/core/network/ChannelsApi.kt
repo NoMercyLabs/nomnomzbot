@@ -31,6 +31,15 @@ interface ChannelsApi {
 
     /** All channels the signed-in user owns or moderates — used by the channel switcher. */
     suspend fun list(): ApiResult<List<ChannelSummary>>
+
+    /** Make the bot join (or re-join) the channel's chat. */
+    suspend fun join(channelId: String): ApiResult<Unit>
+
+    /** Make the bot leave the channel's chat (channel record stays; bot just goes quiet). */
+    suspend fun leave(channelId: String): ApiResult<Unit>
+
+    /** Reset all channel configuration to defaults (clears all stored Configuration entries). */
+    suspend fun reset(channelId: String): ApiResult<Unit>
 }
 
 class RestChannelsApi(
@@ -70,6 +79,15 @@ class RestChannelsApi(
             is ApiResult.Failure -> ApiResult.Failure(page.error)
             is ApiResult.Ok -> ApiResult.Ok(page.value.data)
         }
+
+    override suspend fun join(channelId: String): ApiResult<Unit> =
+        client.postUnit("api/v1/channels/$channelId/join")
+
+    override suspend fun leave(channelId: String): ApiResult<Unit> =
+        client.postUnit("api/v1/channels/$channelId/leave")
+
+    override suspend fun reset(channelId: String): ApiResult<Unit> =
+        client.postUnit("api/v1/channels/$channelId/reset")
 
     private suspend fun fetchPage(): ApiResult<PaginatedEnvelope<ChannelSummary>> =
         client.getDirect("api/v1/channels?page=1&pageSize=100")

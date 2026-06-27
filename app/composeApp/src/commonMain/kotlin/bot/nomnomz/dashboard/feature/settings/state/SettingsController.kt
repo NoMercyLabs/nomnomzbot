@@ -83,6 +83,34 @@ class SettingsController(
                 is ApiResult.Ok -> SettingsState.Ready(info = result.value, justSaved = true)
             }
     }
+
+    // ── Channel management (Broadcaster floor, setup:write) ───────────────────────────────────────
+
+    /** Make the bot (re-)join the channel's chat. Surfaces a transient action result on the current state. */
+    suspend fun joinBot() {
+        val target: String = channelId ?: return
+        applyChannelAction(channelsApi.join(target))
+    }
+
+    /** Make the bot leave the channel's chat. The channel record stays; the bot just stops reading/writing chat. */
+    suspend fun leaveBot() {
+        val target: String = channelId ?: return
+        applyChannelAction(channelsApi.leave(target))
+    }
+
+    /** Reset all channel configuration to factory defaults (clears every stored Configuration entry). */
+    suspend fun resetConfig() {
+        val target: String = channelId ?: return
+        applyChannelAction(channelsApi.reset(target))
+    }
+
+    private fun applyChannelAction(result: ApiResult<Unit>) {
+        val current: SettingsState = _state.value
+        val channelError: String? = if (result is ApiResult.Failure) result.error.message else null
+        _state.value =
+            if (current is SettingsState.Ready) current.copy(channelActionError = channelError)
+            else current
+    }
 }
 
 /** The Settings page render state. */
@@ -91,14 +119,16 @@ sealed interface SettingsState {
 
     /**
      * The loaded stream info plus the in-flight save signals: [saving] while a write is pending, [justSaved]
-     * right after a successful save (the "Saved" confirmation), and [saveError] when the last save failed. The
-     * screen seeds its editable form from [info].
+     * right after a successful save (the "Saved" confirmation), and [saveError] when the last save failed.
+     * [channelActionError] is set when a channel-management action (join/leave/reset) fails; cleared on next
+     * successful action. The screen seeds its editable form from [info].
      */
     data class Ready(
         val info: StreamInfo,
         val saving: Boolean = false,
         val justSaved: Boolean = false,
         val saveError: String? = null,
+        val channelActionError: String? = null,
     ) : SettingsState
 
     data class Error(val detail: String) : SettingsState

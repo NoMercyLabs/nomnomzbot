@@ -92,6 +92,22 @@ import nomnomzbot.composeapp.generated.resources.settings_status_live
 import nomnomzbot.composeapp.generated.resources.settings_status_offline
 import nomnomzbot.composeapp.generated.resources.settings_tags_hint
 import nomnomzbot.composeapp.generated.resources.settings_title_invalid
+import nomnomzbot.composeapp.generated.resources.settings_channel_section
+import nomnomzbot.composeapp.generated.resources.settings_bot_join
+import nomnomzbot.composeapp.generated.resources.settings_bot_join_desc
+import nomnomzbot.composeapp.generated.resources.settings_bot_leave
+import nomnomzbot.composeapp.generated.resources.settings_bot_leave_desc
+import nomnomzbot.composeapp.generated.resources.settings_bot_leave_confirm_title
+import nomnomzbot.composeapp.generated.resources.settings_bot_leave_confirm_message
+import nomnomzbot.composeapp.generated.resources.settings_bot_leave_confirm_ok
+import nomnomzbot.composeapp.generated.resources.settings_bot_leave_confirm_cancel
+import nomnomzbot.composeapp.generated.resources.settings_reset_config
+import nomnomzbot.composeapp.generated.resources.settings_reset_config_desc
+import nomnomzbot.composeapp.generated.resources.settings_reset_confirm_title
+import nomnomzbot.composeapp.generated.resources.settings_reset_confirm_message
+import nomnomzbot.composeapp.generated.resources.settings_reset_confirm_ok
+import nomnomzbot.composeapp.generated.resources.settings_reset_confirm_cancel
+import nomnomzbot.composeapp.generated.resources.settings_channel_action_error
 import org.jetbrains.compose.resources.stringResource
 
 // The Settings page: an editable form over the channel's stream metadata — the live status plus the editable
@@ -117,6 +133,9 @@ fun SettingsScreen(
     // Integrations area — they are an integration like the bot account, not a Settings concern.)
     val streamInfoManage: ManageDecision = rememberManageDecisionAtFloor(role, ManagementRole.Editor)
     val ownerManage: ManageDecision = rememberManageDecisionAtFloor(role, ManagementRole.Broadcaster)
+
+    var pendingLeave: Boolean by remember { mutableStateOf(false) }
+    var pendingReset: Boolean by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) { controller.load() }
 
@@ -144,7 +163,48 @@ fun SettingsScreen(
             }
         }
 
+        // Channel management — join/leave/reset; Broadcaster floor (setup:write).
+        if (state is SettingsState.Ready) {
+            ChannelManagementSection(
+                actionError = (state as SettingsState.Ready).channelActionError,
+                manage = ownerManage,
+                onJoin = { scope.launch { controller.joinBot() } },
+                onLeave = { pendingLeave = true },
+                onReset = { pendingReset = true },
+            )
+        }
+
         EventJournalSection(controller = journalController, manage = ownerManage)
+    }
+
+    if (pendingLeave) {
+        ConfirmDialog(
+            title = stringResource(Res.string.settings_bot_leave_confirm_title),
+            message = stringResource(Res.string.settings_bot_leave_confirm_message),
+            confirmLabel = stringResource(Res.string.settings_bot_leave_confirm_ok),
+            dismissLabel = stringResource(Res.string.settings_bot_leave_confirm_cancel),
+            destructive = false,
+            onConfirm = {
+                pendingLeave = false
+                scope.launch { controller.leaveBot() }
+            },
+            onDismiss = { pendingLeave = false },
+        )
+    }
+
+    if (pendingReset) {
+        ConfirmDialog(
+            title = stringResource(Res.string.settings_reset_confirm_title),
+            message = stringResource(Res.string.settings_reset_confirm_message),
+            confirmLabel = stringResource(Res.string.settings_reset_confirm_ok),
+            dismissLabel = stringResource(Res.string.settings_reset_confirm_cancel),
+            destructive = true,
+            onConfirm = {
+                pendingReset = false
+                scope.launch { controller.resetConfig() }
+            },
+            onDismiss = { pendingReset = false },
+        )
     }
 }
 
@@ -409,6 +469,120 @@ private fun CenteredMessage(text: String) {
 
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Text(text = text, style = typography.base, color = tokens.mutedForeground)
+    }
+}
+
+// Channel management section: join/leave/reset actions, all gated at the Broadcaster floor (setup:write).
+// Join is non-destructive and shows no confirm dialog. Leave and Reset are confirmed before executing.
+@Composable
+private fun ChannelManagementSection(
+    actionError: String?,
+    manage: ManageDecision,
+    onJoin: () -> Unit,
+    onLeave: () -> Unit,
+    onReset: () -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(tokens.radius.lg))
+            .background(tokens.card)
+            .padding(spacing.s4),
+        verticalArrangement = Arrangement.spacedBy(spacing.s3),
+    ) {
+        Text(
+            text = stringResource(Res.string.settings_channel_section),
+            style = typography.lg,
+            color = tokens.cardForeground,
+        )
+
+        actionError?.let { err ->
+            Text(
+                text = stringResource(Res.string.settings_channel_action_error, err),
+                style = typography.sm,
+                color = tokens.destructiveForeground,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(tokens.radius.md))
+                    .background(tokens.destructive)
+                    .padding(horizontal = spacing.s3, vertical = spacing.s2),
+            )
+        }
+
+        // Join
+        ChannelActionRow(
+            label = stringResource(Res.string.settings_bot_join),
+            description = stringResource(Res.string.settings_bot_join_desc),
+            buttonLabel = stringResource(Res.string.settings_bot_join),
+            destructive = false,
+            manage = manage,
+            onClick = onJoin,
+        )
+
+        // Leave
+        ChannelActionRow(
+            label = stringResource(Res.string.settings_bot_leave),
+            description = stringResource(Res.string.settings_bot_leave_desc),
+            buttonLabel = stringResource(Res.string.settings_bot_leave),
+            destructive = false,
+            manage = manage,
+            onClick = onLeave,
+        )
+
+        // Reset config
+        ChannelActionRow(
+            label = stringResource(Res.string.settings_reset_config),
+            description = stringResource(Res.string.settings_reset_config_desc),
+            buttonLabel = stringResource(Res.string.settings_reset_config),
+            destructive = true,
+            manage = manage,
+            onClick = onReset,
+        )
+    }
+}
+
+@Composable
+private fun ChannelActionRow(
+    label: String,
+    description: String,
+    buttonLabel: String,
+    destructive: Boolean,
+    manage: ManageDecision,
+    onClick: () -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
+            Text(text = label, style = typography.base, color = tokens.cardForeground)
+            Text(text = description, style = typography.sm, color = tokens.mutedForeground)
+        }
+        ManageGate(decision = manage) { enabled ->
+            TextButton(
+                onClick = onClick,
+                enabled = enabled,
+                modifier = Modifier.clearAndSetSemantics { contentDescription = buttonLabel },
+            ) {
+                Text(
+                    text = buttonLabel,
+                    color = when {
+                        !enabled -> tokens.mutedForeground
+                        destructive -> tokens.destructive
+                        else -> tokens.primary
+                    },
+                )
+            }
+        }
     }
 }
 
