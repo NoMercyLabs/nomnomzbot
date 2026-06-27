@@ -290,6 +290,14 @@ class MusicControllerTest {
 
 private class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : ChannelsApi {
     override suspend fun primaryChannel(): ApiResult<ChannelSummary> = result
+
+    override suspend fun list(): ApiResult<List<ChannelSummary>> = ApiResult.Ok(emptyList())
+
+    override suspend fun join(channelId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+
+    override suspend fun leave(channelId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+
+    override suspend fun reset(channelId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
 }
 
 private class FakeMusicApi(

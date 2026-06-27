@@ -403,8 +403,11 @@ private fun CommandRow(
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
 
+    // Prefer the human-authored description; fall back to the response text (so the row isn't blank
+    // for commands that have a response but no separate description).
     val snippet: String =
         command.description?.takeIf { it.isNotBlank() }
+            ?: command.templateResponse?.takeIf { it.isNotBlank() }
             ?: stringResource(Res.string.commands_no_description)
     val stateLabel: String =
         stringResource(
