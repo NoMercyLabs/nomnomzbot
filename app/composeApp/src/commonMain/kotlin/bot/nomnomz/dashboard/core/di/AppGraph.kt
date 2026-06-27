@@ -171,7 +171,7 @@ class AppGraph {
         )
 
     val authApi: AuthApi = RestAuthApi(apiClient)
-    val channelsApi: ChannelsApi = RestChannelsApi(apiClient)
+    val channelsApi: ChannelsApi = RestChannelsApi(apiClient, sessionStore)
     val botAuthApi: BotAuthApi = RestBotAuthApi(apiClient)
     val integrationsApi: IntegrationsApi = RestIntegrationsApi(apiClient)
     val twitchDiagnosticsApi: TwitchDiagnosticsApi = RestTwitchDiagnosticsApi(apiClient)

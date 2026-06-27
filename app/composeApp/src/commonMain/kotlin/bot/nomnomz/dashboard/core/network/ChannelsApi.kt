@@ -10,6 +10,7 @@
 
 package bot.nomnomz.dashboard.core.network
 
+import bot.nomnomz.dashboard.core.connection.SessionStore
 import kotlinx.serialization.Serializable
 
 // The typed channels facade. Onboarding needs the tenant (channel) GUID to address the per-channel
@@ -21,8 +22,10 @@ import kotlinx.serialization.Serializable
 //   GET /api/v1/channels  →  PaginatedResponse<ChannelSummaryDto>  (the channels the user owns/moderates)
 interface ChannelsApi {
     /**
-     * The signed-in user's primary channel — the first channel they own/moderate. The integrations
-     * screen is single-channel for this slice; the multi-channel switcher layers on later.
+     * The active channel — the one currently selected in [SessionStore.activeChannelId], or the
+     * first channel in the list if no explicit selection has been made yet. Every page controller
+     * calls this to get the channel id it should operate on, so a switcher selection propagates
+     * automatically on the next load without each controller needing a direct SessionStore ref.
      */
     suspend fun primaryChannel(): ApiResult<ChannelSummary>
 
@@ -30,7 +33,10 @@ interface ChannelsApi {
     suspend fun list(): ApiResult<List<ChannelSummary>>
 }
 
-class RestChannelsApi(private val client: ApiClient) : ChannelsApi {
+class RestChannelsApi(
+    private val client: ApiClient,
+    private val sessionStore: SessionStore,
+) : ChannelsApi {
 
     override suspend fun primaryChannel(): ApiResult<ChannelSummary> {
         // The channel list is a PaginatedResponse (a flat `{ data: [...] }`), not a StatusResponseDto, so
@@ -38,8 +44,13 @@ class RestChannelsApi(private val client: ApiClient) : ChannelsApi {
         return when (val page: ApiResult<PaginatedEnvelope<ChannelSummary>> = fetchPage()) {
             is ApiResult.Failure -> ApiResult.Failure(page.error)
             is ApiResult.Ok -> {
-                val first: ChannelSummary? = page.value.data.firstOrNull()
-                if (first == null) {
+                val channels: List<ChannelSummary> = page.value.data
+                val activeId: String? = sessionStore.activeChannelId.value
+                // Use the explicitly-selected channel; fall back to first (single-channel / first load).
+                val channel: ChannelSummary? =
+                    if (activeId != null) channels.firstOrNull { it.id == activeId } ?: channels.firstOrNull()
+                    else channels.firstOrNull()
+                if (channel == null) {
                     ApiResult.Failure(
                         ApiError(
                             status = 404,
@@ -48,7 +59,7 @@ class RestChannelsApi(private val client: ApiClient) : ChannelsApi {
                         )
                     )
                 } else {
-                    ApiResult.Ok(first)
+                    ApiResult.Ok(channel)
                 }
             }
         }
