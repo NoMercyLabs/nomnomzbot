@@ -113,6 +113,27 @@ interface EconomyApi {
 
     /** Transfer [amount] from one viewer's account to another. Broadcaster/Editor only. */
     suspend fun transfer(channelId: String, request: TransferBody): ApiResult<Unit>
+
+    /** Get a single savings jar's detail (includes membership list). */
+    suspend fun getJar(channelId: String, jarId: String): ApiResult<SavingsJarDetail>
+
+    /** Invite another channel (broadcaster) to join a savings jar. */
+    suspend fun inviteChannel(channelId: String, jarId: String, request: InviteChannelBody): ApiResult<SavingsJarMembership>
+
+    /** Accept a pending jar membership invitation. */
+    suspend fun acceptMembership(channelId: String, membershipId: String): ApiResult<SavingsJarMembership>
+
+    /** Revoke/remove a jar membership. */
+    suspend fun removeMembership(channelId: String, membershipId: String): ApiResult<Unit>
+
+    /** Contribute [amount] from a viewer's account into the jar. */
+    suspend fun contribute(channelId: String, jarId: String, request: AdminJarContributeBody): ApiResult<Unit>
+
+    /** Withdraw [amount] from the jar to a viewer's account. */
+    suspend fun withdraw(channelId: String, jarId: String, request: AdminJarWithdrawBody): ApiResult<Unit>
+
+    /** Jar movement history — first 50 entries. */
+    suspend fun jarHistory(channelId: String, jarId: String): ApiResult<List<JarMovement>>
 }
 
 class RestEconomyApi(private val client: ApiClient) : EconomyApi {
@@ -267,6 +288,53 @@ class RestEconomyApi(private val client: ApiClient) : EconomyApi {
 
     override suspend fun transfer(channelId: String, request: TransferBody): ApiResult<Unit> =
         client.postUnit("api/v1/channels/$channelId/economy/transfer", request)
+
+    override suspend fun getJar(channelId: String, jarId: String): ApiResult<SavingsJarDetail> =
+        client.getEnvelope("api/v1/channels/$channelId/economy/jars/$jarId")
+
+    override suspend fun inviteChannel(
+        channelId: String,
+        jarId: String,
+        request: InviteChannelBody,
+    ): ApiResult<SavingsJarMembership> =
+        client.postEnvelope("api/v1/channels/$channelId/economy/jars/$jarId/invite", request)
+
+    override suspend fun acceptMembership(
+        channelId: String,
+        membershipId: String,
+    ): ApiResult<SavingsJarMembership> =
+        client.postEnvelope(
+            "api/v1/channels/$channelId/economy/jars/memberships/$membershipId/accept",
+            Unit,
+        )
+
+    override suspend fun removeMembership(channelId: String, membershipId: String): ApiResult<Unit> =
+        client.deleteUnit("api/v1/channels/$channelId/economy/jars/memberships/$membershipId")
+
+    override suspend fun contribute(
+        channelId: String,
+        jarId: String,
+        request: AdminJarContributeBody,
+    ): ApiResult<Unit> =
+        client.postUnit("api/v1/channels/$channelId/economy/jars/$jarId/contribute", request)
+
+    override suspend fun withdraw(
+        channelId: String,
+        jarId: String,
+        request: AdminJarWithdrawBody,
+    ): ApiResult<Unit> =
+        client.postUnit("api/v1/channels/$channelId/economy/jars/$jarId/withdraw", request)
+
+    override suspend fun jarHistory(channelId: String, jarId: String): ApiResult<List<JarMovement>> =
+        when (
+            val page: ApiResult<PaginatedEnvelope<JarMovement>> =
+                client.getDirect(
+                    "api/v1/channels/$channelId/economy/jars/$jarId/history?page=1&pageSize=50"
+                )
+        ) {
+            is ApiResult.Failure -> ApiResult.Failure(page.error)
+            is ApiResult.Ok -> ApiResult.Ok(page.value.data)
+        }
 }
 
 /** The freeze/unfreeze request body (backend `CurrencyController.FreezeBody`). camelCase `frozen`. */
@@ -458,3 +526,66 @@ data class CurrencyLedgerEntry(
 )
 
 // TransferBody is declared in ParticipantApi.kt (same package) and shared here.
+
+/** Savings jar detail including the jar itself and its current memberships. */
+@Serializable
+data class SavingsJarDetail(
+    val id: String = "",
+    val ownerBroadcasterId: String = "",
+    val name: String = "",
+    val description: String? = null,
+    val goalAmount: Long? = null,
+    val balance: Long = 0,
+    val iconUrl: String? = null,
+    val isOpen: Boolean = false,
+    val maxWithdrawalPerChannel: Long? = null,
+    val createdAt: String = "",
+    val updatedAt: String = "",
+    val memberships: List<SavingsJarMembership> = emptyList(),
+)
+
+/** A channel's membership in a savings jar (backend `SavingsJarMembershipDto`). */
+@Serializable
+data class SavingsJarMembership(
+    val id: String = "",
+    val jarId: String = "",
+    val memberBroadcasterId: String = "",
+    val role: String = "",
+    val status: String = "",
+    val contributionCapPerStream: Long? = null,
+    val withdrawalCap: Long? = null,
+    val invitedByBroadcasterId: String? = null,
+    val acceptedAt: String? = null,
+)
+
+/** One audited jar movement entry (backend `JarMovementDto`). */
+@Serializable
+data class JarMovement(
+    val id: Long = 0,
+    val jarId: String = "",
+    val sourceBroadcasterId: String = "",
+    val contributorUserId: String? = null,
+    val amount: Long = 0,
+    val movementType: String = "",
+    val jarBalanceAfter: Long = 0,
+    val ledgerEntryId: Long? = null,
+    val actorUserId: String? = null,
+    val createdAt: String = "",
+)
+
+/** Invite a channel broadcaster to join a savings jar. */
+@Serializable
+data class InviteChannelBody(
+    val invitedBroadcasterId: String,
+    val role: String,
+    val contributionCapPerStream: Long? = null,
+    val withdrawalCap: Long? = null,
+)
+
+/** Admin contribute on behalf of a viewer (backend `JarContributeRequest`). [contributorUserId] = viewer platform User GUID. */
+@Serializable
+data class AdminJarContributeBody(val contributorUserId: String, val amount: Long)
+
+/** Admin withdraw from a jar to a viewer's account (backend `JarWithdrawRequest`). [targetViewerUserId] = viewer platform User GUID. */
+@Serializable
+data class AdminJarWithdrawBody(val targetViewerUserId: String, val amount: Long)

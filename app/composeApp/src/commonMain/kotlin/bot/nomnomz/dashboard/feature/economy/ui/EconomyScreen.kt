@@ -67,7 +67,13 @@ import androidx.compose.ui.unit.dp
 import bot.nomnomz.dashboard.core.network.CatalogItem
 import bot.nomnomz.dashboard.core.network.CatalogPurchase
 import bot.nomnomz.dashboard.core.network.CreateCatalogItemBody
+import bot.nomnomz.dashboard.core.network.AdminJarContributeBody
+import bot.nomnomz.dashboard.core.network.AdminJarWithdrawBody
 import bot.nomnomz.dashboard.core.network.CreateSavingsJarBody
+import bot.nomnomz.dashboard.core.network.InviteChannelBody
+import bot.nomnomz.dashboard.core.network.JarMovement
+import bot.nomnomz.dashboard.core.network.SavingsJarDetail
+import bot.nomnomz.dashboard.core.network.SavingsJarMembership
 import bot.nomnomz.dashboard.core.network.CurrencyAccountSummary
 import bot.nomnomz.dashboard.core.network.CurrencyConfig
 import bot.nomnomz.dashboard.core.network.CurrencyLedgerEntry
@@ -130,6 +136,39 @@ import nomnomzbot.composeapp.generated.resources.economy_earning_enable_action
 import nomnomzbot.composeapp.generated.resources.economy_earning_row_description
 import nomnomzbot.composeapp.generated.resources.economy_earning_title
 import nomnomzbot.composeapp.generated.resources.economy_jars_add
+import nomnomzbot.composeapp.generated.resources.economy_jars_close
+import nomnomzbot.composeapp.generated.resources.economy_jars_contribute
+import nomnomzbot.composeapp.generated.resources.economy_jars_contribute_amount
+import nomnomzbot.composeapp.generated.resources.economy_jars_contribute_amount_invalid
+import nomnomzbot.composeapp.generated.resources.economy_jars_contribute_cancel
+import nomnomzbot.composeapp.generated.resources.economy_jars_contribute_confirm
+import nomnomzbot.composeapp.generated.resources.economy_jars_contribute_title
+import nomnomzbot.composeapp.generated.resources.economy_jars_contribute_viewer
+import nomnomzbot.composeapp.generated.resources.economy_jars_detail_title
+import nomnomzbot.composeapp.generated.resources.economy_jars_history
+import nomnomzbot.composeapp.generated.resources.economy_jars_history_close
+import nomnomzbot.composeapp.generated.resources.economy_jars_history_empty
+import nomnomzbot.composeapp.generated.resources.economy_jars_history_error
+import nomnomzbot.composeapp.generated.resources.economy_jars_history_title
+import nomnomzbot.composeapp.generated.resources.economy_jars_invite
+import nomnomzbot.composeapp.generated.resources.economy_jars_invite_broadcaster
+import nomnomzbot.composeapp.generated.resources.economy_jars_invite_cancel
+import nomnomzbot.composeapp.generated.resources.economy_jars_invite_confirm
+import nomnomzbot.composeapp.generated.resources.economy_jars_invite_role
+import nomnomzbot.composeapp.generated.resources.economy_jars_invite_title
+import nomnomzbot.composeapp.generated.resources.economy_jars_manage
+import nomnomzbot.composeapp.generated.resources.economy_jars_membership_accepted
+import nomnomzbot.composeapp.generated.resources.economy_jars_membership_pending
+import nomnomzbot.composeapp.generated.resources.economy_jars_membership_revoke
+import nomnomzbot.composeapp.generated.resources.economy_jars_memberships
+import nomnomzbot.composeapp.generated.resources.economy_jars_memberships_empty
+import nomnomzbot.composeapp.generated.resources.economy_jars_withdraw
+import nomnomzbot.composeapp.generated.resources.economy_jars_withdraw_amount
+import nomnomzbot.composeapp.generated.resources.economy_jars_withdraw_amount_invalid
+import nomnomzbot.composeapp.generated.resources.economy_jars_withdraw_cancel
+import nomnomzbot.composeapp.generated.resources.economy_jars_withdraw_confirm
+import nomnomzbot.composeapp.generated.resources.economy_jars_withdraw_title
+import nomnomzbot.composeapp.generated.resources.economy_jars_withdraw_viewer
 import nomnomzbot.composeapp.generated.resources.economy_jars_balance
 import nomnomzbot.composeapp.generated.resources.economy_jars_cancel
 import nomnomzbot.composeapp.generated.resources.economy_jars_closed
@@ -254,6 +293,20 @@ fun EconomyScreen(controller: EconomyController, role: ManagementRole?) {
                     onCreateSavingsJar = { request ->
                         scope.launch { controller.createSavingsJar(request) }
                     },
+                    loadJarDetail = controller::getJar,
+                    onJarInvite = { jarId, request ->
+                        scope.launch { controller.inviteChannel(jarId, request) }
+                    },
+                    onJarRemoveMembership = { membershipId ->
+                        scope.launch { controller.removeMembership(membershipId) }
+                    },
+                    onJarContribute = { jarId, request ->
+                        scope.launch { controller.contribute(jarId, request) }
+                    },
+                    onJarWithdraw = { jarId, request ->
+                        scope.launch { controller.withdraw(jarId, request) }
+                    },
+                    loadJarHistory = controller::jarHistory,
                     onAdjustAccount = { viewerUserId, amount, reason ->
                         scope.launch { controller.adjustAccount(viewerUserId, amount, reason) }
                     },
@@ -282,6 +335,12 @@ private fun ReadyContent(
     onToggleEarningRule: (source: String, enabled: Boolean) -> Unit,
     onDeleteEarningRule: (ruleId: String) -> Unit,
     onCreateSavingsJar: (CreateSavingsJarBody) -> Unit,
+    loadJarDetail: suspend (jarId: String) -> SavingsJarDetail?,
+    onJarInvite: (jarId: String, InviteChannelBody) -> Unit,
+    onJarRemoveMembership: (membershipId: String) -> Unit,
+    onJarContribute: (jarId: String, AdminJarContributeBody) -> Unit,
+    onJarWithdraw: (jarId: String, AdminJarWithdrawBody) -> Unit,
+    loadJarHistory: suspend (jarId: String) -> List<JarMovement>?,
     onAdjustAccount: (viewerUserId: String, amount: Long, reason: String?) -> Unit,
     loadLedger: suspend (viewerUserId: String) -> List<CurrencyLedgerEntry>?,
     onTransfer: (TransferBody) -> Unit,
@@ -421,6 +480,12 @@ private fun ReadyContent(
             jars = state.savingsJars,
             manage = config,
             onCreate = onCreateSavingsJar,
+            loadJarDetail = loadJarDetail,
+            onInvite = onJarInvite,
+            onRemoveMembership = onJarRemoveMembership,
+            onContribute = onJarContribute,
+            onWithdraw = onJarWithdraw,
+            loadHistory = loadJarHistory,
         )
 
         CatalogPurchasesSection(
@@ -1654,12 +1719,19 @@ private fun SavingsJarsSection(
     jars: List<SavingsJar>,
     manage: ManageDecision,
     onCreate: (CreateSavingsJarBody) -> Unit,
+    loadJarDetail: suspend (jarId: String) -> SavingsJarDetail?,
+    onInvite: (jarId: String, InviteChannelBody) -> Unit,
+    onRemoveMembership: (membershipId: String) -> Unit,
+    onContribute: (jarId: String, AdminJarContributeBody) -> Unit,
+    onWithdraw: (jarId: String, AdminJarWithdrawBody) -> Unit,
+    loadHistory: suspend (jarId: String) -> List<JarMovement>?,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
 
     var showCreate: Boolean by remember { mutableStateOf(false) }
+    var managingJar: SavingsJar? by remember { mutableStateOf(null) }
 
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -1697,7 +1769,13 @@ private fun SavingsJarsSection(
             contentPadding = PaddingValues(vertical = spacing.s1),
             verticalArrangement = Arrangement.spacedBy(spacing.s2),
         ) {
-            items(items = jars, key = { it.id }) { jar -> SavingsJarRow(jar = jar) }
+            items(items = jars, key = { it.id }) { jar ->
+                SavingsJarRow(
+                    jar = jar,
+                    manage = manage,
+                    onManage = { managingJar = jar },
+                )
+            }
         }
     }
 
@@ -1710,10 +1788,28 @@ private fun SavingsJarsSection(
             onDismiss = { showCreate = false },
         )
     }
+
+    managingJar?.let { jar ->
+        JarManageDialog(
+            jar = jar,
+            manage = manage,
+            loadDetail = loadJarDetail,
+            onInvite = { request -> onInvite(jar.id, request) },
+            onRemoveMembership = onRemoveMembership,
+            onContribute = { request -> onContribute(jar.id, request) },
+            onWithdraw = { request -> onWithdraw(jar.id, request) },
+            loadHistory = loadHistory,
+            onDismiss = { managingJar = null },
+        )
+    }
 }
 
 @Composable
-private fun SavingsJarRow(jar: SavingsJar) {
+private fun SavingsJarRow(
+    jar: SavingsJar,
+    manage: ManageDecision,
+    onManage: () -> Unit,
+) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
@@ -1756,7 +1852,345 @@ private fun SavingsJarRow(jar: SavingsJar) {
             color = if (jar.isOpen) tokens.primary else tokens.mutedForeground,
             maxLines = 1,
         )
+        ManageGate(decision = manage) { enabled ->
+            TextButton(onClick = onManage, enabled = enabled) {
+                Text(
+                    text = stringResource(Res.string.economy_jars_manage),
+                    style = typography.sm,
+                    color = if (enabled) tokens.primary else tokens.mutedForeground,
+                )
+            }
+        }
     }
+}
+
+// Full-management dialog for a savings jar: shows detail + memberships, and provides
+// Contribute / Withdraw / Invite / History actions.
+@Composable
+private fun JarManageDialog(
+    jar: SavingsJar,
+    manage: ManageDecision,
+    loadDetail: suspend (jarId: String) -> SavingsJarDetail?,
+    onInvite: (InviteChannelBody) -> Unit,
+    onRemoveMembership: (membershipId: String) -> Unit,
+    onContribute: (AdminJarContributeBody) -> Unit,
+    onWithdraw: (AdminJarWithdrawBody) -> Unit,
+    loadHistory: suspend (jarId: String) -> List<JarMovement>?,
+    onDismiss: () -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    var detail: SavingsJarDetail? by remember { mutableStateOf(null) }
+    var showInvite: Boolean by remember { mutableStateOf(false) }
+    var showContribute: Boolean by remember { mutableStateOf(false) }
+    var showWithdraw: Boolean by remember { mutableStateOf(false) }
+    var showHistory: Boolean by remember { mutableStateOf(false) }
+
+    LaunchedEffect(jar.id) { detail = loadDetail(jar.id) }
+
+    val title: String = stringResource(Res.string.economy_jars_detail_title, jar.name)
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(text = title) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
+                // action buttons
+                Row(horizontalArrangement = Arrangement.spacedBy(spacing.s1)) {
+                    ManageGate(decision = manage) { enabled ->
+                        TextButton(onClick = { showContribute = true }, enabled = enabled) {
+                            Text(stringResource(Res.string.economy_jars_contribute), color = if (enabled) tokens.primary else tokens.mutedForeground)
+                        }
+                    }
+                    ManageGate(decision = manage) { enabled ->
+                        TextButton(onClick = { showWithdraw = true }, enabled = enabled) {
+                            Text(stringResource(Res.string.economy_jars_withdraw), color = if (enabled) tokens.primary else tokens.mutedForeground)
+                        }
+                    }
+                    ManageGate(decision = manage) { enabled ->
+                        TextButton(onClick = { showInvite = true }, enabled = enabled) {
+                            Text(stringResource(Res.string.economy_jars_invite), color = if (enabled) tokens.primary else tokens.mutedForeground)
+                        }
+                    }
+                    TextButton(onClick = { showHistory = true }) {
+                        Text(stringResource(Res.string.economy_jars_history), color = tokens.primary)
+                    }
+                }
+
+                // memberships
+                val memberships: List<SavingsJarMembership> = detail?.memberships ?: emptyList()
+                Text(
+                    text = stringResource(Res.string.economy_jars_memberships),
+                    style = typography.sm,
+                    color = tokens.mutedForeground,
+                )
+                if (memberships.isEmpty()) {
+                    Text(
+                        text = stringResource(Res.string.economy_jars_memberships_empty),
+                        style = typography.sm,
+                        color = tokens.mutedForeground,
+                    )
+                } else {
+                    Column(verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
+                        memberships.forEach { m ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = m.memberBroadcasterId,
+                                        style = typography.sm,
+                                        color = tokens.cardForeground,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                    val statusLabel: String =
+                                        if (m.status.equals("accepted", ignoreCase = true)) {
+                                            stringResource(Res.string.economy_jars_membership_accepted)
+                                        } else {
+                                            stringResource(Res.string.economy_jars_membership_pending)
+                                        }
+                                    Text(text = statusLabel, style = typography.xs, color = tokens.mutedForeground)
+                                }
+                                ManageGate(decision = manage) { enabled ->
+                                    TextButton(onClick = { onRemoveMembership(m.id) }, enabled = enabled) {
+                                        Text(
+                                            text = stringResource(Res.string.economy_jars_membership_revoke),
+                                            style = typography.sm,
+                                            color = if (enabled) tokens.destructive else tokens.mutedForeground,
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(text = stringResource(Res.string.economy_jars_close), color = tokens.mutedForeground)
+            }
+        },
+    )
+
+    if (showInvite) {
+        JarInviteDialog(
+            onConfirm = { request ->
+                onInvite(request)
+                showInvite = false
+            },
+            onDismiss = { showInvite = false },
+        )
+    }
+    if (showContribute) {
+        JarContributeDialog(
+            onConfirm = { request ->
+                onContribute(request)
+                showContribute = false
+            },
+            onDismiss = { showContribute = false },
+        )
+    }
+    if (showWithdraw) {
+        JarWithdrawDialog(
+            onConfirm = { request ->
+                onWithdraw(request)
+                showWithdraw = false
+            },
+            onDismiss = { showWithdraw = false },
+        )
+    }
+    if (showHistory) {
+        JarHistoryDialog(
+            jar = jar,
+            loadHistory = loadHistory,
+            onDismiss = { showHistory = false },
+        )
+    }
+}
+
+@Composable
+private fun JarInviteDialog(onConfirm: (InviteChannelBody) -> Unit, onDismiss: () -> Unit) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+
+    var broadcasterId: String by remember { mutableStateOf("") }
+    var role: String by remember { mutableStateOf("member") }
+    val isValid: Boolean = broadcasterId.isNotBlank() && role.isNotBlank()
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(Res.string.economy_jars_invite_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
+                AppTextField(
+                    value = broadcasterId,
+                    onValueChange = { broadcasterId = it },
+                    label = stringResource(Res.string.economy_jars_invite_broadcaster),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                AppTextField(
+                    value = role,
+                    onValueChange = { role = it },
+                    label = stringResource(Res.string.economy_jars_invite_role),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onConfirm(InviteChannelBody(invitedBroadcasterId = broadcasterId, role = role)) },
+                enabled = isValid,
+            ) {
+                Text(stringResource(Res.string.economy_jars_invite_confirm), color = if (isValid) tokens.primary else tokens.mutedForeground)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(Res.string.economy_jars_invite_cancel), color = tokens.mutedForeground)
+            }
+        },
+    )
+}
+
+@Composable
+private fun JarContributeDialog(onConfirm: (AdminJarContributeBody) -> Unit, onDismiss: () -> Unit) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+
+    var viewerId: String by remember { mutableStateOf("") }
+    var amountText: String by remember { mutableStateOf("") }
+    val amount: Long? = amountText.toLongOrNull()?.takeIf { it > 0 }
+    val isValid: Boolean = viewerId.isNotBlank() && amount != null
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(Res.string.economy_jars_contribute_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
+                AppTextField(value = viewerId, onValueChange = { viewerId = it }, label = stringResource(Res.string.economy_jars_contribute_viewer), modifier = Modifier.fillMaxWidth())
+                AppTextField(
+                    value = amountText,
+                    onValueChange = { amountText = it },
+                    label = stringResource(Res.string.economy_jars_contribute_amount),
+                    isError = amountText.isNotEmpty() && amount == null,
+                    errorText = stringResource(Res.string.economy_jars_contribute_amount_invalid),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { amount?.let { onConfirm(AdminJarContributeBody(contributorUserId = viewerId, amount = it)) } },
+                enabled = isValid,
+            ) {
+                Text(stringResource(Res.string.economy_jars_contribute_confirm), color = if (isValid) tokens.primary else tokens.mutedForeground)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(Res.string.economy_jars_contribute_cancel), color = tokens.mutedForeground)
+            }
+        },
+    )
+}
+
+@Composable
+private fun JarWithdrawDialog(onConfirm: (AdminJarWithdrawBody) -> Unit, onDismiss: () -> Unit) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+
+    var viewerId: String by remember { mutableStateOf("") }
+    var amountText: String by remember { mutableStateOf("") }
+    val amount: Long? = amountText.toLongOrNull()?.takeIf { it > 0 }
+    val isValid: Boolean = viewerId.isNotBlank() && amount != null
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(Res.string.economy_jars_withdraw_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
+                AppTextField(value = viewerId, onValueChange = { viewerId = it }, label = stringResource(Res.string.economy_jars_withdraw_viewer), modifier = Modifier.fillMaxWidth())
+                AppTextField(
+                    value = amountText,
+                    onValueChange = { amountText = it },
+                    label = stringResource(Res.string.economy_jars_withdraw_amount),
+                    isError = amountText.isNotEmpty() && amount == null,
+                    errorText = stringResource(Res.string.economy_jars_withdraw_amount_invalid),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { amount?.let { onConfirm(AdminJarWithdrawBody(targetViewerUserId = viewerId, amount = it)) } },
+                enabled = isValid,
+            ) {
+                Text(stringResource(Res.string.economy_jars_withdraw_confirm), color = if (isValid) tokens.primary else tokens.mutedForeground)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(Res.string.economy_jars_withdraw_cancel), color = tokens.mutedForeground)
+            }
+        },
+    )
+}
+
+@Composable
+private fun JarHistoryDialog(
+    jar: SavingsJar,
+    loadHistory: suspend (jarId: String) -> List<JarMovement>?,
+    onDismiss: () -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    var entries: List<JarMovement>? by remember { mutableStateOf(null) }
+    var error: Boolean by remember { mutableStateOf(false) }
+
+    LaunchedEffect(jar.id) {
+        val result: List<JarMovement>? = loadHistory(jar.id)
+        if (result == null) error = true else entries = result
+    }
+
+    val title: String = stringResource(Res.string.economy_jars_history_title, jar.name)
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = {
+            when {
+                error -> Text(stringResource(Res.string.economy_jars_history_error), color = tokens.destructive)
+                entries == null -> Text(stringResource(Res.string.economy_loading), color = tokens.mutedForeground)
+                entries!!.isEmpty() -> Text(stringResource(Res.string.economy_jars_history_empty), color = tokens.mutedForeground)
+                else -> {
+                    LazyColumn(modifier = Modifier.heightIn(max = spacing.s16 * 4), verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
+                        items(items = entries!!, key = { it.id }) { entry ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                            ) {
+                                Text(entry.movementType, style = typography.sm, color = tokens.cardForeground, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                Text("${if (entry.amount >= 0) "+" else ""}${entry.amount}", style = typography.sm, color = if (entry.amount >= 0) tokens.primary else tokens.destructive)
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(Res.string.economy_jars_history_close), color = tokens.mutedForeground)
+            }
+        },
+    )
 }
 
 @Composable

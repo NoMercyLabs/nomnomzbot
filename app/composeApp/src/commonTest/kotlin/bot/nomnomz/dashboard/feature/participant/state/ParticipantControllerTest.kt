@@ -21,9 +21,15 @@ import bot.nomnomz.dashboard.core.network.CreateCatalogItemBody
 import bot.nomnomz.dashboard.core.network.CreateSavingsJarBody
 import bot.nomnomz.dashboard.core.network.CurrencyAccount
 import bot.nomnomz.dashboard.core.network.CurrencyAccountSummary
+import bot.nomnomz.dashboard.core.network.AdminJarContributeBody
+import bot.nomnomz.dashboard.core.network.AdminJarWithdrawBody
 import bot.nomnomz.dashboard.core.network.CurrencyLedgerEntry
 import bot.nomnomz.dashboard.core.network.EarningRule
 import bot.nomnomz.dashboard.core.network.CurrencyConfig
+import bot.nomnomz.dashboard.core.network.InviteChannelBody
+import bot.nomnomz.dashboard.core.network.JarMovement
+import bot.nomnomz.dashboard.core.network.SavingsJarDetail
+import bot.nomnomz.dashboard.core.network.SavingsJarMembership
 import bot.nomnomz.dashboard.core.network.TransferBody
 import bot.nomnomz.dashboard.core.network.DashboardApi
 import bot.nomnomz.dashboard.core.network.DashboardStats
@@ -621,6 +627,38 @@ private class FakeEconomyApi(
         ApiResult.Ok(emptyList())
 
     override suspend fun transfer(channelId: String, request: TransferBody): ApiResult<Unit> = ApiResult.Ok(Unit)
+
+    override suspend fun getJar(channelId: String, jarId: String): ApiResult<SavingsJarDetail> =
+        ApiResult.Ok(SavingsJarDetail())
+
+    override suspend fun inviteChannel(
+        channelId: String,
+        jarId: String,
+        request: InviteChannelBody,
+    ): ApiResult<SavingsJarMembership> = ApiResult.Ok(SavingsJarMembership())
+
+    override suspend fun acceptMembership(
+        channelId: String,
+        membershipId: String,
+    ): ApiResult<SavingsJarMembership> = ApiResult.Ok(SavingsJarMembership())
+
+    override suspend fun removeMembership(channelId: String, membershipId: String): ApiResult<Unit> =
+        ApiResult.Ok(Unit)
+
+    override suspend fun contribute(
+        channelId: String,
+        jarId: String,
+        request: AdminJarContributeBody,
+    ): ApiResult<Unit> = ApiResult.Ok(Unit)
+
+    override suspend fun withdraw(
+        channelId: String,
+        jarId: String,
+        request: AdminJarWithdrawBody,
+    ): ApiResult<Unit> = ApiResult.Ok(Unit)
+
+    override suspend fun jarHistory(channelId: String, jarId: String): ApiResult<List<JarMovement>> =
+        ApiResult.Ok(emptyList())
 }
 
 private class FakeMusicApi(private val snapshot: ApiResult<MusicSnapshot>) : MusicApi {

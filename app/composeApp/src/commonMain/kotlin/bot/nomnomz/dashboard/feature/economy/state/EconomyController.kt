@@ -18,6 +18,12 @@ import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.CreateCatalogItemBody
 import bot.nomnomz.dashboard.core.network.CreateSavingsJarBody
 import bot.nomnomz.dashboard.core.network.CurrencyAccountSummary
+import bot.nomnomz.dashboard.core.network.AdminJarContributeBody
+import bot.nomnomz.dashboard.core.network.AdminJarWithdrawBody
+import bot.nomnomz.dashboard.core.network.InviteChannelBody
+import bot.nomnomz.dashboard.core.network.JarMovement
+import bot.nomnomz.dashboard.core.network.SavingsJarDetail
+import bot.nomnomz.dashboard.core.network.SavingsJarMembership
 import bot.nomnomz.dashboard.core.network.CurrencyConfig
 import bot.nomnomz.dashboard.core.network.CurrencyLedgerEntry
 import bot.nomnomz.dashboard.core.network.EarningRule
@@ -273,6 +279,66 @@ class EconomyController(
                     _state.value = current.copy(saveError = result.error.message)
                 }
             }
+        }
+    }
+
+    /** Load a jar's detail (jar metadata + membership list). Returns null on failure. */
+    suspend fun getJar(jarId: String): SavingsJarDetail? {
+        val channel: String = channelId ?: return null
+        return when (val result: ApiResult<SavingsJarDetail> = economyApi.getJar(channel, jarId)) {
+            is ApiResult.Ok -> result.value
+            is ApiResult.Failure -> null
+        }
+    }
+
+    /** Invite a broadcaster channel to join [jarId]. Reloads on success. */
+    suspend fun inviteChannel(jarId: String, request: InviteChannelBody) {
+        val channel: String = channelId ?: return
+        when (val result: ApiResult<SavingsJarMembership> = economyApi.inviteChannel(channel, jarId, request)) {
+            is ApiResult.Ok -> load()
+            is ApiResult.Failure -> {
+                val current: EconomyState = _state.value
+                if (current is EconomyState.Ready) _state.value = current.copy(saveError = result.error.message)
+            }
+        }
+    }
+
+    /** Accept the pending jar membership invitation [membershipId]. Reloads on success. */
+    suspend fun acceptMembership(membershipId: String) {
+        val channel: String = channelId ?: return
+        when (val result: ApiResult<SavingsJarMembership> = economyApi.acceptMembership(channel, membershipId)) {
+            is ApiResult.Ok -> load()
+            is ApiResult.Failure -> {
+                val current: EconomyState = _state.value
+                if (current is EconomyState.Ready) _state.value = current.copy(saveError = result.error.message)
+            }
+        }
+    }
+
+    /** Remove/revoke a jar membership. Reloads on success. */
+    suspend fun removeMembership(membershipId: String) {
+        val channel: String = channelId ?: return
+        afterWrite(economyApi.removeMembership(channel, membershipId))
+    }
+
+    /** Contribute [amount] from a viewer's account into [jarId]. Reloads on success. */
+    suspend fun contribute(jarId: String, request: AdminJarContributeBody) {
+        val channel: String = channelId ?: return
+        afterWrite(economyApi.contribute(channel, jarId, request))
+    }
+
+    /** Withdraw [amount] from [jarId] to a viewer's account. Reloads on success. */
+    suspend fun withdraw(jarId: String, request: AdminJarWithdrawBody) {
+        val channel: String = channelId ?: return
+        afterWrite(economyApi.withdraw(channel, jarId, request))
+    }
+
+    /** Load movement history for [jarId] — first 50 entries. Returns null on failure. */
+    suspend fun jarHistory(jarId: String): List<JarMovement>? {
+        val channel: String = channelId ?: return null
+        return when (val result: ApiResult<List<JarMovement>> = economyApi.jarHistory(channel, jarId)) {
+            is ApiResult.Ok -> result.value
+            is ApiResult.Failure -> null
         }
     }
 
