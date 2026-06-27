@@ -25,6 +25,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -44,19 +45,28 @@ import bot.nomnomz.dashboard.core.network.ChannelAppearance
 import bot.nomnomz.dashboard.core.network.PronounOption
 import bot.nomnomz.dashboard.core.network.UserActivity
 import bot.nomnomz.dashboard.core.network.UserProfile
+import bot.nomnomz.dashboard.core.network.ViewerAnalyticsProfile
+import bot.nomnomz.dashboard.core.network.WatchStreak
 import bot.nomnomz.dashboard.feature.participant.state.MeState
 import bot.nomnomz.dashboard.feature.participant.state.ParticipantController
 import bot.nomnomz.dashboard.feature.shell.nav.ParticipantStanding
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.participant_loading
+import nomnomzbot.composeapp.generated.resources.participant_me_analytics_opt_in
+import nomnomzbot.composeapp.generated.resources.participant_me_analytics_opt_out
+import nomnomzbot.composeapp.generated.resources.participant_me_analytics_opted_in_desc
+import nomnomzbot.composeapp.generated.resources.participant_me_analytics_opted_out_desc
+import nomnomzbot.composeapp.generated.resources.participant_me_analytics_title
 import nomnomzbot.composeapp.generated.resources.participant_me_channels_empty
 import nomnomzbot.composeapp.generated.resources.participant_me_channels_row
 import nomnomzbot.composeapp.generated.resources.participant_me_channels_title
 import nomnomzbot.composeapp.generated.resources.participant_me_profile_title
 import nomnomzbot.composeapp.generated.resources.participant_me_pronoun_none
+import nomnomzbot.composeapp.generated.resources.participant_me_streak_current
+import nomnomzbot.composeapp.generated.resources.participant_me_streak_max
+import nomnomzbot.composeapp.generated.resources.participant_me_streak_title
 import nomnomzbot.composeapp.generated.resources.participant_stat_channels
-
 import nomnomzbot.composeapp.generated.resources.participant_stat_commands
 import nomnomzbot.composeapp.generated.resources.participant_stat_messages
 import nomnomzbot.composeapp.generated.resources.participant_stat_watch_hours
@@ -82,13 +92,18 @@ fun MeScreen(controller: ParticipantController) {
                 Ready(
                     state = current,
                     onPronounSelected = { id -> scope.launch { controller.updatePronoun(id) } },
+                    onSetAnalyticsOptOut = { opted -> scope.launch { controller.setAnalyticsOptOut(opted) } },
                 )
         }
     }
 }
 
 @Composable
-private fun Ready(state: MeState.Ready, onPronounSelected: (Int?) -> Unit) {
+private fun Ready(
+    state: MeState.Ready,
+    onPronounSelected: (Int?) -> Unit,
+    onSetAnalyticsOptOut: (Boolean) -> Unit,
+) {
     val spacing = LocalSpacing.current
 
     Column(
@@ -108,7 +123,14 @@ private fun Ready(state: MeState.Ready, onPronounSelected: (Int?) -> Unit) {
             Text(text = err, style = typography.xs, color = tokens.destructive)
         }
         ActivityTiles(activity = state.activity)
+        state.watchStreak?.let { streak -> WatchStreakCard(streak = streak) }
         ChannelsCard(channels = state.channels)
+        AnalyticsPrivacyCard(
+            profile = state.analyticsProfile,
+            saving = state.analyticsOptOutSaving,
+            error = state.analyticsOptOutError,
+            onToggle = onSetAnalyticsOptOut,
+        )
     }
 }
 
@@ -225,6 +247,91 @@ private fun ChannelsCard(channels: List<ChannelAppearance>) {
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun WatchStreakCard(streak: WatchStreak) {
+    val tokens = LocalTokens.current
+    val typography = LocalTypography.current
+    val spacing = LocalSpacing.current
+
+    SectionCard(title = stringResource(Res.string.participant_me_streak_title)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(spacing.s6),
+        ) {
+            Column {
+                Text(
+                    text = streak.currentStreak.toString(),
+                    style = typography.xl2,
+                    color = tokens.cardForeground,
+                )
+                Text(
+                    text = stringResource(Res.string.participant_me_streak_current),
+                    style = typography.xs,
+                    color = tokens.mutedForeground,
+                )
+            }
+            Column {
+                Text(
+                    text = streak.maxStreak.toString(),
+                    style = typography.xl2,
+                    color = tokens.cardForeground,
+                )
+                Text(
+                    text = stringResource(Res.string.participant_me_streak_max),
+                    style = typography.xs,
+                    color = tokens.mutedForeground,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun AnalyticsPrivacyCard(
+    profile: ViewerAnalyticsProfile?,
+    saving: Boolean,
+    error: String?,
+    onToggle: (Boolean) -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val typography = LocalTypography.current
+
+    if (profile == null) return
+
+    val optedOut: Boolean = profile.isAnalyticsOptedOut
+    val description: String =
+        stringResource(
+            if (optedOut) Res.string.participant_me_analytics_opted_out_desc
+            else Res.string.participant_me_analytics_opted_in_desc
+        )
+    val actionLabel: String =
+        stringResource(
+            if (optedOut) Res.string.participant_me_analytics_opt_in
+            else Res.string.participant_me_analytics_opt_out
+        )
+
+    SectionCard(title = stringResource(Res.string.participant_me_analytics_title)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(text = actionLabel, style = typography.sm, color = tokens.cardForeground)
+                Text(text = description, style = typography.xs, color = tokens.mutedForeground)
+            }
+            if (saving) {
+                CircularProgressIndicator()
+            } else {
+                Switch(checked = !optedOut, onCheckedChange = { checked -> onToggle(!checked) })
+            }
+        }
+        error?.let { err ->
+            Text(text = err, style = typography.xs, color = tokens.destructive)
         }
     }
 }

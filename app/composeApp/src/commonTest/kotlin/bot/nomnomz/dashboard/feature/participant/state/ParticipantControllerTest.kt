@@ -37,17 +37,23 @@ import bot.nomnomz.dashboard.core.network.MusicPlaylist
 import bot.nomnomz.dashboard.core.network.MusicSnapshot
 import bot.nomnomz.dashboard.core.network.MusicSongRequestBody
 import bot.nomnomz.dashboard.core.network.MusicTrack
+import bot.nomnomz.dashboard.core.network.AnalyticsApi
+import bot.nomnomz.dashboard.core.network.AnalyticsSummary
+import bot.nomnomz.dashboard.core.network.DailyMetricRow
 import bot.nomnomz.dashboard.core.network.NowPlaying
 import bot.nomnomz.dashboard.core.network.BotStatus
 import bot.nomnomz.dashboard.core.network.ParticipantApi
 import bot.nomnomz.dashboard.core.network.PronounOption
 import bot.nomnomz.dashboard.core.network.SavingsJar
 import bot.nomnomz.dashboard.core.network.SystemApi
+import bot.nomnomz.dashboard.core.network.TopViewerEntry
 import bot.nomnomz.dashboard.core.network.UpdateMusicConfigBody
 import bot.nomnomz.dashboard.core.network.UpsertCurrencyConfig
 import bot.nomnomz.dashboard.core.network.UpsertEarningRuleBody
 import bot.nomnomz.dashboard.core.network.UserActivity
 import bot.nomnomz.dashboard.core.network.UserProfile
+import bot.nomnomz.dashboard.core.network.ViewerAnalyticsProfile
+import bot.nomnomz.dashboard.core.network.WatchStreak
 import bot.nomnomz.dashboard.feature.shell.nav.ParticipantStanding
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -382,6 +388,7 @@ class ParticipantControllerTest {
                 economyApi = FakeEconomyApi(),
                 musicApi = FakeMusicApi(ApiResult.Ok(MusicSnapshot())),
                 systemApi = FakeSystemApi(),
+                analyticsApi = FakeAnalyticsApi(),
             )
 
         controller.loadStore()
@@ -399,6 +406,7 @@ class ParticipantControllerTest {
         economy: EconomyApi = FakeEconomyApi(),
         music: MusicApi = FakeMusicApi(ApiResult.Ok(MusicSnapshot())),
         system: SystemApi = FakeSystemApi(),
+        analytics: AnalyticsApi = FakeAnalyticsApi(),
         standing: ParticipantStanding = ParticipantStanding.Everyone,
         canTransfer: Boolean = false,
     ): ParticipantController =
@@ -412,6 +420,7 @@ class ParticipantControllerTest {
             economyApi = economy,
             musicApi = music,
             systemApi = system,
+            analyticsApi = analytics,
         )
 }
 
@@ -686,4 +695,36 @@ private class FakeSystemApi : SystemApi {
     override suspend fun completeSetup(): ApiResult<Unit> = ApiResult.Ok(Unit)
 
     override suspend fun pronouns(): ApiResult<List<PronounOption>> = ApiResult.Ok(emptyList())
+}
+
+private class FakeAnalyticsApi : AnalyticsApi {
+    override suspend fun summary(channelId: String, from: String, to: String): ApiResult<AnalyticsSummary> =
+        ApiResult.Ok(AnalyticsSummary())
+
+    override suspend fun daily(channelId: String, from: String, to: String): ApiResult<List<DailyMetricRow>> =
+        ApiResult.Ok(emptyList())
+
+    override suspend fun topViewers(
+        channelId: String,
+        metric: String,
+        from: String,
+        to: String,
+        top: Int,
+    ): ApiResult<List<TopViewerEntry>> = ApiResult.Ok(emptyList())
+
+    override suspend fun viewerProfile(
+        channelId: String,
+        viewerUserId: String,
+    ): ApiResult<ViewerAnalyticsProfile> = ApiResult.Ok(ViewerAnalyticsProfile())
+
+    override suspend fun viewerStreak(
+        channelId: String,
+        viewerUserId: String,
+    ): ApiResult<WatchStreak> = ApiResult.Ok(WatchStreak())
+
+    override suspend fun setAnalyticsOptOut(
+        channelId: String,
+        viewerUserId: String,
+        optedOut: Boolean,
+    ): ApiResult<Unit> = ApiResult.Ok(Unit)
 }

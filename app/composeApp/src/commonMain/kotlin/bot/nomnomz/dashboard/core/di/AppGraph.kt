@@ -375,5 +375,6 @@ class AppGraph {
             economyApi = economyApi,
             musicApi = musicApi,
             systemApi = systemApi,
+            analyticsApi = analyticsApi,
         )
 }

@@ -1257,6 +1257,14 @@
     <string name="participant_me_channels_title">Kanalen waar je aan deelneemt</string>
     <string name="participant_me_channels_empty">Nog geen kanaalactiviteit.</string>
     <string name="participant_me_channels_row">%1$s · %2$d berichten · %3$s</string>
+    <string name="participant_me_streak_title">Kijkreeks</string>
+    <string name="participant_me_streak_current">Huidig</string>
+    <string name="participant_me_streak_max">Best</string>
+    <string name="participant_me_analytics_title">Analyses &amp; Privacy</string>
+    <string name="participant_me_analytics_opted_in_desc">Je activiteit wordt meegenomen in kanaalanalyses.</string>
+    <string name="participant_me_analytics_opted_out_desc">Je activiteit is uitgesloten van kanaalanalyses.</string>
+    <string name="participant_me_analytics_opt_out">Afmelden voor analyses</string>
+    <string name="participant_me_analytics_opt_in">Opnieuw aanmelden voor analyses</string>
 
     <!-- Shell nav -->
     <string name="shell_nav_features">Functies</string>

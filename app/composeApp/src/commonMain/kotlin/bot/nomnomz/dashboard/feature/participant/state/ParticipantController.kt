@@ -10,6 +10,7 @@
 
 package bot.nomnomz.dashboard.feature.participant.state
 
+import bot.nomnomz.dashboard.core.network.AnalyticsApi
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.CatalogItem
 import bot.nomnomz.dashboard.core.network.ChannelAppearance
@@ -29,7 +30,11 @@ import bot.nomnomz.dashboard.core.network.SavingsJar
 import bot.nomnomz.dashboard.core.network.SystemApi
 import bot.nomnomz.dashboard.core.network.UserActivity
 import bot.nomnomz.dashboard.core.network.UserProfile
+import bot.nomnomz.dashboard.core.network.ViewerAnalyticsProfile
+import bot.nomnomz.dashboard.core.network.WatchStreak
 import bot.nomnomz.dashboard.feature.shell.nav.ParticipantStanding
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -51,6 +56,7 @@ class ParticipantController(
     private val economyApi: EconomyApi,
     private val musicApi: MusicApi,
     private val systemApi: SystemApi,
+    private val analyticsApi: AnalyticsApi,
 ) {
     private val _myChannel: MutableStateFlow<MyChannelState> = MutableStateFlow(MyChannelState.Loading)
     private val _nowPlaying: MutableStateFlow<NowPlayingState> = MutableStateFlow(NowPlayingState.Loading)
@@ -211,6 +217,33 @@ class ParticipantController(
     suspend fun optOutOfLeaderboards() {
         if (!hasContext()) return
         afterLeaderboardToggle(participantApi.leaderboardOptOut(channelId, userId!!), optedIn = false)
+    }
+
+    /** Toggle the caller's analytics opt-out and reflect the change on the Me state. */
+    suspend fun setAnalyticsOptOut(optedOut: Boolean) {
+        if (!hasContext()) return
+        val current: MeState.Ready = (_me.value as? MeState.Ready) ?: return
+        _me.value = current.copy(analyticsOptOutSaving = true, analyticsOptOutError = null)
+
+        when (
+            val result: ApiResult<Unit> =
+                analyticsApi.setAnalyticsOptOut(channelId, userId!!, optedOut)
+        ) {
+            is ApiResult.Ok ->
+                _me.value =
+                    current.copy(
+                        analyticsProfile =
+                            current.analyticsProfile?.copy(isAnalyticsOptedOut = optedOut),
+                        analyticsOptOutSaving = false,
+                        analyticsOptOutError = null,
+                    )
+            is ApiResult.Failure ->
+                _me.value =
+                    current.copy(
+                        analyticsOptOutSaving = false,
+                        analyticsOptOutError = result.error.message,
+                    )
+        }
     }
 
     private fun afterLeaderboardToggle(result: ApiResult<Unit>, optedIn: Boolean) {
@@ -384,23 +417,39 @@ class ParticipantController(
                 is ApiResult.Ok -> result.value
             }
 
-        val pronouns: List<PronounOption> =
-            when (val result: ApiResult<List<PronounOption>> = systemApi.pronouns()) {
-                is ApiResult.Failure -> emptyList()
-                is ApiResult.Ok -> result.value
-            }
+        coroutineScope {
+            val pronounsDeferred =
+                async { systemApi.pronouns() }
+            val channelsDeferred =
+                async { participantApi.myChannels(userId) }
+            val analyticsProfileDeferred =
+                async { analyticsApi.viewerProfile(channelId, profile.id) }
+            val watchStreakDeferred =
+                async { analyticsApi.viewerStreak(channelId, profile.id) }
 
-        when (val result: ApiResult<List<ChannelAppearance>> = participantApi.myChannels(userId)) {
-            is ApiResult.Failure -> _me.value = MeState.Error(result.error.message)
-            is ApiResult.Ok ->
-                _me.value =
-                    MeState.Ready(
-                        profile = profile,
-                        activity = activity,
-                        channels = result.value,
-                        standing = standing,
-                        pronouns = pronouns,
-                    )
+            val pronouns: List<PronounOption> =
+                (pronounsDeferred.await() as? ApiResult.Ok)?.value ?: emptyList()
+            val analyticsProfile: ViewerAnalyticsProfile? =
+                (analyticsProfileDeferred.await() as? ApiResult.Ok)?.value
+            val watchStreak: WatchStreak? =
+                (watchStreakDeferred.await() as? ApiResult.Ok)?.value
+
+            when (
+                val result: ApiResult<List<ChannelAppearance>> = channelsDeferred.await()
+            ) {
+                is ApiResult.Failure -> _me.value = MeState.Error(result.error.message)
+                is ApiResult.Ok ->
+                    _me.value =
+                        MeState.Ready(
+                            profile = profile,
+                            activity = activity,
+                            channels = result.value,
+                            standing = standing,
+                            pronouns = pronouns,
+                            analyticsProfile = analyticsProfile,
+                            watchStreak = watchStreak,
+                        )
+            }
         }
     }
 

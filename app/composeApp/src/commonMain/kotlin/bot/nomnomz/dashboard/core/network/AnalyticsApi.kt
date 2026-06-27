@@ -37,6 +37,19 @@ interface AnalyticsApi {
         to: String,
         top: Int,
     ): ApiResult<List<TopViewerEntry>>
+
+    /** One viewer's full analytics profile (messages, watch time, follower/sub status, opt-out flag). */
+    suspend fun viewerProfile(channelId: String, viewerUserId: String): ApiResult<ViewerAnalyticsProfile>
+
+    /** One viewer's watch streak for the channel. */
+    suspend fun viewerStreak(channelId: String, viewerUserId: String): ApiResult<WatchStreak>
+
+    /** Toggle the analytics opt-out for [viewerUserId] (self or moderator). */
+    suspend fun setAnalyticsOptOut(
+        channelId: String,
+        viewerUserId: String,
+        optedOut: Boolean,
+    ): ApiResult<Unit>
 }
 
 class RestAnalyticsApi(private val client: ApiClient) : AnalyticsApi {
@@ -63,6 +76,28 @@ class RestAnalyticsApi(private val client: ApiClient) : AnalyticsApi {
     ): ApiResult<List<TopViewerEntry>> =
         client.getEnvelope(
             "api/v1/channels/$channelId/analytics/channel/top-viewers?metric=$metric&from=$from&to=$to&top=$top"
+        )
+
+    override suspend fun viewerProfile(
+        channelId: String,
+        viewerUserId: String,
+    ): ApiResult<ViewerAnalyticsProfile> =
+        client.getEnvelope("api/v1/channels/$channelId/analytics/viewers/$viewerUserId")
+
+    override suspend fun viewerStreak(
+        channelId: String,
+        viewerUserId: String,
+    ): ApiResult<WatchStreak> =
+        client.getEnvelope("api/v1/channels/$channelId/analytics/viewers/$viewerUserId/streak")
+
+    override suspend fun setAnalyticsOptOut(
+        channelId: String,
+        viewerUserId: String,
+        optedOut: Boolean,
+    ): ApiResult<Unit> =
+        client.postUnit(
+            "api/v1/channels/$channelId/analytics/viewers/$viewerUserId/opt-out",
+            SetAnalyticsOptOutBody(optedOut),
         )
 }
 
@@ -104,3 +139,30 @@ data class TopViewerEntry(
     val displayName: String? = null,
     val metricValue: Long = 0,
 )
+
+/** One viewer's full analytics profile (backend `ViewerProfileDto`) — the stats the Me screen shows. */
+@Serializable
+data class ViewerAnalyticsProfile(
+    val viewerUserId: String = "",
+    val displayName: String? = null,
+    val totalWatchSeconds: Long = 0,
+    val totalMessages: Long = 0,
+    val totalCommandsUsed: Long = 0,
+    val totalRedemptions: Long = 0,
+    val isFollower: Boolean = false,
+    val isSubscriber: Boolean = false,
+    val subTier: String? = null,
+    val isAnalyticsOptedOut: Boolean = false,
+)
+
+/** One viewer's watch streak for the channel (backend `WatchStreakDto`). */
+@Serializable
+data class WatchStreak(
+    val currentStreak: Int = 0,
+    val maxStreak: Int = 0,
+    val lastSeenDate: String = "",
+)
+
+/** Request body for the analytics opt-out toggle (backend `SetAnalyticsOptOutRequest`). */
+@Serializable
+private data class SetAnalyticsOptOutBody(val optedOut: Boolean)

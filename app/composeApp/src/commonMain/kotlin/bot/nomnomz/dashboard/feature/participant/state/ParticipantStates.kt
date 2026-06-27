@@ -23,6 +23,8 @@ import bot.nomnomz.dashboard.core.network.PronounOption
 import bot.nomnomz.dashboard.core.network.SavingsJar
 import bot.nomnomz.dashboard.core.network.UserActivity
 import bot.nomnomz.dashboard.core.network.UserProfile
+import bot.nomnomz.dashboard.core.network.ViewerAnalyticsProfile
+import bot.nomnomz.dashboard.core.network.WatchStreak
 import bot.nomnomz.dashboard.feature.shell.nav.ParticipantStanding
 
 // The render states for the six participant screens. Each screen is a pure projection of its state; a write
@@ -124,6 +126,12 @@ sealed interface MeState {
         val pronouns: List<PronounOption> = emptyList(),
         val profileSaving: Boolean = false,
         val profileError: String? = null,
+        /** Viewer's own analytics profile for this channel (null if unavailable or not yet loaded). */
+        val analyticsProfile: ViewerAnalyticsProfile? = null,
+        /** Viewer's watch-streak for this channel (null if unavailable or not yet loaded). */
+        val watchStreak: WatchStreak? = null,
+        val analyticsOptOutSaving: Boolean = false,
+        val analyticsOptOutError: String? = null,
     ) : MeState
 
     data class Error(val detail: String) : MeState

@@ -1270,6 +1270,14 @@
     <string name="participant_me_channels_title">Channels you take part in</string>
     <string name="participant_me_channels_empty">No channel activity yet.</string>
     <string name="participant_me_channels_row">%1$s · %2$d messages · %3$s</string>
+    <string name="participant_me_streak_title">Watch streak</string>
+    <string name="participant_me_streak_current">Current</string>
+    <string name="participant_me_streak_max">Best</string>
+    <string name="participant_me_analytics_title">Analytics &amp; Privacy</string>
+    <string name="participant_me_analytics_opted_in_desc">Your activity is included in channel analytics.</string>
+    <string name="participant_me_analytics_opted_out_desc">Your activity is excluded from channel analytics.</string>
+    <string name="participant_me_analytics_opt_out">Opt out of analytics</string>
+    <string name="participant_me_analytics_opt_in">Opt back in to analytics</string>
 
     <!-- Shell nav -->
     <string name="shell_nav_features">Features</string>

@@ -18,6 +18,8 @@ import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.DailyMetricRow
 import bot.nomnomz.dashboard.core.network.TopViewerEntry
+import bot.nomnomz.dashboard.core.network.ViewerAnalyticsProfile
+import bot.nomnomz.dashboard.core.network.WatchStreak
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -221,4 +223,20 @@ private class FakeAnalyticsApi(
         to: String,
         top: Int,
     ): ApiResult<List<TopViewerEntry>> = topViewersResult
+
+    override suspend fun viewerProfile(
+        channelId: String,
+        viewerUserId: String,
+    ): ApiResult<ViewerAnalyticsProfile> = ApiResult.Ok(ViewerAnalyticsProfile())
+
+    override suspend fun viewerStreak(
+        channelId: String,
+        viewerUserId: String,
+    ): ApiResult<WatchStreak> = ApiResult.Ok(WatchStreak())
+
+    override suspend fun setAnalyticsOptOut(
+        channelId: String,
+        viewerUserId: String,
+        optedOut: Boolean,
+    ): ApiResult<Unit> = ApiResult.Ok(Unit)
 }
