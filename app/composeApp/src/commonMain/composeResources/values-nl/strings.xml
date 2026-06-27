@@ -1357,4 +1357,43 @@
     <string name="community_more_actions">Meer acties voor %1$s</string>
     <string name="community_top_chatters_title">Meest Actieve Chatters</string>
     <string name="community_top_chatters_messages">%1$d berichten</string>
+
+    <!-- Shell nav — Evenement reacties -->
+    <string name="shell_nav_event_responses">Evenement reacties</string>
+
+    <!-- Evenement reacties pagina -->
+    <string name="event_responses_loading">Evenement reacties laden…</string>
+    <string name="event_responses_empty">Geen evenement reacties geconfigureerd</string>
+    <string name="event_responses_error">Evenement reacties konden niet worden geladen: %1$s</string>
+    <string name="event_responses_retry">Opnieuw proberen</string>
+    <string name="event_responses_action_error">Actie mislukt: %1$s</string>
+    <string name="event_responses_enabled">Ingeschakeld</string>
+    <string name="event_responses_disabled">Uitgeschakeld</string>
+    <string name="event_responses_toggle_action">%1$s in-/uitschakelen</string>
+    <string name="event_responses_edit_action">%1$s bewerken</string>
+    <string name="event_responses_edit_action_short">Bewerken</string>
+    <string name="event_responses_delete_action">%1$s verwijderen</string>
+    <string name="event_responses_row_description">%1$s, %2$s, %3$s</string>
+    <string name="event_responses_type_none">Geen</string>
+    <string name="event_responses_type_chat_message">Chatbericht</string>
+    <string name="event_responses_type_overlay">Overlay</string>
+    <string name="event_responses_type_pipeline">Pipeline</string>
+    <string name="event_responses_dialog_title">%1$s configureren</string>
+    <string name="event_responses_dialog_response_type_label">Reactietype</string>
+    <string name="event_responses_dialog_message_label">Berichtsjabloon</string>
+    <string name="event_responses_dialog_pipeline_label">Pipeline-ID</string>
+    <string name="event_responses_dialog_save">Opslaan</string>
+    <string name="event_responses_dialog_cancel">Annuleren</string>
+    <string name="event_responses_dialog_delete">Verwijderen</string>
+    <string name="event_type_channel_follow">Nieuwe volger</string>
+    <string name="event_type_channel_subscribe">Nieuw abonnement</string>
+    <string name="event_type_channel_subscription_gift">Cadeauabonnement</string>
+    <string name="event_type_channel_cheer">Cheer</string>
+    <string name="event_type_channel_raid">Raid</string>
+    <string name="event_type_stream_online">Stream online</string>
+    <string name="event_type_stream_offline">Stream offline</string>
+    <string name="event_type_channel_poll_begin">Poll gestart</string>
+    <string name="event_type_channel_prediction_begin">Voorspelling gestart</string>
+    <string name="event_type_channel_points_redemption">Beloning ingewisseld</string>
+    <string name="event_type_unknown">%1$s</string>
 </resources>

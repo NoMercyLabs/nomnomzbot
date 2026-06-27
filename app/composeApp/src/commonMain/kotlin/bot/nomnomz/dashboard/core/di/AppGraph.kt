@@ -53,6 +53,8 @@ import bot.nomnomz.dashboard.core.network.RestCommunityApi
 import bot.nomnomz.dashboard.core.network.RestDiscordApi
 import bot.nomnomz.dashboard.core.network.RestEconomyApi
 import bot.nomnomz.dashboard.core.network.RestEventStoreApi
+import bot.nomnomz.dashboard.core.network.EventResponsesApi
+import bot.nomnomz.dashboard.core.network.RestEventResponsesApi
 import bot.nomnomz.dashboard.core.network.GamesApi
 import bot.nomnomz.dashboard.core.network.RestGamesApi
 import bot.nomnomz.dashboard.core.network.RestModerationApi
@@ -97,6 +99,7 @@ import bot.nomnomz.dashboard.feature.discord.state.DiscordController
 import bot.nomnomz.dashboard.feature.economy.state.EconomyController
 import bot.nomnomz.dashboard.feature.home.state.HomeController
 import bot.nomnomz.dashboard.feature.integrations.state.IntegrationsController
+import bot.nomnomz.dashboard.feature.eventresponses.state.EventResponsesController
 import bot.nomnomz.dashboard.feature.games.state.GamesController
 import bot.nomnomz.dashboard.feature.moderation.state.ModerationController
 import bot.nomnomz.dashboard.feature.music.state.MusicController
@@ -187,6 +190,7 @@ class AppGraph {
     val songRequestsApi: SongRequestsApi = RestSongRequestsApi(apiClient)
     val ttsApi: TtsApi = RestTtsApi(apiClient)
     val gamesApi: GamesApi = RestGamesApi(apiClient)
+    val eventResponsesApi: EventResponsesApi = RestEventResponsesApi(apiClient)
     val streamApi: StreamApi = RestStreamApi(apiClient)
     val economyApi: EconomyApi = RestEconomyApi(apiClient)
     val alertsApi: AlertsApi = RestAlertsApi(apiClient)
@@ -288,6 +292,9 @@ class AppGraph {
 
     val gamesController: GamesController =
         GamesController(channelsApi = channelsApi, gamesApi = gamesApi)
+
+    val eventResponsesController: EventResponsesController =
+        EventResponsesController(channelsApi = channelsApi, eventResponsesApi = eventResponsesApi)
 
     val settingsController: SettingsController =
         SettingsController(channelsApi = channelsApi, streamApi = streamApi)

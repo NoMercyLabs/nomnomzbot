@@ -70,6 +70,7 @@ import bot.nomnomz.dashboard.feature.analytics.ui.AnalyticsScreen
 import bot.nomnomz.dashboard.feature.chat.ui.ChatScreen
 import bot.nomnomz.dashboard.feature.commands.ui.CommandsScreen
 import bot.nomnomz.dashboard.feature.community.ui.CommunityScreen
+import bot.nomnomz.dashboard.feature.eventresponses.ui.EventResponsesScreen
 import bot.nomnomz.dashboard.feature.discord.ui.DiscordScreen
 import bot.nomnomz.dashboard.feature.economy.ui.EconomyScreen
 import bot.nomnomz.dashboard.feature.games.ui.GamesScreen
@@ -133,6 +134,7 @@ import nomnomzbot.composeapp.generated.resources.shell_nav_quotes
 import nomnomzbot.composeapp.generated.resources.shell_nav_rewards
 import nomnomzbot.composeapp.generated.resources.shell_nav_roles
 import nomnomzbot.composeapp.generated.resources.shell_nav_settings
+import nomnomzbot.composeapp.generated.resources.shell_nav_event_responses
 import nomnomzbot.composeapp.generated.resources.shell_nav_features
 import nomnomzbot.composeapp.generated.resources.shell_nav_webhooks
 import nomnomzbot.composeapp.generated.resources.shell_nav_federation
@@ -292,6 +294,7 @@ private fun ShellContent(
             )
             ShellRoute.Community -> CommunityScreen(controller = graph.communityController, role = role)
             ShellRoute.Commands -> CommandsScreen(controller = graph.commandsController, role = role)
+            ShellRoute.EventResponses -> EventResponsesScreen(controller = graph.eventResponsesController, role = role)
             ShellRoute.Quotes -> QuotesScreen(controller = graph.quotesController, role = role)
             ShellRoute.Timers -> TimersScreen(controller = graph.timersController, role = role)
             ShellRoute.Moderation -> ModerationScreen(controller = graph.moderationController, role = role)
@@ -718,6 +721,7 @@ private fun ShellRoute.label(): String =
             ShellRoute.Dashboard -> Res.string.shell_nav_dashboard
             ShellRoute.Chat -> Res.string.shell_nav_chat
             ShellRoute.Commands -> Res.string.shell_nav_commands
+            ShellRoute.EventResponses -> Res.string.shell_nav_event_responses
             ShellRoute.Quotes -> Res.string.shell_nav_quotes
             ShellRoute.Timers -> Res.string.shell_nav_timers
             ShellRoute.Moderation -> Res.string.shell_nav_moderation

@@ -1370,4 +1370,44 @@
     <string name="community_more_actions">More actions for %1$s</string>
     <string name="community_top_chatters_title">Most Active Chatters</string>
     <string name="community_top_chatters_messages">%1$d messages</string>
+
+    <!-- Shell nav — Event Responses -->
+    <string name="shell_nav_event_responses">Event Responses</string>
+
+    <!-- Event Responses page -->
+    <string name="event_responses_loading">Loading event responses…</string>
+    <string name="event_responses_empty">No event responses configured</string>
+    <string name="event_responses_error">Could not load event responses: %1$s</string>
+    <string name="event_responses_retry">Retry</string>
+    <string name="event_responses_action_error">Action failed: %1$s</string>
+    <string name="event_responses_enabled">Enabled</string>
+    <string name="event_responses_disabled">Disabled</string>
+    <string name="event_responses_toggle_action">Toggle %1$s</string>
+    <string name="event_responses_edit_action">Edit %1$s</string>
+    <string name="event_responses_edit_action_short">Edit</string>
+    <string name="event_responses_delete_action">Delete %1$s</string>
+    <string name="event_responses_row_description">%1$s, %2$s, %3$s</string>
+    <string name="event_responses_type_none">None</string>
+    <string name="event_responses_type_chat_message">Chat message</string>
+    <string name="event_responses_type_overlay">Overlay</string>
+    <string name="event_responses_type_pipeline">Pipeline</string>
+    <string name="event_responses_dialog_title">Configure %1$s</string>
+    <string name="event_responses_dialog_response_type_label">Response type</string>
+    <string name="event_responses_dialog_message_label">Message template</string>
+    <string name="event_responses_dialog_pipeline_label">Pipeline ID</string>
+    <string name="event_responses_dialog_save">Save</string>
+    <string name="event_responses_dialog_cancel">Cancel</string>
+    <string name="event_responses_dialog_delete">Delete</string>
+    <!-- Friendly labels for event type keys -->
+    <string name="event_type_channel_follow">New Follow</string>
+    <string name="event_type_channel_subscribe">New Subscription</string>
+    <string name="event_type_channel_subscription_gift">Gift Subscription</string>
+    <string name="event_type_channel_cheer">Cheer</string>
+    <string name="event_type_channel_raid">Raid</string>
+    <string name="event_type_stream_online">Stream Online</string>
+    <string name="event_type_stream_offline">Stream Offline</string>
+    <string name="event_type_channel_poll_begin">Poll Started</string>
+    <string name="event_type_channel_prediction_begin">Prediction Started</string>
+    <string name="event_type_channel_points_redemption">Reward Redeemed</string>
+    <string name="event_type_unknown">%1$s</string>
 </resources>
