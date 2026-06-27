@@ -386,6 +386,7 @@ private fun CurrentUser.toSessionUser(): SessionUser =
         username = username,
         displayName = displayName,
         profileImageUrl = profileImageUrl,
+        isAdmin = isAdmin,
     )
 
 /** The Connect screen's render state. */

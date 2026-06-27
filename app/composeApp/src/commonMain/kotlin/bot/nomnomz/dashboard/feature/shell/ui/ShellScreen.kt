@@ -90,6 +90,7 @@ import bot.nomnomz.dashboard.feature.widgets.ui.WidgetsScreen
 import bot.nomnomz.dashboard.feature.features.ui.FeaturesScreen
 import bot.nomnomz.dashboard.feature.webhooks.ui.WebhooksScreen
 import bot.nomnomz.dashboard.feature.federation.ui.FederationScreen
+import bot.nomnomz.dashboard.feature.admin.ui.AdminScreen
 import bot.nomnomz.dashboard.feature.codescripts.ui.CodeScriptsScreen
 import bot.nomnomz.dashboard.feature.language.state.AppLanguage
 import bot.nomnomz.dashboard.feature.language.state.LanguageController
@@ -137,8 +138,9 @@ import nomnomzbot.composeapp.generated.resources.shell_nav_settings
 import nomnomzbot.composeapp.generated.resources.shell_nav_event_responses
 import nomnomzbot.composeapp.generated.resources.shell_nav_features
 import nomnomzbot.composeapp.generated.resources.shell_nav_webhooks
-import nomnomzbot.composeapp.generated.resources.shell_nav_federation
+import nomnomzbot.composeapp.generated.resources.shell_nav_admin
 import nomnomzbot.composeapp.generated.resources.shell_nav_code_scripts
+import nomnomzbot.composeapp.generated.resources.shell_nav_federation
 import nomnomzbot.composeapp.generated.resources.shell_nav_song_requests
 import nomnomzbot.composeapp.generated.resources.shell_nav_timers
 import nomnomzbot.composeapp.generated.resources.shell_nav_tts
@@ -210,6 +212,7 @@ fun ShellScreen(
                         Sidebar(
                             role = role,
                             selected = selected,
+                            isAdmin = user?.isAdmin == true,
                             onSelect = {
                                 selected = it
                                 scope.launch { drawerState.close() }
@@ -246,6 +249,7 @@ fun ShellScreen(
                 Sidebar(
                     role = role,
                     selected = selected,
+                    isAdmin = user?.isAdmin == true,
                     onSelect = { selected = it },
                     user = user,
                     channelSwitcher = graph.channelSwitcherController,
@@ -329,6 +333,7 @@ private fun ShellContent(
             ShellRoute.Webhooks -> WebhooksScreen(controller = graph.webhooksController, role = role)
             ShellRoute.Federation -> FederationScreen(controller = graph.federationController, role = role)
             ShellRoute.CodeScripts -> CodeScriptsScreen(controller = graph.codeScriptsController, role = role)
+            ShellRoute.Admin -> AdminScreen(controller = graph.adminController)
         }
     }
 }
@@ -337,6 +342,7 @@ private fun ShellContent(
 private fun Sidebar(
     role: ManagementRole,
     selected: ShellRoute,
+    isAdmin: Boolean,
     onSelect: (ShellRoute) -> Unit,
     user: SessionUser?,
     channelSwitcher: ChannelSwitcherController,
@@ -392,6 +398,14 @@ private fun Sidebar(
                     NavItem(route = page.route, selected = page.route == selected) { onSelect(page.route) }
                 }
             }
+        }
+
+        if (isAdmin) {
+            HorizontalDivider(
+                color = tokens.sidebarBorder,
+                modifier = Modifier.padding(vertical = spacing.s2),
+            )
+            NavItem(route = ShellRoute.Admin, selected = ShellRoute.Admin == selected) { onSelect(ShellRoute.Admin) }
         }
 
         HorizontalDivider(
@@ -746,6 +760,7 @@ private fun ShellRoute.label(): String =
             ShellRoute.Webhooks -> Res.string.shell_nav_webhooks
             ShellRoute.Federation -> Res.string.shell_nav_federation
             ShellRoute.CodeScripts -> Res.string.shell_nav_code_scripts
+            ShellRoute.Admin -> Res.string.shell_nav_admin
         }
     )
 

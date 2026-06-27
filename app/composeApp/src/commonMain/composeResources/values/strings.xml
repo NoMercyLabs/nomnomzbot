@@ -1549,4 +1549,42 @@
     <string name="settings_billing_cancel_message">Your subscription stays active until the end of the current billing period.</string>
     <string name="settings_billing_cancel_confirm">Cancel subscription</string>
     <string name="settings_billing_cancel_dismiss">Keep subscription</string>
+
+    <!-- Admin -->
+    <string name="shell_nav_admin">Admin</string>
+    <string name="admin_title">Platform Admin</string>
+    <string name="admin_tab_overview">Overview</string>
+    <string name="admin_tab_channels">Channels</string>
+    <string name="admin_tab_users">Users</string>
+    <string name="admin_tab_system">System</string>
+    <string name="admin_tab_flags">Feature Flags</string>
+    <string name="admin_tab_billing">Billing</string>
+    <string name="admin_stats_total_channels">Total channels</string>
+    <string name="admin_stats_active_channels">Active channels</string>
+    <string name="admin_stats_total_users">Total users</string>
+    <string name="admin_stats_system_status">System status</string>
+    <string name="admin_stats_uptime">Bot uptime</string>
+    <string name="admin_stats_events_today">Events today</string>
+    <string name="admin_channel_live">Live</string>
+    <string name="admin_channel_offline">Offline</string>
+    <string name="admin_channel_plan">Plan: %1$s</string>
+    <string name="admin_user_role">Role: %1$s</string>
+    <string name="admin_user_channels">Channels: %1$d</string>
+    <string name="admin_system_version">Version: %1$s</string>
+    <string name="admin_system_memory">Memory: %1$d MB</string>
+    <string name="admin_system_cpu">CPU: %1$.1f%%</string>
+    <string name="admin_flag_enabled">Enabled</string>
+    <string name="admin_flag_disabled">Disabled</string>
+    <string name="admin_invite_redemptions">%1$d / %2$d redemptions</string>
+    <string name="admin_invite_expires">Expires: %1$s</string>
+    <string name="admin_invite_no_expiry">No expiry</string>
+    <string name="admin_invite_grants_founder">Grants founder badge</string>
+    <string name="admin_invite_revoke">Revoke</string>
+    <string name="admin_invite_create">Create invite code</string>
+    <string name="admin_grant_tier">Grant tier</string>
+    <string name="admin_grant_founder">Grant founder badge</string>
+    <string name="admin_event_log">Recent events</string>
+    <string name="admin_health_ok">OK</string>
+    <string name="admin_health_degraded">Degraded</string>
+    <string name="admin_health_down">Down</string>
 </resources>

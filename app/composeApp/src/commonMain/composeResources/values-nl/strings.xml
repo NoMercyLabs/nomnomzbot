@@ -1535,4 +1535,42 @@
     <string name="settings_billing_cancel_message">Je abonnement blijft actief tot het einde van de huidige facturatieperiode.</string>
     <string name="settings_billing_cancel_confirm">Annuleren</string>
     <string name="settings_billing_cancel_dismiss">Abonnement behouden</string>
+
+    <!-- Admin -->
+    <string name="shell_nav_admin">Beheer</string>
+    <string name="admin_title">Platform Beheer</string>
+    <string name="admin_tab_overview">Overzicht</string>
+    <string name="admin_tab_channels">Kanalen</string>
+    <string name="admin_tab_users">Gebruikers</string>
+    <string name="admin_tab_system">Systeem</string>
+    <string name="admin_tab_flags">Functies</string>
+    <string name="admin_tab_billing">Facturering</string>
+    <string name="admin_stats_total_channels">Totaal kanalen</string>
+    <string name="admin_stats_active_channels">Actieve kanalen</string>
+    <string name="admin_stats_total_users">Totaal gebruikers</string>
+    <string name="admin_stats_system_status">Systeemstatus</string>
+    <string name="admin_stats_uptime">Bot uptime</string>
+    <string name="admin_stats_events_today">Gebeurtenissen vandaag</string>
+    <string name="admin_channel_live">Live</string>
+    <string name="admin_channel_offline">Offline</string>
+    <string name="admin_channel_plan">Plan: %1$s</string>
+    <string name="admin_user_role">Rol: %1$s</string>
+    <string name="admin_user_channels">Kanalen: %1$d</string>
+    <string name="admin_system_version">Versie: %1$s</string>
+    <string name="admin_system_memory">Geheugen: %1$d MB</string>
+    <string name="admin_system_cpu">CPU: %1$.1f%%</string>
+    <string name="admin_flag_enabled">Ingeschakeld</string>
+    <string name="admin_flag_disabled">Uitgeschakeld</string>
+    <string name="admin_invite_redemptions">%1$d / %2$d inwisselingen</string>
+    <string name="admin_invite_expires">Vervalt: %1$s</string>
+    <string name="admin_invite_no_expiry">Geen vervaldatum</string>
+    <string name="admin_invite_grants_founder">Geeft oprichtersbadge</string>
+    <string name="admin_invite_revoke">Intrekken</string>
+    <string name="admin_invite_create">Uitnodigingscode aanmaken</string>
+    <string name="admin_grant_tier">Tier toewijzen</string>
+    <string name="admin_grant_founder">Oprichtersbadge toewijzen</string>
+    <string name="admin_event_log">Recente gebeurtenissen</string>
+    <string name="admin_health_ok">OK</string>
+    <string name="admin_health_degraded">Verslechterd</string>
+    <string name="admin_health_down">Neer</string>
 </resources>

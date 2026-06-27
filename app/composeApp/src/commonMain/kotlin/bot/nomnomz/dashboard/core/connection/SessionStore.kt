@@ -169,4 +169,5 @@ data class SessionUser(
     val username: String,
     val displayName: String,
     val profileImageUrl: String?,
+    val isAdmin: Boolean = false,
 )

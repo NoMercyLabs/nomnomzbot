@@ -44,6 +44,7 @@ enum class ShellRoute {
     Federation,
     CodeScripts,
     Settings,
+    Admin,
 }
 
 /**
