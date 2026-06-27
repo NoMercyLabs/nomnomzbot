@@ -77,10 +77,10 @@ class RolesController(
         // Only the permit-grantable actions are offered in the capability picker (the backend default-denies the
         // rest). The matrix is supporting context for the page, so a failure to load it doesn't sink the page —
         // the page still renders membership + permits with an empty grant catalogue and the capability flow off.
-        val grantableActions: List<ActionPermission> =
+        val allActions: List<ActionPermission> =
             when (val result: ApiResult<List<ActionPermission>> = rolesApi.actionMatrix(channel.id)) {
                 is ApiResult.Failure -> emptyList()
-                is ApiResult.Ok -> result.value.filter { it.isGrantableViaPermit }
+                is ApiResult.Ok -> result.value
             }
 
         _state.value =
@@ -90,7 +90,8 @@ class RolesController(
                 RolesState.Ready(
                     members = members,
                     permits = permits,
-                    grantableActions = grantableActions,
+                    grantableActions = allActions.filter { it.isGrantableViaPermit },
+                    allActions = allActions,
                 )
             }
     }
@@ -123,6 +124,18 @@ class RolesController(
         afterWrite(rolesApi.revokePermit(channel, userId, actionKeyOrRole))
     }
 
+    /** Override the effective minimum level for [actionKey] to [level], clamped to the action's floor. */
+    suspend fun setOverride(actionKey: String, level: Int) {
+        val channel: String = channelId ?: return failWrite(NoChannelError)
+        afterWrite(rolesApi.setOverride(channel, actionKey, level))
+    }
+
+    /** Reset [actionKey]'s override, restoring its built-in default floor. */
+    suspend fun resetOverride(actionKey: String) {
+        val channel: String = channelId ?: return failWrite(NoChannelError)
+        afterWrite(rolesApi.resetOverride(channel, actionKey))
+    }
+
     // A write either reloads (success) or surfaces its error over the current Ready state without losing it
     // (failure) — so a failed assign/grant/revoke leaves the page intact with a visible reason.
     private suspend fun afterWrite(result: ApiResult<Unit>) {
@@ -149,15 +162,16 @@ sealed interface RolesState {
     data object Loading : RolesState
 
     /**
-     * The channel's IAM is listed: its management [members], its active per-user [permits], and the
-     * [grantableActions] a capability grant may target (the permit-grantable action keys). [actionError] is
-     * non-null only when the last assign/grant/revoke failed — the screen surfaces it as a banner while keeping
-     * the lists rendered.
+     * The channel's IAM is listed: its management [members], its active per-user [permits], the
+     * [grantableActions] a capability grant may target (permit-grantable action keys), and the full [allActions]
+     * matrix used to display and manage per-action level overrides. [actionError] is non-null only when the last
+     * assign/grant/revoke/override failed — surfaces as a banner while keeping the lists rendered.
      */
     data class Ready(
         val members: List<ChannelMembership>,
         val permits: List<PermitGrant>,
         val grantableActions: List<ActionPermission>,
+        val allActions: List<ActionPermission> = emptyList(),
         val actionError: String? = null,
     ) : RolesState
 

@@ -1039,6 +1039,17 @@
     <string name="roles_members_section">Members</string>
     <string name="roles_permits_section">Permits</string>
     <string name="roles_permits_empty">No permits granted yet.</string>
+    <string name="roles_action_overrides_section">Action Permission Overrides</string>
+    <string name="roles_override_set">Override</string>
+    <string name="roles_override_reset">Reset</string>
+    <string name="roles_override_dialog_title">Override level — %1$s</string>
+    <string name="roles_override_dialog_desc">Set a minimum role level (0 = everyone, 10 = mod, 20 = lead mod, 30 = editor, 40 = broadcaster).</string>
+    <string name="roles_override_level_label">Level</string>
+    <string name="roles_override_level_invalid">Enter a non-negative integer.</string>
+    <string name="roles_override_confirm">Apply</string>
+    <string name="roles_override_cancel">Cancel</string>
+    <string name="roles_override_active">Override: %1$d</string>
+    <string name="roles_override_default">Default: %1$d</string>
     <string name="roles_member_description">%1$s, %2$s</string>
     <string name="roles_permit_description">%1$s, %2$s</string>
     <string name="roles_permit_role">Role: %1$s</string>

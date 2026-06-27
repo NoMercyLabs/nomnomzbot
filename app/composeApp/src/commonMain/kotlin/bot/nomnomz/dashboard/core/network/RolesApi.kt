@@ -57,6 +57,12 @@ interface RolesApi {
     /** The per-action permission matrix — the closed set of action keys a capability can be granted on. */
     suspend fun actionMatrix(channelId: String): ApiResult<List<ActionPermission>>
 
+    /** Set an override [level] on the action [actionKey] — overrides the default floor without removing it. */
+    suspend fun setOverride(channelId: String, actionKey: String, level: Int): ApiResult<Unit>
+
+    /** Reset the override on [actionKey], restoring the action's built-in default floor level. */
+    suspend fun resetOverride(channelId: String, actionKey: String): ApiResult<Unit>
+
     /** Assign [userId] the management [role] (permanent membership; the backend re-checks no-escalation). */
     suspend fun assignRole(channelId: String, userId: String, role: ManagementRole): ApiResult<Unit>
 
@@ -101,6 +107,15 @@ class RestRolesApi(private val client: ApiClient) : RolesApi {
 
     override suspend fun actionMatrix(channelId: String): ApiResult<List<ActionPermission>> =
         client.getEnvelope("api/v1/channels/$channelId/action-permissions")
+
+    override suspend fun setOverride(channelId: String, actionKey: String, level: Int): ApiResult<Unit> =
+        client.putUnit(
+            "api/v1/channels/$channelId/action-permissions/${actionKey.encodeQuery()}",
+            SetOverrideBody(level = level),
+        )
+
+    override suspend fun resetOverride(channelId: String, actionKey: String): ApiResult<Unit> =
+        client.deleteUnit("api/v1/channels/$channelId/action-permissions/${actionKey.encodeQuery()}")
 
     override suspend fun assignRole(
         channelId: String,
@@ -315,6 +330,10 @@ data class ActionPermission(
 /** Request body for the role assignment (backend `RolesController.SetRoleBody`): the user GUID + role ordinal. */
 @Serializable
 data class SetRoleBody(val userId: String, val role: Int)
+
+/** Request body for an action-permission level override (backend `ActionPermissionsController.SetOverrideBody`). */
+@Serializable
+data class SetOverrideBody(val level: Int)
 
 /**
  * Request body for a capability permit (backend `PermitsController.GrantCapabilityBody`): the target user, the

@@ -259,4 +259,10 @@ private class FakeRolesApi(private val access: ApiResult<ResolvedAccess>) : Role
         userId: String,
         actionKeyOrRole: String?,
     ): ApiResult<Unit> = ApiResult.Ok(Unit)
+
+    override suspend fun setOverride(channelId: String, actionKey: String, level: Int): ApiResult<Unit> =
+        ApiResult.Ok(Unit)
+
+    override suspend fun resetOverride(channelId: String, actionKey: String): ApiResult<Unit> =
+        ApiResult.Ok(Unit)
 }

@@ -1036,6 +1036,17 @@
     <string name="roles_members_section">Leden</string>
     <string name="roles_permits_section">Permits</string>
     <string name="roles_permits_empty">Nog geen permits verleend.</string>
+    <string name="roles_action_overrides_section">Actierechten overschrijven</string>
+    <string name="roles_override_set">Overschrijven</string>
+    <string name="roles_override_reset">Herstellen</string>
+    <string name="roles_override_dialog_title">Niveau overschrijven — %1$s</string>
+    <string name="roles_override_dialog_desc">Stel een minimaal rolniveau in (0 = iedereen, 10 = mod, 20 = hoofdmod, 30 = editor, 40 = broadcaster).</string>
+    <string name="roles_override_level_label">Niveau</string>
+    <string name="roles_override_level_invalid">Voer een niet-negatief geheel getal in.</string>
+    <string name="roles_override_confirm">Toepassen</string>
+    <string name="roles_override_cancel">Annuleren</string>
+    <string name="roles_override_active">Overschrijving: %1$d</string>
+    <string name="roles_override_default">Standaard: %1$d</string>
     <string name="roles_member_description">%1$s, %2$s</string>
     <string name="roles_permit_description">%1$s, %2$s</string>
     <string name="roles_permit_role">Rol: %1$s</string>

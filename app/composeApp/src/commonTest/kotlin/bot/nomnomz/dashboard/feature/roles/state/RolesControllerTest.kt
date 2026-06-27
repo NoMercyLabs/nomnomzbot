@@ -481,4 +481,10 @@ private class FakeRolesApi(
         revokeCalls.add(Triple(channelId, userId, actionKeyOrRole))
         return revokeResult
     }
+
+    override suspend fun setOverride(channelId: String, actionKey: String, level: Int): ApiResult<Unit> =
+        ApiResult.Ok(Unit)
+
+    override suspend fun resetOverride(channelId: String, actionKey: String): ApiResult<Unit> =
+        ApiResult.Ok(Unit)
 }

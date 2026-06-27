@@ -90,7 +90,21 @@ import nomnomzbot.composeapp.generated.resources.roles_revoke_confirm
 import nomnomzbot.composeapp.generated.resources.roles_revoke_dismiss
 import nomnomzbot.composeapp.generated.resources.roles_revoke_message
 import nomnomzbot.composeapp.generated.resources.roles_revoke_title
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.ui.text.input.KeyboardType
+import nomnomzbot.composeapp.generated.resources.roles_action_overrides_section
 import nomnomzbot.composeapp.generated.resources.roles_members_section
+import nomnomzbot.composeapp.generated.resources.roles_override_active
+import nomnomzbot.composeapp.generated.resources.roles_override_cancel
+import nomnomzbot.composeapp.generated.resources.roles_override_confirm
+import nomnomzbot.composeapp.generated.resources.roles_override_default
+import nomnomzbot.composeapp.generated.resources.roles_override_dialog_desc
+import nomnomzbot.composeapp.generated.resources.roles_override_dialog_title
+import nomnomzbot.composeapp.generated.resources.roles_override_level_invalid
+import nomnomzbot.composeapp.generated.resources.roles_override_level_label
+import nomnomzbot.composeapp.generated.resources.roles_override_reset
+import nomnomzbot.composeapp.generated.resources.roles_override_set
 import nomnomzbot.composeapp.generated.resources.roles_role_broadcaster
 import nomnomzbot.composeapp.generated.resources.roles_role_editor
 import nomnomzbot.composeapp.generated.resources.roles_role_lead_moderator
@@ -133,6 +147,8 @@ fun RolesScreen(controller: RolesController, role: NavManagementRole?) {
                     onRemoveRole = { userId -> scope.launch { controller.removeRole(userId) } },
                     onGrant = { userId, key -> scope.launch { controller.grantCapability(userId, key, null) } },
                     onRevoke = { userId, selector -> scope.launch { controller.revokePermit(userId, selector) } },
+                    onSetOverride = { actionKey, level -> scope.launch { controller.setOverride(actionKey, level) } },
+                    onResetOverride = { actionKey -> scope.launch { controller.resetOverride(actionKey) } },
                 )
         }
     }
@@ -146,16 +162,19 @@ private fun RolesContent(
     onRemoveRole: (userId: String) -> Unit,
     onGrant: (userId: String, actionKey: String) -> Unit,
     onRevoke: (userId: String, selector: String?) -> Unit,
+    onSetOverride: (actionKey: String, level: Int) -> Unit,
+    onResetOverride: (actionKey: String) -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
 
-    // The member awaiting a remove confirmation / a capability grant, and the permit awaiting a revoke — the
-    // screen owns the dialogs' open/closed state.
+    // The member awaiting a remove confirmation / a capability grant, the permit awaiting a revoke, and the
+    // action awaiting an override change — the screen owns all dialogs' open/closed state.
     var pendingRemove: ChannelMembership? by remember { mutableStateOf(null) }
     var pendingGrant: ChannelMembership? by remember { mutableStateOf(null) }
     var pendingRevoke: PermitGrant? by remember { mutableStateOf(null) }
+    var pendingOverride: ActionPermission? by remember { mutableStateOf(null) }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -197,6 +216,20 @@ private fun RolesContent(
         } else {
             items(items = state.permits, key = { "permit-${it.id}" }) { permit ->
                 PermitRow(permit = permit, manage = manage, onRevoke = { pendingRevoke = permit })
+            }
+        }
+
+        if (state.allActions.isNotEmpty()) {
+            item(key = "actions-header") {
+                SectionLabel(stringResource(Res.string.roles_action_overrides_section))
+            }
+            items(items = state.allActions, key = { "action-${it.actionKey}" }) { action ->
+                ActionPermissionRow(
+                    action = action,
+                    manage = manage,
+                    onEdit = { pendingOverride = action },
+                    onReset = { onResetOverride(action.actionKey) },
+                )
             }
         }
     }
@@ -242,6 +275,17 @@ private fun RolesContent(
                 pendingRevoke = null
             },
             onDismiss = { pendingRevoke = null },
+        )
+    }
+
+    pendingOverride?.let { action ->
+        SetOverrideDialog(
+            action = action,
+            onConfirm = { level ->
+                onSetOverride(action.actionKey, level)
+                pendingOverride = null
+            },
+            onDismiss = { pendingOverride = null },
         )
     }
 }
@@ -619,3 +663,128 @@ private fun roleLabel(role: ManagementRole): StringResource =
         ManagementRole.Editor -> Res.string.roles_role_editor
         ManagementRole.Broadcaster -> Res.string.roles_role_broadcaster
     }
+
+// One row in the action-permission matrix: shows the action key, its effective level, whether an override is
+// active, and two write controls (Override + Reset). The Reset button is only shown when overrideLevel != null.
+@Composable
+private fun ActionPermissionRow(
+    action: ActionPermission,
+    manage: ManageDecision,
+    onEdit: () -> Unit,
+    onReset: () -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    val levelLabel: String =
+        if (action.overrideLevel != null) {
+            stringResource(Res.string.roles_override_active, action.overrideLevel)
+        } else {
+            stringResource(Res.string.roles_override_default, action.effectiveLevel)
+        }
+
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(spacing.s1))
+                .background(tokens.card)
+                .padding(horizontal = spacing.s3, vertical = spacing.s2),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+    ) {
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(spacing.s0_5)) {
+            Text(
+                text = action.actionKey,
+                style = typography.sm,
+                color = tokens.cardForeground,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = levelLabel,
+                style = typography.xs,
+                color = if (action.overrideLevel != null) tokens.primary else tokens.mutedForeground,
+            )
+        }
+        ManageGate(decision = manage) { enabled ->
+            TextButton(onClick = onEdit, enabled = enabled) {
+                Text(
+                    text = stringResource(Res.string.roles_override_set),
+                    style = typography.sm,
+                    color = if (enabled) tokens.primary else tokens.mutedForeground,
+                )
+            }
+        }
+        if (action.overrideLevel != null) {
+            ManageGate(decision = manage) { enabled ->
+                TextButton(onClick = onReset, enabled = enabled) {
+                    Text(
+                        text = stringResource(Res.string.roles_override_reset),
+                        style = typography.sm,
+                        color = if (enabled) tokens.destructive else tokens.mutedForeground,
+                    )
+                }
+            }
+        }
+    }
+}
+
+// Dialog for setting a numeric level override on an action. Pre-fills with the current overrideLevel if set.
+@Composable
+private fun SetOverrideDialog(
+    action: ActionPermission,
+    onConfirm: (level: Int) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    var raw: String by remember { mutableStateOf(action.overrideLevel?.toString() ?: action.effectiveLevel.toString()) }
+    val parsed: Int? = raw.toIntOrNull()?.takeIf { it >= 0 }
+    val isValid: Boolean = parsed != null
+
+    val title: String = stringResource(Res.string.roles_override_dialog_title, action.actionKey)
+    val desc: String = stringResource(Res.string.roles_override_dialog_desc)
+
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = tokens.card,
+        titleContentColor = tokens.cardForeground,
+        textContentColor = tokens.mutedForeground,
+        title = { Text(text = title) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
+                Text(text = desc, style = typography.sm, color = tokens.mutedForeground)
+                OutlinedTextField(
+                    value = raw,
+                    onValueChange = { raw = it },
+                    label = { Text(stringResource(Res.string.roles_override_level_label)) },
+                    isError = !isValid && raw.isNotEmpty(),
+                    supportingText = {
+                        if (!isValid && raw.isNotEmpty()) {
+                            Text(stringResource(Res.string.roles_override_level_invalid), color = tokens.destructive)
+                        }
+                    },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true,
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { parsed?.let(onConfirm) }, enabled = isValid) {
+                Text(
+                    text = stringResource(Res.string.roles_override_confirm),
+                    color = if (isValid) tokens.primary else tokens.mutedForeground,
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(text = stringResource(Res.string.roles_override_cancel), color = tokens.mutedForeground)
+            }
+        },
+    )
+}
