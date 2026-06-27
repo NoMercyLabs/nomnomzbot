@@ -44,6 +44,11 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
@@ -53,6 +58,7 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.network.ChatActivityEntry
 import bot.nomnomz.dashboard.core.network.CommunityMember
 import bot.nomnomz.dashboard.core.network.CommunityTrustLevel
+import bot.nomnomz.dashboard.core.network.UserStats
 import bot.nomnomz.dashboard.feature.community.state.CommunityController
 import bot.nomnomz.dashboard.feature.community.state.CommunityState
 import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
@@ -95,6 +101,26 @@ import nomnomzbot.composeapp.generated.resources.community_vip_grant
 import nomnomzbot.composeapp.generated.resources.community_vip_grant_desc
 import nomnomzbot.composeapp.generated.resources.community_vip_revoke
 import nomnomzbot.composeapp.generated.resources.community_vip_revoke_desc
+import nomnomzbot.composeapp.generated.resources.community_view_stats
+import nomnomzbot.composeapp.generated.resources.community_stats_title
+import nomnomzbot.composeapp.generated.resources.community_stats_messages
+import nomnomzbot.composeapp.generated.resources.community_stats_watch_hours
+import nomnomzbot.composeapp.generated.resources.community_stats_commands_used
+import nomnomzbot.composeapp.generated.resources.community_stats_first_seen
+import nomnomzbot.composeapp.generated.resources.community_stats_last_active
+import nomnomzbot.composeapp.generated.resources.community_stats_never
+import nomnomzbot.composeapp.generated.resources.community_stats_loading
+import nomnomzbot.composeapp.generated.resources.community_stats_error
+import nomnomzbot.composeapp.generated.resources.community_stats_close
+import nomnomzbot.composeapp.generated.resources.community_gdpr_section
+import nomnomzbot.composeapp.generated.resources.community_gdpr_export
+import nomnomzbot.composeapp.generated.resources.community_gdpr_export_desc
+import nomnomzbot.composeapp.generated.resources.community_gdpr_export_confirm
+import nomnomzbot.composeapp.generated.resources.community_gdpr_export_done
+import nomnomzbot.composeapp.generated.resources.community_gdpr_erase
+import nomnomzbot.composeapp.generated.resources.community_gdpr_erase_desc
+import nomnomzbot.composeapp.generated.resources.community_gdpr_erase_confirm
+import nomnomzbot.composeapp.generated.resources.community_gdpr_erase_done
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -113,8 +139,26 @@ fun CommunityScreen(controller: CommunityController, role: ManagementRole?) {
     // (frontend-ia.md §3). A caller below it sees the member list but the trust-picker / ban / unban controls
     // are disabled with "Requires Moderator" (§7); the backend re-checks every write regardless.
     val manage: ManageDecision = rememberManageDecision(role, ShellRoute.Community)
+    val isBroadcaster: Boolean = role == ManagementRole.Broadcaster
+
+    // Per-user stats dialog state — null means closed.
+    var statsTarget: CommunityMember? by remember { mutableStateOf(null) }
+    var statsData: UserStats? by remember { mutableStateOf(null) }
+    var statsLoading: Boolean by remember { mutableStateOf(false) }
+    var statsError: Boolean by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) { controller.load() }
+
+    // When a stats target is selected, load their stats.
+    LaunchedEffect(statsTarget) {
+        val target: CommunityMember = statsTarget ?: return@LaunchedEffect
+        statsData = null
+        statsError = false
+        statsLoading = true
+        statsData = controller.getUserStats(target.id)
+        statsError = statsData == null
+        statsLoading = false
+    }
 
     Box(modifier = Modifier.fillMaxSize().padding(spacing.s6)) {
         when (val current: CommunityState = state) {
@@ -137,8 +181,34 @@ fun CommunityScreen(controller: CommunityController, role: ManagementRole?) {
                             if (isVip) controller.removeVip(userId) else controller.addVip(userId)
                         }
                     },
+                    onViewStats = { member -> statsTarget = member },
                 )
         }
+    }
+
+    // Per-member stats + GDPR dialog (shown above the main content).
+    statsTarget?.let { target ->
+        val name: String = memberName(target)
+        ViewerStatsDialog(
+            name = name,
+            stats = statsData,
+            loading = statsLoading,
+            error = statsError,
+            isBroadcaster = isBroadcaster,
+            onExport = {
+                scope.launch {
+                    controller.exportUserData(target.id)
+                    statsTarget = null
+                }
+            },
+            onErase = {
+                scope.launch {
+                    controller.eraseUserData(target.id)
+                    statsTarget = null
+                }
+            },
+            onDismiss = { statsTarget = null },
+        )
     }
 }
 
@@ -153,6 +223,7 @@ private fun MemberList(
     onUnban: (userId: String) -> Unit,
     onShoutout: (userId: String) -> Unit,
     onVipToggle: (userId: String, isVip: Boolean) -> Unit,
+    onViewStats: (CommunityMember) -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -236,6 +307,7 @@ private fun MemberList(
                 onUnban = { pendingUnban = member },
                 onShoutout = { onShoutout(member.id) },
                 onVipToggle = { onVipToggle(member.id, member.trustLevel == CommunityTrustLevel.Vip) },
+                onViewStats = { onViewStats(member) },
             )
         }
     }
@@ -283,6 +355,7 @@ private fun MemberRow(
     onUnban: () -> Unit,
     onShoutout: () -> Unit,
     onVipToggle: () -> Unit,
+    onViewStats: () -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -332,6 +405,7 @@ private fun MemberRow(
             manage = manage,
             onShoutout = onShoutout,
             onVipToggle = onVipToggle,
+            onViewStats = onViewStats,
         )
     }
 }
@@ -345,6 +419,7 @@ private fun MoreActionsMenu(
     manage: ManageDecision,
     onShoutout: () -> Unit,
     onVipToggle: () -> Unit,
+    onViewStats: () -> Unit,
 ) {
     val tokens = LocalTokens.current
     val typography = LocalTypography.current
@@ -366,6 +441,19 @@ private fun MoreActionsMenu(
             }
         }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            DropdownMenuItem(
+                text = {
+                    Text(
+                        text = stringResource(Res.string.community_view_stats),
+                        style = typography.sm,
+                        color = tokens.popoverForeground,
+                    )
+                },
+                onClick = {
+                    expanded = false
+                    onViewStats()
+                },
+            )
             val shoutoutLabel: String = stringResource(Res.string.community_shoutout_action_desc, name)
             DropdownMenuItem(
                 text = {
@@ -562,6 +650,155 @@ private fun CenteredMessage(text: String) {
 
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Text(text = text, style = typography.base, color = tokens.mutedForeground)
+    }
+}
+
+// Per-viewer engagement stats + GDPR dialog. Shown when a moderator taps "View stats" in the overflow menu.
+// Stats load in the background (LaunchedEffect in the parent); the dialog handles loading/error inline.
+// GDPR actions (export/erase) are hidden for non-Broadcaster callers.
+@Composable
+private fun ViewerStatsDialog(
+    name: String,
+    stats: UserStats?,
+    loading: Boolean,
+    error: Boolean,
+    isBroadcaster: Boolean,
+    onExport: () -> Unit,
+    onErase: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    var pendingErase: Boolean by remember { mutableStateOf(false) }
+    var pendingExport: Boolean by remember { mutableStateOf(false) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = tokens.card,
+        titleContentColor = tokens.cardForeground,
+        title = { Text(text = stringResource(Res.string.community_stats_title, name), style = typography.base) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
+                when {
+                    loading -> {
+                        Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator(color = tokens.primary)
+                        }
+                        Text(
+                            text = stringResource(Res.string.community_stats_loading),
+                            style = typography.sm,
+                            color = tokens.mutedForeground,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                    error || stats == null -> {
+                        Text(
+                            text = stringResource(Res.string.community_stats_error),
+                            style = typography.sm,
+                            color = tokens.destructive,
+                        )
+                    }
+                    else -> {
+                        StatRow(label = stringResource(Res.string.community_stats_messages), value = stats.messageCount.toString())
+                        StatRow(label = stringResource(Res.string.community_stats_watch_hours), value = "%.1f".format(stats.watchHours))
+                        StatRow(label = stringResource(Res.string.community_stats_commands_used), value = stats.commandsUsed.toString())
+                        StatRow(
+                            label = stringResource(Res.string.community_stats_first_seen),
+                            value = stats.firstSeen ?: stringResource(Res.string.community_stats_never),
+                        )
+                        StatRow(
+                            label = stringResource(Res.string.community_stats_last_active),
+                            value = stats.lastActive ?: stringResource(Res.string.community_stats_never),
+                        )
+
+                        if (isBroadcaster) {
+                            Spacer(modifier = Modifier.height(spacing.s2))
+                            HorizontalDivider(color = tokens.border)
+                            Spacer(modifier = Modifier.height(spacing.s2))
+                            Text(
+                                text = stringResource(Res.string.community_gdpr_section),
+                                style = typography.xs,
+                                color = tokens.mutedForeground,
+                            )
+                            TextButton(
+                                onClick = { pendingExport = true },
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Text(
+                                    text = stringResource(Res.string.community_gdpr_export),
+                                    style = typography.sm,
+                                    color = tokens.primary,
+                                )
+                            }
+                            TextButton(
+                                onClick = { pendingErase = true },
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Text(
+                                    text = stringResource(Res.string.community_gdpr_erase),
+                                    style = typography.sm,
+                                    color = tokens.destructive,
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(text = stringResource(Res.string.community_stats_close), color = tokens.primary)
+            }
+        },
+    )
+
+    if (pendingExport) {
+        ConfirmDialog(
+            title = stringResource(Res.string.community_gdpr_export),
+            message = stringResource(Res.string.community_gdpr_export_desc, name),
+            confirmLabel = stringResource(Res.string.community_gdpr_export_confirm),
+            dismissLabel = stringResource(Res.string.community_stats_close),
+            destructive = false,
+            onConfirm = {
+                pendingExport = false
+                onExport()
+            },
+            onDismiss = { pendingExport = false },
+        )
+    }
+
+    if (pendingErase) {
+        ConfirmDialog(
+            title = stringResource(Res.string.community_gdpr_erase),
+            message = stringResource(Res.string.community_gdpr_erase_desc, name),
+            confirmLabel = stringResource(Res.string.community_gdpr_erase_confirm),
+            dismissLabel = stringResource(Res.string.community_stats_close),
+            destructive = true,
+            onConfirm = {
+                pendingErase = false
+                onErase()
+            },
+            onDismiss = { pendingErase = false },
+        )
+    }
+}
+
+@Composable
+private fun StatRow(label: String, value: String) {
+    val tokens = LocalTokens.current
+    val typography = LocalTypography.current
+    val spacing = LocalSpacing.current
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(text = label, style = typography.sm, color = tokens.mutedForeground, modifier = Modifier.padding(end = spacing.s2))
+        Text(text = value, style = typography.sm, color = tokens.foreground)
     }
 }
 

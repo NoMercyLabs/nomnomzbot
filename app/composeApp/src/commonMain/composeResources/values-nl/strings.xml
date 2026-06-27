@@ -1357,6 +1357,26 @@
     <string name="community_more_actions">Meer acties voor %1$s</string>
     <string name="community_top_chatters_title">Meest Actieve Chatters</string>
     <string name="community_top_chatters_messages">%1$d berichten</string>
+    <string name="community_view_stats">Statistieken bekijken</string>
+    <string name="community_stats_title">Kijker statistieken — %1$s</string>
+    <string name="community_stats_messages">Berichten</string>
+    <string name="community_stats_watch_hours">Kijkuren</string>
+    <string name="community_stats_commands_used">Commando\'s gebruikt</string>
+    <string name="community_stats_first_seen">Eerste keer gezien</string>
+    <string name="community_stats_last_active">Laatste actief</string>
+    <string name="community_stats_never">Nooit</string>
+    <string name="community_stats_loading">Statistieken laden…</string>
+    <string name="community_stats_error">Statistieken konden niet worden geladen</string>
+    <string name="community_gdpr_section">Gegevens &amp; Privacy (alleen broadcaster)</string>
+    <string name="community_gdpr_export">Gegevens exporteren</string>
+    <string name="community_gdpr_export_desc">Stuur %1$s een kopie van hun opgeslagen gegevens per e-mail.</string>
+    <string name="community_gdpr_export_confirm">Export versturen</string>
+    <string name="community_gdpr_export_done">Exportverzoek verzonden.</string>
+    <string name="community_gdpr_erase">Gegevens wissen</string>
+    <string name="community_gdpr_erase_desc">Verwijder alle opgeslagen gegevens van %1$s permanent. Dit kan niet ongedaan worden gemaakt.</string>
+    <string name="community_gdpr_erase_confirm">Permanent wissen</string>
+    <string name="community_gdpr_erase_done">Gegevens gewist.</string>
+    <string name="community_stats_close">Sluiten</string>
 
     <!-- Shell nav — Evenement reacties -->
     <string name="shell_nav_event_responses">Evenement reacties</string>

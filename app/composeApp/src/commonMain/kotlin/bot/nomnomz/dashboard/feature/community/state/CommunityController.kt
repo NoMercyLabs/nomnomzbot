@@ -16,6 +16,8 @@ import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.ChatActivityEntry
 import bot.nomnomz.dashboard.core.network.CommunityApi
 import bot.nomnomz.dashboard.core.network.CommunityMember
+import bot.nomnomz.dashboard.core.network.UserStats
+import bot.nomnomz.dashboard.core.network.UsersApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -28,6 +30,7 @@ import kotlinx.coroutines.flow.asStateFlow
 class CommunityController(
     private val channelsApi: ChannelsApi,
     private val communityApi: CommunityApi,
+    private val usersApi: UsersApi,
 ) {
     private val _state: MutableStateFlow<CommunityState> = MutableStateFlow(CommunityState.Loading)
 
@@ -111,6 +114,36 @@ class CommunityController(
             is ApiResult.Failure -> failWrite(result.error.message)
         }
     }
+
+    /**
+     * Load engagement stats for a specific viewer. Returns the stats on success or null on failure. Callers
+     * drive their own loading/error state for the per-user detail panel.
+     */
+    suspend fun getUserStats(userId: String): UserStats? =
+        when (val result: ApiResult<UserStats> = usersApi.stats(userId)) {
+            is ApiResult.Ok -> result.value
+            is ApiResult.Failure -> null
+        }
+
+    /**
+     * Request a GDPR data export for [userId]. The backend emails the export to the user. Broadcaster-only.
+     * Returns `null` on success (nothing to show other than a confirmation), or an error string on failure.
+     */
+    suspend fun exportUserData(userId: String): String? =
+        when (val result: ApiResult<Unit> = usersApi.export(userId)) {
+            is ApiResult.Ok -> null
+            is ApiResult.Failure -> result.error.message
+        }
+
+    /**
+     * Permanently erase all data for [userId] (GDPR erasure). Broadcaster-only. Irreversible — the screen
+     * must confirm before calling this. Returns `null` on success, error string on failure.
+     */
+    suspend fun eraseUserData(userId: String): String? =
+        when (val result: ApiResult<Unit> = usersApi.erase(userId)) {
+            is ApiResult.Ok -> null
+            is ApiResult.Failure -> result.error.message
+        }
 
     // A write either reloads the list (success) or surfaces its error over the current Ready list without
     // losing it (failure) — so a failed trust/ban/unban leaves the page intact with a visible reason.

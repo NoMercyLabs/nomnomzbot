@@ -1370,6 +1370,26 @@
     <string name="community_more_actions">More actions for %1$s</string>
     <string name="community_top_chatters_title">Most Active Chatters</string>
     <string name="community_top_chatters_messages">%1$d messages</string>
+    <string name="community_view_stats">View stats</string>
+    <string name="community_stats_title">Viewer Stats — %1$s</string>
+    <string name="community_stats_messages">Messages</string>
+    <string name="community_stats_watch_hours">Watch hours</string>
+    <string name="community_stats_commands_used">Commands used</string>
+    <string name="community_stats_first_seen">First seen</string>
+    <string name="community_stats_last_active">Last active</string>
+    <string name="community_stats_never">Never</string>
+    <string name="community_stats_loading">Loading stats…</string>
+    <string name="community_stats_error">Could not load stats</string>
+    <string name="community_gdpr_section">Data &amp; Privacy (Broadcaster only)</string>
+    <string name="community_gdpr_export">Export data</string>
+    <string name="community_gdpr_export_desc">Send %1$s a copy of their stored data by email.</string>
+    <string name="community_gdpr_export_confirm">Send export</string>
+    <string name="community_gdpr_export_done">Export request sent.</string>
+    <string name="community_gdpr_erase">Erase data</string>
+    <string name="community_gdpr_erase_desc">Permanently delete all stored data for %1$s. This cannot be undone.</string>
+    <string name="community_gdpr_erase_confirm">Erase permanently</string>
+    <string name="community_gdpr_erase_done">Data erased.</string>
+    <string name="community_stats_close">Close</string>
 
     <!-- Shell nav — Event Responses -->
     <string name="shell_nav_event_responses">Event Responses</string>

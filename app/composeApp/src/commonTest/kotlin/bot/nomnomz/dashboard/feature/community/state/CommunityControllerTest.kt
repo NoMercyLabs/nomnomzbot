@@ -50,6 +50,7 @@ class CommunityControllerTest {
                         )
                     )
                 ),
+                FakeUsersApi(),
             )
 
         controller.load()
@@ -69,6 +70,7 @@ class CommunityControllerTest {
             CommunityController(
                 FakeChannelsApi(ApiResult.Failure(ApiError(404, "NO_CHANNEL", "none onboarded"))),
                 FakeCommunityApi(ApiResult.Ok(emptyList())),
+                FakeUsersApi(),
             )
 
         controller.load()
@@ -84,6 +86,7 @@ class CommunityControllerTest {
             CommunityController(
                 FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 FakeCommunityApi(ApiResult.Failure(ApiError(500, "ERR", "boom"))),
+                FakeUsersApi(),
             )
 
         controller.load()
@@ -99,6 +102,7 @@ class CommunityControllerTest {
             CommunityController(
                 FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 FakeCommunityApi(ApiResult.Ok(emptyList())),
+                FakeUsersApi(),
             )
 
         controller.load()
@@ -119,7 +123,7 @@ class CommunityControllerTest {
                     )
             )
         val controller =
-            CommunityController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), communityApi)
+            CommunityController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), communityApi, FakeUsersApi())
 
         controller.load()
         controller.setTrust("u1", CommunityTrustLevel.Vip)
@@ -142,7 +146,7 @@ class CommunityControllerTest {
                 trustResult = ApiResult.Failure(ApiError(403, "FORBIDDEN", "Missing scope.")),
             )
         val controller =
-            CommunityController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), communityApi)
+            CommunityController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), communityApi, FakeUsersApi())
 
         controller.load()
         controller.setTrust("u1", CommunityTrustLevel.Moderator)
@@ -170,7 +174,7 @@ class CommunityControllerTest {
                     )
             )
         val controller =
-            CommunityController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), communityApi)
+            CommunityController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), communityApi, FakeUsersApi())
 
         controller.load()
         controller.ban("u1", "Spamming links")
@@ -193,7 +197,7 @@ class CommunityControllerTest {
                 banResult = ApiResult.Failure(ApiError(403, "FORBIDDEN", "Missing scope.")),
             )
         val controller =
-            CommunityController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), communityApi)
+            CommunityController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), communityApi, FakeUsersApi())
 
         controller.load()
         controller.ban("u1", "Spamming links")
@@ -219,7 +223,7 @@ class CommunityControllerTest {
                     )
             )
         val controller =
-            CommunityController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), communityApi)
+            CommunityController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), communityApi, FakeUsersApi())
 
         controller.load()
         controller.unban("u1")
@@ -242,7 +246,7 @@ class CommunityControllerTest {
                 unbanResult = ApiResult.Failure(ApiError(403, "FORBIDDEN", "Missing scope.")),
             )
         val controller =
-            CommunityController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), communityApi)
+            CommunityController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), communityApi, FakeUsersApi())
 
         controller.load()
         controller.unban("u1")
@@ -317,4 +321,13 @@ private class FakeCommunityApi(
     override suspend fun removeVip(channelId: String, userId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
 
     override suspend fun shoutout(channelId: String, targetTwitchUserId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+}
+
+private class FakeUsersApi : bot.nomnomz.dashboard.core.network.UsersApi {
+    override suspend fun stats(userId: String): ApiResult<bot.nomnomz.dashboard.core.network.UserStats> =
+        ApiResult.Ok(bot.nomnomz.dashboard.core.network.UserStats())
+
+    override suspend fun export(userId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+
+    override suspend fun erase(userId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
 }
