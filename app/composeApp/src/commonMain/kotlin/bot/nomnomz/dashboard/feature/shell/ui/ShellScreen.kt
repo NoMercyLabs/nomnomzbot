@@ -305,7 +305,12 @@ private fun ShellContent(
                 hubEvents = graph.dashboardHubClient.events,
             )
             ShellRoute.Community -> CommunityScreen(controller = graph.communityController, role = role)
-            ShellRoute.Commands -> CommandsScreen(controller = graph.commandsController, role = role)
+            ShellRoute.Commands ->
+                CommandsScreen(
+                    controller = graph.commandsController,
+                    role = role,
+                    hubEvents = graph.dashboardHubClient.events,
+                )
             ShellRoute.EventResponses -> EventResponsesScreen(controller = graph.eventResponsesController, role = role)
             ShellRoute.Quotes -> QuotesScreen(controller = graph.quotesController, role = role)
             ShellRoute.Timers -> TimersScreen(controller = graph.timersController, role = role)

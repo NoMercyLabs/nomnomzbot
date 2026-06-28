@@ -23,7 +23,9 @@ import bot.nomnomz.dashboard.core.network.CreateCommandBody
 import bot.nomnomz.dashboard.core.network.PipelineSummary
 import bot.nomnomz.dashboard.core.network.PipelinesApi
 import bot.nomnomz.dashboard.core.network.UpdateCommandBody
+import bot.nomnomz.dashboard.core.realtime.HubEvent
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import nomnomzbot.composeapp.generated.resources.Res
@@ -158,6 +160,24 @@ class CommandsController(
     suspend fun toggleBuiltin(builtinKey: String, enabled: Boolean) {
         val channel: String = channelId ?: return failWrite(NoChannelError)
         afterWrite(builtinsApi.setEnabled(channel, builtinKey, enabled))
+    }
+
+    /**
+     * Subscribe to [hubEvents] so the use-count column updates in real-time:
+     * - [HubEvent.CommandExecuted]: if the command ran successfully, finds the matching [CommandSummary] by
+     *   name (strips the leading `!`) and increments its [CommandSummary.useCount] by 1.
+     */
+    suspend fun subscribeToHub(hubEvents: SharedFlow<HubEvent>) {
+        hubEvents.collect { evt ->
+            if (evt !is HubEvent.CommandExecuted || !evt.event.succeeded) return@collect
+            val current: CommandsState = _state.value
+            if (current !is CommandsState.Ready) return@collect
+            val trigger: String = evt.event.commandName.trimStart('!')
+            val updated: List<CommandSummary> = current.commands.map { cmd ->
+                if (cmd.name.equals(trigger, ignoreCase = true)) cmd.copy(useCount = cmd.useCount + 1) else cmd
+            }
+            _state.value = current.copy(commands = updated)
+        }
     }
 
     // A write either reloads the list AND announces success on the frame, or surfaces its error over the

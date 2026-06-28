@@ -105,6 +105,8 @@ import nomnomzbot.composeapp.generated.resources.commands_builtins_toggle
 import nomnomzbot.composeapp.generated.resources.commands_dialog_pipeline_label
 import nomnomzbot.composeapp.generated.resources.commands_dialog_pipeline_none
 import nomnomzbot.composeapp.generated.resources.commands_dialog_response_optional
+import bot.nomnomz.dashboard.core.realtime.HubEvent
+import kotlinx.coroutines.flow.SharedFlow
 import org.jetbrains.compose.resources.stringResource
 
 // The Commands page (frontend-ia.md §3, Chat group): the channel's custom chat commands, all real data from
@@ -112,7 +114,11 @@ import org.jetbrains.compose.resources.stringResource
 // composition. This is the full management surface — create, edit, enable/disable, and delete — each routed
 // back through the controller, which re-lists after every successful write so the page reflects the backend.
 @Composable
-fun CommandsScreen(controller: CommandsController, role: ManagementRole?) {
+fun CommandsScreen(
+    controller: CommandsController,
+    role: ManagementRole?,
+    hubEvents: SharedFlow<HubEvent>? = null,
+) {
     val state: CommandsState by controller.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val spacing = LocalSpacing.current
@@ -128,6 +134,9 @@ fun CommandsScreen(controller: CommandsController, role: ManagementRole?) {
     var pendingDelete: String? by remember { mutableStateOf(null) }
 
     LaunchedEffect(Unit) { controller.load() }
+    if (hubEvents != null) {
+        LaunchedEffect(hubEvents) { controller.subscribeToHub(hubEvents) }
+    }
 
     Box(modifier = Modifier.fillMaxSize().padding(spacing.s6)) {
         when (val current: CommandsState = state) {
