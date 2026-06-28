@@ -31,8 +31,6 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextFieldColors
 import androidx.compose.runtime.Composable
@@ -53,6 +51,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
+import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
@@ -368,32 +367,16 @@ private fun AlertRow(
             )
         }
         ManageGate(decision = manage) { enabled ->
-            IconButton(
-                onClick = onEdit,
-                enabled = enabled,
-                modifier = Modifier.semantics { contentDescription = editLabel },
-            ) {
-                Icon(
-                    imageVector = EditGlyph,
-                    contentDescription = null,
-                    tint = if (enabled) tokens.mutedForeground else tokens.muted,
-                    modifier = Modifier.size(spacing.s4),
-                )
-            }
+            GlyphButton(imageVector = EditGlyph, label = editLabel, onClick = onEdit, enabled = enabled)
         }
         ManageGate(decision = manage) { enabled ->
-            IconButton(
+            GlyphButton(
+                imageVector = TrashGlyph,
+                label = deleteLabel,
                 onClick = onDelete,
                 enabled = enabled,
-                modifier = Modifier.semantics { contentDescription = deleteLabel },
-            ) {
-                Icon(
-                    imageVector = TrashGlyph,
-                    contentDescription = null,
-                    tint = if (enabled) tokens.destructive else tokens.muted,
-                    modifier = Modifier.size(spacing.s4),
-                )
-            }
+                tint = tokens.destructive,
+            )
         }
     }
 }

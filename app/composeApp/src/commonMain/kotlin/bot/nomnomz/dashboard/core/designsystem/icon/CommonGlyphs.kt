@@ -23,7 +23,7 @@ import androidx.compose.ui.unit.dp
 
 private const val ICON_SIZE: Float = 24f
 private const val SW: Float = 1.5f
-private const val DOT_SW: Float = 2.5f
+private const val DOT_SW: Float = 3.5f
 
 private fun icon(name: String, build: ImageVector.Builder.() -> Unit): ImageVector =
     ImageVector.Builder(

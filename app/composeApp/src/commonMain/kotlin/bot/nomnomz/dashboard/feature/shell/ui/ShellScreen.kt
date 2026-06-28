@@ -56,6 +56,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.flow.drop
 import bot.nomnomz.dashboard.core.connection.SessionUser
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.network.ChannelSummary
@@ -196,6 +197,12 @@ fun ShellScreen(
     LaunchedEffect(selected) { routeStore.save(selected) }
     LaunchedEffect(routeStore) { routeStore.externalChanges.collect { selected = it } }
     LaunchedEffect(Unit) { graph.channelSwitcherController.load() }
+    // When the operator switches channels, navigate to Dashboard so each page controller re-initialises
+    // for the new channel. drop(1) skips the initial StateFlow emission (the already-pinned channel) so
+    // only a genuine switch — not the first load — triggers the reset.
+    LaunchedEffect(graph.channelSwitcherController.activeChannelId) {
+        graph.channelSwitcherController.activeChannelId.drop(1).collect { selected = ShellRoute.Dashboard }
+    }
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize().background(tokens.background)) {
         val compact: Boolean = maxWidth < CompactBreakpoint

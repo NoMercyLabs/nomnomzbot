@@ -19,7 +19,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -27,8 +26,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Switch
@@ -55,6 +52,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
+import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
@@ -433,32 +431,22 @@ private fun RedemptionRow(
 
         // Fulfil / refund gate at the page's Editor manage floor; the backend re-checks reward:manage.
         ManageGate(decision = edit) { enabled ->
-            IconButton(
+            GlyphButton(
+                imageVector = CheckCircleGlyph,
+                label = fulfillLabel,
                 onClick = onFulfill,
                 enabled = enabled,
-                modifier = Modifier.semantics { contentDescription = fulfillLabel },
-            ) {
-                Icon(
-                    imageVector = CheckCircleGlyph,
-                    contentDescription = null,
-                    tint = if (enabled) tokens.primary else tokens.muted,
-                    modifier = Modifier.size(spacing.s4),
-                )
-            }
+                tint = tokens.primary,
+            )
         }
         ManageGate(decision = edit) { enabled ->
-            IconButton(
+            GlyphButton(
+                imageVector = RemoveGlyph,
+                label = refundLabel,
                 onClick = onRefund,
                 enabled = enabled,
-                modifier = Modifier.semantics { contentDescription = refundLabel },
-            ) {
-                Icon(
-                    imageVector = RemoveGlyph,
-                    contentDescription = null,
-                    tint = if (enabled) tokens.destructive else tokens.muted,
-                    modifier = Modifier.size(spacing.s4),
-                )
-            }
+                tint = tokens.destructive,
+            )
         }
     }
 }
@@ -534,32 +522,16 @@ private fun RewardRow(
             )
         }
         ManageGate(decision = edit) { enabled ->
-            IconButton(
-                onClick = onEdit,
-                enabled = enabled,
-                modifier = Modifier.semantics { contentDescription = editLabel },
-            ) {
-                Icon(
-                    imageVector = EditGlyph,
-                    contentDescription = null,
-                    tint = if (enabled) tokens.mutedForeground else tokens.muted,
-                    modifier = Modifier.size(spacing.s4),
-                )
-            }
+            GlyphButton(imageVector = EditGlyph, label = editLabel, onClick = onEdit, enabled = enabled)
         }
         ManageGate(decision = lifecycle) { enabled ->
-            IconButton(
+            GlyphButton(
+                imageVector = TrashGlyph,
+                label = deleteLabel,
                 onClick = onDelete,
                 enabled = enabled,
-                modifier = Modifier.semantics { contentDescription = deleteLabel },
-            ) {
-                Icon(
-                    imageVector = TrashGlyph,
-                    contentDescription = null,
-                    tint = if (enabled) tokens.destructive else tokens.muted,
-                    modifier = Modifier.size(spacing.s4),
-                )
-            }
+                tint = tokens.destructive,
+            )
         }
     }
 }
