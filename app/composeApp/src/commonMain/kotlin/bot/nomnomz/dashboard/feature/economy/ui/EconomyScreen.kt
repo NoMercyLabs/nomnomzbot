@@ -14,7 +14,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -23,9 +22,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -407,7 +408,7 @@ private fun ReadyContent(
     }
 
     Column(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(spacing.s4),
     ) {
         PageHeader(title = stringResource(Res.string.shell_nav_economy))
@@ -828,12 +829,11 @@ private fun LeaderboardSection(entries: List<LeaderboardEntry>) {
         return
     }
 
-    LazyColumn(
-        modifier = Modifier.fillMaxWidth(),
-        contentPadding = PaddingValues(vertical = spacing.s1),
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(vertical = spacing.s1),
         verticalArrangement = Arrangement.spacedBy(spacing.s2),
     ) {
-        items(items = entries, key = { entry -> "${entry.rank}-${entry.displayName}" }) { entry ->
+        entries.forEach { entry ->
             LeaderboardRow(entry = entry)
         }
     }
@@ -935,12 +935,11 @@ private fun AccountsSection(
             color = tokens.mutedForeground,
         )
     } else {
-        LazyColumn(
-            modifier = Modifier.fillMaxWidth(),
-            contentPadding = PaddingValues(vertical = spacing.s1),
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(vertical = spacing.s1),
             verticalArrangement = Arrangement.spacedBy(spacing.s2),
         ) {
-            items(items = accounts, key = { it.id }) { account ->
+            accounts.forEach { account ->
                 AccountRow(
                     account = account,
                     manage = manage,
@@ -1325,12 +1324,11 @@ private fun EarningRulesSection(
         return
     }
 
-    LazyColumn(
-        modifier = Modifier.fillMaxWidth(),
-        contentPadding = PaddingValues(vertical = spacing.s1),
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(vertical = spacing.s1),
         verticalArrangement = Arrangement.spacedBy(spacing.s2),
     ) {
-        items(items = rules, key = { it.id }) { rule ->
+        rules.forEach { rule ->
             EarningRuleRow(
                 rule = rule,
                 manage = manage,
@@ -1484,12 +1482,11 @@ private fun CatalogSection(
             color = tokens.mutedForeground,
         )
     } else {
-        LazyColumn(
-            modifier = Modifier.fillMaxWidth(),
-            contentPadding = PaddingValues(vertical = spacing.s1),
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(vertical = spacing.s1),
             verticalArrangement = Arrangement.spacedBy(spacing.s2),
         ) {
-            items(items = catalog, key = { it.id }) { item ->
+            catalog.forEach { item ->
                 CatalogItemRow(
                     item = item,
                     manage = manage,
@@ -1767,12 +1764,11 @@ private fun SavingsJarsSection(
             color = tokens.mutedForeground,
         )
     } else {
-        LazyColumn(
-            modifier = Modifier.fillMaxWidth(),
-            contentPadding = PaddingValues(vertical = spacing.s1),
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(vertical = spacing.s1),
             verticalArrangement = Arrangement.spacedBy(spacing.s2),
         ) {
-            items(items = jars, key = { it.id }) { jar ->
+            jars.forEach { jar ->
                 SavingsJarRow(
                     jar = jar,
                     manage = manage,
@@ -2286,12 +2282,11 @@ private fun CatalogPurchasesSection(
     if (purchases.isEmpty()) {
         Text(text = stringResource(Res.string.economy_purchases_empty), style = typography.sm, color = tokens.mutedForeground)
     } else {
-        LazyColumn(
-            modifier = Modifier.fillMaxWidth(),
-            contentPadding = PaddingValues(vertical = spacing.s1),
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(vertical = spacing.s1),
             verticalArrangement = Arrangement.spacedBy(spacing.s2),
         ) {
-            items(items = purchases, key = { it.id }) { purchase ->
+            purchases.forEach { purchase ->
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
