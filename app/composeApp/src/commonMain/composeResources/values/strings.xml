@@ -416,6 +416,12 @@
     <string name="moderation_action_user_id">Twitch user ID</string>
     <string name="moderation_action_reason">Reason (optional)</string>
     <string name="moderation_action_duration">Duration in seconds</string>
+    <string name="moderation_rule_type_profanity">Profanity</string>
+    <string name="moderation_rule_type_links">Links</string>
+    <string name="moderation_rule_type_caps">Caps</string>
+    <string name="moderation_rule_type_emotes">Emotes</string>
+    <string name="moderation_rule_type_spam">Spam</string>
+    <string name="moderation_action_type_delete">Delete</string>
     <string name="moderation_action_type_ban">Ban</string>
     <string name="moderation_action_type_timeout">Timeout</string>
     <string name="moderation_action_confirm">Apply</string>
@@ -773,7 +779,9 @@
     <string name="widgets_rename_confirm">Rename</string>
     <string name="widgets_rename_dismiss">Cancel</string>
     <string name="widgets_clone_action">Clone overlay %1$s</string>
+    <string name="widgets_clone_message">Create a copy of &#8220;%1$s&#8221; with the same overlay type?</string>
     <string name="widgets_clone_action_short">Clone</string>
+    <string name="widgets_clone_dismiss">Cancel</string>
     <string name="journal_section_title">Event journal</string>
     <string name="journal_section_description">Export your channel's full event ledger as a file you can back up or move to another deployment, or import a ledger you exported before. Importing only adds events that aren't already there.</string>
     <string name="journal_export">Export ledger</string>

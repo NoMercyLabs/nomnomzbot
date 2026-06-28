@@ -89,6 +89,8 @@ import nomnomzbot.composeapp.generated.resources.widgets_url_copy
 import nomnomzbot.composeapp.generated.resources.widgets_url_label
 import nomnomzbot.composeapp.generated.resources.widgets_clone_action
 import nomnomzbot.composeapp.generated.resources.widgets_clone_action_short
+import nomnomzbot.composeapp.generated.resources.widgets_clone_dismiss
+import nomnomzbot.composeapp.generated.resources.widgets_clone_message
 import nomnomzbot.composeapp.generated.resources.widgets_create_action
 import nomnomzbot.composeapp.generated.resources.widgets_create_confirm
 import nomnomzbot.composeapp.generated.resources.widgets_create_dismiss
@@ -195,9 +197,9 @@ fun WidgetsScreen(controller: WidgetsController, role: ManagementRole?) {
     pendingClone?.let { widget ->
         ConfirmDialog(
             title = stringResource(Res.string.widgets_clone_action, widget.name),
-            message = "Create \"Copy of ${widget.name}\" with the same type?",
+            message = stringResource(Res.string.widgets_clone_message, widget.name),
             confirmLabel = stringResource(Res.string.widgets_clone_action_short),
-            dismissLabel = stringResource(Res.string.widgets_delete_cancel),
+            dismissLabel = stringResource(Res.string.widgets_clone_dismiss),
             destructive = false,
             onConfirm = {
                 pendingClone = null

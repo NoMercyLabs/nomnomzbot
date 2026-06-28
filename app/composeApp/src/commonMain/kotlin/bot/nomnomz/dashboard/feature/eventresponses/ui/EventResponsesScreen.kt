@@ -58,6 +58,7 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.designsystem.icon.EditGlyph
+import bot.nomnomz.dashboard.feature.shell.ui.ChevronDownGlyph
 import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.network.EventResponseSummary
 import bot.nomnomz.dashboard.feature.eventresponses.state.EventResponsesController
@@ -355,8 +356,13 @@ private fun EditDialog(
                         modifier = Modifier.fillMaxWidth(),
                         colors = fieldColors,
                         trailingIcon = {
-                            TextButton(onClick = { typeMenuOpen = true }) {
-                                Text("▾", color = tokens.mutedForeground)
+                            IconButton(onClick = { typeMenuOpen = true }) {
+                                Icon(
+                                    imageVector = ChevronDownGlyph,
+                                    contentDescription = null,
+                                    tint = tokens.mutedForeground,
+                                    modifier = Modifier.size(spacing.s4),
+                                )
                             }
                         },
                     )

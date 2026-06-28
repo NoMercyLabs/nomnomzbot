@@ -135,7 +135,13 @@ import nomnomzbot.composeapp.generated.resources.moderation_action_dismiss
 import nomnomzbot.composeapp.generated.resources.moderation_action_duration
 import nomnomzbot.composeapp.generated.resources.moderation_action_reason
 import nomnomzbot.composeapp.generated.resources.moderation_action_type_ban
+import nomnomzbot.composeapp.generated.resources.moderation_action_type_delete
 import nomnomzbot.composeapp.generated.resources.moderation_action_type_timeout
+import nomnomzbot.composeapp.generated.resources.moderation_rule_type_caps
+import nomnomzbot.composeapp.generated.resources.moderation_rule_type_emotes
+import nomnomzbot.composeapp.generated.resources.moderation_rule_type_links
+import nomnomzbot.composeapp.generated.resources.moderation_rule_type_profanity
+import nomnomzbot.composeapp.generated.resources.moderation_rule_type_spam
 import nomnomzbot.composeapp.generated.resources.moderation_action_user_id
 import nomnomzbot.composeapp.generated.resources.moderation_action_user_id_required
 import nomnomzbot.composeapp.generated.resources.moderation_announce_action
@@ -1099,12 +1105,22 @@ private fun CreateRuleDialog(
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
 
-    val types: List<String> = listOf("profanity", "links", "caps", "emotes", "spam")
-    val actions: List<String> = listOf("delete", "timeout", "ban")
+    val types: List<Pair<String, String>> = listOf(
+        "profanity" to stringResource(Res.string.moderation_rule_type_profanity),
+        "links" to stringResource(Res.string.moderation_rule_type_links),
+        "caps" to stringResource(Res.string.moderation_rule_type_caps),
+        "emotes" to stringResource(Res.string.moderation_rule_type_emotes),
+        "spam" to stringResource(Res.string.moderation_rule_type_spam),
+    )
+    val actions: List<Pair<String, String>> = listOf(
+        "delete" to stringResource(Res.string.moderation_action_type_delete),
+        "timeout" to stringResource(Res.string.moderation_action_type_timeout),
+        "ban" to stringResource(Res.string.moderation_action_type_ban),
+    )
 
     var name: String by remember { mutableStateOf("") }
-    var selectedType: String by remember { mutableStateOf(types.first()) }
-    var selectedAction: String by remember { mutableStateOf(actions.first()) }
+    var selectedType: String by remember { mutableStateOf(types.first().first) }
+    var selectedAction: String by remember { mutableStateOf(actions.first().first) }
     var durationInput: String by remember { mutableStateOf("600") }
     var reason: String by remember { mutableStateOf("") }
     var nameError: Boolean by remember { mutableStateOf(false) }
@@ -1133,11 +1149,11 @@ private fun CreateRuleDialog(
                     color = tokens.mutedForeground,
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
-                    types.forEach { t ->
+                    types.forEach { (key, label) ->
                         FilterChip(
-                            selected = selectedType == t,
-                            onClick = { selectedType = t },
-                            label = { Text(t, style = typography.xs) },
+                            selected = selectedType == key,
+                            onClick = { selectedType = key },
+                            label = { Text(label, style = typography.xs) },
                         )
                     }
                 }
@@ -1147,11 +1163,11 @@ private fun CreateRuleDialog(
                     color = tokens.mutedForeground,
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
-                    actions.forEach { a ->
+                    actions.forEach { (key, label) ->
                         FilterChip(
-                            selected = selectedAction == a,
-                            onClick = { selectedAction = a },
-                            label = { Text(a, style = typography.xs) },
+                            selected = selectedAction == key,
+                            onClick = { selectedAction = key },
+                            label = { Text(label, style = typography.xs) },
                         )
                     }
                 }

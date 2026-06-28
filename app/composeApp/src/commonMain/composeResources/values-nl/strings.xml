@@ -413,6 +413,12 @@
     <string name="moderation_action_user_id">Twitch gebruikers-ID</string>
     <string name="moderation_action_reason">Reden (optioneel)</string>
     <string name="moderation_action_duration">Duur in seconden</string>
+    <string name="moderation_rule_type_profanity">Grof taalgebruik</string>
+    <string name="moderation_rule_type_links">Links</string>
+    <string name="moderation_rule_type_caps">Hoofdletters</string>
+    <string name="moderation_rule_type_emotes">Emotes</string>
+    <string name="moderation_rule_type_spam">Spam</string>
+    <string name="moderation_action_type_delete">Verwijderen</string>
     <string name="moderation_action_type_ban">Bannen</string>
     <string name="moderation_action_type_timeout">Time-out</string>
     <string name="moderation_action_confirm">Toepassen</string>
@@ -770,7 +776,9 @@
     <string name="widgets_rename_confirm">Hernoemen</string>
     <string name="widgets_rename_dismiss">Annuleren</string>
     <string name="widgets_clone_action">Overlay %1$s klonen</string>
+    <string name="widgets_clone_message">Een kopie van &#8220;%1$s&#8221; aanmaken met hetzelfde overlaytype?</string>
     <string name="widgets_clone_action_short">Klonen</string>
+    <string name="widgets_clone_dismiss">Annuleren</string>
     <string name="journal_section_title">Gebeurtenissenlogboek</string>
     <string name="journal_section_description">Exporteer het volledige gebeurtenissenlogboek van je kanaal als bestand dat je kunt bewaren of naar een andere installatie kunt verplaatsen, of importeer een eerder geëxporteerd logboek. Bij het importeren worden alleen gebeurtenissen toegevoegd die er nog niet zijn.</string>
     <string name="journal_export">Logboek exporteren</string>
