@@ -18,7 +18,9 @@ import bot.nomnomz.dashboard.core.network.RedemptionSummary
 import bot.nomnomz.dashboard.core.network.RewardSummary
 import bot.nomnomz.dashboard.core.network.RewardsApi
 import bot.nomnomz.dashboard.core.network.UpdateRewardBody
+import bot.nomnomz.dashboard.core.realtime.HubEvent
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
@@ -140,6 +142,30 @@ class RewardsController(
     suspend fun sync() {
         val channel: String = channelId ?: return failWrite(NoChannelError)
         afterWrite(rewardsApi.sync(channel))
+    }
+
+    /**
+     * Subscribe to [hubEvents] so new redemptions appear instantly without a poll:
+     * - [HubEvent.RewardRedeemed]: prepends a new [RedemptionSummary] to the pending queue (cap 50).
+     */
+    suspend fun subscribeToHub(hubEvents: SharedFlow<HubEvent>) {
+        hubEvents.collect { evt ->
+            if (evt !is HubEvent.RewardRedeemed) return@collect
+            val current: RewardsState = _state.value
+            if (current !is RewardsState.Ready) return@collect
+            val newItem: RedemptionSummary = RedemptionSummary(
+                redemptionId = evt.event.redemptionId,
+                rewardId = evt.event.rewardId,
+                rewardTitle = evt.event.rewardTitle,
+                userId = evt.event.userId,
+                userDisplayName = evt.event.userDisplayName,
+                cost = evt.event.cost,
+                userInput = evt.event.userInput,
+                status = "unfulfilled",
+                redeemedAt = evt.event.timestamp,
+            )
+            _state.value = current.copy(redemptions = (listOf(newItem) + current.redemptions).take(50))
+        }
     }
 
     // A write either reloads the list (success) or surfaces its error over the current Ready list without

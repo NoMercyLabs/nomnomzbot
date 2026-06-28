@@ -22,7 +22,9 @@ import bot.nomnomz.dashboard.core.network.MusicDevice
 import bot.nomnomz.dashboard.core.network.MusicPlaylist
 import bot.nomnomz.dashboard.core.network.MusicSongRequestBody
 import bot.nomnomz.dashboard.core.network.UpdateMusicConfigBody
+import bot.nomnomz.dashboard.core.realtime.HubEvent
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
@@ -168,6 +170,31 @@ class MusicController(
 
     /** Start playback of a playlist or album context URI. */
     suspend fun playContext(contextUri: String) = control { channel -> musicApi.playContext(channel, contextUri) }
+
+    /**
+     * Subscribe to [hubEvents] so the now-playing state updates in real-time without a poll:
+     * - [HubEvent.MusicStateChanged]: updates [MusicState.Ready.nowPlaying] from the hub payload; a null track
+     *   means nothing is playing.
+     */
+    suspend fun subscribeToHub(hubEvents: SharedFlow<HubEvent>) {
+        hubEvents.collect { evt ->
+            if (evt !is HubEvent.MusicStateChanged) return@collect
+            val current: MusicState = _state.value
+            if (current !is MusicState.Ready) return@collect
+            val track: NowPlaying? =
+                if (evt.state.currentTrack == null) null
+                else NowPlaying(
+                    trackName = evt.state.currentTrack.trackName,
+                    artist = evt.state.currentTrack.artist,
+                    album = evt.state.currentTrack.album,
+                    imageUrl = evt.state.currentTrack.albumArtUrl,
+                    durationMs = evt.state.currentTrack.durationMs,
+                    isPlaying = evt.state.isPlaying,
+                    provider = evt.state.currentTrack.provider,
+                )
+            _state.value = current.copy(nowPlaying = track)
+        }
+    }
 
     /** Clear the last action error. */
     fun clearError() {

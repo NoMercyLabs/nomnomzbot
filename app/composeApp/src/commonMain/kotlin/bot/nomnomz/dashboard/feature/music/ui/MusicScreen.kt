@@ -135,6 +135,8 @@ import nomnomzbot.composeapp.generated.resources.music_device_transfer
 import nomnomzbot.composeapp.generated.resources.music_playlists_title
 import nomnomzbot.composeapp.generated.resources.music_playlist_play
 import nomnomzbot.composeapp.generated.resources.shell_nav_music
+import bot.nomnomz.dashboard.core.realtime.HubEvent
+import kotlinx.coroutines.flow.SharedFlow
 import org.jetbrains.compose.resources.stringResource
 
 // The Music page: the channel's live playback, made controllable — every track is real data from
@@ -145,7 +147,11 @@ import org.jetbrains.compose.resources.stringResource
 // Remove affordance that only runs once confirmed in the shared ConfirmDialog (the controller reloads on
 // success, so the now-playing and queue both re-project).
 @Composable
-fun MusicScreen(controller: MusicController, role: ManagementRole?) {
+fun MusicScreen(
+    controller: MusicController,
+    role: ManagementRole?,
+    hubEvents: SharedFlow<HubEvent>? = null,
+) {
     val state: MusicState by controller.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val spacing = LocalSpacing.current
@@ -157,6 +163,9 @@ fun MusicScreen(controller: MusicController, role: ManagementRole?) {
     val manage: ManageDecision = rememberManageDecision(role, ShellRoute.Music)
 
     LaunchedEffect(Unit) { controller.load() }
+    if (hubEvents != null) {
+        LaunchedEffect(hubEvents) { controller.subscribeToHub(hubEvents) }
+    }
 
     Box(modifier = Modifier.fillMaxSize().padding(spacing.s6)) {
         when (val current: MusicState = state) {

@@ -111,6 +111,8 @@ import nomnomzbot.composeapp.generated.resources.rewards_retry
 import nomnomzbot.composeapp.generated.resources.rewards_row_description
 import nomnomzbot.composeapp.generated.resources.rewards_title
 import nomnomzbot.composeapp.generated.resources.rewards_toggle_action
+import bot.nomnomz.dashboard.core.realtime.HubEvent
+import kotlinx.coroutines.flow.SharedFlow
 import org.jetbrains.compose.resources.stringResource
 
 // The Rewards page (frontend-ia.md §3): the channel's channel-point rewards — every reward is real data from
@@ -119,7 +121,11 @@ import org.jetbrains.compose.resources.stringResource
 // create, edit, enable/disable, and delete — each routed back through the controller, which re-lists after every
 // successful write so the page reflects the backend.
 @Composable
-fun RewardsScreen(controller: RewardsController, role: ManagementRole?) {
+fun RewardsScreen(
+    controller: RewardsController,
+    role: ManagementRole?,
+    hubEvents: SharedFlow<HubEvent>? = null,
+) {
     val state: RewardsState by controller.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val spacing = LocalSpacing.current
@@ -138,6 +144,9 @@ fun RewardsScreen(controller: RewardsController, role: ManagementRole?) {
     var pendingDelete: RewardSummary? by remember { mutableStateOf(null) }
 
     LaunchedEffect(Unit) { controller.load() }
+    if (hubEvents != null) {
+        LaunchedEffect(hubEvents) { controller.subscribeToHub(hubEvents) }
+    }
 
     Box(modifier = Modifier.fillMaxSize().padding(spacing.s6)) {
         when (val current: RewardsState = state) {

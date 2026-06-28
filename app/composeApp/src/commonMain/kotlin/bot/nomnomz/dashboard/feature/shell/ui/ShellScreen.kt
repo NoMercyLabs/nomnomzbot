@@ -311,9 +311,19 @@ private fun ShellContent(
             ShellRoute.Timers -> TimersScreen(controller = graph.timersController, role = role)
             ShellRoute.Moderation -> ModerationScreen(controller = graph.moderationController, role = role)
             ShellRoute.Analytics -> AnalyticsScreen(controller = graph.analyticsController)
-            ShellRoute.Rewards -> RewardsScreen(controller = graph.rewardsController, role = role)
+            ShellRoute.Rewards ->
+                RewardsScreen(
+                    controller = graph.rewardsController,
+                    role = role,
+                    hubEvents = graph.dashboardHubClient.events,
+                )
             ShellRoute.SongRequests -> SongRequestsScreen(controller = graph.songRequestsController, role = role)
-            ShellRoute.Music -> MusicScreen(controller = graph.musicController, role = role)
+            ShellRoute.Music ->
+                MusicScreen(
+                    controller = graph.musicController,
+                    role = role,
+                    hubEvents = graph.dashboardHubClient.events,
+                )
             ShellRoute.Tts -> TtsScreen(controller = graph.ttsController, role = role)
             ShellRoute.Games -> GamesScreen(controller = graph.gamesController, role = role)
             ShellRoute.Discord -> DiscordScreen(controller = graph.discordController, role = role)
