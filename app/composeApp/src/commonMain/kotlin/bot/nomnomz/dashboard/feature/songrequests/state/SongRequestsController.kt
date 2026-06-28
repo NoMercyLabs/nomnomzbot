@@ -17,9 +17,11 @@ import bot.nomnomz.dashboard.core.network.MusicConfig
 import bot.nomnomz.dashboard.core.network.QueuedSong
 import bot.nomnomz.dashboard.core.network.SongRequestsApi
 import bot.nomnomz.dashboard.core.network.UpdateMusicConfigBody
+import bot.nomnomz.dashboard.core.realtime.HubEvent
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
@@ -38,6 +40,9 @@ class SongRequestsController(
 
     // Resolved channel id — set on first load, reused by control actions so they target the same channel.
     private var channelId: String? = null
+
+    // Last-seen track id: used by subscribeToHub to skip reload when only play/pause state changed.
+    private var lastTrackId: String? = null
 
     /** Resolve the active channel, then load its queue, config, and SR-page token in parallel. */
     suspend fun load() {
@@ -114,6 +119,20 @@ class SongRequestsController(
                     _state.value = current.copy(srPageToken = result.value)
             }
             is ApiResult.Failure -> surfaceError(result.error.message)
+        }
+    }
+
+    /**
+     * Subscribe to [hubEvents] so the queue refreshes when the current track changes. A play/pause toggle
+     * does not advance the queue so it is skipped — only a new (or cleared) track triggers a reload.
+     */
+    suspend fun subscribeToHub(hubEvents: SharedFlow<HubEvent>) {
+        hubEvents.collect { evt ->
+            if (evt !is HubEvent.MusicStateChanged) return@collect
+            val incomingId: String? = evt.state.currentTrack?.trackName
+            if (incomingId == lastTrackId) return@collect
+            lastTrackId = incomingId
+            if (channelId != null) load()
         }
     }
 

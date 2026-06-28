@@ -60,12 +60,14 @@ import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
 import bot.nomnomz.dashboard.core.network.MusicConfig
 import bot.nomnomz.dashboard.core.network.QueuedSong
 import bot.nomnomz.dashboard.core.network.UpdateMusicConfigBody
+import bot.nomnomz.dashboard.core.realtime.HubEvent
 import bot.nomnomz.dashboard.feature.songrequests.state.SongRequestsController
 import bot.nomnomz.dashboard.feature.songrequests.state.SongRequestsState
 import bot.nomnomz.dashboard.feature.shell.nav.ManageAction
 import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
 import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
 import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecision
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.shell_nav_song_requests
@@ -104,7 +106,11 @@ import org.jetbrains.compose.resources.stringResource
 // three in parallel; the queue + controls render immediately. The config section surfaces the key SR toggles
 // (enabled, providers) with inline saves. The SR-page token section shows the shareable link + rotate action.
 @Composable
-fun SongRequestsScreen(controller: SongRequestsController, role: ManagementRole?) {
+fun SongRequestsScreen(
+    controller: SongRequestsController,
+    role: ManagementRole?,
+    hubEvents: SharedFlow<HubEvent>? = null,
+) {
     val state: SongRequestsState by controller.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val spacing = LocalSpacing.current
@@ -115,6 +121,9 @@ fun SongRequestsScreen(controller: SongRequestsController, role: ManagementRole?
         rememberManageDecision(role, ShellRoute.SongRequests, ManageAction.MusicConfig)
 
     LaunchedEffect(Unit) { controller.load() }
+    if (hubEvents != null) {
+        LaunchedEffect(hubEvents) { controller.subscribeToHub(hubEvents) }
+    }
 
     Box(modifier = Modifier.fillMaxSize().padding(spacing.s6)) {
         when (val current: SongRequestsState = state) {

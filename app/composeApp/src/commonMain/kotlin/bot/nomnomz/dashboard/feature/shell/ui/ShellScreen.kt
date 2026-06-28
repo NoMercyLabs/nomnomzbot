@@ -339,7 +339,12 @@ private fun ShellContent(
                     role = role,
                     hubEvents = graph.dashboardHubClient.events,
                 )
-            ShellRoute.SongRequests -> SongRequestsScreen(controller = graph.songRequestsController, role = role)
+            ShellRoute.SongRequests ->
+                SongRequestsScreen(
+                    controller = graph.songRequestsController,
+                    role = role,
+                    hubEvents = graph.dashboardHubClient.events,
+                )
             ShellRoute.Music ->
                 MusicScreen(
                     controller = graph.musicController,
