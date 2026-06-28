@@ -4116,6 +4116,10 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("Key")
+                        .HasMaxLength(30)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -4135,6 +4139,10 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("Key")
+                        .IsUnique()
+                        .HasFilter("\"Key\" IS NOT NULL");
 
                     b.ToTable("Pronouns");
                 });
@@ -4202,6 +4210,9 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
 
                     b.Property<DateTime?>("AccountCreatedAt")
                         .HasColumnType("TEXT");
+
+                    b.Property<int?>("AltPronounId")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("BroadcasterType")
                         .IsRequired()
@@ -4301,6 +4312,8 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("AltPronounId");
 
                     b.HasIndex("PronounId");
 
@@ -6260,10 +6273,17 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
 
             modelBuilder.Entity("NomNomzBot.Domain.Identity.Entities.User", b =>
                 {
+                    b.HasOne("NomNomzBot.Domain.Identity.Entities.Pronoun", "AltPronoun")
+                        .WithMany()
+                        .HasForeignKey("AltPronounId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("NomNomzBot.Domain.Identity.Entities.Pronoun", "Pronoun")
                         .WithMany()
                         .HasForeignKey("PronounId")
                         .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("AltPronoun");
 
                     b.Navigation("Pronoun");
                 });

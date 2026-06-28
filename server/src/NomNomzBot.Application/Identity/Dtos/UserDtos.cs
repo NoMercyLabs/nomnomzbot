@@ -64,6 +64,30 @@ public sealed record UpdateUserProfileRequest
     public int? PronounId { get; init; }
 }
 
+/// <summary>Pronoun state for the self-service API.</summary>
+public sealed record UserPronounDto(
+    int? PronounId,
+    string? PronounName,
+    // Display badge: "subject(primary)/subject(alt)" or "subject/object" when no alt.
+    string? PronounBadge,
+    int? AltPronounId,
+    string? AltPronounName,
+    bool ManualOverride
+);
+
+/// <summary>Request to set or clear pronouns for the authenticated viewer.</summary>
+public sealed record SetPronounRequest
+{
+    /// <summary>The <see cref="Domain.Identity.Entities.Pronoun.Id"/> to set as primary, or <c>null</c> to leave unchanged, or <c>0</c> to clear.</summary>
+    public int? PronounId { get; init; }
+
+    /// <summary>The <see cref="Domain.Identity.Entities.Pronoun.Id"/> to set as alt, or <c>null</c> to leave unchanged, or <c>0</c> to clear.</summary>
+    public int? AltPronounId { get; init; }
+
+    /// <summary>When <c>true</c>, pin this choice and prevent automatic provider resolution from overwriting it.</summary>
+    public bool? ManualOverride { get; init; }
+}
+
 /// <summary>GDPR data summary for a user.</summary>
 public sealed record UserStatsDto(
     int MessageCount,

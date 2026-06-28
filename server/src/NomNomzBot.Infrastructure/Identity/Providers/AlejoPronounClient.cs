@@ -24,6 +24,7 @@ namespace NomNomzBot.Infrastructure.Identity.Providers;
 public sealed class AlejoPronounClient : IAlejoPronounClient
 {
     private const string PronounsUrl = "https://api.pronouns.alejo.io/v1/pronouns";
+    private const string UsersBaseUrl = "https://api.pronouns.alejo.io/v1/users/";
 
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<AlejoPronounClient> _logger;
@@ -73,6 +74,43 @@ public sealed class AlejoPronounClient : IAlejoPronounClient
         }
     }
 
+    public async Task<AlejoUserPronoun?> LookupUserAsync(
+        string twitchLogin,
+        CancellationToken ct = default
+    )
+    {
+        try
+        {
+            HttpClient client = _httpClientFactory.CreateClient(AlejoHttpClient.Name);
+            using HttpResponseMessage response = await client.GetAsync(
+                $"{UsersBaseUrl}{Uri.EscapeDataString(twitchLogin)}",
+                ct
+            );
+            if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+                return null;
+            if (!response.IsSuccessStatusCode)
+                return null;
+
+            string json = await response.Content.ReadAsStringAsync(ct);
+            AlejoUserResponse? user = JsonConvert.DeserializeObject<AlejoUserResponse>(json);
+            if (user is null || string.IsNullOrWhiteSpace(user.PronounId))
+                return null;
+
+            return new AlejoUserPronoun(user.PronounId, user.AltPronounId);
+        }
+        catch (Exception ex)
+            when (ex
+                    is HttpRequestException
+                        or TaskCanceledException
+                        or JsonException
+                        or ExecutionRejectedException
+            )
+        {
+            _logger.LogDebug(ex, "alejo.io user lookup failed for {Login}.", twitchLogin);
+            return null;
+        }
+    }
+
     /// <summary>
     /// Maps the id-keyed alejo payload (<c>{"theythem":{"subject":"They","object":"Them",...}}</c>)
     /// into pronoun records, dropping any entry missing a subject or object. Internal for the
@@ -87,15 +125,22 @@ public sealed class AlejoPronounClient : IAlejoPronounClient
             return [];
 
         List<PronounRecord> records = new(payload.Count);
-        foreach (AlejoPronoun pronoun in payload.Values)
+        foreach (KeyValuePair<string, AlejoPronoun> entry in payload)
         {
             if (
-                string.IsNullOrWhiteSpace(pronoun.Subject)
-                || string.IsNullOrWhiteSpace(pronoun.Object)
+                string.IsNullOrWhiteSpace(entry.Value.Subject)
+                || string.IsNullOrWhiteSpace(entry.Value.Object)
             )
                 continue;
 
-            records.Add(new PronounRecord(pronoun.Subject, pronoun.Object, pronoun.Singular));
+            records.Add(
+                new PronounRecord(
+                    entry.Value.Subject,
+                    entry.Value.Object,
+                    entry.Value.Singular,
+                    entry.Key
+                )
+            );
         }
 
         return records;
@@ -108,5 +153,19 @@ public sealed class AlejoPronounClient : IAlejoPronounClient
         public string Subject { get; set; } = string.Empty;
         public string Object { get; set; } = string.Empty;
         public bool Singular { get; set; }
+    }
+
+    // alejo.io GET /v1/users/{login} response shape.
+    // "pronoun_id" is the primary key (e.g. "theythem"); "alt_pronoun_id" is the optional secondary.
+    private sealed class AlejoUserResponse
+    {
+        [JsonProperty("channel_id")]
+        public string? ChannelId { get; set; }
+
+        [JsonProperty("pronoun_id")]
+        public string? PronounId { get; set; }
+
+        [JsonProperty("alt_pronoun_id")]
+        public string? AltPronounId { get; set; }
     }
 }

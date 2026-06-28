@@ -22,6 +22,9 @@ public class PronounConfiguration : IEntityTypeConfiguration<Pronoun>
 
         builder.Property(e => e.Name).IsRequired().HasMaxLength(50);
 
+        builder.Property(e => e.Key).HasMaxLength(30);
+        builder.HasIndex(e => e.Key).IsUnique().HasFilter("\"Key\" IS NOT NULL");
+
         builder.Property(e => e.Subject).IsRequired().HasMaxLength(20);
 
         builder.Property(e => e.Object).IsRequired().HasMaxLength(20);

@@ -260,6 +260,20 @@ public static class DependencyInjection
             )
             .AddAlejoResilienceHandler();
 
+        // Pronoun provider + self-service.
+        services.AddSingleton<
+            Application.Identity.Services.IPronounProvider,
+            Identity.Providers.AlejoPronounProvider
+        >();
+        services.AddScoped<
+            Application.Identity.Services.IPronounResolutionService,
+            Identity.Services.PronounResolutionService
+        >();
+        services.AddScoped<
+            Application.Identity.Services.IPronounSelfService,
+            Identity.Services.PronounSelfService
+        >();
+
         // Webhook HMAC primitives (stateless; not name-convention "*Service", so registered explicitly).
         services.AddSingleton<
             Application.Contracts.Webhooks.IInboundSignatureVerifier,

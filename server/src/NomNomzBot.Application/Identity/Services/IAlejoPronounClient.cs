@@ -15,8 +15,10 @@ namespace NomNomzBot.Application.Identity.Services;
 /// (<c>GET https://api.pronouns.alejo.io/v1/pronouns</c>) — the same source the Twitch pronoun
 /// chat plugins read. <see cref="Subject"/>/<see cref="Object"/> carry the API's display casing
 /// (e.g. <c>They</c>/<c>Them</c>); <see cref="Singular"/> is the API's grammatical-number flag.
+/// <see cref="Key"/> is the alejo identifier (the JSON object key, e.g. <c>theythem</c>), used
+/// to link viewer lookups back to the seeded catalog rows.
 /// </summary>
-public sealed record PronounRecord(string Subject, string Object, bool Singular);
+public sealed record PronounRecord(string Subject, string Object, bool Singular, string Key);
 
 /// <summary>
 /// Fetches the canonical pronoun reference set from the alejo.io pronoun API so the seeded list
@@ -33,4 +35,13 @@ public interface IAlejoPronounClient
     /// bundled fallback".
     /// </summary>
     Task<IReadOnlyList<PronounRecord>?> FetchAsync(CancellationToken ct = default);
+
+    /// <summary>
+    /// GETs <c>GET /v1/users/{login}</c> and returns the viewer's pronoun key + optional alt key.
+    /// Returns <c>null</c> when the viewer has no pronouns set on alejo.io or on any failure.
+    /// </summary>
+    Task<AlejoUserPronoun?> LookupUserAsync(string twitchLogin, CancellationToken ct = default);
 }
+
+/// <summary>A single viewer's pronoun assignment as returned by the alejo.io users endpoint.</summary>
+public sealed record AlejoUserPronoun(string PronounId, string? AltPronounId);

@@ -210,11 +210,13 @@ public sealed class PronounSeeder : ISeeder
                     current.Subject != pronoun.Subject
                     || current.Object != pronoun.Object
                     || current.Singular != pronoun.Singular
+                    || current.Key != pronoun.Key
                 )
                 {
                     current.Subject = pronoun.Subject;
                     current.Object = pronoun.Object;
                     current.Singular = pronoun.Singular;
+                    current.Key = pronoun.Key;
                 }
             }
             else
@@ -226,6 +228,7 @@ public sealed class PronounSeeder : ISeeder
                         Subject = pronoun.Subject,
                         Object = pronoun.Object,
                         Singular = pronoun.Singular,
+                        Key = pronoun.Key,
                     }
                 );
             }
@@ -249,6 +252,7 @@ public sealed class PronounSeeder : ISeeder
             Subject = subject,
             Object = @object,
             Singular = record.Singular,
+            Key = record.Key,
         };
     }
 }

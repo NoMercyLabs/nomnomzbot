@@ -19,6 +19,12 @@ public class Pronoun
     [MaxLength(50)]
     public string Name { get; set; } = null!;
 
+    // The alejo.io identifier (e.g. "theythem", "sheher") — null for combination pronouns that
+    // alejo generates from pairs (she/they, he/she, he/they) and does not return in its catalog.
+    // Used to map a viewer's alejo API response back to an R.1 grammar row.
+    [MaxLength(30)]
+    public string? Key { get; set; }
+
     [MaxLength(20)]
     public string Subject { get; set; } = null!;
 

@@ -64,6 +64,14 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
             .HasForeignKey(e => e.PronounId)
             .OnDelete(DeleteBehavior.SetNull);
 
+        builder.Property(e => e.AltPronounId);
+
+        builder
+            .HasOne(e => e.AltPronoun)
+            .WithMany()
+            .HasForeignKey(e => e.AltPronounId)
+            .OnDelete(DeleteBehavior.SetNull);
+
         // Inverse of Channel.User (one-to-one; the channel's OwnerUserId FK targets this user).
         builder
             .HasOne(e => e.Channel)

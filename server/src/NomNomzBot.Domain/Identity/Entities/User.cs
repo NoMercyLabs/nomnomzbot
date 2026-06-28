@@ -92,6 +92,13 @@ public class User : BaseEntity
 
     public int? PronounId { get; set; }
     public Pronoun? Pronoun { get; set; }
+
+    // Secondary pronoun from alejo.io `alt_pronoun_id` — drives the display badge only
+    // (e.g. "She/They" when primary=sheher + alt=theythem). Grammar helpers key off primary only.
+    // [PII-S9] — nulled on GDPR erasure alongside PronounId.
+    public int? AltPronounId { get; set; }
+    public Pronoun? AltPronoun { get; set; }
+
     public bool PronounManualOverride { get; set; }
 
     public virtual Channel? Channel { get; set; }

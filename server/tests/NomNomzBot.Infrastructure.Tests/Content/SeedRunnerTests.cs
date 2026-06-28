@@ -70,6 +70,11 @@ public sealed class SeedRunnerTests
     {
         public Task<IReadOnlyList<PronounRecord>?> FetchAsync(CancellationToken ct = default) =>
             Task.FromResult<IReadOnlyList<PronounRecord>?>(null);
+
+        public Task<AlejoUserPronoun?> LookupUserAsync(
+            string twitchLogin,
+            CancellationToken ct = default
+        ) => Task.FromResult<AlejoUserPronoun?>(null);
     }
 
     // ── Discovery (§4 scan) ──────────────────────────────────────────────────

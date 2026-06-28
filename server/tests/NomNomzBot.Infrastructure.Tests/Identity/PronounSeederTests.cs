@@ -43,8 +43,8 @@ public sealed class PronounSeederTests
 
         // A live set with a two-part (theythem) and a singleton (any) — the combos are NOT in this payload.
         StubAlejoClient client = new([
-            new PronounRecord("They", "Them", false),
-            new PronounRecord("Any", "Any", true),
+            new PronounRecord("They", "Them", false, "theythem"),
+            new PronounRecord("Any", "Any", true, "any"),
         ]);
 
         await using (SeedTestDbContext context = NewContext(db))
@@ -78,7 +78,7 @@ public sealed class PronounSeederTests
     public async Task Reseeding_the_live_set_is_idempotent_and_adds_no_duplicates()
     {
         string db = Guid.NewGuid().ToString();
-        StubAlejoClient client = new([new PronounRecord("They", "Them", false)]);
+        StubAlejoClient client = new([new PronounRecord("They", "Them", false, "theythem")]);
 
         await using (SeedTestDbContext context = NewContext(db))
         {
@@ -112,7 +112,7 @@ public sealed class PronounSeederTests
         {
             await new PronounSeeder(
                 context,
-                new StubAlejoClient([new PronounRecord("They", "Them", false)])
+                new StubAlejoClient([new PronounRecord("They", "Them", false, "theythem")])
             ).SeedAsync();
             await context.SaveChangesAsync();
         }
@@ -122,7 +122,7 @@ public sealed class PronounSeederTests
         {
             await new PronounSeeder(
                 context,
-                new StubAlejoClient([new PronounRecord("They", "Them", true)])
+                new StubAlejoClient([new PronounRecord("They", "Them", true, "theythem")])
             ).SeedAsync();
             await context.SaveChangesAsync();
         }
@@ -194,11 +194,21 @@ public sealed class PronounSeederTests
 
         public Task<IReadOnlyList<PronounRecord>?> FetchAsync(CancellationToken ct = default) =>
             Task.FromResult<IReadOnlyList<PronounRecord>?>(_records);
+
+        public Task<AlejoUserPronoun?> LookupUserAsync(
+            string twitchLogin,
+            CancellationToken ct = default
+        ) => Task.FromResult<AlejoUserPronoun?>(null);
     }
 
     private sealed class OfflineAlejoClient : IAlejoPronounClient
     {
         public Task<IReadOnlyList<PronounRecord>?> FetchAsync(CancellationToken ct = default) =>
             Task.FromResult<IReadOnlyList<PronounRecord>?>(null);
+
+        public Task<AlejoUserPronoun?> LookupUserAsync(
+            string twitchLogin,
+            CancellationToken ct = default
+        ) => Task.FromResult<AlejoUserPronoun?>(null);
     }
 }
