@@ -45,9 +45,10 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
+import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
-import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
@@ -261,12 +262,7 @@ private fun BansList(
         }
         actionError?.let { detail ->
             item(key = "unban-error") {
-                Text(
-                    text = stringResource(Res.string.moderation_action_error, detail),
-                    style = typography.sm,
-                    color = tokens.destructive,
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.s1),
-                )
+                ActionErrorBanner(message = stringResource(Res.string.moderation_action_error, detail))
             }
         }
         item(key = "stats") {

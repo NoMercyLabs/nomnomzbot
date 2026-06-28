@@ -43,6 +43,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
@@ -185,12 +186,7 @@ private fun RolesContent(
         item(key = "page-header") { PageHeader(title = stringResource(Res.string.shell_nav_roles)) }
         state.actionError?.let { detail ->
             item(key = "action-error") {
-                Text(
-                    text = stringResource(Res.string.roles_action_error, detail),
-                    style = typography.sm,
-                    color = tokens.destructive,
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.s1),
-                )
+                ActionErrorBanner(message = stringResource(Res.string.roles_action_error, detail))
             }
         }
 

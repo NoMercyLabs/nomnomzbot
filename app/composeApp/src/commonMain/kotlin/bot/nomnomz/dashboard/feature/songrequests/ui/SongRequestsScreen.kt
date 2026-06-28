@@ -46,6 +46,7 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
@@ -174,12 +175,7 @@ private fun ReadyContent(
 
         actionError?.let { detail ->
             item {
-                Text(
-                    text = stringResource(Res.string.songrequests_action_error, detail),
-                    style = typography.sm,
-                    color = tokens.destructive,
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.s1),
-                )
+                ActionErrorBanner(message = stringResource(Res.string.songrequests_action_error, detail))
             }
         }
 

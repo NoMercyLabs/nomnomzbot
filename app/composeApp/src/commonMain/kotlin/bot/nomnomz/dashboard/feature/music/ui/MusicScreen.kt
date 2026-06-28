@@ -55,6 +55,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
+import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.network.MusicConfig
 import bot.nomnomz.dashboard.core.network.MusicDevice
@@ -228,12 +229,7 @@ private fun ReadyContent(
         }
 
         actionError?.let { detail ->
-            Text(
-                text = stringResource(Res.string.music_action_error, detail),
-                style = typography.sm,
-                color = tokens.destructive,
-                modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.s1),
-            )
+            ActionErrorBanner(message = stringResource(Res.string.music_action_error, detail))
         }
 
         Text(

@@ -49,6 +49,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
+import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
@@ -242,12 +243,7 @@ private fun MemberList(
         item(key = "page-header") { PageHeader(title = stringResource(Res.string.shell_nav_community)) }
         actionError?.let { detail ->
             item(key = "action-error") {
-                Text(
-                    text = stringResource(Res.string.community_action_error, detail),
-                    style = typography.sm,
-                    color = tokens.destructive,
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.s1),
-                )
+                ActionErrorBanner(message = stringResource(Res.string.community_action_error, detail))
             }
         }
         if (topChatters.isNotEmpty()) {
