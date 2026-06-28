@@ -58,7 +58,9 @@ import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
+import bot.nomnomz.dashboard.core.designsystem.icon.CheckCircleGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.EditGlyph
+import bot.nomnomz.dashboard.core.designsystem.icon.RemoveGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
@@ -431,28 +433,30 @@ private fun RedemptionRow(
 
         // Fulfil / refund gate at the page's Editor manage floor; the backend re-checks reward:manage.
         ManageGate(decision = edit) { enabled ->
-            TextButton(
+            IconButton(
                 onClick = onFulfill,
                 enabled = enabled,
                 modifier = Modifier.semantics { contentDescription = fulfillLabel },
             ) {
-                Text(
-                    text = stringResource(Res.string.rewards_queue_fulfill),
-                    color = if (enabled) tokens.primary else tokens.mutedForeground,
-                    maxLines = 1,
+                Icon(
+                    imageVector = CheckCircleGlyph,
+                    contentDescription = null,
+                    tint = if (enabled) tokens.primary else tokens.muted,
+                    modifier = Modifier.size(spacing.s4),
                 )
             }
         }
         ManageGate(decision = edit) { enabled ->
-            TextButton(
+            IconButton(
                 onClick = onRefund,
                 enabled = enabled,
                 modifier = Modifier.semantics { contentDescription = refundLabel },
             ) {
-                Text(
-                    text = stringResource(Res.string.rewards_queue_refund),
-                    color = if (enabled) tokens.destructive else tokens.mutedForeground,
-                    maxLines = 1,
+                Icon(
+                    imageVector = RemoveGlyph,
+                    contentDescription = null,
+                    tint = if (enabled) tokens.destructive else tokens.muted,
+                    modifier = Modifier.size(spacing.s4),
                 )
             }
         }

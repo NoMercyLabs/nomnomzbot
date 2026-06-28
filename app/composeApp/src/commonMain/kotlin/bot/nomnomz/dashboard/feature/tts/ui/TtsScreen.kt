@@ -34,7 +34,10 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.TextButton
+import bot.nomnomz.dashboard.core.designsystem.icon.CheckCircleGlyph
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -363,15 +366,16 @@ private fun VoiceMatchRow(voice: TtsVoice, manage: ManageDecision, onUse: () -> 
             )
         }
         ManageGate(decision = manage) { enabled ->
-            TextButton(
+            IconButton(
                 onClick = onUse,
                 enabled = enabled,
                 modifier = Modifier.semantics { contentDescription = useLabel },
             ) {
-                Text(
-                    text = stringResource(Res.string.tts_voices_use),
-                    color = if (enabled) tokens.primary else tokens.mutedForeground,
-                    maxLines = 1,
+                Icon(
+                    imageVector = CheckCircleGlyph,
+                    contentDescription = null,
+                    tint = if (enabled) tokens.primary else tokens.muted,
+                    modifier = Modifier.size(spacing.s4),
                 )
             }
         }
