@@ -476,10 +476,12 @@ private fun ChainEditor(
         }
 
         if (editing.steps.isEmpty()) {
-            CenteredMessage(stringResource(Res.string.pipelines_chain_empty))
+            Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                CenteredMessage(stringResource(Res.string.pipelines_chain_empty))
+            }
         } else {
             LazyColumn(
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier.weight(1f).fillMaxWidth(),
                 contentPadding = PaddingValues(vertical = spacing.s1),
                 verticalArrangement = Arrangement.spacedBy(spacing.s3),
             ) {

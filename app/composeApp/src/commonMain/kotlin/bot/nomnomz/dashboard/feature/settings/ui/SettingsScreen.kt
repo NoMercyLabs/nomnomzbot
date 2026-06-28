@@ -348,7 +348,7 @@ private fun ReadyContent(
     val canSave: Boolean = titleValid && dirty && !state.saving
 
     Column(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(spacing.s4),
     ) {
         StatusBanner(isLive = loaded.isLive)
