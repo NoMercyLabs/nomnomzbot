@@ -1661,4 +1661,32 @@
     <string name="admin_health_ok">OK</string>
     <string name="admin_health_degraded">Verslechterd</string>
     <string name="admin_health_down">Neer</string>
+
+    <!-- Geluidsfragmenten pagina. -->
+    <string name="shell_nav_sound">Geluidsfragmenten</string>
+    <string name="sound_clips_loading">Geluidsfragmenten laden…</string>
+    <string name="sound_clips_empty">Nog geen geluidsfragmenten. Upload er een om in pipelines te gebruiken.</string>
+    <string name="sound_clips_error">Kon geluidsfragmenten niet laden: %1$s</string>
+    <string name="sound_clips_retry">Opnieuw proberen</string>
+    <string name="sound_clips_action_error">%1$s</string>
+    <string name="sound_clips_preview_action">Voorbeeld %1$s</string>
+    <string name="sound_clips_edit_action">%1$s bewerken</string>
+    <string name="sound_clips_delete_action">%1$s verwijderen</string>
+    <string name="sound_clips_delete_title">Fragment verwijderen?</string>
+    <string name="sound_clips_delete_message">"%1$s" verwijderen? Dit kan niet ongedaan worden gemaakt.</string>
+    <string name="sound_clips_delete_confirm">Verwijderen</string>
+    <string name="sound_clips_delete_cancel">Annuleren</string>
+    <string name="sound_clips_dialog_edit_title">Fragment bewerken</string>
+    <string name="sound_clips_dialog_display_name_label">Weergavenaam</string>
+    <string name="sound_clips_dialog_volume_label">Standaardvolume (%1$d%%)</string>
+    <string name="sound_clips_dialog_enabled_label">Ingeschakeld</string>
+    <string name="sound_clips_dialog_save">Opslaan</string>
+    <string name="sound_clips_dialog_cancel">Annuleren</string>
+    <string name="sound_clips_duration_ms">%1$d ms</string>
+    <string name="sound_clips_size_kb">%1$d KB</string>
+    <string name="sound_clips_volume_pct">Vol %1$d%%</string>
+    <string name="sound_clips_disabled_badge">Uitgeschakeld</string>
+    <string name="feedback_sound_clip_saved">Fragment opgeslagen</string>
+    <string name="feedback_sound_clip_deleted">Fragment verwijderd</string>
+    <string name="feedback_sound_clip_save_failed">Kon het fragment niet opslaan: %1$s</string>
 </resources>

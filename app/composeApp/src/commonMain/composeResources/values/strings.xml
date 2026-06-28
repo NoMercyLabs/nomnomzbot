@@ -1675,4 +1675,32 @@
     <string name="admin_health_ok">OK</string>
     <string name="admin_health_degraded">Degraded</string>
     <string name="admin_health_down">Down</string>
+
+    <!-- Sound clips page. -->
+    <string name="shell_nav_sound">Sound Clips</string>
+    <string name="sound_clips_loading">Loading sound clips…</string>
+    <string name="sound_clips_empty">No sound clips yet. Upload one to use it in pipelines.</string>
+    <string name="sound_clips_error">Couldn't load sound clips: %1$s</string>
+    <string name="sound_clips_retry">Retry</string>
+    <string name="sound_clips_action_error">%1$s</string>
+    <string name="sound_clips_preview_action">Preview %1$s</string>
+    <string name="sound_clips_edit_action">Edit %1$s</string>
+    <string name="sound_clips_delete_action">Delete %1$s</string>
+    <string name="sound_clips_delete_title">Delete clip?</string>
+    <string name="sound_clips_delete_message">Delete "%1$s"? This can't be undone.</string>
+    <string name="sound_clips_delete_confirm">Delete</string>
+    <string name="sound_clips_delete_cancel">Cancel</string>
+    <string name="sound_clips_dialog_edit_title">Edit clip</string>
+    <string name="sound_clips_dialog_display_name_label">Display name</string>
+    <string name="sound_clips_dialog_volume_label">Default volume (%1$d%%)</string>
+    <string name="sound_clips_dialog_enabled_label">Enabled</string>
+    <string name="sound_clips_dialog_save">Save</string>
+    <string name="sound_clips_dialog_cancel">Cancel</string>
+    <string name="sound_clips_duration_ms">%1$d ms</string>
+    <string name="sound_clips_size_kb">%1$d KB</string>
+    <string name="sound_clips_volume_pct">Vol %1$d%%</string>
+    <string name="sound_clips_disabled_badge">Disabled</string>
+    <string name="feedback_sound_clip_saved">Clip saved</string>
+    <string name="feedback_sound_clip_deleted">Clip deleted</string>
+    <string name="feedback_sound_clip_save_failed">Couldn't save the clip: %1$s</string>
 </resources>

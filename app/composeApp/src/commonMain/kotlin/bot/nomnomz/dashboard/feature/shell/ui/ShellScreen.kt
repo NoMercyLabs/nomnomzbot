@@ -83,6 +83,7 @@ import bot.nomnomz.dashboard.feature.moderation.ui.ModerationScreen
 import bot.nomnomz.dashboard.feature.music.ui.MusicScreen
 import bot.nomnomz.dashboard.feature.pipelines.ui.PipelinesScreen
 import bot.nomnomz.dashboard.feature.quotes.ui.QuotesScreen
+import bot.nomnomz.dashboard.feature.sound.ui.SoundScreen
 import bot.nomnomz.dashboard.feature.rewards.ui.RewardsScreen
 import bot.nomnomz.dashboard.feature.roles.ui.RolesScreen
 import bot.nomnomz.dashboard.feature.settings.ui.SettingsScreen
@@ -132,6 +133,7 @@ import nomnomzbot.composeapp.generated.resources.shell_nav_integrations
 import nomnomzbot.composeapp.generated.resources.shell_nav_menu_open
 import nomnomzbot.composeapp.generated.resources.shell_nav_moderation
 import nomnomzbot.composeapp.generated.resources.shell_nav_music
+import nomnomzbot.composeapp.generated.resources.shell_nav_sound
 import nomnomzbot.composeapp.generated.resources.shell_nav_overlays
 import nomnomzbot.composeapp.generated.resources.shell_nav_pipelines
 import nomnomzbot.composeapp.generated.resources.shell_nav_quotes
@@ -358,6 +360,8 @@ private fun ShellContent(
                     role = role,
                     hubEvents = graph.dashboardHubClient.events,
                 )
+            ShellRoute.SoundClips ->
+                SoundScreen(controller = graph.soundController, role = role)
             ShellRoute.Tts -> TtsScreen(controller = graph.ttsController, role = role)
             ShellRoute.Games -> GamesScreen(controller = graph.gamesController, role = role)
             ShellRoute.Discord -> DiscordScreen(controller = graph.discordController, role = role)
@@ -874,6 +878,7 @@ private fun ShellRoute.icon(): ImageVector =
         ShellRoute.Games -> GamesGlyph
         ShellRoute.Music -> MusicGlyph
         ShellRoute.SongRequests -> SongRequestsGlyph
+        ShellRoute.SoundClips -> SoundClipsGlyph
         ShellRoute.Tts -> TtsGlyph
         ShellRoute.Widgets -> WidgetsGlyph
         ShellRoute.Alerts -> AlertsGlyph
@@ -905,6 +910,7 @@ private fun ShellRoute.label(): String =
             ShellRoute.Games -> Res.string.shell_nav_games
             ShellRoute.SongRequests -> Res.string.shell_nav_song_requests
             ShellRoute.Music -> Res.string.shell_nav_music
+            ShellRoute.SoundClips -> Res.string.shell_nav_sound
             ShellRoute.Tts -> Res.string.shell_nav_tts
             ShellRoute.Widgets -> Res.string.shell_nav_overlays
             ShellRoute.Alerts -> Res.string.shell_nav_alerts

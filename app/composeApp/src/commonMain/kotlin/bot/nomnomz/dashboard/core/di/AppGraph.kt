@@ -44,6 +44,8 @@ import bot.nomnomz.dashboard.core.network.FederationApi
 import bot.nomnomz.dashboard.core.network.CodeScriptsApi
 import bot.nomnomz.dashboard.core.network.WebhooksApi
 import bot.nomnomz.dashboard.core.network.QuotesApi
+import bot.nomnomz.dashboard.core.network.RestSoundApi
+import bot.nomnomz.dashboard.core.network.SoundApi
 import bot.nomnomz.dashboard.core.network.RestAlertsApi
 import bot.nomnomz.dashboard.core.network.RestAnalyticsApi
 import bot.nomnomz.dashboard.core.io.JournalFileBridge
@@ -119,6 +121,7 @@ import bot.nomnomz.dashboard.feature.federation.state.FederationController
 import bot.nomnomz.dashboard.feature.codescripts.state.CodeScriptsController
 import bot.nomnomz.dashboard.feature.webhooks.state.WebhooksController
 import bot.nomnomz.dashboard.feature.quotes.state.QuotesController
+import bot.nomnomz.dashboard.feature.sound.state.SoundController
 import bot.nomnomz.dashboard.feature.rewards.state.RewardsController
 import bot.nomnomz.dashboard.feature.roles.state.RolesController
 import bot.nomnomz.dashboard.feature.admin.state.AdminController
@@ -210,6 +213,7 @@ class AppGraph {
     val eventStoreApi: EventStoreApi = RestEventStoreApi(apiClient)
     val chatApi: ChatApi = RestChatApi(apiClient)
     val quotesApi: QuotesApi = RestQuotesApi(apiClient)
+    val soundApi: SoundApi = RestSoundApi(apiClient)
     val discordApi: DiscordApi = RestDiscordApi(apiClient)
     val rolesApi: RolesApi = RestRolesApi(apiClient)
     val musicApi: MusicApi = RestMusicApi(apiClient)
@@ -354,6 +358,9 @@ class AppGraph {
 
     val quotesController: QuotesController =
         QuotesController(quotesApi = quotesApi, feedback = feedbackController)
+
+    val soundController: SoundController =
+        SoundController(soundApi = soundApi, feedback = feedbackController)
 
     val discordController: DiscordController =
         DiscordController(channelsApi = channelsApi, discordApi = discordApi)
