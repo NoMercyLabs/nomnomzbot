@@ -57,6 +57,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
+import bot.nomnomz.dashboard.core.designsystem.icon.RefreshGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
 import bot.nomnomz.dashboard.core.network.MusicConfig
 import bot.nomnomz.dashboard.core.network.QueuedSong
@@ -379,11 +380,12 @@ private fun SrTokenSection(
             }
         }
         ManageGate(decision = configure) { enabled ->
-            TextButton(onClick = onRotate, enabled = enabled) {
-                Text(
-                    text = stringResource(Res.string.songrequests_token_rotate),
-                    color = if (enabled) tokens.destructive else tokens.mutedForeground,
-                    style = typography.sm,
+            IconButton(onClick = onRotate, enabled = enabled) {
+                Icon(
+                    imageVector = RefreshGlyph,
+                    contentDescription = stringResource(Res.string.songrequests_token_rotate),
+                    tint = if (enabled) tokens.destructive else tokens.muted,
+                    modifier = Modifier.size(spacing.s4),
                 )
             }
         }

@@ -53,6 +53,9 @@ import bot.nomnomz.dashboard.core.designsystem.component.CopyValue
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
+import bot.nomnomz.dashboard.core.designsystem.icon.PlayCircleGlyph
+import bot.nomnomz.dashboard.core.designsystem.icon.PowerGlyph
+import bot.nomnomz.dashboard.core.designsystem.icon.RefreshGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
@@ -374,9 +377,14 @@ private fun InboundRow(
         }
         Text(text = "${stringResource(Res.string.webhooks_url_label)}: ${ep.ingestUrl}", style = typography.xs, color = tokens.mutedForeground, maxLines = 1, overflow = TextOverflow.Ellipsis)
         Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
-            ManageGate(manage) {
-                TextButton(onClick = onRotate) {
-                    Text(stringResource(Res.string.webhooks_rotate_inbound_token), style = typography.xs, color = tokens.primary)
+            ManageGate(manage) { enabled ->
+                IconButton(onClick = onRotate, enabled = enabled) {
+                    Icon(
+                        imageVector = RefreshGlyph,
+                        contentDescription = stringResource(Res.string.webhooks_rotate_inbound_token),
+                        tint = if (enabled) tokens.destructive else tokens.muted,
+                        modifier = Modifier.size(spacing.s4),
+                    )
                 }
             }
             ManageGate(manage) { enabled ->
@@ -455,20 +463,35 @@ private fun OutboundRow(
         }
         Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
             if (ep.disabledAt != null) {
-                ManageGate(manage) {
-                    TextButton(onClick = onReenable) {
-                        Text(stringResource(Res.string.webhooks_outbound_reenable), style = typography.xs, color = tokens.primary)
+                ManageGate(manage) { enabled ->
+                    IconButton(onClick = onReenable, enabled = enabled) {
+                        Icon(
+                            imageVector = PowerGlyph,
+                            contentDescription = stringResource(Res.string.webhooks_outbound_reenable),
+                            tint = if (enabled) tokens.primary else tokens.muted,
+                            modifier = Modifier.size(spacing.s4),
+                        )
                     }
                 }
             }
-            ManageGate(manage) {
-                TextButton(onClick = onTest) {
-                    Text(stringResource(Res.string.webhooks_outbound_test), style = typography.xs, color = tokens.primary)
+            ManageGate(manage) { enabled ->
+                IconButton(onClick = onTest, enabled = enabled) {
+                    Icon(
+                        imageVector = PlayCircleGlyph,
+                        contentDescription = stringResource(Res.string.webhooks_outbound_test),
+                        tint = if (enabled) tokens.primary else tokens.muted,
+                        modifier = Modifier.size(spacing.s4),
+                    )
                 }
             }
-            ManageGate(manage) {
-                TextButton(onClick = onRotateSecret) {
-                    Text(stringResource(Res.string.webhooks_rotate_outbound_secret), style = typography.xs, color = tokens.primary)
+            ManageGate(manage) { enabled ->
+                IconButton(onClick = onRotateSecret, enabled = enabled) {
+                    Icon(
+                        imageVector = RefreshGlyph,
+                        contentDescription = stringResource(Res.string.webhooks_rotate_outbound_secret),
+                        tint = if (enabled) tokens.destructive else tokens.muted,
+                        modifier = Modifier.size(spacing.s4),
+                    )
                 }
             }
             ManageGate(manage) { enabled ->
