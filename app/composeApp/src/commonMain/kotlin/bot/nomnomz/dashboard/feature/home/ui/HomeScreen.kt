@@ -11,12 +11,14 @@
 package bot.nomnomz.dashboard.feature.home.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -28,7 +30,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -42,15 +44,30 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
+import bot.nomnomz.dashboard.core.designsystem.icon.ArrowUpGlyph
+import bot.nomnomz.dashboard.core.designsystem.icon.CheckCircleGlyph
+import bot.nomnomz.dashboard.core.designsystem.icon.CheckGlyph
+import bot.nomnomz.dashboard.core.designsystem.icon.CopyGlyph
+import bot.nomnomz.dashboard.core.designsystem.icon.EditGlyph
+import bot.nomnomz.dashboard.core.designsystem.icon.PlayCircleGlyph
+import bot.nomnomz.dashboard.core.designsystem.icon.RefreshGlyph
+import bot.nomnomz.dashboard.core.designsystem.icon.RemoveGlyph
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.network.ActivityEvent
+import bot.nomnomz.dashboard.core.network.CommandSummary
 import bot.nomnomz.dashboard.core.network.DashboardStats
 import bot.nomnomz.dashboard.core.network.LiveOpsPoll
 import bot.nomnomz.dashboard.core.network.LiveOpsPrediction
@@ -64,33 +81,21 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.home_activity_cheer
-import nomnomzbot.composeapp.generated.resources.home_activity_event
 import nomnomzbot.composeapp.generated.resources.home_activity_empty
+import nomnomzbot.composeapp.generated.resources.home_activity_event
 import nomnomzbot.composeapp.generated.resources.home_activity_follow
 import nomnomzbot.composeapp.generated.resources.home_activity_raid
 import nomnomzbot.composeapp.generated.resources.home_activity_redemption
 import nomnomzbot.composeapp.generated.resources.home_activity_section
 import nomnomzbot.composeapp.generated.resources.home_activity_subscribe
 import nomnomzbot.composeapp.generated.resources.home_activity_subscription_gift
+import nomnomzbot.composeapp.generated.resources.home_change_title
 import nomnomzbot.composeapp.generated.resources.home_error
-import nomnomzbot.composeapp.generated.resources.home_stream_error
-import nomnomzbot.composeapp.generated.resources.home_stream_game_hint
-import nomnomzbot.composeapp.generated.resources.home_stream_game_label
-import nomnomzbot.composeapp.generated.resources.home_stream_save
-import nomnomzbot.composeapp.generated.resources.home_stream_saved
-import nomnomzbot.composeapp.generated.resources.home_stream_section
-import nomnomzbot.composeapp.generated.resources.home_stream_tags_hint
-import nomnomzbot.composeapp.generated.resources.home_stream_tags_label
-import nomnomzbot.composeapp.generated.resources.home_stream_title_hint
-import nomnomzbot.composeapp.generated.resources.home_stream_title_label
-import nomnomzbot.composeapp.generated.resources.home_subtitle
-import nomnomzbot.composeapp.generated.resources.shell_nav_dashboard
 import nomnomzbot.composeapp.generated.resources.home_game_label
 import nomnomzbot.composeapp.generated.resources.home_live_ops_active_poll
 import nomnomzbot.composeapp.generated.resources.home_live_ops_active_prediction
 import nomnomzbot.composeapp.generated.resources.home_live_ops_cancel
 import nomnomzbot.composeapp.generated.resources.home_live_ops_cancel_prediction
-import nomnomzbot.composeapp.generated.resources.home_live_ops_cancel_raid
 import nomnomzbot.composeapp.generated.resources.home_live_ops_commercial_confirm
 import nomnomzbot.composeapp.generated.resources.home_live_ops_commercial_length_label
 import nomnomzbot.composeapp.generated.resources.home_live_ops_create_clip
@@ -118,19 +123,27 @@ import nomnomzbot.composeapp.generated.resources.home_no_title
 import nomnomzbot.composeapp.generated.resources.home_retry
 import nomnomzbot.composeapp.generated.resources.home_stat_commands
 import nomnomzbot.composeapp.generated.resources.home_stat_followers
-import nomnomzbot.composeapp.generated.resources.home_stat_messages
 import nomnomzbot.composeapp.generated.resources.home_stat_uptime
 import nomnomzbot.composeapp.generated.resources.home_stat_viewers
 import nomnomzbot.composeapp.generated.resources.home_status_live
 import nomnomzbot.composeapp.generated.resources.home_status_offline
+import nomnomzbot.composeapp.generated.resources.home_stream_error
+import nomnomzbot.composeapp.generated.resources.home_stream_game_label
+import nomnomzbot.composeapp.generated.resources.home_stream_save
+import nomnomzbot.composeapp.generated.resources.home_stream_section
+import nomnomzbot.composeapp.generated.resources.home_stream_tags_label
+import nomnomzbot.composeapp.generated.resources.home_stream_title_label
+import nomnomzbot.composeapp.generated.resources.home_subtitle
+import nomnomzbot.composeapp.generated.resources.home_top_commands
+import nomnomzbot.composeapp.generated.resources.home_top_commands_empty
+import nomnomzbot.composeapp.generated.resources.home_top_commands_uses
 import nomnomzbot.composeapp.generated.resources.home_uptime_format
 import nomnomzbot.composeapp.generated.resources.home_uptime_offline
-import org.jetbrains.compose.resources.StringResource
+import nomnomzbot.composeapp.generated.resources.shell_nav_dashboard
 import org.jetbrains.compose.resources.stringResource
 
-// The Home page (frontend-ia.md §3): the live channel landing — current stream state + the headline counters,
-// all real data from [HomeController]. The screen is a pure projection of the controller's state; it loads on
-// first composition and offers a retry on failure.
+// The Home page (frontend-ia.md §3): the live channel landing — current stream state, headline counters,
+// recent activity feed, and quick-action panel. Pure projection of [HomeController] state.
 @Composable
 fun HomeScreen(
     controller: HomeController,
@@ -146,7 +159,6 @@ fun HomeScreen(
         liveOpsController.load()
     }
 
-    // Real-time stream status: update isLive immediately when the hub fires stream.online/offline.
     if (hubEvents != null) {
         LaunchedEffect(hubEvents) { controller.subscribeToHub(hubEvents) }
     }
@@ -166,6 +178,7 @@ fun HomeScreen(
                     stats = current.stats,
                     streamInfo = current.streamInfo,
                     activity = current.activity,
+                    topCommands = current.topCommands,
                     streamError = current.streamError,
                     liveOpsController = liveOpsController,
                     onUpdateStream = { title, game, tags ->
@@ -176,16 +189,29 @@ fun HomeScreen(
     }
 }
 
+// ─── Ready content ────────────────────────────────────────────────────────────
+
 @Composable
 private fun ReadyContent(
     stats: DashboardStats,
     streamInfo: StreamInfo?,
     activity: List<ActivityEvent>,
+    topCommands: List<CommandSummary>,
     streamError: String?,
     liveOpsController: LiveOpsController,
     onUpdateStream: (title: String?, game: String?, tags: List<String>?) -> Unit,
 ) {
     val spacing = LocalSpacing.current
+    val scope = rememberCoroutineScope()
+    val liveOpsState: LiveOpsState by liveOpsController.state.collectAsStateWithLifecycle()
+    val ready: LiveOpsState.Ready? = liveOpsState as? LiveOpsState.Ready
+
+    var showChangeTitleDialog: Boolean by remember { mutableStateOf(false) }
+    var showPollDialog: Boolean by remember { mutableStateOf(false) }
+    var showPredictionDialog: Boolean by remember { mutableStateOf(false) }
+    var showRaidDialog: Boolean by remember { mutableStateOf(false) }
+    var showCommercialDialog: Boolean by remember { mutableStateOf(false) }
+    var showResolvePredictionDialog: Boolean by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
@@ -195,13 +221,115 @@ private fun ReadyContent(
             title = stringResource(Res.string.shell_nav_dashboard),
             subtitle = stringResource(Res.string.home_subtitle),
         )
+
         LiveBanner(stats = stats)
-        StatTiles(stats = stats)
-        StreamInfoCard(streamInfo = streamInfo, error = streamError, onSave = onUpdateStream)
-        ActivityFeedCard(events = activity)
-        LiveOpsSection(controller = liveOpsController)
+        StatTilesRow(stats = stats)
+
+        // Two-column lower section: activity feed (wider) + right sidebar (actions + top commands).
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(spacing.s4),
+            verticalAlignment = Alignment.Top,
+        ) {
+            ActivityFeedCard(
+                events = activity,
+                modifier = Modifier.weight(1.6f),
+            )
+
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(spacing.s4),
+            ) {
+                QuickActionsCard(
+                    ready = ready,
+                    onChangeTitle = { showChangeTitleDialog = true },
+                    onCreateClip = { scope.launch { liveOpsController.createClip() } },
+                    onStartPoll = { showPollDialog = true },
+                    onEndPoll = { scope.launch { liveOpsController.endPoll("TERMINATED") } },
+                    onStartPrediction = { showPredictionDialog = true },
+                    onResolvePrediction = { showResolvePredictionDialog = true },
+                    onCancelPrediction = { scope.launch { liveOpsController.cancelPrediction() } },
+                    onStartRaid = { showRaidDialog = true },
+                    onStartCommercial = { showCommercialDialog = true },
+                    onSnoozeAd = { scope.launch { liveOpsController.snoozeNextAd() } },
+                )
+
+                if (topCommands.isNotEmpty()) {
+                    TopCommandsCard(commands = topCommands)
+                }
+            }
+        }
+    }
+
+    // ─── Dialogs ──────────────────────────────────────────────────────────────
+
+    if (showChangeTitleDialog) {
+        ChangeTitleDialog(
+            streamInfo = streamInfo,
+            error = streamError,
+            onSave = { title, game, tags ->
+                showChangeTitleDialog = false
+                onUpdateStream(title, game, tags)
+            },
+            onDismiss = { showChangeTitleDialog = false },
+        )
+    }
+
+    if (showPollDialog) {
+        PollDialog(
+            onConfirm = { title, choices, duration ->
+                showPollDialog = false
+                scope.launch { liveOpsController.createPoll(title, choices, duration) }
+            },
+            onDismiss = { showPollDialog = false },
+        )
+    }
+
+    if (showPredictionDialog) {
+        PredictionDialog(
+            onConfirm = { title, outcomes, window ->
+                showPredictionDialog = false
+                scope.launch { liveOpsController.createPrediction(title, outcomes, window) }
+            },
+            onDismiss = { showPredictionDialog = false },
+        )
+    }
+
+    if (showRaidDialog) {
+        RaidDialog(
+            onConfirm = { target ->
+                showRaidDialog = false
+                scope.launch { liveOpsController.startRaid(target) }
+            },
+            onDismiss = { showRaidDialog = false },
+        )
+    }
+
+    if (showCommercialDialog) {
+        CommercialDialog(
+            onConfirm = { length ->
+                showCommercialDialog = false
+                scope.launch { liveOpsController.startCommercial(length) }
+            },
+            onDismiss = { showCommercialDialog = false },
+        )
+    }
+
+    if (showResolvePredictionDialog) {
+        ready?.activePrediction?.let { prediction: LiveOpsPrediction ->
+            ResolvePredictionDialog(
+                prediction = prediction,
+                onConfirm = { winningId ->
+                    showResolvePredictionDialog = false
+                    scope.launch { liveOpsController.resolvePrediction(winningId) }
+                },
+                onDismiss = { showResolvePredictionDialog = false },
+            )
+        }
     }
 }
+
+// ─── Live banner ──────────────────────────────────────────────────────────────
 
 @Composable
 private fun LiveBanner(stats: DashboardStats) {
@@ -209,165 +337,135 @@ private fun LiveBanner(stats: DashboardStats) {
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
 
-    Column(
+    Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(tokens.radius.lg))
             .background(tokens.card)
             .padding(spacing.s4),
-        verticalArrangement = Arrangement.spacedBy(spacing.s2),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(spacing.s2),
         ) {
-            Box(
-                modifier = Modifier
-                    .size(spacing.s2)
-                    .clip(CircleShape)
-                    .background(if (stats.isLive) tokens.primary else tokens.mutedForeground),
-            )
-            Text(
-                text =
-                    stringResource(
-                        if (stats.isLive) Res.string.home_status_live else Res.string.home_status_offline
-                    ),
-                style = typography.sm,
-                color = tokens.mutedForeground,
-            )
-        }
-        Text(
-            text = stats.streamTitle?.takeIf { it.isNotBlank() }
-                ?: stringResource(Res.string.home_no_title),
-            style = typography.xl,
-            color = tokens.cardForeground,
-        )
-        stats.gameName?.takeIf { it.isNotBlank() }?.let { game ->
-            Text(
-                text = stringResource(Res.string.home_game_label, game),
-                style = typography.sm,
-                color = tokens.mutedForeground,
-            )
-        }
-    }
-}
-
-// ─── Stream info editor ───────────────────────────────────────────────────────
-
-@Composable
-private fun StreamInfoCard(
-    streamInfo: StreamInfo?,
-    error: String?,
-    onSave: (title: String?, game: String?, tags: List<String>?) -> Unit,
-) {
-    val tokens = LocalTokens.current
-    val spacing = LocalSpacing.current
-    val typography = LocalTypography.current
-
-    var editTitle: String by remember(streamInfo?.title) { mutableStateOf(streamInfo?.title ?: "") }
-    var editGame: String by remember(streamInfo?.gameName) { mutableStateOf(streamInfo?.gameName ?: "") }
-    var editTags: String by remember(streamInfo?.tags) {
-        mutableStateOf(streamInfo?.tags?.joinToString(", ") ?: "")
-    }
-
-    // Flash "Stream updated" for 2 s after a successful save — when error is null and streamInfo
-    // just changed (the backend echoed back the confirmed values).
-    var savedFlash: Boolean by remember { mutableStateOf(false) }
-    LaunchedEffect(streamInfo) {
-        if (streamInfo != null && error == null) {
-            savedFlash = true
-            kotlinx.coroutines.delay(2000)
-            savedFlash = false
-        }
-    }
-
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(tokens.radius.lg))
-            .background(tokens.card)
-            .padding(spacing.s4),
-        verticalArrangement = Arrangement.spacedBy(spacing.s3),
-    ) {
-        Text(
-            text = stringResource(Res.string.home_stream_section),
-            style = typography.sm,
-            color = tokens.mutedForeground,
-        )
-        OutlinedTextField(
-            value = editTitle,
-            onValueChange = { editTitle = it },
-            label = { Text(stringResource(Res.string.home_stream_title_label)) },
-            placeholder = { Text(stringResource(Res.string.home_stream_title_hint)) },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        OutlinedTextField(
-            value = editGame,
-            onValueChange = { editGame = it },
-            label = { Text(stringResource(Res.string.home_stream_game_label)) },
-            placeholder = { Text(stringResource(Res.string.home_stream_game_hint)) },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        OutlinedTextField(
-            value = editTags,
-            onValueChange = { editTags = it },
-            label = { Text(stringResource(Res.string.home_stream_tags_label)) },
-            placeholder = { Text(stringResource(Res.string.home_stream_tags_hint)) },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        if (error != null) {
-            Text(
-                text = stringResource(Res.string.home_stream_error, error),
-                style = typography.sm,
-                color = tokens.destructive,
-            )
-        }
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            if (savedFlash) {
-                Text(
-                    text = stringResource(Res.string.home_stream_saved),
-                    style = typography.sm,
-                    color = tokens.primary,
-                )
-            } else {
-                Box(modifier = Modifier.weight(1f))
-            }
-            Button(
-                onClick = {
-                    val tags: List<String>? =
-                        editTags.split(",").map { it.trim() }.filter { it.isNotEmpty() }
-                            .takeIf { it.isNotEmpty() }
-                    onSave(
-                        editTitle.trim().takeIf { it.isNotEmpty() },
-                        editGame.trim().takeIf { it.isNotEmpty() },
-                        tags,
-                    )
-                },
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(spacing.s2),
             ) {
-                Text(stringResource(Res.string.home_stream_save))
+                Box(
+                    modifier = Modifier
+                        .size(spacing.s2)
+                        .clip(CircleShape)
+                        .background(if (stats.isLive) tokens.primary else tokens.mutedForeground),
+                )
+                Text(
+                    text = stringResource(if (stats.isLive) Res.string.home_status_live else Res.string.home_status_offline),
+                    style = typography.sm,
+                    color = tokens.mutedForeground,
+                )
+            }
+            Text(
+                text = stats.streamTitle?.takeIf { it.isNotBlank() }
+                    ?: stringResource(Res.string.home_no_title),
+                style = typography.xl,
+                color = tokens.cardForeground,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            stats.gameName?.takeIf { it.isNotBlank() }?.let { game ->
+                Text(
+                    text = stringResource(Res.string.home_game_label, game),
+                    style = typography.sm,
+                    color = tokens.mutedForeground,
+                )
+            }
+        }
+
+        // Viewer count — shown prominently when live.
+        if (stats.isLive) {
+            Spacer(modifier = Modifier.width(spacing.s4))
+            Column(
+                horizontalAlignment = Alignment.End,
+                modifier = Modifier
+                    .clearAndSetSemantics { contentDescription = "${stats.viewerCount} viewers" },
+            ) {
+                Text(
+                    text = stats.viewerCount.toString(),
+                    style = typography.xl3,
+                    fontWeight = FontWeight.Bold,
+                    color = tokens.cardForeground,
+                )
+                Text(
+                    text = stringResource(Res.string.home_stat_viewers).lowercase(),
+                    style = typography.xs,
+                    color = tokens.mutedForeground,
+                )
             }
         }
     }
 }
 
-// ─── Recent activity feed ─────────────────────────────────────────────────────
+// ─── Stat tiles ───────────────────────────────────────────────────────────────
 
 @Composable
-private fun ActivityFeedCard(events: List<ActivityEvent>) {
+private fun StatTilesRow(stats: DashboardStats) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(LocalSpacing.current.s3),
+    ) {
+        StatTile(
+            modifier = Modifier.weight(1f),
+            label = stringResource(Res.string.home_stat_viewers),
+            value = stats.viewerCount.toString(),
+        )
+        StatTile(
+            modifier = Modifier.weight(1f),
+            label = stringResource(Res.string.home_stat_followers),
+            value = stats.followerCount.toString(),
+        )
+        StatTile(
+            modifier = Modifier.weight(1f),
+            label = stringResource(Res.string.home_stat_commands),
+            value = stats.commandsUsed.toString(),
+        )
+        StatTile(
+            modifier = Modifier.weight(1f),
+            label = stringResource(Res.string.home_stat_uptime),
+            value = uptimeLabel(stats.uptime),
+        )
+    }
+}
+
+@Composable
+private fun StatTile(modifier: Modifier, label: String, value: String) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
 
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
+        modifier = modifier
+            .clip(RoundedCornerShape(tokens.radius.lg))
+            .background(tokens.card)
+            .padding(spacing.s4)
+            .clearAndSetSemantics { contentDescription = "$label: $value" },
+        verticalArrangement = Arrangement.spacedBy(spacing.s1),
+    ) {
+        Text(text = value, style = typography.xl2, color = tokens.cardForeground)
+        Text(text = label, style = typography.sm, color = tokens.mutedForeground)
+    }
+}
+
+// ─── Activity feed ────────────────────────────────────────────────────────────
+
+@Composable
+private fun ActivityFeedCard(events: List<ActivityEvent>, modifier: Modifier = Modifier) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    Column(
+        modifier = modifier
             .clip(RoundedCornerShape(tokens.radius.lg))
             .background(tokens.card)
             .padding(spacing.s4),
@@ -408,79 +506,71 @@ private fun ActivityRow(event: ActivityEvent) {
         "redemption" -> stringResource(Res.string.home_activity_redemption, who)
         else -> stringResource(Res.string.home_activity_event)
     }
+    val dotColor = when (event.type) {
+        "follow" -> tokens.primary
+        "subscribe", "subscription_gift" -> tokens.ring
+        "cheer" -> tokens.primary
+        "raid" -> tokens.accent
+        "redemption" -> tokens.ring
+        else -> tokens.mutedForeground
+    }
 
     Row(
         modifier = Modifier.fillMaxWidth().padding(vertical = spacing.s1),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(text = label, style = typography.sm, color = tokens.cardForeground)
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+            modifier = Modifier.weight(1f),
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(spacing.s2)
+                    .clip(CircleShape)
+                    .background(dotColor),
+            )
+            Text(
+                text = label,
+                style = typography.sm,
+                color = tokens.cardForeground,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
         Text(
             text = event.timestamp.take(10),
             style = typography.xs,
             color = tokens.mutedForeground,
+            modifier = Modifier.padding(start = spacing.s3),
         )
     }
 }
 
+// ─── Quick actions ────────────────────────────────────────────────────────────
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun StatTiles(stats: DashboardStats) {
-    val spacing = LocalSpacing.current
-
-    FlowRow(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(spacing.s3),
-        verticalArrangement = Arrangement.spacedBy(spacing.s3),
-    ) {
-        StatTile(Res.string.home_stat_viewers, stats.viewerCount.toString())
-        StatTile(Res.string.home_stat_followers, stats.followerCount.toString())
-        StatTile(Res.string.home_stat_commands, stats.commandsUsed.toString())
-        StatTile(Res.string.home_stat_messages, stats.messagesCount.toString())
-        StatTile(Res.string.home_stat_uptime, uptimeLabel(stats.uptime))
-    }
-}
-
-@Composable
-private fun StatTile(labelRes: StringResource, value: String) {
+private fun QuickActionsCard(
+    ready: LiveOpsState.Ready?,
+    onChangeTitle: () -> Unit,
+    onCreateClip: () -> Unit,
+    onStartPoll: () -> Unit,
+    onEndPoll: () -> Unit,
+    onStartPrediction: () -> Unit,
+    onResolvePrediction: () -> Unit,
+    onCancelPrediction: () -> Unit,
+    onStartRaid: () -> Unit,
+    onStartCommercial: () -> Unit,
+    onSnoozeAd: () -> Unit,
+) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
 
-    val label: String = stringResource(labelRes)
-
-    Column(
-        modifier = Modifier
-            .width(spacing.s24 * 1.6f)
-            .clip(RoundedCornerShape(tokens.radius.lg))
-            .background(tokens.card)
-            .padding(spacing.s4)
-            // One node for screen readers: "Viewers: 42" rather than two disconnected texts.
-            .clearAndSetSemantics { contentDescription = "$label: $value" },
-        verticalArrangement = Arrangement.spacedBy(spacing.s1),
-    ) {
-        Text(text = value, style = typography.xl2, color = tokens.cardForeground)
-        Text(text = label, style = typography.sm, color = tokens.mutedForeground)
-    }
-}
-
-// ─── Live-ops quick-actions ───────────────────────────────────────────────────
-
-@Composable
-private fun LiveOpsSection(controller: LiveOpsController) {
-    val liveOpsState: LiveOpsState by controller.state.collectAsStateWithLifecycle()
-    val scope = rememberCoroutineScope()
-    val tokens = LocalTokens.current
-    val spacing = LocalSpacing.current
-    val typography = LocalTypography.current
-
-    var showPollDialog: Boolean by remember { mutableStateOf(false) }
-    var showPredictionDialog: Boolean by remember { mutableStateOf(false) }
-    var showRaidDialog: Boolean by remember { mutableStateOf(false) }
-    var showCommercialDialog: Boolean by remember { mutableStateOf(false) }
-    var showResolvePredictionDialog: Boolean by remember { mutableStateOf(false) }
-
-    val ready: LiveOpsState.Ready? = liveOpsState as? LiveOpsState.Ready
+    val activePoll: LiveOpsPoll? = ready?.activePoll
+    val activePrediction: LiveOpsPrediction? = ready?.activePrediction
 
     Column(
         modifier = Modifier
@@ -496,122 +586,289 @@ private fun LiveOpsSection(controller: LiveOpsController) {
             color = tokens.mutedForeground,
         )
 
-        // Active poll info + end action
-        ready?.activePoll?.let { poll: LiveOpsPoll ->
+        activePoll?.let { poll ->
             Text(
                 text = stringResource(Res.string.home_live_ops_active_poll, poll.title),
-                style = typography.sm,
-                color = tokens.cardForeground,
+                style = typography.xs,
+                color = tokens.primary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
-            TextButton(onClick = { scope.launch { controller.endPoll("TERMINATED") } }) {
-                Text(stringResource(Res.string.home_live_ops_end_poll))
-            }
         }
-
-        // Active prediction info + resolve / cancel actions
-        ready?.activePrediction?.let { prediction: LiveOpsPrediction ->
+        activePrediction?.let { prediction ->
             Text(
                 text = stringResource(Res.string.home_live_ops_active_prediction, prediction.title),
-                style = typography.sm,
-                color = tokens.cardForeground,
+                style = typography.xs,
+                color = tokens.ring,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
-            Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
-                TextButton(onClick = { showResolvePredictionDialog = true }) {
-                    Text(stringResource(Res.string.home_live_ops_resolve_prediction))
-                }
-                TextButton(onClick = { scope.launch { controller.cancelPrediction() } }) {
-                    Text(stringResource(Res.string.home_live_ops_cancel_prediction))
-                }
-            }
         }
 
-        // Primary action buttons
-        @OptIn(ExperimentalLayoutApi::class)
         FlowRow(
+            modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(spacing.s2),
             verticalArrangement = Arrangement.spacedBy(spacing.s2),
+            maxItemsInEachRow = 2,
         ) {
-            if (ready?.activePoll == null) {
-                TextButton(onClick = { showPollDialog = true }) {
-                    Text(stringResource(Res.string.home_live_ops_create_poll))
-                }
-            }
-            if (ready?.activePrediction == null) {
-                TextButton(onClick = { showPredictionDialog = true }) {
-                    Text(stringResource(Res.string.home_live_ops_create_prediction))
-                }
-            }
-            TextButton(onClick = { showRaidDialog = true }) {
-                Text(stringResource(Res.string.home_live_ops_start_raid))
-            }
-            TextButton(onClick = { scope.launch { controller.createClip() } }) {
-                Text(stringResource(Res.string.home_live_ops_create_clip))
-            }
-            if (ready?.adSchedule != null && (ready.adSchedule?.snoozeCount ?: 0) > 0) {
-                TextButton(onClick = { scope.launch { controller.snoozeNextAd() } }) {
-                    Text(stringResource(Res.string.home_live_ops_snooze_ad))
-                }
-            }
-            TextButton(onClick = { showCommercialDialog = true }) {
-                Text(stringResource(Res.string.home_live_ops_start_commercial))
-            }
-        }
-    }
-
-    // ─── Dialogs ──────────────────────────────────────────────────────────────
-
-    if (showPollDialog) {
-        PollDialog(
-            onConfirm = { title, choices, duration ->
-                showPollDialog = false
-                scope.launch { controller.createPoll(title, choices, duration) }
-            },
-            onDismiss = { showPollDialog = false },
-        )
-    }
-
-    if (showPredictionDialog) {
-        PredictionDialog(
-            onConfirm = { title, outcomes, window ->
-                showPredictionDialog = false
-                scope.launch { controller.createPrediction(title, outcomes, window) }
-            },
-            onDismiss = { showPredictionDialog = false },
-        )
-    }
-
-    if (showRaidDialog) {
-        RaidDialog(
-            onConfirm = { target ->
-                showRaidDialog = false
-                scope.launch { controller.startRaid(target) }
-            },
-            onDismiss = { showRaidDialog = false },
-        )
-    }
-
-    if (showCommercialDialog) {
-        CommercialDialog(
-            onConfirm = { length ->
-                showCommercialDialog = false
-                scope.launch { controller.startCommercial(length) }
-            },
-            onDismiss = { showCommercialDialog = false },
-        )
-    }
-
-    if (showResolvePredictionDialog) {
-        ready?.activePrediction?.let { prediction: LiveOpsPrediction ->
-            ResolvePredictionDialog(
-                prediction = prediction,
-                onConfirm = { winningId ->
-                    showResolvePredictionDialog = false
-                    scope.launch { controller.resolvePrediction(winningId) }
-                },
-                onDismiss = { showResolvePredictionDialog = false },
+            QuickActionButton(
+                icon = EditGlyph,
+                label = stringResource(Res.string.home_change_title),
+                onClick = onChangeTitle,
+                modifier = Modifier.weight(1f),
             )
+
+            if (activePoll == null) {
+                QuickActionButton(
+                    icon = CheckGlyph,
+                    label = stringResource(Res.string.home_live_ops_create_poll),
+                    onClick = onStartPoll,
+                    modifier = Modifier.weight(1f),
+                )
+            } else {
+                QuickActionButton(
+                    icon = CheckCircleGlyph,
+                    label = stringResource(Res.string.home_live_ops_end_poll),
+                    onClick = onEndPoll,
+                    modifier = Modifier.weight(1f),
+                    destructive = true,
+                )
+            }
+
+            if (activePrediction == null) {
+                QuickActionButton(
+                    icon = ArrowUpGlyph,
+                    label = stringResource(Res.string.home_live_ops_create_prediction),
+                    onClick = onStartPrediction,
+                    modifier = Modifier.weight(1f),
+                )
+            } else {
+                QuickActionButton(
+                    icon = CheckCircleGlyph,
+                    label = stringResource(Res.string.home_live_ops_resolve_prediction),
+                    onClick = onResolvePrediction,
+                    modifier = Modifier.weight(1f),
+                )
+                QuickActionButton(
+                    icon = RemoveGlyph,
+                    label = stringResource(Res.string.home_live_ops_cancel_prediction),
+                    onClick = onCancelPrediction,
+                    modifier = Modifier.weight(1f),
+                    destructive = true,
+                )
+            }
+
+            QuickActionButton(
+                icon = CopyGlyph,
+                label = stringResource(Res.string.home_live_ops_create_clip),
+                onClick = onCreateClip,
+                modifier = Modifier.weight(1f),
+            )
+
+            QuickActionButton(
+                icon = ArrowUpGlyph,
+                label = stringResource(Res.string.home_live_ops_start_raid),
+                onClick = onStartRaid,
+                modifier = Modifier.weight(1f),
+            )
+
+            QuickActionButton(
+                icon = PlayCircleGlyph,
+                label = stringResource(Res.string.home_live_ops_start_commercial),
+                onClick = onStartCommercial,
+                modifier = Modifier.weight(1f),
+            )
+
+            if (ready?.adSchedule != null && (ready.adSchedule?.snoozeCount ?: 0) > 0) {
+                QuickActionButton(
+                    icon = RefreshGlyph,
+                    label = stringResource(Res.string.home_live_ops_snooze_ad),
+                    onClick = onSnoozeAd,
+                    modifier = Modifier.weight(1f),
+                )
+            }
         }
     }
+}
+
+@Composable
+private fun QuickActionButton(
+    icon: ImageVector,
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    destructive: Boolean = false,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    val iconTint = if (destructive) tokens.destructive else tokens.mutedForeground
+    val labelColor = if (destructive) tokens.destructive else tokens.cardForeground
+
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(tokens.radius.md))
+            .background(tokens.muted)
+            .clickable(onClick = onClick)
+            .padding(vertical = spacing.s3, horizontal = spacing.s2)
+            .clearAndSetSemantics {
+                contentDescription = label
+                role = Role.Button
+            },
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(spacing.s1),
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = iconTint,
+            modifier = Modifier.size(spacing.s5),
+        )
+        Text(
+            text = label,
+            style = typography.xs,
+            color = labelColor,
+            textAlign = TextAlign.Center,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+// ─── Top commands ─────────────────────────────────────────────────────────────
+
+@Composable
+private fun TopCommandsCard(commands: List<CommandSummary>) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(tokens.radius.lg))
+            .background(tokens.card)
+            .padding(spacing.s4),
+        verticalArrangement = Arrangement.spacedBy(spacing.s3),
+    ) {
+        Text(
+            text = stringResource(Res.string.home_top_commands),
+            style = typography.sm,
+            color = tokens.mutedForeground,
+        )
+
+        if (commands.isEmpty()) {
+            Text(
+                text = stringResource(Res.string.home_top_commands_empty),
+                style = typography.sm,
+                color = tokens.mutedForeground,
+                modifier = Modifier.padding(vertical = spacing.s2),
+            )
+        } else {
+            commands.forEachIndexed { index, cmd ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Text(
+                            text = "${index + 1}",
+                            style = typography.xs,
+                            color = tokens.mutedForeground,
+                            modifier = Modifier.width(spacing.s4),
+                        )
+                        Text(
+                            text = "!${cmd.name}",
+                            style = typography.sm,
+                            fontWeight = FontWeight.Medium,
+                            color = tokens.cardForeground,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                    Text(
+                        text = stringResource(Res.string.home_top_commands_uses, cmd.useCount.toInt()),
+                        style = typography.xs,
+                        color = tokens.mutedForeground,
+                    )
+                }
+            }
+        }
+    }
+}
+
+// ─── Dialogs ──────────────────────────────────────────────────────────────────
+
+@Composable
+private fun ChangeTitleDialog(
+    streamInfo: StreamInfo?,
+    error: String?,
+    onSave: (title: String?, game: String?, tags: List<String>?) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var editTitle: String by remember(streamInfo?.title) { mutableStateOf(streamInfo?.title ?: "") }
+    var editGame: String by remember(streamInfo?.gameName) { mutableStateOf(streamInfo?.gameName ?: "") }
+    var editTags: String by remember(streamInfo?.tags) {
+        mutableStateOf(streamInfo?.tags?.joinToString(", ") ?: "")
+    }
+    val spacing = LocalSpacing.current
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(Res.string.home_stream_section)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
+                AppTextField(
+                    value = editTitle,
+                    onValueChange = { editTitle = it },
+                    label = stringResource(Res.string.home_stream_title_label),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                AppTextField(
+                    value = editGame,
+                    onValueChange = { editGame = it },
+                    label = stringResource(Res.string.home_stream_game_label),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                AppTextField(
+                    value = editTags,
+                    onValueChange = { editTags = it },
+                    label = stringResource(Res.string.home_stream_tags_label),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                if (error != null) {
+                    Text(
+                        text = stringResource(Res.string.home_stream_error, error),
+                        style = LocalTypography.current.sm,
+                        color = LocalTokens.current.destructive,
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val tags: List<String>? =
+                        editTags.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+                            .takeIf { it.isNotEmpty() }
+                    onSave(
+                        editTitle.trim().takeIf { it.isNotEmpty() },
+                        editGame.trim().takeIf { it.isNotEmpty() },
+                        tags,
+                    )
+                },
+            ) { Text(stringResource(Res.string.home_stream_save)) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(Res.string.home_live_ops_cancel)) }
+        },
+    )
 }
 
 @Composable
@@ -622,23 +879,23 @@ private fun PollDialog(
     var title: String by remember { mutableStateOf("") }
     var choicesText: String by remember { mutableStateOf("") }
     var duration: Float by remember { mutableStateOf(60f) }
+    val spacing = LocalSpacing.current
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(Res.string.home_live_ops_create_poll)) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(LocalSpacing.current.s3)) {
-                OutlinedTextField(
+            Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
+                AppTextField(
                     value = title,
                     onValueChange = { title = it },
-                    label = { Text(stringResource(Res.string.home_live_ops_poll_title_label)) },
+                    label = stringResource(Res.string.home_live_ops_poll_title_label),
                     modifier = Modifier.fillMaxWidth(),
                 )
-                OutlinedTextField(
+                AppTextField(
                     value = choicesText,
                     onValueChange = { choicesText = it },
-                    label = { Text(stringResource(Res.string.home_live_ops_poll_choices_label)) },
-                    minLines = 3,
+                    label = stringResource(Res.string.home_live_ops_poll_choices_label),
                     modifier = Modifier.fillMaxWidth(),
                 )
                 Text(
@@ -671,23 +928,23 @@ private fun PredictionDialog(
     var title: String by remember { mutableStateOf("") }
     var outcomesText: String by remember { mutableStateOf("") }
     var window: Float by remember { mutableStateOf(120f) }
+    val spacing = LocalSpacing.current
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(Res.string.home_live_ops_create_prediction)) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(LocalSpacing.current.s3)) {
-                OutlinedTextField(
+            Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
+                AppTextField(
                     value = title,
                     onValueChange = { title = it },
-                    label = { Text(stringResource(Res.string.home_live_ops_prediction_title_label)) },
+                    label = stringResource(Res.string.home_live_ops_prediction_title_label),
                     modifier = Modifier.fillMaxWidth(),
                 )
-                OutlinedTextField(
+                AppTextField(
                     value = outcomesText,
                     onValueChange = { outcomesText = it },
-                    label = { Text(stringResource(Res.string.home_live_ops_prediction_outcomes_label)) },
-                    minLines = 2,
+                    label = stringResource(Res.string.home_live_ops_prediction_outcomes_label),
                     modifier = Modifier.fillMaxWidth(),
                 )
                 Text(
@@ -723,10 +980,10 @@ private fun RaidDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(Res.string.home_live_ops_start_raid)) },
         text = {
-            OutlinedTextField(
+            AppTextField(
                 value = target,
                 onValueChange = { target = it },
-                label = { Text(stringResource(Res.string.home_live_ops_raid_target_label)) },
+                label = stringResource(Res.string.home_live_ops_raid_target_label),
                 modifier = Modifier.fillMaxWidth(),
             )
         },
@@ -814,6 +1071,8 @@ private fun ResolvePredictionDialog(
     )
 }
 
+// ─── Shared utilities ─────────────────────────────────────────────────────────
+
 @Composable
 private fun ErrorContent(detail: String, onRetry: () -> Unit) {
     val tokens = LocalTokens.current
@@ -846,7 +1105,6 @@ private fun CenteredMessage(text: String) {
     }
 }
 
-/** Render uptime seconds as "Xh Ym", or the offline placeholder when there is no live stream. */
 @Composable
 private fun uptimeLabel(seconds: Long?): String =
     if (seconds == null) {

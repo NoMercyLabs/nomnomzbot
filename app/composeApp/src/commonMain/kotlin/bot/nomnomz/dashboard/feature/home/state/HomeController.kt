@@ -14,6 +14,8 @@ import bot.nomnomz.dashboard.core.network.ActivityEvent
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
+import bot.nomnomz.dashboard.core.network.CommandSummary
+import bot.nomnomz.dashboard.core.network.CommandsApi
 import bot.nomnomz.dashboard.core.network.DashboardApi
 import bot.nomnomz.dashboard.core.network.DashboardStats
 import bot.nomnomz.dashboard.core.network.StreamApi
@@ -37,6 +39,7 @@ class HomeController(
     private val channelsApi: ChannelsApi,
     private val dashboardApi: DashboardApi,
     private val streamApi: StreamApi,
+    private val commandsApi: CommandsApi,
     private val hubClient: DashboardHubClient? = null,
     private val baseUrl: () -> String? = { null },
     private val accessToken: () -> String? = { null },
@@ -90,10 +93,16 @@ class HomeController(
                         is ApiResult.Ok -> r.value
                         is ApiResult.Failure -> emptyList()
                     }
+                val topCommands: List<CommandSummary> =
+                    when (val r: ApiResult<List<CommandSummary>> = commandsApi.list(channel.id)) {
+                        is ApiResult.Ok -> r.value.sortedByDescending { it.useCount }.take(5)
+                        is ApiResult.Failure -> emptyList()
+                    }
                 _state.value = HomeState.Ready(
                     stats = statsResult.value,
                     streamInfo = streamInfo,
                     activity = activity,
+                    topCommands = topCommands,
                 )
             }
         }
@@ -160,6 +169,7 @@ sealed interface HomeState {
         val stats: DashboardStats,
         val streamInfo: StreamInfo? = null,
         val activity: List<ActivityEvent> = emptyList(),
+        val topCommands: List<CommandSummary> = emptyList(),
         /** Non-null when the last [HomeController.updateStreamInfo] call failed. */
         val streamError: String? = null,
     ) : HomeState

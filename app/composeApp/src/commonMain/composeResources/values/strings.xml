@@ -195,6 +195,12 @@
     <string name="home_activity_redemption">%1$s redeemed a reward</string>
     <string name="home_activity_event">Channel event</string>
 
+    <!-- Top commands panel on Home -->
+    <string name="home_top_commands">Top Commands</string>
+    <string name="home_top_commands_empty">No commands used yet</string>
+    <string name="home_top_commands_uses">%1$d uses</string>
+    <string name="home_change_title">Change Title</string>
+
     <string name="home_live_ops_title">Quick Actions</string>
     <string name="home_live_ops_create_poll">Start Poll</string>
     <string name="home_live_ops_end_poll">End Poll</string>

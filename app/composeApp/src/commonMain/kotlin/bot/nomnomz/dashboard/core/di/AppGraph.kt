@@ -268,6 +268,7 @@ class AppGraph {
             channelsApi = channelsApi,
             dashboardApi = dashboardApi,
             streamApi = streamApi,
+            commandsApi = commandsApi,
             hubClient = dashboardHubClient,
             baseUrl = sessionStore::baseUrl,
             accessToken = sessionStore::accessToken,

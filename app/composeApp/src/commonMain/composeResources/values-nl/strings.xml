@@ -192,6 +192,12 @@
     <string name="home_activity_redemption">%1$s loste een beloning in</string>
     <string name="home_activity_event">Kanaalgebeurtenis</string>
 
+    <!-- Top-commando's paneel op Home -->
+    <string name="home_top_commands">Top-commando\'s</string>
+    <string name="home_top_commands_empty">Nog geen commando\'s gebruikt</string>
+    <string name="home_top_commands_uses">%1$d keer</string>
+    <string name="home_change_title">Titel wijzigen</string>
+
     <string name="home_live_ops_title">Snelle acties</string>
     <string name="home_live_ops_create_poll">Poll starten</string>
     <string name="home_live_ops_end_poll">Poll beëindigen</string>
