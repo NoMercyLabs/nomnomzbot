@@ -50,9 +50,11 @@ import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
+import bot.nomnomz.dashboard.core.network.ActivityEvent
 import bot.nomnomz.dashboard.core.network.DashboardStats
 import bot.nomnomz.dashboard.core.network.LiveOpsPoll
 import bot.nomnomz.dashboard.core.network.LiveOpsPrediction
+import bot.nomnomz.dashboard.core.network.StreamInfo
 import bot.nomnomz.dashboard.core.realtime.HubEvent
 import bot.nomnomz.dashboard.feature.home.state.HomeController
 import bot.nomnomz.dashboard.feature.home.state.HomeState
@@ -61,7 +63,25 @@ import bot.nomnomz.dashboard.feature.liveops.state.LiveOpsState
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.home_activity_cheer
+import nomnomzbot.composeapp.generated.resources.home_activity_event
+import nomnomzbot.composeapp.generated.resources.home_activity_empty
+import nomnomzbot.composeapp.generated.resources.home_activity_follow
+import nomnomzbot.composeapp.generated.resources.home_activity_raid
+import nomnomzbot.composeapp.generated.resources.home_activity_redemption
+import nomnomzbot.composeapp.generated.resources.home_activity_section
+import nomnomzbot.composeapp.generated.resources.home_activity_subscribe
+import nomnomzbot.composeapp.generated.resources.home_activity_subscription_gift
 import nomnomzbot.composeapp.generated.resources.home_error
+import nomnomzbot.composeapp.generated.resources.home_stream_error
+import nomnomzbot.composeapp.generated.resources.home_stream_game_hint
+import nomnomzbot.composeapp.generated.resources.home_stream_game_label
+import nomnomzbot.composeapp.generated.resources.home_stream_save
+import nomnomzbot.composeapp.generated.resources.home_stream_section
+import nomnomzbot.composeapp.generated.resources.home_stream_tags_hint
+import nomnomzbot.composeapp.generated.resources.home_stream_tags_label
+import nomnomzbot.composeapp.generated.resources.home_stream_title_hint
+import nomnomzbot.composeapp.generated.resources.home_stream_title_label
 import nomnomzbot.composeapp.generated.resources.home_subtitle
 import nomnomzbot.composeapp.generated.resources.shell_nav_dashboard
 import nomnomzbot.composeapp.generated.resources.home_game_label
@@ -140,13 +160,30 @@ fun HomeScreen(
                         liveOpsController.load()
                     }
                 })
-            is HomeState.Ready -> ReadyContent(stats = current.stats, liveOpsController = liveOpsController)
+            is HomeState.Ready ->
+                ReadyContent(
+                    stats = current.stats,
+                    streamInfo = current.streamInfo,
+                    activity = current.activity,
+                    streamError = current.streamError,
+                    liveOpsController = liveOpsController,
+                    onUpdateStream = { title, game, tags ->
+                        scope.launch { controller.updateStreamInfo(title, game, tags) }
+                    },
+                )
         }
     }
 }
 
 @Composable
-private fun ReadyContent(stats: DashboardStats, liveOpsController: LiveOpsController) {
+private fun ReadyContent(
+    stats: DashboardStats,
+    streamInfo: StreamInfo?,
+    activity: List<ActivityEvent>,
+    streamError: String?,
+    liveOpsController: LiveOpsController,
+    onUpdateStream: (title: String?, game: String?, tags: List<String>?) -> Unit,
+) {
     val spacing = LocalSpacing.current
 
     Column(
@@ -159,6 +196,8 @@ private fun ReadyContent(stats: DashboardStats, liveOpsController: LiveOpsContro
         )
         LiveBanner(stats = stats)
         StatTiles(stats = stats)
+        StreamInfoCard(streamInfo = streamInfo, error = streamError, onSave = onUpdateStream)
+        ActivityFeedCard(events = activity)
         LiveOpsSection(controller = liveOpsController)
     }
 }
@@ -209,6 +248,153 @@ private fun LiveBanner(stats: DashboardStats) {
                 color = tokens.mutedForeground,
             )
         }
+    }
+}
+
+// ─── Stream info editor ───────────────────────────────────────────────────────
+
+@Composable
+private fun StreamInfoCard(
+    streamInfo: StreamInfo?,
+    error: String?,
+    onSave: (title: String?, game: String?, tags: List<String>?) -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    var editTitle: String by remember(streamInfo?.title) { mutableStateOf(streamInfo?.title ?: "") }
+    var editGame: String by remember(streamInfo?.gameName) { mutableStateOf(streamInfo?.gameName ?: "") }
+    var editTags: String by remember(streamInfo?.tags) {
+        mutableStateOf(streamInfo?.tags?.joinToString(", ") ?: "")
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(tokens.radius.lg))
+            .background(tokens.card)
+            .padding(spacing.s4),
+        verticalArrangement = Arrangement.spacedBy(spacing.s3),
+    ) {
+        Text(
+            text = stringResource(Res.string.home_stream_section),
+            style = typography.sm,
+            color = tokens.mutedForeground,
+        )
+        OutlinedTextField(
+            value = editTitle,
+            onValueChange = { editTitle = it },
+            label = { Text(stringResource(Res.string.home_stream_title_label)) },
+            placeholder = { Text(stringResource(Res.string.home_stream_title_hint)) },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        OutlinedTextField(
+            value = editGame,
+            onValueChange = { editGame = it },
+            label = { Text(stringResource(Res.string.home_stream_game_label)) },
+            placeholder = { Text(stringResource(Res.string.home_stream_game_hint)) },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        OutlinedTextField(
+            value = editTags,
+            onValueChange = { editTags = it },
+            label = { Text(stringResource(Res.string.home_stream_tags_label)) },
+            placeholder = { Text(stringResource(Res.string.home_stream_tags_hint)) },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        if (error != null) {
+            Text(
+                text = stringResource(Res.string.home_stream_error, error),
+                style = typography.sm,
+                color = tokens.destructive,
+            )
+        }
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+            Button(
+                onClick = {
+                    val tags: List<String>? =
+                        editTags.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+                            .takeIf { it.isNotEmpty() }
+                    onSave(
+                        editTitle.trim().takeIf { it.isNotEmpty() },
+                        editGame.trim().takeIf { it.isNotEmpty() },
+                        tags,
+                    )
+                },
+            ) {
+                Text(stringResource(Res.string.home_stream_save))
+            }
+        }
+    }
+}
+
+// ─── Recent activity feed ─────────────────────────────────────────────────────
+
+@Composable
+private fun ActivityFeedCard(events: List<ActivityEvent>) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(tokens.radius.lg))
+            .background(tokens.card)
+            .padding(spacing.s4),
+        verticalArrangement = Arrangement.spacedBy(spacing.s3),
+    ) {
+        Text(
+            text = stringResource(Res.string.home_activity_section),
+            style = typography.sm,
+            color = tokens.mutedForeground,
+        )
+        if (events.isEmpty()) {
+            Text(
+                text = stringResource(Res.string.home_activity_empty),
+                style = typography.sm,
+                color = tokens.mutedForeground,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth().padding(vertical = spacing.s4),
+            )
+        } else {
+            events.forEach { event -> ActivityRow(event = event) }
+        }
+    }
+}
+
+@Composable
+private fun ActivityRow(event: ActivityEvent) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    val who: String = event.username ?: "—"
+    val label: String = when (event.type) {
+        "follow" -> stringResource(Res.string.home_activity_follow, who)
+        "subscribe" -> stringResource(Res.string.home_activity_subscribe, who)
+        "subscription_gift" -> stringResource(Res.string.home_activity_subscription_gift, who)
+        "cheer" -> stringResource(Res.string.home_activity_cheer, who)
+        "raid" -> stringResource(Res.string.home_activity_raid, who)
+        "redemption" -> stringResource(Res.string.home_activity_redemption, who)
+        else -> stringResource(Res.string.home_activity_event)
+    }
+
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = spacing.s1),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(text = label, style = typography.sm, color = tokens.cardForeground)
+        Text(
+            text = event.timestamp.take(10),
+            style = typography.xs,
+            color = tokens.mutedForeground,
+        )
     }
 }
 

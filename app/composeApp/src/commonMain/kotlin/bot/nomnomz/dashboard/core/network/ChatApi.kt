@@ -13,20 +13,19 @@ package bot.nomnomz.dashboard.core.network
 import kotlinx.serialization.Serializable
 
 // The typed chat facade — the channel's recent chat the Chat page renders, plus the live actions a moderator
-// takes from it: send a message as the bot, delete a single message, and timeout a chatter. Real data only:
-// the backend persists chat from EventSub `channel.chat.message` (no fabricated lines) and every action goes
-// straight to Twitch via Helix. The state holder depends on this interface and fakes it in tests without HTTP.
+// takes from it: send a message as the bot, delete a single message, timeout a chatter, control chat modes,
+// and post Twitch announcements. Real data only: the backend persists chat from EventSub
+// `channel.chat.message` (no fabricated lines) and every action goes straight to Twitch via Helix. The
+// state holder depends on this interface and fakes it in tests without HTTP.
 //
 // Backend routes:
 //   GET    /api/v1/channels/{channelId}/chat/messages?limit=N        → StatusResponseDto<List<ChatMessageDto>>
 //   POST   /api/v1/channels/{channelId}/chat/messages                → StatusResponseDto<bool>  (send as bot)
 //   DELETE /api/v1/channels/{channelId}/chat/messages/{messageId}    → StatusResponseDto<bool>  (delete one)
 //   POST   /api/v1/channels/{channelId}/moderation/actions           → StatusResponseDto<ModerationActionResult>
-//                                                                       (action="timeout", targetUserId, durationSeconds)
-// The GET messages payload is a `StatusResponseDto<List<…>>` (the single-value envelope wrapping a list), so it
-// is read with getEnvelope's `data: T` unwrap — NOT the flat PaginatedResponse shape. Send/delete return a
-// `StatusResponseDto<bool>` whose body the page ignores (any 2xx is success), so they go through postUnit /
-// deleteUnit. Timeout likewise: the action result body is irrelevant once it succeeds.
+//   GET    /api/v1/channels/{channelId}/chat/settings                → StatusResponseDto<ChatSettingsDto>
+//   PUT    /api/v1/channels/{channelId}/chat/settings                → StatusResponseDto<ChatSettingsDto>
+//   POST   /api/v1/channels/{channelId}/chat/announce                → 204
 interface ChatApi {
     /** The channel's most recent chat, oldest-first (backend already orders chronologically). */
     suspend fun messages(channelId: String, limit: Int = DEFAULT_LIMIT): ApiResult<List<ChatMessage>>
@@ -40,6 +39,18 @@ interface ChatApi {
     /** Timeout [userId] for [durationSeconds] (moderation quick-action). */
     suspend fun timeout(channelId: String, userId: String, durationSeconds: Int): ApiResult<Unit>
 
+    /** Load the channel's current chat mode settings (slow, sub-only, emote-only, followers-only). */
+    suspend fun settings(channelId: String): ApiResult<ChatSettings>
+
+    /**
+     * Persist [settings] — replaces the whole settings object on the backend.
+     * Any mode toggled or delay changed goes through here.
+     */
+    suspend fun updateSettings(channelId: String, settings: ChatSettings): ApiResult<ChatSettings>
+
+    /** Post a Twitch Announcement in the channel's chat. [color]: "primary" | "blue" | "green" | "orange". */
+    suspend fun announce(channelId: String, message: String, color: String): ApiResult<Unit>
+
     companion object {
         /** The default page size — matches the backend's default `limit` (clamped to 1..200 server-side). */
         const val DEFAULT_LIMIT: Int = 50
@@ -51,8 +62,6 @@ interface ChatApi {
 
 class RestChatApi(private val client: ApiClient) : ChatApi {
     override suspend fun messages(channelId: String, limit: Int): ApiResult<List<ChatMessage>> =
-        // A `StatusResponseDto<List<ChatMessageDto>>` (single-value envelope wrapping the list), so getEnvelope
-        // unwraps `data` to the list — not the flat PaginatedResponse shape.
         client.getEnvelope("api/v1/channels/$channelId/chat/messages?limit=$limit")
 
     override suspend fun send(channelId: String, message: String): ApiResult<Unit> =
@@ -74,6 +83,25 @@ class RestChatApi(private val client: ApiClient) : ChatApi {
                 durationSeconds = durationSeconds,
             ),
         )
+
+    override suspend fun settings(channelId: String): ApiResult<ChatSettings> =
+        client.getEnvelope("api/v1/channels/$channelId/chat/settings")
+
+    override suspend fun updateSettings(
+        channelId: String,
+        settings: ChatSettings,
+    ): ApiResult<ChatSettings> =
+        client.putEnvelope("api/v1/channels/$channelId/chat/settings", settings)
+
+    override suspend fun announce(
+        channelId: String,
+        message: String,
+        color: String,
+    ): ApiResult<Unit> =
+        client.postUnit(
+            "api/v1/channels/$channelId/chat/announce",
+            AnnounceChatBody(message = message, color = color),
+        )
 }
 
 /**
@@ -94,6 +122,26 @@ data class ModerationActionBody(
     val durationSeconds: Int? = null,
     val reason: String? = null,
 )
+
+/**
+ * The channel's chat mode configuration (backend `ChatSettingsDto`). All six fields are settable; the backend
+ * persists the whole object and the delay/duration values are irrelevant when the matching mode is disabled.
+ * Field names mirror the DTO camelCase exactly — [slowMode] / [slowModeDelay] / [subscriberOnly] /
+ * [emotesOnly] / [followersOnly] / [followersOnlyDuration].
+ */
+@Serializable
+data class ChatSettings(
+    val slowMode: Boolean = false,
+    val slowModeDelay: Int = 30,
+    val subscriberOnly: Boolean = false,
+    val emotesOnly: Boolean = false,
+    val followersOnly: Boolean = false,
+    val followersOnlyDuration: Int = 0,
+)
+
+/** The announce-to-chat request body (backend `AnnounceRequest`). */
+@Serializable
+data class AnnounceChatBody(val message: String, val color: String = "primary")
 
 /**
  * One chat line (backend `ChatMessageDto`). Fields mirror the backend record's camelCase JSON exactly (the

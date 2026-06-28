@@ -31,6 +31,7 @@ import bot.nomnomz.dashboard.core.network.JarMovement
 import bot.nomnomz.dashboard.core.network.SavingsJarDetail
 import bot.nomnomz.dashboard.core.network.SavingsJarMembership
 import bot.nomnomz.dashboard.core.network.TransferBody
+import bot.nomnomz.dashboard.core.network.ActivityEvent
 import bot.nomnomz.dashboard.core.network.DashboardApi
 import bot.nomnomz.dashboard.core.network.DashboardStats
 import bot.nomnomz.dashboard.core.network.EconomyApi
@@ -561,6 +562,9 @@ private class FakeDashboardApi(private val result: ApiResult<DashboardStats>) : 
         statsCalls.add(channelId)
         return result
     }
+
+    override suspend fun activity(channelId: String): ApiResult<List<ActivityEvent>> =
+        ApiResult.Ok(emptyList())
 }
 
 private class FakeEconomyApi(

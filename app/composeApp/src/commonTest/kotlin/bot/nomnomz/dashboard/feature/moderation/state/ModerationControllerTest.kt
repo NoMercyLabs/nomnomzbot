@@ -1,4 +1,4 @@
-﻿// -----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 //  Copyright (c) NoMercy Labs.
 //
 //  This file is part of NomNomzBot, free software licensed under the GNU Affero
@@ -24,6 +24,7 @@ import bot.nomnomz.dashboard.core.network.ModerationStats
 import bot.nomnomz.dashboard.core.network.ShieldStatus
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
+import bot.nomnomz.dashboard.core.network.ModeratedChannel
 import bot.nomnomz.dashboard.core.network.ModerationApi
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -403,6 +404,7 @@ private class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : C
     override suspend fun startChannelBotConnect(channelId: String) = error("stub")
     override suspend fun channelBotStatus(channelId: String) = error("stub")
     override suspend fun disconnectChannelBot(channelId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+    override suspend fun moderatedChannels(): ApiResult<List<ModeratedChannel>> = ApiResult.Ok(emptyList())
 }
 
 private class FakeModerationApi(

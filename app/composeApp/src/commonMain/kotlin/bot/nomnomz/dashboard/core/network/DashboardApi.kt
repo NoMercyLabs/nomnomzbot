@@ -16,17 +16,38 @@ import kotlinx.serialization.Serializable
 // aggregates it from the live Twitch/EventSub state (no fabricated counts). State holders depend on this
 // interface and fake it in tests without HTTP.
 //
-// Backend route (DashboardController):
-//   GET /api/v1/dashboard/{channelId}/stats  →  StatusResponseDto<DashboardStatsDto>
+// Backend routes (DashboardController):
+//   GET /api/v1/dashboard/{channelId}/stats     → StatusResponseDto<DashboardStatsDto>
+//   GET /api/v1/dashboard/{channelId}/activity  → StatusResponseDto<List<ActivityEventDto>>
 interface DashboardApi {
     /** The channel's current snapshot — live state, stream info, and the headline counters. */
     suspend fun stats(channelId: String): ApiResult<DashboardStats>
+
+    /** The 20 most recent channel events (follows, subs, cheers, raids, redemptions, etc.) newest-first. */
+    suspend fun activity(channelId: String): ApiResult<List<ActivityEvent>>
 }
 
 class RestDashboardApi(private val client: ApiClient) : DashboardApi {
     override suspend fun stats(channelId: String): ApiResult<DashboardStats> =
         client.getEnvelope("api/v1/dashboard/$channelId/stats")
+
+    override suspend fun activity(channelId: String): ApiResult<List<ActivityEvent>> =
+        client.getEnvelope("api/v1/dashboard/$channelId/activity")
 }
+
+/**
+ * One recent channel event (backend `ActivityEventDto`): event type, optional chatter, payload, and timestamp.
+ * [type] is a backend-defined string (e.g. "follow", "subscribe", "cheer", "raid", "redemption").
+ */
+@Serializable
+data class ActivityEvent(
+    val id: String,
+    val type: String,
+    val userId: String? = null,
+    val username: String? = null,
+    val data: String? = null,
+    val timestamp: String = "",
+)
 
 /** The channel snapshot (backend `DashboardStatsDto`): live state, current stream info, and headline counts. */
 @Serializable

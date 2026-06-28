@@ -168,6 +168,29 @@
     <string name="home_loading">Je kanaal laden…</string>
     <string name="home_error">Kon het dashboard niet laden: %1$s</string>
     <string name="home_retry">Opnieuw proberen</string>
+    <!-- Streaminfo bewerken (inline op Home) -->
+    <string name="home_stream_section">Streaminfo</string>
+    <string name="home_stream_title_label">Titel</string>
+    <string name="home_stream_title_hint">Streamtitel…</string>
+    <string name="home_stream_game_label">Categorie</string>
+    <string name="home_stream_game_hint">Spel of categorie…</string>
+    <string name="home_stream_tags_label">Tags</string>
+    <string name="home_stream_tags_hint">Nederlands, Games…</string>
+    <string name="home_stream_save">Stream bijwerken</string>
+    <string name="home_stream_saved">Stream bijgewerkt</string>
+    <string name="home_stream_error">Bijwerken mislukt: %1$s</string>
+
+    <!-- Recente activiteit op Home -->
+    <string name="home_activity_section">Recente activiteit</string>
+    <string name="home_activity_empty">Nog geen events — activiteit verschijnt hier als je kanaal live is.</string>
+    <string name="home_activity_follow">%1$s volgde</string>
+    <string name="home_activity_subscribe">%1$s abonneerde</string>
+    <string name="home_activity_subscription_gift">%1$s gaf abonnementen</string>
+    <string name="home_activity_cheer">%1$s gaf bits</string>
+    <string name="home_activity_raid">Geraaid door %1$s</string>
+    <string name="home_activity_redemption">%1$s loste een beloning in</string>
+    <string name="home_activity_event">Kanaalgebeurtenis</string>
+
     <string name="home_live_ops_title">Snelle acties</string>
     <string name="home_live_ops_create_poll">Poll starten</string>
     <string name="home_live_ops_end_poll">Poll beëindigen</string>
@@ -1455,6 +1478,17 @@
     <string name="moderation_announce_color_purple">Paars</string>
     <string name="moderation_announce_send">Versturen</string>
     <string name="moderation_announce_dismiss">Annuleren</string>
+
+    <!-- Chatmodus-bediening + aankondiging -->
+    <string name="chat_settings_panel_title">Chatmodi</string>
+    <string name="chat_settings_slow_mode">Langzame Modus</string>
+    <string name="chat_settings_slow_delay">Vertraging: %1$ss</string>
+    <string name="chat_settings_sub_only">Alleen Abonnees</string>
+    <string name="chat_settings_emote_only">Alleen Emotes</string>
+    <string name="chat_settings_followers_only">Alleen Volgers</string>
+    <string name="chat_settings_followers_duration">Min. %1$s min</string>
+    <string name="chat_announce_action">Aankondiging</string>
+
     <string name="community_shoutout_action">Shoutout</string>
     <string name="community_shoutout_action_desc">Shoutout sturen naar %1$s</string>
     <string name="community_vip_grant">VIP verlenen</string>

@@ -15,6 +15,7 @@ import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.ChatApi
 import bot.nomnomz.dashboard.core.network.ChatMessage
+import bot.nomnomz.dashboard.core.network.ChatSettings
 import bot.nomnomz.dashboard.core.realtime.HubChatMessage
 import bot.nomnomz.dashboard.core.realtime.HubEvent
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -70,10 +71,19 @@ class ChatController(
                     if (current is ChatState.Ready) current.copy(actionError = result.error.message)
                     else ChatState.Error(result.error.message)
             }
-            is ApiResult.Ok ->
+            is ApiResult.Ok -> {
+                val current: ChatState = _state.value
+                val existingSettings: ChatSettings? =
+                    if (current is ChatState.Ready) current.settings else null
                 _state.value =
                     if (result.value.isEmpty()) ChatState.Empty
-                    else ChatState.Ready(result.value)
+                    else ChatState.Ready(result.value, settings = existingSettings)
+            }
+        }
+        // Load settings on first load (when no settings are cached yet).
+        val fresh: ChatState = _state.value
+        if (fresh is ChatState.Ready && fresh.settings == null) {
+            loadSettings()
         }
     }
 
@@ -113,6 +123,40 @@ class ChatController(
     suspend fun timeout(userId: String, durationSeconds: Int = ChatApi.DEFAULT_TIMEOUT_SECONDS) {
         val channel: String = channelId ?: return failAction(NoChannelError)
         afterAction(chatApi.timeout(channel, userId, durationSeconds))
+    }
+
+    /** Load the channel's current chat settings and merge them into the Ready state. */
+    suspend fun loadSettings() {
+        val channel: String = channelId ?: return
+        when (val result: ApiResult<ChatSettings> = chatApi.settings(channel)) {
+            is ApiResult.Failure -> Unit
+            is ApiResult.Ok -> {
+                val current: ChatState = _state.value
+                if (current is ChatState.Ready) {
+                    _state.value = current.copy(settings = result.value)
+                }
+            }
+        }
+    }
+
+    /** Persist [settings] to the backend, then update the in-memory state. */
+    suspend fun updateSettings(settings: ChatSettings) {
+        val channel: String = channelId ?: return failAction(NoChannelError)
+        when (val result: ApiResult<ChatSettings> = chatApi.updateSettings(channel, settings)) {
+            is ApiResult.Failure -> failAction(result.error.message)
+            is ApiResult.Ok -> {
+                val current: ChatState = _state.value
+                if (current is ChatState.Ready) {
+                    _state.value = current.copy(settings = result.value)
+                }
+            }
+        }
+    }
+
+    /** Post a Twitch announcement. [color]: "primary" | "blue" | "green" | "orange". */
+    suspend fun announce(message: String, color: String = "primary") {
+        val channel: String = channelId ?: return failAction(NoChannelError)
+        afterAction(chatApi.announce(channel, message, color))
     }
 
     // An action either reloads the feed (success) or surfaces its error over the current Ready list without
@@ -161,11 +205,15 @@ sealed interface ChatState {
     data object Loading : ChatState
 
     /**
-     * The channel's recent chat is listed (oldest first). [actionError] is non-null only when the last
-     * send / delete / timeout (or a refresh) failed — the screen surfaces it as a transient banner while
-     * keeping the feed rendered.
+     * The channel's recent chat is listed (oldest first). [settings] is loaded once on first render.
+     * [actionError] is non-null only when the last action (send/delete/timeout/announce/settings-change)
+     * failed — the screen surfaces it as a transient banner while keeping the feed rendered.
      */
-    data class Ready(val messages: List<ChatMessage>, val actionError: String? = null) : ChatState
+    data class Ready(
+        val messages: List<ChatMessage>,
+        val settings: ChatSettings? = null,
+        val actionError: String? = null,
+    ) : ChatState
 
     data object Empty : ChatState
 

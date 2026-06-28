@@ -1,4 +1,4 @@
-﻿// -----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 //  Copyright (c) NoMercy Labs.
 //
 //  This file is part of NomNomzBot, free software licensed under the GNU Affero
@@ -10,12 +10,17 @@
 
 package bot.nomnomz.dashboard.feature.home.state
 
+import bot.nomnomz.dashboard.core.network.ActivityEvent
 import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
+import bot.nomnomz.dashboard.core.network.ModeratedChannel
 import bot.nomnomz.dashboard.core.network.DashboardApi
 import bot.nomnomz.dashboard.core.network.DashboardStats
+import bot.nomnomz.dashboard.core.network.StreamApi
+import bot.nomnomz.dashboard.core.network.StreamInfo
+import bot.nomnomz.dashboard.core.network.StreamInfoUpdate
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -30,8 +35,8 @@ class HomeControllerTest {
     fun load_surfaces_the_live_channel_snapshot_on_success() = runTest {
         val controller =
             HomeController(
-                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
-                FakeDashboardApi(
+                channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                dashboardApi = FakeDashboardApi(
                     ApiResult.Ok(
                         DashboardStats(
                             isLive = true,
@@ -42,6 +47,7 @@ class HomeControllerTest {
                         )
                     )
                 ),
+                streamApi = FakeStreamApi(),
             )
 
         controller.load()
@@ -60,8 +66,9 @@ class HomeControllerTest {
     fun load_errors_when_no_channel_resolves() = runTest {
         val controller =
             HomeController(
-                FakeChannelsApi(ApiResult.Failure(ApiError(404, "NO_CHANNEL", "none onboarded"))),
-                FakeDashboardApi(ApiResult.Ok(DashboardStats())),
+                channelsApi = FakeChannelsApi(ApiResult.Failure(ApiError(404, "NO_CHANNEL", "none onboarded"))),
+                dashboardApi = FakeDashboardApi(ApiResult.Ok(DashboardStats())),
+                streamApi = FakeStreamApi(),
             )
 
         controller.load()
@@ -73,8 +80,9 @@ class HomeControllerTest {
     fun load_errors_when_the_stats_call_fails() = runTest {
         val controller =
             HomeController(
-                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
-                FakeDashboardApi(ApiResult.Failure(ApiError(500, "ERR", "boom"))),
+                channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                dashboardApi = FakeDashboardApi(ApiResult.Failure(ApiError(500, "ERR", "boom"))),
+                streamApi = FakeStreamApi(),
             )
 
         controller.load()
@@ -99,8 +107,18 @@ private class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : C
     override suspend fun startChannelBotConnect(channelId: String) = error("stub")
     override suspend fun channelBotStatus(channelId: String) = error("stub")
     override suspend fun disconnectChannelBot(channelId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+    override suspend fun moderatedChannels(): ApiResult<List<ModeratedChannel>> = ApiResult.Ok(emptyList())
 }
 
 private class FakeDashboardApi(private val result: ApiResult<DashboardStats>) : DashboardApi {
     override suspend fun stats(channelId: String): ApiResult<DashboardStats> = result
+    override suspend fun activity(channelId: String): ApiResult<List<ActivityEvent>> =
+        ApiResult.Ok(emptyList())
+}
+
+private class FakeStreamApi : StreamApi {
+    override suspend fun info(channelId: String): ApiResult<StreamInfo> =
+        ApiResult.Ok(StreamInfo())
+    override suspend fun update(channelId: String, update: StreamInfoUpdate): ApiResult<StreamInfo> =
+        ApiResult.Ok(StreamInfo())
 }

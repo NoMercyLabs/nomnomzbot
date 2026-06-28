@@ -267,6 +267,7 @@ class AppGraph {
         HomeController(
             channelsApi = channelsApi,
             dashboardApi = dashboardApi,
+            streamApi = streamApi,
             hubClient = dashboardHubClient,
             baseUrl = sessionStore::baseUrl,
             accessToken = sessionStore::accessToken,

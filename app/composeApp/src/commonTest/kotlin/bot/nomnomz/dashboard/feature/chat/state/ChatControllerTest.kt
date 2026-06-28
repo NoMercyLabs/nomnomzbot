@@ -1,4 +1,4 @@
-﻿// -----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 //  Copyright (c) NoMercy Labs.
 //
 //  This file is part of NomNomzBot, free software licensed under the GNU Affero
@@ -14,8 +14,10 @@ import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
+import bot.nomnomz.dashboard.core.network.ModeratedChannel
 import bot.nomnomz.dashboard.core.network.ChatApi
 import bot.nomnomz.dashboard.core.network.ChatMessage
+import bot.nomnomz.dashboard.core.network.ChatSettings
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -277,6 +279,7 @@ private class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : C
     override suspend fun startChannelBotConnect(channelId: String) = error("stub")
     override suspend fun channelBotStatus(channelId: String) = error("stub")
     override suspend fun disconnectChannelBot(channelId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+    override suspend fun moderatedChannels(): ApiResult<List<ModeratedChannel>> = ApiResult.Ok(emptyList())
 }
 
 private class FakeChatApi(
@@ -284,6 +287,9 @@ private class FakeChatApi(
     private val sendResult: ApiResult<Unit> = ApiResult.Ok(Unit),
     private val deleteResult: ApiResult<Unit> = ApiResult.Ok(Unit),
     private val timeoutResult: ApiResult<Unit> = ApiResult.Ok(Unit),
+    private val settingsResult: ApiResult<ChatSettings> = ApiResult.Ok(ChatSettings()),
+    private val updateSettingsResult: ApiResult<ChatSettings> = ApiResult.Ok(ChatSettings()),
+    private val announceResult: ApiResult<Unit> = ApiResult.Ok(Unit),
 ) : ChatApi {
     // Single-result convenience for the read-only tests (one messages() result, default-OK actions).
     constructor(result: ApiResult<List<ChatMessage>>) : this(messagesResults = listOf(result))
@@ -294,6 +300,7 @@ private class FakeChatApi(
     val sendCalls: MutableList<Pair<String, String>> = mutableListOf()
     val deleteCalls: MutableList<Pair<String, String>> = mutableListOf()
     val timeoutCalls: MutableList<Triple<String, String, Int>> = mutableListOf()
+    val announceCalls: MutableList<Triple<String, String, String>> = mutableListOf()
 
     override suspend fun messages(channelId: String, limit: Int): ApiResult<List<ChatMessage>> {
         // Walk through the configured sequence; the last entry repeats once the script runs out.
@@ -319,5 +326,21 @@ private class FakeChatApi(
     ): ApiResult<Unit> {
         timeoutCalls.add(Triple(channelId, userId, durationSeconds))
         return timeoutResult
+    }
+
+    override suspend fun settings(channelId: String): ApiResult<ChatSettings> = settingsResult
+
+    override suspend fun updateSettings(
+        channelId: String,
+        settings: ChatSettings,
+    ): ApiResult<ChatSettings> = updateSettingsResult
+
+    override suspend fun announce(
+        channelId: String,
+        message: String,
+        color: String,
+    ): ApiResult<Unit> {
+        announceCalls.add(Triple(channelId, message, color))
+        return announceResult
     }
 }

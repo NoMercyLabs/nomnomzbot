@@ -171,6 +171,29 @@
     <string name="home_loading">Loading your channel…</string>
     <string name="home_error">Could not load the dashboard: %1$s</string>
     <string name="home_retry">Retry</string>
+    <!-- Stream info editing (inline on Home) -->
+    <string name="home_stream_section">Stream Info</string>
+    <string name="home_stream_title_label">Title</string>
+    <string name="home_stream_title_hint">Stream title…</string>
+    <string name="home_stream_game_label">Category</string>
+    <string name="home_stream_game_hint">Game or category…</string>
+    <string name="home_stream_tags_label">Tags</string>
+    <string name="home_stream_tags_hint">English, Gaming…</string>
+    <string name="home_stream_save">Update Stream</string>
+    <string name="home_stream_saved">Stream updated</string>
+    <string name="home_stream_error">Update failed: %1$s</string>
+
+    <!-- Recent activity feed on Home -->
+    <string name="home_activity_section">Recent Activity</string>
+    <string name="home_activity_empty">No events yet — activity appears here when your channel is live.</string>
+    <string name="home_activity_follow">%1$s followed</string>
+    <string name="home_activity_subscribe">%1$s subscribed</string>
+    <string name="home_activity_subscription_gift">%1$s gifted subs</string>
+    <string name="home_activity_cheer">%1$s cheered</string>
+    <string name="home_activity_raid">Raided by %1$s</string>
+    <string name="home_activity_redemption">%1$s redeemed a reward</string>
+    <string name="home_activity_event">Channel event</string>
+
     <string name="home_live_ops_title">Quick Actions</string>
     <string name="home_live_ops_create_poll">Start Poll</string>
     <string name="home_live_ops_end_poll">End Poll</string>
@@ -1468,6 +1491,17 @@
     <string name="moderation_announce_color_purple">Purple</string>
     <string name="moderation_announce_send">Send</string>
     <string name="moderation_announce_dismiss">Cancel</string>
+
+    <!-- Chat mode controls (slow / sub-only / emote-only / followers-only) + announce -->
+    <string name="chat_settings_panel_title">Chat Modes</string>
+    <string name="chat_settings_slow_mode">Slow Mode</string>
+    <string name="chat_settings_slow_delay">Delay: %1$ss</string>
+    <string name="chat_settings_sub_only">Subscribers Only</string>
+    <string name="chat_settings_emote_only">Emotes Only</string>
+    <string name="chat_settings_followers_only">Followers Only</string>
+    <string name="chat_settings_followers_duration">Min. %1$s min</string>
+    <string name="chat_announce_action">Announce</string>
+
     <string name="community_shoutout_action">Shoutout</string>
     <string name="community_shoutout_action_desc">Send shoutout to %1$s</string>
     <string name="community_vip_grant">Grant VIP</string>

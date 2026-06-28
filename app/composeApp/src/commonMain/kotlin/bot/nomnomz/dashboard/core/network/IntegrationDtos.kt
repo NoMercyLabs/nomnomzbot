@@ -17,6 +17,19 @@ import kotlinx.serialization.Serializable
 // facades keep the same surface, so callers don't change.
 
 /**
+ * A Twitch channel the signed-in user moderates (`GET /api/v1/channels/moderated`). [isOnboarded]
+ * is true when the channel has this bot installed — switching to it is functional; false means the
+ * channel is visible in the roster but the bot isn't installed there.
+ */
+@Serializable
+data class ModeratedChannel(
+    val id: String = "",
+    val login: String = "",
+    val displayName: String = "",
+    val isOnboarded: Boolean = false,
+)
+
+/**
  * One channel the signed-in user owns/moderates (`GET /api/v1/channels` → PaginatedResponse). The
  * dashboard resolves "my channel" from this list to drive the per-channel integration routes
  * (`/channels/{channelId}/...`), where `Id` is the tenant (channel) GUID, not the Twitch id.

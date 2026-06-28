@@ -1,4 +1,4 @@
-﻿// -----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 //  Copyright (c) NoMercy Labs.
 //
 //  This file is part of NomNomzBot, free software licensed under the GNU Affero
@@ -14,6 +14,7 @@ import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
+import bot.nomnomz.dashboard.core.network.ModeratedChannel
 import bot.nomnomz.dashboard.core.network.CreateDiscordConfigBody
 import bot.nomnomz.dashboard.core.network.CreateDiscordRoleBody
 import bot.nomnomz.dashboard.core.network.DiscordApi
@@ -356,6 +357,7 @@ private class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : C
     override suspend fun startChannelBotConnect(channelId: String) = error("stub")
     override suspend fun channelBotStatus(channelId: String) = error("stub")
     override suspend fun disconnectChannelBot(channelId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+    override suspend fun moderatedChannels(): ApiResult<List<ModeratedChannel>> = ApiResult.Ok(emptyList())
 }
 
 // A recording fake that behaves like the backend store: configs() returns the live per-guild store, and each

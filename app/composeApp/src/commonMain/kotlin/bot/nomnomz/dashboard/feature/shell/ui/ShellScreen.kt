@@ -60,6 +60,7 @@ import kotlinx.coroutines.flow.drop
 import bot.nomnomz.dashboard.core.connection.SessionUser
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.network.ChannelSummary
+import bot.nomnomz.dashboard.core.network.ModeratedChannel
 import bot.nomnomz.dashboard.feature.shell.state.ChannelSwitcherController
 import bot.nomnomz.dashboard.feature.shell.state.SwitcherState
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
@@ -452,15 +453,17 @@ private fun Sidebar(
 private fun ChannelPickerBlock(switcher: ChannelSwitcherController) {
     val state: SwitcherState by switcher.state.collectAsStateWithLifecycle()
     val activeId: String? by switcher.activeChannelId.collectAsStateWithLifecycle()
-    val channels: List<ChannelSummary> = when (val s = state) {
-        is SwitcherState.Ready -> s.channels
-        else -> emptyList()
-    }
-    if (channels.size < 2) return
+    val ready: SwitcherState.Ready? = state as? SwitcherState.Ready
+    val channels: List<ChannelSummary> = ready?.channels ?: emptyList()
+    if (channels.isEmpty()) return
 
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
+
+    // Unregistered channels the user mods on Twitch but hasn't installed the bot in.
+    val unregisteredModerated: List<ModeratedChannel> =
+        ready?.moderatedChannels?.filter { !it.isOnboarded } ?: emptyList()
 
     val active: ChannelSummary? = channels.firstOrNull { it.id == activeId } ?: channels.firstOrNull()
     var open: Boolean by remember { mutableStateOf(false) }
@@ -489,6 +492,7 @@ private fun ChannelPickerBlock(switcher: ChannelSwitcherController) {
             Text(text = "⌄", style = typography.sm, color = tokens.mutedForeground)
         }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            // Registered channels — fully functional, can switch.
             channels.forEach { channel ->
                 DropdownMenuItem(
                     text = {
@@ -503,6 +507,30 @@ private fun ChannelPickerBlock(switcher: ChannelSwitcherController) {
                         switcher.select(channel.id)
                     },
                 )
+            }
+            // Unregistered moderated channels — shown dimmed; bot not installed there.
+            if (unregisteredModerated.isNotEmpty()) {
+                HorizontalDivider()
+                unregisteredModerated.forEach { channel ->
+                    DropdownMenuItem(
+                        text = {
+                            Column {
+                                Text(
+                                    text = channel.displayName.takeIf { it.isNotBlank() } ?: channel.login,
+                                    style = typography.sm,
+                                    color = tokens.mutedForeground,
+                                )
+                                Text(
+                                    text = "Bot not installed",
+                                    style = typography.xs,
+                                    color = tokens.mutedForeground,
+                                )
+                            }
+                        },
+                        onClick = {},
+                        enabled = false,
+                    )
+                }
             }
         }
     }

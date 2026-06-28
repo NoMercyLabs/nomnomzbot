@@ -32,6 +32,13 @@ interface ChannelsApi {
     /** All channels the signed-in user owns or moderates — used by the channel switcher. */
     suspend fun list(): ApiResult<List<ChannelSummary>>
 
+    /**
+     * All Twitch channels the signed-in user moderates (from Twitch API, not just onboarded ones).
+     * The [ModeratedChannel.isOnboarded] flag indicates whether the channel uses this bot instance.
+     * Used to show the full Twitch moderation roster in the channel switcher.
+     */
+    suspend fun moderatedChannels(): ApiResult<List<ModeratedChannel>>
+
     /** Make the bot join (or re-join) the channel's chat. */
     suspend fun join(channelId: String): ApiResult<Unit>
 
@@ -98,6 +105,9 @@ class RestChannelsApi(
             is ApiResult.Failure -> ApiResult.Failure(page.error)
             is ApiResult.Ok -> ApiResult.Ok(page.value.data)
         }
+
+    override suspend fun moderatedChannels(): ApiResult<List<ModeratedChannel>> =
+        client.getEnvelope("api/v1/channels/moderated")
 
     override suspend fun join(channelId: String): ApiResult<Unit> =
         client.postUnit("api/v1/channels/$channelId/join")

@@ -14,6 +14,7 @@ import bot.nomnomz.dashboard.core.connection.SessionStore
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
+import bot.nomnomz.dashboard.core.network.ModeratedChannel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -22,10 +23,13 @@ import kotlinx.coroutines.flow.asStateFlow
 // page controller can call channelsApi.primaryChannel() (which reads the session-pinned id via
 // SessionStore.activeChannelId) and get the right result after a switch.
 //
-// On [load] it fetches the full channel list, sets the first channel as default in SessionStore (if
-// not already set — so an in-progress switched selection is preserved on page reload), and exposes
-// the list for the shell's channel-picker dropdown. [select] calls SessionStore.switchChannel so the
-// change propagates globally without each controller needing a direct reference here.
+// On [load] it fetches two lists:
+//   1. Bot-registered channels (the user owns or mods, and has this bot installed) — fully functional.
+//   2. All Twitch channels the user moderates (from the /channels/moderated endpoint) — shows the
+//      full Twitch moderation roster including channels without the bot ([ModeratedChannel.isOnboarded] = false).
+//
+// [select] calls SessionStore.switchChannel so the change propagates globally without each controller
+// needing a direct reference here.
 class ChannelSwitcherController(
     private val channelsApi: ChannelsApi,
     private val sessionStore: SessionStore,
@@ -46,7 +50,16 @@ class ChannelSwitcherController(
                 if (channels.isNotEmpty()) {
                     sessionStore.setDefaultChannel(channels.first().id)
                 }
-                _state.value = SwitcherState.Ready(channels)
+
+                // Load the full Twitch moderation roster concurrently — failures are non-fatal; an
+                // empty list just means the "Moderating" section of the switcher won't show unregistered channels.
+                val moderated: List<ModeratedChannel> =
+                    when (val r: ApiResult<List<ModeratedChannel>> = channelsApi.moderatedChannels()) {
+                        is ApiResult.Ok -> r.value
+                        is ApiResult.Failure -> emptyList()
+                    }
+
+                _state.value = SwitcherState.Ready(channels = channels, moderatedChannels = moderated)
             }
         }
     }
@@ -59,6 +72,16 @@ class ChannelSwitcherController(
 
 sealed interface SwitcherState {
     data object Loading : SwitcherState
-    data class Ready(val channels: List<ChannelSummary>) : SwitcherState
+
+    data class Ready(
+        /** Channels where this bot is installed (user owns or mods them). */
+        val channels: List<ChannelSummary>,
+        /**
+         * All Twitch channels the user moderates (from Twitch API). Includes entries where
+         * [ModeratedChannel.isOnboarded] is false — the user mods there but hasn't installed the bot.
+         */
+        val moderatedChannels: List<ModeratedChannel> = emptyList(),
+    ) : SwitcherState
+
     data class Error(val detail: String) : SwitcherState
 }

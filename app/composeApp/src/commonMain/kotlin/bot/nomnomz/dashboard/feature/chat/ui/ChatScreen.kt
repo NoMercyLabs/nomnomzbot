@@ -11,13 +11,20 @@
 package bot.nomnomz.dashboard.feature.chat.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -25,9 +32,15 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import bot.nomnomz.dashboard.core.designsystem.icon.DotsHorizontalGlyph
@@ -41,6 +54,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
@@ -49,6 +63,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
@@ -60,6 +75,7 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.network.ChatMessage
+import bot.nomnomz.dashboard.core.network.ChatSettings
 import bot.nomnomz.dashboard.core.realtime.HubEvent
 import bot.nomnomz.dashboard.feature.chat.state.ChatController
 import bot.nomnomz.dashboard.feature.chat.state.ChatState
@@ -71,6 +87,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.chat_action_error
+import nomnomzbot.composeapp.generated.resources.chat_announce_action
 import nomnomzbot.composeapp.generated.resources.chat_delete_action
 import nomnomzbot.composeapp.generated.resources.chat_delete_action_short
 import nomnomzbot.composeapp.generated.resources.chat_delete_confirm
@@ -78,7 +95,24 @@ import nomnomzbot.composeapp.generated.resources.chat_delete_dismiss
 import nomnomzbot.composeapp.generated.resources.chat_delete_message
 import nomnomzbot.composeapp.generated.resources.chat_delete_title
 import nomnomzbot.composeapp.generated.resources.chat_empty
+import nomnomzbot.composeapp.generated.resources.chat_settings_emote_only
+import nomnomzbot.composeapp.generated.resources.chat_settings_followers_duration
+import nomnomzbot.composeapp.generated.resources.chat_settings_followers_only
+import nomnomzbot.composeapp.generated.resources.chat_settings_panel_title
+import nomnomzbot.composeapp.generated.resources.chat_settings_slow_delay
+import nomnomzbot.composeapp.generated.resources.chat_settings_slow_mode
+import nomnomzbot.composeapp.generated.resources.chat_settings_sub_only
 import nomnomzbot.composeapp.generated.resources.chat_subtitle
+import nomnomzbot.composeapp.generated.resources.moderation_announce_color_blue
+import nomnomzbot.composeapp.generated.resources.moderation_announce_color_green
+import nomnomzbot.composeapp.generated.resources.moderation_announce_color_label
+import nomnomzbot.composeapp.generated.resources.moderation_announce_color_orange
+import nomnomzbot.composeapp.generated.resources.moderation_announce_color_primary
+import nomnomzbot.composeapp.generated.resources.moderation_announce_dismiss
+import nomnomzbot.composeapp.generated.resources.moderation_announce_message_label
+import nomnomzbot.composeapp.generated.resources.moderation_announce_message_required
+import nomnomzbot.composeapp.generated.resources.moderation_announce_send
+import nomnomzbot.composeapp.generated.resources.moderation_announce_title
 import nomnomzbot.composeapp.generated.resources.shell_nav_chat
 import nomnomzbot.composeapp.generated.resources.chat_error
 import nomnomzbot.composeapp.generated.resources.chat_loading
@@ -110,25 +144,23 @@ fun ChatScreen(
     val state: ChatState by controller.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val spacing = LocalSpacing.current
+    var showAnnounce: Boolean by remember { mutableStateOf(false) }
 
-    // One decision for the whole page: Chat gates every write control (send, per-message moderation) at its
-    // single Moderator manage floor (frontend-ia.md §3). A caller below it still reads the live feed, but the
-    // send and moderation affordances render disabled with "Requires Moderator" (§7); the backend re-checks
-    // every write regardless.
     val manage: ManageDecision = rememberManageDecision(role, ShellRoute.Chat)
 
-    // Load once, then poll the backend on an interval so the feed stays fresh without a hub connection.
+    // Load the initial history once. When the hub is connected, new messages arrive via [subscribeToHub] in
+    // real-time — no polling needed. Polling only runs as a fallback when the hub is not wired so the page
+    // still works in environments without a live SignalR connection (e.g. local dev without a hub).
     LaunchedEffect(Unit) {
         controller.load()
-        while (true) {
-            delay(PollIntervalMillis)
-            controller.load()
+        if (hubEvents == null) {
+            while (true) {
+                delay(PollIntervalMillis)
+                controller.load()
+            }
         }
     }
 
-    // When the hub is connected, stream live ChatMessage invocations into the controller so new lines
-    // appear instantly — no poll tick needed. Runs concurrently with the poll loop; the poll remains the
-    // fallback/initial source of truth and also handles deletes/timeouts that the hub doesn't re-emit.
     if (hubEvents != null) {
         LaunchedEffect(hubEvents) { controller.subscribeToHub(hubEvents) }
     }
@@ -137,7 +169,27 @@ fun ChatScreen(
         PageHeader(
             title = stringResource(Res.string.shell_nav_chat),
             subtitle = stringResource(Res.string.chat_subtitle),
+            trailing = {
+                ManageGate(decision = manage) { enabled ->
+                    TextButton(onClick = { showAnnounce = true }, enabled = enabled) {
+                        Text(stringResource(Res.string.chat_announce_action))
+                    }
+                }
+            },
         )
+
+        // Chat mode toggles — only rendered once settings are loaded.
+        val currentState: ChatState = state
+        if (currentState is ChatState.Ready && currentState.settings != null) {
+            ManageGate(decision = manage) { enabled ->
+                ChatModesBar(
+                    settings = currentState.settings,
+                    enabled = enabled,
+                    onToggle = { updated -> scope.launch { controller.updateSettings(updated) } },
+                )
+            }
+        }
+
         Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
             when (val current: ChatState = state) {
                 is ChatState.Loading -> CenteredMessage(stringResource(Res.string.chat_loading))
@@ -155,6 +207,16 @@ fun ChatScreen(
             }
         }
         SendBox(manage = manage, onSend = { text -> scope.launch { controller.send(text) } })
+    }
+
+    if (showAnnounce) {
+        AnnounceDialog(
+            onDismiss = { showAnnounce = false },
+            onSend = { message, color ->
+                showAnnounce = false
+                scope.launch { controller.announce(message, color) }
+            },
+        )
     }
 }
 
@@ -437,6 +499,186 @@ private fun chatterName(message: ChatMessage): String =
     message.displayName.takeIf { it.isNotBlank() }
         ?: message.username.takeIf { it.isNotBlank() }
         ?: message.userId
+
+// ─── Chat mode toggles ───────────────────────────────────────────────────────
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun ChatModesBar(
+    settings: ChatSettings,
+    enabled: Boolean,
+    onToggle: (ChatSettings) -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .background(tokens.muted)
+            .padding(horizontal = spacing.s4, vertical = spacing.s3),
+        verticalArrangement = Arrangement.spacedBy(spacing.s3),
+    ) {
+        Text(
+            text = stringResource(Res.string.chat_settings_panel_title),
+            style = typography.sm,
+            color = tokens.mutedForeground,
+        )
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+            verticalArrangement = Arrangement.spacedBy(spacing.s2),
+        ) {
+            ChatModeChip(
+                label = if (settings.slowMode)
+                    stringResource(Res.string.chat_settings_slow_delay, settings.slowModeDelay)
+                else stringResource(Res.string.chat_settings_slow_mode),
+                active = settings.slowMode,
+                enabled = enabled,
+                onToggle = { onToggle(settings.copy(slowMode = !settings.slowMode)) },
+            )
+            ChatModeChip(
+                label = stringResource(Res.string.chat_settings_sub_only),
+                active = settings.subscriberOnly,
+                enabled = enabled,
+                onToggle = { onToggle(settings.copy(subscriberOnly = !settings.subscriberOnly)) },
+            )
+            ChatModeChip(
+                label = stringResource(Res.string.chat_settings_emote_only),
+                active = settings.emotesOnly,
+                enabled = enabled,
+                onToggle = { onToggle(settings.copy(emotesOnly = !settings.emotesOnly)) },
+            )
+            ChatModeChip(
+                label = if (settings.followersOnly && settings.followersOnlyDuration > 0)
+                    stringResource(Res.string.chat_settings_followers_duration, settings.followersOnlyDuration)
+                else stringResource(Res.string.chat_settings_followers_only),
+                active = settings.followersOnly,
+                enabled = enabled,
+                onToggle = { onToggle(settings.copy(followersOnly = !settings.followersOnly)) },
+            )
+        }
+    }
+}
+
+@Composable
+private fun ChatModeChip(
+    label: String,
+    active: Boolean,
+    enabled: Boolean,
+    onToggle: () -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val typography = LocalTypography.current
+
+    FilterChip(
+        selected = active,
+        onClick = { if (enabled) onToggle() },
+        label = { Text(text = label, style = typography.sm) },
+        enabled = enabled,
+        colors = FilterChipDefaults.filterChipColors(
+            selectedContainerColor = tokens.primary,
+            selectedLabelColor = tokens.primaryForeground,
+            containerColor = tokens.card,
+            labelColor = tokens.mutedForeground,
+        ),
+        border = FilterChipDefaults.filterChipBorder(
+            enabled = enabled,
+            selected = active,
+            selectedBorderColor = tokens.primary,
+            borderColor = tokens.border,
+        ),
+    )
+}
+
+// ─── Announce dialog ──────────────────────────────────────────────────────────
+
+private val AnnounceColors: List<Pair<String, Color>> = listOf(
+    "primary" to Color(0xFF9146FF),
+    "blue" to Color(0xFF1E88E5),
+    "green" to Color(0xFF2E7D32),
+    "orange" to Color(0xFFE65100),
+)
+
+@Composable
+private fun AnnounceDialog(onDismiss: () -> Unit, onSend: (message: String, color: String) -> Unit) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    var message: String by remember { mutableStateOf("") }
+    var selectedColor: String by remember { mutableStateOf("primary") }
+    val hasMessage: Boolean = message.isNotBlank()
+
+    val colorLabels: Map<String, String> = mapOf(
+        "primary" to stringResource(Res.string.moderation_announce_color_primary),
+        "blue" to stringResource(Res.string.moderation_announce_color_blue),
+        "green" to stringResource(Res.string.moderation_announce_color_green),
+        "orange" to stringResource(Res.string.moderation_announce_color_orange),
+    )
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(Res.string.moderation_announce_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(spacing.s4)) {
+                OutlinedTextField(
+                    value = message,
+                    onValueChange = { message = it },
+                    label = { Text(stringResource(Res.string.moderation_announce_message_label)) },
+                    isError = !hasMessage && message.isNotEmpty(),
+                    supportingText = if (!hasMessage && message.isNotEmpty()) {
+                        { Text(stringResource(Res.string.moderation_announce_message_required)) }
+                    } else null,
+                    minLines = 2,
+                    maxLines = 4,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Text(
+                    text = stringResource(Res.string.moderation_announce_color_label),
+                    style = typography.sm,
+                    color = tokens.mutedForeground,
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
+                    AnnounceColors.forEach { (key, swatch) ->
+                        val isSelected: Boolean = selectedColor == key
+                        Box(
+                            modifier = Modifier
+                                .size(28.dp)
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(swatch)
+                                .then(
+                                    if (isSelected) Modifier.padding(2.dp)
+                                        .clip(RoundedCornerShape(2.dp))
+                                        .background(swatch)
+                                    else Modifier
+                                )
+                                .clickable { selectedColor = key }
+                                .semantics {
+                                    contentDescription = colorLabels[key] ?: key
+                                    role = Role.RadioButton
+                                },
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { if (hasMessage) onSend(message.trim(), selectedColor) }, enabled = hasMessage) {
+                Text(stringResource(Res.string.moderation_announce_send))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(Res.string.moderation_announce_dismiss))
+            }
+        },
+        containerColor = tokens.card,
+        titleContentColor = tokens.foreground,
+        textContentColor = tokens.foreground,
+    )
+}
 
 /** How often the feed re-polls the backend for fresh chat (a window concern, not a design-system token). */
 private const val PollIntervalMillis: Long = 4_000L
