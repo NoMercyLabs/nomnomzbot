@@ -24,10 +24,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Text
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.TextButton
-import androidx.compose.foundation.layout.size
 import bot.nomnomz.dashboard.core.designsystem.icon.DotsVerticalGlyph
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -55,6 +52,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
+import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
@@ -433,18 +431,12 @@ private fun MoreActionsMenu(
 
     Box {
         ManageGate(decision = manage) { enabled ->
-            IconButton(
+            GlyphButton(
+                imageVector = DotsVerticalGlyph,
+                label = moreDesc,
                 onClick = { expanded = true },
                 enabled = enabled,
-                modifier = Modifier.semantics { contentDescription = moreDesc },
-            ) {
-                Icon(
-                    imageVector = DotsVerticalGlyph,
-                    contentDescription = null,
-                    tint = if (enabled) tokens.mutedForeground else tokens.muted,
-                    modifier = Modifier.size(spacing.s4),
-                )
-            }
+            )
         }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             DropdownMenuItem(
