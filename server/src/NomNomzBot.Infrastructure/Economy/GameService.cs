@@ -38,6 +38,22 @@ public sealed class GameService(
     TimeProvider clock
 ) : IGameService
 {
+    // The built-in game catalog — seeded lazily on first list call when the channel has no configs.
+    // Each entry is (GameType, Category, WinChancePercent, HouseEdgePercent, PayoutMultiplier).
+    private static readonly (
+        string GameType,
+        GameCategory Category,
+        decimal? WinChance,
+        decimal? HouseEdge,
+        decimal? PayoutMultiplier
+    )[] DefaultGames =
+    [
+        ("coinflip", GameCategory.Gambling, 50m, 5m, 1.9m),
+        ("dice", GameCategory.Gambling, 50m, 5m, 1.9m),
+        ("slots", GameCategory.Gambling, 30m, 20m, 2.5m),
+        ("duel", GameCategory.Minigame, null, null, null),
+    ];
+
     public async Task<Result<IReadOnlyList<GameConfigDto>>> ListGamesAsync(
         Guid broadcasterId,
         CancellationToken ct = default
@@ -47,8 +63,33 @@ public sealed class GameService(
             .GameConfigs.Where(g => g.BroadcasterId == broadcasterId && g.DeletedAt == null)
             .OrderBy(g => g.GameType)
             .ToListAsync(ct);
+
+        if (rows.Count == 0)
+        {
+            rows = SeedDefaultGames(broadcasterId);
+            db.GameConfigs.AddRange(rows);
+            await db.SaveChangesAsync(ct);
+        }
+
         return Result.Success<IReadOnlyList<GameConfigDto>>([.. rows.Select(ToDto)]);
     }
+
+    private static List<GameConfig> SeedDefaultGames(Guid broadcasterId) =>
+        DefaultGames
+            .Select(g => new GameConfig
+            {
+                BroadcasterId = broadcasterId,
+                GameType = g.GameType,
+                Category = g.Category,
+                IsEnabled = false,
+                Requires18Plus = false,
+                WinChancePercent = g.WinChance,
+                HouseEdgePercent = g.HouseEdge,
+                PayoutMultiplier = g.PayoutMultiplier,
+                CooldownSeconds = 0,
+                Permission = "Everyone",
+            })
+            .ToList();
 
     public async Task<Result<GameConfigDto>> UpsertGameAsync(
         Guid broadcasterId,
