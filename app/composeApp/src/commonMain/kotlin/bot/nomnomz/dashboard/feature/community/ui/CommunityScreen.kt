@@ -24,7 +24,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Text
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.TextButton
+import androidx.compose.foundation.layout.size
+import bot.nomnomz.dashboard.core.designsystem.icon.DotsVerticalGlyph
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -421,6 +425,7 @@ private fun MoreActionsMenu(
     onViewStats: () -> Unit,
 ) {
     val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
     val typography = LocalTypography.current
     val moreDesc: String = stringResource(Res.string.community_more_actions, name)
 
@@ -428,15 +433,17 @@ private fun MoreActionsMenu(
 
     Box {
         ManageGate(decision = manage) { enabled ->
-            TextButton(
+            IconButton(
                 onClick = { expanded = true },
                 enabled = enabled,
-                modifier = Modifier.clearAndSetSemantics {
-                    role = Role.Button
-                    contentDescription = moreDesc
-                },
+                modifier = Modifier.semantics { contentDescription = moreDesc },
             ) {
-                Text(text = "⋮", color = tokens.mutedForeground)
+                Icon(
+                    imageVector = DotsVerticalGlyph,
+                    contentDescription = null,
+                    tint = if (enabled) tokens.mutedForeground else tokens.muted,
+                    modifier = Modifier.size(spacing.s4),
+                )
             }
         }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {

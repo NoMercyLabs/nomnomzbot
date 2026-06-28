@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.dp
 
 private const val ICON_SIZE: Float = 24f
 private const val SW: Float = 1.5f
+private const val DOT_SW: Float = 2.5f
 
 private fun icon(name: String, build: ImageVector.Builder.() -> Unit): ImageVector =
     ImageVector.Builder(
@@ -40,6 +41,16 @@ private fun ImageVector.Builder.strokePath(d: String) =
         strokeLineWidth = SW,
         strokeLineCap = StrokeCap.Round,
         strokeLineJoin = StrokeJoin.Round,
+        fill = SolidColor(Color.Transparent),
+    )
+
+// Dot rendered as a zero-length segment with round caps — same technique Lucide uses.
+private fun ImageVector.Builder.dotPath(d: String) =
+    addPath(
+        pathData = addPathNodes(d),
+        stroke = SolidColor(Color.Black),
+        strokeLineWidth = DOT_SW,
+        strokeLineCap = StrokeCap.Round,
         fill = SolidColor(Color.Transparent),
     )
 
@@ -149,4 +160,23 @@ val RefreshGlyph: ImageVector = icon("Refresh") {
             "M20.0002 9.99836C18.6877 6.61664 15.7834 4 12.0198 4C8.46585 4 5.45186 6.30606 4.39948 9.49999" +
             "M20.3752 5.49958L20.0002 9.99836L15.8752 8.49958",
     )
+}
+
+/** Three horizontal dots — Navigation/more-horizontal */
+val DotsHorizontalGlyph: ImageVector = icon("DotsHorizontal") {
+    dotPath("M5 12h.01")
+    dotPath("M12 12h.01")
+    dotPath("M19 12h.01")
+}
+
+/** Three vertical dots — Navigation/more-vertical */
+val DotsVerticalGlyph: ImageVector = icon("DotsVertical") {
+    dotPath("M12 5v.01")
+    dotPath("M12 12v.01")
+    dotPath("M12 19v.01")
+}
+
+/** Chevron pointing down — Arrows/chevron-down */
+val ChevronDownGlyph: ImageVector = icon("ChevronDown") {
+    strokePath("M6 9L12 15L18 9")
 }

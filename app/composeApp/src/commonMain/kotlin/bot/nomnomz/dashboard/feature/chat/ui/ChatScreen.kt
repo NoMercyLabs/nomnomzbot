@@ -29,7 +29,11 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.TextButton
+import androidx.compose.foundation.layout.size
+import bot.nomnomz.dashboard.core.designsystem.icon.DotsHorizontalGlyph
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -251,6 +255,7 @@ private fun MessageActions(
     onTimeout: (userId: String) -> Unit,
 ) {
     val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
     val typography = LocalTypography.current
 
     var expanded: Boolean by remember { mutableStateOf(false) }
@@ -265,12 +270,17 @@ private fun MessageActions(
         // The moderation menu trigger is the write affordance: gate it so a caller below the floor sees the
         // per-message delete/timeout menu disabled with its reason, rather than gating each dialog button.
         ManageGate(decision = manage) { enabled ->
-            TextButton(
+            IconButton(
                 onClick = { expanded = true },
                 enabled = enabled,
                 modifier = Modifier.semantics { contentDescription = menuLabel },
             ) {
-                Text(text = "···", style = typography.sm, color = tokens.mutedForeground, maxLines = 1)
+                Icon(
+                    imageVector = DotsHorizontalGlyph,
+                    contentDescription = null,
+                    tint = if (enabled) tokens.mutedForeground else tokens.muted,
+                    modifier = Modifier.size(spacing.s4),
+                )
             }
         }
 

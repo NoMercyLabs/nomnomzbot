@@ -29,7 +29,11 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.TextButton
+import androidx.compose.foundation.layout.size
+import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -432,10 +436,12 @@ private fun BillingTab(state: AdminState, controller: AdminController) {
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(text = invite.code, style = typography.sm, color = tokens.cardForeground)
-                    TextButton(onClick = { scope.launch { controller.revokeInviteCode(invite.id) } }) {
-                        Text(
-                            text = stringResource(Res.string.admin_invite_revoke),
-                            color = tokens.destructive,
+                    IconButton(onClick = { scope.launch { controller.revokeInviteCode(invite.id) } }) {
+                        Icon(
+                            imageVector = TrashGlyph,
+                            contentDescription = stringResource(Res.string.admin_invite_revoke),
+                            tint = tokens.destructive,
+                            modifier = Modifier.size(spacing.s4),
                         )
                     }
                 }

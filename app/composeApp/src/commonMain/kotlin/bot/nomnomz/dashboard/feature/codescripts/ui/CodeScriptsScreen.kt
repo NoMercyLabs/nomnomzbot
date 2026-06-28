@@ -27,7 +27,12 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.TextButton
+import androidx.compose.foundation.layout.size
+import bot.nomnomz.dashboard.core.designsystem.icon.EditLineGlyph
+import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -264,14 +269,24 @@ private fun ScriptRow(
             }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
-            ManageGate(manage) {
-                TextButton(onClick = onOpen) {
-                    Text(stringResource(Res.string.scripts_editor_source_label), style = typography.xs, color = tokens.primary)
+            ManageGate(manage) { enabled ->
+                IconButton(onClick = onOpen, enabled = enabled) {
+                    Icon(
+                        imageVector = EditLineGlyph,
+                        contentDescription = stringResource(Res.string.scripts_editor_source_label),
+                        tint = if (enabled) tokens.primary else tokens.muted,
+                        modifier = Modifier.size(spacing.s4),
+                    )
                 }
             }
-            ManageGate(manage) {
-                TextButton(onClick = onDelete) {
-                    Text(stringResource(Res.string.scripts_delete_confirm), style = typography.xs, color = tokens.destructive)
+            ManageGate(manage) { enabled ->
+                IconButton(onClick = onDelete, enabled = enabled) {
+                    Icon(
+                        imageVector = TrashGlyph,
+                        contentDescription = stringResource(Res.string.scripts_delete_confirm),
+                        tint = if (enabled) tokens.destructive else tokens.muted,
+                        modifier = Modifier.size(spacing.s4),
+                    )
                 }
             }
         }
