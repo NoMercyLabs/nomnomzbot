@@ -65,6 +65,8 @@ import bot.nomnomz.dashboard.core.network.RestFeaturesApi
 import bot.nomnomz.dashboard.core.network.RestFederationApi
 import bot.nomnomz.dashboard.core.network.AdminApi
 import bot.nomnomz.dashboard.core.network.AdminApiImpl
+import bot.nomnomz.dashboard.core.network.PronounsApi
+import bot.nomnomz.dashboard.core.network.PronounsApiImpl
 import bot.nomnomz.dashboard.core.network.BillingApi
 import bot.nomnomz.dashboard.core.network.RestBillingApi
 import bot.nomnomz.dashboard.core.network.RestCodeScriptsApi
@@ -220,6 +222,7 @@ class AppGraph {
     val liveOpsApi: LiveOpsApi = RestLiveOpsApi(apiClient)
     val billingApi: BillingApi = RestBillingApi(apiClient)
     val adminApi: AdminApi = AdminApiImpl(apiClient)
+    val pronounsApi: PronounsApi = PronounsApiImpl(apiClient)
 
     private val oauthLauncher: OAuthLauncher = OAuthLauncher()
     private val connectLauncher: ConnectLauncher = OAuthConnectLauncher(oauthLauncher)
@@ -404,5 +407,6 @@ class AppGraph {
             musicApi = musicApi,
             systemApi = systemApi,
             analyticsApi = analyticsApi,
+            pronounsApi = pronounsApi,
         )
 }

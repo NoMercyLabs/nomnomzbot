@@ -7560,7 +7560,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           }
         }
@@ -8621,7 +8621,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           }
         }
@@ -10044,7 +10044,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           }
         }
@@ -10790,7 +10790,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           }
         }
@@ -10889,7 +10889,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           }
         }
@@ -10990,7 +10990,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           }
         }
@@ -11089,7 +11089,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           }
         }
@@ -16176,7 +16176,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           }
         }
@@ -16269,7 +16269,7 @@
           "200": {
             "description": "OK",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           }
         }
@@ -19759,7 +19759,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           }
         }
@@ -20641,7 +20641,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           }
         }
@@ -21534,7 +21534,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           }
         }
@@ -23086,7 +23086,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           }
         }
@@ -23807,7 +23807,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           }
         }
@@ -24211,13 +24211,13 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           },
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           }
         }
@@ -24330,13 +24330,13 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           },
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           }
         }
@@ -24449,13 +24449,13 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           },
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           }
         }
@@ -24665,13 +24665,13 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           },
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           }
         }
@@ -24907,13 +24907,13 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           },
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           }
         }
@@ -26325,7 +26325,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           }
         }
@@ -26536,6 +26536,291 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/pronouns/catalog": {
+      "get": {
+        "tags": [
+          "Pronouns"
+        ],
+        "parameters": [
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfIEnumerableOfPronounCatalogDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/pronouns/me": {
+      "get": {
+        "tags": [
+          "Pronouns"
+        ],
+        "parameters": [
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfUserPronounDto"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Pronouns"
+        ],
+        "parameters": [
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetPronounRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetPronounRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetPronounRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfUserPronounDto"
                 }
               }
             }
@@ -28418,7 +28703,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           }
         }
@@ -32419,7 +32704,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           }
         }
@@ -33955,7 +34240,7 @@
           "200": {
             "description": "OK",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           }
         }
@@ -36136,7 +36421,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           }
         }
@@ -38437,7 +38722,7 @@
             "maxLength": 30,
             "type": "string"
           },
-          "graphJsonCache": {}
+          "graphJsonCache": { }
         }
       },
       "CreatePollDto": {
@@ -40858,7 +41143,7 @@
           }
         }
       },
-      "JsonElement": {},
+      "JsonElement": { },
       "LeaderboardEntryDto": {
         "required": [
           "rank",
@@ -43126,6 +43411,41 @@
           }
         }
       },
+      "PronounCatalogDto": {
+        "required": [
+          "id",
+          "name",
+          "subject",
+          "object",
+          "key"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "name": {
+            "type": "string"
+          },
+          "subject": {
+            "type": "string"
+          },
+          "object": {
+            "type": "string"
+          },
+          "key": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
       "PronounDto": {
         "required": [
           "id",
@@ -43943,6 +44263,35 @@
               "string"
             ],
             "format": "int32"
+          }
+        }
+      },
+      "SetPronounRequest": {
+        "type": "object",
+        "properties": {
+          "pronounId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "altPronounId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "manualOverride": {
+            "type": [
+              "null",
+              "boolean"
+            ]
           }
         }
       },
@@ -45033,6 +45382,35 @@
           }
         }
       },
+      "StatusResponseDtoOfIEnumerableOfPronounCatalogDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/PronounCatalogDto"
+            }
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
       "StatusResponseDtoOfIntegrationsResponse": {
         "type": "object",
         "properties": {
@@ -46064,7 +46442,7 @@
           "status": {
             "type": "string"
           },
-          "data": {},
+          "data": { },
           "message": {
             "type": [
               "null",
@@ -46898,6 +47276,36 @@
               },
               {
                 "$ref": "#/components/schemas/UserProfileDto"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
+      "StatusResponseDtoOfUserPronounDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/UserPronounDto"
               }
             ]
           },
@@ -48662,7 +49070,7 @@
               "string"
             ]
           },
-          "graphJsonCache": {}
+          "graphJsonCache": { }
         }
       },
       "UpdateRewardRequest": {
@@ -49550,6 +49958,58 @@
           }
         }
       },
+      "UserPronounDto": {
+        "required": [
+          "pronounId",
+          "pronounName",
+          "pronounBadge",
+          "altPronounId",
+          "altPronounName",
+          "manualOverride"
+        ],
+        "type": "object",
+        "properties": {
+          "pronounId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "pronounName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "pronounBadge": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "altPronounId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "altPronounName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "manualOverride": {
+            "type": "boolean"
+          }
+        }
+      },
       "UserStatsDto": {
         "required": [
           "messageCount",
@@ -49768,6 +50228,9 @@
     },
     {
       "name": "Platform Analytics"
+    },
+    {
+      "name": "Pronouns"
     },
     {
       "name": "PublicSongRequest"

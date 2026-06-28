@@ -286,10 +286,10 @@ public sealed partial class TemplateResolver : ITemplateResolver
                 scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
 
             // user.id is the Twitch string id (from the event); look the user up by TwitchUserId, not the Guid PK.
-            User? user = await db.Users.FirstOrDefaultAsync(
-                u => u.TwitchUserId == twitchUserId,
-                ct
-            );
+            User? user = await db
+                .Users.Include(u => u.Pronoun)
+                .Include(u => u.AltPronoun)
+                .FirstOrDefaultAsync(u => u.TwitchUserId == twitchUserId, ct);
             if (user is null)
                 return;
 
@@ -301,7 +301,12 @@ public sealed partial class TemplateResolver : ITemplateResolver
 
             if (!vars.ContainsKey("user.pronouns") && user.Pronoun is not null)
             {
-                vars["user.pronouns"] = user.Pronoun.Subject + "/" + user.Pronoun.Object;
+                // With alt: "she/they" badge (primary subject + alt subject).
+                // Without alt: use the pronoun's own name, e.g. "they/them".
+                vars["user.pronouns"] =
+                    user.AltPronoun is not null
+                        ? $"{user.Pronoun.Subject}/{user.AltPronoun.Subject}"
+                        : user.Pronoun.Name;
             }
 
             // Follow age & message count would require a ChannelEvent lookup — set placeholders for now

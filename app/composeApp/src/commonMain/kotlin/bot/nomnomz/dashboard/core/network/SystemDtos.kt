@@ -123,11 +123,31 @@ data class BotOAuthUrl(
     val oauthUrl: String,
 )
 
-/** One entry in the pronoun catalogue (`GET /api/v1/system/pronouns` → `PronounDto`). */
+/** One entry in the pronoun catalogue (`GET /api/v1/system/pronouns` or `GET /api/v1/pronouns/catalog`). */
 @Serializable
 data class PronounOption(
     val id: Int,
     val name: String,
     val subject: String,
     val `object`: String,
+    val key: String? = null,
+)
+
+/** Viewer's current pronoun state (`GET /api/v1/pronouns/me`). */
+@Serializable
+data class UserPronounResponse(
+    val pronounId: Int? = null,
+    val pronounName: String? = null,
+    val pronounBadge: String? = null,
+    val altPronounId: Int? = null,
+    val altPronounName: String? = null,
+    val manualOverride: Boolean = false,
+)
+
+/** Body for `PUT /api/v1/pronouns/me`. `0` clears, `null` leaves unchanged. */
+@Serializable
+data class SetPronounBody(
+    val pronounId: Int? = null,
+    val altPronounId: Int? = null,
+    val manualOverride: Boolean? = null,
 )

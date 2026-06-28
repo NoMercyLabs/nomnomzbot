@@ -26,8 +26,11 @@ import bot.nomnomz.dashboard.core.network.MusicApi
 import bot.nomnomz.dashboard.core.network.EconomyApi
 import bot.nomnomz.dashboard.core.network.ParticipantApi
 import bot.nomnomz.dashboard.core.network.PronounOption
+import bot.nomnomz.dashboard.core.network.PronounsApi
+import bot.nomnomz.dashboard.core.network.SetPronounBody
 import bot.nomnomz.dashboard.core.network.SavingsJar
 import bot.nomnomz.dashboard.core.network.SystemApi
+import bot.nomnomz.dashboard.core.network.UserPronounResponse
 import bot.nomnomz.dashboard.core.network.UserActivity
 import bot.nomnomz.dashboard.core.network.UserProfile
 import bot.nomnomz.dashboard.core.network.ViewerAnalyticsProfile
@@ -57,6 +60,7 @@ class ParticipantController(
     private val musicApi: MusicApi,
     private val systemApi: SystemApi,
     private val analyticsApi: AnalyticsApi,
+    private val pronounsApi: PronounsApi? = null,
 ) {
     private val _myChannel: MutableStateFlow<MyChannelState> = MutableStateFlow(MyChannelState.Loading)
     private val _nowPlaying: MutableStateFlow<NowPlayingState> = MutableStateFlow(NowPlayingState.Loading)
@@ -418,8 +422,9 @@ class ParticipantController(
             }
 
         coroutineScope {
+            // Prefer the dedicated /pronouns/catalog endpoint (carries alejo `key`); fall back to /system/pronouns.
             val pronounsDeferred =
-                async { systemApi.pronouns() }
+                async { pronounsApi?.catalog() ?: systemApi.pronouns() }
             val channelsDeferred =
                 async { participantApi.myChannels(userId) }
             val analyticsProfileDeferred =
@@ -459,24 +464,37 @@ class ParticipantController(
         val current: MeState.Ready = (_me.value as? MeState.Ready) ?: return
         _me.value = current.copy(profileSaving = true, profileError = null)
 
-        when (
-            val result: ApiResult<UserProfile> =
-                participantApi.updateMyProfile(
-                    userId = userId,
-                    displayName = null,
-                    email = null,
-                    pronounId = pronounId,
-                )
-        ) {
-            is ApiResult.Failure ->
-                _me.value = current.copy(profileSaving = false, profileError = result.error.message)
-            is ApiResult.Ok ->
-                _me.value =
-                    current.copy(
-                        profile = result.value,
-                        profileSaving = false,
-                        profileError = null,
+        if (pronounsApi != null) {
+            // Dedicated endpoint: supports alt pronoun + manual-override in one call.
+            // `0` clears, `null` leaves unchanged — pass the value directly.
+            when (val result: ApiResult<UserPronounResponse> = pronounsApi.setMyPronouns(SetPronounBody(pronounId = pronounId))) {
+                is ApiResult.Failure ->
+                    _me.value = current.copy(profileSaving = false, profileError = result.error.message)
+                is ApiResult.Ok ->
+                    // Reload the full profile so pronoun.name is updated in the UI.
+                    loadMe()
+            }
+        } else {
+            // Legacy fallback: the old PUT /users/{id}/profile path.
+            when (
+                val result: ApiResult<UserProfile> =
+                    participantApi.updateMyProfile(
+                        userId = userId,
+                        displayName = null,
+                        email = null,
+                        pronounId = pronounId,
                     )
+            ) {
+                is ApiResult.Failure ->
+                    _me.value = current.copy(profileSaving = false, profileError = result.error.message)
+                is ApiResult.Ok ->
+                    _me.value =
+                        current.copy(
+                            profile = result.value,
+                            profileSaving = false,
+                            profileError = null,
+                        )
+            }
         }
     }
 
