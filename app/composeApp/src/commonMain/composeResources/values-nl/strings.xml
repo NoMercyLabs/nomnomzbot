@@ -186,10 +186,15 @@
     <string name="home_activity_empty">Nog geen events — activiteit verschijnt hier als je kanaal live is.</string>
     <string name="home_activity_follow">%1$s volgde</string>
     <string name="home_activity_subscribe">%1$s abonneerde</string>
+    <string name="home_activity_resub">%1$s hernieuwde abonnement</string>
     <string name="home_activity_subscription_gift">%1$s gaf abonnementen</string>
     <string name="home_activity_cheer">%1$s gaf bits</string>
     <string name="home_activity_raid">Geraaid door %1$s</string>
     <string name="home_activity_redemption">%1$s loste een beloning in</string>
+    <string name="home_activity_ban">%1$s is verbannen</string>
+    <string name="home_activity_timeout">%1$s kreeg een time-out</string>
+    <string name="home_activity_mod_add">%1$s toegevoegd als moderator</string>
+    <string name="home_activity_mod_remove">%1$s verwijderd als moderator</string>
     <string name="home_activity_event">Kanaalgebeurtenis</string>
 
     <!-- Top-commando's paneel op Home -->
@@ -1689,4 +1694,7 @@
     <string name="feedback_sound_clip_saved">Fragment opgeslagen</string>
     <string name="feedback_sound_clip_deleted">Fragment verwijderd</string>
     <string name="feedback_sound_clip_save_failed">Kon het fragment niet opslaan: %1$s</string>
+    <string name="sound_clips_upload_action">Fragment uploaden</string>
+    <string name="feedback_sound_clip_uploaded">Fragment geüpload.</string>
+    <string name="feedback_sound_clip_upload_failed">Upload mislukt: %1$s</string>
 </resources>

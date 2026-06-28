@@ -81,11 +81,15 @@ public class DashboardController : BaseController
         if (!Guid.TryParse(channelId, out Guid tenantId))
             return BadRequestResponse("Invalid channel id.");
 
-        // The sub-clients resolve the tenant Guid → Twitch id internally. A failure (no token / missing
-        // scope / Twitch error) still degrades to 0 so the whole stats snapshot doesn't fail — but it is
-        // logged with the real Helix error code, so a persistent "0 followers" on a non-empty channel is
-        // diagnosable (a missing `moderator:read:followers` grant) instead of an invisible silent zero.
-        Result<int> followerResult = await _channels.GetChannelFollowerCountAsync(tenantId, ct);
+        // Fetch follower count and channel info concurrently — both are Helix calls but independent.
+        // Channel info (title, game) uses the app token so it never fails on scope; follower count needs
+        // moderator:read:followers and degrades to 0 on failure so the dashboard still renders.
+        Task<Result<int>> followerTask = _channels.GetChannelFollowerCountAsync(tenantId, ct);
+        Task<Result<TwitchChannelInformation>> channelInfoTask =
+            _channels.GetChannelInformationAsync(tenantId, ct);
+        await Task.WhenAll(followerTask, channelInfoTask);
+
+        Result<int> followerResult = followerTask.Result;
         int followerCount = followerResult.IsSuccess ? followerResult.Value : 0;
         if (followerResult.IsFailure)
             _logger.LogWarning(
@@ -94,6 +98,12 @@ public class DashboardController : BaseController
                 followerResult.ErrorMessage,
                 followerResult.ErrorCode
             );
+
+        // Channel info is always fetched (app token, no scope required) so the dashboard always shows the
+        // real current Twitch title and category even when the channel is offline or the ctx is stale.
+        Result<TwitchChannelInformation> channelInfoResult = channelInfoTask.Result;
+        string? twitchTitle = channelInfoResult.IsSuccess ? channelInfoResult.Value.Title : null;
+        string? twitchGame = channelInfoResult.IsSuccess ? channelInfoResult.Value.GameName : null;
 
         ChannelContext? ctx = _registry.Get(tenantId);
 
@@ -116,8 +126,8 @@ public class DashboardController : BaseController
             DashboardStatsDto stats = new()
             {
                 IsLive = ctx.IsLive,
-                StreamTitle = ctx.CurrentTitle,
-                GameName = ctx.CurrentGame,
+                StreamTitle = twitchTitle ?? ctx.CurrentTitle,
+                GameName = twitchGame ?? ctx.CurrentGame,
                 ViewerCount = viewerCount,
                 FollowerCount = followerCount,
                 CommandsUsed = ctx.CommandsUsed,
@@ -137,8 +147,8 @@ public class DashboardController : BaseController
         DashboardStatsDto fallback = new()
         {
             IsLive = channel.IsLive,
-            StreamTitle = channel.Title,
-            GameName = channel.GameName,
+            StreamTitle = twitchTitle ?? channel.Title,
+            GameName = twitchGame ?? channel.GameName,
             ViewerCount = channel.ViewerCount ?? 0,
             FollowerCount = followerCount,
             CommandsUsed = 0,
@@ -160,8 +170,10 @@ public class DashboardController : BaseController
         if (!Guid.TryParse(channelId, out Guid tenantId))
             return BadRequestResponse("Invalid channel id.");
 
+        // Chat messages (channel.chat.message) are excluded — they live in the Chat page.
+        // Activity shows stream milestones only: follows, subs, raids, cheers, redemptions, etc.
         List<ChannelEvent> events = await _db
-            .ChannelEvents.Where(e => e.ChannelId == tenantId)
+            .ChannelEvents.Where(e => e.ChannelId == tenantId && e.Type != "channel.chat.message")
             .OrderByDescending(e => e.CreatedAt)
             .Take(20)
             .ToListAsync(ct);
@@ -183,9 +195,20 @@ public class DashboardController : BaseController
                 if (e.UserId is not null && users.TryGetValue(e.UserId.Value, out User? user))
                     username = user.DisplayName;
 
+                // Normalize legacy event types imported from the previous bot to their canonical
+                // EventSub equivalents so the frontend only needs one switch on the modern names.
+                string normalizedType = e.Type switch
+                {
+                    "raid" => "channel.raid",
+                    "follow" => "channel.follow",
+                    "subscribe" => "channel.subscribe",
+                    "cheer" => "channel.cheer",
+                    _ => e.Type,
+                };
+
                 return new ActivityEventDto(
                     e.Id,
-                    e.Type,
+                    normalizedType,
                     e.UserId?.ToString(),
                     username,
                     e.Data,

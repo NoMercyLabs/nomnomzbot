@@ -644,6 +644,19 @@ try
             // the public dashboard bundle.
             ServeUnknownFileTypes = true,
             DefaultContentType = "application/octet-stream",
+            // Prevent browsers from caching the Wasm entry point. The Kotlin/Wasm production build emits
+            // content-hashed filenames for large assets (.wasm) but the JS entry point (composeApp.js) keeps
+            // its name unchanged across builds, so without this header Chrome serves a stale cached copy even
+            // after the file has been updated — resulting in the old Wasm bundle loading instead of the new one.
+            OnPrepareResponse = ctx =>
+            {
+                bool isEntryPoint =
+                    ctx.File.Name.Equals("composeApp.js", StringComparison.OrdinalIgnoreCase)
+                    || ctx.File.Name.Equals("index.html", StringComparison.OrdinalIgnoreCase);
+                if (isEntryPoint)
+                    ctx.Context.Response.Headers.CacheControl =
+                        "no-store, no-cache, must-revalidate";
+            },
         }
     );
 

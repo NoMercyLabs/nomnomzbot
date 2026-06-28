@@ -189,10 +189,15 @@
     <string name="home_activity_empty">No events yet — activity appears here when your channel is live.</string>
     <string name="home_activity_follow">%1$s followed</string>
     <string name="home_activity_subscribe">%1$s subscribed</string>
+    <string name="home_activity_resub">%1$s resubscribed</string>
     <string name="home_activity_subscription_gift">%1$s gifted subs</string>
     <string name="home_activity_cheer">%1$s cheered</string>
     <string name="home_activity_raid">Raided by %1$s</string>
     <string name="home_activity_redemption">%1$s redeemed a reward</string>
+    <string name="home_activity_ban">%1$s was banned</string>
+    <string name="home_activity_timeout">%1$s was timed out</string>
+    <string name="home_activity_mod_add">%1$s added as moderator</string>
+    <string name="home_activity_mod_remove">%1$s removed as moderator</string>
     <string name="home_activity_event">Channel event</string>
 
     <!-- Top commands panel on Home -->
@@ -1703,4 +1708,7 @@
     <string name="feedback_sound_clip_saved">Clip saved</string>
     <string name="feedback_sound_clip_deleted">Clip deleted</string>
     <string name="feedback_sound_clip_save_failed">Couldn't save the clip: %1$s</string>
+    <string name="sound_clips_upload_action">Upload Clip</string>
+    <string name="feedback_sound_clip_uploaded">Clip uploaded.</string>
+    <string name="feedback_sound_clip_upload_failed">Upload failed: %1$s</string>
 </resources>

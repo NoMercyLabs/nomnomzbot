@@ -37,7 +37,10 @@ public sealed class TwitchChannelsApi(
         if (channel.IsFailure)
             return channel.WithValue<TwitchChannelInformation>(default!);
 
-        TwitchHelixRequest request = new(
+        // GET /helix/channels is public info — no scope required, but does need a valid token.
+        // Prefer the app token (no per-user auth needed); fall back to the user token so the
+        // call succeeds in dev environments where ClientSecret is not configured.
+        TwitchHelixRequest appRequest = new(
             HttpMethod.Get,
             "channels",
             TwitchHelixAuth.App,
@@ -45,7 +48,20 @@ public sealed class TwitchChannelsApi(
             Query: [new("broadcaster_id", channel.Value)]
         );
 
-        return await transport.GetSingleAsync<TwitchChannelInformation>(request, ct);
+        Result<TwitchChannelInformation> appResult =
+            await transport.GetSingleAsync<TwitchChannelInformation>(appRequest, ct);
+        if (appResult.IsSuccess)
+            return appResult;
+
+        TwitchHelixRequest userRequest = new(
+            HttpMethod.Get,
+            "channels",
+            TwitchHelixAuth.User,
+            broadcasterId,
+            Query: [new("broadcaster_id", channel.Value)]
+        );
+
+        return await transport.GetSingleAsync<TwitchChannelInformation>(userRequest, ct);
     }
 
     public async Task<Result> ModifyChannelInformationAsync(

@@ -80,15 +80,20 @@ import bot.nomnomz.dashboard.feature.liveops.state.LiveOpsState
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.home_activity_ban
 import nomnomzbot.composeapp.generated.resources.home_activity_cheer
 import nomnomzbot.composeapp.generated.resources.home_activity_empty
 import nomnomzbot.composeapp.generated.resources.home_activity_event
 import nomnomzbot.composeapp.generated.resources.home_activity_follow
+import nomnomzbot.composeapp.generated.resources.home_activity_mod_add
+import nomnomzbot.composeapp.generated.resources.home_activity_mod_remove
 import nomnomzbot.composeapp.generated.resources.home_activity_raid
 import nomnomzbot.composeapp.generated.resources.home_activity_redemption
+import nomnomzbot.composeapp.generated.resources.home_activity_resub
 import nomnomzbot.composeapp.generated.resources.home_activity_section
 import nomnomzbot.composeapp.generated.resources.home_activity_subscribe
 import nomnomzbot.composeapp.generated.resources.home_activity_subscription_gift
+import nomnomzbot.composeapp.generated.resources.home_activity_timeout
 import nomnomzbot.composeapp.generated.resources.home_change_title
 import nomnomzbot.composeapp.generated.resources.home_error
 import nomnomzbot.composeapp.generated.resources.home_game_label
@@ -498,20 +503,27 @@ private fun ActivityRow(event: ActivityEvent) {
 
     val who: String = event.username ?: "—"
     val label: String = when (event.type) {
-        "follow" -> stringResource(Res.string.home_activity_follow, who)
-        "subscribe" -> stringResource(Res.string.home_activity_subscribe, who)
-        "subscription_gift" -> stringResource(Res.string.home_activity_subscription_gift, who)
-        "cheer" -> stringResource(Res.string.home_activity_cheer, who)
-        "raid" -> stringResource(Res.string.home_activity_raid, who)
-        "redemption" -> stringResource(Res.string.home_activity_redemption, who)
+        "channel.follow" -> stringResource(Res.string.home_activity_follow, who)
+        "channel.subscribe" -> stringResource(Res.string.home_activity_subscribe, who)
+        "channel.subscription.message" -> stringResource(Res.string.home_activity_resub, who)
+        "channel.subscription.gift" -> stringResource(Res.string.home_activity_subscription_gift, who)
+        "channel.cheer" -> stringResource(Res.string.home_activity_cheer, who)
+        "channel.raid" -> stringResource(Res.string.home_activity_raid, who)
+        "channel.channel_points_custom_reward_redemption.add" -> stringResource(Res.string.home_activity_redemption, who)
+        "channel.ban" -> stringResource(Res.string.home_activity_ban, who)
+        "channel.timeout" -> stringResource(Res.string.home_activity_timeout, who)
+        "channel.moderator.add" -> stringResource(Res.string.home_activity_mod_add, who)
+        "channel.moderator.remove" -> stringResource(Res.string.home_activity_mod_remove, who)
         else -> stringResource(Res.string.home_activity_event)
     }
     val dotColor = when (event.type) {
-        "follow" -> tokens.primary
-        "subscribe", "subscription_gift" -> tokens.ring
-        "cheer" -> tokens.primary
-        "raid" -> tokens.accent
-        "redemption" -> tokens.ring
+        "channel.follow" -> tokens.primary
+        "channel.subscribe", "channel.subscription.message", "channel.subscription.gift" -> tokens.ring
+        "channel.cheer" -> tokens.primary
+        "channel.raid" -> tokens.accent
+        "channel.channel_points_custom_reward_redemption.add" -> tokens.ring
+        "channel.ban", "channel.timeout" -> tokens.destructive
+        "channel.moderator.add", "channel.moderator.remove" -> tokens.mutedForeground
         else -> tokens.mutedForeground
     }
 
