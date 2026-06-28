@@ -19,7 +19,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -29,8 +28,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Switch
@@ -56,6 +53,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
+import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
@@ -138,6 +136,8 @@ import nomnomzbot.composeapp.generated.resources.pipelines_field_wait_seconds
 import nomnomzbot.composeapp.generated.resources.pipelines_loading
 import nomnomzbot.composeapp.generated.resources.pipelines_new_action
 import nomnomzbot.composeapp.generated.resources.pipelines_no_description
+import nomnomzbot.composeapp.generated.resources.pipelines_delete_action
+import nomnomzbot.composeapp.generated.resources.pipelines_rename_action
 import nomnomzbot.composeapp.generated.resources.pipelines_rename_action_short
 import nomnomzbot.composeapp.generated.resources.pipelines_retry
 import nomnomzbot.composeapp.generated.resources.pipelines_step_action_label
@@ -329,6 +329,8 @@ private fun PipelineRow(
         )
     val toggleLabel: String = stringResource(Res.string.pipelines_toggle_action, pipeline.name)
     val editChainLabel: String = stringResource(Res.string.pipelines_edit_chain_action, pipeline.name)
+    val renameLabel: String = stringResource(Res.string.pipelines_rename_action, pipeline.name)
+    val deleteLabel: String = stringResource(Res.string.pipelines_delete_action, pipeline.name)
 
     Row(
         modifier =
@@ -372,36 +374,23 @@ private fun PipelineRow(
             )
         }
         // Opening the chain editor is navigation/read, not a write — stays enabled for everyone.
-        IconButton(
+        GlyphButton(
+            imageVector = EditLineGlyph,
+            label = editChainLabel,
             onClick = onOpen,
-            modifier = Modifier.semantics { contentDescription = editChainLabel },
-        ) {
-            Icon(
-                imageVector = EditLineGlyph,
-                contentDescription = null,
-                tint = tokens.primary,
-                modifier = Modifier.size(spacing.s4),
+            tint = tokens.primary,
+        )
+        ManageGate(decision = manage) { enabled ->
+            GlyphButton(imageVector = EditGlyph, label = renameLabel, onClick = onEdit, enabled = enabled)
+        }
+        ManageGate(decision = manage) { enabled ->
+            GlyphButton(
+                imageVector = TrashGlyph,
+                label = deleteLabel,
+                onClick = onDelete,
+                enabled = enabled,
+                tint = tokens.destructive,
             )
-        }
-        ManageGate(decision = manage) { enabled ->
-            IconButton(onClick = onEdit, enabled = enabled) {
-                Icon(
-                    imageVector = EditGlyph,
-                    contentDescription = null,
-                    tint = if (enabled) tokens.mutedForeground else tokens.muted,
-                    modifier = Modifier.size(spacing.s4),
-                )
-            }
-        }
-        ManageGate(decision = manage) { enabled ->
-            IconButton(onClick = onDelete, enabled = enabled) {
-                Icon(
-                    imageVector = TrashGlyph,
-                    contentDescription = null,
-                    tint = if (enabled) tokens.destructive else tokens.muted,
-                    modifier = Modifier.size(spacing.s4),
-                )
-            }
         }
     }
 }
@@ -579,62 +568,36 @@ private fun StepCard(
             // Reorder is a write AND bounded by position: the gate's `enabled` and the bound both must hold.
             ManageGate(decision = manage) { allowed ->
                 val canMoveUp: Boolean = allowed && index > 0
-                IconButton(
+                GlyphButton(
+                    imageVector = ArrowUpGlyph,
+                    label = upLabel,
                     onClick = onMoveUp,
                     enabled = canMoveUp,
-                    modifier = Modifier.semantics { contentDescription = upLabel },
-                ) {
-                    Icon(
-                        imageVector = ArrowUpGlyph,
-                        contentDescription = null,
-                        tint = if (canMoveUp) tokens.primary else tokens.muted,
-                        modifier = Modifier.size(spacing.s4),
-                    )
-                }
+                    tint = tokens.primary,
+                )
             }
             ManageGate(decision = manage) { allowed ->
                 val canMoveDown: Boolean = allowed && index < total - 1
-                IconButton(
+                GlyphButton(
+                    imageVector = ArrowDownGlyph,
+                    label = downLabel,
                     onClick = onMoveDown,
                     enabled = canMoveDown,
-                    modifier = Modifier.semantics { contentDescription = downLabel },
-                ) {
-                    Icon(
-                        imageVector = ArrowDownGlyph,
-                        contentDescription = null,
-                        tint = if (canMoveDown) tokens.primary else tokens.muted,
-                        modifier = Modifier.size(spacing.s4),
-                    )
-                }
+                    tint = tokens.primary,
+                )
             }
             Box(modifier = Modifier.weight(1f))
             ManageGate(decision = manage) { enabled ->
-                IconButton(
-                    onClick = onEdit,
-                    enabled = enabled,
-                    modifier = Modifier.semantics { contentDescription = editLabel },
-                ) {
-                    Icon(
-                        imageVector = EditGlyph,
-                        contentDescription = null,
-                        tint = if (enabled) tokens.mutedForeground else tokens.muted,
-                        modifier = Modifier.size(spacing.s4),
-                    )
-                }
+                GlyphButton(imageVector = EditGlyph, label = editLabel, onClick = onEdit, enabled = enabled)
             }
             ManageGate(decision = manage) { enabled ->
-                IconButton(
+                GlyphButton(
+                    imageVector = TrashGlyph,
+                    label = removeLabel,
                     onClick = onRemove,
                     enabled = enabled,
-                    modifier = Modifier.semantics { contentDescription = removeLabel },
-                ) {
-                    Icon(
-                        imageVector = TrashGlyph,
-                        contentDescription = null,
-                        tint = if (enabled) tokens.destructive else tokens.muted,
-                        modifier = Modifier.size(spacing.s4),
-                    )
-                }
+                    tint = tokens.destructive,
+                )
             }
         }
     }

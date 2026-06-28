@@ -1229,7 +1229,9 @@
     <string name="pipelines_edit_chain_action">De actieketen voor %1$s bewerken</string>
     <string name="pipelines_edit_chain_action_short">Keten bewerken</string>
     <string name="pipelines_rename_action_short">Hernoemen</string>
+    <string name="pipelines_rename_action">%1$s hernoemen</string>
     <string name="pipelines_delete_action_short">Verwijderen</string>
+    <string name="pipelines_delete_action">%1$s verwijderen</string>
     <string name="pipelines_delete_title">Pijplijn verwijderen?</string>
     <string name="pipelines_delete_message">%1$s verwijderen? Dit kan niet ongedaan worden gemaakt.</string>
     <string name="pipelines_delete_confirm">Verwijderen</string>

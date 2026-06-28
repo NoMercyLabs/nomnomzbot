@@ -35,8 +35,7 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextFieldColors
 import androidx.compose.runtime.Composable
@@ -58,6 +57,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
+import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
@@ -1632,18 +1632,13 @@ private fun CatalogItemRow(
             }
             // Delete — destructive; the caller confirms before calling onDelete.
             val deleteLabel: String = stringResource(Res.string.economy_catalog_delete_action, item.name)
-            IconButton(
+            GlyphButton(
+                imageVector = TrashGlyph,
+                label = deleteLabel,
                 onClick = onDelete,
                 enabled = enabled,
-                modifier = Modifier.clearAndSetSemantics { contentDescription = deleteLabel },
-            ) {
-                Icon(
-                    imageVector = TrashGlyph,
-                    contentDescription = null,
-                    tint = if (enabled) tokens.destructive else tokens.muted,
-                    modifier = Modifier.size(spacing.s4),
-                )
-            }
+                tint = tokens.destructive,
+            )
         }
     }
 }
@@ -1974,25 +1969,23 @@ private fun JarManageDialog(
                                 Row(horizontalArrangement = Arrangement.spacedBy(spacing.s1)) {
                                     if (isPending) {
                                         ManageGate(decision = manage) { enabled ->
-                                            IconButton(onClick = { onAcceptMembership(m.id) }, enabled = enabled) {
-                                                Icon(
-                                                    imageVector = CheckCircleGlyph,
-                                                    contentDescription = stringResource(Res.string.economy_jars_membership_accept),
-                                                    tint = if (enabled) tokens.primary else tokens.muted,
-                                                    modifier = Modifier.size(spacing.s4),
-                                                )
-                                            }
+                                            GlyphButton(
+                                                imageVector = CheckCircleGlyph,
+                                                label = stringResource(Res.string.economy_jars_membership_accept),
+                                                onClick = { onAcceptMembership(m.id) },
+                                                enabled = enabled,
+                                                tint = tokens.primary,
+                                            )
                                         }
                                     }
                                     ManageGate(decision = manage) { enabled ->
-                                        IconButton(onClick = { onRemoveMembership(m.id) }, enabled = enabled) {
-                                            Icon(
-                                                imageVector = TrashGlyph,
-                                                contentDescription = stringResource(Res.string.economy_jars_membership_revoke),
-                                                tint = if (enabled) tokens.destructive else tokens.muted,
-                                                modifier = Modifier.size(spacing.s4),
-                                            )
-                                        }
+                                        GlyphButton(
+                                            imageVector = TrashGlyph,
+                                            label = stringResource(Res.string.economy_jars_membership_revoke),
+                                            onClick = { onRemoveMembership(m.id) },
+                                            enabled = enabled,
+                                            tint = tokens.destructive,
+                                        )
                                     }
                                 }
                             }
@@ -2337,14 +2330,13 @@ private fun CatalogPurchasesSection(
                     Text(text = purchase.costPaid.toString(), style = typography.base, color = tokens.primary)
                     ManageGate(manage) { enabled ->
                         val refundEnabled: Boolean = enabled && purchase.status != "refunded"
-                        IconButton(onClick = { pendingRefund = purchase }, enabled = refundEnabled) {
-                            Icon(
-                                imageVector = RemoveGlyph,
-                                contentDescription = stringResource(Res.string.economy_purchases_refund),
-                                tint = if (refundEnabled) tokens.destructive else tokens.muted,
-                                modifier = Modifier.size(spacing.s4),
-                            )
-                        }
+                        GlyphButton(
+                            imageVector = RemoveGlyph,
+                            label = stringResource(Res.string.economy_purchases_refund),
+                            onClick = { pendingRefund = purchase },
+                            enabled = refundEnabled,
+                            tint = tokens.destructive,
+                        )
                     }
                 }
             }

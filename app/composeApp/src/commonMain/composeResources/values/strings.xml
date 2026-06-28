@@ -1232,7 +1232,9 @@
     <string name="pipelines_edit_chain_action">Edit the action chain for %1$s</string>
     <string name="pipelines_edit_chain_action_short">Edit chain</string>
     <string name="pipelines_rename_action_short">Rename</string>
+    <string name="pipelines_rename_action">Rename %1$s</string>
     <string name="pipelines_delete_action_short">Delete</string>
+    <string name="pipelines_delete_action">Delete %1$s</string>
     <string name="pipelines_delete_title">Delete pipeline?</string>
     <string name="pipelines_delete_message">Delete %1$s? This can't be undone.</string>
     <string name="pipelines_delete_confirm">Delete</string>
