@@ -65,6 +65,7 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.designsystem.theme.Tokens
+import bot.nomnomz.dashboard.core.designsystem.icon.CheckCircleGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.material3.HorizontalDivider
@@ -162,6 +163,7 @@ import nomnomzbot.composeapp.generated.resources.economy_jars_invite_confirm
 import nomnomzbot.composeapp.generated.resources.economy_jars_invite_role
 import nomnomzbot.composeapp.generated.resources.economy_jars_invite_title
 import nomnomzbot.composeapp.generated.resources.economy_jars_manage
+import nomnomzbot.composeapp.generated.resources.economy_jars_membership_accept
 import nomnomzbot.composeapp.generated.resources.economy_jars_membership_accepted
 import nomnomzbot.composeapp.generated.resources.economy_jars_membership_pending
 import nomnomzbot.composeapp.generated.resources.economy_jars_membership_revoke
@@ -303,6 +305,9 @@ fun EconomyScreen(controller: EconomyController, role: ManagementRole?) {
                     onJarInvite = { jarId, request ->
                         scope.launch { controller.inviteChannel(jarId, request) }
                     },
+                    onJarAcceptMembership = { membershipId ->
+                        scope.launch { controller.acceptMembership(membershipId) }
+                    },
                     onJarRemoveMembership = { membershipId ->
                         scope.launch { controller.removeMembership(membershipId) }
                     },
@@ -343,6 +348,7 @@ private fun ReadyContent(
     onCreateSavingsJar: (CreateSavingsJarBody) -> Unit,
     loadJarDetail: suspend (jarId: String) -> SavingsJarDetail?,
     onJarInvite: (jarId: String, InviteChannelBody) -> Unit,
+    onJarAcceptMembership: (membershipId: String) -> Unit,
     onJarRemoveMembership: (membershipId: String) -> Unit,
     onJarContribute: (jarId: String, AdminJarContributeBody) -> Unit,
     onJarWithdraw: (jarId: String, AdminJarWithdrawBody) -> Unit,
@@ -489,6 +495,7 @@ private fun ReadyContent(
             onCreate = onCreateSavingsJar,
             loadJarDetail = loadJarDetail,
             onInvite = onJarInvite,
+            onAcceptMembership = onJarAcceptMembership,
             onRemoveMembership = onJarRemoveMembership,
             onContribute = onJarContribute,
             onWithdraw = onJarWithdraw,
@@ -1725,6 +1732,7 @@ private fun SavingsJarsSection(
     onCreate: (CreateSavingsJarBody) -> Unit,
     loadJarDetail: suspend (jarId: String) -> SavingsJarDetail?,
     onInvite: (jarId: String, InviteChannelBody) -> Unit,
+    onAcceptMembership: (membershipId: String) -> Unit,
     onRemoveMembership: (membershipId: String) -> Unit,
     onContribute: (jarId: String, AdminJarContributeBody) -> Unit,
     onWithdraw: (jarId: String, AdminJarWithdrawBody) -> Unit,
@@ -1798,6 +1806,7 @@ private fun SavingsJarsSection(
             manage = manage,
             loadDetail = loadJarDetail,
             onInvite = { request -> onInvite(jar.id, request) },
+            onAcceptMembership = onAcceptMembership,
             onRemoveMembership = onRemoveMembership,
             onContribute = { request -> onContribute(jar.id, request) },
             onWithdraw = { request -> onWithdraw(jar.id, request) },
@@ -1875,6 +1884,7 @@ private fun JarManageDialog(
     manage: ManageDecision,
     loadDetail: suspend (jarId: String) -> SavingsJarDetail?,
     onInvite: (InviteChannelBody) -> Unit,
+    onAcceptMembership: (membershipId: String) -> Unit,
     onRemoveMembership: (membershipId: String) -> Unit,
     onContribute: (AdminJarContributeBody) -> Unit,
     onWithdraw: (AdminJarWithdrawBody) -> Unit,
@@ -1938,6 +1948,7 @@ private fun JarManageDialog(
                 } else {
                     Column(verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
                         memberships.forEach { m ->
+                            val isPending: Boolean = !m.status.equals("accepted", ignoreCase = true)
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 verticalAlignment = Alignment.CenterVertically,
@@ -1952,20 +1963,35 @@ private fun JarManageDialog(
                                         overflow = TextOverflow.Ellipsis,
                                     )
                                     val statusLabel: String =
-                                        if (m.status.equals("accepted", ignoreCase = true)) {
+                                        if (!isPending) {
                                             stringResource(Res.string.economy_jars_membership_accepted)
                                         } else {
                                             stringResource(Res.string.economy_jars_membership_pending)
                                         }
                                     Text(text = statusLabel, style = typography.xs, color = tokens.mutedForeground)
                                 }
-                                ManageGate(decision = manage) { enabled ->
-                                    TextButton(onClick = { onRemoveMembership(m.id) }, enabled = enabled) {
-                                        Text(
-                                            text = stringResource(Res.string.economy_jars_membership_revoke),
-                                            style = typography.sm,
-                                            color = if (enabled) tokens.destructive else tokens.mutedForeground,
-                                        )
+                                Row(horizontalArrangement = Arrangement.spacedBy(spacing.s1)) {
+                                    if (isPending) {
+                                        ManageGate(decision = manage) { enabled ->
+                                            IconButton(onClick = { onAcceptMembership(m.id) }, enabled = enabled) {
+                                                Icon(
+                                                    imageVector = CheckCircleGlyph,
+                                                    contentDescription = stringResource(Res.string.economy_jars_membership_accept),
+                                                    tint = if (enabled) tokens.primary else tokens.muted,
+                                                    modifier = Modifier.size(spacing.s4),
+                                                )
+                                            }
+                                        }
+                                    }
+                                    ManageGate(decision = manage) { enabled ->
+                                        IconButton(onClick = { onRemoveMembership(m.id) }, enabled = enabled) {
+                                            Icon(
+                                                imageVector = TrashGlyph,
+                                                contentDescription = stringResource(Res.string.economy_jars_membership_revoke),
+                                                tint = if (enabled) tokens.destructive else tokens.muted,
+                                                modifier = Modifier.size(spacing.s4),
+                                            )
+                                        }
                                     }
                                 }
                             }

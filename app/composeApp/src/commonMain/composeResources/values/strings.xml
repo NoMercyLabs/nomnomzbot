@@ -690,6 +690,7 @@
     <string name="economy_jars_invite_cancel">Cancel</string>
     <string name="economy_jars_membership_pending">Pending</string>
     <string name="economy_jars_membership_accepted">Active</string>
+    <string name="economy_jars_membership_accept">Accept</string>
     <string name="economy_jars_membership_revoke">Revoke</string>
     <string name="economy_jars_contribute">Contribute</string>
     <string name="economy_jars_contribute_title">Contribute to jar</string>
@@ -1153,6 +1154,10 @@
     <string name="music_progress">%1$s of %2$s</string>
     <string name="music_play">Play</string>
     <string name="music_pause">Pause</string>
+    <string name="music_seek_back">−10s</string>
+    <string name="music_seek_forward">+10s</string>
+    <string name="music_seek_back_description">Seek back 10 seconds</string>
+    <string name="music_seek_forward_description">Seek forward 10 seconds</string>
     <string name="music_skip">Skip</string>
     <string name="music_queue_label">Up next</string>
     <string name="music_queue_empty">The queue is empty.</string>

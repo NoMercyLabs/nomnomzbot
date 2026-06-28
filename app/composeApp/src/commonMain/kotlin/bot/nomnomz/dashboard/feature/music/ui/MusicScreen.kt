@@ -85,6 +85,10 @@ import nomnomzbot.composeapp.generated.resources.music_play
 import nomnomzbot.composeapp.generated.resources.music_position
 import nomnomzbot.composeapp.generated.resources.music_progress
 import nomnomzbot.composeapp.generated.resources.music_provider
+import nomnomzbot.composeapp.generated.resources.music_seek_back
+import nomnomzbot.composeapp.generated.resources.music_seek_back_description
+import nomnomzbot.composeapp.generated.resources.music_seek_forward
+import nomnomzbot.composeapp.generated.resources.music_seek_forward_description
 import nomnomzbot.composeapp.generated.resources.music_queue_empty
 import nomnomzbot.composeapp.generated.resources.music_queue_label
 import nomnomzbot.composeapp.generated.resources.music_remove_action
@@ -172,6 +176,7 @@ fun MusicScreen(controller: MusicController, role: ManagementRole?) {
                     manage = manage,
                     onPlay = { scope.launch { controller.resume() } },
                     onPause = { scope.launch { controller.pause() } },
+                    onSeek = { positionMs -> scope.launch { controller.seek(positionMs) } },
                     onSkip = { scope.launch { controller.skip() } },
                     onRemove = { position -> scope.launch { controller.remove(position) } },
                     onAddToQueue = { query, requestedBy -> scope.launch { controller.addToQueue(query, requestedBy) } },
@@ -198,6 +203,7 @@ private fun ReadyContent(
     manage: ManageDecision,
     onPlay: () -> Unit,
     onPause: () -> Unit,
+    onSeek: (positionMs: Int) -> Unit,
     onSkip: () -> Unit,
     onRemove: (position: Int) -> Unit,
     onAddToQueue: (query: String, requestedBy: String) -> Unit,
@@ -226,6 +232,7 @@ private fun ReadyContent(
                 manage = manage,
                 onPlay = onPlay,
                 onPause = onPause,
+                onSeek = onSeek,
                 onSkip = onSkip,
             )
         }
@@ -325,6 +332,7 @@ private fun NowPlayingCard(
     manage: ManageDecision,
     onPlay: () -> Unit,
     onPause: () -> Unit,
+    onSeek: (positionMs: Int) -> Unit,
     onSkip: () -> Unit,
 ) {
     val tokens = LocalTokens.current
@@ -420,9 +428,12 @@ private fun NowPlayingCard(
 
         PlaybackControls(
             isPlaying = nowPlaying.isPlaying,
+            progressMs = nowPlaying.progressMs,
+            durationMs = nowPlaying.durationMs,
             manage = manage,
             onPlay = onPlay,
             onPause = onPause,
+            onSeek = onSeek,
             onSkip = onSkip,
         )
     }
@@ -431,9 +442,12 @@ private fun NowPlayingCard(
 @Composable
 private fun PlaybackControls(
     isPlaying: Boolean,
+    progressMs: Int,
+    durationMs: Int,
     manage: ManageDecision,
     onPlay: () -> Unit,
     onPause: () -> Unit,
+    onSeek: (positionMs: Int) -> Unit,
     onSkip: () -> Unit,
 ) {
     val spacing = LocalSpacing.current
@@ -443,25 +457,42 @@ private fun PlaybackControls(
         horizontalArrangement = Arrangement.spacedBy(spacing.s2),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        ControlButton(
+            label = stringResource(Res.string.music_seek_back),
+            description = stringResource(Res.string.music_seek_back_description),
+            manage = manage,
+            onClick = { onSeek((progressMs - 10_000).coerceAtLeast(0)) },
+        )
         // Play and pause are the same backend toggle; the live isPlaying flag decides which one is offered.
         if (isPlaying) {
             ControlButton(label = stringResource(Res.string.music_pause), manage = manage, onClick = onPause)
         } else {
             ControlButton(label = stringResource(Res.string.music_play), manage = manage, onClick = onPlay)
         }
+        ControlButton(
+            label = stringResource(Res.string.music_seek_forward),
+            description = stringResource(Res.string.music_seek_forward_description),
+            manage = manage,
+            onClick = { onSeek((progressMs + 10_000).coerceAtMost(durationMs)) },
+        )
         ControlButton(label = stringResource(Res.string.music_skip), manage = manage, onClick = onSkip)
     }
 }
 
 @Composable
-private fun ControlButton(label: String, manage: ManageDecision, onClick: () -> Unit) {
+private fun ControlButton(
+    label: String,
+    manage: ManageDecision,
+    onClick: () -> Unit,
+    description: String = label,
+) {
     val tokens = LocalTokens.current
 
     ManageGate(decision = manage) { enabled ->
         TextButton(
             onClick = onClick,
             enabled = enabled,
-            modifier = Modifier.clearAndSetSemantics { contentDescription = label },
+            modifier = Modifier.clearAndSetSemantics { contentDescription = description },
         ) {
             Text(text = label, color = if (enabled) tokens.primary else tokens.mutedForeground, maxLines = 1)
         }

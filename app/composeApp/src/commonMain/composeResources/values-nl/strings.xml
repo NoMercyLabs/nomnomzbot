@@ -687,6 +687,7 @@
     <string name="economy_jars_invite_cancel">Annuleren</string>
     <string name="economy_jars_membership_pending">In afwachting</string>
     <string name="economy_jars_membership_accepted">Actief</string>
+    <string name="economy_jars_membership_accept">Accepteren</string>
     <string name="economy_jars_membership_revoke">Intrekken</string>
     <string name="economy_jars_contribute">Inleggen</string>
     <string name="economy_jars_contribute_title">Inleggen in spaarpot</string>
@@ -1150,6 +1151,10 @@
     <string name="music_progress">%1$s van %2$s</string>
     <string name="music_play">Afspelen</string>
     <string name="music_pause">Pauzeren</string>
+    <string name="music_seek_back">−10s</string>
+    <string name="music_seek_forward">+10s</string>
+    <string name="music_seek_back_description">10 seconden terugspoelen</string>
+    <string name="music_seek_forward_description">10 seconden vooruitspoelen</string>
     <string name="music_skip">Overslaan</string>
     <string name="music_queue_label">Hierna</string>
     <string name="music_queue_empty">De wachtrij is leeg.</string>
