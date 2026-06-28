@@ -161,8 +161,8 @@ import org.jetbrains.compose.resources.stringResource
 // The authenticated Main shell (frontend-ia.md §2): a persistent grouped, role-gated sidebar with a bottom
 // profile block, a top bar (page title + active-channel chip + realtime dot), and the content area. The
 // sidebar is rendered from the single [ShellNav] inventory filtered by the caller's [ManagementRole] — to
-// move or re-gate a page you edit that one list, never this file. Only the Integrations page hosts its real
-// screen today; the rest show a labelled placeholder until their slice lands.
+// move or re-gate a page you edit that one list, never this file. All 21 management pages are wired to
+// real screens with full CRUD and role-gated write controls.
 // Below this width the persistent sidebar would crowd the content, so the shell switches to a mobile layout:
 // the sidebar becomes a hamburger-toggled overlay drawer. A layout breakpoint (a window concern), not a
 // design-system spacing token.

@@ -77,6 +77,7 @@ import nomnomzbot.composeapp.generated.resources.home_stream_error
 import nomnomzbot.composeapp.generated.resources.home_stream_game_hint
 import nomnomzbot.composeapp.generated.resources.home_stream_game_label
 import nomnomzbot.composeapp.generated.resources.home_stream_save
+import nomnomzbot.composeapp.generated.resources.home_stream_saved
 import nomnomzbot.composeapp.generated.resources.home_stream_section
 import nomnomzbot.composeapp.generated.resources.home_stream_tags_hint
 import nomnomzbot.composeapp.generated.resources.home_stream_tags_label
@@ -269,6 +270,17 @@ private fun StreamInfoCard(
         mutableStateOf(streamInfo?.tags?.joinToString(", ") ?: "")
     }
 
+    // Flash "Stream updated" for 2 s after a successful save — when error is null and streamInfo
+    // just changed (the backend echoed back the confirmed values).
+    var savedFlash: Boolean by remember { mutableStateOf(false) }
+    LaunchedEffect(streamInfo) {
+        if (streamInfo != null && error == null) {
+            savedFlash = true
+            kotlinx.coroutines.delay(2000)
+            savedFlash = false
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -313,7 +325,20 @@ private fun StreamInfoCard(
                 color = tokens.destructive,
             )
         }
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (savedFlash) {
+                Text(
+                    text = stringResource(Res.string.home_stream_saved),
+                    style = typography.sm,
+                    color = tokens.primary,
+                )
+            } else {
+                Box(modifier = Modifier.weight(1f))
+            }
             Button(
                 onClick = {
                     val tags: List<String>? =
