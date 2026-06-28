@@ -49,6 +49,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
+import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -151,6 +152,7 @@ import nomnomzbot.composeapp.generated.resources.moderation_unban_confirm
 import nomnomzbot.composeapp.generated.resources.moderation_unban_dismiss
 import nomnomzbot.composeapp.generated.resources.moderation_unban_message
 import nomnomzbot.composeapp.generated.resources.moderation_unban_title
+import nomnomzbot.composeapp.generated.resources.shell_nav_moderation
 import org.jetbrains.compose.resources.stringResource
 
 // The Moderation page: the channel's currently-banned viewers, all real data from [ModerationController].
@@ -254,6 +256,9 @@ private fun BansList(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(spacing.s3),
     ) {
+        item(key = "page-header") {
+            PageHeader(title = stringResource(Res.string.shell_nav_moderation))
+        }
         actionError?.let { detail ->
             item(key = "unban-error") {
                 Text(

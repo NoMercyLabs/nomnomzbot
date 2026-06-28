@@ -55,6 +55,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
+import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -104,7 +105,7 @@ import nomnomzbot.composeapp.generated.resources.discord_no_rules
 import nomnomzbot.composeapp.generated.resources.discord_retry
 import nomnomzbot.composeapp.generated.resources.discord_rule_channel
 import nomnomzbot.composeapp.generated.resources.discord_rule_no_message
-import nomnomzbot.composeapp.generated.resources.discord_title
+import nomnomzbot.composeapp.generated.resources.shell_nav_discord
 import nomnomzbot.composeapp.generated.resources.discord_toggle_action
 import nomnomzbot.composeapp.generated.resources.discord_consent_approved
 import nomnomzbot.composeapp.generated.resources.discord_consent_pending
@@ -337,18 +338,12 @@ private fun ReadyContent(
     onPostRoleButton: (DiscordNotificationRole) -> Unit,
 ) {
     val spacing = LocalSpacing.current
-    val tokens = LocalTokens.current
-    val typography = LocalTypography.current
 
     Column(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(spacing.s4),
     ) {
-        Text(
-            text = stringResource(Res.string.discord_title),
-            style = typography.xl2,
-            color = tokens.foreground,
-        )
+        PageHeader(title = stringResource(Res.string.shell_nav_discord))
         actionError?.let { ActionErrorBanner(detail = it) }
 
         LazyColumn(

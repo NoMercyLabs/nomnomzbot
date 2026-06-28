@@ -57,6 +57,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
+import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -237,6 +238,7 @@ import nomnomzbot.composeapp.generated.resources.economy_purchases_refund_messag
 import nomnomzbot.composeapp.generated.resources.economy_purchases_refund_title
 import nomnomzbot.composeapp.generated.resources.economy_purchases_status
 import nomnomzbot.composeapp.generated.resources.economy_purchases_title
+import nomnomzbot.composeapp.generated.resources.shell_nav_economy
 import org.jetbrains.compose.resources.stringResource
 
 // The Economy page (economy.md §4): an editable form over the channel's currency definition (name, symbol, earn
@@ -408,6 +410,7 @@ private fun ReadyContent(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(spacing.s4),
     ) {
+        PageHeader(title = stringResource(Res.string.shell_nav_economy))
         StatusBanner(isEnabled = isEnabled, currencyName = edited.currencyName)
 
         // The general editor is enabled only while not saving AND the caller clears the Editor config floor; the

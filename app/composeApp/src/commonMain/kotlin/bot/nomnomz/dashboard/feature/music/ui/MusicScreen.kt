@@ -51,6 +51,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
+import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -126,6 +127,7 @@ import nomnomzbot.composeapp.generated.resources.music_devices_title
 import nomnomzbot.composeapp.generated.resources.music_device_transfer
 import nomnomzbot.composeapp.generated.resources.music_playlists_title
 import nomnomzbot.composeapp.generated.resources.music_playlist_play
+import nomnomzbot.composeapp.generated.resources.shell_nav_music
 import org.jetbrains.compose.resources.stringResource
 
 // The Music page: the channel's live playback, made controllable — every track is real data from
@@ -214,6 +216,7 @@ private fun ReadyContent(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(spacing.s4),
     ) {
+        PageHeader(title = stringResource(Res.string.shell_nav_music))
         if (nowPlaying != null) {
             NowPlayingCard(
                 nowPlaying = nowPlaying,

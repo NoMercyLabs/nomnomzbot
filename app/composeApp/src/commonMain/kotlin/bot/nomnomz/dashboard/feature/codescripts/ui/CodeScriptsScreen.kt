@@ -47,6 +47,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
+import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -82,7 +83,8 @@ import nomnomzbot.composeapp.generated.resources.scripts_loading
 import nomnomzbot.composeapp.generated.resources.scripts_retry
 import nomnomzbot.composeapp.generated.resources.scripts_status_label
 import nomnomzbot.composeapp.generated.resources.scripts_subtitle
-import nomnomzbot.composeapp.generated.resources.scripts_title
+
+import nomnomzbot.composeapp.generated.resources.shell_nav_code_scripts
 import nomnomzbot.composeapp.generated.resources.scripts_version_label
 import org.jetbrains.compose.resources.stringResource
 
@@ -148,15 +150,7 @@ fun CodeScriptsScreen(controller: CodeScriptsController, role: ManagementRole?) 
                 )
             }
             else -> {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
-                        Text(text = stringResource(Res.string.scripts_title), style = typography.xl2, color = tokens.foreground)
-                        Text(text = stringResource(Res.string.scripts_subtitle), style = typography.sm, color = tokens.mutedForeground)
-                    }
+                PageHeader(title = stringResource(Res.string.shell_nav_code_scripts), subtitle = stringResource(Res.string.scripts_subtitle)) {
                     ManageGate(manage) {
                         Button(onClick = { showCreate = true }) { Text(stringResource(Res.string.scripts_list_add)) }
                     }

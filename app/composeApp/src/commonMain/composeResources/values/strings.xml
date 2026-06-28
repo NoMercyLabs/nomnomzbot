@@ -167,6 +167,7 @@
     <string name="home_stat_uptime">Uptime</string>
     <string name="home_uptime_format">%1$dh %2$dm</string>
     <string name="home_uptime_offline">—</string>
+    <string name="home_subtitle">Your channel at a glance</string>
     <string name="home_loading">Loading your channel…</string>
     <string name="home_error">Could not load the dashboard: %1$s</string>
     <string name="home_retry">Retry</string>
@@ -954,6 +955,7 @@
     <string name="shell_nav_pipelines">Pipelines</string>
 
     <!-- Chat page. -->
+    <string name="chat_subtitle">Live feed and moderation</string>
     <string name="chat_loading">Loading chat…</string>
     <string name="chat_empty">No chat yet. Messages appear here as they arrive.</string>
     <string name="chat_error">Couldn't load chat: %1$s</string>

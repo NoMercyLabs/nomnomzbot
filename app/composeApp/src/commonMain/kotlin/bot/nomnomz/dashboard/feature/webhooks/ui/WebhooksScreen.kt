@@ -48,6 +48,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.CopyValue
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
+import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -104,11 +105,12 @@ import nomnomzbot.composeapp.generated.resources.webhooks_rotate_outbound_secret
 import nomnomzbot.composeapp.generated.resources.webhooks_secret_once_title
 import nomnomzbot.composeapp.generated.resources.webhooks_secret_once_message
 import nomnomzbot.composeapp.generated.resources.webhooks_secret_once_dismiss
+import nomnomzbot.composeapp.generated.resources.shell_nav_webhooks
 import nomnomzbot.composeapp.generated.resources.webhooks_subtitle
 import nomnomzbot.composeapp.generated.resources.webhooks_test_failed
 import nomnomzbot.composeapp.generated.resources.webhooks_test_result_title
 import nomnomzbot.composeapp.generated.resources.webhooks_test_success
-import nomnomzbot.composeapp.generated.resources.webhooks_title
+
 import nomnomzbot.composeapp.generated.resources.webhooks_url_label
 import org.jetbrains.compose.resources.stringResource
 
@@ -139,8 +141,7 @@ fun WebhooksScreen(controller: WebhooksController, role: ManagementRole?) {
         modifier = Modifier.fillMaxSize().background(tokens.background).padding(spacing.s6),
         verticalArrangement = Arrangement.spacedBy(spacing.s4),
     ) {
-        Text(text = stringResource(Res.string.webhooks_title), style = typography.xl2, color = tokens.foreground)
-        Text(text = stringResource(Res.string.webhooks_subtitle), style = typography.sm, color = tokens.mutedForeground)
+        PageHeader(title = stringResource(Res.string.shell_nav_webhooks), subtitle = stringResource(Res.string.webhooks_subtitle))
 
         when (val current: WebhooksState = state) {
             is WebhooksState.Loading -> CenteredMessage(stringResource(Res.string.webhooks_loading))

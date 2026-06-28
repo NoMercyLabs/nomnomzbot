@@ -49,6 +49,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
+import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -63,6 +64,7 @@ import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
 import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecision
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.shell_nav_song_requests
 import nomnomzbot.composeapp.generated.resources.songrequests_action_error
 import nomnomzbot.composeapp.generated.resources.songrequests_config_allow_spotify
 import nomnomzbot.composeapp.generated.resources.songrequests_config_allow_youtube
@@ -163,6 +165,8 @@ private fun ReadyContent(
         verticalArrangement = Arrangement.spacedBy(spacing.s4),
         contentPadding = PaddingValues(bottom = spacing.s6),
     ) {
+        item(key = "page-header") { PageHeader(title = stringResource(Res.string.shell_nav_song_requests)) }
+
         // ── Playback controls ────────────────────────────────────────────────
         item {
             PlaybackControls(moderate = moderate, onSkip = onSkip, onPause = onPause, onResume = onResume)

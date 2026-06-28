@@ -53,6 +53,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
+import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -261,21 +262,10 @@ private fun ManagedContent(
 @Composable
 private fun Header(lifecycle: ManageDecision, onNew: () -> Unit, onSync: () -> Unit) {
     val tokens = LocalTokens.current
-    val typography = LocalTypography.current
     val newLabel: String = stringResource(Res.string.rewards_new_action)
     val syncLabel: String = stringResource(Res.string.rewards_sync_action)
 
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween,
-    ) {
-        Text(
-            text = stringResource(Res.string.rewards_title),
-            style = typography.xl2,
-            color = tokens.foreground,
-            modifier = Modifier.weight(1f),
-        )
+    PageHeader(title = stringResource(Res.string.rewards_title)) {
         ManageGate(decision = lifecycle) { enabled ->
             TextButton(
                 onClick = onSync,

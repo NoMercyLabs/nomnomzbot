@@ -54,6 +54,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
+import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -315,19 +316,9 @@ private fun BuiltinRow(
 @Composable
 private fun Header(manage: ManageDecision, onNew: () -> Unit) {
     val tokens = LocalTokens.current
-    val typography = LocalTypography.current
     val newLabel: String = stringResource(Res.string.commands_new_action)
 
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween,
-    ) {
-        Text(
-            text = stringResource(Res.string.commands_title),
-            style = typography.xl2,
-            color = tokens.foreground,
-        )
+    PageHeader(title = stringResource(Res.string.commands_title)) {
         ManageGate(decision = manage) { enabled ->
             Button(
                 onClick = onNew,

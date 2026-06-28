@@ -40,6 +40,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
+import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -58,7 +59,7 @@ import nomnomzbot.composeapp.generated.resources.features_loading
 import nomnomzbot.composeapp.generated.resources.features_retry
 import nomnomzbot.composeapp.generated.resources.features_scopes_label
 import nomnomzbot.composeapp.generated.resources.features_subtitle
-import nomnomzbot.composeapp.generated.resources.features_title
+import nomnomzbot.composeapp.generated.resources.shell_nav_features
 import nomnomzbot.composeapp.generated.resources.features_toggle_action
 import org.jetbrains.compose.resources.stringResource
 
@@ -81,8 +82,10 @@ fun FeaturesScreen(controller: FeaturesController, role: ManagementRole?) {
         modifier = Modifier.fillMaxSize().background(tokens.background).padding(spacing.s6),
         verticalArrangement = Arrangement.spacedBy(spacing.s4),
     ) {
-        Text(text = stringResource(Res.string.features_title), style = typography.xl2, color = tokens.foreground)
-        Text(text = stringResource(Res.string.features_subtitle), style = typography.sm, color = tokens.mutedForeground)
+        PageHeader(
+            title = stringResource(Res.string.shell_nav_features),
+            subtitle = stringResource(Res.string.features_subtitle),
+        )
 
         when (val current: FeaturesState = state) {
             is FeaturesState.Loading -> CenteredMessage(stringResource(Res.string.features_loading))

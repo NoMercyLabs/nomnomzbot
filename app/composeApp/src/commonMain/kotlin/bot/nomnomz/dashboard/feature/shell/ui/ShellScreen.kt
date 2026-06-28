@@ -24,20 +24,20 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.DrawerState
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberDrawerState
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -358,6 +358,14 @@ private fun Sidebar(
         visible.filter { it.group != NavGroup.Setup }.groupBy { it.group }
     val pinned: List<NavPage> = visible.filter { it.group == NavGroup.Setup }
 
+    // The active group drives the initial expanded state; navigating to a different group collapses
+    // the old one and opens the new one automatically. The user can also tap a group label to
+    // expand/collapse it manually between navigations. Setup pages have no accordion group so all
+    // collapse (accordionGroup = null) when the user is on Integrations / Settings / etc.
+    val activeGroup: NavGroup? = ShellNav.pages.find { it.route == selected }?.group
+    val accordionGroup: NavGroup? = activeGroup?.takeIf { groups.containsKey(it) }
+    var expandedGroup: NavGroup? by remember(accordionGroup) { mutableStateOf(accordionGroup) }
+
     Column(
         modifier = Modifier
             .fillMaxHeight()
@@ -374,14 +382,23 @@ private fun Sidebar(
 
         ChannelPickerBlock(switcher = channelSwitcher)
 
+        // Accordion — only the active (or user-toggled) group shows its items. All groups visible
+        // with no scrolling: worst case is Chat (7 items) ≈ 564dp, well within the ~746dp available.
         Column(
-            modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()),
+            modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(spacing.s1),
         ) {
             groups.forEach { (group, pages) ->
-                GroupLabel(label = group.label())
-                pages.forEach { page ->
-                    NavItem(route = page.route, selected = page.route == selected) { onSelect(page.route) }
+                val isExpanded: Boolean = expandedGroup == group
+                GroupLabel(
+                    label = group.label(),
+                    expanded = isExpanded,
+                    onClick = { expandedGroup = if (isExpanded) null else group },
+                )
+                if (isExpanded) {
+                    pages.forEach { page ->
+                        NavItem(route = page.route, selected = page.route == selected) { onSelect(page.route) }
+                    }
                 }
             }
         }
@@ -393,7 +410,7 @@ private fun Sidebar(
             )
             Column(verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
                 // SETUP is a LABELLED pinned group (frontend-ia.md §3), not a headerless rail.
-                GroupLabel(label = NavGroup.Setup.label())
+                GroupLabel(label = NavGroup.Setup.label(), collapsible = false)
                 pinned.forEach { page ->
                     NavItem(route = page.route, selected = page.route == selected) { onSelect(page.route) }
                 }
@@ -485,17 +502,34 @@ private fun ChannelPickerBlock(switcher: ChannelSwitcherController) {
 }
 
 @Composable
-private fun GroupLabel(label: String) {
+private fun GroupLabel(
+    label: String,
+    expanded: Boolean = true,
+    onClick: () -> Unit = {},
+    collapsible: Boolean = true,
+) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
 
-    Text(
-        text = label,
-        style = typography.xs,
-        color = tokens.mutedForeground,
-        modifier = Modifier.padding(start = spacing.s2, top = spacing.s3, bottom = spacing.s1),
-    )
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(if (collapsible) Modifier.clickable(onClick = onClick) else Modifier)
+            .padding(start = spacing.s2, top = spacing.s3, bottom = spacing.s1, end = spacing.s2),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(text = label, style = typography.xs, color = tokens.mutedForeground)
+        if (collapsible) {
+            Icon(
+                imageVector = if (expanded) ChevronUpGlyph else ChevronDownGlyph,
+                contentDescription = null,
+                tint = tokens.mutedForeground,
+                modifier = Modifier.size(spacing.s4),
+            )
+        }
+    }
 }
 
 @Composable
@@ -507,15 +541,30 @@ private fun NavItem(route: ShellRoute, selected: Boolean, onClick: () -> Unit) {
     val container: Color = if (selected) tokens.sidebarAccent else Color.Transparent
     val content: Color = if (selected) tokens.sidebarAccentForeground else tokens.sidebarForeground
 
-    Box(
+    Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(tokens.radius.md))
             .background(container)
             .selectable(selected = selected, role = Role.Tab, onClick = onClick)
             .padding(horizontal = spacing.s3, vertical = spacing.s2),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(spacing.s2),
     ) {
-        Text(text = route.label(), style = typography.sm, color = content)
+        Icon(
+            imageVector = route.icon(),
+            contentDescription = null,
+            tint = content,
+            modifier = Modifier.size(spacing.s4),
+        )
+        Text(
+            text = route.label(),
+            style = typography.sm,
+            color = content,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
     }
 }
 
@@ -729,6 +778,37 @@ private fun HubDot() {
 }
 
 // ── Label mappings (the single place each route/group/role/language maps to its localized string) ──────────
+
+private fun ShellRoute.icon(): ImageVector =
+    when (this) {
+        ShellRoute.Dashboard -> DashboardGlyph
+        ShellRoute.Chat -> ChatGlyph
+        ShellRoute.Commands -> CommandsGlyph
+        ShellRoute.EventResponses -> EventResponsesGlyph
+        ShellRoute.Pipelines -> PipelinesGlyph
+        ShellRoute.Timers -> TimersGlyph
+        ShellRoute.Quotes -> QuotesGlyph
+        ShellRoute.CodeScripts -> CodeScriptsGlyph
+        ShellRoute.Moderation -> ModerationGlyph
+        ShellRoute.Rewards -> RewardsGlyph
+        ShellRoute.Economy -> EconomyGlyph
+        ShellRoute.Games -> GamesGlyph
+        ShellRoute.Music -> MusicGlyph
+        ShellRoute.SongRequests -> SongRequestsGlyph
+        ShellRoute.Tts -> TtsGlyph
+        ShellRoute.Widgets -> WidgetsGlyph
+        ShellRoute.Alerts -> AlertsGlyph
+        ShellRoute.Analytics -> AnalyticsGlyph
+        ShellRoute.Community -> CommunityGlyph
+        ShellRoute.Discord -> DiscordGlyph
+        ShellRoute.Integrations -> IntegrationsGlyph
+        ShellRoute.Roles -> RolesGlyph
+        ShellRoute.Features -> FeaturesGlyph
+        ShellRoute.Webhooks -> WebhooksGlyph
+        ShellRoute.Federation -> FederationGlyph
+        ShellRoute.Settings -> SettingsGlyph
+        ShellRoute.Admin -> AdminGlyph
+    }
 
 @Composable
 private fun ShellRoute.label(): String =

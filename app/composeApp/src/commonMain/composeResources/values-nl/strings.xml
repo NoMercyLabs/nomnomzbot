@@ -164,6 +164,7 @@
     <string name="home_stat_uptime">Uptime</string>
     <string name="home_uptime_format">%1$dh %2$dm</string>
     <string name="home_uptime_offline">—</string>
+    <string name="home_subtitle">Je kanaal in één oogopslag</string>
     <string name="home_loading">Je kanaal laden…</string>
     <string name="home_error">Kon het dashboard niet laden: %1$s</string>
     <string name="home_retry">Opnieuw proberen</string>
@@ -951,6 +952,7 @@
     <string name="shell_nav_pipelines">Pijplijnen</string>
 
     <!-- Chat page. -->
+    <string name="chat_subtitle">Live feed en moderatie</string>
     <string name="chat_loading">Chat laden…</string>
     <string name="chat_empty">Nog geen chat. Berichten verschijnen hier zodra ze binnenkomen.</string>
     <string name="chat_error">Chat laden mislukt: %1$s</string>

@@ -52,6 +52,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.CopyValue
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
+import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -76,8 +77,8 @@ import nomnomzbot.composeapp.generated.resources.widgets_empty
 import nomnomzbot.composeapp.generated.resources.widgets_error
 import nomnomzbot.composeapp.generated.resources.widgets_loading
 import nomnomzbot.composeapp.generated.resources.widgets_retry
+import nomnomzbot.composeapp.generated.resources.shell_nav_overlays
 import nomnomzbot.composeapp.generated.resources.widgets_subtitle
-import nomnomzbot.composeapp.generated.resources.widgets_title
 import nomnomzbot.composeapp.generated.resources.widgets_toggle_action
 import nomnomzbot.composeapp.generated.resources.widgets_url_copied
 import nomnomzbot.composeapp.generated.resources.widgets_url_copy
@@ -130,23 +131,10 @@ fun WidgetsScreen(controller: WidgetsController, role: ManagementRole?) {
         modifier = Modifier.fillMaxSize().background(tokens.background).padding(spacing.s6),
         verticalArrangement = Arrangement.spacedBy(spacing.s4),
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
+        PageHeader(
+            title = stringResource(Res.string.shell_nav_overlays),
+            subtitle = stringResource(Res.string.widgets_subtitle),
         ) {
-            Column {
-                Text(
-                    text = stringResource(Res.string.widgets_title),
-                    style = typography.xl2,
-                    color = tokens.foreground,
-                )
-                Text(
-                    text = stringResource(Res.string.widgets_subtitle),
-                    style = typography.sm,
-                    color = tokens.mutedForeground,
-                )
-            }
             ManageGate(manage) {
                 Button(onClick = { showCreateDialog = true }) {
                     Text(stringResource(Res.string.widgets_create_action))

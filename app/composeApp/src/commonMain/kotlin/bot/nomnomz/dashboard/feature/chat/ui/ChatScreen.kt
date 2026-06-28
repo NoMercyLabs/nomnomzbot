@@ -52,6 +52,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
+import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -74,6 +75,8 @@ import nomnomzbot.composeapp.generated.resources.chat_delete_dismiss
 import nomnomzbot.composeapp.generated.resources.chat_delete_message
 import nomnomzbot.composeapp.generated.resources.chat_delete_title
 import nomnomzbot.composeapp.generated.resources.chat_empty
+import nomnomzbot.composeapp.generated.resources.chat_subtitle
+import nomnomzbot.composeapp.generated.resources.shell_nav_chat
 import nomnomzbot.composeapp.generated.resources.chat_error
 import nomnomzbot.composeapp.generated.resources.chat_loading
 import nomnomzbot.composeapp.generated.resources.chat_message_description
@@ -127,7 +130,11 @@ fun ChatScreen(
         LaunchedEffect(hubEvents) { controller.subscribeToHub(hubEvents) }
     }
 
-    Column(modifier = Modifier.fillMaxSize().padding(spacing.s6)) {
+    Column(modifier = Modifier.fillMaxSize().padding(spacing.s6), verticalArrangement = Arrangement.spacedBy(spacing.s4)) {
+        PageHeader(
+            title = stringResource(Res.string.shell_nav_chat),
+            subtitle = stringResource(Res.string.chat_subtitle),
+        )
         Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
             when (val current: ChatState = state) {
                 is ChatState.Loading -> CenteredMessage(stringResource(Res.string.chat_loading))

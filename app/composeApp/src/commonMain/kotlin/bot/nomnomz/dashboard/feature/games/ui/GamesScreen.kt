@@ -51,6 +51,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
+import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -64,6 +65,7 @@ import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
 import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecision
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.shell_nav_games
 import nomnomzbot.composeapp.generated.resources.games_18plus
 import nomnomzbot.composeapp.generated.resources.games_action_error
 import nomnomzbot.composeapp.generated.resources.games_cooldown
@@ -164,6 +166,7 @@ private fun ManagedContent(
         contentPadding = PaddingValues(vertical = spacing.s1),
         verticalArrangement = Arrangement.spacedBy(spacing.s2),
     ) {
+        item(key = "page-header") { PageHeader(title = stringResource(Res.string.shell_nav_games)) }
         actionError?.let { detail ->
             item(key = "action-error") { ActionErrorBanner(detail = detail) }
         }

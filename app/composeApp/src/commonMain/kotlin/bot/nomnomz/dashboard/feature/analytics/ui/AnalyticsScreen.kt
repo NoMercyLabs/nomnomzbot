@@ -39,6 +39,7 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -68,6 +69,7 @@ import nomnomzbot.composeapp.generated.resources.analytics_stat_subscribers
 import nomnomzbot.composeapp.generated.resources.analytics_top_viewers_empty
 import nomnomzbot.composeapp.generated.resources.analytics_top_viewers_rank
 import nomnomzbot.composeapp.generated.resources.analytics_top_viewers_title
+import nomnomzbot.composeapp.generated.resources.shell_nav_analytics
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -105,6 +107,7 @@ private fun ReadyContent(
     val spacing = LocalSpacing.current
 
     LazyColumn(verticalArrangement = Arrangement.spacedBy(spacing.s6)) {
+        item { PageHeader(title = stringResource(Res.string.shell_nav_analytics)) }
         item { StatTiles(summary = summary) }
         item { DailyTrendsSection(daily = daily) }
         item { TopViewersSection(topViewers = topViewers) }

@@ -48,6 +48,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
+import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -73,6 +74,7 @@ import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
 import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecisionAtFloor
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.shell_nav_settings
 import nomnomzbot.composeapp.generated.resources.journal_dismiss
 import nomnomzbot.composeapp.generated.resources.journal_error
 import nomnomzbot.composeapp.generated.resources.journal_export
@@ -218,6 +220,7 @@ fun SettingsScreen(
         modifier = Modifier.fillMaxSize().padding(spacing.s6),
         verticalArrangement = Arrangement.spacedBy(spacing.s6),
     ) {
+        PageHeader(title = stringResource(Res.string.shell_nav_settings))
         Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
             when (val current: SettingsState = state) {
                 is SettingsState.Loading ->

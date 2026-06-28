@@ -41,12 +41,14 @@ import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.feature.admin.state.AdminController
 import bot.nomnomz.dashboard.feature.admin.state.AdminState
 import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.shell_nav_admin
 import nomnomzbot.composeapp.generated.resources.admin_channel_live
 import nomnomzbot.composeapp.generated.resources.admin_channel_offline
 import nomnomzbot.composeapp.generated.resources.admin_channel_plan
@@ -102,6 +104,10 @@ fun AdminScreen(controller: AdminController) {
     )
 
     Column(modifier = Modifier.fillMaxSize().background(tokens.background)) {
+        PageHeader(
+            title = stringResource(Res.string.shell_nav_admin),
+            modifier = Modifier.padding(horizontal = spacing.s6, vertical = spacing.s4),
+        )
         TabRow(
             selectedTabIndex = selectedTab,
             containerColor = tokens.card,

@@ -44,6 +44,7 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
+import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -92,7 +93,7 @@ import nomnomzbot.composeapp.generated.resources.integrations_spotify_title
 import nomnomzbot.composeapp.generated.resources.integrations_status_connected
 import nomnomzbot.composeapp.generated.resources.integrations_status_not_connected
 import nomnomzbot.composeapp.generated.resources.integrations_subtitle
-import nomnomzbot.composeapp.generated.resources.integrations_title
+import nomnomzbot.composeapp.generated.resources.shell_nav_integrations
 import nomnomzbot.composeapp.generated.resources.integrations_youtube_subtitle
 import nomnomzbot.composeapp.generated.resources.integrations_youtube_title
 import nomnomzbot.composeapp.generated.resources.permissions_banner_action
@@ -194,15 +195,9 @@ fun IntegrationsScreen(
         modifier = Modifier.fillMaxSize().background(tokens.background).padding(spacing.s6),
         verticalArrangement = Arrangement.spacedBy(spacing.s4),
     ) {
-        Text(
-            text = stringResource(Res.string.integrations_title),
-            style = typography.xl2,
-            color = tokens.foreground,
-        )
-        Text(
-            text = stringResource(Res.string.integrations_subtitle),
-            style = typography.sm,
-            color = tokens.mutedForeground,
+        PageHeader(
+            title = stringResource(Res.string.shell_nav_integrations),
+            subtitle = stringResource(Res.string.integrations_subtitle),
         )
 
         when (val current: IntegrationsState = state) {

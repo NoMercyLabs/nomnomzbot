@@ -45,6 +45,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
+import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -92,7 +93,8 @@ import nomnomzbot.composeapp.generated.resources.federation_peer_trust
 import nomnomzbot.composeapp.generated.resources.federation_peer_title_dialog
 import nomnomzbot.composeapp.generated.resources.federation_retry
 import nomnomzbot.composeapp.generated.resources.federation_subtitle
-import nomnomzbot.composeapp.generated.resources.federation_title
+
+import nomnomzbot.composeapp.generated.resources.shell_nav_federation
 import org.jetbrains.compose.resources.stringResource
 
 // The Federation page: global peer list and the channel's federated opt-in subscriptions. All data comes from
@@ -118,8 +120,7 @@ fun FederationScreen(controller: FederationController, role: ManagementRole?) {
         modifier = Modifier.fillMaxSize().background(tokens.background).padding(spacing.s6),
         verticalArrangement = Arrangement.spacedBy(spacing.s4),
     ) {
-        Text(text = stringResource(Res.string.federation_title), style = typography.xl2, color = tokens.foreground)
-        Text(text = stringResource(Res.string.federation_subtitle), style = typography.sm, color = tokens.mutedForeground)
+        PageHeader(title = stringResource(Res.string.shell_nav_federation), subtitle = stringResource(Res.string.federation_subtitle))
 
         when (val current: FederationState = state) {
             is FederationState.Loading -> CenteredMessage(stringResource(Res.string.federation_loading))

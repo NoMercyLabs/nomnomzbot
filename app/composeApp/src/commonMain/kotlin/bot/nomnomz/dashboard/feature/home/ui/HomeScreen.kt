@@ -46,6 +46,7 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -61,6 +62,8 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.home_error
+import nomnomzbot.composeapp.generated.resources.home_subtitle
+import nomnomzbot.composeapp.generated.resources.shell_nav_dashboard
 import nomnomzbot.composeapp.generated.resources.home_game_label
 import nomnomzbot.composeapp.generated.resources.home_live_ops_active_poll
 import nomnomzbot.composeapp.generated.resources.home_live_ops_active_prediction
@@ -150,6 +153,10 @@ private fun ReadyContent(stats: DashboardStats, liveOpsController: LiveOpsContro
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(spacing.s4),
     ) {
+        PageHeader(
+            title = stringResource(Res.string.shell_nav_dashboard),
+            subtitle = stringResource(Res.string.home_subtitle),
+        )
         LiveBanner(stats = stats)
         StatTiles(stats = stats)
         LiveOpsSection(controller = liveOpsController)

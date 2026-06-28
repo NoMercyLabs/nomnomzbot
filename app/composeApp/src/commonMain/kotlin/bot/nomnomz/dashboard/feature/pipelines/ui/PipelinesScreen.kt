@@ -54,6 +54,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
+import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -144,7 +145,8 @@ import nomnomzbot.composeapp.generated.resources.pipelines_step_move_down_short
 import nomnomzbot.composeapp.generated.resources.pipelines_step_move_up
 import nomnomzbot.composeapp.generated.resources.pipelines_step_move_up_short
 import nomnomzbot.composeapp.generated.resources.pipelines_step_stop_label
-import nomnomzbot.composeapp.generated.resources.pipelines_title
+
+import nomnomzbot.composeapp.generated.resources.shell_nav_pipelines
 import nomnomzbot.composeapp.generated.resources.pipelines_toggle_action
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
@@ -273,15 +275,9 @@ private fun ListContent(
 @Composable
 private fun ListHeader(manage: ManageDecision, onNew: () -> Unit) {
     val tokens = LocalTokens.current
-    val typography = LocalTypography.current
     val newLabel: String = stringResource(Res.string.pipelines_new_action)
 
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween,
-    ) {
-        Text(text = stringResource(Res.string.pipelines_title), style = typography.xl2, color = tokens.foreground)
+    PageHeader(title = stringResource(Res.string.shell_nav_pipelines)) {
         ManageGate(decision = manage) { enabled ->
             Button(
                 onClick = onNew,

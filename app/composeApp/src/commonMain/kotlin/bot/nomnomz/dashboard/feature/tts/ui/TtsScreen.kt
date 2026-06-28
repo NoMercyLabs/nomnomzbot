@@ -50,9 +50,10 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
+import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
+import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -94,6 +95,7 @@ import nomnomzbot.composeapp.generated.resources.tts_voices_search
 import nomnomzbot.composeapp.generated.resources.tts_voices_use
 import nomnomzbot.composeapp.generated.resources.tts_voices_use_action
 import nomnomzbot.composeapp.generated.resources.tts_voices_title
+import nomnomzbot.composeapp.generated.resources.shell_nav_tts
 import nomnomzbot.composeapp.generated.resources.tts_test_error
 import nomnomzbot.composeapp.generated.resources.tts_test_play
 import nomnomzbot.composeapp.generated.resources.tts_test_prompt
@@ -188,6 +190,7 @@ private fun ReadyContent(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(spacing.s4),
     ) {
+        PageHeader(title = stringResource(Res.string.shell_nav_tts))
         StatusBanner(isEnabled = isEnabled)
 
         EditCard(

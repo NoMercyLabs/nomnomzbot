@@ -49,6 +49,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
+import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -84,6 +85,7 @@ import nomnomzbot.composeapp.generated.resources.timers_interval
 import nomnomzbot.composeapp.generated.resources.timers_loading
 import nomnomzbot.composeapp.generated.resources.timers_message_count
 import nomnomzbot.composeapp.generated.resources.timers_new
+import nomnomzbot.composeapp.generated.resources.shell_nav_timers
 import nomnomzbot.composeapp.generated.resources.timers_retry
 import nomnomzbot.composeapp.generated.resources.timers_toggle
 import nomnomzbot.composeapp.generated.resources.timers_write_error
@@ -200,10 +202,7 @@ private fun ManagedContent(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(spacing.s4),
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.End,
-        ) {
+        PageHeader(title = stringResource(Res.string.shell_nav_timers)) {
             ManageGate(decision = manage) { enabled ->
                 Button(
                     onClick = onNew,
