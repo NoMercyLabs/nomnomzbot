@@ -54,7 +54,7 @@ public sealed class BuiltinCommandService : IBuiltinCommandService
 
                 return new BuiltinCommandDto(
                     cmd.BuiltinKey,
-                    cmd.BuiltinKey,
+                    "!" + cmd.BuiltinKey,
                     isEnabled,
                     cmd.DefaultCooldownSeconds,
                     cmd.DefaultMinPermissionLevel
