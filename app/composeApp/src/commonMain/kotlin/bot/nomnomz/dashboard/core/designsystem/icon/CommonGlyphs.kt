@@ -131,6 +131,16 @@ val PlayCircleGlyph: ImageVector = icon("PlayCircle") {
     )
 }
 
+/** Arrow pointing up — Arrows/arrow-up */
+val ArrowUpGlyph: ImageVector = icon("ArrowUp") {
+    strokePath("M12 20V4M17 10L12 4L7 10")
+}
+
+/** Arrow pointing down — Arrows/arrow-down */
+val ArrowDownGlyph: ImageVector = icon("ArrowDown") {
+    strokePath("M12 4V20M17 14L12 20L7 14")
+}
+
 /** Circular refresh arrows — Arrows/arrow-refresh-horizontal */
 val RefreshGlyph: ImageVector = icon("Refresh") {
     strokePath(

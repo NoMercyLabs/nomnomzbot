@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -28,6 +29,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Switch
@@ -51,15 +54,20 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
+import bot.nomnomz.dashboard.core.designsystem.icon.ArrowDownGlyph
+import bot.nomnomz.dashboard.core.designsystem.icon.ArrowUpGlyph
+import bot.nomnomz.dashboard.core.designsystem.icon.EditGlyph
+import bot.nomnomz.dashboard.core.designsystem.icon.EditLineGlyph
+import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.designsystem.theme.Tokens
-import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.network.BlockField
 import bot.nomnomz.dashboard.core.network.BlockType
 import bot.nomnomz.dashboard.core.network.FieldKind
@@ -363,29 +371,35 @@ private fun PipelineRow(
                 modifier = Modifier.semantics { contentDescription = toggleLabel },
             )
         }
-        // Opening the chain editor is navigation/read, not a write — it stays enabled for everyone; the editor
-        // surface gates each of its own write controls.
-        TextButton(
+        // Opening the chain editor is navigation/read, not a write — stays enabled for everyone.
+        IconButton(
             onClick = onOpen,
             modifier = Modifier.semantics { contentDescription = editChainLabel },
         ) {
-            Text(text = stringResource(Res.string.pipelines_edit_chain_action_short), color = tokens.primary, maxLines = 1)
+            Icon(
+                imageVector = EditLineGlyph,
+                contentDescription = null,
+                tint = tokens.primary,
+                modifier = Modifier.size(spacing.s4),
+            )
         }
         ManageGate(decision = manage) { enabled ->
-            TextButton(onClick = onEdit, enabled = enabled) {
-                Text(
-                    text = stringResource(Res.string.pipelines_rename_action_short),
-                    color = if (enabled) tokens.primary else tokens.mutedForeground,
-                    maxLines = 1,
+            IconButton(onClick = onEdit, enabled = enabled) {
+                Icon(
+                    imageVector = EditGlyph,
+                    contentDescription = null,
+                    tint = if (enabled) tokens.mutedForeground else tokens.muted,
+                    modifier = Modifier.size(spacing.s4),
                 )
             }
         }
         ManageGate(decision = manage) { enabled ->
-            TextButton(onClick = onDelete, enabled = enabled) {
-                Text(
-                    text = stringResource(Res.string.pipelines_delete_action_short),
-                    color = if (enabled) tokens.destructive else tokens.mutedForeground,
-                    maxLines = 1,
+            IconButton(onClick = onDelete, enabled = enabled) {
+                Icon(
+                    imageVector = TrashGlyph,
+                    contentDescription = null,
+                    tint = if (enabled) tokens.destructive else tokens.muted,
+                    modifier = Modifier.size(spacing.s4),
                 )
             }
         }
@@ -565,29 +579,61 @@ private fun StepCard(
             // Reorder is a write AND bounded by position: the gate's `enabled` and the bound both must hold.
             ManageGate(decision = manage) { allowed ->
                 val canMoveUp: Boolean = allowed && index > 0
-                TextButton(onClick = onMoveUp, enabled = canMoveUp, modifier = Modifier.semantics { contentDescription = upLabel }) {
-                    Text(text = stringResource(Res.string.pipelines_step_move_up_short), color = if (canMoveUp) tokens.primary else tokens.mutedForeground, maxLines = 1)
+                IconButton(
+                    onClick = onMoveUp,
+                    enabled = canMoveUp,
+                    modifier = Modifier.semantics { contentDescription = upLabel },
+                ) {
+                    Icon(
+                        imageVector = ArrowUpGlyph,
+                        contentDescription = null,
+                        tint = if (canMoveUp) tokens.primary else tokens.muted,
+                        modifier = Modifier.size(spacing.s4),
+                    )
                 }
             }
             ManageGate(decision = manage) { allowed ->
                 val canMoveDown: Boolean = allowed && index < total - 1
-                TextButton(
+                IconButton(
                     onClick = onMoveDown,
                     enabled = canMoveDown,
                     modifier = Modifier.semantics { contentDescription = downLabel },
                 ) {
-                    Text(text = stringResource(Res.string.pipelines_step_move_down_short), color = if (canMoveDown) tokens.primary else tokens.mutedForeground, maxLines = 1)
+                    Icon(
+                        imageVector = ArrowDownGlyph,
+                        contentDescription = null,
+                        tint = if (canMoveDown) tokens.primary else tokens.muted,
+                        modifier = Modifier.size(spacing.s4),
+                    )
                 }
             }
             Box(modifier = Modifier.weight(1f))
             ManageGate(decision = manage) { enabled ->
-                TextButton(onClick = onEdit, enabled = enabled, modifier = Modifier.semantics { contentDescription = editLabel }) {
-                    Text(text = stringResource(Res.string.pipelines_step_edit_short), color = if (enabled) tokens.primary else tokens.mutedForeground, maxLines = 1)
+                IconButton(
+                    onClick = onEdit,
+                    enabled = enabled,
+                    modifier = Modifier.semantics { contentDescription = editLabel },
+                ) {
+                    Icon(
+                        imageVector = EditGlyph,
+                        contentDescription = null,
+                        tint = if (enabled) tokens.mutedForeground else tokens.muted,
+                        modifier = Modifier.size(spacing.s4),
+                    )
                 }
             }
             ManageGate(decision = manage) { enabled ->
-                TextButton(onClick = onRemove, enabled = enabled, modifier = Modifier.semantics { contentDescription = removeLabel }) {
-                    Text(text = stringResource(Res.string.pipelines_step_delete_short), color = if (enabled) tokens.destructive else tokens.mutedForeground, maxLines = 1)
+                IconButton(
+                    onClick = onRemove,
+                    enabled = enabled,
+                    modifier = Modifier.semantics { contentDescription = removeLabel },
+                ) {
+                    Icon(
+                        imageVector = TrashGlyph,
+                        contentDescription = null,
+                        tint = if (enabled) tokens.destructive else tokens.muted,
+                        modifier = Modifier.size(spacing.s4),
+                    )
                 }
             }
         }
