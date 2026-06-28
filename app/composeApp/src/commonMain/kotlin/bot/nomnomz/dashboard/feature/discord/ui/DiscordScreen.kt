@@ -63,7 +63,9 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.designsystem.theme.Tokens
+import bot.nomnomz.dashboard.core.designsystem.icon.CheckCircleGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.EditGlyph
+import bot.nomnomz.dashboard.core.designsystem.icon.RemoveGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
 import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
@@ -571,19 +573,21 @@ private fun GuildHeader(
             )
             ManageGate(decision = manage) { enabled ->
                 if (connection.serverConsentStatus == "approved") {
-                    TextButton(onClick = onRevokeConsent, enabled = enabled) {
-                        Text(
-                            text = stringResource(Res.string.discord_consent_revoke),
-                            style = typography.xs,
-                            color = if (enabled) tokens.destructive else tokens.mutedForeground,
+                    IconButton(onClick = onRevokeConsent, enabled = enabled) {
+                        Icon(
+                            imageVector = RemoveGlyph,
+                            contentDescription = stringResource(Res.string.discord_consent_revoke),
+                            tint = if (enabled) tokens.destructive else tokens.muted,
+                            modifier = Modifier.size(spacing.s4),
                         )
                     }
                 } else {
-                    TextButton(onClick = onApproveConsent, enabled = enabled) {
-                        Text(
-                            text = stringResource(Res.string.discord_consent_approve),
-                            style = typography.xs,
-                            color = if (enabled) tokens.primary else tokens.mutedForeground,
+                    IconButton(onClick = onApproveConsent, enabled = enabled) {
+                        Icon(
+                            imageVector = CheckCircleGlyph,
+                            contentDescription = stringResource(Res.string.discord_consent_approve),
+                            tint = if (enabled) tokens.primary else tokens.muted,
+                            modifier = Modifier.size(spacing.s4),
                         )
                     }
                 }
