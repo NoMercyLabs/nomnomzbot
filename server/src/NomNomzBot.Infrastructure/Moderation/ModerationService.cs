@@ -362,7 +362,7 @@ public class ModerationService : IModerationService
             .Take(pagination.PageSize)
             .ToListAsync(cancellationToken);
 
-        // The actor's Twitch user id (Record.UserId) is resolved to a display name via Users.TwitchUserId.
+        // Record.UserId is either a Twitch user id or a broadcaster UUID — ResolveUsernamesAsync handles both.
         Dictionary<string, string> usernamesByTwitchId = await ResolveUsernamesAsync(
             records.Select(r => r.UserId),
             cancellationToken
@@ -661,21 +661,51 @@ public class ModerationService : IModerationService
     }
 
     /// <summary>
-    /// Resolves a set of Twitch user ids to display names via <c>Users.TwitchUserId</c> (the actor ids on
-    /// moderation records are Twitch ids, not internal Guids). Missing ids simply fall back to the raw id.
+    /// Resolves a set of actor ids to display names. Dashboard-originated actions store the broadcaster's
+    /// internal <c>Guid</c> as the actor; EventSub-originated actions store the Twitch user id. This method
+    /// handles both: UUID-shaped strings are looked up via <c>User.Id</c>; everything else via
+    /// <c>User.TwitchUserId</c>. Missing ids fall back to the raw id string.
     /// </summary>
     private async Task<Dictionary<string, string>> ResolveUsernamesAsync(
-        IEnumerable<string> twitchUserIds,
+        IEnumerable<string> actorIds,
         CancellationToken cancellationToken
     )
     {
-        List<string> ids = twitchUserIds.Where(id => !string.IsNullOrEmpty(id)).Distinct().ToList();
-        if (ids.Count == 0)
-            return new();
+        List<string> distinct = actorIds
+            .Where(id => !string.IsNullOrEmpty(id))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        if (distinct.Count == 0)
+            return new(StringComparer.OrdinalIgnoreCase);
 
-        return await _db
-            .Users.Where(u => ids.Contains(u.TwitchUserId))
-            .ToDictionaryAsync(u => u.TwitchUserId, u => u.Username, cancellationToken);
+        // Split into UUID-shaped ids (stored by dashboard actions) and plain Twitch user ids.
+        List<Guid> internalIds = distinct
+            .Where(id => Guid.TryParse(id, out _))
+            .Select(Guid.Parse)
+            .ToList();
+        List<string> twitchIds = distinct.Where(id => !Guid.TryParse(id, out _)).ToList();
+
+        Dictionary<string, string> result = new(StringComparer.OrdinalIgnoreCase);
+
+        if (twitchIds.Count > 0)
+        {
+            Dictionary<string, string> byTwitch = await _db
+                .Users.Where(u => twitchIds.Contains(u.TwitchUserId))
+                .ToDictionaryAsync(u => u.TwitchUserId, u => u.DisplayName, cancellationToken);
+            foreach (KeyValuePair<string, string> kv in byTwitch)
+                result[kv.Key] = kv.Value;
+        }
+
+        if (internalIds.Count > 0)
+        {
+            Dictionary<string, string> byInternal = await _db
+                .Users.Where(u => internalIds.Contains(u.Id))
+                .ToDictionaryAsync(u => u.Id.ToString(), u => u.DisplayName, cancellationToken);
+            foreach (KeyValuePair<string, string> kv in byInternal)
+                result[kv.Key] = kv.Value;
+        }
+
+        return result;
     }
 
     // ─── Private data shapes stored in Record.Data ───────────────────────────
