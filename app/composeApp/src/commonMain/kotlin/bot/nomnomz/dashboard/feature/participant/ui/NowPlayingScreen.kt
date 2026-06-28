@@ -17,11 +17,11 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -92,7 +92,7 @@ fun NowPlayingScreen(controller: ParticipantController) {
 private fun Ready(state: NowPlayingState.Ready, onSubmit: (String) -> Unit) {
     val spacing = LocalSpacing.current
 
-    Column(verticalArrangement = Arrangement.spacedBy(spacing.s4), modifier = Modifier.fillMaxSize()) {
+    Column(verticalArrangement = Arrangement.spacedBy(spacing.s4), modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
         state.actionError?.let { ActionErrorBanner(detail = it) }
         NowPlayingCard(track = state.snapshot.nowPlaying)
         SubmitCard(
@@ -177,11 +177,11 @@ private fun QueueCard(queue: List<MusicTrack>) {
                 color = tokens.mutedForeground,
             )
         } else {
-            LazyColumn(
+            Column(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(spacing.s2),
             ) {
-                items(items = queue, key = { it.position }) { track -> QueueRow(track = track) }
+                queue.forEach { track -> QueueRow(track = track) }
             }
         }
     }

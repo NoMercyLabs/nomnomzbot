@@ -17,8 +17,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -81,7 +81,7 @@ fun LeaderboardsScreen(controller: ParticipantController) {
 private fun Ready(state: LeaderboardsState.Ready, onToggleConsent: (Boolean) -> Unit) {
     val spacing = LocalSpacing.current
 
-    Column(verticalArrangement = Arrangement.spacedBy(spacing.s4), modifier = Modifier.fillMaxSize()) {
+    Column(verticalArrangement = Arrangement.spacedBy(spacing.s4), modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
         state.actionError?.let { ActionErrorBanner(detail = it) }
         ConsentCard(optedIn = state.optedIn, onToggle = onToggleConsent)
         RankingCard(state = state)
@@ -130,11 +130,11 @@ private fun RankingCard(state: LeaderboardsState.Ready) {
                 color = tokens.mutedForeground,
             )
         } else {
-            LazyColumn(
+            Column(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(spacing.s2),
             ) {
-                items(items = state.ranking, key = { it.rank }) { entry -> RankRow(entry = entry) }
+                state.ranking.forEach { entry -> RankRow(entry = entry) }
             }
         }
     }
