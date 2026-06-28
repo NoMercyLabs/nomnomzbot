@@ -46,6 +46,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
@@ -187,7 +188,7 @@ private fun ManagedContent(
         verticalArrangement = Arrangement.spacedBy(spacing.s4),
     ) {
         Header(manage = manage, onNew = onNew)
-        actionError?.let { ActionErrorBanner(detail = it) }
+        actionError?.let { ActionErrorBanner(message = stringResource(Res.string.quotes_action_error, it)) }
 
         if (quotes.isEmpty()) {
             CenteredMessage(stringResource(Res.string.quotes_empty))
@@ -219,24 +220,6 @@ private fun Header(manage: ManageDecision, onNew: () -> Unit) {
             }
         }
     }
-}
-
-@Composable
-private fun ActionErrorBanner(detail: String) {
-    val tokens = LocalTokens.current
-    val spacing = LocalSpacing.current
-    val typography = LocalTypography.current
-
-    Text(
-        text = stringResource(Res.string.quotes_action_error, detail),
-        style = typography.sm,
-        color = tokens.destructiveForeground,
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(tokens.radius.md))
-            .background(tokens.destructive)
-            .padding(horizontal = spacing.s3, vertical = spacing.s2),
-    )
 }
 
 @Composable

@@ -48,6 +48,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
+import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.CopyValue
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
@@ -232,7 +233,7 @@ private fun ReadyContent(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(spacing.s3),
     ) {
-        actionError?.let { ActionErrorBanner(detail = it) }
+        actionError?.let { ActionErrorBanner(message = stringResource(Res.string.widgets_action_error, it)) }
         WidgetList(
             widgets = widgets,
             manage = manage,
@@ -242,24 +243,6 @@ private fun ReadyContent(
             onClone = onClone,
         )
     }
-}
-
-@Composable
-private fun ActionErrorBanner(detail: String) {
-    val tokens = LocalTokens.current
-    val spacing = LocalSpacing.current
-    val typography = LocalTypography.current
-
-    Text(
-        text = stringResource(Res.string.widgets_action_error, detail),
-        style = typography.sm,
-        color = tokens.destructiveForeground,
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(tokens.radius.md))
-            .background(tokens.destructive)
-            .padding(horizontal = spacing.s3, vertical = spacing.s2),
-    )
 }
 
 @Composable

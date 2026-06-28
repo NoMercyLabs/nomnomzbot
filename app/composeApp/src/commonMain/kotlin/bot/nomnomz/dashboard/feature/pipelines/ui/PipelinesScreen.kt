@@ -59,6 +59,7 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.designsystem.theme.Tokens
+import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.network.BlockField
 import bot.nomnomz.dashboard.core.network.BlockType
 import bot.nomnomz.dashboard.core.network.FieldKind
@@ -217,7 +218,7 @@ private fun ListContent(
         verticalArrangement = Arrangement.spacedBy(spacing.s4),
     ) {
         ListHeader(manage = manage, onNew = { editor = PipelineEditor.create() })
-        actionError?.let { ActionErrorBanner(detail = it) }
+        actionError?.let { ActionErrorBanner(message = stringResource(Res.string.pipelines_action_error, it)) }
 
         if (pipelines.isEmpty()) {
             CenteredMessage(stringResource(Res.string.pipelines_empty))
@@ -449,7 +450,7 @@ private fun ChainEditor(
             }
         }
 
-        editing.actionError?.let { ActionErrorBanner(detail = it) }
+        editing.actionError?.let { ActionErrorBanner(message = stringResource(Res.string.pipelines_action_error, it)) }
 
         Text(
             text = stringResource(Res.string.pipelines_step_count, editing.steps.size),
@@ -906,24 +907,6 @@ private fun PipelineFormDialog(
 }
 
 // ── Shared bits ───────────────────────────────────────────────────────────────
-
-@Composable
-private fun ActionErrorBanner(detail: String) {
-    val tokens = LocalTokens.current
-    val spacing = LocalSpacing.current
-    val typography = LocalTypography.current
-
-    Text(
-        text = stringResource(Res.string.pipelines_action_error, detail),
-        style = typography.sm,
-        color = tokens.destructiveForeground,
-        modifier =
-            Modifier.fillMaxWidth()
-                .clip(RoundedCornerShape(tokens.radius.md))
-                .background(tokens.destructive)
-                .padding(horizontal = spacing.s3, vertical = spacing.s2),
-    )
-}
 
 @Composable
 private fun LabeledText(text: String) {

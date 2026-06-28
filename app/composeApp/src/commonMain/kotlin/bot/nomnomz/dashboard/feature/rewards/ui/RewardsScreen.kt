@@ -50,6 +50,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
@@ -239,7 +240,7 @@ private fun ManagedContent(
     ) {
         // Creating/syncing rewards are Broadcaster-only lifecycle actions — the New + Sync buttons gate on [lifecycle].
         Header(lifecycle = lifecycle, onNew = onNew, onSync = onSync)
-        actionError?.let { ActionErrorBanner(detail = it) }
+        actionError?.let { ActionErrorBanner(message = stringResource(Res.string.rewards_action_error, it)) }
 
         if (rewards.isEmpty() && redemptions.isEmpty()) {
             CenteredMessage(stringResource(Res.string.rewards_empty))
@@ -293,24 +294,6 @@ private fun Header(lifecycle: ManageDecision, onNew: () -> Unit, onSync: () -> U
             }
         }
     }
-}
-
-@Composable
-private fun ActionErrorBanner(detail: String) {
-    val tokens = LocalTokens.current
-    val spacing = LocalSpacing.current
-    val typography = LocalTypography.current
-
-    Text(
-        text = stringResource(Res.string.rewards_action_error, detail),
-        style = typography.sm,
-        color = tokens.destructiveForeground,
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(tokens.radius.md))
-            .background(tokens.destructive)
-            .padding(horizontal = spacing.s3, vertical = spacing.s2),
-    )
 }
 
 @Composable

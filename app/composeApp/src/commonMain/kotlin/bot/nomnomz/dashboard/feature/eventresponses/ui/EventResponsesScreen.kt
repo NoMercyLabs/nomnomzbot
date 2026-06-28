@@ -54,6 +54,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
+import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.network.EventResponseSummary
 import bot.nomnomz.dashboard.feature.eventresponses.state.EventResponsesController
 import bot.nomnomz.dashboard.feature.eventresponses.state.EventResponsesState
@@ -203,7 +204,7 @@ private fun ReadyContent(
     ) {
         item(key = "page-header") { PageHeader(title = stringResource(Res.string.shell_nav_event_responses)) }
         actionError?.let { detail ->
-            item(key = "action-error") { ActionErrorBanner(detail = detail) }
+            item(key = "action-error") { ActionErrorBanner(message = stringResource(Res.string.event_responses_action_error, detail)) }
         }
         items(items = responses, key = { it.id }) { response ->
             EventResponseRow(
@@ -214,23 +215,6 @@ private fun ReadyContent(
             )
         }
     }
-}
-
-@Composable
-private fun ActionErrorBanner(detail: String) {
-    val tokens = LocalTokens.current
-    val spacing = LocalSpacing.current
-    val typography = LocalTypography.current
-    Text(
-        text = stringResource(Res.string.event_responses_action_error, detail),
-        style = typography.sm,
-        color = tokens.destructiveForeground,
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(tokens.radius.md))
-            .background(tokens.destructive)
-            .padding(horizontal = spacing.s3, vertical = spacing.s2),
-    )
 }
 
 @Composable

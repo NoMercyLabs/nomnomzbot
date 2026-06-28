@@ -60,6 +60,7 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.designsystem.theme.Tokens
+import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.network.DiscordConfigPreview
 import bot.nomnomz.dashboard.core.network.DiscordDispatchLogEntry
@@ -344,7 +345,7 @@ private fun ReadyContent(
         verticalArrangement = Arrangement.spacedBy(spacing.s4),
     ) {
         PageHeader(title = stringResource(Res.string.shell_nav_discord))
-        actionError?.let { ActionErrorBanner(detail = it) }
+        actionError?.let { ActionErrorBanner(message = stringResource(Res.string.discord_action_error, it)) }
 
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
@@ -425,16 +426,7 @@ private fun GuildCard(
         )
 
         guild.loadError?.let {
-            Text(
-                text = stringResource(Res.string.discord_config_load_error, it),
-                style = LocalTypography.current.sm,
-                color = tokens.destructiveForeground,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(tokens.radius.md))
-                    .background(tokens.destructive)
-                    .padding(horizontal = spacing.s3, vertical = spacing.s2),
-            )
+            ActionErrorBanner(message = stringResource(Res.string.discord_config_load_error, it))
         }
 
         if (guild.configs.isEmpty()) {
@@ -1196,24 +1188,6 @@ private fun EmptyContent() {
             )
         }
     }
-}
-
-@Composable
-private fun ActionErrorBanner(detail: String) {
-    val tokens = LocalTokens.current
-    val spacing = LocalSpacing.current
-    val typography = LocalTypography.current
-
-    Text(
-        text = stringResource(Res.string.discord_action_error, detail),
-        style = typography.sm,
-        color = tokens.destructiveForeground,
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(tokens.radius.md))
-            .background(tokens.destructive)
-            .padding(horizontal = spacing.s3, vertical = spacing.s2),
-    )
 }
 
 @Composable

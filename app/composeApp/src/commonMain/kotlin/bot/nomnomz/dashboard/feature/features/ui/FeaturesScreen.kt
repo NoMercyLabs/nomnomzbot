@@ -38,6 +38,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
@@ -95,16 +96,7 @@ fun FeaturesScreen(controller: FeaturesController, role: ManagementRole?) {
                 ErrorContent(detail = current.detail, onRetry = { scope.launch { controller.load() } })
             is FeaturesState.Ready -> {
                 current.actionError?.let { detail ->
-                    Text(
-                        text = stringResource(Res.string.features_action_error, detail),
-                        style = typography.sm,
-                        color = tokens.destructiveForeground,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(tokens.radius.md))
-                            .background(tokens.destructive)
-                            .padding(horizontal = spacing.s3, vertical = spacing.s2),
-                    )
+                    ActionErrorBanner(message = stringResource(Res.string.features_action_error, detail))
                 }
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),

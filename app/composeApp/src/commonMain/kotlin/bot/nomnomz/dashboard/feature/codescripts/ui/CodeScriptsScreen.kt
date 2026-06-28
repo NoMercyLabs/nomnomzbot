@@ -47,6 +47,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
+import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
@@ -130,15 +131,7 @@ fun CodeScriptsScreen(controller: CodeScriptsController, role: ManagementRole?) 
                     }
                 }
                 current.actionError?.let { detail ->
-                    Text(
-                        text = stringResource(Res.string.scripts_action_error, detail),
-                        style = typography.sm,
-                        color = tokens.destructiveForeground,
-                        modifier = Modifier.fillMaxWidth()
-                            .clip(RoundedCornerShape(tokens.radius.md))
-                            .background(tokens.destructive)
-                            .padding(horizontal = spacing.s3, vertical = spacing.s2),
-                    )
+                    ActionErrorBanner(message = stringResource(Res.string.scripts_action_error, detail))
                 }
                 EditorContent(
                     detail = current.detail,
@@ -163,15 +156,7 @@ fun CodeScriptsScreen(controller: CodeScriptsController, role: ManagementRole?) 
                         ErrorContent(detail = current.detail, onRetry = { scope.launch { controller.load() } })
                     is CodeScriptsState.Ready -> {
                         current.actionError?.let { detail ->
-                            Text(
-                                text = stringResource(Res.string.scripts_action_error, detail),
-                                style = typography.sm,
-                                color = tokens.destructiveForeground,
-                                modifier = Modifier.fillMaxWidth()
-                                    .clip(RoundedCornerShape(tokens.radius.md))
-                                    .background(tokens.destructive)
-                                    .padding(horizontal = spacing.s3, vertical = spacing.s2),
-                            )
+                            ActionErrorBanner(message = stringResource(Res.string.scripts_action_error, detail))
                         }
                         LazyColumn(
                             modifier = Modifier.fillMaxSize(),

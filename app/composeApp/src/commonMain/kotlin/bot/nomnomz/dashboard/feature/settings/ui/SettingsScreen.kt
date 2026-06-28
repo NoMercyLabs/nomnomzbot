@@ -45,6 +45,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
@@ -602,16 +603,7 @@ private fun ChannelManagementSection(
         )
 
         actionError?.let { err ->
-            Text(
-                text = stringResource(Res.string.settings_channel_action_error, err),
-                style = typography.sm,
-                color = tokens.destructiveForeground,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(tokens.radius.md))
-                    .background(tokens.destructive)
-                    .padding(horizontal = spacing.s3, vertical = spacing.s2),
-            )
+            ActionErrorBanner(message = stringResource(Res.string.settings_channel_action_error, err))
         }
 
         // Join
