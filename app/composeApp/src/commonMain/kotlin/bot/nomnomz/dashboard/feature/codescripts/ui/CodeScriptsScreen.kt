@@ -27,10 +27,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.TextButton
-import androidx.compose.foundation.layout.size
 import bot.nomnomz.dashboard.core.designsystem.icon.EditLineGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
 import androidx.compose.material3.TextFieldDefaults
@@ -51,6 +48,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
+import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
@@ -270,24 +268,22 @@ private fun ScriptRow(
         }
         Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
             ManageGate(manage) { enabled ->
-                IconButton(onClick = onOpen, enabled = enabled) {
-                    Icon(
-                        imageVector = EditLineGlyph,
-                        contentDescription = stringResource(Res.string.scripts_editor_source_label),
-                        tint = if (enabled) tokens.primary else tokens.muted,
-                        modifier = Modifier.size(spacing.s4),
-                    )
-                }
+                GlyphButton(
+                    imageVector = EditLineGlyph,
+                    label = stringResource(Res.string.scripts_editor_source_label),
+                    onClick = onOpen,
+                    enabled = enabled,
+                    tint = tokens.primary,
+                )
             }
             ManageGate(manage) { enabled ->
-                IconButton(onClick = onDelete, enabled = enabled) {
-                    Icon(
-                        imageVector = TrashGlyph,
-                        contentDescription = stringResource(Res.string.scripts_delete_confirm),
-                        tint = if (enabled) tokens.destructive else tokens.muted,
-                        modifier = Modifier.size(spacing.s4),
-                    )
-                }
+                GlyphButton(
+                    imageVector = TrashGlyph,
+                    label = stringResource(Res.string.scripts_delete_confirm),
+                    onClick = onDelete,
+                    enabled = enabled,
+                    tint = tokens.destructive,
+                )
             }
         }
     }

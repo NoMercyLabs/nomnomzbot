@@ -20,15 +20,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -51,6 +48,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.CopyValue
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
+import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
 import bot.nomnomz.dashboard.core.designsystem.icon.PlayCircleGlyph
@@ -378,24 +376,22 @@ private fun InboundRow(
         Text(text = "${stringResource(Res.string.webhooks_url_label)}: ${ep.ingestUrl}", style = typography.xs, color = tokens.mutedForeground, maxLines = 1, overflow = TextOverflow.Ellipsis)
         Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
             ManageGate(manage) { enabled ->
-                IconButton(onClick = onRotate, enabled = enabled) {
-                    Icon(
-                        imageVector = RefreshGlyph,
-                        contentDescription = stringResource(Res.string.webhooks_rotate_inbound_token),
-                        tint = if (enabled) tokens.destructive else tokens.muted,
-                        modifier = Modifier.size(spacing.s4),
-                    )
-                }
+                GlyphButton(
+                    imageVector = RefreshGlyph,
+                    label = stringResource(Res.string.webhooks_rotate_inbound_token),
+                    onClick = onRotate,
+                    enabled = enabled,
+                    tint = tokens.destructive,
+                )
             }
             ManageGate(manage) { enabled ->
-                IconButton(onClick = onDelete, enabled = enabled) {
-                    Icon(
-                        imageVector = TrashGlyph,
-                        contentDescription = stringResource(Res.string.webhooks_delete_confirm),
-                        tint = if (enabled) tokens.destructive else tokens.muted,
-                        modifier = Modifier.size(spacing.s4),
-                    )
-                }
+                GlyphButton(
+                    imageVector = TrashGlyph,
+                    label = stringResource(Res.string.webhooks_delete_confirm),
+                    onClick = onDelete,
+                    enabled = enabled,
+                    tint = tokens.destructive,
+                )
             }
         }
     }
@@ -464,45 +460,41 @@ private fun OutboundRow(
         Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
             if (ep.disabledAt != null) {
                 ManageGate(manage) { enabled ->
-                    IconButton(onClick = onReenable, enabled = enabled) {
-                        Icon(
-                            imageVector = PowerGlyph,
-                            contentDescription = stringResource(Res.string.webhooks_outbound_reenable),
-                            tint = if (enabled) tokens.primary else tokens.muted,
-                            modifier = Modifier.size(spacing.s4),
-                        )
-                    }
-                }
-            }
-            ManageGate(manage) { enabled ->
-                IconButton(onClick = onTest, enabled = enabled) {
-                    Icon(
-                        imageVector = PlayCircleGlyph,
-                        contentDescription = stringResource(Res.string.webhooks_outbound_test),
-                        tint = if (enabled) tokens.primary else tokens.muted,
-                        modifier = Modifier.size(spacing.s4),
+                    GlyphButton(
+                        imageVector = PowerGlyph,
+                        label = stringResource(Res.string.webhooks_outbound_reenable),
+                        onClick = onReenable,
+                        enabled = enabled,
+                        tint = tokens.primary,
                     )
                 }
             }
             ManageGate(manage) { enabled ->
-                IconButton(onClick = onRotateSecret, enabled = enabled) {
-                    Icon(
-                        imageVector = RefreshGlyph,
-                        contentDescription = stringResource(Res.string.webhooks_rotate_outbound_secret),
-                        tint = if (enabled) tokens.destructive else tokens.muted,
-                        modifier = Modifier.size(spacing.s4),
-                    )
-                }
+                GlyphButton(
+                    imageVector = PlayCircleGlyph,
+                    label = stringResource(Res.string.webhooks_outbound_test),
+                    onClick = onTest,
+                    enabled = enabled,
+                    tint = tokens.primary,
+                )
             }
             ManageGate(manage) { enabled ->
-                IconButton(onClick = onDelete, enabled = enabled) {
-                    Icon(
-                        imageVector = TrashGlyph,
-                        contentDescription = stringResource(Res.string.webhooks_delete_confirm),
-                        tint = if (enabled) tokens.destructive else tokens.muted,
-                        modifier = Modifier.size(spacing.s4),
-                    )
-                }
+                GlyphButton(
+                    imageVector = RefreshGlyph,
+                    label = stringResource(Res.string.webhooks_rotate_outbound_secret),
+                    onClick = onRotateSecret,
+                    enabled = enabled,
+                    tint = tokens.destructive,
+                )
+            }
+            ManageGate(manage) { enabled ->
+                GlyphButton(
+                    imageVector = TrashGlyph,
+                    label = stringResource(Res.string.webhooks_delete_confirm),
+                    onClick = onDelete,
+                    enabled = enabled,
+                    tint = tokens.destructive,
+                )
             }
         }
     }

@@ -18,15 +18,12 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -48,6 +45,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
+import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
 import bot.nomnomz.dashboard.core.designsystem.icon.CheckCircleGlyph
@@ -279,26 +277,24 @@ private fun PeerRow(
         Row(horizontalArrangement = Arrangement.spacedBy(spacing.s1)) {
             if (!peer.isTrusted && !peer.isRevoked) {
                 ManageGate(manage) { enabled ->
-                    IconButton(onClick = onTrust, enabled = enabled) {
-                        Icon(
-                            imageVector = CheckCircleGlyph,
-                            contentDescription = stringResource(Res.string.federation_peer_trust),
-                            tint = if (enabled) tokens.primary else tokens.muted,
-                            modifier = Modifier.size(spacing.s4),
-                        )
-                    }
+                    GlyphButton(
+                        imageVector = CheckCircleGlyph,
+                        label = stringResource(Res.string.federation_peer_trust),
+                        onClick = onTrust,
+                        enabled = enabled,
+                        tint = tokens.primary,
+                    )
                 }
             }
             if (!peer.isRevoked) {
                 ManageGate(manage) { enabled ->
-                    IconButton(onClick = onRevoke, enabled = enabled) {
-                        Icon(
-                            imageVector = RemoveGlyph,
-                            contentDescription = stringResource(Res.string.federation_peer_revoke),
-                            tint = if (enabled) tokens.destructive else tokens.muted,
-                            modifier = Modifier.size(spacing.s4),
-                        )
-                    }
+                    GlyphButton(
+                        imageVector = RemoveGlyph,
+                        label = stringResource(Res.string.federation_peer_revoke),
+                        onClick = onRevoke,
+                        enabled = enabled,
+                        tint = tokens.destructive,
+                    )
                 }
             }
         }
@@ -349,14 +345,13 @@ private fun OptInRow(
             }
         }
         ManageGate(manage) { enabled ->
-            IconButton(onClick = onRemove, enabled = enabled) {
-                Icon(
-                    imageVector = TrashGlyph,
-                    contentDescription = stringResource(Res.string.federation_optin_remove_confirm),
-                    tint = if (enabled) tokens.destructive else tokens.muted,
-                    modifier = Modifier.size(spacing.s4),
-                )
-            }
+            GlyphButton(
+                imageVector = TrashGlyph,
+                label = stringResource(Res.string.federation_optin_remove_confirm),
+                onClick = onRemove,
+                enabled = enabled,
+                tint = tokens.destructive,
+            )
         }
     }
 }

@@ -51,6 +51,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
@@ -278,20 +279,7 @@ private fun EventResponseRow(
             )
         }
         ManageGate(decision = manage) { enabled ->
-            IconButton(
-                onClick = onEdit,
-                enabled = enabled,
-                modifier = Modifier.semantics {
-                    contentDescription = editSemantics
-                },
-            ) {
-                Icon(
-                    imageVector = EditGlyph,
-                    contentDescription = null,
-                    tint = if (enabled) tokens.mutedForeground else tokens.muted,
-                    modifier = Modifier.size(spacing.s4),
-                )
-            }
+            GlyphButton(imageVector = EditGlyph, label = editSemantics, onClick = onEdit, enabled = enabled)
         }
     }
 }

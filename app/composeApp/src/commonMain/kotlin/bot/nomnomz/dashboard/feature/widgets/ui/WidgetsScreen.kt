@@ -21,7 +21,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -31,8 +30,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -54,6 +52,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.CopyValue
+import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
@@ -384,18 +383,13 @@ private fun WidgetRow(
                 }
             }
             ManageGate(decision = manage) { enabled ->
-                IconButton(
+                GlyphButton(
+                    imageVector = TrashGlyph,
+                    label = deleteLabel,
                     onClick = onDelete,
                     enabled = enabled,
-                    modifier = Modifier.semantics { contentDescription = deleteLabel },
-                ) {
-                    Icon(
-                        imageVector = TrashGlyph,
-                        contentDescription = null,
-                        tint = if (enabled) tokens.destructive else tokens.muted,
-                        modifier = Modifier.size(spacing.s4),
-                    )
-                }
+                    tint = tokens.destructive,
+                )
             }
         }
 

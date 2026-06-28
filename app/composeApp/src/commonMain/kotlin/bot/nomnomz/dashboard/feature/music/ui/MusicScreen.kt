@@ -19,10 +19,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -31,8 +31,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -52,6 +50,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
+import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
@@ -620,18 +619,13 @@ private fun QueueRow(track: MusicTrack, manage: ManageDecision, onRemove: () -> 
             overflow = TextOverflow.Ellipsis,
         )
         ManageGate(decision = manage) { enabled ->
-            IconButton(
+            GlyphButton(
+                imageVector = TrashGlyph,
+                label = removeLabel,
                 onClick = onRemove,
                 enabled = enabled,
-                modifier = Modifier.clearAndSetSemantics { contentDescription = removeLabel },
-            ) {
-                Icon(
-                    imageVector = TrashGlyph,
-                    contentDescription = null,
-                    tint = if (enabled) tokens.destructive else tokens.muted,
-                    modifier = Modifier.size(spacing.s4),
-                )
-            }
+                tint = tokens.destructive,
+            )
         }
     }
 }
@@ -889,14 +883,13 @@ private fun SrTokenSection(token: String, manage: ManageDecision, onRotate: () -
             overflow = TextOverflow.Ellipsis,
         )
         ManageGate(decision = manage) { enabled ->
-            IconButton(onClick = onRotate, enabled = enabled) {
-                Icon(
-                    imageVector = RefreshGlyph,
-                    contentDescription = stringResource(Res.string.music_token_rotate),
-                    tint = if (enabled) tokens.destructive else tokens.muted,
-                    modifier = Modifier.size(spacing.s4),
-                )
-            }
+            GlyphButton(
+                imageVector = RefreshGlyph,
+                label = stringResource(Res.string.music_token_rotate),
+                onClick = onRotate,
+                enabled = enabled,
+                tint = tokens.destructive,
+            )
         }
     }
 }

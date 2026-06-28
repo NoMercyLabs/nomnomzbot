@@ -34,8 +34,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+
 import androidx.compose.material3.TextButton
 import bot.nomnomz.dashboard.core.designsystem.icon.CheckCircleGlyph
 import androidx.compose.runtime.Composable
@@ -56,6 +55,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
+import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
@@ -366,18 +366,7 @@ private fun VoiceMatchRow(voice: TtsVoice, manage: ManageDecision, onUse: () -> 
             )
         }
         ManageGate(decision = manage) { enabled ->
-            IconButton(
-                onClick = onUse,
-                enabled = enabled,
-                modifier = Modifier.semantics { contentDescription = useLabel },
-            ) {
-                Icon(
-                    imageVector = CheckCircleGlyph,
-                    contentDescription = null,
-                    tint = if (enabled) tokens.primary else tokens.muted,
-                    modifier = Modifier.size(spacing.s4),
-                )
-            }
+            GlyphButton(imageVector = CheckCircleGlyph, label = useLabel, onClick = onUse, enabled = enabled, tint = tokens.primary)
         }
     }
 }
