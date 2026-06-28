@@ -66,6 +66,7 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.designsystem.theme.Tokens
 import bot.nomnomz.dashboard.core.designsystem.icon.CheckCircleGlyph
+import bot.nomnomz.dashboard.core.designsystem.icon.RemoveGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.material3.HorizontalDivider
@@ -2335,8 +2336,14 @@ private fun CatalogPurchasesSection(
                     }
                     Text(text = purchase.costPaid.toString(), style = typography.base, color = tokens.primary)
                     ManageGate(manage) { enabled ->
-                        TextButton(onClick = { pendingRefund = purchase }, enabled = enabled && purchase.status != "refunded") {
-                            Text(stringResource(Res.string.economy_purchases_refund), color = if (enabled && purchase.status != "refunded") tokens.destructive else tokens.mutedForeground)
+                        val refundEnabled: Boolean = enabled && purchase.status != "refunded"
+                        IconButton(onClick = { pendingRefund = purchase }, enabled = refundEnabled) {
+                            Icon(
+                                imageVector = RemoveGlyph,
+                                contentDescription = stringResource(Res.string.economy_purchases_refund),
+                                tint = if (refundEnabled) tokens.destructive else tokens.muted,
+                                modifier = Modifier.size(spacing.s4),
+                            )
                         }
                     }
                 }
