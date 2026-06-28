@@ -147,6 +147,7 @@
     <string name="shell_topbar_channel_label">Active channel: %1$s</string>
     <string name="shell_channel_pick">Switch channel</string>
     <string name="shell_topbar_hub_label">Realtime connection</string>
+    <string name="hub_alert">%1$s</string>
     <string name="shell_role_moderator">Moderator</string>
     <string name="shell_role_supermod">Super Mod</string>
     <string name="shell_role_editor">Editor</string>

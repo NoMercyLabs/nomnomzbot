@@ -56,6 +56,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import bot.nomnomz.dashboard.core.realtime.HubEvent
 import kotlinx.coroutines.flow.drop
 import bot.nomnomz.dashboard.core.connection.SessionUser
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
@@ -153,6 +154,7 @@ import nomnomzbot.composeapp.generated.resources.shell_role_editor
 import nomnomzbot.composeapp.generated.resources.shell_role_moderator
 import nomnomzbot.composeapp.generated.resources.shell_role_supermod
 import nomnomzbot.composeapp.generated.resources.shell_role_viewer
+import nomnomzbot.composeapp.generated.resources.hub_alert
 import nomnomzbot.composeapp.generated.resources.shell_channel_pick
 import nomnomzbot.composeapp.generated.resources.shell_topbar_channel_label
 import nomnomzbot.composeapp.generated.resources.shell_topbar_hub_label
@@ -203,6 +205,16 @@ fun ShellScreen(
     // only a genuine switch — not the first load — triggers the reset.
     LaunchedEffect(graph.channelSwitcherController.activeChannelId) {
         graph.channelSwitcherController.activeChannelId.drop(1).collect { selected = ShellRoute.Dashboard }
+    }
+    // Surface AlertTriggered hub events (e.g. integration token expired → disconnected) as frame-level
+    // error toasts so the streamer sees them regardless of which page they are on.
+    val hubEvents = graph.dashboardHubClient.events
+    LaunchedEffect(hubEvents) {
+        hubEvents.collect { evt ->
+            if (evt !is HubEvent.AlertTriggered) return@collect
+            val detail: String = evt.alert.message ?: evt.alert.type
+            graph.feedbackController.error(Res.string.hub_alert, detail)
+        }
     }
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize().background(tokens.background)) {
