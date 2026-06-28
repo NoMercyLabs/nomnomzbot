@@ -57,6 +57,7 @@ import nomnomzbot.composeapp.generated.resources.features_empty
 import nomnomzbot.composeapp.generated.resources.features_error
 import nomnomzbot.composeapp.generated.resources.features_loading
 import nomnomzbot.composeapp.generated.resources.features_retry
+import nomnomzbot.composeapp.generated.resources.features_enabled_at
 import nomnomzbot.composeapp.generated.resources.features_scopes_label
 import nomnomzbot.composeapp.generated.resources.features_subtitle
 import nomnomzbot.composeapp.generated.resources.shell_nav_features
@@ -174,7 +175,7 @@ private fun FeatureRow(
                 }
                 feature.enabledAt?.let { at ->
                     Text(
-                        text = "Enabled ${at.substringBefore('T')}",
+                        text = stringResource(Res.string.features_enabled_at, at.substringBefore('T')),
                         style = typography.xs,
                         color = tokens.mutedForeground,
                         maxLines = 1,

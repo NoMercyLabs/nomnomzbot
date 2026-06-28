@@ -50,6 +50,11 @@ import bot.nomnomz.dashboard.feature.analytics.state.AnalyticsController
 import bot.nomnomz.dashboard.feature.analytics.state.AnalyticsState
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.analytics_col_chatters
+import nomnomzbot.composeapp.generated.resources.analytics_col_date
+import nomnomzbot.composeapp.generated.resources.analytics_col_followers
+import nomnomzbot.composeapp.generated.resources.analytics_col_messages
+import nomnomzbot.composeapp.generated.resources.analytics_col_peak
 import nomnomzbot.composeapp.generated.resources.analytics_daily_empty
 import nomnomzbot.composeapp.generated.resources.analytics_daily_title
 import nomnomzbot.composeapp.generated.resources.analytics_error
@@ -166,11 +171,11 @@ private fun DailyTrendsSection(daily: List<DailyMetricRow>) {
         } else {
             // Header row
             DailyRow(
-                date = "Date",
-                chatters = "Chatters",
-                messages = "Messages",
-                followers = "Followers",
-                peak = "Peak",
+                date = stringResource(Res.string.analytics_col_date),
+                chatters = stringResource(Res.string.analytics_col_chatters),
+                messages = stringResource(Res.string.analytics_col_messages),
+                followers = stringResource(Res.string.analytics_col_followers),
+                peak = stringResource(Res.string.analytics_col_peak),
                 isHeader = true,
             )
             daily.reversed().forEach { row: DailyMetricRow ->

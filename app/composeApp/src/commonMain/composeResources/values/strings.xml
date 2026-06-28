@@ -294,6 +294,11 @@
     <string name="analytics_stat_peak_viewers">Peak viewers</string>
     <string name="analytics_daily_title">Daily Trends</string>
     <string name="analytics_daily_empty">No daily data for this period</string>
+    <string name="analytics_col_date">Date</string>
+    <string name="analytics_col_chatters">Chatters</string>
+    <string name="analytics_col_messages">Messages</string>
+    <string name="analytics_col_followers">Followers</string>
+    <string name="analytics_col_peak">Peak</string>
     <string name="analytics_top_viewers_title">Top Viewers (by messages)</string>
     <string name="analytics_top_viewers_empty">No viewer data for this period</string>
     <string name="analytics_top_viewers_rank">#%1$d</string>
@@ -1384,6 +1389,7 @@
     <string name="features_action_error">Toggle failed: %1$s</string>
     <string name="features_toggle_action">Toggle %1$s</string>
     <string name="features_scopes_label">Required scopes</string>
+    <string name="features_enabled_at">Enabled %1$s</string>
 
     <!-- Webhooks page -->
     <string name="webhooks_title">Webhooks</string>

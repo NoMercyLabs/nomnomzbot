@@ -62,6 +62,8 @@ import bot.nomnomz.dashboard.feature.webhooks.state.WebhooksController
 import bot.nomnomz.dashboard.feature.webhooks.state.WebhooksState
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.setup_copy_action
+import nomnomzbot.composeapp.generated.resources.setup_copy_done
 import nomnomzbot.composeapp.generated.resources.webhooks_action_error
 import nomnomzbot.composeapp.generated.resources.webhooks_adapter_label
 import nomnomzbot.composeapp.generated.resources.webhooks_create_inbound_adapter
@@ -491,7 +493,11 @@ private fun SecretOnceDialog(secret: String, onDismiss: () -> Unit) {
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
                 Text(stringResource(Res.string.webhooks_secret_once_message), style = typography.sm, color = tokens.mutedForeground)
-                CopyValue(value = secret, copyLabel = "Copy", copiedLabel = "Copied")
+                CopyValue(
+                    value = secret,
+                    copyLabel = stringResource(Res.string.setup_copy_action),
+                    copiedLabel = stringResource(Res.string.setup_copy_done),
+                )
             }
         },
         confirmButton = {

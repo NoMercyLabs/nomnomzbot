@@ -291,6 +291,11 @@
     <string name="analytics_stat_peak_viewers">Piek aan kijkers</string>
     <string name="analytics_daily_title">Dagelijkse trends</string>
     <string name="analytics_daily_empty">Geen dagelijkse gegevens voor deze periode</string>
+    <string name="analytics_col_date">Datum</string>
+    <string name="analytics_col_chatters">Chatters</string>
+    <string name="analytics_col_messages">Berichten</string>
+    <string name="analytics_col_followers">Volgers</string>
+    <string name="analytics_col_peak">Piek</string>
     <string name="analytics_top_viewers_title">Topkijkers (op berichten)</string>
     <string name="analytics_top_viewers_empty">Geen kijkersgegevens voor deze periode</string>
     <string name="analytics_top_viewers_rank">#%1$d</string>
@@ -1371,6 +1376,7 @@
     <string name="features_action_error">Schakelen mislukt: %1$s</string>
     <string name="features_toggle_action">Zet %1$s aan/uit</string>
     <string name="features_scopes_label">Vereiste machtigingen</string>
+    <string name="features_enabled_at">Ingeschakeld op %1$s</string>
 
     <!-- Webhooks page -->
     <string name="webhooks_title">Webhooks</string>
