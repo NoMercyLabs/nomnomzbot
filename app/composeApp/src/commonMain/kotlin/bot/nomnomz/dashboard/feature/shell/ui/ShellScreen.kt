@@ -206,14 +206,21 @@ fun ShellScreen(
     LaunchedEffect(graph.channelSwitcherController.activeChannelId) {
         graph.channelSwitcherController.activeChannelId.drop(1).collect { selected = ShellRoute.Dashboard }
     }
-    // Surface AlertTriggered hub events (e.g. integration token expired → disconnected) as frame-level
-    // error toasts so the streamer sees them regardless of which page they are on.
+    // Surface hub signals that affect the whole shell frame regardless of the active page.
     val hubEvents = graph.dashboardHubClient.events
     LaunchedEffect(hubEvents) {
         hubEvents.collect { evt ->
-            if (evt !is HubEvent.AlertTriggered) return@collect
-            val detail: String = evt.alert.message ?: evt.alert.type
-            graph.feedbackController.error(Res.string.hub_alert, detail)
+            when (evt) {
+                // Integration token expired / disconnected — show a frame-level error notification.
+                is HubEvent.AlertTriggered -> {
+                    val detail: String = evt.alert.message ?: evt.alert.type
+                    graph.feedbackController.error(Res.string.hub_alert, detail)
+                }
+                // A permission changed for this channel — re-probe the caller's management role so
+                // write gates re-evaluate immediately without requiring a page reload.
+                is HubEvent.PermissionChanged -> graph.shellAccessController.load()
+                else -> Unit
+            }
         }
     }
 

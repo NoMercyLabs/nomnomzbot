@@ -38,6 +38,8 @@ sealed interface HubEvent {
 
     data class ChannelEvent(val event: HubChannelEvent) : HubEvent
 
+    data class PermissionChanged(val change: HubPermissionChanged) : HubEvent
+
     /** A hub target not yet modelled — carry the raw argument so callers can inspect it. */
     data class Unknown(val target: String, val rawArgs: String) : HubEvent
 
@@ -57,6 +59,7 @@ sealed interface HubEvent {
                     "RewardRedeemed" -> RewardRedeemed(json.decodeFromString(first))
                     "MusicStateChanged" -> MusicStateChanged(json.decodeFromString(first))
                     "ChannelEvent" -> ChannelEvent(json.decodeFromString(first))
+                    "PermissionChanged" -> PermissionChanged(json.decodeFromString(first))
                     else -> Unknown(target, first)
                 }
             }.getOrNull()
@@ -150,6 +153,15 @@ data class HubMusicTrack(
     val albumArtUrl: String? = null,
     val durationMs: Int = 0,
     val provider: String = "",
+)
+
+@Serializable
+data class HubPermissionChanged(
+    val subjectType: String = "",
+    val subjectId: String = "",
+    val resourceType: String = "",
+    val resourceId: String = "",
+    val value: Int = 0,
 )
 
 @Serializable
