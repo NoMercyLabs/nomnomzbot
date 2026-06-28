@@ -349,7 +349,7 @@ private fun SrTokenSection(
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
-    val clipboard = LocalClipboardManager.current
+    @Suppress("DEPRECATION") val clipboard = LocalClipboardManager.current
 
     Column(
         modifier = Modifier

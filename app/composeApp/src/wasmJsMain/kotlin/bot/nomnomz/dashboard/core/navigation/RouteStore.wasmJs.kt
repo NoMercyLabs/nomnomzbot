@@ -8,6 +8,8 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+@file:OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+
 package bot.nomnomz.dashboard.core.navigation
 
 import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute

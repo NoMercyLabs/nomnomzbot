@@ -62,7 +62,7 @@ fun CopyValue(
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
-    val clipboard = LocalClipboardManager.current
+    @Suppress("DEPRECATION") val clipboard = LocalClipboardManager.current
 
     var copied: Boolean by remember(value) { mutableStateOf(false) }
 
