@@ -85,12 +85,23 @@ import nomnomzbot.composeapp.generated.resources.pipelines_action_error
 import nomnomzbot.composeapp.generated.resources.pipelines_badge_disabled
 import nomnomzbot.composeapp.generated.resources.pipelines_badge_enabled
 import nomnomzbot.composeapp.generated.resources.pipelines_block_ban
+import nomnomzbot.composeapp.generated.resources.pipelines_block_check_balance
+import nomnomzbot.composeapp.generated.resources.pipelines_block_deduct_currency
 import nomnomzbot.composeapp.generated.resources.pipelines_block_delete_message
+import nomnomzbot.composeapp.generated.resources.pipelines_block_grant_currency
+import nomnomzbot.composeapp.generated.resources.pipelines_block_jar_contribute
+import nomnomzbot.composeapp.generated.resources.pipelines_block_play_game
+import nomnomzbot.composeapp.generated.resources.pipelines_block_post_quote
 import nomnomzbot.composeapp.generated.resources.pipelines_block_random
+import nomnomzbot.composeapp.generated.resources.pipelines_block_require_tier
+import nomnomzbot.composeapp.generated.resources.pipelines_block_run_code
+import nomnomzbot.composeapp.generated.resources.pipelines_block_send_discord_notification
 import nomnomzbot.composeapp.generated.resources.pipelines_block_send_message
 import nomnomzbot.composeapp.generated.resources.pipelines_block_send_reply
 import nomnomzbot.composeapp.generated.resources.pipelines_block_set_variable
 import nomnomzbot.composeapp.generated.resources.pipelines_block_shoutout
+import nomnomzbot.composeapp.generated.resources.pipelines_block_song_current
+import nomnomzbot.composeapp.generated.resources.pipelines_block_song_queue
 import nomnomzbot.composeapp.generated.resources.pipelines_block_song_request
 import nomnomzbot.composeapp.generated.resources.pipelines_block_song_skip
 import nomnomzbot.composeapp.generated.resources.pipelines_block_song_volume
@@ -120,14 +131,27 @@ import nomnomzbot.composeapp.generated.resources.pipelines_editor_back
 import nomnomzbot.composeapp.generated.resources.pipelines_editor_save
 import nomnomzbot.composeapp.generated.resources.pipelines_empty
 import nomnomzbot.composeapp.generated.resources.pipelines_error
+import nomnomzbot.composeapp.generated.resources.pipelines_field_amount
+import nomnomzbot.composeapp.generated.resources.pipelines_field_bet_amount
+import nomnomzbot.composeapp.generated.resources.pipelines_field_code_script_id
 import nomnomzbot.composeapp.generated.resources.pipelines_field_cooldown_minutes
+import nomnomzbot.composeapp.generated.resources.pipelines_field_dedupe_key
+import nomnomzbot.composeapp.generated.resources.pipelines_field_denied_message
 import nomnomzbot.composeapp.generated.resources.pipelines_field_duration_seconds
+import nomnomzbot.composeapp.generated.resources.pipelines_field_game_type
+import nomnomzbot.composeapp.generated.resources.pipelines_field_jar_id
 import nomnomzbot.composeapp.generated.resources.pipelines_field_message
 import nomnomzbot.composeapp.generated.resources.pipelines_field_message_id
+import nomnomzbot.composeapp.generated.resources.pipelines_field_min_balance
 import nomnomzbot.composeapp.generated.resources.pipelines_field_min_role
+import nomnomzbot.composeapp.generated.resources.pipelines_field_min_tier
 import nomnomzbot.composeapp.generated.resources.pipelines_field_percent
 import nomnomzbot.composeapp.generated.resources.pipelines_field_query
+import nomnomzbot.composeapp.generated.resources.pipelines_field_quote_number
 import nomnomzbot.composeapp.generated.resources.pipelines_field_reason
+import nomnomzbot.composeapp.generated.resources.pipelines_field_set_var
+import nomnomzbot.composeapp.generated.resources.pipelines_field_song_queue_max
+import nomnomzbot.composeapp.generated.resources.pipelines_field_trigger_type
 import nomnomzbot.composeapp.generated.resources.pipelines_field_user_id
 import nomnomzbot.composeapp.generated.resources.pipelines_field_variable_name
 import nomnomzbot.composeapp.generated.resources.pipelines_field_variable_value
@@ -1009,6 +1033,17 @@ private fun blockLabel(labelKey: String): StringResource =
         "song_request" -> Res.string.pipelines_block_song_request
         "song_skip" -> Res.string.pipelines_block_song_skip
         "song_volume" -> Res.string.pipelines_block_song_volume
+        "song_current" -> Res.string.pipelines_block_song_current
+        "song_queue" -> Res.string.pipelines_block_song_queue
+        "grant_currency" -> Res.string.pipelines_block_grant_currency
+        "deduct_currency" -> Res.string.pipelines_block_deduct_currency
+        "check_balance" -> Res.string.pipelines_block_check_balance
+        "play_game" -> Res.string.pipelines_block_play_game
+        "jar_contribute" -> Res.string.pipelines_block_jar_contribute
+        "post_quote" -> Res.string.pipelines_block_post_quote
+        "send_discord_notification" -> Res.string.pipelines_block_send_discord_notification
+        "require_tier" -> Res.string.pipelines_block_require_tier
+        "run_code" -> Res.string.pipelines_block_run_code
         "set_variable" -> Res.string.pipelines_block_set_variable
         "wait" -> Res.string.pipelines_block_wait
         "stop" -> Res.string.pipelines_block_stop
@@ -1027,6 +1062,19 @@ private fun fieldLabel(labelKey: String): StringResource =
         "cooldown_minutes" -> Res.string.pipelines_field_cooldown_minutes
         "query" -> Res.string.pipelines_field_query
         "volume" -> Res.string.pipelines_field_volume
+        "song_queue_max" -> Res.string.pipelines_field_song_queue_max
+        "amount" -> Res.string.pipelines_field_amount
+        "set_var" -> Res.string.pipelines_field_set_var
+        "min_balance" -> Res.string.pipelines_field_min_balance
+        "game_type" -> Res.string.pipelines_field_game_type
+        "bet_amount" -> Res.string.pipelines_field_bet_amount
+        "jar_id" -> Res.string.pipelines_field_jar_id
+        "quote_number" -> Res.string.pipelines_field_quote_number
+        "trigger_type" -> Res.string.pipelines_field_trigger_type
+        "dedupe_key" -> Res.string.pipelines_field_dedupe_key
+        "min_tier" -> Res.string.pipelines_field_min_tier
+        "denied_message" -> Res.string.pipelines_field_denied_message
+        "code_script_id" -> Res.string.pipelines_field_code_script_id
         "variable_name" -> Res.string.pipelines_field_variable_name
         "variable_value" -> Res.string.pipelines_field_variable_value
         "wait_seconds" -> Res.string.pipelines_field_wait_seconds

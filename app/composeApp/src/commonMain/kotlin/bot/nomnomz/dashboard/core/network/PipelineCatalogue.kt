@@ -17,9 +17,7 @@ package bot.nomnomz.dashboard.core.network
 // reads, so the editor can only build chains the PipelineEngine actually runs. Adding a backend action means
 // adding its descriptor here; the editor then surfaces it with no further wiring.
 //
-// Only the core + commonly-wired blocks are catalogued for this slice's editor (the chat / moderation / media
-// / flow set); the side-effecting economy/quotes/code blocks register on the backend the same way and slot in
-// here as descriptors when their pages need them.
+// All backend actions and conditions are catalogued here so the editor surfaces the complete capability.
 
 /** Whether a parameter field is free text or a number — drives the input control and the JSON encoding. */
 enum class FieldKind {
@@ -57,25 +55,37 @@ data class BlockType(
 )
 
 // The catalogue. Every descriptor below is grounded in a real backend class:
-//   send_message        SendMessageAction      — "message"
-//   send_reply          SendReplyAction        — "message"
-//   timeout             TimeoutAction          — "user_id"?, "duration" (int, def 60), "reason"?
-//   ban                 BanAction              — "user_id"?, "reason"?
-//   delete_message      DeleteMessageAction    — "message_id"? (defaults to triggering message)
-//   shoutout            ShoutoutAction         — "user_id", "cooldown_minutes" (int), "global_cooldown_minutes" (int)
-//   set_variable        SetVariableAction      — "name", "value"
-//   wait                WaitAction             — "seconds" (int), "milliseconds" (int)
-//   stop                StopAction             — (no params)
-//   song_request        SongRequestAction      — "query"
-//   song_skip           SongSkipAction         — (no params)
-//   song_volume         SongVolumeAction       — "volume" (int 0-100)
-//   user_role (cond)    UserRoleCondition      — "min_role"
-//   random (cond)       RandomCondition        — "percent" (int 0-100)
+//   send_message              SendMessageAction              — "message"
+//   send_reply                SendReplyAction                — "message"
+//   timeout                   TimeoutAction                  — "user_id"?, "duration" (int), "reason"?
+//   ban                       BanAction                      — "user_id"?, "reason"?
+//   delete_message            DeleteMessageAction            — "message_id"? (defaults to triggering message)
+//   shoutout                  ShoutoutAction                 — "user_id", "cooldown_minutes" (int)?
+//   set_variable              SetVariableAction              — "name", "value"
+//   wait                      WaitAction                     — "seconds" (int)
+//   stop                      StopAction                     — (no params)
+//   song_request              SongRequestAction              — "query"
+//   song_skip                 SongSkipAction                 — (no params)
+//   song_volume               SongVolumeAction               — "volume" (int 0-100)
+//   song_current              SongCurrentAction              — (no params)
+//   song_queue                SongQueueAction                — "max" (int, default 5)?
+//   grant_currency            GrantCurrencyAction            — "amount" (int), "reason"?
+//   deduct_currency           DeductCurrencyAction           — "amount" (int), "reason"?
+//   check_balance             CheckBalanceAction             — "set_var"?, "min" (int)?
+//   play_game                 PlayGameAction                 — "game_type", "bet" (int)
+//   jar_contribute            JarContributeAction            — "jar_id", "amount" (int)
+//   run_code                  RunCodeAction                  — "code_script_id"
+//   send_discord_notification SendDiscordNotificationAction  — "trigger_type", "dedupe_key"?
+//   post_quote                PostQuoteAction                — "number" (int)?
+//   require_tier              RequireTierAction              — "min_tier", "denied_message"?
+//   user_role (cond)          UserRoleCondition              — "min_role"
+//   random (cond)             RandomCondition                — "percent" (int 0-100)
 object PipelineCatalogue {
 
-    /** Every catalogued action block, in a sensible authoring order (chat first, then mod, media, flow). */
+    /** Every catalogued action block, in a sensible authoring order (chat → mod → music → economy → flow). */
     val actions: List<BlockType> =
         listOf(
+            // ── Chat ─────────────────────────────────────────────────────────
             BlockType(
                 type = "send_message",
                 role = BlockRole.Action,
@@ -88,6 +98,7 @@ object PipelineCatalogue {
                 labelKey = "send_reply",
                 fields = listOf(BlockField("message", "message", required = true)),
             ),
+            // ── Moderation ───────────────────────────────────────────────────
             BlockType(
                 type = "timeout",
                 role = BlockRole.Action,
@@ -125,6 +136,7 @@ object PipelineCatalogue {
                         BlockField("cooldown_minutes", "cooldown_minutes", required = false, kind = FieldKind.Number),
                     ),
             ),
+            // ── Music ────────────────────────────────────────────────────────
             BlockType(
                 type = "song_request",
                 role = BlockRole.Action,
@@ -142,6 +154,104 @@ object PipelineCatalogue {
                 labelKey = "song_volume",
                 fields = listOf(BlockField("volume", "volume", required = true, kind = FieldKind.Number)),
             ),
+            BlockType(
+                type = "song_current",
+                role = BlockRole.Action,
+                labelKey = "song_current",
+            ),
+            BlockType(
+                type = "song_queue",
+                role = BlockRole.Action,
+                labelKey = "song_queue",
+                fields = listOf(BlockField("max", "song_queue_max", required = false, kind = FieldKind.Number)),
+            ),
+            // ── Economy ──────────────────────────────────────────────────────
+            BlockType(
+                type = "grant_currency",
+                role = BlockRole.Action,
+                labelKey = "grant_currency",
+                fields =
+                    listOf(
+                        BlockField("amount", "amount", required = true, kind = FieldKind.Number),
+                        BlockField("reason", "reason", required = false),
+                    ),
+            ),
+            BlockType(
+                type = "deduct_currency",
+                role = BlockRole.Action,
+                labelKey = "deduct_currency",
+                fields =
+                    listOf(
+                        BlockField("amount", "amount", required = true, kind = FieldKind.Number),
+                        BlockField("reason", "reason", required = false),
+                    ),
+            ),
+            BlockType(
+                type = "check_balance",
+                role = BlockRole.Action,
+                labelKey = "check_balance",
+                fields =
+                    listOf(
+                        BlockField("set_var", "set_var", required = false),
+                        BlockField("min", "min_balance", required = false, kind = FieldKind.Number),
+                    ),
+            ),
+            BlockType(
+                type = "play_game",
+                role = BlockRole.Action,
+                labelKey = "play_game",
+                fields =
+                    listOf(
+                        BlockField("game_type", "game_type", required = true),
+                        BlockField("bet", "bet_amount", required = true, kind = FieldKind.Number),
+                    ),
+            ),
+            BlockType(
+                type = "jar_contribute",
+                role = BlockRole.Action,
+                labelKey = "jar_contribute",
+                fields =
+                    listOf(
+                        BlockField("jar_id", "jar_id", required = true),
+                        BlockField("amount", "amount", required = true, kind = FieldKind.Number),
+                    ),
+            ),
+            // ── Content ──────────────────────────────────────────────────────
+            BlockType(
+                type = "post_quote",
+                role = BlockRole.Action,
+                labelKey = "post_quote",
+                fields = listOf(BlockField("number", "quote_number", required = false, kind = FieldKind.Number)),
+            ),
+            BlockType(
+                type = "send_discord_notification",
+                role = BlockRole.Action,
+                labelKey = "send_discord_notification",
+                fields =
+                    listOf(
+                        BlockField("trigger_type", "trigger_type", required = true),
+                        BlockField("dedupe_key", "dedupe_key", required = false),
+                    ),
+            ),
+            // ── Gating ───────────────────────────────────────────────────────
+            BlockType(
+                type = "require_tier",
+                role = BlockRole.Action,
+                labelKey = "require_tier",
+                fields =
+                    listOf(
+                        BlockField("min_tier", "min_tier", required = true),
+                        BlockField("denied_message", "denied_message", required = false),
+                    ),
+            ),
+            // ── Code ─────────────────────────────────────────────────────────
+            BlockType(
+                type = "run_code",
+                role = BlockRole.Action,
+                labelKey = "run_code",
+                fields = listOf(BlockField("code_script_id", "code_script_id", required = true)),
+            ),
+            // ── Flow ─────────────────────────────────────────────────────────
             BlockType(
                 type = "set_variable",
                 role = BlockRole.Action,
