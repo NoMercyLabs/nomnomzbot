@@ -601,7 +601,7 @@ private fun SectionLabel(label: String) {
 
     Text(
         text = label,
-        style = typography.xs,
+        style = typography.sm,
         color = tokens.mutedForeground,
         modifier = Modifier.padding(start = spacing.s1, top = spacing.s2, bottom = spacing.s1),
     )
