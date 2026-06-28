@@ -20,12 +20,15 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -43,13 +46,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
-import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.CopyValue
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
+import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -375,9 +379,14 @@ private fun InboundRow(
                     Text(stringResource(Res.string.webhooks_rotate_inbound_token), style = typography.xs, color = tokens.primary)
                 }
             }
-            ManageGate(manage) {
-                TextButton(onClick = onDelete) {
-                    Text(stringResource(Res.string.webhooks_delete_confirm), style = typography.xs, color = tokens.destructive)
+            ManageGate(manage) { enabled ->
+                IconButton(onClick = onDelete, enabled = enabled) {
+                    Icon(
+                        imageVector = TrashGlyph,
+                        contentDescription = stringResource(Res.string.webhooks_delete_confirm),
+                        tint = if (enabled) tokens.destructive else tokens.muted,
+                        modifier = Modifier.size(spacing.s4),
+                    )
                 }
             }
         }
@@ -462,9 +471,14 @@ private fun OutboundRow(
                     Text(stringResource(Res.string.webhooks_rotate_outbound_secret), style = typography.xs, color = tokens.primary)
                 }
             }
-            ManageGate(manage) {
-                TextButton(onClick = onDelete) {
-                    Text(stringResource(Res.string.webhooks_delete_confirm), style = typography.xs, color = tokens.destructive)
+            ManageGate(manage) { enabled ->
+                IconButton(onClick = onDelete, enabled = enabled) {
+                    Icon(
+                        imageVector = TrashGlyph,
+                        contentDescription = stringResource(Res.string.webhooks_delete_confirm),
+                        tint = if (enabled) tokens.destructive else tokens.muted,
+                        modifier = Modifier.size(spacing.s4),
+                    )
                 }
             }
         }

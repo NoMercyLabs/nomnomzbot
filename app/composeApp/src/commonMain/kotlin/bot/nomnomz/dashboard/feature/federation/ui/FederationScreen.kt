@@ -18,12 +18,15 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -41,12 +44,15 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
-import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
+import bot.nomnomz.dashboard.core.designsystem.icon.CheckCircleGlyph
+import bot.nomnomz.dashboard.core.designsystem.icon.RemoveGlyph
+import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -270,18 +276,28 @@ private fun PeerRow(
                 },
             )
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(spacing.s1)) {
             if (!peer.isTrusted && !peer.isRevoked) {
-                ManageGate(manage) {
-                    TextButton(onClick = onTrust) {
-                        Text(stringResource(Res.string.federation_peer_trust), style = typography.xs, color = tokens.primary)
+                ManageGate(manage) { enabled ->
+                    IconButton(onClick = onTrust, enabled = enabled) {
+                        Icon(
+                            imageVector = CheckCircleGlyph,
+                            contentDescription = stringResource(Res.string.federation_peer_trust),
+                            tint = if (enabled) tokens.primary else tokens.muted,
+                            modifier = Modifier.size(spacing.s4),
+                        )
                     }
                 }
             }
             if (!peer.isRevoked) {
-                ManageGate(manage) {
-                    TextButton(onClick = onRevoke) {
-                        Text(stringResource(Res.string.federation_peer_revoke), style = typography.xs, color = tokens.destructive)
+                ManageGate(manage) { enabled ->
+                    IconButton(onClick = onRevoke, enabled = enabled) {
+                        Icon(
+                            imageVector = RemoveGlyph,
+                            contentDescription = stringResource(Res.string.federation_peer_revoke),
+                            tint = if (enabled) tokens.destructive else tokens.muted,
+                            modifier = Modifier.size(spacing.s4),
+                        )
                     }
                 }
             }
@@ -332,9 +348,14 @@ private fun OptInRow(
                 )
             }
         }
-        ManageGate(manage) {
-            TextButton(onClick = onRemove) {
-                Text(stringResource(Res.string.federation_optin_remove_confirm), style = typography.xs, color = tokens.destructive)
+        ManageGate(manage) { enabled ->
+            IconButton(onClick = onRemove, enabled = enabled) {
+                Icon(
+                    imageVector = TrashGlyph,
+                    contentDescription = stringResource(Res.string.federation_optin_remove_confirm),
+                    tint = if (enabled) tokens.destructive else tokens.muted,
+                    modifier = Modifier.size(spacing.s4),
+                )
             }
         }
     }

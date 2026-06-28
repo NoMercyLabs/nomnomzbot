@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -28,6 +29,8 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Text
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -54,6 +57,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
+import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
 import bot.nomnomz.dashboard.core.network.AutomodConfig
 import bot.nomnomz.dashboard.core.network.BannedUser
 import bot.nomnomz.dashboard.core.network.ModLogEntry
@@ -749,15 +753,16 @@ private fun RuleRow(
             }
         }
         ManageGate(decision = manage) { enabled ->
-            TextButton(
+            IconButton(
                 onClick = onDelete,
                 enabled = enabled,
                 modifier = Modifier.semantics { contentDescription = deleteLabel },
             ) {
-                Text(
-                    text = stringResource(Res.string.moderation_rules_delete),
-                    color = if (enabled) tokens.destructive else tokens.mutedForeground,
-                    maxLines = 1,
+                Icon(
+                    imageVector = TrashGlyph,
+                    contentDescription = null,
+                    tint = if (enabled) tokens.destructive else tokens.muted,
+                    modifier = Modifier.size(spacing.s4),
                 )
             }
         }

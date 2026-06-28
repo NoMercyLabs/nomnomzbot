@@ -35,6 +35,8 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextFieldColors
 import androidx.compose.runtime.Composable
@@ -63,6 +65,7 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.designsystem.theme.Tokens
+import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.ui.unit.dp
@@ -1621,15 +1624,16 @@ private fun CatalogItemRow(
             }
             // Delete — destructive; the caller confirms before calling onDelete.
             val deleteLabel: String = stringResource(Res.string.economy_catalog_delete_action, item.name)
-            TextButton(
+            IconButton(
                 onClick = onDelete,
                 enabled = enabled,
                 modifier = Modifier.clearAndSetSemantics { contentDescription = deleteLabel },
             ) {
-                Text(
-                    text = stringResource(Res.string.economy_catalog_delete),
-                    color = if (enabled) tokens.destructive else tokens.mutedForeground,
-                    maxLines = 1,
+                Icon(
+                    imageVector = TrashGlyph,
+                    contentDescription = null,
+                    tint = if (enabled) tokens.destructive else tokens.muted,
+                    modifier = Modifier.size(spacing.s4),
                 )
             }
         }

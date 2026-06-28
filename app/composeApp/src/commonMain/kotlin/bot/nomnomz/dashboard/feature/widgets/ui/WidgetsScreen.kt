@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -30,6 +31,8 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -57,6 +60,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
+import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
 import bot.nomnomz.dashboard.core.network.WidgetSummary
 import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
 import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
@@ -69,7 +73,6 @@ import nomnomzbot.composeapp.generated.resources.widgets_action_error
 import nomnomzbot.composeapp.generated.resources.widgets_badge_disabled
 import nomnomzbot.composeapp.generated.resources.widgets_badge_enabled
 import nomnomzbot.composeapp.generated.resources.widgets_delete_action
-import nomnomzbot.composeapp.generated.resources.widgets_delete_action_short
 import nomnomzbot.composeapp.generated.resources.widgets_delete_cancel
 import nomnomzbot.composeapp.generated.resources.widgets_delete_confirm
 import nomnomzbot.composeapp.generated.resources.widgets_delete_message
@@ -379,15 +382,16 @@ private fun WidgetRow(
                 }
             }
             ManageGate(decision = manage) { enabled ->
-                TextButton(
+                IconButton(
                     onClick = onDelete,
                     enabled = enabled,
                     modifier = Modifier.semantics { contentDescription = deleteLabel },
                 ) {
-                    Text(
-                        text = stringResource(Res.string.widgets_delete_action_short),
-                        color = if (enabled) tokens.destructive else tokens.mutedForeground,
-                        maxLines = 1,
+                    Icon(
+                        imageVector = TrashGlyph,
+                        contentDescription = null,
+                        tint = if (enabled) tokens.destructive else tokens.muted,
+                        modifier = Modifier.size(spacing.s4),
                     )
                 }
             }

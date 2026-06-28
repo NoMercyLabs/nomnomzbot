@@ -31,6 +31,8 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -55,6 +57,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
+import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
 import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.network.MusicConfig
@@ -85,7 +88,6 @@ import nomnomzbot.composeapp.generated.resources.music_provider
 import nomnomzbot.composeapp.generated.resources.music_queue_empty
 import nomnomzbot.composeapp.generated.resources.music_queue_label
 import nomnomzbot.composeapp.generated.resources.music_remove_action
-import nomnomzbot.composeapp.generated.resources.music_remove_action_short
 import nomnomzbot.composeapp.generated.resources.music_remove_confirm
 import nomnomzbot.composeapp.generated.resources.music_remove_dismiss
 import nomnomzbot.composeapp.generated.resources.music_remove_message
@@ -586,15 +588,16 @@ private fun QueueRow(track: MusicTrack, manage: ManageDecision, onRemove: () -> 
             overflow = TextOverflow.Ellipsis,
         )
         ManageGate(decision = manage) { enabled ->
-            TextButton(
+            IconButton(
                 onClick = onRemove,
                 enabled = enabled,
                 modifier = Modifier.clearAndSetSemantics { contentDescription = removeLabel },
             ) {
-                Text(
-                    text = stringResource(Res.string.music_remove_action_short),
-                    color = if (enabled) tokens.destructive else tokens.mutedForeground,
-                    maxLines = 1,
+                Icon(
+                    imageVector = TrashGlyph,
+                    contentDescription = null,
+                    tint = if (enabled) tokens.destructive else tokens.muted,
+                    modifier = Modifier.size(spacing.s4),
                 )
             }
         }

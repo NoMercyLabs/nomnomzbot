@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -28,6 +29,8 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextFieldColors
 import androidx.compose.runtime.Composable
@@ -55,6 +58,8 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.designsystem.theme.Tokens
+import bot.nomnomz.dashboard.core.designsystem.icon.EditGlyph
+import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
 import bot.nomnomz.dashboard.core.network.Quote
 import bot.nomnomz.dashboard.feature.quotes.state.QuotesController
 import bot.nomnomz.dashboard.feature.quotes.state.QuotesState
@@ -66,7 +71,6 @@ import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.quotes_action_error
 import nomnomzbot.composeapp.generated.resources.quotes_attribution
 import nomnomzbot.composeapp.generated.resources.quotes_delete_action
-import nomnomzbot.composeapp.generated.resources.quotes_delete_action_short
 import nomnomzbot.composeapp.generated.resources.quotes_delete_cancel
 import nomnomzbot.composeapp.generated.resources.quotes_delete_confirm
 import nomnomzbot.composeapp.generated.resources.quotes_delete_message
@@ -80,7 +84,6 @@ import nomnomzbot.composeapp.generated.resources.quotes_dialog_name_label
 import nomnomzbot.composeapp.generated.resources.quotes_dialog_save
 import nomnomzbot.composeapp.generated.resources.quotes_dialog_text_label
 import nomnomzbot.composeapp.generated.resources.quotes_edit_action
-import nomnomzbot.composeapp.generated.resources.quotes_edit_action_short
 import nomnomzbot.composeapp.generated.resources.quotes_empty
 import nomnomzbot.composeapp.generated.resources.quotes_error
 import nomnomzbot.composeapp.generated.resources.quotes_loading
@@ -302,28 +305,30 @@ private fun QuoteRow(quote: Quote, manage: ManageDecision, onEdit: () -> Unit, o
         }
 
         ManageGate(decision = manage) { enabled ->
-            TextButton(
+            IconButton(
                 onClick = onEdit,
                 enabled = enabled,
                 modifier = Modifier.semantics { contentDescription = editLabel },
             ) {
-                Text(
-                    text = stringResource(Res.string.quotes_edit_action_short),
-                    color = if (enabled) tokens.primary else tokens.mutedForeground,
-                    maxLines = 1,
+                Icon(
+                    imageVector = EditGlyph,
+                    contentDescription = null,
+                    tint = if (enabled) tokens.mutedForeground else tokens.muted,
+                    modifier = Modifier.size(spacing.s4),
                 )
             }
         }
         ManageGate(decision = manage) { enabled ->
-            TextButton(
+            IconButton(
                 onClick = onDelete,
                 enabled = enabled,
                 modifier = Modifier.semantics { contentDescription = deleteLabel },
             ) {
-                Text(
-                    text = stringResource(Res.string.quotes_delete_action_short),
-                    color = if (enabled) tokens.destructive else tokens.mutedForeground,
-                    maxLines = 1,
+                Icon(
+                    imageVector = TrashGlyph,
+                    contentDescription = null,
+                    tint = if (enabled) tokens.destructive else tokens.muted,
+                    modifier = Modifier.size(spacing.s4),
                 )
             }
         }

@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -27,6 +28,8 @@ import androidx.compose.material3.Switch
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -54,6 +57,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
+import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
 import bot.nomnomz.dashboard.core.network.MusicConfig
 import bot.nomnomz.dashboard.core.network.QueuedSong
 import bot.nomnomz.dashboard.core.network.UpdateMusicConfigBody
@@ -78,7 +82,6 @@ import nomnomzbot.composeapp.generated.resources.songrequests_pause
 import nomnomzbot.composeapp.generated.resources.songrequests_position
 import nomnomzbot.composeapp.generated.resources.songrequests_queue_title
 import nomnomzbot.composeapp.generated.resources.songrequests_remove_action
-import nomnomzbot.composeapp.generated.resources.songrequests_remove_action_short
 import nomnomzbot.composeapp.generated.resources.songrequests_remove_confirm
 import nomnomzbot.composeapp.generated.resources.songrequests_remove_dismiss
 import nomnomzbot.composeapp.generated.resources.songrequests_remove_message
@@ -483,15 +486,16 @@ private fun QueueRow(song: QueuedSong, moderate: ManageDecision, onRemove: () ->
             overflow = TextOverflow.Ellipsis,
         )
         ManageGate(decision = moderate) { enabled ->
-            TextButton(
+            IconButton(
                 onClick = onRemove,
                 enabled = enabled,
                 modifier = Modifier.clearAndSetSemantics { contentDescription = removeLabel },
             ) {
-                Text(
-                    text = stringResource(Res.string.songrequests_remove_action_short),
-                    color = if (enabled) tokens.destructive else tokens.mutedForeground,
-                    maxLines = 1,
+                Icon(
+                    imageVector = TrashGlyph,
+                    contentDescription = null,
+                    tint = if (enabled) tokens.destructive else tokens.muted,
+                    modifier = Modifier.size(spacing.s4),
                 )
             }
         }

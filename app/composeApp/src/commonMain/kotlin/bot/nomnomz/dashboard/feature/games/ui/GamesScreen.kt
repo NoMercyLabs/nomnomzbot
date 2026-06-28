@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -29,6 +30,8 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextFieldColors
 import androidx.compose.runtime.Composable
@@ -57,6 +60,7 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.designsystem.theme.Tokens
+import bot.nomnomz.dashboard.core.designsystem.icon.EditGlyph
 import bot.nomnomz.dashboard.core.network.GamePlayEntry
 import bot.nomnomz.dashboard.core.network.GameSummary
 import bot.nomnomz.dashboard.feature.games.state.GamesController
@@ -81,7 +85,6 @@ import nomnomzbot.composeapp.generated.resources.games_history_empty
 import nomnomzbot.composeapp.generated.resources.games_history_title
 import nomnomzbot.composeapp.generated.resources.games_disabled
 import nomnomzbot.composeapp.generated.resources.games_edit_action
-import nomnomzbot.composeapp.generated.resources.games_edit_action_short
 import nomnomzbot.composeapp.generated.resources.games_empty
 import nomnomzbot.composeapp.generated.resources.games_enabled
 import nomnomzbot.composeapp.generated.resources.games_error
@@ -327,15 +330,16 @@ private fun GameRow(
             )
         }
         ManageGate(decision = manage) { enabled ->
-            TextButton(
+            IconButton(
                 onClick = onEdit,
                 enabled = enabled,
                 modifier = Modifier.semantics { contentDescription = editLabel },
             ) {
-                Text(
-                    text = stringResource(Res.string.games_edit_action_short),
-                    color = if (enabled) tokens.primary else tokens.mutedForeground,
-                    maxLines = 1,
+                Icon(
+                    imageVector = EditGlyph,
+                    contentDescription = null,
+                    tint = if (enabled) tokens.mutedForeground else tokens.muted,
+                    modifier = Modifier.size(spacing.s4),
                 )
             }
         }

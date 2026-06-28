@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -31,6 +32,8 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -54,6 +57,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
+import bot.nomnomz.dashboard.core.designsystem.icon.EditGlyph
 import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.network.EventResponseSummary
 import bot.nomnomz.dashboard.feature.eventresponses.state.EventResponsesController
@@ -73,7 +77,6 @@ import nomnomzbot.composeapp.generated.resources.event_responses_dialog_response
 import nomnomzbot.composeapp.generated.resources.event_responses_dialog_save
 import nomnomzbot.composeapp.generated.resources.event_responses_dialog_title
 import nomnomzbot.composeapp.generated.resources.event_responses_edit_action
-import nomnomzbot.composeapp.generated.resources.event_responses_edit_action_short
 import nomnomzbot.composeapp.generated.resources.event_responses_empty
 import nomnomzbot.composeapp.generated.resources.event_responses_error
 import nomnomzbot.composeapp.generated.resources.event_responses_loading
@@ -274,17 +277,18 @@ private fun EventResponseRow(
             )
         }
         ManageGate(decision = manage) { enabled ->
-            TextButton(
+            IconButton(
                 onClick = onEdit,
                 enabled = enabled,
                 modifier = Modifier.semantics {
                     contentDescription = editSemantics
                 },
             ) {
-                Text(
-                    text = stringResource(Res.string.event_responses_edit_action_short),
-                    style = typography.sm,
-                    color = if (enabled) tokens.primary else tokens.mutedForeground,
+                Icon(
+                    imageVector = EditGlyph,
+                    contentDescription = null,
+                    tint = if (enabled) tokens.mutedForeground else tokens.muted,
+                    modifier = Modifier.size(spacing.s4),
                 )
             }
         }
