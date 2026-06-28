@@ -723,7 +723,7 @@ private fun QuickActionButton(
             imageVector = icon,
             contentDescription = null,
             tint = iconTint,
-            modifier = Modifier.size(spacing.s5),
+            modifier = Modifier.size(spacing.s6),
         )
         Text(
             text = label,

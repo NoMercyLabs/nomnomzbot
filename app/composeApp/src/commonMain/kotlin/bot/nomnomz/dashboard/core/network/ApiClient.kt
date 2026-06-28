@@ -31,7 +31,7 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.contentType
 import io.ktor.http.isSuccess
 import io.ktor.serialization.kotlinx.json.json
-import kotlinx.serialization.SerializationException
+import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.json.Json
 
 // The one shared HttpClient (frontend-structure.md F7 — exactly one client). It is base-URL- and
@@ -91,7 +91,8 @@ class ApiClient(
         if (!response.status.isSuccess()) return ApiResult.Failure(parseError(response))
         return try {
             ApiResult.Ok(response.body<T>())
-        } catch (cause: SerializationException) {
+        } catch (cause: Exception) {
+            if (cause is CancellationException) throw cause
             ApiResult.Failure(
                 ApiError(
                     status = response.status.value,
@@ -264,7 +265,8 @@ class ApiClient(
             } else {
                 ApiResult.Ok(value)
             }
-        } catch (cause: SerializationException) {
+        } catch (cause: Exception) {
+            if (cause is CancellationException) throw cause
             ApiResult.Failure(
                 ApiError(
                     status = response.status.value,
@@ -310,7 +312,7 @@ class ApiClient(
         val problem: ProblemDetails? =
             try {
                 if (text.isNotBlank()) json.decodeFromString(ProblemDetails.serializer(), text) else null
-            } catch (_: SerializationException) {
+            } catch (_: Exception) {
                 null
             }
         return ApiError(

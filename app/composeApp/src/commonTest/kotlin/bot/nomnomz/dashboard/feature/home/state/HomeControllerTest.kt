@@ -15,12 +15,16 @@ import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
+import bot.nomnomz.dashboard.core.network.CommandSummary
+import bot.nomnomz.dashboard.core.network.CommandsApi
+import bot.nomnomz.dashboard.core.network.CreateCommandBody
 import bot.nomnomz.dashboard.core.network.ModeratedChannel
 import bot.nomnomz.dashboard.core.network.DashboardApi
 import bot.nomnomz.dashboard.core.network.DashboardStats
 import bot.nomnomz.dashboard.core.network.StreamApi
 import bot.nomnomz.dashboard.core.network.StreamInfo
 import bot.nomnomz.dashboard.core.network.StreamInfoUpdate
+import bot.nomnomz.dashboard.core.network.UpdateCommandBody
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -48,6 +52,7 @@ class HomeControllerTest {
                     )
                 ),
                 streamApi = FakeStreamApi(),
+                commandsApi = FakeCommandsApi(),
             )
 
         controller.load()
@@ -69,6 +74,7 @@ class HomeControllerTest {
                 channelsApi = FakeChannelsApi(ApiResult.Failure(ApiError(404, "NO_CHANNEL", "none onboarded"))),
                 dashboardApi = FakeDashboardApi(ApiResult.Ok(DashboardStats())),
                 streamApi = FakeStreamApi(),
+                commandsApi = FakeCommandsApi(),
             )
 
         controller.load()
@@ -83,11 +89,60 @@ class HomeControllerTest {
                 channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 dashboardApi = FakeDashboardApi(ApiResult.Failure(ApiError(500, "ERR", "boom"))),
                 streamApi = FakeStreamApi(),
+                commandsApi = FakeCommandsApi(),
             )
 
         controller.load()
 
         assertTrue(controller.state.value is HomeState.Error)
+    }
+
+    @Test
+    fun load_surfaces_top_5_commands_sorted_by_use_count() = runTest {
+        val commands: List<CommandSummary> = listOf(
+            CommandSummary(name = "!c", useCount = 1),
+            CommandSummary(name = "!a", useCount = 50),
+            CommandSummary(name = "!b", useCount = 30),
+            CommandSummary(name = "!d", useCount = 5),
+            CommandSummary(name = "!e", useCount = 20),
+            CommandSummary(name = "!f", useCount = 100),
+        )
+        val controller =
+            HomeController(
+                channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                dashboardApi = FakeDashboardApi(ApiResult.Ok(DashboardStats())),
+                streamApi = FakeStreamApi(),
+                commandsApi = FakeCommandsApi(ApiResult.Ok(commands)),
+            )
+
+        controller.load()
+
+        val state: HomeState = controller.state.value
+        assertTrue(state is HomeState.Ready)
+        val top: List<CommandSummary> = (state as HomeState.Ready).topCommands
+        assertEquals(5, top.size)
+        assertEquals("!f", top[0].name)
+        assertEquals("!a", top[1].name)
+        assertEquals("!b", top[2].name)
+        assertEquals("!e", top[3].name)
+        assertEquals("!d", top[4].name)
+    }
+
+    @Test
+    fun load_survives_commands_api_failure_and_shows_empty_top_commands() = runTest {
+        val controller =
+            HomeController(
+                channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                dashboardApi = FakeDashboardApi(ApiResult.Ok(DashboardStats())),
+                streamApi = FakeStreamApi(),
+                commandsApi = FakeCommandsApi(ApiResult.Failure(ApiError(500, "ERR", "commands unavailable"))),
+            )
+
+        controller.load()
+
+        val state: HomeState = controller.state.value
+        assertTrue(state is HomeState.Ready)
+        assertTrue((state as HomeState.Ready).topCommands.isEmpty())
     }
 }
 
@@ -121,4 +176,19 @@ private class FakeStreamApi : StreamApi {
         ApiResult.Ok(StreamInfo())
     override suspend fun update(channelId: String, update: StreamInfoUpdate): ApiResult<StreamInfo> =
         ApiResult.Ok(StreamInfo())
+}
+
+private class FakeCommandsApi(
+    private val result: ApiResult<List<CommandSummary>> = ApiResult.Ok(emptyList()),
+) : CommandsApi {
+    override suspend fun list(channelId: String): ApiResult<List<CommandSummary>> = result
+    override suspend fun create(channelId: String, body: CreateCommandBody): ApiResult<Unit> =
+        ApiResult.Ok(Unit)
+    override suspend fun update(
+        channelId: String,
+        commandName: String,
+        body: UpdateCommandBody,
+    ): ApiResult<Unit> = ApiResult.Ok(Unit)
+    override suspend fun delete(channelId: String, commandName: String): ApiResult<Unit> =
+        ApiResult.Ok(Unit)
 }
