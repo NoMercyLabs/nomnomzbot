@@ -23,7 +23,9 @@ import bot.nomnomz.dashboard.core.network.ModerationApi
 import bot.nomnomz.dashboard.core.network.ModerationRule
 import bot.nomnomz.dashboard.core.network.ModerationStats
 import bot.nomnomz.dashboard.core.network.ShieldStatus
+import bot.nomnomz.dashboard.core.realtime.HubEvent
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import nomnomzbot.composeapp.generated.resources.Res
@@ -298,6 +300,29 @@ class ModerationController(
                     _state.value = current.copy(actionError = result.error.message)
                 }
             }
+        }
+    }
+
+    /**
+     * Subscribe to [hubEvents] so the mod log updates in real-time:
+     * - [HubEvent.ModAction]: prepends a new [ModLogEntry] to the log (cap 50) so ban/timeout/unban actions
+     *   issued by any moderator appear instantly without a page refresh.
+     */
+    suspend fun subscribeToHub(hubEvents: SharedFlow<HubEvent>) {
+        hubEvents.collect { evt ->
+            if (evt !is HubEvent.ModAction) return@collect
+            val current: ModerationState = _state.value
+            if (current !is ModerationState.Ready) return@collect
+            val entry: ModLogEntry = ModLogEntry(
+                id = "${evt.action.action}_${evt.action.moderatorId}_${evt.action.targetUserId}",
+                action = evt.action.action,
+                moderator = evt.action.moderatorId,
+                target = evt.action.targetUserId,
+                reason = evt.action.reason,
+                duration = evt.action.durationSeconds,
+                timestamp = "",
+            )
+            _state.value = current.copy(modLog = (listOf(entry) + current.modLog).take(50))
         }
     }
 

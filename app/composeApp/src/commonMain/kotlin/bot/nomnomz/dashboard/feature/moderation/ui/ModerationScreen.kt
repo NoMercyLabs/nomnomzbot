@@ -162,6 +162,8 @@ import nomnomzbot.composeapp.generated.resources.moderation_unban_dismiss
 import nomnomzbot.composeapp.generated.resources.moderation_unban_message
 import nomnomzbot.composeapp.generated.resources.moderation_unban_title
 import nomnomzbot.composeapp.generated.resources.shell_nav_moderation
+import bot.nomnomz.dashboard.core.realtime.HubEvent
+import kotlinx.coroutines.flow.SharedFlow
 import org.jetbrains.compose.resources.stringResource
 
 // The Moderation page: the channel's currently-banned viewers, all real data from [ModerationController].
@@ -169,7 +171,11 @@ import org.jetbrains.compose.resources.stringResource
 // retry on failure. Each ban is actionable — an Unban affordance that, only once the moderator confirms it
 // in the shared ConfirmDialog, lifts the ban via the controller (which reloads the list on success).
 @Composable
-fun ModerationScreen(controller: ModerationController, role: ManagementRole?) {
+fun ModerationScreen(
+    controller: ModerationController,
+    role: ManagementRole?,
+    hubEvents: SharedFlow<HubEvent>? = null,
+) {
     val state: ModerationState by controller.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val spacing = LocalSpacing.current
@@ -180,6 +186,9 @@ fun ModerationScreen(controller: ModerationController, role: ManagementRole?) {
     val manage: ManageDecision = rememberManageDecision(role, ShellRoute.Moderation)
 
     LaunchedEffect(Unit) { controller.load() }
+    if (hubEvents != null) {
+        LaunchedEffect(hubEvents) { controller.subscribeToHub(hubEvents) }
+    }
 
     Box(modifier = Modifier.fillMaxSize().padding(spacing.s6)) {
         when (val current: ModerationState = state) {

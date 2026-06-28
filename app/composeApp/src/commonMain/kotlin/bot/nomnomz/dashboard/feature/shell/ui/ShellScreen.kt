@@ -309,7 +309,12 @@ private fun ShellContent(
             ShellRoute.EventResponses -> EventResponsesScreen(controller = graph.eventResponsesController, role = role)
             ShellRoute.Quotes -> QuotesScreen(controller = graph.quotesController, role = role)
             ShellRoute.Timers -> TimersScreen(controller = graph.timersController, role = role)
-            ShellRoute.Moderation -> ModerationScreen(controller = graph.moderationController, role = role)
+            ShellRoute.Moderation ->
+                ModerationScreen(
+                    controller = graph.moderationController,
+                    role = role,
+                    hubEvents = graph.dashboardHubClient.events,
+                )
             ShellRoute.Analytics -> AnalyticsScreen(controller = graph.analyticsController)
             ShellRoute.Rewards ->
                 RewardsScreen(
