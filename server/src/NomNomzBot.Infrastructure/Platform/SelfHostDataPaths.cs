@@ -32,6 +32,9 @@ public static class SelfHostDataPaths
 
     public static string KeysDirectory => Ensure(Path.Combine(BaseDirectory, "keys"));
 
+    /// <summary>Durable storage for broadcaster-uploaded sound clips (spec P.18).</summary>
+    public static string SoundClipsDirectory => Ensure(Path.Combine(BaseDirectory, "sound-clips"));
+
     /// <summary>
     /// The file that records the TCP port this install has committed to (deployment-distribution §6). Written the
     /// first time the bot binds a self-host loopback port; read on every later boot so the port — and therefore the

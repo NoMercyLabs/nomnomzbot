@@ -549,5 +549,7 @@ public sealed class IdentityRekeyBehaviorTests
             throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.CustomCode.Entities.CodeScriptVersion> CodeScriptVersions =>
             throw new NotSupportedException();
+        public DbSet<NomNomzBot.Domain.Sound.Entities.SoundClip> SoundClips =>
+            throw new NotSupportedException();
     }
 }

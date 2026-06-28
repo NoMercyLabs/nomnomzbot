@@ -17,4 +17,10 @@ public interface IOverlayClient
     Task WidgetEvent(WidgetEventDto evt);
     Task WidgetReload();
     Task WidgetSettingsChanged(WidgetSettingsDto settings);
+
+    /// <summary>Instructs the overlay's audio bus to start playing a clip (spec §4).</summary>
+    Task PlaySound(PlaySoundPayload payload);
+
+    /// <summary>Instructs the overlay to stop a named clip handle, or all playback when <see cref="StopSoundPayload.All"/> is true.</summary>
+    Task StopSound(StopSoundPayload payload);
 }

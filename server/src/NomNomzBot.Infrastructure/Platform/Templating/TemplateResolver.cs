@@ -303,10 +303,9 @@ public sealed partial class TemplateResolver : ITemplateResolver
             {
                 // With alt: "she/they" badge (primary subject + alt subject).
                 // Without alt: use the pronoun's own name, e.g. "they/them".
-                vars["user.pronouns"] =
-                    user.AltPronoun is not null
-                        ? $"{user.Pronoun.Subject}/{user.AltPronoun.Subject}"
-                        : user.Pronoun.Name;
+                vars["user.pronouns"] = user.AltPronoun is not null
+                    ? $"{user.Pronoun.Subject}/{user.AltPronoun.Subject}"
+                    : user.Pronoun.Name;
             }
 
             // Follow age & message count would require a ChannelEvent lookup — set placeholders for now

@@ -274,6 +274,11 @@ public static class DependencyInjection
             Identity.Services.PronounSelfService
         >();
 
+        // Sound clip library (spec §3, §4, §5).
+        services.AddScoped<Application.Sound.Services.ISoundClipService, Sound.SoundClipService>();
+        services.AddScoped<Application.Sound.Services.ISoundClipStore, Sound.DiskSoundClipStore>();
+        // play_sound + stop_sound auto-discovered via ICommandAction scan.
+
         // Webhook HMAC primitives (stateless; not name-convention "*Service", so registered explicitly).
         services.AddSingleton<
             Application.Contracts.Webhooks.IInboundSignatureVerifier,

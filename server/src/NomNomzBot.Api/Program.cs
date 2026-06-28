@@ -145,6 +145,10 @@ try
     // Hub notifiers
     builder.Services.AddScoped<IDashboardNotifier, DashboardNotifier>();
     builder.Services.AddScoped<IWidgetNotifier, WidgetNotifier>();
+    builder.Services.AddScoped<
+        NomNomzBot.Application.Sound.Services.ISoundClipOverlayNotifier,
+        NomNomzBot.Api.Hubs.SoundClipOverlayNotifierAdapter
+    >();
 
     // Register event handlers declared in the API layer (e.g. ChatMessageBroadcastHandler)
     builder.Services.AddEventHandlersFromAssembly(typeof(Program).Assembly);

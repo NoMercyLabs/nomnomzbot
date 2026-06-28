@@ -24,6 +24,7 @@ using NomNomzBot.Domain.Integrations.Entities;
 using NomNomzBot.Domain.Platform.Entities;
 using NomNomzBot.Domain.Quotes.Entities;
 using NomNomzBot.Domain.Rewards.Entities;
+using NomNomzBot.Domain.Sound.Entities;
 using NomNomzBot.Domain.Tts.Entities;
 using NomNomzBot.Domain.Webhooks.Entities;
 using NomNomzBot.Domain.Widgets.Entities;
@@ -224,4 +225,5 @@ internal sealed class ApiTestDbContext : DbContext, IApplicationDbContext
     public DbSet<FeatureFlagOverride> FeatureFlagOverrides => throw new NotSupportedException();
     public DbSet<CodeScript> CodeScripts => throw new NotSupportedException();
     public DbSet<CodeScriptVersion> CodeScriptVersions => throw new NotSupportedException();
+    public DbSet<SoundClip> SoundClips => throw new NotSupportedException();
 }

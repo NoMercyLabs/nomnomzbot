@@ -215,6 +215,8 @@ public sealed class SeedTestDbContext : DbContext, IApplicationDbContext
         Set<NomNomzBot.Domain.CustomCode.Entities.CodeScript>();
     public DbSet<NomNomzBot.Domain.CustomCode.Entities.CodeScriptVersion> CodeScriptVersions =>
         Set<NomNomzBot.Domain.CustomCode.Entities.CodeScriptVersion>();
+    public DbSet<NomNomzBot.Domain.Sound.Entities.SoundClip> SoundClips =>
+        Set<NomNomzBot.Domain.Sound.Entities.SoundClip>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -275,5 +277,6 @@ public sealed class SeedTestDbContext : DbContext, IApplicationDbContext
         modelBuilder.Ignore<NomNomzBot.Domain.EventStore.Entities.EventJournal>();
         modelBuilder.Ignore<NomNomzBot.Domain.EventStore.Entities.TenantSequence>();
         modelBuilder.Ignore<NomNomzBot.Domain.EventStore.Entities.ProjectionCheckpoint>();
+        modelBuilder.Ignore<NomNomzBot.Domain.Sound.Entities.SoundClip>();
     }
 }

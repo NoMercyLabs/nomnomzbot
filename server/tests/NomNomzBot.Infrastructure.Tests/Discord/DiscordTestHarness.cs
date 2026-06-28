@@ -293,6 +293,8 @@ internal sealed class DiscordTestDbContext : DbContext, IApplicationDbContext
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Platform.Entities.FeatureFlagOverride> FeatureFlagOverrides =>
         throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Sound.Entities.SoundClip> SoundClips =>
+        throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.CustomCode.Entities.CodeScript> CodeScripts =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.CustomCode.Entities.CodeScriptVersion> CodeScriptVersions =>

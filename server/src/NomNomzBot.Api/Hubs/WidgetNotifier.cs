@@ -29,6 +29,20 @@ public interface IWidgetNotifier
         WidgetSettingsDto dto,
         CancellationToken ct = default
     );
+
+    /// <summary>Pushes a play-sound command to all overlay clients for the given broadcaster.</summary>
+    Task PlaySoundAsync(
+        string broadcasterId,
+        PlaySoundPayload payload,
+        CancellationToken ct = default
+    );
+
+    /// <summary>Pushes a stop-sound command to all overlay clients for the given broadcaster.</summary>
+    Task StopSoundAsync(
+        string broadcasterId,
+        StopSoundPayload payload,
+        CancellationToken ct = default
+    );
 }
 
 public class WidgetNotifier : IWidgetNotifier
@@ -56,4 +70,16 @@ public class WidgetNotifier : IWidgetNotifier
         WidgetSettingsDto dto,
         CancellationToken ct = default
     ) => _hub.Clients.Group($"widget-{broadcasterId}-{widgetId}").WidgetSettingsChanged(dto);
+
+    public Task PlaySoundAsync(
+        string broadcasterId,
+        PlaySoundPayload payload,
+        CancellationToken ct = default
+    ) => _hub.Clients.Group($"overlay-{broadcasterId}").PlaySound(payload);
+
+    public Task StopSoundAsync(
+        string broadcasterId,
+        StopSoundPayload payload,
+        CancellationToken ct = default
+    ) => _hub.Clients.Group($"overlay-{broadcasterId}").StopSound(payload);
 }

@@ -233,6 +233,8 @@ public class AppDbContext : DbContext, IApplicationDbContext
         Set<Domain.CustomCode.Entities.CodeScript>();
     public DbSet<Domain.CustomCode.Entities.CodeScriptVersion> CodeScriptVersions =>
         Set<Domain.CustomCode.Entities.CodeScriptVersion>();
+    public DbSet<Domain.Sound.Entities.SoundClip> SoundClips =>
+        Set<Domain.Sound.Entities.SoundClip>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {

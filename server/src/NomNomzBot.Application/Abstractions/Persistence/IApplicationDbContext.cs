@@ -23,6 +23,7 @@ using NomNomzBot.Domain.Integrations.Entities;
 using NomNomzBot.Domain.Platform.Entities;
 using NomNomzBot.Domain.Quotes.Entities;
 using NomNomzBot.Domain.Rewards.Entities;
+using NomNomzBot.Domain.Sound.Entities;
 using NomNomzBot.Domain.Tts.Entities;
 using NomNomzBot.Domain.Webhooks.Entities;
 using NomNomzBot.Domain.Widgets.Entities;
@@ -151,6 +152,7 @@ public interface IApplicationDbContext
     DbSet<FeatureFlagOverride> FeatureFlagOverrides { get; }
     DbSet<CodeScript> CodeScripts { get; }
     DbSet<CodeScriptVersion> CodeScriptVersions { get; }
+    DbSet<SoundClip> SoundClips { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

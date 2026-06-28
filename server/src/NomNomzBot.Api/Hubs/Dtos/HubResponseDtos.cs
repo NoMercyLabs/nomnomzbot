@@ -92,3 +92,11 @@ public record SendMessageResponse(bool Success, string? Error, string? MessageId
 public record ActionResponse(bool Success, string? Error);
 
 public record JoinWidgetResponse(bool Success, string? Error, object? InitialState);
+
+// ─── Sound overlay ────────────────────────────────────────────────────────────
+
+/// <summary>Payload the overlay receives to start playback of a clip on its audio bus.</summary>
+public record PlaySoundPayload(string PlaybackUrl, int Volume, string? Handle);
+
+/// <summary>Payload the overlay receives to stop in-progress clip playback.</summary>
+public record StopSoundPayload(string? Handle, bool All);
