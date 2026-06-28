@@ -22,9 +22,12 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -50,6 +53,8 @@ import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
+import bot.nomnomz.dashboard.core.designsystem.icon.EditGlyph
+import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -303,24 +308,30 @@ private fun TimerRow(
             )
         }
         ManageGate(decision = manage) { enabled ->
-            TextButton(
+            IconButton(
                 onClick = onEdit,
                 enabled = enabled,
                 modifier = Modifier.semantics { contentDescription = editLabel },
             ) {
-                Text(text = stringResource(Res.string.timers_edit_action), maxLines = 1)
+                Icon(
+                    imageVector = EditGlyph,
+                    contentDescription = null,
+                    tint = if (enabled) tokens.mutedForeground else tokens.muted,
+                    modifier = Modifier.size(spacing.s4),
+                )
             }
         }
         ManageGate(decision = manage) { enabled ->
-            TextButton(
+            IconButton(
                 onClick = onDelete,
                 enabled = enabled,
                 modifier = Modifier.semantics { contentDescription = deleteLabel },
             ) {
-                Text(
-                    text = stringResource(Res.string.timers_delete_action),
-                    color = if (enabled) tokens.destructive else tokens.mutedForeground,
-                    maxLines = 1,
+                Icon(
+                    imageVector = TrashGlyph,
+                    contentDescription = null,
+                    tint = if (enabled) tokens.destructive else tokens.muted,
+                    modifier = Modifier.size(spacing.s4),
                 )
             }
         }
