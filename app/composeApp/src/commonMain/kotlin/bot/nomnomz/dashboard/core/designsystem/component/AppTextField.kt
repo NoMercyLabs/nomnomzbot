@@ -16,6 +16,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextFieldColors
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.Tokens
@@ -24,6 +25,10 @@ import bot.nomnomz.dashboard.core.designsystem.theme.Tokens
  * The shared single-line text field — an OutlinedTextField with every colour slot driven by a design token so it
  * reads on-theme in light + dark. The one form-input primitive every dashboard screen uses; [modifier] lets the
  * caller size it (e.g. `Modifier.fillMaxWidth()` in a column, or `Modifier.weight(1f)` inside a row).
+ *
+ * @param supportingText optional help text shown beneath the field when there is no active error.
+ * @param visualTransformation controls input masking — pass [PasswordVisualTransformation] for secret fields.
+ * @param trailingIcon optional icon slot at the end of the field (e.g. a show/hide toggle for secret fields).
  */
 @Composable
 fun AppTextField(
@@ -34,6 +39,9 @@ fun AppTextField(
     enabled: Boolean = true,
     isError: Boolean = false,
     errorText: String? = null,
+    supportingText: String? = null,
+    visualTransformation: VisualTransformation = VisualTransformation.None,
+    trailingIcon: @Composable (() -> Unit)? = null,
 ) {
     OutlinedTextField(
         value = value,
@@ -44,11 +52,13 @@ fun AppTextField(
         modifier = modifier,
         label = { Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis) },
         colors = appFieldColors(),
+        visualTransformation = visualTransformation,
+        trailingIcon = trailingIcon,
         supportingText =
-            if (isError && errorText != null) {
-                { Text(errorText) }
-            } else {
-                null
+            when {
+                isError && errorText != null -> { { Text(errorText) } }
+                supportingText != null -> { { Text(supportingText) } }
+                else -> null
             },
     )
 }

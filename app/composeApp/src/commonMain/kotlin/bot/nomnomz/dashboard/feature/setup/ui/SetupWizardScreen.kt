@@ -27,7 +27,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -43,6 +42,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.CopyValue
 import bot.nomnomz.dashboard.core.designsystem.component.LinkedText
 import bot.nomnomz.dashboard.core.designsystem.component.StepState
@@ -500,14 +500,13 @@ private fun CredentialField(
     val isSecret: Boolean = field.type == FIELD_TYPE_PASSWORD
     var revealed: Boolean by remember(field.key) { mutableStateOf(false) }
 
-    OutlinedTextField(
+    AppTextField(
         value = value,
         onValueChange = onValueChange,
-        enabled = enabled,
-        singleLine = true,
+        label = label,
         modifier = Modifier.fillMaxWidth(),
-        label = { Text(label) },
-        supportingText = help?.let { { Text(it) } },
+        enabled = enabled,
+        supportingText = help,
         visualTransformation =
             if (isSecret && !revealed) PasswordVisualTransformation() else VisualTransformation.None,
         trailingIcon =
@@ -517,8 +516,8 @@ private fun CredentialField(
                         Text(
                             stringResource(
                                 if (revealed) Res.string.setup_secret_hide
-                                else Res.string.setup_secret_show
-                            )
+                                else Res.string.setup_secret_show,
+                            ),
                         )
                     }
                 }
