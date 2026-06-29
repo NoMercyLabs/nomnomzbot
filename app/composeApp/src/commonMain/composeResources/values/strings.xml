@@ -1712,4 +1712,36 @@
     <string name="sound_clips_upload_action">Upload Clip</string>
     <string name="feedback_sound_clip_uploaded">Clip uploaded.</string>
     <string name="feedback_sound_clip_upload_failed">Upload failed: %1$s</string>
+
+    <!-- Custom Events -->
+    <string name="shell_nav_custom_events">Custom Data Sources</string>
+    <string name="custom_events_subtitle">Connect external data feeds (heart rate, sensors, APIs) to pipeline triggers and template variables.</string>
+    <string name="custom_events_loading">Loading data sources…</string>
+    <string name="custom_events_empty">No custom data sources configured. Use a preset below or create one manually.</string>
+    <string name="custom_events_error">Couldn't load data sources: %1$s</string>
+    <string name="custom_events_retry">Retry</string>
+    <string name="custom_events_action_error">Action failed: %1$s</string>
+    <string name="custom_events_new_source">New Source</string>
+    <string name="custom_events_presets_title">Quick-start presets</string>
+    <string name="custom_events_last_received">Last data: %1$s</string>
+    <string name="custom_events_create_title">New Data Source</string>
+    <string name="custom_events_edit_title">Edit Data Source</string>
+    <string name="custom_events_field_name">Slug (e.g. heartrate)</string>
+    <string name="custom_events_field_display_name">Display name</string>
+    <string name="custom_events_field_source_kind">Ingress kind</string>
+    <string name="custom_events_field_endpoint_url">Endpoint URL</string>
+    <string name="custom_events_field_auth_secret">Auth token / secret</string>
+    <string name="custom_events_secret_placeholder">Auth token (leave blank to keep existing)</string>
+    <string name="custom_events_field_field_map_json">Field map (JSON, e.g. {\"bpm\":\"$.data.heartRate\"})</string>
+    <string name="custom_events_field_poll_interval">Poll interval (seconds, min 10)</string>
+    <string name="custom_events_field_enabled">Enabled</string>
+    <string name="custom_events_save">Save</string>
+    <string name="custom_events_cancel">Cancel</string>
+    <string name="custom_events_delete_confirm_title">Delete source?</string>
+    <string name="custom_events_delete_confirm_body">"%1$s" will be permanently removed. Any pipelines using its trigger will stop firing.</string>
+    <string name="custom_events_delete_confirm">Delete</string>
+    <string name="custom_events_delete_cancel">Cancel</string>
+    <string name="custom_events_test_payload_label">Sample JSON payload</string>
+    <string name="custom_events_test_action">Fire Test</string>
+    <string name="custom_events_test_success">Test event fired — check your pipeline logs.</string>
 </resources>

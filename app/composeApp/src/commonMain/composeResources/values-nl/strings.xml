@@ -1698,4 +1698,36 @@
     <string name="sound_clips_upload_action">Fragment uploaden</string>
     <string name="feedback_sound_clip_uploaded">Fragment geüpload.</string>
     <string name="feedback_sound_clip_upload_failed">Upload mislukt: %1$s</string>
+
+    <!-- Custom Events -->
+    <string name="shell_nav_custom_events">Aangepaste Databronnen</string>
+    <string name="custom_events_subtitle">Verbind externe datafeeds (hartslag, sensoren, API\'s) met pipeline-triggers en sjabloonvariabelen.</string>
+    <string name="custom_events_loading">Databronnen laden…</string>
+    <string name="custom_events_empty">Geen aangepaste databronnen geconfigureerd. Gebruik een voorinstelling of maak er handmatig één aan.</string>
+    <string name="custom_events_error">Databronnen konden niet worden geladen: %1$s</string>
+    <string name="custom_events_retry">Opnieuw proberen</string>
+    <string name="custom_events_action_error">Actie mislukt: %1$s</string>
+    <string name="custom_events_new_source">Nieuwe bron</string>
+    <string name="custom_events_presets_title">Snelstartvoorinstellingen</string>
+    <string name="custom_events_last_received">Laatste data: %1$s</string>
+    <string name="custom_events_create_title">Nieuwe databron</string>
+    <string name="custom_events_edit_title">Databron bewerken</string>
+    <string name="custom_events_field_name">Slug (bijv. heartrate)</string>
+    <string name="custom_events_field_display_name">Weergavenaam</string>
+    <string name="custom_events_field_source_kind">Ingresstype</string>
+    <string name="custom_events_field_endpoint_url">Endpoint-URL</string>
+    <string name="custom_events_field_auth_secret">Auth-token / geheim</string>
+    <string name="custom_events_secret_placeholder">Auth-token (leeg laten om bestaande te behouden)</string>
+    <string name="custom_events_field_field_map_json">Veldtoewijzing (JSON, bijv. {\"bpm\":\"$.data.heartRate\"})</string>
+    <string name="custom_events_field_poll_interval">Pollinterval (seconden, min. 10)</string>
+    <string name="custom_events_field_enabled">Ingeschakeld</string>
+    <string name="custom_events_save">Opslaan</string>
+    <string name="custom_events_cancel">Annuleren</string>
+    <string name="custom_events_delete_confirm_title">Bron verwijderen?</string>
+    <string name="custom_events_delete_confirm_body">"%1$s" wordt permanent verwijderd. Pipelines die deze trigger gebruiken, stoppen met uitvoeren.</string>
+    <string name="custom_events_delete_confirm">Verwijderen</string>
+    <string name="custom_events_delete_cancel">Annuleren</string>
+    <string name="custom_events_test_payload_label">Voorbeeld JSON-payload</string>
+    <string name="custom_events_test_action">Test uitvoeren</string>
+    <string name="custom_events_test_success">Testgebeurtenis verzonden — controleer uw pipeline-logboeken.</string>
 </resources>

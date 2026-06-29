@@ -42,7 +42,7 @@ kotlin {
         browser {
             commonWebpackConfig {
                 outputFileName = "composeApp.js"
-                devServer = KotlinWebpackConfig.DevServer(port = 8081)
+                devServer = KotlinWebpackConfig.DevServer(port = 8085)
             }
         }
         binaries.executable()

@@ -43,6 +43,8 @@ import bot.nomnomz.dashboard.core.network.FeaturesApi
 import bot.nomnomz.dashboard.core.network.FederationApi
 import bot.nomnomz.dashboard.core.network.CodeScriptsApi
 import bot.nomnomz.dashboard.core.network.WebhooksApi
+import bot.nomnomz.dashboard.core.network.CustomEventsApi
+import bot.nomnomz.dashboard.core.network.RestCustomEventsApi
 import bot.nomnomz.dashboard.core.network.QuotesApi
 import bot.nomnomz.dashboard.core.network.RestSoundApi
 import bot.nomnomz.dashboard.core.network.SoundApi
@@ -121,6 +123,7 @@ import bot.nomnomz.dashboard.feature.features.state.FeaturesController
 import bot.nomnomz.dashboard.feature.federation.state.FederationController
 import bot.nomnomz.dashboard.feature.codescripts.state.CodeScriptsController
 import bot.nomnomz.dashboard.feature.webhooks.state.WebhooksController
+import bot.nomnomz.dashboard.feature.customevents.state.CustomEventsController
 import bot.nomnomz.dashboard.feature.quotes.state.QuotesController
 import bot.nomnomz.dashboard.feature.sound.state.SoundController
 import bot.nomnomz.dashboard.feature.rewards.state.RewardsController
@@ -222,6 +225,7 @@ class AppGraph {
     val pipelinesApi: PipelinesApi = RestPipelinesApi(apiClient)
     val featuresApi: FeaturesApi = RestFeaturesApi(apiClient)
     val webhooksApi: WebhooksApi = RestWebhooksApi(apiClient)
+    val customEventsApi: CustomEventsApi = RestCustomEventsApi(apiClient)
     val federationApi: FederationApi = RestFederationApi(apiClient)
     val codeScriptsApi: CodeScriptsApi = RestCodeScriptsApi(apiClient)
     val liveOpsApi: LiveOpsApi = RestLiveOpsApi(apiClient)
@@ -389,6 +393,9 @@ class AppGraph {
 
     val webhooksController: WebhooksController =
         WebhooksController(channelsApi = channelsApi, webhooksApi = webhooksApi)
+
+    val customEventsController: CustomEventsController =
+        CustomEventsController(api = customEventsApi)
 
     val federationController: FederationController =
         FederationController(channelsApi = channelsApi, federationApi = federationApi)

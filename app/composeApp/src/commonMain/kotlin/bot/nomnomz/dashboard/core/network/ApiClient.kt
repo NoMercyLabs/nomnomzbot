@@ -52,6 +52,7 @@ class ApiClient(
         ignoreUnknownKeys = true
         isLenient = true
         explicitNulls = false
+        encodeDefaults = true
     }
 
     internal val httpClient: HttpClient = buildHttpClient {

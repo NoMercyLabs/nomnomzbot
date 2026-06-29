@@ -44,6 +44,7 @@ enum class ShellRoute {
     Webhooks,
     Federation,
     CodeScripts,
+    CustomEvents,
     Settings,
     Admin,
 }
@@ -106,6 +107,7 @@ object ShellNav {
             NavPage(ShellRoute.Features, NavGroup.Setup, ManagementRole.Broadcaster, ManagementRole.Broadcaster),
             NavPage(ShellRoute.Webhooks, NavGroup.Connect, ManagementRole.Broadcaster, ManagementRole.Broadcaster),
             NavPage(ShellRoute.Federation, NavGroup.Connect, ManagementRole.Broadcaster, ManagementRole.Broadcaster),
+            NavPage(ShellRoute.CustomEvents, NavGroup.Connect, ManagementRole.Moderator, ManagementRole.Editor),
             NavPage(ShellRoute.CodeScripts, NavGroup.Chat, ManagementRole.Broadcaster, ManagementRole.Broadcaster),
             NavPage(ShellRoute.Settings, NavGroup.Setup, ManagementRole.Moderator, null),
         )
