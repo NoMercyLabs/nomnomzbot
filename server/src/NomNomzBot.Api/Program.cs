@@ -177,12 +177,15 @@ try
         builder.Environment.IsDevelopment()
     );
 
-    // Host-header filtering: when AllowedHosts is still the permissive "*", derive it from App:BaseUrl's host
-    // (plus loopback for container health checks) so filtering is correct for any deployment from the single
-    // domain the operator already configures (§9). An explicit AllowedHosts value still wins.
+    // Host-header filtering: when AllowedHosts is null (never configured), derive it from App:BaseUrl's host
+    // (plus loopback for container health checks) so a vanilla single-domain deployment is secure by default.
+    // An explicit AllowedHosts value — including "*" (allow all) — always wins unchanged, so multi-domain
+    // deployments and JWT-gated APIs that accept any tunnel hostname don't need extra configuration (§9).
     if (
-        builder.Configuration["AllowedHosts"] is null or "*"
+        builder.Configuration["AllowedHosts"] is null
         && Uri.TryCreate(builder.Configuration["App:BaseUrl"], UriKind.Absolute, out Uri? baseUri)
+        && !string.Equals(baseUri.Host, "localhost", StringComparison.OrdinalIgnoreCase)
+        && baseUri.Host != "127.0.0.1"
     )
     {
         builder.Configuration["AllowedHosts"] = $"{baseUri.Host};localhost;127.0.0.1";
