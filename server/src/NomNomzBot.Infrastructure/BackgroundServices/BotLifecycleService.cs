@@ -13,7 +13,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
+using NomNomzBot.Domain.Identity.Entities;
 
 namespace NomNomzBot.Infrastructure.BackgroundServices;
 
@@ -94,6 +96,7 @@ public sealed class BotLifecycleService : BackgroundService
             scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
         ITwitchEventSubService eventSub =
             scope.ServiceProvider.GetRequiredService<ITwitchEventSubService>();
+        ITwitchStreamsApi streams = scope.ServiceProvider.GetRequiredService<ITwitchStreamsApi>();
 
         // Get all currently enabled, onboarded channels.
         var activeChannels = await db
@@ -127,6 +130,10 @@ public sealed class BotLifecycleService : BackgroundService
                     channel.Name,
                     channel.Id
                 );
+
+                // Bootstrap live status from Helix — stream.online won't fire for a stream that is
+                // already live when we first subscribe, so we must poll once to set the initial state.
+                await BootstrapLiveStatusAsync(db, streams, channel.Id, ct);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
@@ -160,6 +167,54 @@ public sealed class BotLifecycleService : BackgroundService
                     channelId
                 );
             }
+        }
+    }
+
+    // Poll Helix once to get the channel's current stream state when we first subscribe. EventSub only
+    // delivers stream.online for transitions — not for streams that are already live when we subscribe —
+    // so the initial IsLive / title / game would otherwise stay stale until the streamer goes offline
+    // and back online.
+    private async Task BootstrapLiveStatusAsync(
+        IApplicationDbContext db,
+        ITwitchStreamsApi streams,
+        Guid broadcasterId,
+        CancellationToken ct
+    )
+    {
+        try
+        {
+            Channel? channel = await db.Channels.FindAsync([broadcasterId], ct);
+            if (channel is null)
+                return;
+
+            Result<TwitchStream> result = await streams.GetStreamAsync(broadcasterId, ct);
+
+            bool wasLive = channel.IsLive;
+            channel.IsLive = result.IsSuccess;
+            if (result.IsSuccess)
+            {
+                if (!string.IsNullOrEmpty(result.Value.Title))
+                    channel.Title = result.Value.Title;
+                if (!string.IsNullOrEmpty(result.Value.GameName))
+                    channel.GameName = result.Value.GameName;
+            }
+
+            if (channel.IsLive != wasLive || result.IsSuccess)
+                await db.SaveChangesAsync(ct);
+
+            _logger.LogInformation(
+                "BotLifecycleService: Bootstrapped live status for channel {BroadcasterId}: IsLive={IsLive}",
+                broadcasterId,
+                channel.IsLive
+            );
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogWarning(
+                ex,
+                "BotLifecycleService: Could not bootstrap live status for channel {BroadcasterId}",
+                broadcasterId
+            );
         }
     }
 }

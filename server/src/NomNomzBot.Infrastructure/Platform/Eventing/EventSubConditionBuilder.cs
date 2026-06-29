@@ -21,9 +21,14 @@ namespace NomNomzBot.Infrastructure.Platform.Eventing;
 /// moderator-plane topics (follow v2, chat moderation, automod, shield/shoutout, warnings, suspicious users,
 /// unban requests, guest star) additionally carry <c>moderator_user_id</c>; chat-read topics carry
 /// <c>user_id</c> (the reading identity); raids key on <c>to_broadcaster_user_id</c>; user-plane topics
-/// (<c>user.update</c>, <c>user.whisper.message</c>) key on <c>user_id</c> only. The broadcaster moderates and
-/// reads its own channel, so every moderator/user id resolves to the same tenant Twitch id (a dedicated
-/// bot-moderator identity is an additive enhancement, not a shape change).
+/// (<c>user.update</c>, <c>user.whisper.message</c>) key on <c>user_id</c> only.
+/// </para>
+/// <para>
+/// Multi-tenant WebSocket constraint: Twitch requires all subscription POSTs for a given WebSocket session to
+/// come from the same Twitch user. We satisfy this by always using the bot's user token regardless of which
+/// channel is being subscribed. When a dedicated bot account is configured, its Twitch user id replaces the
+/// broadcaster id in the <c>user_id</c> / <c>moderator_user_id</c> slots. When no bot account exists (the
+/// streamer IS the bot), the broadcaster id fills both slots — valid for a single-channel self-host.
 /// </para>
 /// </summary>
 public sealed class EventSubConditionBuilder : IEventSubConditionBuilder
@@ -39,19 +44,25 @@ public sealed class EventSubConditionBuilder : IEventSubConditionBuilder
 
     public IReadOnlyDictionary<string, string> BuildCondition(
         string eventType,
-        string twitchBroadcasterUserId
-    ) =>
-        ShapeOf(eventType) switch
+        string twitchBroadcasterUserId,
+        string? botTwitchUserId = null
+    )
+    {
+        // For user_id / moderator_user_id slots: prefer the bot's Twitch id so that ALL subscription
+        // creates for this WebSocket session come from the same Twitch user (the bot). When no dedicated
+        // bot account is configured, fall back to the broadcaster id (single-user self-host).
+        string botOrBroadcaster = botTwitchUserId ?? twitchBroadcasterUserId;
+        return ShapeOf(eventType) switch
         {
             ConditionShape.BroadcasterAndModerator => new Dictionary<string, string>
             {
                 ["broadcaster_user_id"] = twitchBroadcasterUserId,
-                ["moderator_user_id"] = twitchBroadcasterUserId,
+                ["moderator_user_id"] = botOrBroadcaster,
             },
             ConditionShape.BroadcasterAndUser => new Dictionary<string, string>
             {
                 ["broadcaster_user_id"] = twitchBroadcasterUserId,
-                ["user_id"] = twitchBroadcasterUserId,
+                ["user_id"] = botOrBroadcaster,
             },
             ConditionShape.RaidTo => new Dictionary<string, string>
             {
@@ -59,13 +70,14 @@ public sealed class EventSubConditionBuilder : IEventSubConditionBuilder
             },
             ConditionShape.UserOnly => new Dictionary<string, string>
             {
-                ["user_id"] = twitchBroadcasterUserId,
+                ["user_id"] = botOrBroadcaster,
             },
             _ => new Dictionary<string, string>
             {
                 ["broadcaster_user_id"] = twitchBroadcasterUserId,
             },
         };
+    }
 
     public string GetVersion(string eventType) =>
         eventType switch
@@ -86,9 +98,11 @@ public sealed class EventSubConditionBuilder : IEventSubConditionBuilder
             _ => "1",
         };
 
-    // Only the explicitly auth-free topics ride the app/bot token; everything else needs the broadcaster's user
-    // token (the safe default — a new broadcaster-scoped topic does not silently fall through to the app token).
-    public bool RequiresBroadcasterToken(string eventType) => !AppTokenEvents.Contains(eventType);
+    // All subscriptions ride the bot/app token regardless of topic. Multi-tenant WebSocket EventSub requires
+    // every subscription POST to come from the same Twitch user; the bot is that user. Broadcaster-token
+    // subscriptions worked fine for a single channel but break the moment a second channel is added because
+    // Twitch rejects "subscriptions created by different users" on the same session.
+    public bool RequiresBroadcasterToken(string eventType) => false;
 
     private static ConditionShape ShapeOf(string eventType) =>
         eventType switch
@@ -138,17 +152,4 @@ public sealed class EventSubConditionBuilder : IEventSubConditionBuilder
         "channel.chat.user_message_hold",
         "channel.chat.user_message_update",
     ];
-
-    /// <summary>
-    /// Topics that can ride the app/bot token (no broadcaster-user authorization required). These topics also
-    /// accept a broadcaster user token, which is used as the fallback when no app client secret is configured
-    /// (self-host + public client scenario). The effective token choice is made by the transport layer: if an
-    /// app access token is available it is preferred; otherwise the broadcaster's user token is used instead.
-    ///
-    /// Only <c>channel.update</c> stays here — it is the sole topic that requires the app token in some
-    /// Twitch configurations. <c>stream.online</c>, <c>stream.offline</c>, and <c>channel.raid</c> have been
-    /// moved to the user-token path because they work equally well with a broadcaster token and the app token
-    /// requires a client_secret that is unavailable in self-host public-client deployments.
-    /// </summary>
-    private static readonly HashSet<string> AppTokenEvents = ["channel.update"];
 }

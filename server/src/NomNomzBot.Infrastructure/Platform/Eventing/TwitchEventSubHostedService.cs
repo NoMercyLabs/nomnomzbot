@@ -413,6 +413,17 @@ public sealed class TwitchEventSubHostedService
 
         string version = _conditionBuilder.GetVersion(eventType);
 
+        // Resolve the bot's Twitch user id to populate user_id / moderator_user_id in conditions.
+        // Multi-tenant WebSocket EventSub requires all subscription creates for one session to come from
+        // the same Twitch user; we use the bot account for this. When no dedicated bot account is configured
+        // (streamer IS the bot), botTwitchUserId is null and the broadcaster id is used as the fallback.
+        string? botTwitchUserId = await db
+            .IntegrationConnections.Where(c =>
+                c.Provider == "twitch_bot" && c.BroadcasterId == null
+            )
+            .Select(c => c.ProviderAccountId)
+            .FirstOrDefaultAsync(ct);
+
         // Idempotent upsert on (BroadcasterId, Provider, EventType, Version).
         EventSubSubscription? row = await db.EventSubSubscriptions.FirstOrDefaultAsync(
             s =>
@@ -426,7 +437,8 @@ public sealed class TwitchEventSubHostedService
         bool isNew = row is null;
         IReadOnlyDictionary<string, string> condition = _conditionBuilder.BuildCondition(
             eventType,
-            twitchId
+            twitchId,
+            botTwitchUserId
         );
 
         if (row is null)
@@ -480,6 +492,15 @@ public sealed class TwitchEventSubHostedService
             row.LastError = created.ErrorMessage;
             await db.SaveChangesAsync(ct);
             await PublishStatusChangedAsync(row, oldStatus, "failed", created.ErrorMessage, ct);
+
+            // Log the full Twitch error body to diagnose subscription failures (400/403/etc.).
+            if (!string.IsNullOrEmpty(created.ErrorDetail))
+                _logger.LogWarning(
+                    "EventSub subscription {EventType} for {BroadcasterId} error detail: {Detail}",
+                    eventType,
+                    broadcasterId,
+                    created.ErrorDetail
+                );
 
             // When Twitch 403 body says "Missing required scope <scope>", publish the reauth event so
             // MissingScopeRecordingHandler can record it and the dashboard can surface an action-required flow.

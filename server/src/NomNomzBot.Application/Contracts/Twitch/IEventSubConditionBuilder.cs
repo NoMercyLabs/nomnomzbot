@@ -18,10 +18,18 @@ namespace NomNomzBot.Application.Contracts.Twitch;
 /// </summary>
 public interface IEventSubConditionBuilder
 {
-    /// <summary>The condition object for <paramref name="eventType"/> keyed on the Twitch broadcaster id.</summary>
+    /// <summary>
+    /// The condition object for <paramref name="eventType"/>. <paramref name="botTwitchUserId"/> is used for
+    /// the <c>user_id</c> / <c>moderator_user_id</c> slot when a dedicated bot account is configured —
+    /// critical for multi-tenant WebSocket EventSub where all subscription requests must come from the same
+    /// Twitch user (the bot) regardless of which channel is being subscribed.
+    /// When <paramref name="botTwitchUserId"/> is null, those slots fall back to the broadcaster id (single-user
+    /// self-host where the streamer IS the bot identity).
+    /// </summary>
     IReadOnlyDictionary<string, string> BuildCondition(
         string eventType,
-        string twitchBroadcasterUserId
+        string twitchBroadcasterUserId,
+        string? botTwitchUserId = null
     );
 
     /// <summary>The topic version (e.g. <c>2</c> for <c>channel.follow</c> / <c>channel.update</c>, else <c>1</c>).</summary>
