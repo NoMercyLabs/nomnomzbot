@@ -27,10 +27,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.material3.DrawerState
 import androidx.compose.material3.DrawerValue
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalDrawerSheet
@@ -159,6 +158,7 @@ import nomnomzbot.composeapp.generated.resources.shell_role_moderator
 import nomnomzbot.composeapp.generated.resources.shell_role_supermod
 import nomnomzbot.composeapp.generated.resources.shell_role_viewer
 import nomnomzbot.composeapp.generated.resources.hub_alert
+import nomnomzbot.composeapp.generated.resources.shell_channel_bot_not_installed
 import nomnomzbot.composeapp.generated.resources.shell_channel_pick
 import nomnomzbot.composeapp.generated.resources.shell_topbar_channel_label
 import nomnomzbot.composeapp.generated.resources.shell_topbar_hub_label
@@ -497,9 +497,9 @@ private fun Sidebar(
     }
 }
 
-// A compact channel-picker block for the sidebar. Shows the active channel name; tapping opens a dropdown
-// to switch to another managed channel. Only visible when the user manages more than one channel (a
-// single-channel operator sees no picker — no clutter for the common case).
+// Channel-picker block for the sidebar. Shows the active channel name; clicking expands an inline list
+// so the user can switch channels. Single-channel operators see just the name (no expand affordance).
+// Inline AnimatedVisibility avoids DropdownMenu/Popup which deadlocks the Compose Wasm compositor.
 @Composable
 private fun ChannelPickerBlock(switcher: ChannelSwitcherController) {
     val state: SwitcherState by switcher.state.collectAsStateWithLifecycle()
@@ -512,21 +512,22 @@ private fun ChannelPickerBlock(switcher: ChannelSwitcherController) {
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
 
-    // Unregistered channels the user mods on Twitch but hasn't installed the bot in.
     val unregisteredModerated: List<ModeratedChannel> =
         ready?.moderatedChannels?.filter { !it.isOnboarded } ?: emptyList()
 
     val active: ChannelSummary? = channels.firstOrNull { it.id == activeId } ?: channels.firstOrNull()
-    var open: Boolean by remember { mutableStateOf(false) }
+    val otherRegistered: List<ChannelSummary> = channels.filter { it.id != activeId }
+    val hasOtherChannels: Boolean = otherRegistered.isNotEmpty() || unregisteredModerated.isNotEmpty()
+    var expanded: Boolean by remember { mutableStateOf(false) }
     val label: String = stringResource(Res.string.shell_channel_pick)
 
-    Box(modifier = Modifier.padding(horizontal = spacing.s1, vertical = spacing.s1)) {
+    Column(modifier = Modifier.padding(horizontal = spacing.s1, vertical = spacing.s1)) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(tokens.radius.md))
                 .background(tokens.sidebarAccent)
-                .clickable { open = true }
+                .then(if (hasOtherChannels) Modifier.clickable { expanded = !expanded } else Modifier)
                 .semantics { contentDescription = label }
                 .padding(horizontal = spacing.s2, vertical = spacing.s2),
             verticalAlignment = Alignment.CenterVertically,
@@ -540,47 +541,62 @@ private fun ChannelPickerBlock(switcher: ChannelSwitcherController) {
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f),
             )
-            Text(text = "⌄", style = typography.sm, color = tokens.mutedForeground)
+            if (hasOtherChannels) {
+                Icon(
+                    imageVector = if (expanded) ChevronUpGlyph else ChevronDownGlyph,
+                    contentDescription = null,
+                    tint = tokens.mutedForeground,
+                    modifier = Modifier.size(spacing.s4),
+                )
+            }
         }
-        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-            // Registered channels — fully functional, can switch.
-            channels.forEach { channel ->
-                DropdownMenuItem(
-                    text = {
+
+        AnimatedVisibility(visible = expanded) {
+            Column(modifier = Modifier.padding(top = spacing.s1)) {
+                // Registered channels the user can switch to.
+                otherRegistered.forEach { channel ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(tokens.radius.md))
+                            .clickable {
+                                expanded = false
+                                switcher.select(channel.id)
+                            }
+                            .padding(horizontal = spacing.s2, vertical = spacing.s2),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
                         Text(
                             text = channel.displayName.takeIf { it.isNotBlank() } ?: channel.login,
                             style = typography.sm,
-                            color = if (channel.id == activeId) tokens.primary else tokens.popoverForeground,
+                            color = tokens.sidebarForeground,
                         )
-                    },
-                    onClick = {
-                        open = false
-                        switcher.select(channel.id)
-                    },
-                )
-            }
-            // Unregistered moderated channels — shown dimmed; bot not installed there.
-            if (unregisteredModerated.isNotEmpty()) {
-                HorizontalDivider()
-                unregisteredModerated.forEach { channel ->
-                    DropdownMenuItem(
-                        text = {
-                            Column {
-                                Text(
-                                    text = channel.displayName.takeIf { it.isNotBlank() } ?: channel.login,
-                                    style = typography.sm,
-                                    color = tokens.mutedForeground,
-                                )
-                                Text(
-                                    text = "Bot not installed",
-                                    style = typography.xs,
-                                    color = tokens.mutedForeground,
-                                )
-                            }
-                        },
-                        onClick = {},
-                        enabled = false,
+                    }
+                }
+                // Unregistered channels the user mods on Twitch — shown dimmed.
+                if (unregisteredModerated.isNotEmpty()) {
+                    HorizontalDivider(
+                        color = tokens.sidebarBorder,
+                        modifier = Modifier.padding(vertical = spacing.s1),
                     )
+                    unregisteredModerated.forEach { channel ->
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = spacing.s2, vertical = spacing.s2),
+                        ) {
+                            Text(
+                                text = channel.displayName.takeIf { it.isNotBlank() } ?: channel.login,
+                                style = typography.sm,
+                                color = tokens.mutedForeground,
+                            )
+                            Text(
+                                text = stringResource(Res.string.shell_channel_bot_not_installed),
+                                style = typography.xs,
+                                color = tokens.mutedForeground,
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -654,6 +670,9 @@ private fun NavItem(route: ShellRoute, selected: Boolean, onClick: () -> Unit) {
     }
 }
 
+// Profile block at the bottom of the sidebar. Clicking the profile row expands an inline menu
+// above it (language + logout). Inline AnimatedVisibility avoids DropdownMenu/Popup which
+// deadlocks the Compose Wasm compositor.
 @Composable
 private fun ProfileBlock(
     user: SessionUser?,
@@ -670,12 +689,62 @@ private fun ProfileBlock(
     val name: String = user?.displayName ?: ""
     val roleLabel: String = role.label()
 
-    Box {
+    Column {
+        // Menu expands ABOVE the profile row, so it appears to slide up from the profile row.
+        AnimatedVisibility(visible = open) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(tokens.radius.md))
+                    .background(tokens.card)
+                    .padding(vertical = spacing.s1),
+            ) {
+                Column(modifier = Modifier.padding(horizontal = spacing.s3, vertical = spacing.s2)) {
+                    Text(text = name, style = typography.sm, color = tokens.cardForeground)
+                    Text(text = roleLabel, style = typography.xs, color = tokens.mutedForeground)
+                }
+                HorizontalDivider(color = tokens.border)
+                AppLanguage.entries.forEach { language ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                languageController.select(language)
+                                open = false
+                            }
+                            .padding(horizontal = spacing.s3, vertical = spacing.s2),
+                    ) {
+                        Text(
+                            text = language.menuLabel(),
+                            style = typography.sm,
+                            color = tokens.cardForeground,
+                        )
+                    }
+                }
+                HorizontalDivider(color = tokens.border)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            open = false
+                            onLogout()
+                        }
+                        .padding(horizontal = spacing.s3, vertical = spacing.s2),
+                ) {
+                    Text(
+                        text = stringResource(Res.string.shell_profile_logout),
+                        style = typography.sm,
+                        color = tokens.destructive,
+                    )
+                }
+            }
+        }
+
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(tokens.radius.md))
-                .clickable(onClick = { open = true })
+                .clickable(onClick = { open = !open })
                 .semantics { contentDescription = menuLabel }
                 .padding(spacing.s2),
             verticalAlignment = Alignment.CenterVertically,
@@ -698,42 +767,6 @@ private fun ProfileBlock(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-        }
-
-        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-            // Identity header (non-interactive).
-            Column(modifier = Modifier.padding(horizontal = spacing.s3, vertical = spacing.s2)) {
-                Text(text = name, style = typography.sm, color = tokens.popoverForeground)
-                Text(text = roleLabel, style = typography.xs, color = tokens.mutedForeground)
-            }
-            HorizontalDivider(color = tokens.border)
-
-            // Language (app prefs, frontend-ia.md §4).
-            AppLanguage.entries.forEach { language ->
-                DropdownMenuItem(
-                    text = { Text(text = language.menuLabel(), style = typography.sm) },
-                    onClick = {
-                        languageController.select(language)
-                        open = false
-                    },
-                )
-            }
-            HorizontalDivider(color = tokens.border)
-
-            // Log out — returns to the Connect/Setup gate (frontend-ia.md §4).
-            DropdownMenuItem(
-                text = {
-                    Text(
-                        text = stringResource(Res.string.shell_profile_logout),
-                        style = typography.sm,
-                        color = tokens.destructive,
-                    )
-                },
-                onClick = {
-                    open = false
-                    onLogout()
-                },
-            )
         }
     }
 }

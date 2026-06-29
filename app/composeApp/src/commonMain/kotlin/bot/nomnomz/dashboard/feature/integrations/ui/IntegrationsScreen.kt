@@ -192,7 +192,11 @@ fun IntegrationsScreen(
 
     Box(modifier = Modifier.fillMaxSize()) {
     Column(
-        modifier = Modifier.fillMaxSize().background(tokens.background).padding(spacing.s6),
+        modifier = Modifier
+            .fillMaxWidth()
+            .verticalScroll(rememberScrollState())
+            .background(tokens.background)
+            .padding(spacing.s6),
         verticalArrangement = Arrangement.spacedBy(spacing.s4),
     ) {
         PageHeader(

@@ -146,6 +146,7 @@
     <string name="shell_content_placeholder">This workspace is being built — its tools land in an upcoming slice.</string>
     <string name="shell_topbar_channel_label">Active channel: %1$s</string>
     <string name="shell_channel_pick">Switch channel</string>
+    <string name="shell_channel_bot_not_installed">Bot not installed</string>
     <string name="shell_topbar_hub_label">Realtime connection</string>
     <string name="hub_alert">%1$s</string>
     <string name="shell_role_moderator">Moderator</string>

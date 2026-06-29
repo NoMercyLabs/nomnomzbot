@@ -27,6 +27,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -151,7 +152,9 @@ private fun ReadyBody(
     manage: ManageDecision,
     onSave: (clientId: String, clientSecret: String) -> Unit,
 ) {
+    val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
 
     // Local form, re-seeded whenever a reload swaps the Ready state (e.g. after a save), so it always starts
     // empty for a fresh entry rather than echoing back a stored value. Credentials are write-only here — the
@@ -160,35 +163,59 @@ private fun ReadyBody(
     var clientSecret: String by remember(state.configured) { mutableStateOf("") }
     var confirmOverwrite: Boolean by remember { mutableStateOf(false) }
 
+    // When already configured, collapse the form by default — the user doesn't need to re-enter credentials
+    // just to view the integrations page. The Edit button expands it on demand.
+    var expanded: Boolean by remember(state.configured) { mutableStateOf(!state.configured) }
+
     Column(verticalArrangement = Arrangement.spacedBy(spacing.s4)) {
-        StateBanner(configured = state.configured)
-        Guide(redirectUrl = state.redirectUrl)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            StateBanner(configured = state.configured, modifier = Modifier.weight(1f))
+            if (state.configured && !expanded) {
+                TextButton(onClick = { expanded = true }) {
+                    Text(
+                        text = "Edit",
+                        style = typography.sm,
+                        color = tokens.mutedForeground,
+                    )
+                }
+            }
+        }
 
-        // Editing live OAuth credentials is owner-level (frontend-ia.md §5 — token custody is Broadcaster);
-        // below that floor the fields and Save go read-only with reason via the gated SaveBar.
-        val editEnabled: Boolean = !state.saving && manage.isAllowed
+        AnimatedVisibility(visible = expanded) {
+            Column(verticalArrangement = Arrangement.spacedBy(spacing.s4)) {
+                Guide(redirectUrl = state.redirectUrl)
 
-        ClientIdField(
-            value = clientId,
-            onValueChange = { clientId = it },
-            invalid = state.saveError is SaveError.MissingClientId,
-            enabled = editEnabled,
-        )
-        ClientSecretField(
-            value = clientSecret,
-            onValueChange = { clientSecret = it },
-            enabled = editEnabled,
-        )
+                // Editing live OAuth credentials is owner-level (frontend-ia.md §5 — token custody is Broadcaster);
+                // below that floor the fields and Save go read-only with reason via the gated SaveBar.
+                val editEnabled: Boolean = !state.saving && manage.isAllowed
 
-        SaveBar(
-            state = state,
-            manage = manage,
-            // Overwriting an already-configured Twitch app touches the live OAuth path, so it confirms first;
-            // a first-time configuration saves straight through.
-            onSave = {
-                if (state.configured) confirmOverwrite = true else onSave(clientId, clientSecret)
-            },
-        )
+                ClientIdField(
+                    value = clientId,
+                    onValueChange = { clientId = it },
+                    invalid = state.saveError is SaveError.MissingClientId,
+                    enabled = editEnabled,
+                )
+                ClientSecretField(
+                    value = clientSecret,
+                    onValueChange = { clientSecret = it },
+                    enabled = editEnabled,
+                )
+
+                SaveBar(
+                    state = state,
+                    manage = manage,
+                    // Overwriting an already-configured Twitch app touches the live OAuth path, so it confirms first;
+                    // a first-time configuration saves straight through.
+                    onSave = {
+                        if (state.configured) confirmOverwrite = true else onSave(clientId, clientSecret)
+                    },
+                )
+            }
+        }
     }
 
     if (confirmOverwrite) {
@@ -209,7 +236,7 @@ private fun ReadyBody(
 
 // The current configuration line: whether a personal Twitch app is set, or the bot runs on the shared client.
 @Composable
-private fun StateBanner(configured: Boolean) {
+private fun StateBanner(configured: Boolean, modifier: Modifier = Modifier) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
@@ -220,8 +247,7 @@ private fun StateBanner(configured: Boolean) {
         )
 
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
+        modifier = modifier
             .clip(RoundedCornerShape(tokens.radius.md))
             .background(tokens.muted)
             .padding(spacing.s3)
