@@ -66,6 +66,14 @@ class SessionStore(
     fun accessToken(): String? = tokens?.accessToken
 
     /**
+     * Silently replace the stored access token after a background /auth/refresh — leaves the profile
+     * and refresh token intact. Called by [ApiClient.tokenRefresher] on 401→refresh→retry.
+     */
+    fun updateAccessToken(newToken: String) {
+        tokens = tokens?.copy(accessToken = newToken) ?: SessionTokens(accessToken = newToken)
+    }
+
+    /**
      * Enter first-run setup against [profile]: pin the active profile (so the shared [ApiClient] can
      * reach the chosen backend for the anonymous setup calls) but hold NO tokens, and flip the gate to
      * [SessionPhase.NeedsSetup] so it shows the wizard. The wizard runs the anonymous credential saves,

@@ -25,7 +25,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -60,9 +59,12 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
+import coil3.compose.AsyncImage
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
@@ -254,6 +256,7 @@ private fun MessageFeed(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun MessageRow(
     message: ChatMessage,
@@ -268,6 +271,7 @@ private fun MessageRow(
     val name: String = chatterName(message)
     val rowDescription: String =
         stringResource(Res.string.chat_message_description, name, message.message)
+    val nameColor: Color = message.color?.toComposeColor() ?: tokens.mutedForeground
 
     Row(
         modifier = Modifier
@@ -278,26 +282,89 @@ private fun MessageRow(
         verticalAlignment = Alignment.Top,
         horizontalArrangement = Arrangement.spacedBy(spacing.s2),
     ) {
-        // The chatter's name + message read as one node; the controls below carry their own action labels.
-        Row(
+        // Badges + name + message fragments all flow inline — semantics collapses to a single read.
+        FlowRow(
             modifier = Modifier.weight(1f).clearAndSetSemantics { contentDescription = rowDescription },
-            horizontalArrangement = Arrangement.spacedBy(spacing.s2),
-            verticalAlignment = Alignment.Top,
+            horizontalArrangement = Arrangement.spacedBy(spacing.s1),
+            verticalArrangement = Arrangement.Center,
         ) {
+            // Badge strip — 18 dp per badge.
+            message.badges.forEach { badge ->
+                val url: String? = badge.urls["2"] ?: badge.urls["1"] ?: badge.urls.values.firstOrNull()
+                if (url != null) {
+                    AsyncImage(
+                        model = url,
+                        contentDescription = badge.setId,
+                        modifier = Modifier.size(18.dp).align(Alignment.CenterVertically),
+                    )
+                }
+            }
+            // Colored, semi-bold name.
             Text(
-                text = name,
-                style = typography.sm,
-                color = tokens.mutedForeground,
+                text = "$name:",
+                style = typography.sm.copy(fontWeight = FontWeight.SemiBold),
+                color = nameColor,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.widthIn(max = spacing.s24 * 1.5f),
             )
-            Text(
-                text = message.message,
-                style = typography.sm,
-                color = tokens.cardForeground,
-                modifier = Modifier.weight(1f),
-            )
+            // Fragment body — falls back to the flat [message] string when fragments are empty (REST history).
+            if (message.fragments.isNotEmpty()) {
+                message.fragments.forEach { fragment ->
+                    when (fragment.type) {
+                        "emote" -> {
+                            val url: String? = fragment.emote?.urls?.let {
+                                it["2"] ?: it["1"] ?: it.values.firstOrNull()
+                            }
+                            if (url != null) {
+                                AsyncImage(
+                                    model = url,
+                                    contentDescription = fragment.text,
+                                    modifier = Modifier.size(24.dp).align(Alignment.CenterVertically),
+                                )
+                            } else {
+                                Text(text = fragment.text, style = typography.sm, color = tokens.cardForeground)
+                            }
+                        }
+                        "cheermote" -> {
+                            val url: String? = fragment.cheermote?.urls?.let {
+                                it["2"] ?: it["1"] ?: it.values.firstOrNull()
+                            }
+                            if (url != null) {
+                                AsyncImage(
+                                    model = url,
+                                    contentDescription = fragment.text,
+                                    modifier = Modifier.size(24.dp).align(Alignment.CenterVertically),
+                                )
+                            } else {
+                                val tierColor: Color =
+                                    fragment.cheermote?.colorHex?.toComposeColor() ?: tokens.cardForeground
+                                Text(text = fragment.text, style = typography.sm, color = tierColor)
+                            }
+                        }
+                        "mention" -> {
+                            val mentionColor: Color =
+                                fragment.mention?.color?.toComposeColor() ?: tokens.primary
+                            Text(
+                                text = "@${fragment.mention?.displayName?.takeIf { it.isNotBlank() } ?: fragment.text.removePrefix("@")}",
+                                style = typography.sm,
+                                color = mentionColor,
+                            )
+                        }
+                        "link" -> {
+                            Text(
+                                text = fragment.text,
+                                style = typography.sm.copy(textDecoration = TextDecoration.Underline),
+                                color = tokens.primary,
+                            )
+                        }
+                        else -> {
+                            Text(text = fragment.text, style = typography.sm, color = tokens.cardForeground)
+                        }
+                    }
+                }
+            } else {
+                Text(text = message.message, style = typography.sm, color = tokens.cardForeground)
+            }
         }
         MessageActions(message = message, name = name, manage = manage, onDelete = onDelete, onTimeout = onTimeout)
     }
@@ -499,6 +566,19 @@ private fun chatterName(message: ChatMessage): String =
     message.displayName.takeIf { it.isNotBlank() }
         ?: message.username.takeIf { it.isNotBlank() }
         ?: message.userId
+
+/**
+ * Parse a hex color string ("#RRGGBB" or "#RGB") to a Compose [Color]. Returns null on malformed input so
+ * callers can fall back to a theme token.
+ */
+private fun String.toComposeColor(): Color? = runCatching {
+    val hex: String = trimStart('#').let { if (it.length == 3) "${it[0]}${it[0]}${it[1]}${it[1]}${it[2]}${it[2]}" else it }.take(6)
+    Color(
+        red = hex.substring(0, 2).toInt(16) / 255f,
+        green = hex.substring(2, 4).toInt(16) / 255f,
+        blue = hex.substring(4, 6).toInt(16) / 255f,
+    )
+}.getOrNull()
 
 // ─── Chat mode toggles ───────────────────────────────────────────────────────
 

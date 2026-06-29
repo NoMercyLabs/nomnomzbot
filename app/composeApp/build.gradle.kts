@@ -66,6 +66,9 @@ kotlin {
             implementation(libs.ktor.serialization.kotlinx.json)
             // WebSocket transport for the SignalR hub client (DashboardHubClient).
             implementation(libs.ktor.client.websockets)
+            // Async image loading for chat emotes, badges, and cheermotes (coil3 KMP).
+            implementation(libs.coil3.compose)
+            implementation(libs.coil3.network.ktor3)
         }
 
         commonTest.dependencies {

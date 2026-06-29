@@ -14,6 +14,11 @@ import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.ChatApi
+import bot.nomnomz.dashboard.core.network.ChatBadge
+import bot.nomnomz.dashboard.core.network.ChatCheermote
+import bot.nomnomz.dashboard.core.network.ChatEmote
+import bot.nomnomz.dashboard.core.network.ChatFragment
+import bot.nomnomz.dashboard.core.network.ChatMention
 import bot.nomnomz.dashboard.core.network.ChatMessage
 import bot.nomnomz.dashboard.core.network.ChatSettings
 import bot.nomnomz.dashboard.core.realtime.HubChatMessage
@@ -88,20 +93,25 @@ class ChatController(
     }
 
     /**
-     * Subscribe to [hubEvents], prepending each incoming [HubEvent.ChatMessage] to the Ready feed so new
-     * messages appear instantly without waiting for a poll tick. Must be called from a coroutine scope that
-     * outlives the page (e.g. the screen's LaunchedEffect). The subscription is cancelled when that scope
-     * cancels — no explicit teardown is needed.
+     * Subscribe to [hubEvents], appending each incoming [HubEvent.ChatMessage] to the feed so new messages
+     * appear at the bottom instantly, without waiting for a poll tick. If the feed is in Empty / Loading /
+     * Error state when the first live message arrives, we bootstrap a fresh Ready list — so chat works even
+     * when there's no history to load. Must be called from a coroutine scope that outlives the page (e.g. the
+     * screen's LaunchedEffect). The subscription is cancelled when that scope cancels — no explicit teardown.
      */
     suspend fun subscribeToHub(hubEvents: SharedFlow<HubEvent>) {
         hubEvents.filterIsInstance<HubEvent.ChatMessage>().collect { evt ->
+            val newLine: ChatMessage = evt.message.toLocalMessage()
             val current: ChatState = _state.value
-            if (current is ChatState.Ready) {
-                val newLine: ChatMessage = evt.message.toLocalMessage()
-                // Prepend the live message and cap the feed to 200 lines so the list doesn't grow unbounded.
-                val capped: List<ChatMessage> = (listOf(newLine) + current.messages).take(200)
-                _state.value = current.copy(messages = capped)
-            }
+            val ready: ChatState.Ready =
+                when (current) {
+                    is ChatState.Ready -> current
+                    // No history yet — bootstrap a fresh feed; the first message makes the page live.
+                    else -> ChatState.Ready(messages = emptyList())
+                }
+            // Append (newest at bottom) and cap at 200 so the list stays bounded.
+            val capped: List<ChatMessage> = (ready.messages + newLine).takeLast(200)
+            _state.value = ready.copy(messages = capped)
         }
     }
 
@@ -198,6 +208,50 @@ private fun HubChatMessage.toLocalMessage(): ChatMessage =
         bitsAmount = if (bitsAmount > 0) bitsAmount else null,
         replyToMessageId = replyToMessageId,
         timestamp = timestamp,
+        fragments = fragments.map { f ->
+            ChatFragment(
+                type = f.type,
+                text = f.text,
+                emote = f.emote?.let { e ->
+                    ChatEmote(
+                        id = e.id,
+                        setId = e.setId,
+                        format = e.format,
+                        provider = e.provider,
+                        urls = e.urls,
+                        animated = e.animated,
+                        zeroWidth = e.zeroWidth,
+                    )
+                },
+                cheermote = f.cheermote?.let { c ->
+                    ChatCheermote(
+                        prefix = c.prefix,
+                        bits = c.bits,
+                        tier = c.tier,
+                        urls = c.urls,
+                        animated = c.animated,
+                        colorHex = c.colorHex,
+                    )
+                },
+                mention = f.mention?.let { m ->
+                    ChatMention(
+                        userId = m.userId,
+                        username = m.username,
+                        displayName = m.displayName,
+                        color = m.color,
+                    )
+                },
+                linkUrl = f.linkUrl,
+            )
+        },
+        badges = badges.map { b ->
+            ChatBadge(
+                setId = b.setId,
+                id = b.id,
+                info = b.info,
+                urls = b.urls,
+            )
+        },
     )
 
 /** The Chat page render state. */

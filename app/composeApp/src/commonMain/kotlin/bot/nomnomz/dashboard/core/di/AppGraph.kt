@@ -20,7 +20,9 @@ import bot.nomnomz.dashboard.core.feedback.FeedbackController
 import bot.nomnomz.dashboard.core.i18n.LanguagePreferenceStore
 import bot.nomnomz.dashboard.core.i18n.LanguageStore
 import bot.nomnomz.dashboard.core.network.ApiClient
+import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.AuthApi
+import bot.nomnomz.dashboard.core.network.AuthPayload
 import bot.nomnomz.dashboard.core.network.BotAuthApi
 import bot.nomnomz.dashboard.core.network.AlertsApi
 import bot.nomnomz.dashboard.core.network.AnalyticsApi
@@ -192,6 +194,22 @@ class AppGraph {
         )
 
     val authApi: AuthApi = RestAuthApi(apiClient)
+
+    init {
+        // Wire the 401→refresh→retry interceptor. ApiClient and AuthApi are both ready at this point.
+        // On any 401 (except the refresh endpoint itself), ApiClient silently calls refresh(), stores
+        // the new JWT, and retries the original request — so stale-token failures are invisible to callers.
+        apiClient.tokenRefresher = {
+            when (val result: ApiResult<AuthPayload> = authApi.refresh(null)) {
+                is ApiResult.Ok -> {
+                    sessionStore.updateAccessToken(result.value.accessToken)
+                    true
+                }
+                is ApiResult.Failure -> false
+            }
+        }
+    }
+
     val channelsApi: ChannelsApi = RestChannelsApi(apiClient, sessionStore)
     val botAuthApi: BotAuthApi = RestBotAuthApi(apiClient)
     val integrationsApi: IntegrationsApi = RestIntegrationsApi(apiClient)

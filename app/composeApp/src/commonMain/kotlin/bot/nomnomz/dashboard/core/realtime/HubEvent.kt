@@ -91,6 +91,62 @@ data class HubChatMessage(
     val replyParentMessageBody: String? = null,
     val replyParentUserName: String? = null,
     val timestamp: String = "",
+    /** Structured fragments from the backend chat-decoration pipeline (emotes, mentions, cheermotes, links). */
+    val fragments: List<HubChatFragment> = emptyList(),
+    /** Resolved badge images keyed by scale ("1"/"2"/"4"). */
+    val badges: List<HubChatBadge> = emptyList(),
+)
+
+/** One fragment of a hub chat message — type is "text" | "emote" | "cheermote" | "mention" | "link". */
+@Serializable
+data class HubChatFragment(
+    val type: String = "text",
+    val text: String = "",
+    val emote: HubChatEmote? = null,
+    val cheermote: HubChatCheermote? = null,
+    val mention: HubChatMention? = null,
+    val linkUrl: String? = null,
+)
+
+/** Resolved emote (Twitch + third-party unified). Urls keyed by scale "1".."4". */
+@Serializable
+data class HubChatEmote(
+    val id: String = "",
+    val setId: String? = null,
+    val format: String = "",
+    val provider: String = "",
+    val urls: Map<String, String> = emptyMap(),
+    val animated: Boolean = false,
+    val zeroWidth: Boolean = false,
+)
+
+/** Resolved cheermote. Urls keyed by scale "1".."4"; colorHex is the tier colour (#RRGGBB). */
+@Serializable
+data class HubChatCheermote(
+    val prefix: String = "",
+    val bits: Int = 0,
+    val tier: Int = 0,
+    val urls: Map<String, String>? = null,
+    val animated: Boolean = false,
+    val colorHex: String? = null,
+)
+
+/** @mention fragment — includes the mentioned user's last-seen chat colour. */
+@Serializable
+data class HubChatMention(
+    val userId: String = "",
+    val username: String = "",
+    val displayName: String = "",
+    val color: String? = null,
+)
+
+/** Resolved badge — Urls keyed by scale "1" / "2" / "4". */
+@Serializable
+data class HubChatBadge(
+    val setId: String = "",
+    val id: String = "",
+    val info: String? = null,
+    val urls: Map<String, String> = emptyMap(),
 )
 
 @Serializable

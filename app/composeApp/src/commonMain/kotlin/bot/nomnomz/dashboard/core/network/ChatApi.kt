@@ -145,9 +145,8 @@ data class AnnounceChatBody(val message: String, val color: String = "primary")
 
 /**
  * One chat line (backend `ChatMessageDto`). Fields mirror the backend record's camelCase JSON exactly (the
- * contract test guards this): the message id, the channel, the chatter (id / login / display name / role), an
- * optional name color, the text, the role / cheer flags, an optional reply target, and the ISO timestamp.
- * [badges] and [fragments] are carried through verbatim for rich rendering; the list view reads [message].
+ * contract test guards this): the message id, the channel, the chatter, role flags, color, reply target,
+ * ISO timestamp, and the decorated fragment + badge lists for rich rendering.
  */
 @Serializable
 data class ChatMessage(
@@ -165,4 +164,58 @@ data class ChatMessage(
     val bitsAmount: Int? = null,
     val replyToMessageId: String? = null,
     val timestamp: String = "",
+    val fragments: List<ChatFragment> = emptyList(),
+    val badges: List<ChatBadge> = emptyList(),
+)
+
+/** One decorated fragment — type "text" | "emote" | "cheermote" | "mention" | "link". */
+@Serializable
+data class ChatFragment(
+    val type: String = "text",
+    val text: String = "",
+    val emote: ChatEmote? = null,
+    val cheermote: ChatCheermote? = null,
+    val mention: ChatMention? = null,
+    val linkUrl: String? = null,
+)
+
+/** Resolved emote. [urls] keyed by scale "1".."4". */
+@Serializable
+data class ChatEmote(
+    val id: String = "",
+    val setId: String? = null,
+    val format: String = "",
+    val provider: String = "",
+    val urls: Map<String, String> = emptyMap(),
+    val animated: Boolean = false,
+    val zeroWidth: Boolean = false,
+)
+
+/** Resolved cheermote. [urls] keyed by scale "1".."4". */
+@Serializable
+data class ChatCheermote(
+    val prefix: String = "",
+    val bits: Int = 0,
+    val tier: Int = 0,
+    val urls: Map<String, String>? = null,
+    val animated: Boolean = false,
+    val colorHex: String? = null,
+)
+
+/** @mention fragment — includes the mentioned user's last-seen chat colour. */
+@Serializable
+data class ChatMention(
+    val userId: String = "",
+    val username: String = "",
+    val displayName: String = "",
+    val color: String? = null,
+)
+
+/** Resolved badge. [urls] keyed by scale "1" / "2" / "4". */
+@Serializable
+data class ChatBadge(
+    val setId: String = "",
+    val id: String = "",
+    val info: String? = null,
+    val urls: Map<String, String> = emptyMap(),
 )

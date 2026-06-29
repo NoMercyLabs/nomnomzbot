@@ -40,14 +40,21 @@ import kotlinx.serialization.json.Json
 // without rebuilding it (frontend.md §3.1/§6).
 //
 // This is also the single home for the request/response/envelope plumbing every typed facade reuses:
-// the StatusResponseDto<T> unwrap, the problem-details error mapping, and the network-failure guard
-// (the 401→refresh-once interceptor lands with the QueryClient slice). Facades (AuthApi, BotAuthApi,
-// ChannelsApi, IntegrationsApi) call [getEnvelope] / [postEnvelope] / [postUnit] / [deleteUnit] and
-// never touch the raw client.
+// the StatusResponseDto<T> unwrap, the problem-details error mapping, the network-failure guard, and the
+// 401→refresh-once interceptor. Facades (AuthApi, BotAuthApi, ChannelsApi, IntegrationsApi) call
+// [getEnvelope] / [postEnvelope] / [postUnit] / [deleteUnit] and never touch the raw client.
 class ApiClient(
     private val baseUrlProvider: () -> String?,
     private val tokenProvider: () -> String?,
 ) {
+    /**
+     * Set by [AppGraph] after construction to break the circular dependency (AuthApi → ApiClient → refresher).
+     * Called once on 401: should POST /api/v1/auth/refresh, store the new access token, and return true.
+     * Returning false or throwing leaves the 401 error to propagate normally. Never invoked for the
+     * refresh endpoint itself (prevents infinite loops).
+     */
+    @PublishedApi
+    internal var tokenRefresher: (suspend () -> Boolean)? = null
     internal val json: Json = Json {
         ignoreUnknownKeys = true
         isLenient = true
@@ -81,14 +88,21 @@ class ApiClient(
      * `PaginatedResponse<T>` lists, which are a flat `{ data: [...] }` object rather than the
      * single-value `{ data: <T> }` envelope.
      */
+    @PublishedApi
     internal suspend inline fun <reified T> getDirect(path: String): ApiResult<T> {
         val base: String = baseUrl() ?: return noConnection()
-        val response: HttpResponse =
+        var response: HttpResponse =
             try {
                 httpClient.get("$base/$path")
             } catch (cause: Throwable) {
                 return networkFailure(cause)
             }
+        if (response.status.value == 401 && !path.startsWith("api/v1/auth/refresh")) {
+            val refreshed: Boolean = try { tokenRefresher?.invoke() ?: false } catch (_: Exception) { false }
+            if (refreshed) {
+                response = try { httpClient.get("$base/$path") } catch (cause: Throwable) { return networkFailure(cause) }
+            }
+        }
         if (!response.status.isSuccess()) return ApiResult.Failure(parseError(response))
         return try {
             ApiResult.Ok(response.body<T>())
@@ -271,7 +285,8 @@ class ApiClient(
 
     // The shared core: resolve the base URL, run the request guarded against transport failures, and map
     // a non-2xx to a problem-details [ApiError]. `send` builds the URL itself so verb-specific options
-    // (body, content-type) stay with the verb helper above.
+    // (body, content-type) stay with the verb helper above. On 401, one silent token refresh + retry is
+    // attempted before surfacing the error (prevents stale-JWT failures after the 60-min expiry).
     @PublishedApi
     internal suspend inline fun <reified T> envelope(
         path: String,
@@ -280,12 +295,20 @@ class ApiClient(
         // `send` is invoked inline within this suspend body, so the suspend `httpClient.*` calls in the
         // callers' lambdas run in the right context without the param itself being marked suspend.
         val base: String = baseUrl() ?: return noConnection()
-        val response: HttpResponse =
+        var response: HttpResponse =
             try {
                 send("$base/$path")
             } catch (cause: Throwable) {
                 return networkFailure(cause)
             }
+
+        // 401 → one silent refresh + retry. Guard on the refresh path itself to prevent loops.
+        if (response.status.value == 401 && !path.startsWith("api/v1/auth/refresh")) {
+            val refreshed: Boolean = try { tokenRefresher?.invoke() ?: false } catch (_: Exception) { false }
+            if (refreshed) {
+                response = try { send("$base/$path") } catch (cause: Throwable) { return networkFailure(cause) }
+            }
+        }
 
         if (!response.status.isSuccess()) return ApiResult.Failure(parseError(response))
 
@@ -316,12 +339,18 @@ class ApiClient(
 
     private suspend fun unit(path: String, send: suspend (url: String) -> HttpResponse): ApiResult<Unit> {
         val base: String = baseUrl() ?: return noConnection()
-        val response: HttpResponse =
+        var response: HttpResponse =
             try {
                 send("$base/$path")
             } catch (cause: Throwable) {
                 return networkFailure(cause)
             }
+        if (response.status.value == 401 && !path.startsWith("api/v1/auth/refresh")) {
+            val refreshed: Boolean = try { tokenRefresher?.invoke() ?: false } catch (_: Exception) { false }
+            if (refreshed) {
+                response = try { send("$base/$path") } catch (cause: Throwable) { return networkFailure(cause) }
+            }
+        }
         return if (response.status.isSuccess()) ApiResult.Ok(Unit)
         else ApiResult.Failure(parseError(response))
     }
