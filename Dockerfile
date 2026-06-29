@@ -34,7 +34,7 @@ COPY app/composeApp/build.gradle.kts composeApp/build.gradle.kts
 RUN --mount=type=cache,target=/root/.gradle,sharing=locked \
     --mount=type=cache,target=/root/.konan \
     chmod +x gradlew \
-    && ./gradlew :composeApp:dependencies --no-daemon -q 2>/dev/null || true
+    && ./gradlew :composeApp:wasmJsBrowserDistribution --dry-run --no-daemon -q 2>/dev/null || true
 
 # Copy full source. Re-apply +x after COPY in case the checkout platform
 # (e.g. Windows NTFS) stripped the execute bit — git index has 100755 but
@@ -42,14 +42,10 @@ RUN --mount=type=cache,target=/root/.gradle,sharing=locked \
 COPY app/ .
 RUN chmod +x gradlew
 
-# Build the production Wasm bundle and verify the output path.
+# wasmJsBrowserDistribution = webpack + resource copy + index.html → dist/wasmJs/productionExecutable/
 RUN --mount=type=cache,target=/root/.gradle,sharing=locked \
     --mount=type=cache,target=/root/.konan \
-    ./gradlew :composeApp:wasmJsBrowserProductionWebpack --no-daemon \
-    && echo "=== wasm output ===" \
-    && find /workspace -name "*.wasm" 2>/dev/null \
-    && echo "=== dist tree ===" \
-    && find /workspace/composeApp/build/dist -maxdepth 4 -type f 2>/dev/null || echo "dist/ not found"
+    ./gradlew :composeApp:wasmJsBrowserDistribution --no-daemon
 
 # ---------------------------------------------------------------------------
 # Stage 1 — .NET NuGet restore (cached layer; re-runs only on .csproj changes)
