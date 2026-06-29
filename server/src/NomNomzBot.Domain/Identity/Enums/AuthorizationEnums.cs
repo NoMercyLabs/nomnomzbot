@@ -62,6 +62,7 @@ public enum StandingSource
 {
     ChatTags,
     EventSubBadge,
+    HelixSeed,
 }
 
 /// <summary>Whether a <c>PermitGrant</c> grants a whole role or a single capability.</summary>

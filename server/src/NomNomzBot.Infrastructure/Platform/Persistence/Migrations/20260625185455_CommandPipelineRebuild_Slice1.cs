@@ -201,15 +201,14 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                 oldType: "integer"
             );
 
-            migrationBuilder.AlterColumn<string>(
-                name: "Messages",
-                table: "Timers",
-                type: "jsonb",
-                nullable: false,
-                defaultValueSql: "'[]'::jsonb",
-                oldClrType: typeof(List<string>),
-                oldType: "text[]"
+            // text[] → jsonb requires an explicit USING clause; EF Core does not generate one.
+            migrationBuilder.Sql(
+                @"ALTER TABLE ""Timers"" ALTER COLUMN ""Messages"" TYPE jsonb USING to_jsonb(""Messages"");"
             );
+            migrationBuilder.Sql(
+                @"ALTER TABLE ""Timers"" ALTER COLUMN ""Messages"" SET DEFAULT '[]'::jsonb;"
+            );
+            migrationBuilder.Sql(@"ALTER TABLE ""Timers"" ALTER COLUMN ""Messages"" SET NOT NULL;");
 
             migrationBuilder.AlterColumn<bool>(
                 name: "IsEnabled",
@@ -395,14 +394,15 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                 oldMaxLength: 50
             );
 
-            migrationBuilder.AlterColumn<Dictionary<string, string>>(
-                name: "MetadataJson",
-                table: "EventResponses",
-                type: "jsonb",
-                nullable: false,
-                defaultValueSql: "'{}'::jsonb",
-                oldClrType: typeof(Dictionary<string, string>),
-                oldType: "hstore"
+            // hstore → jsonb requires an explicit USING clause; EF Core does not generate one.
+            migrationBuilder.Sql(
+                @"ALTER TABLE ""EventResponses"" ALTER COLUMN ""MetadataJson"" TYPE jsonb USING hstore_to_jsonb(""MetadataJson"");"
+            );
+            migrationBuilder.Sql(
+                @"ALTER TABLE ""EventResponses"" ALTER COLUMN ""MetadataJson"" SET DEFAULT '{}'::jsonb;"
+            );
+            migrationBuilder.Sql(
+                @"ALTER TABLE ""EventResponses"" ALTER COLUMN ""MetadataJson"" SET NOT NULL;"
             );
 
             migrationBuilder.AlterColumn<bool>(
