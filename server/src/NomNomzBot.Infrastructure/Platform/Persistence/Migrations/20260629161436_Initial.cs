@@ -1,4 +1,16 @@
-﻿using Microsoft.EntityFrameworkCore.Migrations;
+﻿// -----------------------------------------------------------------------------
+//  Copyright (c) NoMercy Labs.
+//
+//  This file is part of NomNomzBot, free software licensed under the GNU Affero
+//  General Public License v3.0 or later. You may redistribute and/or modify it
+//  under those terms. Distributed WITHOUT ANY WARRANTY. See LICENSE for details.
+//
+//  SPDX-License-Identifier: AGPL-3.0-or-later
+// -----------------------------------------------------------------------------
+
+using System;
+using System.Collections.Generic;
+using Microsoft.EntityFrameworkCore.Migrations;
 using NomNomzBot.Domain.Chat.ValueObjects;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -12,8 +24,6 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AlterDatabase().Annotation("Npgsql:PostgresExtension:hstore", ",,");
-
             migrationBuilder.CreateTable(
                 name: "ActionDefinitions",
                 columns: table => new
@@ -599,6 +609,65 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_ConsentRecords", x => x.Id);
+                }
+            );
+
+            migrationBuilder.CreateTable(
+                name: "CryptoKeys",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    KeyScope = table.Column<string>(
+                        type: "character varying(20)",
+                        maxLength: 20,
+                        nullable: false
+                    ),
+                    BroadcasterId = table.Column<Guid>(type: "uuid", nullable: true),
+                    SubjectIdHash = table.Column<string>(
+                        type: "character varying(64)",
+                        maxLength: 64,
+                        nullable: true
+                    ),
+                    WrappedKeyMaterial = table.Column<string>(type: "text", nullable: true),
+                    KekReference = table.Column<string>(
+                        type: "character varying(255)",
+                        maxLength: 255,
+                        nullable: true
+                    ),
+                    Provider = table.Column<string>(
+                        type: "character varying(20)",
+                        maxLength: 20,
+                        nullable: false
+                    ),
+                    Algorithm = table.Column<string>(
+                        type: "character varying(30)",
+                        maxLength: 30,
+                        nullable: false
+                    ),
+                    Status = table.Column<string>(
+                        type: "character varying(20)",
+                        maxLength: 20,
+                        nullable: false
+                    ),
+                    DestroyedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: true
+                    ),
+                    ErasureRequestId = table.Column<Guid>(type: "uuid", nullable: true),
+                    KeyVersion = table.Column<int>(type: "integer", nullable: false),
+                    RotatedFromKeyId = table.Column<Guid>(type: "uuid", nullable: true),
+                    CreatedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                    UpdatedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_CryptoKeys", x => x.Id);
                 }
             );
 
@@ -2165,6 +2234,11 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         maxLength: 50,
                         nullable: false
                     ),
+                    Key = table.Column<string>(
+                        type: "character varying(30)",
+                        maxLength: 30,
+                        nullable: true
+                    ),
                     Subject = table.Column<string>(
                         type: "character varying(20)",
                         maxLength: 20,
@@ -2180,6 +2254,68 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Pronouns", x => x.Id);
+                }
+            );
+
+            migrationBuilder.CreateTable(
+                name: "Redemptions",
+                columns: table => new
+                {
+                    Id = table
+                        .Column<long>(type: "bigint", nullable: false)
+                        .Annotation(
+                            "Npgsql:ValueGenerationStrategy",
+                            NpgsqlValueGenerationStrategy.IdentityByDefaultColumn
+                        ),
+                    BroadcasterId = table.Column<Guid>(type: "uuid", nullable: false),
+                    RedemptionId = table.Column<string>(
+                        type: "character varying(80)",
+                        maxLength: 80,
+                        nullable: false
+                    ),
+                    RewardId = table.Column<string>(
+                        type: "character varying(80)",
+                        maxLength: 80,
+                        nullable: false
+                    ),
+                    RewardTitle = table.Column<string>(
+                        type: "character varying(255)",
+                        maxLength: 255,
+                        nullable: false
+                    ),
+                    UserId = table.Column<string>(
+                        type: "character varying(50)",
+                        maxLength: 50,
+                        nullable: false
+                    ),
+                    UserDisplayName = table.Column<string>(
+                        type: "character varying(255)",
+                        maxLength: 255,
+                        nullable: false
+                    ),
+                    Cost = table.Column<int>(type: "integer", nullable: false),
+                    UserInput = table.Column<string>(
+                        type: "character varying(500)",
+                        maxLength: 500,
+                        nullable: true
+                    ),
+                    Status = table.Column<string>(
+                        type: "character varying(20)",
+                        maxLength: 20,
+                        nullable: false
+                    ),
+                    RedeemedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                    UpdatedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Redemptions", x => x.Id);
                 }
             );
 
@@ -2920,6 +3056,7 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         nullable: true
                     ),
                     PronounId = table.Column<int>(type: "integer", nullable: true),
+                    AltPronounId = table.Column<int>(type: "integer", nullable: true),
                     PronounManualOverride = table.Column<bool>(type: "boolean", nullable: false),
                     CreatedAt = table.Column<DateTime>(
                         type: "timestamp with time zone",
@@ -2933,6 +3070,13 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Users", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_Users_Pronouns_AltPronounId",
+                        column: x => x.AltPronounId,
+                        principalTable: "Pronouns",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.SetNull
+                    );
                     table.ForeignKey(
                         name: "FK_Users_Pronouns_PronounId",
                         column: x => x.PronounId,
@@ -3251,6 +3395,54 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
             );
 
             migrationBuilder.CreateTable(
+                name: "ChannelBuiltinCommands",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    BroadcasterId = table.Column<Guid>(type: "uuid", nullable: false),
+                    BuiltinKey = table.Column<string>(
+                        type: "character varying(100)",
+                        maxLength: 100,
+                        nullable: false
+                    ),
+                    IsEnabled = table.Column<bool>(
+                        type: "boolean",
+                        nullable: false,
+                        defaultValue: true
+                    ),
+                    ConfigSchemaVersion = table.Column<int>(
+                        type: "integer",
+                        nullable: false,
+                        defaultValue: 1
+                    ),
+                    OverridesJson = table.Column<string>(type: "text", nullable: true),
+                    CreatedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                    UpdatedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                    DeletedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: true
+                    ),
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ChannelBuiltinCommands", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_ChannelBuiltinCommands_Channels_BroadcasterId",
+                        column: x => x.BroadcasterId,
+                        principalTable: "Channels",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade
+                    );
+                }
+            );
+
+            migrationBuilder.CreateTable(
                 name: "ChannelEvents",
                 columns: table => new
                 {
@@ -3504,84 +3696,6 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
             );
 
             migrationBuilder.CreateTable(
-                name: "Commands",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    BroadcasterId = table.Column<Guid>(type: "uuid", nullable: false),
-                    Name = table.Column<string>(
-                        type: "character varying(100)",
-                        maxLength: 100,
-                        nullable: false
-                    ),
-                    Permission = table.Column<string>(
-                        type: "character varying(20)",
-                        maxLength: 20,
-                        nullable: false,
-                        defaultValue: "everyone"
-                    ),
-                    Type = table.Column<string>(
-                        type: "character varying(20)",
-                        maxLength: 20,
-                        nullable: false,
-                        defaultValue: "text"
-                    ),
-                    Response = table.Column<string>(
-                        type: "character varying(2000)",
-                        maxLength: 2000,
-                        nullable: true
-                    ),
-                    Responses = table.Column<string>(
-                        type: "jsonb",
-                        nullable: false,
-                        defaultValueSql: "'[]'::jsonb"
-                    ),
-                    PipelineJson = table.Column<string>(type: "jsonb", nullable: true),
-                    IsEnabled = table.Column<bool>(
-                        type: "boolean",
-                        nullable: false,
-                        defaultValue: true
-                    ),
-                    Description = table.Column<string>(
-                        type: "character varying(500)",
-                        maxLength: 500,
-                        nullable: true
-                    ),
-                    CooldownSeconds = table.Column<int>(type: "integer", nullable: false),
-                    CooldownPerUser = table.Column<bool>(type: "boolean", nullable: false),
-                    Aliases = table.Column<string>(
-                        type: "jsonb",
-                        nullable: false,
-                        defaultValueSql: "'[]'::jsonb"
-                    ),
-                    IsPlatform = table.Column<bool>(type: "boolean", nullable: false),
-                    CreatedAt = table.Column<DateTime>(
-                        type: "timestamp with time zone",
-                        nullable: false
-                    ),
-                    UpdatedAt = table.Column<DateTime>(
-                        type: "timestamp with time zone",
-                        nullable: false
-                    ),
-                    DeletedAt = table.Column<DateTime>(
-                        type: "timestamp with time zone",
-                        nullable: true
-                    ),
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_Commands", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_Commands_Channels_BroadcasterId",
-                        column: x => x.BroadcasterId,
-                        principalTable: "Channels",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade
-                    );
-                }
-            );
-
-            migrationBuilder.CreateTable(
                 name: "Configurations",
                 columns: table => new
                 {
@@ -3619,6 +3733,94 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         name: "FK_Configurations_Channels_BroadcasterId",
                         column: x => x.BroadcasterId,
                         principalTable: "Channels",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade
+                    );
+                }
+            );
+
+            migrationBuilder.CreateTable(
+                name: "CustomDataSources",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    BroadcasterId = table.Column<Guid>(type: "uuid", nullable: false),
+                    Name = table.Column<string>(
+                        type: "character varying(50)",
+                        maxLength: 50,
+                        nullable: false
+                    ),
+                    DisplayName = table.Column<string>(
+                        type: "character varying(100)",
+                        maxLength: 100,
+                        nullable: false
+                    ),
+                    SourceKind = table.Column<string>(
+                        type: "character varying(20)",
+                        maxLength: 20,
+                        nullable: false
+                    ),
+                    PresetKey = table.Column<string>(
+                        type: "character varying(50)",
+                        maxLength: 50,
+                        nullable: true
+                    ),
+                    EndpointUrl = table.Column<string>(
+                        type: "character varying(500)",
+                        maxLength: 500,
+                        nullable: true
+                    ),
+                    AuthSecretCipher = table.Column<string>(type: "text", nullable: true),
+                    FieldMapJson = table.Column<string>(
+                        type: "text",
+                        nullable: false,
+                        defaultValue: "{}"
+                    ),
+                    PollIntervalSeconds = table.Column<int>(type: "integer", nullable: true),
+                    InboundWebhookEndpointId = table.Column<Guid>(type: "uuid", nullable: true),
+                    IsEnabled = table.Column<bool>(
+                        type: "boolean",
+                        nullable: false,
+                        defaultValue: false
+                    ),
+                    LastReceivedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: true
+                    ),
+                    CreatedByUserId = table.Column<Guid>(type: "uuid", nullable: false),
+                    CreatedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                    UpdatedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                    DeletedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: true
+                    ),
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_CustomDataSources", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_CustomDataSources_Channels_BroadcasterId",
+                        column: x => x.BroadcasterId,
+                        principalTable: "Channels",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade
+                    );
+                    table.ForeignKey(
+                        name: "FK_CustomDataSources_InboundWebhookEndpoints_InboundWebhookEnd~",
+                        column: x => x.InboundWebhookEndpointId,
+                        principalTable: "InboundWebhookEndpoints",
+                        principalColumn: "Id"
+                    );
+                    table.ForeignKey(
+                        name: "FK_CustomDataSources_Users_CreatedByUserId",
+                        column: x => x.CreatedByUserId,
+                        principalTable: "Users",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade
                     );
@@ -3675,56 +3877,6 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     table.PrimaryKey("PK_DiscordGuildConnections", x => x.Id);
                     table.ForeignKey(
                         name: "FK_DiscordGuildConnections_Channels_BroadcasterId",
-                        column: x => x.BroadcasterId,
-                        principalTable: "Channels",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade
-                    );
-                }
-            );
-
-            migrationBuilder.CreateTable(
-                name: "EventResponses",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    BroadcasterId = table.Column<Guid>(type: "uuid", nullable: false),
-                    EventType = table.Column<string>(
-                        type: "character varying(100)",
-                        maxLength: 100,
-                        nullable: false
-                    ),
-                    IsEnabled = table.Column<bool>(type: "boolean", nullable: false),
-                    ResponseType = table.Column<string>(
-                        type: "character varying(50)",
-                        maxLength: 50,
-                        nullable: false
-                    ),
-                    Message = table.Column<string>(
-                        type: "character varying(2000)",
-                        maxLength: 2000,
-                        nullable: true
-                    ),
-                    PipelineJson = table.Column<string>(type: "text", nullable: true),
-                    MetadataJson = table.Column<string>(
-                        type: "jsonb",
-                        nullable: false,
-                        defaultValueSql: "'{}'::jsonb"
-                    ),
-                    CreatedAt = table.Column<DateTime>(
-                        type: "timestamp with time zone",
-                        nullable: false
-                    ),
-                    UpdatedAt = table.Column<DateTime>(
-                        type: "timestamp with time zone",
-                        nullable: false
-                    ),
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_EventResponses", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_EventResponses_Channels_BroadcasterId",
                         column: x => x.BroadcasterId,
                         principalTable: "Channels",
                         principalColumn: "Id",
@@ -3901,6 +4053,44 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
             );
 
             migrationBuilder.CreateTable(
+                name: "NamedCounters",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    BroadcasterId = table.Column<Guid>(type: "uuid", nullable: false),
+                    Key = table.Column<string>(
+                        type: "character varying(50)",
+                        maxLength: 50,
+                        nullable: false
+                    ),
+                    Value = table.Column<long>(type: "bigint", nullable: false, defaultValue: 0L),
+                    CreatedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                    UpdatedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                    DeletedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: true
+                    ),
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_NamedCounters", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_NamedCounters_Channels_BroadcasterId",
+                        column: x => x.BroadcasterId,
+                        principalTable: "Channels",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade
+                    );
+                }
+            );
+
+            migrationBuilder.CreateTable(
                 name: "Permissions",
                 columns: table => new
                 {
@@ -3978,13 +4168,32 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         maxLength: 500,
                         nullable: true
                     ),
-                    IsEnabled = table.Column<bool>(type: "boolean", nullable: false),
-                    GraphJson = table.Column<string>(type: "text", nullable: false),
-                    TriggerCount = table.Column<int>(type: "integer", nullable: false),
+                    TriggerKind = table.Column<string>(
+                        type: "character varying(40)",
+                        maxLength: 40,
+                        nullable: false,
+                        defaultValue: "manual"
+                    ),
+                    IsEnabled = table.Column<bool>(
+                        type: "boolean",
+                        nullable: false,
+                        defaultValue: true
+                    ),
+                    MaxStepCount = table.Column<int>(
+                        type: "integer",
+                        nullable: false,
+                        defaultValue: 50
+                    ),
+                    TriggerCount = table.Column<long>(
+                        type: "bigint",
+                        nullable: false,
+                        defaultValue: 0L
+                    ),
                     LastTriggeredAt = table.Column<DateTime>(
                         type: "timestamp with time zone",
                         nullable: true
                     ),
+                    GraphJsonCache = table.Column<string>(type: "text", nullable: true),
                     CreatedAt = table.Column<DateTime>(
                         type: "timestamp with time zone",
                         nullable: false
@@ -3992,6 +4201,10 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     UpdatedAt = table.Column<DateTime>(
                         type: "timestamp with time zone",
                         nullable: false
+                    ),
+                    DeletedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: true
                     ),
                 },
                 constraints: table =>
@@ -4252,6 +4465,78 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
             );
 
             migrationBuilder.CreateTable(
+                name: "SoundClips",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    BroadcasterId = table.Column<Guid>(type: "uuid", nullable: false),
+                    Name = table.Column<string>(
+                        type: "character varying(50)",
+                        maxLength: 50,
+                        nullable: false
+                    ),
+                    DisplayName = table.Column<string>(
+                        type: "character varying(100)",
+                        maxLength: 100,
+                        nullable: false
+                    ),
+                    StorageKey = table.Column<string>(
+                        type: "character varying(200)",
+                        maxLength: 200,
+                        nullable: false
+                    ),
+                    MimeType = table.Column<string>(
+                        type: "character varying(40)",
+                        maxLength: 40,
+                        nullable: false
+                    ),
+                    DurationMs = table.Column<int>(type: "integer", nullable: false),
+                    SizeBytes = table.Column<long>(type: "bigint", nullable: false),
+                    DefaultVolume = table.Column<int>(
+                        type: "integer",
+                        nullable: false,
+                        defaultValue: 80
+                    ),
+                    IsEnabled = table.Column<bool>(
+                        type: "boolean",
+                        nullable: false,
+                        defaultValue: true
+                    ),
+                    CreatedByUserId = table.Column<Guid>(type: "uuid", nullable: false),
+                    CreatedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                    UpdatedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                    DeletedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: true
+                    ),
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_SoundClips", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_SoundClips_Channels_BroadcasterId",
+                        column: x => x.BroadcasterId,
+                        principalTable: "Channels",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade
+                    );
+                    table.ForeignKey(
+                        name: "FK_SoundClips_Users_CreatedByUserId",
+                        column: x => x.CreatedByUserId,
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade
+                    );
+                }
+            );
+
+            migrationBuilder.CreateTable(
                 name: "Storages",
                 columns: table => new
                 {
@@ -4360,56 +4645,6 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     table.ForeignKey(
                         name: "FK_Streams_Channels_ChannelId",
                         column: x => x.ChannelId,
-                        principalTable: "Channels",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade
-                    );
-                }
-            );
-
-            migrationBuilder.CreateTable(
-                name: "Timers",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    BroadcasterId = table.Column<Guid>(type: "uuid", nullable: false),
-                    Name = table.Column<string>(
-                        type: "character varying(100)",
-                        maxLength: 100,
-                        nullable: false
-                    ),
-                    Messages = table.Column<string>(
-                        type: "jsonb",
-                        nullable: false,
-                        defaultValueSql: "'[]'::jsonb"
-                    ),
-                    IntervalMinutes = table.Column<int>(type: "integer", nullable: false),
-                    MinChatActivity = table.Column<int>(type: "integer", nullable: false),
-                    IsEnabled = table.Column<bool>(type: "boolean", nullable: false),
-                    LastFiredAt = table.Column<DateTime>(
-                        type: "timestamp with time zone",
-                        nullable: true
-                    ),
-                    NextMessageIndex = table.Column<int>(type: "integer", nullable: false),
-                    CreatedAt = table.Column<DateTime>(
-                        type: "timestamp with time zone",
-                        nullable: false
-                    ),
-                    UpdatedAt = table.Column<DateTime>(
-                        type: "timestamp with time zone",
-                        nullable: false
-                    ),
-                    DeletedAt = table.Column<DateTime>(
-                        type: "timestamp with time zone",
-                        nullable: true
-                    ),
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_Timers", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_Timers_Channels_BroadcasterId",
-                        column: x => x.BroadcasterId,
                         principalTable: "Channels",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade
@@ -4722,6 +4957,398 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
             );
 
             migrationBuilder.CreateTable(
+                name: "Commands",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    BroadcasterId = table.Column<Guid>(type: "uuid", nullable: false),
+                    Name = table.Column<string>(
+                        type: "character varying(100)",
+                        maxLength: 100,
+                        nullable: false
+                    ),
+                    NameNormalized = table.Column<string>(
+                        type: "character varying(100)",
+                        maxLength: 100,
+                        nullable: false
+                    ),
+                    PrefixMode = table.Column<string>(
+                        type: "character varying(20)",
+                        maxLength: 20,
+                        nullable: false
+                    ),
+                    CustomPrefix = table.Column<string>(
+                        type: "character varying(8)",
+                        maxLength: 8,
+                        nullable: true
+                    ),
+                    MatchMode = table.Column<string>(
+                        type: "character varying(20)",
+                        maxLength: 20,
+                        nullable: false
+                    ),
+                    MatchPattern = table.Column<string>(
+                        type: "character varying(200)",
+                        maxLength: 200,
+                        nullable: true
+                    ),
+                    Tier = table.Column<string>(
+                        type: "character varying(20)",
+                        maxLength: 20,
+                        nullable: false,
+                        defaultValue: "template"
+                    ),
+                    Description = table.Column<string>(
+                        type: "character varying(500)",
+                        maxLength: 500,
+                        nullable: true
+                    ),
+                    Aliases = table.Column<string>(
+                        type: "jsonb",
+                        nullable: false,
+                        defaultValueSql: "'[]'::jsonb"
+                    ),
+                    TemplateResponse = table.Column<string>(
+                        type: "character varying(2000)",
+                        maxLength: 2000,
+                        nullable: true
+                    ),
+                    TemplateResponses = table.Column<string>(
+                        type: "jsonb",
+                        nullable: true,
+                        defaultValueSql: "'[]'::jsonb"
+                    ),
+                    ConfigSchemaVersion = table.Column<int>(type: "integer", nullable: false),
+                    PipelineId = table.Column<Guid>(type: "uuid", nullable: true),
+                    MinPermissionLevel = table.Column<int>(
+                        type: "integer",
+                        nullable: false,
+                        defaultValue: 0
+                    ),
+                    CooldownSeconds = table.Column<int>(type: "integer", nullable: false),
+                    UserCooldownSeconds = table.Column<int>(type: "integer", nullable: false),
+                    CooldownPerUser = table.Column<bool>(type: "boolean", nullable: false),
+                    IsEnabled = table.Column<bool>(
+                        type: "boolean",
+                        nullable: false,
+                        defaultValue: true
+                    ),
+                    IsPlatform = table.Column<bool>(type: "boolean", nullable: false),
+                    UseCount = table.Column<long>(
+                        type: "bigint",
+                        nullable: false,
+                        defaultValue: 0L
+                    ),
+                    LastUsedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: true
+                    ),
+                    CreatedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                    UpdatedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                    DeletedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: true
+                    ),
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Commands", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_Commands_Channels_BroadcasterId",
+                        column: x => x.BroadcasterId,
+                        principalTable: "Channels",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade
+                    );
+                    table.ForeignKey(
+                        name: "FK_Commands_Pipelines_PipelineId",
+                        column: x => x.PipelineId,
+                        principalTable: "Pipelines",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.SetNull
+                    );
+                }
+            );
+
+            migrationBuilder.CreateTable(
+                name: "EventResponses",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    BroadcasterId = table.Column<Guid>(type: "uuid", nullable: false),
+                    EventType = table.Column<string>(
+                        type: "character varying(80)",
+                        maxLength: 80,
+                        nullable: false
+                    ),
+                    ResponseType = table.Column<string>(
+                        type: "character varying(40)",
+                        maxLength: 40,
+                        nullable: false,
+                        defaultValue: "chat_message"
+                    ),
+                    Message = table.Column<string>(
+                        type: "character varying(2000)",
+                        maxLength: 2000,
+                        nullable: true
+                    ),
+                    PipelineId = table.Column<Guid>(type: "uuid", nullable: true),
+                    MetadataJson = table.Column<Dictionary<string, string>>(
+                        type: "jsonb",
+                        nullable: false,
+                        defaultValueSql: "'{}'::jsonb"
+                    ),
+                    ConfigSchemaVersion = table.Column<int>(
+                        type: "integer",
+                        nullable: false,
+                        defaultValue: 1
+                    ),
+                    IsEnabled = table.Column<bool>(
+                        type: "boolean",
+                        nullable: false,
+                        defaultValue: true
+                    ),
+                    CreatedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                    UpdatedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                    DeletedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: true
+                    ),
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_EventResponses", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_EventResponses_Channels_BroadcasterId",
+                        column: x => x.BroadcasterId,
+                        principalTable: "Channels",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade
+                    );
+                    table.ForeignKey(
+                        name: "FK_EventResponses_Pipelines_PipelineId",
+                        column: x => x.PipelineId,
+                        principalTable: "Pipelines",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.SetNull
+                    );
+                }
+            );
+
+            migrationBuilder.CreateTable(
+                name: "PipelineExecutions",
+                columns: table => new
+                {
+                    Id = table
+                        .Column<long>(type: "bigint", nullable: false)
+                        .Annotation(
+                            "Npgsql:ValueGenerationStrategy",
+                            NpgsqlValueGenerationStrategy.IdentityByDefaultColumn
+                        ),
+                    PipelineId = table.Column<Guid>(type: "uuid", nullable: false),
+                    BroadcasterId = table.Column<Guid>(type: "uuid", nullable: false),
+                    TriggeredByUserId = table.Column<Guid>(type: "uuid", nullable: true),
+                    TriggerKind = table.Column<string>(
+                        type: "character varying(40)",
+                        maxLength: 40,
+                        nullable: false
+                    ),
+                    Status = table.Column<string>(
+                        type: "character varying(20)",
+                        maxLength: 20,
+                        nullable: false
+                    ),
+                    HostCallCount = table.Column<int>(
+                        type: "integer",
+                        nullable: false,
+                        defaultValue: 0
+                    ),
+                    DurationMs = table.Column<int>(
+                        type: "integer",
+                        nullable: false,
+                        defaultValue: 0
+                    ),
+                    ErrorMessage = table.Column<string>(
+                        type: "character varying(2000)",
+                        maxLength: 2000,
+                        nullable: true
+                    ),
+                    StepLogsJson = table.Column<string>(type: "text", nullable: true),
+                    StartedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                    CompletedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: true
+                    ),
+                    CreatedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                    UpdatedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_PipelineExecutions", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_PipelineExecutions_Pipelines_PipelineId",
+                        column: x => x.PipelineId,
+                        principalTable: "Pipelines",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade
+                    );
+                }
+            );
+
+            migrationBuilder.CreateTable(
+                name: "PipelineSteps",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    PipelineId = table.Column<Guid>(type: "uuid", nullable: false),
+                    BroadcasterId = table.Column<Guid>(type: "uuid", nullable: false),
+                    ParentStepId = table.Column<Guid>(type: "uuid", nullable: true),
+                    Branch = table.Column<string>(
+                        type: "character varying(10)",
+                        maxLength: 10,
+                        nullable: true
+                    ),
+                    Order = table.Column<int>(type: "integer", nullable: false),
+                    ActionType = table.Column<string>(
+                        type: "character varying(60)",
+                        maxLength: 60,
+                        nullable: false
+                    ),
+                    ConfigJson = table.Column<string>(
+                        type: "text",
+                        nullable: false,
+                        defaultValue: "{}"
+                    ),
+                    ConfigSchemaVersion = table.Column<int>(
+                        type: "integer",
+                        nullable: false,
+                        defaultValue: 1
+                    ),
+                    CodeScriptId = table.Column<Guid>(type: "uuid", nullable: true),
+                    IsEnabled = table.Column<bool>(
+                        type: "boolean",
+                        nullable: false,
+                        defaultValue: true
+                    ),
+                    CreatedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                    UpdatedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_PipelineSteps", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_PipelineSteps_Pipelines_PipelineId",
+                        column: x => x.PipelineId,
+                        principalTable: "Pipelines",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade
+                    );
+                }
+            );
+
+            migrationBuilder.CreateTable(
+                name: "Timers",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    BroadcasterId = table.Column<Guid>(type: "uuid", nullable: false),
+                    Name = table.Column<string>(
+                        type: "character varying(200)",
+                        maxLength: 200,
+                        nullable: false
+                    ),
+                    Messages = table.Column<string>(
+                        type: "jsonb",
+                        nullable: false,
+                        defaultValueSql: "'[]'::jsonb"
+                    ),
+                    ConfigSchemaVersion = table.Column<int>(
+                        type: "integer",
+                        nullable: false,
+                        defaultValue: 1
+                    ),
+                    PipelineId = table.Column<Guid>(type: "uuid", nullable: true),
+                    IntervalMinutes = table.Column<int>(
+                        type: "integer",
+                        nullable: false,
+                        defaultValue: 30
+                    ),
+                    MinChatActivity = table.Column<int>(
+                        type: "integer",
+                        nullable: false,
+                        defaultValue: 0
+                    ),
+                    IsEnabled = table.Column<bool>(
+                        type: "boolean",
+                        nullable: false,
+                        defaultValue: true
+                    ),
+                    LastFiredAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: true
+                    ),
+                    NextMessageIndex = table.Column<int>(type: "integer", nullable: false),
+                    CreatedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                    UpdatedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                    DeletedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: true
+                    ),
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Timers", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_Timers_Channels_BroadcasterId",
+                        column: x => x.BroadcasterId,
+                        principalTable: "Channels",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade
+                    );
+                    table.ForeignKey(
+                        name: "FK_Timers_Pipelines_PipelineId",
+                        column: x => x.PipelineId,
+                        principalTable: "Pipelines",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.SetNull
+                    );
+                }
+            );
+
+            migrationBuilder.CreateTable(
                 name: "ChatMessages",
                 columns: table => new
                 {
@@ -4951,6 +5578,150 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
             );
 
             migrationBuilder.CreateTable(
+                name: "CommandCooldownStates",
+                columns: table => new
+                {
+                    Id = table
+                        .Column<long>(type: "bigint", nullable: false)
+                        .Annotation(
+                            "Npgsql:ValueGenerationStrategy",
+                            NpgsqlValueGenerationStrategy.IdentityByDefaultColumn
+                        ),
+                    CommandId = table.Column<Guid>(type: "uuid", nullable: false),
+                    BroadcasterId = table.Column<Guid>(type: "uuid", nullable: false),
+                    UserId = table.Column<Guid>(type: "uuid", nullable: true),
+                    LastInvokedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                    ExpiresAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                    CreatedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                    UpdatedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_CommandCooldownStates", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_CommandCooldownStates_Commands_CommandId",
+                        column: x => x.CommandId,
+                        principalTable: "Commands",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade
+                    );
+                }
+            );
+
+            migrationBuilder.CreateTable(
+                name: "CommandUsages",
+                columns: table => new
+                {
+                    Id = table
+                        .Column<long>(type: "bigint", nullable: false)
+                        .Annotation(
+                            "Npgsql:ValueGenerationStrategy",
+                            NpgsqlValueGenerationStrategy.IdentityByDefaultColumn
+                        ),
+                    BroadcasterId = table.Column<Guid>(type: "uuid", nullable: false),
+                    CommandId = table.Column<Guid>(type: "uuid", nullable: true),
+                    CommandNameSnapshot = table.Column<string>(
+                        type: "character varying(100)",
+                        maxLength: 100,
+                        nullable: false
+                    ),
+                    ViewerProfileId = table.Column<Guid>(type: "uuid", nullable: false),
+                    ViewerUserId = table.Column<Guid>(type: "uuid", nullable: false),
+                    ArgsSnapshot = table.Column<string>(
+                        type: "character varying(500)",
+                        maxLength: 500,
+                        nullable: true
+                    ),
+                    WasSuccessful = table.Column<bool>(type: "boolean", nullable: false),
+                    CreatedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                    UpdatedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_CommandUsages", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_CommandUsages_Commands_CommandId",
+                        column: x => x.CommandId,
+                        principalTable: "Commands",
+                        principalColumn: "Id"
+                    );
+                }
+            );
+
+            migrationBuilder.CreateTable(
+                name: "PipelineStepConditions",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    PipelineStepId = table.Column<Guid>(type: "uuid", nullable: false),
+                    BroadcasterId = table.Column<Guid>(type: "uuid", nullable: false),
+                    ConditionType = table.Column<string>(
+                        type: "character varying(40)",
+                        maxLength: 40,
+                        nullable: false
+                    ),
+                    Operator = table.Column<string>(
+                        type: "character varying(20)",
+                        maxLength: 20,
+                        nullable: true
+                    ),
+                    LeftOperand = table.Column<string>(
+                        type: "character varying(500)",
+                        maxLength: 500,
+                        nullable: true
+                    ),
+                    RightOperand = table.Column<string>(
+                        type: "character varying(500)",
+                        maxLength: 500,
+                        nullable: true
+                    ),
+                    Negate = table.Column<bool>(
+                        type: "boolean",
+                        nullable: false,
+                        defaultValue: false
+                    ),
+                    Order = table.Column<int>(type: "integer", nullable: false),
+                    CreatedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                    UpdatedAt = table.Column<DateTime>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_PipelineStepConditions", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_PipelineStepConditions_PipelineSteps_PipelineStepId",
+                        column: x => x.PipelineStepId,
+                        principalTable: "PipelineSteps",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade
+                    );
+                }
+            );
+
+            migrationBuilder.CreateTable(
                 name: "DiscordNotificationDispatches",
                 columns: table => new
                 {
@@ -5095,6 +5866,13 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                 name: "IX_ChannelBotAuthorizations_BotAccountId",
                 table: "ChannelBotAuthorizations",
                 column: "BotAccountId"
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ChannelBuiltinCommand_BroadcasterId_Key",
+                table: "ChannelBuiltinCommands",
+                columns: new[] { "BroadcasterId", "BuiltinKey" },
+                unique: true
             );
 
             migrationBuilder.CreateIndex(
@@ -5287,16 +6065,46 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
             );
 
             migrationBuilder.CreateIndex(
+                name: "IX_CommandCooldownState_CommandId_ExpiresAt",
+                table: "CommandCooldownStates",
+                columns: new[] { "CommandId", "ExpiresAt" }
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_CommandCooldownState_CommandId_UserId_ExpiresAt",
+                table: "CommandCooldownStates",
+                columns: new[] { "CommandId", "UserId", "ExpiresAt" }
+            );
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Command_BroadcasterId_IsEnabled",
                 table: "Commands",
                 columns: new[] { "BroadcasterId", "IsEnabled" }
             );
 
             migrationBuilder.CreateIndex(
-                name: "IX_Command_Name_BroadcasterId",
+                name: "IX_Command_NameNormalized_BroadcasterId",
                 table: "Commands",
-                columns: new[] { "Name", "BroadcasterId" },
+                columns: new[] { "NameNormalized", "BroadcasterId" },
                 unique: true
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Command_PipelineId",
+                table: "Commands",
+                column: "PipelineId"
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_CommandUsage_BroadcasterId_CreatedAt",
+                table: "CommandUsages",
+                columns: new[] { "BroadcasterId", "CreatedAt" }
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_CommandUsage_CommandId_CreatedAt",
+                table: "CommandUsages",
+                columns: new[] { "CommandId", "CreatedAt" }
             );
 
             migrationBuilder.CreateIndex(
@@ -5309,6 +6117,30 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                 name: "IX_ConsentRecords_BroadcasterId_SubjectUserId_ConsentType",
                 table: "ConsentRecords",
                 columns: new[] { "BroadcasterId", "SubjectUserId", "ConsentType" }
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_CryptoKeys_BroadcasterId",
+                table: "CryptoKeys",
+                column: "BroadcasterId"
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_CryptoKeys_DestroyedAt",
+                table: "CryptoKeys",
+                column: "DestroyedAt"
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_CryptoKeys_KeyScope_BroadcasterId_SubjectIdHash_Status",
+                table: "CryptoKeys",
+                columns: new[] { "KeyScope", "BroadcasterId", "SubjectIdHash", "Status" }
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_CryptoKeys_Status",
+                table: "CryptoKeys",
+                column: "Status"
             );
 
             migrationBuilder.CreateIndex(
@@ -5334,6 +6166,31 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                 table: "CurrencyLedgerEntries",
                 columns: new[] { "BroadcasterId", "TenantPosition" },
                 unique: true
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_CustomDataSources_BroadcasterId",
+                table: "CustomDataSources",
+                column: "BroadcasterId"
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_CustomDataSources_BroadcasterId_Name",
+                table: "CustomDataSources",
+                columns: new[] { "BroadcasterId", "Name" },
+                unique: true
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_CustomDataSources_CreatedByUserId",
+                table: "CustomDataSources",
+                column: "CreatedByUserId"
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_CustomDataSources_InboundWebhookEndpointId",
+                table: "CustomDataSources",
+                column: "InboundWebhookEndpointId"
             );
 
             migrationBuilder.CreateIndex(
@@ -5531,9 +6388,15 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
             );
 
             migrationBuilder.CreateIndex(
-                name: "IX_EventResponses_BroadcasterId",
+                name: "IX_EventResponse_BroadcasterId_EventType",
                 table: "EventResponses",
-                column: "BroadcasterId"
+                columns: new[] { "BroadcasterId", "EventType" }
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_EventResponses_PipelineId",
+                table: "EventResponses",
+                column: "PipelineId"
             );
 
             migrationBuilder.CreateIndex(
@@ -5849,6 +6712,13 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
             );
 
             migrationBuilder.CreateIndex(
+                name: "IX_NamedCounter_BroadcasterId_Key",
+                table: "NamedCounters",
+                columns: new[] { "BroadcasterId", "Key" },
+                unique: true
+            );
+
+            migrationBuilder.CreateIndex(
                 name: "IX_OutboundWebhookDeliveries_EndpointId_CreatedAt",
                 table: "OutboundWebhookDeliveries",
                 columns: new[] { "EndpointId", "CreatedAt" }
@@ -5880,9 +6750,39 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
             );
 
             migrationBuilder.CreateIndex(
-                name: "IX_Pipelines_BroadcasterId",
+                name: "IX_PipelineExecution_BroadcasterId_StartedAt",
+                table: "PipelineExecutions",
+                columns: new[] { "BroadcasterId", "StartedAt" }
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_PipelineExecution_PipelineId_StartedAt",
+                table: "PipelineExecutions",
+                columns: new[] { "PipelineId", "StartedAt" }
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Pipeline_BroadcasterId_IsEnabled",
                 table: "Pipelines",
+                columns: new[] { "BroadcasterId", "IsEnabled" }
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_PipelineStepCondition_StepId",
+                table: "PipelineStepConditions",
+                column: "PipelineStepId"
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_PipelineStep_BroadcasterId",
+                table: "PipelineSteps",
                 column: "BroadcasterId"
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_PipelineStep_PipelineId_Order",
+                table: "PipelineSteps",
+                columns: new[] { "PipelineId", "Order" }
             );
 
             migrationBuilder.CreateIndex(
@@ -5905,6 +6805,14 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
             );
 
             migrationBuilder.CreateIndex(
+                name: "IX_Pronouns_Key",
+                table: "Pronouns",
+                column: "Key",
+                unique: true,
+                filter: "\"Key\" IS NOT NULL"
+            );
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Quotes_BroadcasterId_Number",
                 table: "Quotes",
                 columns: new[] { "BroadcasterId", "Number" },
@@ -5921,6 +6829,19 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                 name: "IX_Record_UserId",
                 table: "Records",
                 column: "UserId"
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Redemptions_BroadcasterId_RedemptionId",
+                table: "Redemptions",
+                columns: new[] { "BroadcasterId", "RedemptionId" },
+                unique: true
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Redemptions_BroadcasterId_Status_RedeemedAt",
+                table: "Redemptions",
+                columns: new[] { "BroadcasterId", "Status", "RedeemedAt" }
             );
 
             migrationBuilder.CreateIndex(
@@ -5982,6 +6903,25 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
             );
 
             migrationBuilder.CreateIndex(
+                name: "IX_SoundClips_BroadcasterId",
+                table: "SoundClips",
+                column: "BroadcasterId"
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_SoundClips_BroadcasterId_Name",
+                table: "SoundClips",
+                columns: new[] { "BroadcasterId", "Name" },
+                unique: true
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_SoundClips_CreatedByUserId",
+                table: "SoundClips",
+                column: "CreatedByUserId"
+            );
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Storage_Key_BroadcasterId",
                 table: "Storages",
                 columns: new[] { "Key", "BroadcasterId" },
@@ -6034,9 +6974,15 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
             );
 
             migrationBuilder.CreateIndex(
-                name: "IX_Timers_BroadcasterId",
+                name: "IX_Timer_BroadcasterId_IsEnabled",
                 table: "Timers",
-                column: "BroadcasterId"
+                columns: new[] { "BroadcasterId", "IsEnabled" }
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Timers_PipelineId",
+                table: "Timers",
+                column: "PipelineId"
             );
 
             migrationBuilder.CreateIndex(
@@ -6070,6 +7016,12 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                 name: "IX_User_UsernameNormalized",
                 table: "Users",
                 column: "UsernameNormalized"
+            );
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Users_AltPronounId",
+                table: "Users",
+                column: "AltPronounId"
             );
 
             migrationBuilder.CreateIndex(
@@ -6170,6 +7122,8 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
 
             migrationBuilder.DropTable(name: "ChannelBotAuthorizations");
 
+            migrationBuilder.DropTable(name: "ChannelBuiltinCommands");
+
             migrationBuilder.DropTable(name: "ChannelCommunityStandings");
 
             migrationBuilder.DropTable(name: "ChannelEvents");
@@ -6192,17 +7146,23 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
 
             migrationBuilder.DropTable(name: "CodeScriptVersions");
 
-            migrationBuilder.DropTable(name: "Commands");
+            migrationBuilder.DropTable(name: "CommandCooldownStates");
+
+            migrationBuilder.DropTable(name: "CommandUsages");
 
             migrationBuilder.DropTable(name: "Configurations");
 
             migrationBuilder.DropTable(name: "ConsentRecords");
+
+            migrationBuilder.DropTable(name: "CryptoKeys");
 
             migrationBuilder.DropTable(name: "CurrencyAccounts");
 
             migrationBuilder.DropTable(name: "CurrencyConfigs");
 
             migrationBuilder.DropTable(name: "CurrencyLedgerEntries");
+
+            migrationBuilder.DropTable(name: "CustomDataSources");
 
             migrationBuilder.DropTable(name: "DeletionAuditLogs");
 
@@ -6252,8 +7212,6 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
 
             migrationBuilder.DropTable(name: "IdempotencyKeys");
 
-            migrationBuilder.DropTable(name: "InboundWebhookEndpoints");
-
             migrationBuilder.DropTable(name: "IntegrationTokens");
 
             migrationBuilder.DropTable(name: "InviteCodes");
@@ -6272,6 +7230,8 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
 
             migrationBuilder.DropTable(name: "MessageActivityDailies");
 
+            migrationBuilder.DropTable(name: "NamedCounters");
+
             migrationBuilder.DropTable(name: "OutboundWebhookDeliveries");
 
             migrationBuilder.DropTable(name: "OutboundWebhookEndpoints");
@@ -6280,13 +7240,17 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
 
             migrationBuilder.DropTable(name: "PermitGrants");
 
-            migrationBuilder.DropTable(name: "Pipelines");
+            migrationBuilder.DropTable(name: "PipelineExecutions");
+
+            migrationBuilder.DropTable(name: "PipelineStepConditions");
 
             migrationBuilder.DropTable(name: "ProjectionCheckpoints");
 
             migrationBuilder.DropTable(name: "Quotes");
 
             migrationBuilder.DropTable(name: "Records");
+
+            migrationBuilder.DropTable(name: "Redemptions");
 
             migrationBuilder.DropTable(name: "RefreshTokens");
 
@@ -6297,6 +7261,8 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
             migrationBuilder.DropTable(name: "SavingsJars");
 
             migrationBuilder.DropTable(name: "Services");
+
+            migrationBuilder.DropTable(name: "SoundClips");
 
             migrationBuilder.DropTable(name: "Storages");
 
@@ -6334,15 +7300,23 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
 
             migrationBuilder.DropTable(name: "Streams");
 
+            migrationBuilder.DropTable(name: "Commands");
+
+            migrationBuilder.DropTable(name: "InboundWebhookEndpoints");
+
             migrationBuilder.DropTable(name: "DiscordNotificationConfigs");
 
             migrationBuilder.DropTable(name: "EventSubConduits");
 
             migrationBuilder.DropTable(name: "IntegrationConnections");
 
+            migrationBuilder.DropTable(name: "PipelineSteps");
+
             migrationBuilder.DropTable(name: "AuthSessions");
 
             migrationBuilder.DropTable(name: "DiscordNotificationRoles");
+
+            migrationBuilder.DropTable(name: "Pipelines");
 
             migrationBuilder.DropTable(name: "DiscordGuildConnections");
 
