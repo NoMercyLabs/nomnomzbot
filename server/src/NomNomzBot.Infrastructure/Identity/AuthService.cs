@@ -19,6 +19,7 @@ using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
+using NomNomzBot.Domain.Enums.Deployment;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Identity.Events;
@@ -58,6 +59,9 @@ public sealed class AuthService : IAuthService
 
     // Self-host makes the first onboarded account the platform admin (the owner IS the admin); SaaS does not.
     private readonly bool _isSelfHost;
+
+    // SelfHostLite is single-streamer: a second login attaches to the existing channel instead of creating one.
+    private readonly DeploymentMode _deploymentMode;
 
     private static readonly string[] RequiredScopes =
     [
@@ -121,6 +125,7 @@ public sealed class AuthService : IAuthService
         _baseUrl = configuration["App:BaseUrl"] ?? "http://localhost:5080";
         _initialAdminTwitchId = configuration["App:InitialAdminTwitchId"];
         _isSelfHost = deploymentContext.IsSelfHost;
+        _deploymentMode = deploymentContext.Mode;
     }
 
     // ─── User OAuth ──────────────────────────────────────────────────────────
@@ -255,10 +260,31 @@ public sealed class AuthService : IAuthService
         await _db.SaveChangesAsync(cancellationToken);
 
         // Upsert the owning Channel (tenant root). A streamer's own channel = their Twitch user id.
+        // SelfHostLite is single-streamer: a 2nd login reuses the existing owner's channel rather than
+        // creating a second one. The new user's JWT will carry the owner's broadcasterId, giving them
+        // viewer-level access to the single-channel dashboard.
         bool isNewChannel = false;
-        Channel? channel = await _db
-            .Channels.IgnoreQueryFilters()
-            .FirstOrDefaultAsync(c => c.OwnerUserId == user.Id, cancellationToken);
+        Channel? channel;
+        if (_deploymentMode == DeploymentMode.SelfHostLite)
+        {
+            // In SelfHostLite, there is at most one channel. Use whichever exists (owner or first-onboarded),
+            // creating one only if this is genuinely the very first login.
+            channel =
+                await _db
+                    .Channels.IgnoreQueryFilters()
+                    .FirstOrDefaultAsync(c => c.OwnerUserId == user.Id, cancellationToken)
+                ?? await _db
+                    .Channels.IgnoreQueryFilters()
+                    .FirstOrDefaultAsync(c => c.IsOnboarded, cancellationToken);
+        }
+        else
+        {
+            // SelfHostFull / SaaS: every streamer owns their own channel.
+            channel = await _db
+                .Channels.IgnoreQueryFilters()
+                .FirstOrDefaultAsync(c => c.OwnerUserId == user.Id, cancellationToken);
+        }
+
         if (channel is null)
         {
             isNewChannel = true;

@@ -176,6 +176,13 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
             migrationBuilder.Sql(
                 @"ALTER TABLE ""EventResponses"" ADD COLUMN IF NOT EXISTS ""ConfigSchemaVersion"" integer NOT NULL DEFAULT 0;"
             );
+            // PipelineId FK columns — the deleted migration added these nullable uuid columns to both tables.
+            migrationBuilder.Sql(
+                @"ALTER TABLE ""EventResponses"" ADD COLUMN IF NOT EXISTS ""PipelineId"" uuid;"
+            );
+            migrationBuilder.Sql(
+                @"ALTER TABLE ""Timers"" ADD COLUMN IF NOT EXISTS ""PipelineId"" uuid;"
+            );
             // The deleted migration renamed EventResponses.Metadata → MetadataJson; undo only when the
             // old name still exists and the new name does not, so this is safe on both paths.
             migrationBuilder.Sql(
