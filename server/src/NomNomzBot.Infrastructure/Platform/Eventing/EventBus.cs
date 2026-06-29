@@ -16,9 +16,8 @@ using NomNomzBot.Domain.Platform.Interfaces;
 namespace NomNomzBot.Infrastructure.Platform.Eventing;
 
 /// <summary>
-/// IEventBus implementation that resolves handlers from DI,
-/// executes them in parallel, and isolates individual handler failures.
-/// Registered as a singleton.
+/// IEventBus implementation that resolves handlers from DI, executes them sequentially,
+/// and isolates individual handler failures. Registered as a singleton.
 /// </summary>
 public sealed class EventBus : IEventBus
 {
@@ -61,11 +60,12 @@ public sealed class EventBus : IEventBus
             return;
         }
 
-        // Execute all handlers in parallel with failure isolation
-        IEnumerable<Task> tasks = handlers.Select(handler =>
-            ExecuteHandler(handler, @event, cancellationToken)
-        );
-        await Task.WhenAll(tasks);
+        // Execute handlers sequentially — all share a single scoped DbContext which is NOT
+        // thread-safe. Running them in parallel via Task.WhenAll causes "A second operation
+        // was started on this context instance" when two handlers hit EF Core async queries
+        // concurrently on the same context instance.
+        foreach (IEventHandler<TEvent> handler in handlers)
+            await ExecuteHandler(handler, @event, cancellationToken);
     }
 
     public void PublishFireAndForget<TEvent>(TEvent @event)
@@ -81,7 +81,7 @@ public sealed class EventBus : IEventBus
         _eventLogger.Log(@event);
 
         // Use Task.Run to ensure execution happens on the thread pool,
-        // completely detached from the caller's context
+        // completely detached from the caller's context.
         _ = Task.Run(async () =>
         {
             await using AsyncServiceScope scope = _serviceProvider.CreateAsyncScope();
@@ -92,10 +92,8 @@ public sealed class EventBus : IEventBus
             if (handlers.Count == 0)
                 return;
 
-            IEnumerable<Task> tasks = handlers.Select(handler =>
-                ExecuteHandler(handler, @event, CancellationToken.None)
-            );
-            await Task.WhenAll(tasks);
+            foreach (IEventHandler<TEvent> handler in handlers)
+                await ExecuteHandler(handler, @event, CancellationToken.None);
         });
     }
 
