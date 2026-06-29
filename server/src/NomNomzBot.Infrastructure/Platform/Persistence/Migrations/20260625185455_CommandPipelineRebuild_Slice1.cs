@@ -10,6 +10,42 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            // ── Pipelines table: integer Id → uuid Id ─────────────────────────────────────────────────
+            // The Initial migration created Pipelines.Id as integer (a schema/entity mismatch — the
+            // domain entity uses Guid). The deleted dev-only migration converted it to uuid. Without
+            // that migration, Slice1's AddForeignKey (PipelineId uuid → Pipelines.Id) fails with 42804.
+            // On a fresh install Pipelines has no rows, so we can safely drop and recreate the table.
+            // On an existing dev DB where the deleted migration already ran (Pipelines.Id is uuid),
+            // the DO block is a no-op.
+            migrationBuilder.Sql(
+                @"
+                DO $$
+                BEGIN
+                    IF (SELECT data_type FROM information_schema.columns
+                        WHERE table_schema='public' AND table_name='Pipelines' AND column_name='Id')
+                       = 'integer' THEN
+                        DROP TABLE ""Pipelines"";
+                        CREATE TABLE ""Pipelines"" (
+                            ""Id""               uuid NOT NULL,
+                            ""BroadcasterId""    uuid NOT NULL,
+                            ""Description""      character varying(500),
+                            ""IsEnabled""        boolean NOT NULL,
+                            ""LastTriggeredAt""  timestamp with time zone,
+                            ""MaxStepCount""     integer NOT NULL DEFAULT 0,
+                            ""Name""             character varying(200) NOT NULL,
+                            ""TriggerCount""     bigint NOT NULL DEFAULT 0,
+                            ""TriggerKind""      character varying(30) NOT NULL DEFAULT 'manual',
+                            ""CreatedAt""        timestamp with time zone NOT NULL,
+                            ""UpdatedAt""        timestamp with time zone NOT NULL,
+                            CONSTRAINT ""PK_Pipelines"" PRIMARY KEY (""Id""),
+                            CONSTRAINT ""FK_Pipelines_Channels_BroadcasterId"" FOREIGN KEY (""BroadcasterId"")
+                                REFERENCES ""Channels"" (""Id"") ON DELETE CASCADE
+                        );
+                        CREATE INDEX ""IX_Pipelines_BroadcasterId"" ON ""Pipelines"" (""BroadcasterId"");
+                    END IF;
+                END $$;"
+            );
+
             // Bootstrap tables that were created in a dev-only migration never committed to the official
             // history. On a fresh install these tables do not exist yet; IF NOT EXISTS makes this safe
             // for both fresh installs and existing databases. The schema here is the PRE-Slice1 baseline
