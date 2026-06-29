@@ -106,6 +106,17 @@ public static class DependencyInjection
             configuration.GetConnectionString("SqliteConnection")
             ?? SelfHostDataPaths.SqliteConnectionString;
 
+        // Build the Npgsql data source once and register it as a singleton so there is exactly one
+        // connection pool for the lifetime of the application. Building it inside AddDbContext's
+        // options factory would create a new pool on every DbContext scope (per request), quickly
+        // exhausting Postgres' max_connections.
+        if (dbProvider == DbProviderKind.Postgres && connectionString is not null)
+        {
+            Npgsql.NpgsqlDataSourceBuilder dataSourceBuilder = new(connectionString);
+            dataSourceBuilder.EnableDynamicJson();
+            services.AddSingleton(dataSourceBuilder.Build());
+        }
+
         services.AddDbContext<AppDbContext>(
             (serviceProvider, options) =>
             {
@@ -121,12 +132,8 @@ public static class DependencyInjection
                 }
                 else
                 {
-                    // Npgsql 8 requires explicit opt-in for dynamic JSON serialization of complex CLR types
-                    // (List<ChatBadge>, List<ChatMessageFragment>, etc.) stored as jsonb — without this the
-                    // write path throws InvalidCastException at runtime even though the model compiles fine.
-                    Npgsql.NpgsqlDataSourceBuilder dataSourceBuilder = new(connectionString);
-                    dataSourceBuilder.EnableDynamicJson();
-                    Npgsql.NpgsqlDataSource dataSource = dataSourceBuilder.Build();
+                    Npgsql.NpgsqlDataSource dataSource =
+                        serviceProvider.GetRequiredService<Npgsql.NpgsqlDataSource>();
 
                     options.UseNpgsql(
                         dataSource,

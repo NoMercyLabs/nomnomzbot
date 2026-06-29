@@ -40,7 +40,7 @@ services:
       # Force the full profile — Postgres + Redis are reachable on this network so the probe would
       # pick it anyway, but stating it makes the boot deterministic (deployment-distribution §1).
       - Deployment__Mode=self_host_full
-      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=${POSTGRES_DB:-nomnomzbot};Username=${POSTGRES_USER:-nomnomzbot};Password=${POSTGRES_PASSWORD:-nomnomzbot_dev}
+      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=${POSTGRES_DB:-nomnomzbot};Username=${POSTGRES_USER:-nomnomzbot};Password=${POSTGRES_PASSWORD:-nomnomzbot_dev};MaxPoolSize=20
       # StackExchange.Redis syntax (host:port[,password=...]) — NOT a redis:// URI, which it can't parse.
       - ConnectionStrings__Redis=redis:6379${REDIS_PASSWORD:+,password=${REDIS_PASSWORD}}
       - Jwt__Secret=${JWT_SECRET}
