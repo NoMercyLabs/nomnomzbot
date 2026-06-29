@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Api.Authorization;
+using NomNomzBot.Api.Extensions;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
@@ -78,14 +79,16 @@ public class ChannelsController : BaseController
         PaginationParams pagination = new(request.Page, request.Take, request.Sort, request.Order);
 
         // Fetch channels the user moderates on Twitch so they appear even if not yet synced to the
-        // ChannelModerators table. The JWT subject is the internal User.Id Guid; the sub-client resolves it
-        // to the Twitch user id internally (a failure degrades to the DB-only list).
+        // ChannelModerators table. The broadcaster_id claim is the Channel.Id (Guid) — the key the
+        // sub-client uses for both scope lookup (IntegrationConnections.BroadcasterId) and user-id
+        // resolution (falls back to Channel.User.TwitchUserId in TwitchIdentityResolver).
         IReadOnlyList<string> moderatedIds = [];
-        if (Guid.TryParse(userId, out Guid moderatorUserId))
+        string? broadcasterIdStr = User.GetBroadcasterId();
+        if (Guid.TryParse(broadcasterIdStr, out Guid broadcasterGuid))
         {
             Result<TwitchPage<TwitchModeratedChannel>> moderated =
                 await _moderators.GetModeratedChannelsAsync(
-                    moderatorUserId,
+                    broadcasterGuid,
                     new TwitchPageRequest(),
                     ct
                 );
@@ -109,11 +112,11 @@ public class ChannelsController : BaseController
     [ProducesResponseType<StatusResponseDto<List<ModeratedChannelDto>>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetModeratedChannels(CancellationToken ct)
     {
-        string? userId =
-            User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
-            ?? User.FindFirst("sub")?.Value;
-
-        if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out Guid moderatorUserId))
+        string? broadcasterIdStr = User.GetBroadcasterId();
+        if (
+            string.IsNullOrEmpty(broadcasterIdStr)
+            || !Guid.TryParse(broadcasterIdStr, out Guid moderatorUserId)
+        )
             return UnauthenticatedResponse();
 
         Result<TwitchPage<TwitchModeratedChannel>> moderatedResult =

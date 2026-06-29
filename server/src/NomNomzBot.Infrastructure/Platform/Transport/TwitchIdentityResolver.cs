@@ -111,10 +111,25 @@ public sealed class TwitchIdentityResolver : ITwitchIdentityResolver
 
         try
         {
-            return await _db
+            // Primary path: the Guid is a User.Id.
+            string? twitchUserId = await _db
                 .Users.IgnoreQueryFilters()
                 .Where(u => u.Id == userId)
                 .Select(u => u.TwitchUserId)
+                .FirstOrDefaultAsync(ct);
+
+            if (twitchUserId is not null)
+                return twitchUserId;
+
+            // Secondary path: callers that hold a Channel.Id (broadcasterId from the JWT) rather than
+            // a User.Id — resolve via the channel's owner. This happens in endpoints like
+            // GET /channels/moderated where the controller passes the broadcaster_id claim (Channel.Id)
+            // for token-scope lookup, but the same Guid must also resolve to the Twitch user_id for the
+            // Helix query parameter. The fallback makes both work with a single Guid.
+            return await _db
+                .Channels.IgnoreQueryFilters()
+                .Where(c => c.Id == userId)
+                .Select(c => c.User.TwitchUserId)
                 .FirstOrDefaultAsync(ct);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)

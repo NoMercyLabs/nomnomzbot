@@ -121,8 +121,15 @@ public static class DependencyInjection
                 }
                 else
                 {
+                    // Npgsql 8 requires explicit opt-in for dynamic JSON serialization of complex CLR types
+                    // (List<ChatBadge>, List<ChatMessageFragment>, etc.) stored as jsonb — without this the
+                    // write path throws InvalidCastException at runtime even though the model compiles fine.
+                    Npgsql.NpgsqlDataSourceBuilder dataSourceBuilder = new(connectionString);
+                    dataSourceBuilder.EnableDynamicJson();
+                    Npgsql.NpgsqlDataSource dataSource = dataSourceBuilder.Build();
+
                     options.UseNpgsql(
-                        connectionString,
+                        dataSource,
                         npgsqlOptions =>
                         {
                             npgsqlOptions.MigrationsAssembly(
