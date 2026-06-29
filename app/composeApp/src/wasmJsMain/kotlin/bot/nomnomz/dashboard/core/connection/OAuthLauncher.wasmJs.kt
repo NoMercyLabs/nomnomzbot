@@ -16,6 +16,7 @@ import bot.nomnomz.dashboard.core.network.ApiResult
 import kotlin.js.ExperimentalWasmJsInterop
 import kotlinx.browser.window
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.delay
 
 // Web OAuth — standard same-origin redirect (frontend.md §6). The page navigates to the backend
 // authorize URL; the backend completes the dance and returns to the served origin.
@@ -49,15 +50,22 @@ actual class OAuthLauncher {
     actual suspend fun awaitConnect(
         authorizeUrlFor: suspend (redirect: String) -> ApiResult<String>
     ): ApiResult<Unit> {
-        // Web is single-origin: the backend returns to the served origin itself, so the redirect the
-        // caller is handed is empty (no loopback).
+        // Web is single-origin: the backend returns to the served origin itself.
         return when (val url: ApiResult<String> = authorizeUrlFor("")) {
             is ApiResult.Failure -> ApiResult.Failure(url.error)
             is ApiResult.Ok -> {
-                window.location.assign(url.value)
-                // The page is unloading; this never resolves. The connect outcome arrives via
-                // readReturnedConnect on the next load, and the screen re-polls status.
-                CompletableDeferred<ApiResult<Unit>>().await()
+                val popup = window.open(url.value, "_blank", "width=620,height=760,popup=yes")
+                if (popup == null) {
+                    // Popup was blocked — fall back to full-page redirect (original behaviour).
+                    window.location.assign(url.value)
+                    return CompletableDeferred<ApiResult<Unit>>().await()
+                }
+                // Spin until the /oauth-relay page closes the popup (it auto-closes after
+                // postMessage-ing the result back). The calling controller re-polls status on return.
+                while (!popup.closed) {
+                    delay(300)
+                }
+                ApiResult.Ok(Unit)
             }
         }
     }
