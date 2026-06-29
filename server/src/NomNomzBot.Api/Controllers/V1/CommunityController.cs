@@ -480,24 +480,51 @@ public class CommunityController : BaseController
             .Take(request.Take + 1)
             .ToListAsync(ct);
 
-        List<BannedUserDto> items = banConfigs
+        // Collect any UUIDs stored as BannedBy (legacy records written before the display-name fix).
+        List<BanEntry?> entries = banConfigs
             .Take(request.Take)
             .Select(c =>
-            {
-                BanEntry? entry = c.Value is not null
+                c.Value is not null
                     ? JsonSerializer.Deserialize<BanEntry>(c.Value, JsonOptions)
-                    : null;
+                    : null
+            )
+            .ToList();
 
-                return new BannedUserDto(
-                    entry?.UserId ?? c.Key.Substring(4),
-                    entry?.Username ?? "",
-                    entry?.DisplayName ?? "",
-                    entry?.ProfileImageUrl,
-                    entry?.Reason ?? "",
-                    entry?.BannedBy ?? "",
-                    entry?.BannedAt ?? c.CreatedAt
-                );
-            })
+        HashSet<Guid> legacyModGuids = entries
+            .Where(e => e is not null && Guid.TryParse(e.BannedBy, out _))
+            .Select(e => Guid.Parse(e!.BannedBy))
+            .ToHashSet();
+
+        Dictionary<Guid, string> moderatorNames =
+            legacyModGuids.Count > 0
+                ? await _db
+                    .Users.Where(u => legacyModGuids.Contains(u.Id))
+                    .ToDictionaryAsync(u => u.Id, u => u.DisplayName ?? u.Username, ct)
+                : [];
+
+        List<BannedUserDto> items = entries
+            .Select(
+                (entry, idx) =>
+                {
+                    string bannedBy = entry?.BannedBy ?? "";
+                    if (
+                        Guid.TryParse(bannedBy, out Guid guid)
+                        && moderatorNames.TryGetValue(guid, out string? name)
+                    )
+                        bannedBy = name;
+
+                    ConfigEntity cfg = banConfigs[idx];
+                    return new BannedUserDto(
+                        entry?.UserId ?? cfg.Key.Substring(4),
+                        entry?.Username ?? "",
+                        entry?.DisplayName ?? "",
+                        entry?.ProfileImageUrl,
+                        entry?.Reason ?? "",
+                        bannedBy,
+                        entry?.BannedAt ?? cfg.CreatedAt
+                    );
+                }
+            )
             .ToList();
 
         bool hasMore = banConfigs.Count > request.Take;
@@ -666,6 +693,12 @@ public class CommunityController : BaseController
 
         string moderatorId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "";
 
+        // Resolve moderator display name so ban records store human-readable identity.
+        User? moderator = Guid.TryParse(moderatorId, out Guid modGuid)
+            ? await _db.Users.FirstOrDefaultAsync(u => u.Id == modGuid, ct)
+            : null;
+        string bannedByName = moderator?.DisplayName ?? moderator?.Username ?? moderatorId;
+
         // userId is the Twitch user string id (as exposed by the list DTOs). The sub-client resolves the
         // tenant Guid internally; the local ban record below is written regardless (best-effort enforcement).
         await _moderation.BanUserAsync(broadcasterId, userId, request.Reason, ct);
@@ -678,7 +711,7 @@ public class CommunityController : BaseController
             user?.DisplayName ?? "",
             user?.ProfileImageUrl,
             request.Reason,
-            moderatorId,
+            bannedByName,
             _timeProvider.GetUtcNow().UtcDateTime
         );
 

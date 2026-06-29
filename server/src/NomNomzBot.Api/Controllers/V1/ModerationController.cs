@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Security.Claims;
 using System.Text.Json;
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
@@ -184,9 +185,11 @@ public class ModerationController : BaseController
         CancellationToken ct
     )
     {
+        string actorId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "";
         Result<ModerationActionResult> result = await _moderationService.UnbanAsync(
             channelId,
             userId,
+            actorId,
             ct
         );
         return ResultResponse(result);
@@ -448,6 +451,7 @@ public class ModerationController : BaseController
         CancellationToken ct
     )
     {
+        string actorId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "";
         Result<ModerationActionResult> result = request.Action switch
         {
             "timeout" => await _moderationService.TimeoutAsync(
@@ -455,6 +459,7 @@ public class ModerationController : BaseController
                 request.TargetUserId,
                 request.DurationSeconds ?? 600,
                 request.Reason,
+                actorId,
                 ct
             ),
 
@@ -462,10 +467,16 @@ public class ModerationController : BaseController
                 channelId,
                 request.TargetUserId,
                 request.Reason,
+                actorId,
                 ct
             ),
 
-            "unban" => await _moderationService.UnbanAsync(channelId, request.TargetUserId, ct),
+            "unban" => await _moderationService.UnbanAsync(
+                channelId,
+                request.TargetUserId,
+                actorId,
+                ct
+            ),
 
             _ => Result.Failure<ModerationActionResult>(
                 $"Unknown action '{request.Action}'. Supported: timeout, ban, unban.",

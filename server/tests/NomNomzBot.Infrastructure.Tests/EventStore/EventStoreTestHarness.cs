@@ -136,6 +136,8 @@ internal sealed class EventStoreTestDbContext : DbContext, IApplicationDbContext
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Sound.Entities.SoundClip> SoundClips =>
         throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.CustomEvents.Entities.CustomDataSource> CustomDataSources =>
+        throw new NotSupportedException();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -14,6 +14,7 @@ using NomNomzBot.Domain.Billing.Entities;
 using NomNomzBot.Domain.Chat.Entities;
 using NomNomzBot.Domain.Commands.Entities;
 using NomNomzBot.Domain.CustomCode.Entities;
+using NomNomzBot.Domain.CustomEvents.Entities;
 using NomNomzBot.Domain.Discord.Entities;
 using NomNomzBot.Domain.Economy.Entities;
 using NomNomzBot.Domain.EventStore.Entities;
@@ -153,6 +154,7 @@ public interface IApplicationDbContext
     DbSet<CodeScript> CodeScripts { get; }
     DbSet<CodeScriptVersion> CodeScriptVersions { get; }
     DbSet<SoundClip> SoundClips { get; }
+    DbSet<CustomDataSource> CustomDataSources { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

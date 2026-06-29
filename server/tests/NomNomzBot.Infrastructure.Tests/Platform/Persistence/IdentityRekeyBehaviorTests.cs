@@ -551,5 +551,7 @@ public sealed class IdentityRekeyBehaviorTests
             throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.Sound.Entities.SoundClip> SoundClips =>
             throw new NotSupportedException();
+        public DbSet<NomNomzBot.Domain.CustomEvents.Entities.CustomDataSource> CustomDataSources =>
+            throw new NotSupportedException();
     }
 }

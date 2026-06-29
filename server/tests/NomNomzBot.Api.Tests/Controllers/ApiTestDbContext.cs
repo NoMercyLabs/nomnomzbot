@@ -15,6 +15,7 @@ using NomNomzBot.Domain.Billing.Entities;
 using NomNomzBot.Domain.Chat.Entities;
 using NomNomzBot.Domain.Commands.Entities;
 using NomNomzBot.Domain.CustomCode.Entities;
+using NomNomzBot.Domain.CustomEvents.Entities;
 using NomNomzBot.Domain.Discord.Entities;
 using NomNomzBot.Domain.Economy.Entities;
 using NomNomzBot.Domain.EventStore.Entities;
@@ -226,4 +227,5 @@ internal sealed class ApiTestDbContext : DbContext, IApplicationDbContext
     public DbSet<CodeScript> CodeScripts => throw new NotSupportedException();
     public DbSet<CodeScriptVersion> CodeScriptVersions => throw new NotSupportedException();
     public DbSet<SoundClip> SoundClips => throw new NotSupportedException();
+    public DbSet<CustomDataSource> CustomDataSources => throw new NotSupportedException();
 }

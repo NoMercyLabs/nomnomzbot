@@ -46,6 +46,7 @@ public class ModerationService : IModerationService
         string targetUserId,
         int durationSeconds,
         string? reason = null,
+        string? moderatorId = null,
         CancellationToken cancellationToken = default
     )
     {
@@ -58,6 +59,7 @@ public class ModerationService : IModerationService
             targetUserId,
             reason,
             durationSeconds,
+            moderatorId,
             cancellationToken
         );
 
@@ -86,6 +88,7 @@ public class ModerationService : IModerationService
         string broadcasterId,
         string targetUserId,
         string? reason = null,
+        string? moderatorId = null,
         CancellationToken cancellationToken = default
     )
     {
@@ -98,6 +101,7 @@ public class ModerationService : IModerationService
             targetUserId,
             reason,
             null,
+            moderatorId,
             cancellationToken
         );
 
@@ -124,6 +128,7 @@ public class ModerationService : IModerationService
     public async Task<Result<ModerationActionResult>> UnbanAsync(
         string broadcasterId,
         string targetUserId,
+        string? moderatorId = null,
         CancellationToken cancellationToken = default
     )
     {
@@ -136,6 +141,7 @@ public class ModerationService : IModerationService
             targetUserId,
             null,
             null,
+            moderatorId,
             cancellationToken
         );
 
@@ -401,6 +407,7 @@ public class ModerationService : IModerationService
         string targetUserId,
         string? reason,
         int? durationSeconds,
+        string? moderatorId,
         CancellationToken cancellationToken
     )
     {
@@ -428,7 +435,7 @@ public class ModerationService : IModerationService
             BroadcasterId = tenantId,
             RecordType = ActionRecordType,
             Data = JsonSerializer.Serialize(actionData),
-            UserId = tenantId.ToString(),
+            UserId = moderatorId ?? tenantId.ToString(),
         };
 
         _db.Records.Add(record);

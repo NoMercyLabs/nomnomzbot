@@ -1511,6 +1511,87 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.ToTable("CodeScriptVersions");
                 });
 
+            modelBuilder.Entity("NomNomzBot.Domain.CustomEvents.Entities.CustomDataSource", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AuthSecretCipher")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("BroadcasterId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("CreatedByUserId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("EndpointUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("FieldMapJson")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT")
+                        .HasDefaultValue("{}");
+
+                    b.Property<Guid?>("InboundWebhookEndpointId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsEnabled")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(false);
+
+                    b.Property<DateTime?>("LastReceivedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("PollIntervalSeconds")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("PresetKey")
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SourceKind")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BroadcasterId");
+
+                    b.HasIndex("CreatedByUserId");
+
+                    b.HasIndex("InboundWebhookEndpointId");
+
+                    b.HasIndex("BroadcasterId", "Name")
+                        .IsUnique();
+
+                    b.ToTable("CustomDataSources");
+                });
+
             modelBuilder.Entity("NomNomzBot.Domain.Discord.Entities.DiscordGuildConnection", b =>
                 {
                     b.Property<Guid>("Id")
@@ -6098,6 +6179,31 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.Navigation("Channel");
 
                     b.Navigation("Pipeline");
+                });
+
+            modelBuilder.Entity("NomNomzBot.Domain.CustomEvents.Entities.CustomDataSource", b =>
+                {
+                    b.HasOne("NomNomzBot.Domain.Identity.Entities.Channel", "Channel")
+                        .WithMany()
+                        .HasForeignKey("BroadcasterId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("NomNomzBot.Domain.Identity.Entities.User", "CreatedByUser")
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("NomNomzBot.Domain.Webhooks.Entities.InboundWebhookEndpoint", "InboundWebhookEndpoint")
+                        .WithMany()
+                        .HasForeignKey("InboundWebhookEndpointId");
+
+                    b.Navigation("Channel");
+
+                    b.Navigation("CreatedByUser");
+
+                    b.Navigation("InboundWebhookEndpoint");
                 });
 
             modelBuilder.Entity("NomNomzBot.Domain.Discord.Entities.DiscordGuildConnection", b =>

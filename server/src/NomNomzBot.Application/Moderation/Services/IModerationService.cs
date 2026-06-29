@@ -24,6 +24,7 @@ public interface IModerationService
         string targetUserId,
         int durationSeconds,
         string? reason = null,
+        string? moderatorId = null,
         CancellationToken cancellationToken = default
     );
 
@@ -32,6 +33,7 @@ public interface IModerationService
         string broadcasterId,
         string targetUserId,
         string? reason = null,
+        string? moderatorId = null,
         CancellationToken cancellationToken = default
     );
 
@@ -39,6 +41,7 @@ public interface IModerationService
     Task<Result<ModerationActionResult>> UnbanAsync(
         string broadcasterId,
         string targetUserId,
+        string? moderatorId = null,
         CancellationToken cancellationToken = default
     );
 

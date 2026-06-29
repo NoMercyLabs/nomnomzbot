@@ -481,4 +481,6 @@ internal sealed class GdprTestDbContext : DbContext, IApplicationDbContext
         Set<NomNomzBot.Domain.CustomCode.Entities.CodeScriptVersion>();
     public DbSet<NomNomzBot.Domain.Sound.Entities.SoundClip> SoundClips =>
         throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.CustomEvents.Entities.CustomDataSource> CustomDataSources =>
+        throw new NotSupportedException();
 }

@@ -344,6 +344,8 @@ internal sealed class ReadModelRebuildDbContext : DbContext, IApplicationDbConte
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Sound.Entities.SoundClip> SoundClips =>
         throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.CustomEvents.Entities.CustomDataSource> CustomDataSources =>
+        throw new NotSupportedException();
 }
 
 /// <summary>Opens a fresh, isolated SQLite database (one connection kept open for the test's lifetime).</summary>

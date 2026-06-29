@@ -217,6 +217,8 @@ public sealed class SeedTestDbContext : DbContext, IApplicationDbContext
         Set<NomNomzBot.Domain.CustomCode.Entities.CodeScriptVersion>();
     public DbSet<NomNomzBot.Domain.Sound.Entities.SoundClip> SoundClips =>
         Set<NomNomzBot.Domain.Sound.Entities.SoundClip>();
+    public DbSet<NomNomzBot.Domain.CustomEvents.Entities.CustomDataSource> CustomDataSources =>
+        Set<NomNomzBot.Domain.CustomEvents.Entities.CustomDataSource>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

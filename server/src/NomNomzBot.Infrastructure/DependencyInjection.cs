@@ -284,6 +284,24 @@ public static class DependencyInjection
         >();
         // play_sound + stop_sound auto-discovered via ICommandAction scan.
 
+        // Custom data sources: management CRUD + the single ingest path + auto-discovered presets.
+        services.AddScoped<
+            Application.CustomEvents.Services.ICustomDataSourceService,
+            CustomEvents.CustomDataSourceService
+        >();
+        services.AddScoped<
+            Application.CustomEvents.Services.ICustomDataIngestService,
+            CustomEvents.CustomDataIngestService
+        >();
+        services.AddSingleton<
+            Application.CustomEvents.Services.ICustomDataSourcePreset,
+            CustomEvents.Presets.PulsoidPreset
+        >();
+        services.AddSingleton<
+            Application.CustomEvents.Services.ICustomDataSourcePreset,
+            CustomEvents.Presets.HypeRatePreset
+        >();
+
         // Webhook HMAC primitives (stateless; not name-convention "*Service", so registered explicitly).
         services.AddSingleton<
             Application.Contracts.Webhooks.IInboundSignatureVerifier,

@@ -26,6 +26,21 @@ public class EventResponseService : IEventResponseService
         _db = db;
     }
 
+    // The canonical set of Twitch events a streamer can configure responses for.
+    // Seeded lazily (disabled + no message) when a broadcaster first visits the page.
+    private static readonly string[] DefaultEventTypes =
+    [
+        "channel.follow",
+        "channel.subscribe",
+        "channel.subscription.gift",
+        "channel.subscription.message",
+        "channel.cheer",
+        "channel.raid",
+        "channel.channel_points_custom_reward_redemption.add",
+        "stream.online",
+        "stream.offline",
+    ];
+
     public async Task<Result<PagedList<EventResponseListItem>>> ListAsync(
         string broadcasterId,
         PaginationParams pagination,
@@ -37,6 +52,26 @@ public class EventResponseService : IEventResponseService
                 $"Invalid channel ID '{broadcasterId}'.",
                 "VALIDATION_FAILED"
             );
+
+        int existingCount = await _db.EventResponses.CountAsync(
+            e => e.BroadcasterId == broadcaster,
+            cancellationToken
+        );
+
+        if (existingCount == 0)
+        {
+            List<EventResponse> seeds = DefaultEventTypes
+                .Select(et => new EventResponse
+                {
+                    BroadcasterId = broadcaster,
+                    EventType = et,
+                    IsEnabled = false,
+                    ResponseType = "chat_message",
+                })
+                .ToList();
+            _db.EventResponses.AddRange(seeds);
+            await _db.SaveChangesAsync(cancellationToken);
+        }
 
         IQueryable<EventResponse> query = _db.EventResponses.Where(e =>
             e.BroadcasterId == broadcaster
