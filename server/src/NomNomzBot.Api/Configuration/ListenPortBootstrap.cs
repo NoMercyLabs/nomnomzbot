@@ -48,6 +48,19 @@ public static class ListenPortBootstrap
         if (mode is not (DeploymentMode.SelfHostLite or DeploymentMode.SelfHostFull))
             return null;
 
+        // When ASPNETCORE_URLS is explicitly set in the environment to a non-loopback address (e.g. Docker
+        // or any containerised deployment), the operator already controls the bind. Copy it into the Urls
+        // config key so it overrides appsettings.json and Kestrel uses it — then return null so the port-lock
+        // logic doesn't run (locking a port inside a container with operator-controlled mappings is wrong).
+        string? aspnetcoreUrls = Environment.GetEnvironmentVariable("ASPNETCORE_URLS");
+        if (
+            !string.IsNullOrWhiteSpace(aspnetcoreUrls) && !TryGetLoopbackPort(aspnetcoreUrls, out _)
+        )
+        {
+            configuration["Urls"] = aspnetcoreUrls;
+            return null;
+        }
+
         string? urls = configuration["Urls"] ?? configuration["urls"];
         int preferredPort;
         if (TryGetLoopbackPort(urls, out int parsedPort))
@@ -121,7 +134,9 @@ public static class ListenPortBootstrap
     /// (<c>0.0.0.0</c>, which includes loopback and the LAN) and IPv6 any (<c>[::]</c>, which includes <c>::1</c>) —
     /// so the bot is reachable both at <c>localhost</c> and at the LAN address it advertises over mDNS.
     /// </summary>
-    public static string BindUrls(int port) => $"http://0.0.0.0:{port};http://[::]:{port}";
+    // Use the + wildcard so Kestrel resolves the correct address families for the current OS — avoids
+    // the Linux dual-bind conflict where 0.0.0.0 and [::] overlap when SO_IPV6ONLY is 0 (the Docker default).
+    public static string BindUrls(int port) => $"http://+:{port}";
 
     /// <summary>True if <paramref name="url"/> parses to a loopback host (<c>localhost</c> / <c>127.0.0.1</c>).</summary>
     private static bool IsLoopback(string url) =>

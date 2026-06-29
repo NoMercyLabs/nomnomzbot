@@ -54,7 +54,8 @@ public sealed class EventStoreProjectionDriver : BackgroundService
     {
         using PeriodicTimer timer = new(Interval);
         // Drive once immediately (drain the backlog accrued while the service was stopped), then on each tick.
-        do
+        // Each segment (drive + wait) has its own try-catch so no exception from either can escape to the host.
+        while (true)
         {
             try
             {
@@ -62,13 +63,28 @@ public sealed class EventStoreProjectionDriver : BackgroundService
             }
             catch (OperationCanceledException)
             {
-                break;
+                return;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Projection driver tick failed; retrying next tick.");
             }
-        } while (await timer.WaitForNextTickAsync(stoppingToken));
+
+            try
+            {
+                if (!await timer.WaitForNextTickAsync(stoppingToken))
+                    return;
+            }
+            catch (OperationCanceledException)
+            {
+                return;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Projection driver timer wait failed; stopping.");
+                return;
+            }
+        }
     }
 
     /// <summary>

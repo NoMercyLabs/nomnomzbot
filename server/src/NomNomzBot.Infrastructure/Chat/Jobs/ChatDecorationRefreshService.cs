@@ -154,6 +154,9 @@ public sealed class ChatDecorationRefreshService : BackgroundService
         CancellationToken ct
     )
     {
+        if (ct.IsCancellationRequested)
+            return;
+
         try
         {
             using IServiceScope serviceScope = _scopeFactory.CreateScope();
@@ -171,6 +174,10 @@ public sealed class ChatDecorationRefreshService : BackgroundService
 
             Interlocked.Exchange(ref _waitingLogged, 0);
             await work(serviceScope.ServiceProvider);
+        }
+        catch (ObjectDisposedException) when (ct.IsCancellationRequested)
+        {
+            // Host is shutting down — the scope factory is already disposed. Exit cleanly.
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
