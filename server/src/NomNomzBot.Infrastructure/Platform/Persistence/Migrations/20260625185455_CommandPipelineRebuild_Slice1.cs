@@ -24,7 +24,11 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     IF (SELECT data_type FROM information_schema.columns
                         WHERE table_schema='public' AND table_name='Pipelines' AND column_name='Id')
                        = 'integer' THEN
-                        DROP TABLE ""Pipelines"";
+                        -- Commands.PipelineId is integer FK → Pipelines.Id; must be converted to uuid.
+                        -- Drop the FK and index first (both depend on Pipelines), then cascade-drop the table.
+                        ALTER TABLE ""Commands"" DROP CONSTRAINT IF EXISTS ""FK_Commands_Pipelines_PipelineId"";
+                        DROP INDEX IF EXISTS ""IX_Command_PipelineId"";
+                        DROP TABLE ""Pipelines"" CASCADE;
                         CREATE TABLE ""Pipelines"" (
                             ""Id""               uuid NOT NULL,
                             ""BroadcasterId""    uuid NOT NULL,
@@ -44,6 +48,11 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                                 REFERENCES ""Channels"" (""Id"") ON DELETE CASCADE
                         );
                         CREATE INDEX ""IX_Pipelines_BroadcasterId"" ON ""Pipelines"" (""BroadcasterId"");
+                        -- Convert Commands.PipelineId from integer to uuid (table has no data yet).
+                        ALTER TABLE ""Commands"" ALTER COLUMN ""PipelineId"" TYPE uuid USING NULL::uuid;
+                        CREATE INDEX ""IX_Command_PipelineId"" ON ""Commands"" (""PipelineId"");
+                        ALTER TABLE ""Commands"" ADD CONSTRAINT ""FK_Commands_Pipelines_PipelineId""
+                            FOREIGN KEY (""PipelineId"") REFERENCES ""Pipelines"" (""Id"") ON DELETE SET NULL;
                     END IF;
                 END $$;"
             );
