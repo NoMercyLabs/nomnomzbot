@@ -57,6 +57,103 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                 END $$;"
             );
 
+            // ── Commands table: integer Id → uuid Id ─────────────────────────────────────────────────
+            // Same schema/entity mismatch as Pipelines — Commands.Id was integer in the old Initial.
+            migrationBuilder.Sql(
+                @"
+                DO $$
+                BEGIN
+                    IF (SELECT data_type FROM information_schema.columns
+                        WHERE table_schema='public' AND table_name='Commands' AND column_name='Id')
+                       = 'integer' THEN
+                        DROP TABLE ""Commands"" CASCADE;
+                        CREATE TABLE ""Commands"" (
+                            ""Id""              uuid NOT NULL,
+                            ""BroadcasterId""   uuid NOT NULL,
+                            ""Name""            character varying(100) NOT NULL,
+                            ""Permission""      character varying(20) NOT NULL DEFAULT 'everyone',
+                            ""Type""            character varying(20) NOT NULL DEFAULT 'text',
+                            ""Response""        character varying(2000),
+                            ""Responses""       jsonb NOT NULL DEFAULT '[]'::jsonb,
+                            ""PipelineJson""    jsonb,
+                            ""IsEnabled""       boolean NOT NULL DEFAULT true,
+                            ""Description""     character varying(500),
+                            ""CooldownSeconds"" integer NOT NULL DEFAULT 0,
+                            ""CooldownPerUser"" boolean NOT NULL DEFAULT false,
+                            ""Aliases""         jsonb NOT NULL DEFAULT '[]'::jsonb,
+                            ""IsPlatform""      boolean NOT NULL DEFAULT false,
+                            ""CreatedAt""       timestamp with time zone NOT NULL,
+                            ""UpdatedAt""       timestamp with time zone NOT NULL,
+                            ""DeletedAt""       timestamp with time zone,
+                            CONSTRAINT ""PK_Commands"" PRIMARY KEY (""Id""),
+                            CONSTRAINT ""FK_Commands_Channels_BroadcasterId"" FOREIGN KEY (""BroadcasterId"")
+                                REFERENCES ""Channels"" (""Id"") ON DELETE CASCADE
+                        );
+                        CREATE INDEX ""IX_Commands_BroadcasterId"" ON ""Commands"" (""BroadcasterId"");
+                    END IF;
+                END $$;"
+            );
+
+            // ── EventResponses table: integer Id → uuid Id ───────────────────────────────────────────
+            migrationBuilder.Sql(
+                @"
+                DO $$
+                BEGIN
+                    IF (SELECT data_type FROM information_schema.columns
+                        WHERE table_schema='public' AND table_name='EventResponses' AND column_name='Id')
+                       = 'integer' THEN
+                        DROP TABLE ""EventResponses"" CASCADE;
+                        CREATE TABLE ""EventResponses"" (
+                            ""Id""                    uuid NOT NULL,
+                            ""BroadcasterId""          uuid NOT NULL,
+                            ""EventType""              character varying(100) NOT NULL,
+                            ""IsEnabled""              boolean NOT NULL DEFAULT true,
+                            ""ResponseType""           character varying(50) NOT NULL DEFAULT 'message',
+                            ""Message""                character varying(2000),
+                            ""PipelineJson""           text,
+                            ""MetadataJson""           jsonb NOT NULL DEFAULT '{}'::jsonb,
+                            ""CreatedAt""              timestamp with time zone NOT NULL,
+                            ""UpdatedAt""              timestamp with time zone NOT NULL,
+                            CONSTRAINT ""PK_EventResponses"" PRIMARY KEY (""Id""),
+                            CONSTRAINT ""FK_EventResponses_Channels_BroadcasterId"" FOREIGN KEY (""BroadcasterId"")
+                                REFERENCES ""Channels"" (""Id"") ON DELETE CASCADE
+                        );
+                        CREATE INDEX ""IX_EventResponses_BroadcasterId"" ON ""EventResponses"" (""BroadcasterId"");
+                    END IF;
+                END $$;"
+            );
+
+            // ── Timers table: integer Id → uuid Id ───────────────────────────────────────────────────
+            migrationBuilder.Sql(
+                @"
+                DO $$
+                BEGIN
+                    IF (SELECT data_type FROM information_schema.columns
+                        WHERE table_schema='public' AND table_name='Timers' AND column_name='Id')
+                       = 'integer' THEN
+                        DROP TABLE ""Timers"" CASCADE;
+                        CREATE TABLE ""Timers"" (
+                            ""Id""                uuid NOT NULL,
+                            ""BroadcasterId""     uuid NOT NULL,
+                            ""Name""              character varying(100) NOT NULL,
+                            ""Messages""          jsonb NOT NULL DEFAULT '[]'::jsonb,
+                            ""IntervalMinutes""   integer NOT NULL DEFAULT 30,
+                            ""MinChatActivity""   integer NOT NULL DEFAULT 0,
+                            ""IsEnabled""         boolean NOT NULL DEFAULT true,
+                            ""LastFiredAt""       timestamp with time zone,
+                            ""NextMessageIndex""  integer NOT NULL DEFAULT 0,
+                            ""CreatedAt""         timestamp with time zone NOT NULL,
+                            ""UpdatedAt""         timestamp with time zone NOT NULL,
+                            ""DeletedAt""         timestamp with time zone,
+                            CONSTRAINT ""PK_Timers"" PRIMARY KEY (""Id""),
+                            CONSTRAINT ""FK_Timers_Channels_BroadcasterId"" FOREIGN KEY (""BroadcasterId"")
+                                REFERENCES ""Channels"" (""Id"") ON DELETE CASCADE
+                        );
+                        CREATE INDEX ""IX_Timers_BroadcasterId"" ON ""Timers"" (""BroadcasterId"");
+                    END IF;
+                END $$;"
+            );
+
             // Bootstrap tables that were created in a dev-only migration never committed to the official
             // history. On a fresh install these tables do not exist yet; IF NOT EXISTS makes this safe
             // for both fresh installs and existing databases. The schema here is the PRE-Slice1 baseline
@@ -297,8 +394,16 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
             );
 
             // text[] → jsonb requires an explicit USING clause; EF Core does not generate one.
+            // Guard: skip if the column is already jsonb (fixed Initial migration creates it as jsonb).
             migrationBuilder.Sql(
-                @"ALTER TABLE ""Timers"" ALTER COLUMN ""Messages"" TYPE jsonb USING to_jsonb(""Messages"");"
+                @"
+                DO $$
+                BEGIN
+                    IF (SELECT data_type FROM information_schema.columns
+                        WHERE table_schema='public' AND table_name='Timers' AND column_name='Messages') <> 'jsonb' THEN
+                        ALTER TABLE ""Timers"" ALTER COLUMN ""Messages"" TYPE jsonb USING to_jsonb(""Messages"");
+                    END IF;
+                END $$;"
             );
             migrationBuilder.Sql(
                 @"ALTER TABLE ""Timers"" ALTER COLUMN ""Messages"" SET DEFAULT '[]'::jsonb;"
@@ -490,8 +595,17 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
             );
 
             // hstore → jsonb requires an explicit USING clause; EF Core does not generate one.
+            // Guard: skip if already jsonb (fixed Initial migration creates MetadataJson as jsonb directly).
+            // data_type for hstore is 'USER-DEFINED'; jsonb is 'jsonb'.
             migrationBuilder.Sql(
-                @"ALTER TABLE ""EventResponses"" ALTER COLUMN ""MetadataJson"" TYPE jsonb USING hstore_to_jsonb(""MetadataJson"");"
+                @"
+                DO $$
+                BEGIN
+                    IF (SELECT data_type FROM information_schema.columns
+                        WHERE table_schema='public' AND table_name='EventResponses' AND column_name='MetadataJson') = 'USER-DEFINED' THEN
+                        ALTER TABLE ""EventResponses"" ALTER COLUMN ""MetadataJson"" TYPE jsonb USING hstore_to_jsonb(""MetadataJson"");
+                    END IF;
+                END $$;"
             );
             migrationBuilder.Sql(
                 @"ALTER TABLE ""EventResponses"" ALTER COLUMN ""MetadataJson"" SET DEFAULT '{}'::jsonb;"

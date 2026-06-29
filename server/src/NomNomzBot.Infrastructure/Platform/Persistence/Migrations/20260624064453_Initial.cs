@@ -3507,12 +3507,7 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                 name: "Commands",
                 columns: table => new
                 {
-                    Id = table
-                        .Column<int>(type: "integer", nullable: false)
-                        .Annotation(
-                            "Npgsql:ValueGenerationStrategy",
-                            NpgsqlValueGenerationStrategy.IdentityByDefaultColumn
-                        ),
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
                     BroadcasterId = table.Column<Guid>(type: "uuid", nullable: false),
                     Name = table.Column<string>(
                         type: "character varying(100)",
@@ -3692,12 +3687,7 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                 name: "EventResponses",
                 columns: table => new
                 {
-                    Id = table
-                        .Column<int>(type: "integer", nullable: false)
-                        .Annotation(
-                            "Npgsql:ValueGenerationStrategy",
-                            NpgsqlValueGenerationStrategy.IdentityByDefaultColumn
-                        ),
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
                     BroadcasterId = table.Column<Guid>(type: "uuid", nullable: false),
                     EventType = table.Column<string>(
                         type: "character varying(100)",
@@ -3716,9 +3706,10 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         nullable: true
                     ),
                     PipelineJson = table.Column<string>(type: "text", nullable: true),
-                    Metadata = table.Column<Dictionary<string, string>>(
-                        type: "hstore",
-                        nullable: false
+                    MetadataJson = table.Column<string>(
+                        type: "jsonb",
+                        nullable: false,
+                        defaultValueSql: "'{}'::jsonb"
                     ),
                     CreatedAt = table.Column<DateTime>(
                         type: "timestamp with time zone",
@@ -4380,19 +4371,18 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                 name: "Timers",
                 columns: table => new
                 {
-                    Id = table
-                        .Column<int>(type: "integer", nullable: false)
-                        .Annotation(
-                            "Npgsql:ValueGenerationStrategy",
-                            NpgsqlValueGenerationStrategy.IdentityByDefaultColumn
-                        ),
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
                     BroadcasterId = table.Column<Guid>(type: "uuid", nullable: false),
                     Name = table.Column<string>(
                         type: "character varying(100)",
                         maxLength: 100,
                         nullable: false
                     ),
-                    Messages = table.Column<List<string>>(type: "text[]", nullable: false),
+                    Messages = table.Column<string>(
+                        type: "jsonb",
+                        nullable: false,
+                        defaultValueSql: "'[]'::jsonb"
+                    ),
                     IntervalMinutes = table.Column<int>(type: "integer", nullable: false),
                     MinChatActivity = table.Column<int>(type: "integer", nullable: false),
                     IsEnabled = table.Column<bool>(type: "boolean", nullable: false),
