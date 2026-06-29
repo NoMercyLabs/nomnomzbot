@@ -150,6 +150,47 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                 @"CREATE INDEX IF NOT EXISTS ""IX_CommandUsages_CommandId"" ON ""CommandUsages"" (""CommandId"");"
             );
 
+            // ── Columns added by the deleted intermediate migration ───────────────────────────────────
+            // On existing installs these already exist; ADD COLUMN IF NOT EXISTS makes this idempotent.
+            migrationBuilder.Sql(
+                @"ALTER TABLE ""Timers"" ADD COLUMN IF NOT EXISTS ""ConfigSchemaVersion"" integer NOT NULL DEFAULT 0;"
+            );
+            migrationBuilder.Sql(
+                @"ALTER TABLE ""Pipelines"" ADD COLUMN IF NOT EXISTS ""TriggerKind"" character varying(30) NOT NULL DEFAULT 'manual';"
+            );
+            migrationBuilder.Sql(
+                @"ALTER TABLE ""Pipelines"" ADD COLUMN IF NOT EXISTS ""MaxStepCount"" integer NOT NULL DEFAULT 0;"
+            );
+            // The Initial migration created TriggerCount as integer; the deleted migration widened it to bigint.
+            // Widening int→bigint is always safe and needs no USING clause.
+            migrationBuilder.Sql(
+                @"
+                DO $$
+                BEGIN
+                    IF (SELECT data_type FROM information_schema.columns
+                        WHERE table_schema = 'public' AND table_name = 'Pipelines' AND column_name = 'TriggerCount') = 'integer' THEN
+                        ALTER TABLE ""Pipelines"" ALTER COLUMN ""TriggerCount"" TYPE bigint;
+                    END IF;
+                END $$;"
+            );
+            migrationBuilder.Sql(
+                @"ALTER TABLE ""EventResponses"" ADD COLUMN IF NOT EXISTS ""ConfigSchemaVersion"" integer NOT NULL DEFAULT 0;"
+            );
+            // The deleted migration renamed EventResponses.Metadata → MetadataJson; undo only when the
+            // old name still exists and the new name does not, so this is safe on both paths.
+            migrationBuilder.Sql(
+                @"
+                DO $$
+                BEGIN
+                    IF EXISTS (SELECT 1 FROM information_schema.columns
+                               WHERE table_schema = 'public' AND table_name = 'EventResponses' AND column_name = 'Metadata')
+                       AND NOT EXISTS (SELECT 1 FROM information_schema.columns
+                                       WHERE table_schema = 'public' AND table_name = 'EventResponses' AND column_name = 'MetadataJson') THEN
+                        ALTER TABLE ""EventResponses"" RENAME COLUMN ""Metadata"" TO ""MetadataJson"";
+                    END IF;
+                END $$;"
+            );
+
             // IF EXISTS guards for FKs / indexes that were in the same deleted dev-only migration.
             migrationBuilder.Sql(
                 @"ALTER TABLE ""EventResponses"" DROP CONSTRAINT IF EXISTS ""FK_EventResponses_Pipelines_PipelineId"";"
