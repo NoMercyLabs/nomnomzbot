@@ -84,26 +84,41 @@ public class DashboardController : BaseController
         // Fetch follower count and channel info concurrently — both are Helix calls but independent.
         // Channel info (title, game) uses the app token so it never fails on scope; follower count needs
         // moderator:read:followers and degrades to 0 on failure so the dashboard still renders.
-        Task<Result<int>> followerTask = _channels.GetChannelFollowerCountAsync(tenantId, ct);
-        Task<Result<TwitchChannelInformation>> channelInfoTask =
-            _channels.GetChannelInformationAsync(tenantId, ct);
-        await Task.WhenAll(followerTask, channelInfoTask);
+        int followerCount = 0;
+        string? twitchTitle = null;
+        string? twitchGame = null;
 
-        Result<int> followerResult = followerTask.Result;
-        int followerCount = followerResult.IsSuccess ? followerResult.Value : 0;
-        if (followerResult.IsFailure)
-            _logger.LogWarning(
-                "Dashboard stats: reading the follower count from Twitch failed for {BroadcasterId}: {Error} ({Code}) — reporting 0",
-                tenantId,
-                followerResult.ErrorMessage,
-                followerResult.ErrorCode
+        try
+        {
+            Task<Result<int>> followerTask = _channels.GetChannelFollowerCountAsync(tenantId, ct);
+            Task<Result<TwitchChannelInformation>> channelInfoTask =
+                _channels.GetChannelInformationAsync(tenantId, ct);
+            await Task.WhenAll(followerTask, channelInfoTask);
+
+            Result<int> followerResult = followerTask.Result;
+            followerCount = followerResult.IsSuccess ? followerResult.Value : 0;
+            if (followerResult.IsFailure)
+                _logger.LogWarning(
+                    "Dashboard stats: follower count failed for {BroadcasterId}: {Error} ({Code}) — reporting 0",
+                    tenantId,
+                    followerResult.ErrorMessage,
+                    followerResult.ErrorCode
+                );
+
+            // Channel info is always fetched (app token, no scope required) so the dashboard always shows the
+            // real current Twitch title and category even when the channel is offline or the ctx is stale.
+            Result<TwitchChannelInformation> channelInfoResult = channelInfoTask.Result;
+            twitchTitle = channelInfoResult.IsSuccess ? channelInfoResult.Value.Title : null;
+            twitchGame = channelInfoResult.IsSuccess ? channelInfoResult.Value.GameName : null;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogError(
+                ex,
+                "Dashboard stats: Helix calls failed for {BroadcasterId} — returning degraded stats",
+                tenantId
             );
-
-        // Channel info is always fetched (app token, no scope required) so the dashboard always shows the
-        // real current Twitch title and category even when the channel is offline or the ctx is stale.
-        Result<TwitchChannelInformation> channelInfoResult = channelInfoTask.Result;
-        string? twitchTitle = channelInfoResult.IsSuccess ? channelInfoResult.Value.Title : null;
-        string? twitchGame = channelInfoResult.IsSuccess ? channelInfoResult.Value.GameName : null;
+        }
 
         ChannelContext? ctx = _registry.Get(tenantId);
 

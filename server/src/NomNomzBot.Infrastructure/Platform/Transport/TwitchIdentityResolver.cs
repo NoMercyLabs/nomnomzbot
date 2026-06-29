@@ -40,11 +40,18 @@ public sealed class TwitchIdentityResolver : ITwitchIdentityResolver
         if (broadcasterId == Guid.Empty)
             return null;
 
-        return await _db
-            .Channels.IgnoreQueryFilters()
-            .Where(c => c.Id == broadcasterId)
-            .Select(c => c.TwitchChannelId)
-            .FirstOrDefaultAsync(ct);
+        try
+        {
+            return await _db
+                .Channels.IgnoreQueryFilters()
+                .Where(c => c.Id == broadcasterId)
+                .Select(c => c.TwitchChannelId)
+                .FirstOrDefaultAsync(ct);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            return null;
+        }
     }
 
     public async Task<Guid?> GetBroadcasterIdAsync(
@@ -55,13 +62,20 @@ public sealed class TwitchIdentityResolver : ITwitchIdentityResolver
         if (string.IsNullOrEmpty(twitchChannelId))
             return null;
 
-        Guid id = await _db
-            .Channels.IgnoreQueryFilters()
-            .Where(c => c.TwitchChannelId == twitchChannelId)
-            .Select(c => c.Id)
-            .FirstOrDefaultAsync(ct);
+        try
+        {
+            Guid id = await _db
+                .Channels.IgnoreQueryFilters()
+                .Where(c => c.TwitchChannelId == twitchChannelId)
+                .Select(c => c.Id)
+                .FirstOrDefaultAsync(ct);
 
-        return id == Guid.Empty ? null : id;
+            return id == Guid.Empty ? null : id;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            return null;
+        }
     }
 
     public async Task<Guid?> GetBroadcasterIdByNameAsync(
@@ -74,13 +88,20 @@ public sealed class TwitchIdentityResolver : ITwitchIdentityResolver
 
         string normalized = channelName.TrimStart('#').ToLowerInvariant();
 
-        Guid id = await _db
-            .Channels.IgnoreQueryFilters()
-            .Where(c => c.Name.ToLower() == normalized)
-            .Select(c => c.Id)
-            .FirstOrDefaultAsync(ct);
+        try
+        {
+            Guid id = await _db
+                .Channels.IgnoreQueryFilters()
+                .Where(c => c.Name.ToLower() == normalized)
+                .Select(c => c.Id)
+                .FirstOrDefaultAsync(ct);
 
-        return id == Guid.Empty ? null : id;
+            return id == Guid.Empty ? null : id;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            return null;
+        }
     }
 
     public async Task<string?> GetTwitchUserIdAsync(Guid userId, CancellationToken ct = default)
@@ -88,10 +109,17 @@ public sealed class TwitchIdentityResolver : ITwitchIdentityResolver
         if (userId == Guid.Empty)
             return null;
 
-        return await _db
-            .Users.IgnoreQueryFilters()
-            .Where(u => u.Id == userId)
-            .Select(u => u.TwitchUserId)
-            .FirstOrDefaultAsync(ct);
+        try
+        {
+            return await _db
+                .Users.IgnoreQueryFilters()
+                .Where(u => u.Id == userId)
+                .Select(u => u.TwitchUserId)
+                .FirstOrDefaultAsync(ct);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            return null;
+        }
     }
 }

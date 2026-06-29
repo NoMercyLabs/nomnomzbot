@@ -114,7 +114,29 @@ public sealed class TwitchTokenResolver(
         CancellationToken ct = default
     )
     {
-        IntegrationConnection? connection = await ConnectionAsync(broadcasterId, UserProvider, ct);
+        IntegrationConnection? connection;
+        try
+        {
+            connection = await ConnectionAsync(broadcasterId, UserProvider, ct);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // DB schema mismatch or transient error — degrade to "scope not granted" so the
+            // sub-client returns a missing_scope failure rather than a 500.
+            await eventBus.PublishAsync(
+                new TwitchHelixReauthRequiredEvent
+                {
+                    BroadcasterId = broadcasterId,
+                    Provider = "twitch",
+                    ServiceName = "twitch",
+                    Reason = TwitchErrorCodes.NoToken,
+                    MissingScope = scope,
+                },
+                ct
+            );
+            return false;
+        }
+
         bool granted =
             connection is not null
             && connection.Scopes.Contains(scope, StringComparer.OrdinalIgnoreCase);
