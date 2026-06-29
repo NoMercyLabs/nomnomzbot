@@ -181,7 +181,11 @@ public class AuthController : BaseController
                 + botName
                 + "</span> has been authorized successfully.</p>"
                 + "<p style='margin-top:16px'>You can close this tab and return to the setup wizard.</p>"
-                + "</div></body></html>";
+                + "</div>"
+                + "<script>"
+                + "if(window.opener){try{window.opener.postMessage({type:'oauth_relay',bot_connected:'true'},window.location.origin);}catch(_){}setTimeout(function(){window.close();},800);}"
+                + "</script>"
+                + "</body></html>";
             return Content(html, "text/html");
         }
 
@@ -211,8 +215,10 @@ public class AuthController : BaseController
             if (!string.IsNullOrWhiteSpace(mobileRedirectUri))
                 return Redirect($"{mobileRedirectUri}?custom_bot_connected=true");
 
-            string frontendUrl = _config["App:FrontendUrl"] ?? "https://bot-dev.nomercy.tv";
-            return Redirect($"{frontendUrl}/(dashboard)/integrations?custom_bot_connected=true");
+            // Route through /oauth-relay so popup windows can postMessage the parent and close.
+            return Redirect(
+                $"{Request.Scheme}://{Request.Host}/oauth-relay?custom_bot_connected=true"
+            );
         }
 
         Result<AuthResultDto> result = await _authService.HandleTwitchCallbackAsync(

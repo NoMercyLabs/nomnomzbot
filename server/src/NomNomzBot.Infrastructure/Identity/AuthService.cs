@@ -86,6 +86,7 @@ public sealed class AuthService : IAuthService
         "channel:read:predictions",
         "channel:manage:predictions",
         "channel:read:hype_train",
+        "channel:manage:schedule",
         "user:read:moderated_channels",
     ];
 

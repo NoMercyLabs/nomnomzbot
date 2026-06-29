@@ -127,17 +127,19 @@ public class IntegrationOAuthController : BaseController
             ct
         );
 
-        if (result.IsSuccess)
-            return Redirect(result.Value.RedirectTarget);
+        // Always bounce through /oauth-relay so popup windows can postMessage the parent and close
+        // without loading the full Wasm app. The relay page falls back to navigating the original
+        // target URL when there is no window.opener (full-page redirect fallback).
+        string relay = $"{Request.Scheme}://{Request.Host}/oauth-relay";
 
-        string frontend =
-            _config["App:FrontendUrl"]
-            ?? _config["App:BaseUrl"]
-            ?? $"{Request.Scheme}://{Request.Host}";
+        if (result.IsSuccess)
+        {
+            string encoded = Uri.EscapeDataString(result.Value.RedirectTarget);
+            return Redirect($"{relay}?return={encoded}");
+        }
+
         string reason = Uri.EscapeDataString(result.ErrorCode ?? "connect_failed");
-        return Redirect(
-            $"{frontend.TrimEnd('/')}/(dashboard)/integrations?provider={Uri.EscapeDataString(provider)}&error={reason}"
-        );
+        return Redirect($"{relay}?provider={Uri.EscapeDataString(provider)}&error={reason}");
     }
 
     /// <summary>Severs a provider connection: revokes the token where supported, then soft-deletes + crypto-shreds the vault entry. Idempotent.</summary>
