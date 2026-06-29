@@ -138,7 +138,8 @@ fun RolesScreen(controller: RolesController, role: NavManagementRole?) {
 
     LaunchedEffect(Unit) { controller.load() }
 
-    Box(modifier = Modifier.fillMaxSize().padding(spacing.s6)) {
+    Column(modifier = Modifier.fillMaxSize().padding(spacing.s6), verticalArrangement = Arrangement.spacedBy(spacing.s4)) {
+        PageHeader(title = stringResource(Res.string.shell_nav_roles))
         when (val current: RolesState = state) {
             is RolesState.Loading -> CenteredMessage(stringResource(Res.string.roles_loading))
             is RolesState.Empty -> CenteredMessage(stringResource(Res.string.roles_empty))
@@ -185,7 +186,6 @@ private fun RolesContent(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(spacing.s2),
     ) {
-        item(key = "page-header") { PageHeader(title = stringResource(Res.string.shell_nav_roles)) }
         state.actionError?.let { detail ->
             item(key = "action-error") {
                 ActionErrorBanner(message = stringResource(Res.string.roles_action_error, detail))

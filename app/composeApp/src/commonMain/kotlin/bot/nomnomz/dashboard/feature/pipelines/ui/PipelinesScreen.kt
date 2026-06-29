@@ -57,6 +57,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
+import bot.nomnomz.dashboard.core.designsystem.icon.AddGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.ArrowDownGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.ArrowUpGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.EditGlyph
@@ -312,20 +313,12 @@ private fun ListHeader(manage: ManageDecision, onNew: () -> Unit) {
 
     PageHeader(title = stringResource(Res.string.shell_nav_pipelines)) {
         ManageGate(decision = manage) { enabled ->
-            Button(
+            GlyphButton(
+                imageVector = AddGlyph,
+                label = newLabel,
                 onClick = onNew,
                 enabled = enabled,
-                colors =
-                    ButtonDefaults.buttonColors(
-                        containerColor = tokens.primary,
-                        contentColor = tokens.primaryForeground,
-                        disabledContainerColor = tokens.muted,
-                        disabledContentColor = tokens.mutedForeground,
-                    ),
-                modifier = Modifier.semantics { contentDescription = newLabel },
-            ) {
-                Text(text = newLabel)
-            }
+            )
         }
     }
 }

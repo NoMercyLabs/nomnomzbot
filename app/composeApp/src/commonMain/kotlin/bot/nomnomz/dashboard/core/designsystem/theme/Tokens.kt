@@ -141,7 +141,7 @@ internal val DarkTokens: Tokens = Tokens(
  *
  * Falls back silently to `this` (no-op) when [hexColor] is malformed.
  */
-internal fun Tokens.withAccent(hexColor: String, scheme: Scheme): Tokens {
+internal fun Tokens.withAccent(hexColor: String): Tokens {
     val raw: Color = parseHexColor(hexColor) ?: return this
     // Blend at 15 % opacity over the background — subtle accent, not loud branding.
     val subtleAlpha: Float = 0.15f
@@ -149,7 +149,6 @@ internal fun Tokens.withAccent(hexColor: String, scheme: Scheme): Tokens {
     // A slightly stronger variant (35 %) for the ring / focus indicator.
     val ringTint: Color = raw.copy(alpha = 0.35f)
     return copy(
-        primary = tint,
         ring = ringTint,
         sidebarPrimary = tint,
         sidebarAccent = tint,

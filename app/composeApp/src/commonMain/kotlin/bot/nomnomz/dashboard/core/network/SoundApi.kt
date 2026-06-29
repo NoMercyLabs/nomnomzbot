@@ -10,6 +10,8 @@
 
 package bot.nomnomz.dashboard.core.network
 
+import bot.nomnomz.dashboard.core.io.AudioFile
+import io.ktor.http.ContentType
 import kotlinx.serialization.Serializable
 
 // The typed sound-clip facade — the channel's broadcaster-uploaded audio clips (spec §3). All real data from
@@ -34,6 +36,17 @@ interface SoundApi {
 
     /** Preview a clip on the overlay (pushes PlaySound via SignalR). */
     suspend fun preview(id: String): ApiResult<Unit>
+
+    /**
+     * Upload a new audio [file] as multipart/form-data. [name] is the pipeline-action slug; [displayName] is
+     * the human-readable label shown in the UI; [defaultVolume] is the initial playback volume (0–100).
+     */
+    suspend fun upload(
+        name: String,
+        displayName: String,
+        defaultVolume: Int,
+        file: AudioFile,
+    ): ApiResult<SoundClip>
 }
 
 class RestSoundApi(private val client: ApiClient) : SoundApi {
@@ -52,6 +65,27 @@ class RestSoundApi(private val client: ApiClient) : SoundApi {
 
     override suspend fun preview(id: String): ApiResult<Unit> =
         client.postUnit("api/v1/sound-clips/$id/preview", Unit)
+
+    override suspend fun upload(
+        name: String,
+        displayName: String,
+        defaultVolume: Int,
+        file: AudioFile,
+    ): ApiResult<SoundClip> =
+        client.postMultipartWithFields(
+            path = "api/v1/sound-clips",
+            fileFieldName = "file",
+            fileName = file.name,
+            fileBytes = file.bytes,
+            fileContentType = runCatching { ContentType.parse(file.mimeType) }
+                .getOrDefault(ContentType.Audio.Any),
+            fields =
+                mapOf(
+                    "name" to name,
+                    "displayName" to displayName,
+                    "defaultVolume" to defaultVolume.toString(),
+                ),
+        )
 }
 
 /**

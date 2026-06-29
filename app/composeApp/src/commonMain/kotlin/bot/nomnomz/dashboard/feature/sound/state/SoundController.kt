@@ -12,6 +12,8 @@ package bot.nomnomz.dashboard.feature.sound.state
 
 import bot.nomnomz.dashboard.core.feedback.Feedback
 import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
+import bot.nomnomz.dashboard.core.io.AudioFile
+import bot.nomnomz.dashboard.core.io.AudioFilePickerIO
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.SoundApi
 import bot.nomnomz.dashboard.core.network.SoundClip
@@ -23,16 +25,20 @@ import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.feedback_sound_clip_deleted
 import nomnomzbot.composeapp.generated.resources.feedback_sound_clip_save_failed
 import nomnomzbot.composeapp.generated.resources.feedback_sound_clip_saved
+import nomnomzbot.composeapp.generated.resources.feedback_sound_clip_uploaded
 
 // The Sound page's state-holder. Lists the channel's uploaded sound clips from the backend (real data only).
-// Drives update, delete, and preview; each write re-lists on success so the page stays in sync with the backend.
+// Drives upload, update, delete, and preview; each write re-lists on success so the page stays in sync.
 class SoundController(
     private val soundApi: SoundApi,
+    private val audioPicker: AudioFilePickerIO,
     private val feedback: Feedback = NoOpFeedback,
 ) {
     private val _state: MutableStateFlow<SoundState> = MutableStateFlow(SoundState.Loading)
-
     val state: StateFlow<SoundState> = _state.asStateFlow()
+
+    private val _isUploading: MutableStateFlow<Boolean> = MutableStateFlow(false)
+    val isUploading: StateFlow<Boolean> = _isUploading.asStateFlow()
 
     suspend fun load() {
         _state.value = SoundState.Loading
@@ -42,6 +48,25 @@ class SoundController(
                 _state.value =
                     if (result.value.isEmpty()) SoundState.Empty
                     else SoundState.Ready(result.value)
+        }
+    }
+
+    suspend fun uploadClip() {
+        _isUploading.value = true
+        try {
+            val file: AudioFile = audioPicker.pick() ?: return
+            // Use the filename-without-extension as both the slug name and the initial display name.
+            val name: String = file.name.substringBeforeLast('.')
+            when (val result: ApiResult<SoundClip> =
+                soundApi.upload(name, name, 80, file)) {
+                is ApiResult.Ok -> {
+                    feedback.success(Res.string.feedback_sound_clip_uploaded)
+                    load()
+                }
+                is ApiResult.Failure -> failWrite(result.error.message)
+            }
+        } finally {
+            _isUploading.value = false
         }
     }
 

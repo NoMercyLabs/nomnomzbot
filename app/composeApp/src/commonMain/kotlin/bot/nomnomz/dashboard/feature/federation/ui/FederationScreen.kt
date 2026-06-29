@@ -48,6 +48,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
+import bot.nomnomz.dashboard.core.designsystem.icon.AddGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.CheckCircleGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.RemoveGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
@@ -146,10 +147,13 @@ fun FederationScreen(controller: FederationController, role: ManagementRole?) {
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Text(stringResource(Res.string.federation_peer_title), style = typography.lg, color = tokens.cardForeground)
-                            ManageGate(manage) {
-                                TextButton(onClick = { showAddPeer = true }) {
-                                    Text(stringResource(Res.string.federation_peer_add), style = typography.sm, color = tokens.primary)
-                                }
+                            ManageGate(manage) { enabled ->
+                                GlyphButton(
+                                    imageVector = AddGlyph,
+                                    label = stringResource(Res.string.federation_peer_add),
+                                    onClick = { showAddPeer = true },
+                                    enabled = enabled,
+                                )
                             }
                         }
                     }
@@ -169,10 +173,13 @@ fun FederationScreen(controller: FederationController, role: ManagementRole?) {
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Text(stringResource(Res.string.federation_optin_title), style = typography.lg, color = tokens.cardForeground)
-                            ManageGate(manage) {
-                                TextButton(onClick = { showAddOptIn = true }) {
-                                    Text(stringResource(Res.string.federation_optin_add), style = typography.sm, color = tokens.primary)
-                                }
+                            ManageGate(manage) { enabled ->
+                                GlyphButton(
+                                    imageVector = AddGlyph,
+                                    label = stringResource(Res.string.federation_optin_add),
+                                    onClick = { showAddOptIn = true },
+                                    enabled = enabled,
+                                )
                             }
                         }
                     }

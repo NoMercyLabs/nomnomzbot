@@ -200,6 +200,42 @@ class ApiClient(
     }
 
     /**
+     * POSTs multipart/form-data with one file part ([fileFieldName]) plus additional string [fields] to a
+     * `StatusResponseDto<T>` endpoint — for sound-clip uploads where the server also expects text fields
+     * (name, displayName, defaultVolume) alongside the audio bytes.
+     */
+    internal suspend inline fun <reified T> postMultipartWithFields(
+        path: String,
+        fileFieldName: String,
+        fileName: String,
+        fileBytes: ByteArray,
+        fileContentType: ContentType,
+        fields: Map<String, String>,
+    ): ApiResult<T> =
+        envelope(path) { url ->
+            httpClient.post(url) {
+                setBody(
+                    MultiPartFormDataContent(
+                        formData {
+                            fields.forEach { (key, value) -> append(key, value) }
+                            append(
+                                fileFieldName,
+                                fileBytes,
+                                Headers.build {
+                                    append(HttpHeaders.ContentType, fileContentType.toString())
+                                    append(
+                                        HttpHeaders.ContentDisposition,
+                                        "filename=\"$fileName\"",
+                                    )
+                                },
+                            )
+                        }
+                    )
+                )
+            }
+        }
+
+    /**
      * POSTs a single file part as `multipart/form-data` (field name [fieldName]) to a `StatusResponseDto<T>`
      * endpoint, unwrapping `data` — for the event-journal import upload.
      */

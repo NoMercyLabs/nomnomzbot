@@ -51,6 +51,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
+import bot.nomnomz.dashboard.core.designsystem.icon.AddGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.PlayCircleGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.PowerGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.RefreshGlyph
@@ -175,10 +176,13 @@ fun WebhooksScreen(controller: WebhooksController, role: ManagementRole?) {
                                 style = typography.lg,
                                 color = tokens.cardForeground,
                             )
-                            ManageGate(manage) {
-                                TextButton(onClick = { showCreateInbound = true }) {
-                                    Text(stringResource(Res.string.webhooks_inbound_add), style = typography.sm, color = tokens.primary)
-                                }
+                            ManageGate(manage) { enabled ->
+                                GlyphButton(
+                                    imageVector = AddGlyph,
+                                    label = stringResource(Res.string.webhooks_inbound_add),
+                                    onClick = { showCreateInbound = true },
+                                    enabled = enabled,
+                                )
                             }
                         }
                     }
@@ -204,10 +208,13 @@ fun WebhooksScreen(controller: WebhooksController, role: ManagementRole?) {
                                 style = typography.lg,
                                 color = tokens.cardForeground,
                             )
-                            ManageGate(manage) {
-                                TextButton(onClick = { showCreateOutbound = true }) {
-                                    Text(stringResource(Res.string.webhooks_outbound_add), style = typography.sm, color = tokens.primary)
-                                }
+                            ManageGate(manage) { enabled ->
+                                GlyphButton(
+                                    imageVector = AddGlyph,
+                                    label = stringResource(Res.string.webhooks_outbound_add),
+                                    onClick = { showCreateOutbound = true },
+                                    enabled = enabled,
+                                )
                             }
                         }
                     }

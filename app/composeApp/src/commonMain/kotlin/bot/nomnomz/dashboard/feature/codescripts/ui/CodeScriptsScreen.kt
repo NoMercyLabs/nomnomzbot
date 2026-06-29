@@ -28,7 +28,11 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import bot.nomnomz.dashboard.core.designsystem.icon.AddGlyph
+import bot.nomnomz.dashboard.core.designsystem.icon.CheckGlyph
+import bot.nomnomz.dashboard.core.designsystem.icon.CloseGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.EditLineGlyph
+import bot.nomnomz.dashboard.core.designsystem.icon.PowerGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
@@ -129,9 +133,11 @@ fun CodeScriptsScreen(controller: CodeScriptsController, role: ManagementRole?) 
                             Text(text = it, style = typography.sm, color = tokens.mutedForeground, maxLines = 2, overflow = TextOverflow.Ellipsis)
                         }
                     }
-                    TextButton(onClick = { controller.close() }) {
-                        Text(stringResource(Res.string.scripts_close_editor), color = tokens.primary)
-                    }
+                    GlyphButton(
+                        imageVector = CloseGlyph,
+                        label = stringResource(Res.string.scripts_close_editor),
+                        onClick = { controller.close() },
+                    )
                 }
                 current.actionError?.let { detail ->
                     ActionErrorBanner(message = stringResource(Res.string.scripts_action_error, detail))
@@ -147,8 +153,13 @@ fun CodeScriptsScreen(controller: CodeScriptsController, role: ManagementRole?) 
             }
             else -> {
                 PageHeader(title = stringResource(Res.string.shell_nav_code_scripts), subtitle = stringResource(Res.string.scripts_subtitle)) {
-                    ManageGate(manage) {
-                        Button(onClick = { showCreate = true }) { Text(stringResource(Res.string.scripts_list_add)) }
+                    ManageGate(manage) { enabled ->
+                        GlyphButton(
+                            imageVector = AddGlyph,
+                            label = stringResource(Res.string.scripts_list_add),
+                            onClick = { showCreate = true },
+                            enabled = enabled,
+                        )
                     }
                 }
 
@@ -342,15 +353,21 @@ private fun EditorContent(
         }
 
         Row(horizontalArrangement = Arrangement.spacedBy(spacing.s3)) {
-            ManageGate(manage) {
-                TextButton(onClick = onSave) {
-                    Text(stringResource(Res.string.scripts_editor_save), color = tokens.primary)
-                }
+            ManageGate(manage) { enabled ->
+                GlyphButton(
+                    imageVector = CheckGlyph,
+                    label = stringResource(Res.string.scripts_editor_save),
+                    onClick = onSave,
+                    enabled = enabled,
+                )
             }
-            ManageGate(manage) {
-                Button(onClick = onPublish) {
-                    Text(stringResource(Res.string.scripts_editor_publish))
-                }
+            ManageGate(manage) { enabled ->
+                GlyphButton(
+                    imageVector = PowerGlyph,
+                    label = stringResource(Res.string.scripts_editor_publish),
+                    onClick = onPublish,
+                    enabled = enabled,
+                )
             }
         }
     }

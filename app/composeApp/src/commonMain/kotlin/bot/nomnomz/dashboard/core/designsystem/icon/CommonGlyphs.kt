@@ -89,6 +89,11 @@ val RemoveGlyph: ImageVector = icon("Remove") {
     strokePath("M19 12H5")
 }
 
+/** X / close — System/close */
+val CloseGlyph: ImageVector = icon("Close") {
+    strokePath("M18 6L6 18M6 6L18 18")
+}
+
 /** Checkmark — System/check */
 val CheckGlyph: ImageVector = icon("Check") {
     strokePath("M4 13L8.29289 17.2929C8.68342 17.6834 9.31658 17.6834 9.70711 17.2929L20 7")

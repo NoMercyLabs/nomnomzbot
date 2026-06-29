@@ -48,7 +48,7 @@ fun NomNomzTheme(
     content: @Composable () -> Unit,
 ) {
     val base: Tokens = if (scheme == Scheme.Dark) DarkTokens else LightTokens
-    val tokens: Tokens = if (accentHex != null) base.withAccent(accentHex, scheme) else base
+    val tokens: Tokens = if (accentHex != null) base.withAccent(accentHex) else base
 
     val colorScheme = if (scheme == Scheme.Dark) {
         darkColorScheme(

@@ -96,6 +96,7 @@ import nomnomzbot.composeapp.generated.resources.event_type_channel_prediction_b
 import nomnomzbot.composeapp.generated.resources.event_type_channel_raid
 import nomnomzbot.composeapp.generated.resources.event_type_channel_subscribe
 import nomnomzbot.composeapp.generated.resources.event_type_channel_subscription_gift
+import nomnomzbot.composeapp.generated.resources.event_type_channel_subscription_message
 import nomnomzbot.composeapp.generated.resources.event_type_stream_offline
 import nomnomzbot.composeapp.generated.resources.event_type_stream_online
 import nomnomzbot.composeapp.generated.resources.event_type_unknown
@@ -454,6 +455,7 @@ private fun String.toEventLabel(): String =
         "channel.follow" -> stringResource(Res.string.event_type_channel_follow)
         "channel.subscribe" -> stringResource(Res.string.event_type_channel_subscribe)
         "channel.subscription.gift" -> stringResource(Res.string.event_type_channel_subscription_gift)
+        "channel.subscription.message" -> stringResource(Res.string.event_type_channel_subscription_message)
         "channel.cheer" -> stringResource(Res.string.event_type_channel_cheer)
         "channel.raid" -> stringResource(Res.string.event_type_channel_raid)
         "stream.online" -> stringResource(Res.string.event_type_stream_online)

@@ -51,6 +51,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
+import bot.nomnomz.dashboard.core.designsystem.icon.AddGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.EditGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
@@ -207,16 +208,12 @@ private fun ManagedContent(
     ) {
         PageHeader(title = stringResource(Res.string.shell_nav_timers)) {
             ManageGate(decision = manage) { enabled ->
-                Button(
+                GlyphButton(
+                    imageVector = AddGlyph,
+                    label = stringResource(Res.string.timers_new),
                     onClick = onNew,
                     enabled = enabled,
-                    colors = ButtonDefaults.buttonColors(
-                        disabledContainerColor = tokens.muted,
-                        disabledContentColor = tokens.mutedForeground,
-                    ),
-                ) {
-                    Text(text = stringResource(Res.string.timers_new))
-                }
+                )
             }
         }
 

@@ -48,6 +48,7 @@ import bot.nomnomz.dashboard.core.network.RestSoundApi
 import bot.nomnomz.dashboard.core.network.SoundApi
 import bot.nomnomz.dashboard.core.network.RestAlertsApi
 import bot.nomnomz.dashboard.core.network.RestAnalyticsApi
+import bot.nomnomz.dashboard.core.io.AudioFilePicker
 import bot.nomnomz.dashboard.core.io.JournalFileBridge
 import bot.nomnomz.dashboard.core.network.RestChatApi
 import bot.nomnomz.dashboard.core.network.RestCommandsApi
@@ -360,7 +361,11 @@ class AppGraph {
         QuotesController(quotesApi = quotesApi, feedback = feedbackController)
 
     val soundController: SoundController =
-        SoundController(soundApi = soundApi, feedback = feedbackController)
+        SoundController(
+            soundApi = soundApi,
+            audioPicker = AudioFilePicker(),
+            feedback = feedbackController,
+        )
 
     val discordController: DiscordController =
         DiscordController(channelsApi = channelsApi, discordApi = discordApi)

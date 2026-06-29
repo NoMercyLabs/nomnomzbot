@@ -1585,6 +1585,7 @@
     <string name="event_type_channel_follow">Nieuwe volger</string>
     <string name="event_type_channel_subscribe">Nieuw abonnement</string>
     <string name="event_type_channel_subscription_gift">Cadeauabonnement</string>
+    <string name="event_type_channel_subscription_message">Hernieuwingsmelding</string>
     <string name="event_type_channel_cheer">Cheer</string>
     <string name="event_type_channel_raid">Raid</string>
     <string name="event_type_stream_online">Stream online</string>

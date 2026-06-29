@@ -56,6 +56,7 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.designsystem.theme.Tokens
+import bot.nomnomz.dashboard.core.designsystem.icon.AddGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.EditGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
 import bot.nomnomz.dashboard.core.network.Quote
@@ -206,19 +207,12 @@ private fun Header(manage: ManageDecision, onNew: () -> Unit) {
 
     PageHeader(title = stringResource(Res.string.shell_nav_quotes)) {
         ManageGate(decision = manage) { enabled ->
-            Button(
+            GlyphButton(
+                imageVector = AddGlyph,
+                label = newLabel,
                 onClick = onNew,
                 enabled = enabled,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = tokens.primary,
-                    contentColor = tokens.primaryForeground,
-                    disabledContainerColor = tokens.muted,
-                    disabledContentColor = tokens.mutedForeground,
-                ),
-                modifier = Modifier.semantics { contentDescription = newLabel },
-            ) {
-                Text(text = newLabel)
-            }
+            )
         }
     }
 }

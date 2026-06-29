@@ -1599,6 +1599,7 @@
     <string name="event_type_channel_follow">New Follow</string>
     <string name="event_type_channel_subscribe">New Subscription</string>
     <string name="event_type_channel_subscription_gift">Gift Subscription</string>
+    <string name="event_type_channel_subscription_message">Resubscription Message</string>
     <string name="event_type_channel_cheer">Cheer</string>
     <string name="event_type_channel_raid">Raid</string>
     <string name="event_type_stream_online">Stream Online</string>

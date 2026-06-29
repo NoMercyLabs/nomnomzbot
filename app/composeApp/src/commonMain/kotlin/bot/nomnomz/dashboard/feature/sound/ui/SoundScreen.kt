@@ -52,6 +52,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
+import bot.nomnomz.dashboard.core.designsystem.icon.AddGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.EditGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
@@ -89,16 +90,17 @@ import nomnomzbot.composeapp.generated.resources.sound_clips_loading
 import nomnomzbot.composeapp.generated.resources.sound_clips_preview_action
 import nomnomzbot.composeapp.generated.resources.sound_clips_retry
 import nomnomzbot.composeapp.generated.resources.sound_clips_size_kb
+import nomnomzbot.composeapp.generated.resources.sound_clips_upload_action
 import nomnomzbot.composeapp.generated.resources.sound_clips_volume_pct
 import org.jetbrains.compose.resources.stringResource
 
 // The Sound Clips page: the channel's uploaded audio library. Lists real clips from the backend; brokers
-// enable/disable, display-name rename, volume adjustment, preview, and delete back through SoundController.
-// Upload is not yet surfaced here — users can upload via the REST API or Scalar docs until a file-picker
-// is added to the Compose dashboard.
+// upload (native OS file picker → multipart POST), enable/disable, display-name rename, volume adjustment,
+// overlay preview, and delete back through SoundController.
 @Composable
 fun SoundScreen(controller: SoundController, role: ManagementRole?) {
     val state: SoundState by controller.state.collectAsStateWithLifecycle()
+    val isUploading: Boolean by controller.isUploading.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val spacing = LocalSpacing.current
 
@@ -119,6 +121,8 @@ fun SoundScreen(controller: SoundController, role: ManagementRole?) {
                     clips = emptyList(),
                     actionError = null,
                     manage = manage,
+                    isUploading = isUploading,
+                    onUpload = { scope.launch { controller.uploadClip() } },
                     onEdit = { clip -> editTarget = clip },
                     onDelete = { clip -> deleteTarget = clip },
                     onPreview = { clip -> scope.launch { controller.previewClip(clip.id) } },
@@ -128,6 +132,8 @@ fun SoundScreen(controller: SoundController, role: ManagementRole?) {
                     clips = current.clips,
                     actionError = current.actionError,
                     manage = manage,
+                    isUploading = isUploading,
+                    onUpload = { scope.launch { controller.uploadClip() } },
                     onEdit = { clip -> editTarget = clip },
                     onDelete = { clip -> deleteTarget = clip },
                     onPreview = { clip -> scope.launch { controller.previewClip(clip.id) } },
@@ -174,6 +180,8 @@ private fun ClipList(
     clips: List<SoundClip>,
     actionError: String?,
     manage: ManageDecision,
+    isUploading: Boolean,
+    onUpload: () -> Unit,
     onEdit: (SoundClip) -> Unit,
     onDelete: (SoundClip) -> Unit,
     onPreview: (SoundClip) -> Unit,
@@ -181,7 +189,19 @@ private fun ClipList(
     val spacing = LocalSpacing.current
 
     Column(modifier = Modifier.fillMaxSize()) {
-        PageHeader(title = stringResource(Res.string.shell_nav_sound))
+        PageHeader(
+            title = stringResource(Res.string.shell_nav_sound),
+            trailing = {
+                ManageGate(decision = manage) { enabled ->
+                    GlyphButton(
+                        imageVector = AddGlyph,
+                        label = stringResource(Res.string.sound_clips_upload_action),
+                        onClick = onUpload,
+                        enabled = enabled && !isUploading,
+                    )
+                }
+            },
+        )
         if (actionError != null) {
             ActionErrorBanner(
                 message = stringResource(Res.string.sound_clips_action_error, actionError),
