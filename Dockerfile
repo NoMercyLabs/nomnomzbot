@@ -20,7 +20,7 @@ WORKDIR /workspace
 
 # Copy Gradle wrapper + build files first so changes to Kotlin source don't
 # bust the dependency-resolution layer. Toolchain archives (Node, Yarn,
-# Binaryen/wasm-opt) and all downloaded JARs land in ~/.gradle, which is
+# Binaryen/wasm-opt) and downloaded JARs land in ~/.gradle, which is
 # persisted via BuildKit cache mount and never enters the image layer.
 COPY app/gradle/             gradle/
 COPY app/gradlew             gradlew
@@ -29,17 +29,20 @@ COPY app/settings.gradle.kts settings.gradle.kts
 COPY app/build.gradle.kts    build.gradle.kts
 COPY app/composeApp/build.gradle.kts composeApp/build.gradle.kts
 
-RUN chmod +x gradlew
-
-# Pre-warm: resolve dependencies without source so this layer is cache-hit
-# whenever build files alone are unchanged.
+# Pre-warm: resolve Gradle/Kotlin dependencies before copying source so
+# this layer is a cache hit whenever only Kotlin source changes.
 RUN --mount=type=cache,target=/root/.gradle,sharing=locked \
     --mount=type=cache,target=/root/.konan \
-    ./gradlew :composeApp:dependencies --no-daemon -q 2>/dev/null; exit 0
+    chmod +x gradlew \
+    && ./gradlew :composeApp:dependencies --no-daemon -q 2>/dev/null || true
 
-# Copy source and build the production Wasm bundle.
+# Copy full source. Re-apply +x after COPY in case the checkout platform
+# (e.g. Windows NTFS) stripped the execute bit — git index has 100755 but
+# Docker copies the on-disk mode, which may differ on Windows hosts.
 COPY app/ .
+RUN chmod +x gradlew
 
+# Build the production Wasm bundle.
 RUN --mount=type=cache,target=/root/.gradle,sharing=locked \
     --mount=type=cache,target=/root/.konan \
     ./gradlew :composeApp:wasmJsBrowserProductionWebpack --no-daemon
@@ -51,13 +54,13 @@ FROM mcr.microsoft.com/dotnet/sdk:10.0 AS restore
 
 WORKDIR /src
 
-COPY server/Directory.Build.props   .
+COPY server/Directory.Build.props    .
 COPY server/Directory.Packages.props .
-COPY server/src/NomNomzBot.Domain/NomNomzBot.Domain.csproj               src/NomNomzBot.Domain/
-COPY server/src/NomNomzBot.Application/NomNomzBot.Application.csproj     src/NomNomzBot.Application/
-COPY server/src/NomNomzBot.Infrastructure/NomNomzBot.Infrastructure.csproj src/NomNomzBot.Infrastructure/
-COPY server/src/NomNomzBot.Migrations.Sqlite/NomNomzBot.Migrations.Sqlite.csproj src/NomNomzBot.Migrations.Sqlite/
-COPY server/src/NomNomzBot.Api/NomNomzBot.Api.csproj                     src/NomNomzBot.Api/
+COPY server/src/NomNomzBot.Domain/NomNomzBot.Domain.csproj                         src/NomNomzBot.Domain/
+COPY server/src/NomNomzBot.Application/NomNomzBot.Application.csproj               src/NomNomzBot.Application/
+COPY server/src/NomNomzBot.Infrastructure/NomNomzBot.Infrastructure.csproj         src/NomNomzBot.Infrastructure/
+COPY server/src/NomNomzBot.Migrations.Sqlite/NomNomzBot.Migrations.Sqlite.csproj   src/NomNomzBot.Migrations.Sqlite/
+COPY server/src/NomNomzBot.Api/NomNomzBot.Api.csproj                               src/NomNomzBot.Api/
 
 RUN dotnet restore src/NomNomzBot.Api/NomNomzBot.Api.csproj
 
