@@ -8,8 +8,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  # Personal namespace — inherits the repo's public visibility without org admin.
-  IMAGE_NAME: stoney_eagle/nomnomzbot
+  IMAGE_NAME: nomercylabs/nomnomzbot
 
 jobs:
   build:
@@ -75,8 +74,8 @@ jobs:
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           script: |
-            docker pull ghcr.io/stoney_eagle/nomnomzbot:latest
+            docker pull ghcr.io/nomercylabs/nomnomzbot:latest
             cd /opt/nomnomzbot
-            API_IMAGE=ghcr.io/stoney_eagle/nomnomzbot:latest \
+            API_IMAGE=ghcr.io/nomercylabs/nomnomzbot:latest \
               docker compose up -d --no-deps --pull always api
             docker compose logs api --tail=20
