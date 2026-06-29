@@ -100,6 +100,7 @@ try
     );
 
     // Application + Infrastructure DI
+    builder.Services.AddMemoryCache();
     builder.Services.AddApplication();
     builder.Services.AddInfrastructure(builder.Configuration);
 
