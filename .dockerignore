@@ -1,0 +1,40 @@
+# Version control
+.git
+.gitignore
+
+# CI / IDE / Claude
+.github
+.claude
+.vs
+.vscode
+.idea
+.scratch
+.fallow
+
+# Design/docs (not needed in image)
+nomnomzbot-design
+*.md
+
+# Kotlin/Gradle build artifacts (re-built inside Docker)
+app/.gradle
+app/build
+app/composeApp/build
+app/node_modules
+app/**/*.log
+
+# .NET build artifacts (re-built inside Docker)
+server/bin
+server/obj
+server/TestResults
+server/.vs
+server/**/*.user
+server/**/*.suo
+
+# Wasm output tracked in git (built from source in wasm-build stage now)
+server/src/NomNomzBot.Api/wwwroot
+
+# Runtime data / local secrets
+server/src/NomNomzBot.Api/nomnomzbot.db
+**/.env
+**/.env.local
+**/logs/

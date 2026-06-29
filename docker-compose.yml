@@ -28,7 +28,7 @@ services:
     # in .env and run `docker compose up -d` (no --build needed).
     image: ${API_IMAGE:-nomnomzbot-api:local}
     build:
-      context: ./server
+      context: .
       dockerfile: Dockerfile
     container_name: nomnomzbot-api
     ports:
