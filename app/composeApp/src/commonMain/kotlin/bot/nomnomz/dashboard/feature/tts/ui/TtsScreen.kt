@@ -27,15 +27,14 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
+import bot.nomnomz.dashboard.core.designsystem.component.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 
-import androidx.compose.material3.TextButton
+import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import bot.nomnomz.dashboard.core.designsystem.icon.CheckCircleGlyph
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -637,12 +636,6 @@ private fun SaveBar(
                 Button(
                     onClick = onSave,
                     enabled = gateEnabled && canSave,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = tokens.primary,
-                        contentColor = tokens.primaryForeground,
-                        disabledContainerColor = tokens.muted,
-                        disabledContentColor = tokens.mutedForeground,
-                    ),
                     modifier = Modifier.wrapContentWidth(),
                 ) {
                     Text(stringResource(Res.string.tts_save))
@@ -719,12 +712,6 @@ private fun TestSpeakSection(
                 Button(
                     onClick = { if (testText.isNotBlank()) onTest(currentVoiceId, testText.trim()) },
                     enabled = enabled && !testing && testText.isNotBlank(),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = tokens.primary,
-                        contentColor = tokens.primaryForeground,
-                        disabledContainerColor = tokens.muted,
-                        disabledContentColor = tokens.mutedForeground,
-                    ),
                 ) {
                     if (testing) {
                         CircularProgressIndicator(

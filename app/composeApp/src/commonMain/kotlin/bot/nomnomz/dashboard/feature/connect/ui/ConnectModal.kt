@@ -28,10 +28,9 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.OutlinedButton
+import bot.nomnomz.dashboard.core.designsystem.component.Button
+import bot.nomnomz.dashboard.core.designsystem.component.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -217,11 +216,6 @@ private fun BrandCta(provider: ConnectProvider, onClick: () -> Unit) {
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(CtaCornerRadius),
-        colors =
-            ButtonDefaults.buttonColors(
-                containerColor = provider.brand.brand,
-                contentColor = onBrand,
-            ),
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,

@@ -21,12 +21,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import bot.nomnomz.dashboard.core.designsystem.component.Button
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -414,10 +413,6 @@ private fun SaveBar(
                 Button(
                     onClick = onSave,
                     enabled = enabled,
-                    colors = ButtonDefaults.buttonColors(
-                        disabledContainerColor = tokens.muted,
-                        disabledContentColor = tokens.mutedForeground,
-                    ),
                     modifier = Modifier.wrapContentWidth(),
                 ) {
                     Text(stringResource(Res.string.twitch_app_save))

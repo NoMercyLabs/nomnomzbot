@@ -23,13 +23,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
+import bot.nomnomz.dashboard.core.designsystem.component.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
 import androidx.compose.runtime.Composable

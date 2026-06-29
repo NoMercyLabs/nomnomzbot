@@ -25,14 +25,13 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import bot.nomnomz.dashboard.core.designsystem.component.Button
+import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -287,10 +286,6 @@ private fun PresetsSection(
                         Button(
                             onClick = { onUse(preset) },
                             enabled = enabled,
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = tokens.primary,
-                                contentColor = tokens.primaryForeground,
-                            ),
                         ) {
                             Text(text = stringResource(Res.string.custom_events_new_source), style = typography.xs)
                         }
@@ -549,10 +544,6 @@ private fun SourceFormDialog(
                     )
                 },
                 enabled = name.isNotBlank() && displayName.isNotBlank(),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = tokens.primary,
-                    contentColor = tokens.primaryForeground,
-                ),
             ) {
                 Text(stringResource(Res.string.custom_events_save))
             }
@@ -583,10 +574,6 @@ private fun SourceKindSelector(selected: String, onSelect: (String) -> Unit) {
                 val isSelected: Boolean = kind == selected
                 Button(
                     onClick = { onSelect(kind) },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (isSelected) tokens.primary else tokens.muted,
-                        contentColor = if (isSelected) tokens.primaryForeground else tokens.mutedForeground,
-                    ),
                 ) {
                     Text(text = kind, style = typography.sm)
                 }
@@ -641,10 +628,6 @@ private fun TestDialog(
         confirmButton = {
             Button(
                 onClick = { onTest(payload) },
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = tokens.primary,
-                    contentColor = tokens.primaryForeground,
-                ),
             ) {
                 Text(stringResource(Res.string.custom_events_test_action))
             }

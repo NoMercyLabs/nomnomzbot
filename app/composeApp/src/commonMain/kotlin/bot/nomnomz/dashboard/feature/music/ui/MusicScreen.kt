@@ -25,13 +25,12 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
+import bot.nomnomz.dashboard.core.designsystem.component.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -697,12 +696,6 @@ private fun AddToQueueSection(manage: ManageDecision, onAdd: (query: String, req
                     requestedBy = ""
                 },
                 enabled = enabled && canAdd,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = tokens.primary,
-                    contentColor = tokens.primaryForeground,
-                    disabledContainerColor = tokens.muted,
-                    disabledContentColor = tokens.mutedForeground,
-                ),
             ) {
                 Text(text = stringResource(Res.string.music_add_action))
             }
@@ -861,12 +854,6 @@ private fun MusicConfigSection(config: MusicConfig, manage: ManageDecision, onSa
                     )
                 },
                 enabled = enabled,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = tokens.primary,
-                    contentColor = tokens.primaryForeground,
-                    disabledContainerColor = tokens.muted,
-                    disabledContentColor = tokens.mutedForeground,
-                ),
             ) {
                 Text(text = stringResource(Res.string.music_config_save))
             }
@@ -930,7 +917,6 @@ private fun RemoteControlsSection(
             Button(
                 onClick = { if (manage.isAllowed) onSetShuffle(true) },
                 enabled = manage.isAllowed,
-                colors = ButtonDefaults.buttonColors(containerColor = tokens.secondary),
                 modifier = Modifier.weight(1f),
             ) {
                 Text(
@@ -947,7 +933,6 @@ private fun RemoteControlsSection(
                 Button(
                     onClick = { if (manage.isAllowed) onSetRepeat(mode) },
                     enabled = manage.isAllowed,
-                    colors = ButtonDefaults.buttonColors(containerColor = tokens.secondary),
                 ) {
                     Text(
                         text = stringResource(labelRes),

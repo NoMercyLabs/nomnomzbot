@@ -23,8 +23,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
+import bot.nomnomz.dashboard.core.designsystem.component.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.OutlinedTextField
@@ -32,7 +31,7 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import androidx.compose.material3.TextFieldColors
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -414,11 +413,7 @@ private fun EditClipDialog(
             Button(
                 onClick = { onSave(displayName.trim(), volume.toInt(), isEnabled) },
                 enabled = displayName.isNotBlank(),
-                colors =
-                    ButtonDefaults.buttonColors(
-                        containerColor = tokens.primary,
-                        contentColor = tokens.primaryForeground,
-                    ),
+
             ) {
                 Text(stringResource(Res.string.sound_clips_dialog_save))
             }

@@ -23,12 +23,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import bot.nomnomz.dashboard.core.designsystem.component.Button
+import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -56,7 +55,7 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.OutlinedButton
+import bot.nomnomz.dashboard.core.designsystem.component.OutlinedButton
 import androidx.compose.ui.platform.LocalUriHandler
 import bot.nomnomz.dashboard.core.network.BillingInvoice
 import bot.nomnomz.dashboard.core.network.BillingSubscription
@@ -900,10 +899,6 @@ private fun EventJournalSection(controller: JournalPortabilityController, manage
                 Button(
                     onClick = { scope.launch { controller.export() } },
                     enabled = !state.busy && enabled,
-                    colors = ButtonDefaults.buttonColors(
-                        disabledContainerColor = tokens.muted,
-                        disabledContentColor = tokens.mutedForeground,
-                    ),
                     modifier = Modifier.wrapContentWidth(),
                 ) {
                     Text(stringResource(Res.string.journal_export))

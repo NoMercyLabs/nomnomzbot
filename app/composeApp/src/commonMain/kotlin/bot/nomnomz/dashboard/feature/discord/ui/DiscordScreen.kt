@@ -25,8 +25,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
+import bot.nomnomz.dashboard.core.designsystem.component.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.OutlinedTextField
@@ -34,7 +33,7 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import androidx.compose.material3.TextFieldColors
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -545,12 +544,6 @@ private fun GuildHeader(
                 Button(
                     onClick = onNewRule,
                     enabled = enabled,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = tokens.primary,
-                        contentColor = tokens.primaryForeground,
-                        disabledContainerColor = tokens.muted,
-                        disabledContentColor = tokens.mutedForeground,
-                    ),
                     modifier = Modifier.semantics { contentDescription = newLabel },
                 ) {
                     Text(text = newLabel)

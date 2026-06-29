@@ -24,11 +24,11 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
+import bot.nomnomz.dashboard.core.designsystem.component.Button
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.OutlinedButton
+import bot.nomnomz.dashboard.core.designsystem.component.OutlinedButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue

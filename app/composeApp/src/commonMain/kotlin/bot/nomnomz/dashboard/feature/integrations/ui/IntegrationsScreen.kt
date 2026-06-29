@@ -25,12 +25,11 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import bot.nomnomz.dashboard.core.designsystem.component.Button
+import bot.nomnomz.dashboard.core.designsystem.component.OutlinedButton
+import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -465,10 +464,6 @@ private fun IntegrationCard(
                         Button(
                             onClick = onConnect,
                             enabled = enabled,
-                            colors = ButtonDefaults.buttonColors(
-                                disabledContainerColor = tokens.muted,
-                                disabledContentColor = tokens.mutedForeground,
-                            ),
                         ) {
                             Text(
                                 text =
@@ -521,10 +516,6 @@ private fun MissingScopesBanner(missing: List<MissingScope>, manage: ManageDecis
             Button(
                 onClick = onGrant,
                 enabled = enabled,
-                colors = ButtonDefaults.buttonColors(
-                    disabledContainerColor = tokens.muted,
-                    disabledContentColor = tokens.mutedForeground,
-                ),
             ) {
                 Text(stringResource(Res.string.permissions_banner_action), maxLines = 1)
             }
