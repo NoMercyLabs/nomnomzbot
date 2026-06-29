@@ -42,10 +42,14 @@ RUN --mount=type=cache,target=/root/.gradle,sharing=locked \
 COPY app/ .
 RUN chmod +x gradlew
 
-# Build the production Wasm bundle.
+# Build the production Wasm bundle and verify the output path.
 RUN --mount=type=cache,target=/root/.gradle,sharing=locked \
     --mount=type=cache,target=/root/.konan \
-    ./gradlew :composeApp:wasmJsBrowserProductionWebpack --no-daemon
+    ./gradlew :composeApp:wasmJsBrowserProductionWebpack --no-daemon \
+    && echo "=== wasm output ===" \
+    && find /workspace -name "*.wasm" 2>/dev/null \
+    && echo "=== dist tree ===" \
+    && find /workspace/composeApp/build/dist -maxdepth 4 -type f 2>/dev/null || echo "dist/ not found"
 
 # ---------------------------------------------------------------------------
 # Stage 1 — .NET NuGet restore (cached layer; re-runs only on .csproj changes)
