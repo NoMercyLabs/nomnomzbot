@@ -773,50 +773,6 @@ try
     // Suppress browser-generated favicon requests from producing 500 errors
     app.MapGet("/favicon.ico", () => Results.NotFound()).ExcludeFromDescription();
 
-    // Lightweight OAuth relay page. Integration OAuth callbacks redirect here via IntegrationOAuthController
-    // instead of back to the main app. In popup mode the page postMessages the URL params to the opener and
-    // closes itself; in redirect mode it navigates to the ?return= target. This avoids loading the full Wasm
-    // app inside the popup, which would freeze the compositor and leave the popup open permanently.
-    app.MapGet(
-            "/oauth-relay",
-            () =>
-                Results.Content(
-                    """
-                    <!doctype html>
-                    <html lang="en">
-                    <head>
-                      <meta charset="utf-8" />
-                      <title>NomNomzBot — connecting…</title>
-                      <style>
-                        body{margin:0;display:flex;align-items:center;justify-content:center;
-                             height:100vh;font-family:system-ui,sans-serif;background:#09090b;color:#fafafa;}
-                        p{font-size:14px;opacity:.6;}
-                      </style>
-                    </head>
-                    <body>
-                      <p>Connecting… this window will close automatically.</p>
-                      <script>
-                        (function(){
-                          var p=new URLSearchParams(window.location.search);
-                          var ret=p.get('return');
-                          if(window.opener){
-                            try{window.opener.postMessage({type:'oauth-relay',search:window.location.search},'*');}catch(e){}
-                            window.close();
-                          }else if(ret){
-                            window.location.replace(decodeURIComponent(ret));
-                          }else{
-                            window.location.replace('/');
-                          }
-                        })();
-                      </script>
-                    </body>
-                    </html>
-                    """,
-                    "text/html"
-                )
-        )
-        .ExcludeFromDescription();
-
     // SPA fallback: any route not matched by an API / hub / health endpoint or a static file serves the dashboard's
     // entry document, so a browser hitting / (or a client-side deep link) loads the Compose/Wasm app shell. Returns
     // 404 when no dashboard is bundled (empty web root), preserving the API-only behavior.
