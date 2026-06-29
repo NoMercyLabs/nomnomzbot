@@ -28,14 +28,16 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         CREATE TABLE ""Pipelines"" (
                             ""Id""               uuid NOT NULL,
                             ""BroadcasterId""    uuid NOT NULL,
+                            ""CreatedAt""        timestamp with time zone NOT NULL,
+                            ""DeletedAt""        timestamp with time zone,
                             ""Description""      character varying(500),
+                            ""GraphJsonCache""   text,
                             ""IsEnabled""        boolean NOT NULL,
                             ""LastTriggeredAt""  timestamp with time zone,
                             ""MaxStepCount""     integer NOT NULL DEFAULT 0,
                             ""Name""             character varying(200) NOT NULL,
                             ""TriggerCount""     bigint NOT NULL DEFAULT 0,
                             ""TriggerKind""      character varying(30) NOT NULL DEFAULT 'manual',
-                            ""CreatedAt""        timestamp with time zone NOT NULL,
                             ""UpdatedAt""        timestamp with time zone NOT NULL,
                             CONSTRAINT ""PK_Pipelines"" PRIMARY KEY (""Id""),
                             CONSTRAINT ""FK_Pipelines_Channels_BroadcasterId"" FOREIGN KEY (""BroadcasterId"")

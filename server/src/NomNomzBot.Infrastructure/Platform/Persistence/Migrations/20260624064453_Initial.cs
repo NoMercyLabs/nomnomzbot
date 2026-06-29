@@ -3975,12 +3975,7 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                 name: "Pipelines",
                 columns: table => new
                 {
-                    Id = table
-                        .Column<int>(type: "integer", nullable: false)
-                        .Annotation(
-                            "Npgsql:ValueGenerationStrategy",
-                            NpgsqlValueGenerationStrategy.IdentityByDefaultColumn
-                        ),
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
                     BroadcasterId = table.Column<Guid>(type: "uuid", nullable: false),
                     Name = table.Column<string>(
                         type: "character varying(200)",
