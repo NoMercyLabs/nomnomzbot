@@ -81,21 +81,17 @@ public class DashboardController : BaseController
         if (!Guid.TryParse(channelId, out Guid tenantId))
             return BadRequestResponse("Invalid channel id.");
 
-        // Fetch follower count and channel info concurrently — both are Helix calls but independent.
-        // Channel info (title, game) uses the app token so it never fails on scope; follower count needs
-        // moderator:read:followers and degrades to 0 on failure so the dashboard still renders.
+        // Fetch follower count and channel info sequentially — both calls resolve the Twitch channel
+        // ID via TwitchIdentityResolver which uses the scoped DbContext. Running them in parallel via
+        // Task.WhenAll causes "A second operation was started on this context instance" because EF Core
+        // DbContext is not thread-safe. Sequential execution is safe and still fast (<500 ms each).
         int followerCount = 0;
         string? twitchTitle = null;
         string? twitchGame = null;
 
         try
         {
-            Task<Result<int>> followerTask = _channels.GetChannelFollowerCountAsync(tenantId, ct);
-            Task<Result<TwitchChannelInformation>> channelInfoTask =
-                _channels.GetChannelInformationAsync(tenantId, ct);
-            await Task.WhenAll(followerTask, channelInfoTask);
-
-            Result<int> followerResult = followerTask.Result;
+            Result<int> followerResult = await _channels.GetChannelFollowerCountAsync(tenantId, ct);
             followerCount = followerResult.IsSuccess ? followerResult.Value : 0;
             if (followerResult.IsFailure)
                 _logger.LogWarning(
@@ -105,9 +101,9 @@ public class DashboardController : BaseController
                     followerResult.ErrorCode
                 );
 
-            // Channel info is always fetched (app token, no scope required) so the dashboard always shows the
-            // real current Twitch title and category even when the channel is offline or the ctx is stale.
-            Result<TwitchChannelInformation> channelInfoResult = channelInfoTask.Result;
+            // Channel info uses app token (no scope required) — always shows the real Twitch title/game.
+            Result<TwitchChannelInformation> channelInfoResult =
+                await _channels.GetChannelInformationAsync(tenantId, ct);
             twitchTitle = channelInfoResult.IsSuccess ? channelInfoResult.Value.Title : null;
             twitchGame = channelInfoResult.IsSuccess ? channelInfoResult.Value.GameName : null;
         }
