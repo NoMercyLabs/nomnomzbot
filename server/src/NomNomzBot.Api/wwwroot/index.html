@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<!--
+  Copyright (c) NoMercy Labs.
+  Part of NomNomzBot, licensed under the GNU AGPL v3.0 or later.
+  SPDX-License-Identifier: AGPL-3.0-or-later
+-->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NomNomzBot</title>
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #0a0a0a;
+        }
+    </style>
+    <!--
+      Display-language override hook. The Compose/Wasm app publishes the operator's forced UI language
+      to window.__customLocale; this makes navigator.languages return it so Compose resources resolve
+      against the chosen language. When unset (System default) the browser's own locale is used.
+    -->
+    <script>
+        var nnzBaseLanguages = Object.getOwnPropertyDescriptor(Navigator.prototype, "languages");
+        Object.defineProperty(Navigator.prototype, "languages", Object.assign({}, nnzBaseLanguages, {
+            get: function () {
+                if (window.__customLocale) {
+                    return [window.__customLocale];
+                }
+                return nnzBaseLanguages.get.apply(this);
+            }
+        }));
+    </script>
+</head>
+<body>
+<script src="composeApp.js"></script>
+</body>
+</html>

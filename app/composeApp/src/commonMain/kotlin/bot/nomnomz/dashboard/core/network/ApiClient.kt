@@ -62,6 +62,7 @@ class ApiClient(
         encodeDefaults = true
     }
 
+    @PublishedApi
     internal val httpClient: HttpClient = buildHttpClient {
         install(ContentNegotiation) { json(this@ApiClient.json) }
         defaultRequest {
