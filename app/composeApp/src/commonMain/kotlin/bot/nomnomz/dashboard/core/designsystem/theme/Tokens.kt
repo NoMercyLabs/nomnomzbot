@@ -47,6 +47,9 @@ data class Tokens(
     val border: Color,
     val input: Color,
     val ring: Color,
+    // Semantic status token — online / success indicator (no shadcn equivalent; added for the
+    // live-channel status dot used throughout the shell).
+    val success: Color,
     val sidebar: Color,
     val sidebarForeground: Color,
     val sidebarPrimary: Color,
@@ -88,6 +91,7 @@ internal val LightTokens: Tokens = Tokens(
     border = oklch(0.922, 0.0, 0.0),
     input = oklch(0.922, 0.0, 0.0),
     ring = oklch(0.708, 0.0, 0.0),
+    success = oklch(0.627, 0.194, 142.5),
     sidebar = oklch(0.985, 0.0, 0.0),
     sidebarForeground = oklch(0.145, 0.0, 0.0),
     sidebarPrimary = oklch(0.205, 0.0, 0.0),
@@ -120,10 +124,13 @@ internal val DarkTokens: Tokens = Tokens(
     border = oklch(1.0, 0.0, 0.0, 0.1),
     input = oklch(1.0, 0.0, 0.0, 0.15),
     ring = oklch(0.556, 0.0, 0.0),
-    sidebar = oklch(0.205, 0.0, 0.0),
+    success = oklch(0.723, 0.209, 142.5),
+    sidebar = oklch(0.145, 0.0, 0.0),
     sidebarForeground = oklch(0.985, 0.0, 0.0),
-    sidebarPrimary = oklch(0.922, 0.0, 0.0),
-    sidebarPrimaryForeground = oklch(0.205, 0.0, 0.0),
+    // Violet-600 — matches shadcn sidebar primary in a purple-accented dark theme.
+    // Overridden per-user by withAccent() once the streamer's Twitch chat color is known.
+    sidebarPrimary = oklch(0.55, 0.24, 279.0),
+    sidebarPrimaryForeground = oklch(1.0, 0.0, 0.0),
     sidebarAccent = oklch(0.269, 0.0, 0.0),
     sidebarAccentForeground = oklch(0.985, 0.0, 0.0),
     sidebarBorder = oklch(1.0, 0.0, 0.0, 0.1),
@@ -143,15 +150,16 @@ internal val DarkTokens: Tokens = Tokens(
  */
 internal fun Tokens.withAccent(hexColor: String): Tokens {
     val raw: Color = parseHexColor(hexColor) ?: return this
-    // Blend at 15 % opacity over the background — subtle accent, not loud branding.
-    val subtleAlpha: Float = 0.15f
-    val tint: Color = raw.copy(alpha = subtleAlpha)
-    // A slightly stronger variant (35 %) for the ring / focus indicator.
+    // Sidebar active item: the full accent color (solid) — distinct, readable active state.
+    // Sidebar hover / subtle accent: 12 % overlay — just a hint of the brand hue.
+    val hoverTint: Color = raw.copy(alpha = 0.12f)
+    // Focus ring: 35 % overlay — visible without being loud.
     val ringTint: Color = raw.copy(alpha = 0.35f)
     return copy(
         ring = ringTint,
-        sidebarPrimary = tint,
-        sidebarAccent = tint,
+        sidebarPrimary = raw,
+        sidebarPrimaryForeground = oklch(1.0, 0.0, 0.0),
+        sidebarAccent = hoverTint,
     )
 }
 

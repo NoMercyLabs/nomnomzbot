@@ -30,6 +30,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.Button
+import bot.nomnomz.dashboard.core.designsystem.component.Card
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
@@ -342,11 +343,10 @@ private fun LiveBanner(stats: DashboardStats) {
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
 
+    Card(modifier = Modifier.fillMaxWidth()) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(tokens.radius.lg))
-            .background(tokens.card)
             .padding(spacing.s4),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -354,26 +354,52 @@ private fun LiveBanner(stats: DashboardStats) {
             modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(spacing.s2),
         ) {
+            // Status row — LIVE pill + uptime, or simple offline indicator.
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(spacing.s2),
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(spacing.s2)
-                        .clip(CircleShape)
-                        .background(if (stats.isLive) tokens.primary else tokens.mutedForeground),
-                )
-                Text(
-                    text = stringResource(if (stats.isLive) Res.string.home_status_live else Res.string.home_status_offline),
-                    style = typography.sm,
-                    color = tokens.mutedForeground,
-                )
+                if (stats.isLive) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(tokens.radius.sm))
+                            .background(tokens.destructive)
+                            .padding(horizontal = spacing.s2, vertical = spacing.s0_5),
+                    ) {
+                        Text(
+                            text = stringResource(Res.string.home_status_live).uppercase(),
+                            style = typography.xs,
+                            fontWeight = FontWeight.Bold,
+                            color = tokens.destructiveForeground,
+                        )
+                    }
+                    stats.uptime?.let { uptime ->
+                        Text(
+                            text = stringResource(Res.string.home_uptime_format, (uptime / 3600).toInt(), ((uptime % 3600) / 60).toInt()),
+                            style = typography.sm,
+                            color = tokens.mutedForeground,
+                        )
+                    }
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .size(spacing.s2)
+                            .clip(CircleShape)
+                            .background(tokens.mutedForeground),
+                    )
+                    Text(
+                        text = stringResource(Res.string.home_status_offline),
+                        style = typography.sm,
+                        color = tokens.mutedForeground,
+                    )
+                }
             }
+
             Text(
                 text = stats.streamTitle?.takeIf { it.isNotBlank() }
                     ?: stringResource(Res.string.home_no_title),
                 style = typography.xl,
+                fontWeight = FontWeight.SemiBold,
                 color = tokens.cardForeground,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
@@ -408,6 +434,7 @@ private fun LiveBanner(stats: DashboardStats) {
                 )
             }
         }
+    }
     }
 }
 
@@ -448,16 +475,14 @@ private fun StatTile(modifier: Modifier, label: String, value: String) {
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
 
-    Column(
-        modifier = modifier
-            .clip(RoundedCornerShape(tokens.radius.lg))
-            .background(tokens.card)
-            .padding(spacing.s4)
-            .clearAndSetSemantics { contentDescription = "$label: $value" },
-        verticalArrangement = Arrangement.spacedBy(spacing.s1),
-    ) {
-        Text(text = value, style = typography.xl2, color = tokens.cardForeground)
-        Text(text = label, style = typography.sm, color = tokens.mutedForeground)
+    Card(modifier = modifier.clearAndSetSemantics { contentDescription = "$label: $value" }) {
+        Column(
+            modifier = Modifier.padding(spacing.s4),
+            verticalArrangement = Arrangement.spacedBy(spacing.s1),
+        ) {
+            Text(text = value, style = typography.xl2, color = tokens.cardForeground)
+            Text(text = label, style = typography.sm, color = tokens.mutedForeground)
+        }
     }
 }
 
@@ -469,11 +494,9 @@ private fun ActivityFeedCard(events: List<ActivityEvent>, modifier: Modifier = M
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
 
+    Card(modifier = modifier) {
     Column(
-        modifier = modifier
-            .clip(RoundedCornerShape(tokens.radius.lg))
-            .background(tokens.card)
-            .padding(spacing.s4),
+        modifier = Modifier.padding(spacing.s4),
         verticalArrangement = Arrangement.spacedBy(spacing.s3),
     ) {
         Text(
@@ -492,6 +515,7 @@ private fun ActivityFeedCard(events: List<ActivityEvent>, modifier: Modifier = M
         } else {
             events.forEach { event -> ActivityRow(event = event) }
         }
+    }
     }
 }
 
@@ -584,12 +608,9 @@ private fun QuickActionsCard(
     val activePoll: LiveOpsPoll? = ready?.activePoll
     val activePrediction: LiveOpsPrediction? = ready?.activePrediction
 
+    Card(modifier = Modifier.fillMaxWidth()) {
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(tokens.radius.lg))
-            .background(tokens.card)
-            .padding(spacing.s4),
+        modifier = Modifier.padding(spacing.s4),
         verticalArrangement = Arrangement.spacedBy(spacing.s3),
     ) {
         Text(
@@ -701,6 +722,7 @@ private fun QuickActionsCard(
             }
         }
     }
+    }
 }
 
 @Composable
@@ -756,12 +778,9 @@ private fun TopCommandsCard(commands: List<CommandSummary>) {
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
 
+    Card(modifier = Modifier.fillMaxWidth()) {
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(tokens.radius.lg))
-            .background(tokens.card)
-            .padding(spacing.s4),
+        modifier = Modifier.padding(spacing.s4),
         verticalArrangement = Arrangement.spacedBy(spacing.s3),
     ) {
         Text(
@@ -812,6 +831,7 @@ private fun TopCommandsCard(commands: List<CommandSummary>) {
                 }
             }
         }
+    }
     }
 }
 

@@ -11,6 +11,7 @@
 package bot.nomnomz.dashboard.feature.shell.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -23,6 +24,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
@@ -53,9 +55,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import coil3.compose.AsyncImage
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.realtime.HubEvent
 import kotlinx.coroutines.flow.drop
@@ -415,55 +420,36 @@ private fun Sidebar(
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
-    val typography = LocalTypography.current
 
     val visible: List<NavPage> = ShellNav.visiblePagesFor(role)
     val groups: Map<NavGroup, List<NavPage>> =
         visible.filter { it.group != NavGroup.Setup }.groupBy { it.group }
     val pinned: List<NavPage> = visible.filter { it.group == NavGroup.Setup }
 
-    // The active group drives the initial expanded state; navigating to a different group collapses
-    // the old one and opens the new one automatically. The user can also tap a group label to
-    // expand/collapse it manually between navigations. Setup pages have no accordion group so all
-    // collapse (accordionGroup = null) when the user is on Integrations / Settings / etc.
-    val activeGroup: NavGroup? = ShellNav.pages.find { it.route == selected }?.group
-    val accordionGroup: NavGroup? = activeGroup?.takeIf { groups.containsKey(it) }
-    var expandedGroup: NavGroup? by remember(accordionGroup) { mutableStateOf(accordionGroup) }
-
     Column(
         modifier = Modifier
             .fillMaxHeight()
             .width(spacing.s24 * 2.5f)
             .background(tokens.sidebar)
-            .padding(spacing.s3),
+            .padding(horizontal = spacing.s3, vertical = spacing.s3),
     ) {
-        Text(
-            text = stringResource(Res.string.app_name),
-            style = typography.lg,
-            color = tokens.sidebarForeground,
-            modifier = Modifier.padding(start = spacing.s2, top = spacing.s2, bottom = spacing.s1),
-        )
+        // Channel avatar header — click to switch channels when multiple are available.
+        SidebarHeader(switcher = channelSwitcher)
 
-        ChannelPickerBlock(switcher = channelSwitcher)
+        Spacer(modifier = Modifier.height(spacing.s2))
 
-        // Accordion — only the active (or user-toggled) group shows its items. All groups visible
-        // with no scrolling: worst case is Chat (7 items) ≈ 564dp, well within the ~746dp available.
+        // Flat nav — all groups and their pages are always visible (no accordion).
+        // The sidebar is ~240dp wide; even the widest group fits without scrolling.
         Column(
             modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(spacing.s1),
+            verticalArrangement = Arrangement.spacedBy(spacing.s0_5),
         ) {
             groups.forEach { (group, pages) ->
-                val isExpanded: Boolean = expandedGroup == group
-                GroupLabel(
-                    label = group.label(),
-                    expanded = isExpanded,
-                    onClick = { expandedGroup = if (isExpanded) null else group },
-                )
-                if (isExpanded) {
-                    pages.forEach { page ->
-                        NavItem(route = page.route, selected = page.route == selected) { onSelect(page.route) }
-                    }
+                SidebarGroupLabel(label = group.label())
+                pages.forEach { page ->
+                    NavItem(route = page.route, selected = page.route == selected) { onSelect(page.route) }
                 }
+                Spacer(modifier = Modifier.height(spacing.s1))
             }
         }
 
@@ -472,9 +458,8 @@ private fun Sidebar(
                 color = tokens.sidebarBorder,
                 modifier = Modifier.padding(vertical = spacing.s2),
             )
-            Column(verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
-                // SETUP is a LABELLED pinned group (frontend-ia.md §3), not a headerless rail.
-                GroupLabel(label = NavGroup.Setup.label(), collapsible = false)
+            SidebarGroupLabel(label = NavGroup.Setup.label())
+            Column(verticalArrangement = Arrangement.spacedBy(spacing.s0_5)) {
                 pinned.forEach { page ->
                     NavItem(route = page.route, selected = page.route == selected) { onSelect(page.route) }
                 }
@@ -502,12 +487,11 @@ private fun Sidebar(
     }
 }
 
-// Channel-picker block for the sidebar. Shows the active channel name; clicking the row opens a
-// DropdownMenu so the user can switch channels. Single-channel operators see just the name (no
-// expand affordance). CMP 1.9.0 ships a fixed Wasm Popup implementation — the previous
-// AnimatedVisibility workaround is no longer needed.
+// Sidebar header — shows the active channel's avatar, display name, and an online dot.
+// Tapping opens a channel-switcher dropdown when the operator has more than one channel.
+// CMP 1.9.0 fixed the Wasm Popup deadlock, so DropdownMenu works correctly in the browser build.
 @Composable
-private fun ChannelPickerBlock(switcher: ChannelSwitcherController) {
+private fun SidebarHeader(switcher: ChannelSwitcherController) {
     val state: SwitcherState by switcher.state.collectAsStateWithLifecycle()
     val activeId: String? by switcher.activeChannelId.collectAsStateWithLifecycle()
     val ready: SwitcherState.Ready? = state as? SwitcherState.Ready
@@ -520,86 +504,95 @@ private fun ChannelPickerBlock(switcher: ChannelSwitcherController) {
 
     val unregisteredModerated: List<ModeratedChannel> =
         ready?.moderatedChannels?.filter { !it.isOnboarded } ?: emptyList()
-
     val active: ChannelSummary? = channels.firstOrNull { it.id == activeId } ?: channels.firstOrNull()
     val otherRegistered: List<ChannelSummary> = channels.filter { it.id != activeId }
     val hasOtherChannels: Boolean = otherRegistered.isNotEmpty() || unregisteredModerated.isNotEmpty()
     var expanded: Boolean by remember { mutableStateOf(false) }
     val label: String = stringResource(Res.string.shell_channel_pick)
+    val name: String = active?.displayName?.takeIf { it.isNotBlank() } ?: active?.login ?: ""
 
-    Column(modifier = Modifier.padding(horizontal = spacing.s1, vertical = spacing.s1)) {
-        Box {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(tokens.radius.md))
-                    .background(tokens.sidebarAccent)
-                    .then(if (hasOtherChannels) Modifier.clickable { expanded = !expanded } else Modifier)
-                    .semantics { contentDescription = label }
-                    .padding(horizontal = spacing.s2, vertical = spacing.s2),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                Text(
-                    text = active?.displayName?.takeIf { it.isNotBlank() } ?: active?.login ?: "",
-                    style = typography.sm,
-                    color = tokens.sidebarAccentForeground,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f),
+    Box {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(tokens.radius.md))
+                .then(if (hasOtherChannels) Modifier.clickable { expanded = !expanded } else Modifier)
+                .semantics { contentDescription = label }
+                .padding(horizontal = spacing.s2, vertical = spacing.s2),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(spacing.s3),
+        ) {
+            // Avatar with green online indicator dot anchored at the bottom-end corner.
+            Box(contentAlignment = Alignment.BottomEnd) {
+                Avatar(name = name, size = spacing.s8, imageUrl = active?.profileImageUrl)
+                Box(
+                    modifier = Modifier
+                        .size(spacing.s1_5)
+                        .clip(CircleShape)
+                        .background(tokens.success)
+                        .border(width = spacing.s0_5, color = tokens.sidebar, shape = CircleShape),
                 )
-                if (hasOtherChannels) {
-                    Icon(
-                        imageVector = if (expanded) ChevronUpGlyph else ChevronDownGlyph,
-                        contentDescription = null,
-                        tint = tokens.mutedForeground,
-                        modifier = Modifier.size(spacing.s4),
+            }
+            Text(
+                text = name,
+                style = typography.sm,
+                fontWeight = FontWeight.SemiBold,
+                color = tokens.sidebarForeground,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            if (hasOtherChannels) {
+                Icon(
+                    imageVector = if (expanded) ChevronUpGlyph else ChevronDownGlyph,
+                    contentDescription = null,
+                    tint = tokens.mutedForeground,
+                    modifier = Modifier.size(spacing.s4),
+                )
+            }
+        }
+        if (hasOtherChannels) {
+            DropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false },
+                modifier = Modifier.background(tokens.popover),
+            ) {
+                otherRegistered.forEach { channel ->
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                text = channel.displayName.takeIf { it.isNotBlank() } ?: channel.login,
+                                style = typography.sm,
+                                color = tokens.popoverForeground,
+                            )
+                        },
+                        onClick = {
+                            expanded = false
+                            switcher.select(channel.id)
+                        },
                     )
                 }
-            }
-            if (hasOtherChannels) {
-                DropdownMenu(
-                    expanded = expanded,
-                    onDismissRequest = { expanded = false },
-                    modifier = Modifier.background(tokens.popover),
-                ) {
-                    otherRegistered.forEach { channel ->
+                if (unregisteredModerated.isNotEmpty()) {
+                    HorizontalDivider(color = tokens.border)
+                    unregisteredModerated.forEach { channel ->
                         DropdownMenuItem(
+                            enabled = false,
                             text = {
-                                Text(
-                                    text = channel.displayName.takeIf { it.isNotBlank() } ?: channel.login,
-                                    style = typography.sm,
-                                    color = tokens.popoverForeground,
-                                )
+                                Column {
+                                    Text(
+                                        text = channel.displayName.takeIf { it.isNotBlank() } ?: channel.login,
+                                        style = typography.sm,
+                                        color = tokens.mutedForeground,
+                                    )
+                                    Text(
+                                        text = stringResource(Res.string.shell_channel_bot_not_installed),
+                                        style = typography.xs,
+                                        color = tokens.mutedForeground,
+                                    )
+                                }
                             },
-                            onClick = {
-                                expanded = false
-                                switcher.select(channel.id)
-                            },
+                            onClick = {},
                         )
-                    }
-                    if (unregisteredModerated.isNotEmpty()) {
-                        HorizontalDivider(color = tokens.border)
-                        unregisteredModerated.forEach { channel ->
-                            DropdownMenuItem(
-                                enabled = false,
-                                text = {
-                                    Column {
-                                        Text(
-                                            text = channel.displayName.takeIf { it.isNotBlank() } ?: channel.login,
-                                            style = typography.sm,
-                                            color = tokens.mutedForeground,
-                                        )
-                                        Text(
-                                            text = stringResource(Res.string.shell_channel_bot_not_installed),
-                                            style = typography.xs,
-                                            color = tokens.mutedForeground,
-                                        )
-                                    }
-                                },
-                                onClick = {},
-                            )
-                        }
                     }
                 }
             }
@@ -607,35 +600,22 @@ private fun ChannelPickerBlock(switcher: ChannelSwitcherController) {
     }
 }
 
+// Non-collapsible group label — all nav groups are always expanded (shadcn sidebar pattern).
+// The label is uppercased at render time to match the design system's category label style.
 @Composable
-private fun GroupLabel(
-    label: String,
-    expanded: Boolean = true,
-    onClick: () -> Unit = {},
-    collapsible: Boolean = true,
-) {
+private fun SidebarGroupLabel(label: String) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
 
-    Row(
+    Text(
+        text = label.uppercase(),
+        style = typography.xs,
+        color = tokens.mutedForeground,
         modifier = Modifier
             .fillMaxWidth()
-            .then(if (collapsible) Modifier.clickable(onClick = onClick) else Modifier)
-            .padding(start = spacing.s2, top = spacing.s3, bottom = spacing.s1, end = spacing.s2),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(text = label, style = typography.xs, color = tokens.mutedForeground)
-        if (collapsible) {
-            Icon(
-                imageVector = if (expanded) ChevronUpGlyph else ChevronDownGlyph,
-                contentDescription = null,
-                tint = tokens.mutedForeground,
-                modifier = Modifier.size(spacing.s4),
-            )
-        }
-    }
+            .padding(start = spacing.s2, top = spacing.s3, bottom = spacing.s1),
+    )
 }
 
 @Composable
@@ -644,8 +624,8 @@ private fun NavItem(route: ShellRoute, selected: Boolean, onClick: () -> Unit) {
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
 
-    val container: Color = if (selected) tokens.sidebarAccent else Color.Transparent
-    val content: Color = if (selected) tokens.sidebarAccentForeground else tokens.sidebarForeground
+    val container: Color = if (selected) tokens.sidebarPrimary else Color.Transparent
+    val content: Color = if (selected) tokens.sidebarPrimaryForeground else tokens.sidebarForeground
 
     Row(
         modifier = Modifier
@@ -704,7 +684,7 @@ private fun ProfileBlock(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(spacing.s2),
         ) {
-            Avatar(name = name)
+            Avatar(name = name, size = spacing.s8, imageUrl = user?.profileImageUrl)
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = name,
@@ -767,19 +747,29 @@ private fun ProfileBlock(
     }
 }
 
+// Shows the channel or user avatar. When imageUrl is provided, renders it with a colored
+// background (acts as both placeholder and error fallback — the image covers it when loaded).
 @Composable
-private fun Avatar(name: String) {
+private fun Avatar(name: String, size: Dp, imageUrl: String? = null) {
     val tokens = LocalTokens.current
-    val spacing = LocalSpacing.current
     val typography = LocalTypography.current
 
     val initial: String = name.trim().firstOrNull()?.uppercase() ?: "?"
 
     Box(
-        modifier = Modifier.size(spacing.s8).clip(CircleShape).background(tokens.sidebarPrimary),
+        modifier = Modifier.size(size).clip(CircleShape).background(tokens.sidebarPrimary),
         contentAlignment = Alignment.Center,
     ) {
-        Text(text = initial, style = typography.sm, color = tokens.sidebarPrimaryForeground)
+        if (imageUrl != null) {
+            AsyncImage(
+                model = imageUrl,
+                contentDescription = name,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop,
+            )
+        } else {
+            Text(text = initial, style = typography.sm, color = tokens.sidebarPrimaryForeground)
+        }
     }
 }
 
