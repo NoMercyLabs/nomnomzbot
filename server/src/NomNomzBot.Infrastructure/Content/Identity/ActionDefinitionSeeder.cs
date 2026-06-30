@@ -162,9 +162,10 @@ public sealed class ActionDefinitionSeeder : ISeeder
         M("moderation:chat:settings:write", Mod);
         M("moderation:shieldmode:read", Mod);
         M("moderation:shieldmode:write", LeadModerator);
-        M("moderation:announce", Mod);
+        M("chat:announce", Mod);
+        M("moderation:shoutout", Mod);
         M("moderation:chatcolor:write", Editor);
-        M("moderation:vip:write", Broadcaster);
+        M("moderation:vip", Broadcaster);
         M("moderation:moderator:write", Broadcaster, DangerTier.Critical, grant: false);
         M("moderation:unbanrequest:read", Mod);
         M("moderation:unbanrequest:resolve", LeadModerator);
@@ -216,17 +217,17 @@ public sealed class ActionDefinitionSeeder : ISeeder
         M("channel:brandedcontent:write", Editor);
         M("channel:extensions:write", Editor);
         M("chat:whisper:send", Editor);
-        M("liveops:poll:read", Mod);
-        M("liveops:poll:manage", Editor);
-        M("liveops:prediction:read", Mod);
-        M("liveops:prediction:manage", Editor);
-        M("liveops:raid:start", Editor);
-        M("liveops:ads:read", Mod);
-        M("liveops:ads:run", Editor);
-        M("liveops:schedule:read", Mod);
-        M("liveops:schedule:write", Editor);
-        M("liveops:marker:create", Mod);
-        M("liveops:clip:create", Mod);
+        M("live-ops:polls:read", Mod);
+        M("live-ops:polls:write", Editor);
+        M("live-ops:predictions:read", Mod);
+        M("live-ops:predictions:write", Editor);
+        M("live-ops:raids:write", Editor);
+        M("live-ops:ads:read", Mod);
+        M("live-ops:ads:write", Editor);
+        M("live-ops:schedule:read", Mod);
+        M("live-ops:schedule:write", Editor);
+        M("live-ops:marker:create", Mod);
+        M("live-ops:clips:write", Mod);
 
         // Webhooks / widgets / integrations / dashboard / community / setup / analytics
         M("webhooks:inbound:read", Mod);
