@@ -13,6 +13,9 @@ package bot.nomnomz.dashboard.feature.connect.ui
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.hoverable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -29,9 +32,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
-import bot.nomnomz.dashboard.core.designsystem.component.Button
-import bot.nomnomz.dashboard.core.designsystem.component.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.runtime.remember
+import androidx.compose.ui.input.pointer.PointerIcon
+import androidx.compose.ui.input.pointer.pointerHoverIcon
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -206,66 +210,78 @@ private fun DualLogoHeader(provider: ConnectProvider) {
 
 // The full-width brand-coloured primary CTA: the provider logo + the CTA label, on the brand background with
 // the brand-correct on-colour (white for Twitch/Discord/YouTube, black for Spotify).
+// Uses a direct Foundation Row — not a catalogue Button — because the background is a per-provider brand
+// colour that is NOT a design token, and the corner radius (xl=14dp) differs from Button's default (md=8dp).
 @Composable
 private fun BrandCta(provider: ConnectProvider, onClick: () -> Unit) {
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
-    val onBrand: Color = provider.brand.onBrand
+    val ctaShape: RoundedCornerShape = RoundedCornerShape(CtaCornerRadius)
+    val interactionSource: MutableInteractionSource = remember { MutableInteractionSource() }
 
-    Button(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(CtaCornerRadius),
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(ctaShape)
+                .background(provider.brand.brand)
+                .hoverable(interactionSource)
+                .clickable(interactionSource = interactionSource, indication = null, onClick = onClick)
+                .pointerHoverIcon(PointerIcon.Hand)
+                .padding(horizontal = spacing.s4, vertical = spacing.s2),
+        horizontalArrangement = Arrangement.spacedBy(spacing.s2, Alignment.CenterHorizontally),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(spacing.s2),
-        ) {
-            Icon(
-                imageVector = provider.providerLogo,
-                contentDescription = null,
-                tint = onBrand,
-                modifier = Modifier.size(CtaIconSize),
-            )
-            Text(
-                text = stringResource(provider.ctaLabel),
-                style = typography.sm.copy(fontWeight = FontWeight.Medium),
-                color = onBrand,
-            )
-        }
+        Icon(
+            imageVector = provider.providerLogo,
+            contentDescription = null,
+            tint = provider.brand.onBrand,
+            modifier = Modifier.size(CtaIconSize),
+        )
+        Text(
+            text = stringResource(provider.ctaLabel),
+            style = typography.sm.copy(fontWeight = FontWeight.Medium),
+            color = provider.brand.onBrand,
+        )
     }
 }
 
 // The optional secondary "Back" button for per-provider connect flows: a dark, on-token outlined button
 // with a back arrow — never the brand colour (the CTA owns the brand emphasis).
+// Uses a direct Foundation Row for the same reason as BrandCta: custom corner radius (xl=14dp) and a
+// specific border thickness that differ from catalogue Button defaults.
 @Composable
 private fun BackButton(onClick: () -> Unit) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
+    val ctaShape: RoundedCornerShape = RoundedCornerShape(CtaCornerRadius)
+    val interactionSource: MutableInteractionSource = remember { MutableInteractionSource() }
 
-    OutlinedButton(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(CtaCornerRadius),
-        border = BorderStroke(spacing.s0_5 / 2, tokens.border),
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .border(BorderStroke(spacing.s0_5 / 2, tokens.border), ctaShape)
+                .clip(ctaShape)
+                .hoverable(interactionSource)
+                .clickable(interactionSource = interactionSource, indication = null, onClick = onClick)
+                .pointerHoverIcon(PointerIcon.Hand)
+                .padding(horizontal = spacing.s4, vertical = spacing.s2),
+        horizontalArrangement = Arrangement.spacedBy(spacing.s2, Alignment.CenterHorizontally),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(spacing.s2),
-        ) {
-            Icon(
-                imageVector = BackArrowGlyph,
-                contentDescription = null,
-                tint = tokens.foreground,
-                modifier = Modifier.size(BackIconSize),
-            )
-            Text(
-                text = stringResource(Res.string.connect_modal_back),
-                style = typography.sm.copy(fontWeight = FontWeight.Medium),
-                color = tokens.foreground,
-            )
-        }
+        Icon(
+            imageVector = BackArrowGlyph,
+            contentDescription = null,
+            tint = tokens.foreground,
+            modifier = Modifier.size(BackIconSize),
+        )
+        Text(
+            text = stringResource(Res.string.connect_modal_back),
+            style = typography.sm.copy(fontWeight = FontWeight.Medium),
+            color = tokens.foreground,
+        )
     }
 }
 
