@@ -72,7 +72,7 @@ public class LiveOpsController : BaseController
             ct
         );
         return result.IsFailure
-            ? ResultResponse(result)
+            ? TwitchResultResponse(result)
             : Ok(new StatusResponseDto<IReadOnlyList<TwitchPoll>> { Data = result.Value.Items });
     }
 
@@ -104,7 +104,7 @@ public class LiveOpsController : BaseController
 
         Result<TwitchPoll> result = await _polls.CreatePollAsync(broadcasterId, request, ct);
         return result.IsFailure
-            ? ResultResponse(result)
+            ? TwitchResultResponse(result)
             : StatusCode(
                 StatusCodes.Status201Created,
                 new StatusResponseDto<TwitchPoll> { Data = result.Value, Message = "Poll created." }
@@ -131,7 +131,7 @@ public class LiveOpsController : BaseController
             ct
         );
         return result.IsFailure
-            ? ResultResponse(result)
+            ? TwitchResultResponse(result)
             : Ok(new StatusResponseDto<TwitchPoll> { Data = result.Value });
     }
 
@@ -160,7 +160,7 @@ public class LiveOpsController : BaseController
             ct
         );
         return result.IsFailure
-            ? ResultResponse(result)
+            ? TwitchResultResponse(result)
             : Ok(
                 new StatusResponseDto<IReadOnlyList<TwitchPrediction>> { Data = result.Value.Items }
             );
@@ -190,7 +190,7 @@ public class LiveOpsController : BaseController
             ct
         );
         return result.IsFailure
-            ? ResultResponse(result)
+            ? TwitchResultResponse(result)
             : StatusCode(
                 StatusCodes.Status201Created,
                 new StatusResponseDto<TwitchPrediction>
@@ -222,7 +222,7 @@ public class LiveOpsController : BaseController
             ct
         );
         return result.IsFailure
-            ? ResultResponse(result)
+            ? TwitchResultResponse(result)
             : Ok(new StatusResponseDto<TwitchPrediction> { Data = result.Value });
     }
 
@@ -248,7 +248,7 @@ public class LiveOpsController : BaseController
             ct
         );
         return result.IsFailure
-            ? ResultResponse(result)
+            ? TwitchResultResponse(result)
             : StatusCode(
                 StatusCodes.Status201Created,
                 new StatusResponseDto<TwitchRaid> { Data = result.Value, Message = "Raid started." }
@@ -264,7 +264,7 @@ public class LiveOpsController : BaseController
             return BadRequestResponse("Invalid channel id.");
 
         Result result = await _raids.CancelRaidAsync(broadcasterId, ct);
-        return result.IsFailure ? ResultResponse(result) : NoContent();
+        return result.IsFailure ? TwitchResultResponse(result) : NoContent();
     }
 
     // ─── Ads ──────────────────────────────────────────────────────────────────
@@ -281,7 +281,7 @@ public class LiveOpsController : BaseController
 
         Result<TwitchAdSchedule> result = await _ads.GetAdScheduleAsync(broadcasterId, ct);
         return result.IsFailure
-            ? ResultResponse(result)
+            ? TwitchResultResponse(result)
             : Ok(new StatusResponseDto<TwitchAdSchedule> { Data = result.Value });
     }
 
@@ -303,7 +303,7 @@ public class LiveOpsController : BaseController
             ct
         );
         return result.IsFailure
-            ? ResultResponse(result)
+            ? TwitchResultResponse(result)
             : Ok(new StatusResponseDto<TwitchCommercial> { Data = result.Value });
     }
 
@@ -317,7 +317,7 @@ public class LiveOpsController : BaseController
 
         Result<TwitchAdSnooze> result = await _ads.SnoozeNextAdAsync(broadcasterId, ct);
         return result.IsFailure
-            ? ResultResponse(result)
+            ? TwitchResultResponse(result)
             : Ok(new StatusResponseDto<TwitchAdSnooze> { Data = result.Value });
     }
 
@@ -333,7 +333,7 @@ public class LiveOpsController : BaseController
 
         Result<TwitchClipStub> result = await _clips.CreateClipAsync(broadcasterId, false, ct);
         return result.IsFailure
-            ? ResultResponse(result)
+            ? TwitchResultResponse(result)
             : StatusCode(
                 StatusCodes.Status201Created,
                 new StatusResponseDto<TwitchClipStub>

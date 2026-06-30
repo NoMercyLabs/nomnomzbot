@@ -510,6 +510,6 @@ public class ModerationController : BaseController
             request.TargetTwitchUserId,
             ct
         );
-        return result.IsFailure ? ResultResponse(result) : NoContent();
+        return result.IsFailure ? TwitchResultResponse(result) : NoContent();
     }
 }

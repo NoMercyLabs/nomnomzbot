@@ -325,6 +325,6 @@ public class ChatController : BaseController
             request.Color,
             ct
         );
-        return result.IsFailure ? ResultResponse(result) : NoContent();
+        return result.IsFailure ? TwitchResultResponse(result) : NoContent();
     }
 }
