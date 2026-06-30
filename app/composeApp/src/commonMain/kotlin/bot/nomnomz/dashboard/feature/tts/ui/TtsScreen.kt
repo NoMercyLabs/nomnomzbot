@@ -30,7 +30,6 @@ import androidx.compose.foundation.verticalScroll
 import bot.nomnomz.dashboard.core.designsystem.component.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 
@@ -509,13 +508,12 @@ private fun VoiceField(
     enabled: Boolean,
 ) {
     ManageGate(decision = manage) { gateEnabled ->
-        OutlinedTextField(
+        AppTextField(
             value = value,
             onValueChange = onValueChange,
             enabled = gateEnabled && enabled,
-            singleLine = true,
             modifier = Modifier.fillMaxWidth(),
-            label = { Text(stringResource(Res.string.tts_label_voice)) },
+            label = stringResource(Res.string.tts_label_voice),
         )
     }
 }
@@ -529,21 +527,15 @@ private fun MaxLengthField(
     enabled: Boolean,
 ) {
     ManageGate(decision = manage) { gateEnabled ->
-        OutlinedTextField(
+        AppTextField(
             value = value,
             onValueChange = onValueChange,
             enabled = gateEnabled && enabled,
-            singleLine = true,
             isError = !valid,
             modifier = Modifier.fillMaxWidth(),
-            label = { Text(stringResource(Res.string.tts_label_max_length)) },
+            label = stringResource(Res.string.tts_label_max_length),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            supportingText =
-                if (!valid) {
-                    { Text(stringResource(Res.string.tts_max_length_invalid)) }
-                } else {
-                    null
-                },
+            errorText = stringResource(Res.string.tts_max_length_invalid),
         )
     }
 }

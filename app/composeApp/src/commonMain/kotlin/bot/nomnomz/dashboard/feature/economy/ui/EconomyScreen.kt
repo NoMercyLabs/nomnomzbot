@@ -30,7 +30,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.Button
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
@@ -714,21 +713,14 @@ private fun TextField(
     isError: Boolean = false,
     errorText: String? = null,
 ) {
-    OutlinedTextField(
+    AppTextField(
         value = value,
         onValueChange = onValueChange,
         enabled = enabled,
-        singleLine = true,
         isError = isError,
         modifier = Modifier.fillMaxWidth(),
-        label = { Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-        colors = fieldColors(),
-        supportingText =
-            if (isError && errorText != null) {
-                { Text(errorText) }
-            } else {
-                null
-            },
+        label = label,
+        errorText = errorText,
     )
 }
 
@@ -740,16 +732,14 @@ private fun NumberField(
     enabled: Boolean,
     valid: Boolean,
 ) {
-    OutlinedTextField(
+    AppTextField(
         value = value,
         onValueChange = onValueChange,
         enabled = enabled,
-        singleLine = true,
         isError = !valid,
         modifier = Modifier.fillMaxWidth(),
-        label = { Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+        label = label,
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-        colors = fieldColors(),
     )
 }
 

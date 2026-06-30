@@ -24,7 +24,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
@@ -51,6 +50,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
+import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
@@ -373,35 +373,29 @@ private fun GameConfigDialog(
         title = { Text(text = stringResource(Res.string.games_dialog_title, game.gameType)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
-                OutlinedTextField(
+                AppTextField(
                     value = minBet,
                     onValueChange = { minBet = it },
                     isError = !minBetValid || !rangeValid,
-                    singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text(stringResource(Res.string.games_dialog_min_bet_label)) },
-                    colors = fieldColors(),
+                    label = stringResource(Res.string.games_dialog_min_bet_label),
                 )
-                OutlinedTextField(
+                AppTextField(
                     value = maxBet,
                     onValueChange = { maxBet = it },
                     isError = !maxBetValid || !rangeValid,
-                    singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text(stringResource(Res.string.games_dialog_max_bet_label)) },
-                    colors = fieldColors(),
+                    label = stringResource(Res.string.games_dialog_max_bet_label),
                 )
-                OutlinedTextField(
+                AppTextField(
                     value = cooldown,
                     onValueChange = { cooldown = it },
                     isError = !cooldownValid,
-                    singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text(stringResource(Res.string.games_dialog_cooldown_label)) },
-                    colors = fieldColors(),
+                    label = stringResource(Res.string.games_dialog_cooldown_label),
                 )
                 Row(
                     modifier = Modifier.fillMaxWidth(),

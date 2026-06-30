@@ -26,14 +26,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
-import androidx.compose.material3.TextFieldColors
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -61,7 +59,6 @@ import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
-import bot.nomnomz.dashboard.core.designsystem.theme.Tokens
 import bot.nomnomz.dashboard.core.network.BuiltinCommand
 import bot.nomnomz.dashboard.core.network.CommandSummary
 import bot.nomnomz.dashboard.core.network.PipelineSummary
@@ -510,35 +507,29 @@ private fun CommandFormDialog(
         title = { Text(text = title) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
-                OutlinedTextField(
+                AppTextField(
                     value = name,
                     onValueChange = { name = it },
                     enabled = !editor.isEdit,
-                    singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text(stringResource(Res.string.commands_dialog_name_label)) },
-                    colors = fieldColors(),
+                    label = stringResource(Res.string.commands_dialog_name_label),
                 )
-                OutlinedTextField(
+                AppTextField(
                     value = response,
                     onValueChange = { response = it },
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text(responseLabel) },
-                    colors = fieldColors(),
+                    label = responseLabel,
                 )
                 // Pipeline selector — only shown when there are pipelines to attach.
                 if (pipelines.isNotEmpty()) {
                     Box {
-                        OutlinedTextField(
+                        AppTextField(
                             value = selectedPipelineName,
                             onValueChange = {},
-                            readOnly = true,
-                            singleLine = true,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable { pipelineMenuOpen = true },
-                            label = { Text(pipelineLabel) },
-                            colors = fieldColors(),
+                            label = pipelineLabel,
                         )
                         DropdownMenu(
                             expanded = pipelineMenuOpen,
@@ -606,24 +597,6 @@ private fun CommandFormDialog(
                 )
             }
         },
-    )
-}
-
-// The shared text-field color set: every slot driven by a token so the field reads on-theme in light + dark.
-@Composable
-private fun fieldColors(): TextFieldColors {
-    val tokens: Tokens = LocalTokens.current
-    return OutlinedTextFieldDefaults.colors(
-        focusedTextColor = tokens.cardForeground,
-        unfocusedTextColor = tokens.cardForeground,
-        disabledTextColor = tokens.mutedForeground,
-        focusedBorderColor = tokens.ring,
-        unfocusedBorderColor = tokens.border,
-        disabledBorderColor = tokens.border,
-        focusedLabelColor = tokens.mutedForeground,
-        unfocusedLabelColor = tokens.mutedForeground,
-        disabledLabelColor = tokens.mutedForeground,
-        cursorColor = tokens.primary,
     )
 }
 

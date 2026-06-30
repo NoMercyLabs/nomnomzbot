@@ -24,7 +24,8 @@ import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.OutlinedTextField
+import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
+import bot.nomnomz.dashboard.core.designsystem.component.Card
 import androidx.compose.material3.Text
 import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
@@ -420,61 +421,51 @@ private fun EditCard(
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
 
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(tokens.radius.lg))
-            .background(tokens.card)
-            .padding(spacing.s4),
-        verticalArrangement = Arrangement.spacedBy(spacing.s4),
-    ) {
-        TitleField(value = title, onValueChange = onTitleChange, valid = titleValid, enabled = enabled)
-        CategoryField(value = gameName, onValueChange = onGameNameChange, enabled = enabled)
-        TagsField(value = tagsText, onValueChange = onTagsChange, enabled = enabled)
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(spacing.s4),
+            verticalArrangement = Arrangement.spacedBy(spacing.s4),
+        ) {
+            TitleField(value = title, onValueChange = onTitleChange, valid = titleValid, enabled = enabled)
+            CategoryField(value = gameName, onValueChange = onGameNameChange, enabled = enabled)
+            TagsField(value = tagsText, onValueChange = onTagsChange, enabled = enabled)
+        }
     }
 }
 
 @Composable
 private fun TitleField(value: String, onValueChange: (String) -> Unit, valid: Boolean, enabled: Boolean) {
-    OutlinedTextField(
+    AppTextField(
         value = value,
         onValueChange = onValueChange,
         enabled = enabled,
-        singleLine = true,
         isError = !valid,
         modifier = Modifier.fillMaxWidth(),
-        label = { Text(stringResource(Res.string.settings_label_title)) },
-        supportingText =
-            if (!valid) {
-                { Text(stringResource(Res.string.settings_title_invalid)) }
-            } else {
-                null
-            },
+        label = stringResource(Res.string.settings_label_title),
+        errorText = stringResource(Res.string.settings_title_invalid),
     )
 }
 
 @Composable
 private fun CategoryField(value: String, onValueChange: (String) -> Unit, enabled: Boolean) {
-    OutlinedTextField(
+    AppTextField(
         value = value,
         onValueChange = onValueChange,
         enabled = enabled,
-        singleLine = true,
         modifier = Modifier.fillMaxWidth(),
-        label = { Text(stringResource(Res.string.settings_label_category)) },
+        label = stringResource(Res.string.settings_label_category),
     )
 }
 
 @Composable
 private fun TagsField(value: String, onValueChange: (String) -> Unit, enabled: Boolean) {
-    OutlinedTextField(
+    AppTextField(
         value = value,
         onValueChange = onValueChange,
         enabled = enabled,
-        singleLine = true,
         modifier = Modifier.fillMaxWidth(),
-        label = { Text(stringResource(Res.string.settings_label_tags)) },
-        supportingText = { Text(stringResource(Res.string.settings_tags_hint)) },
+        label = stringResource(Res.string.settings_label_tags),
+        supportingText = stringResource(Res.string.settings_tags_hint),
     )
 }
 
@@ -587,63 +578,61 @@ private fun ChannelManagementSection(
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
 
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(tokens.radius.lg))
-            .background(tokens.card)
-            .padding(spacing.s4),
-        verticalArrangement = Arrangement.spacedBy(spacing.s3),
-    ) {
-        Text(
-            text = stringResource(Res.string.settings_channel_section),
-            style = typography.lg,
-            color = tokens.cardForeground,
-        )
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(spacing.s4),
+            verticalArrangement = Arrangement.spacedBy(spacing.s3),
+        ) {
+            Text(
+                text = stringResource(Res.string.settings_channel_section),
+                style = typography.lg,
+                color = tokens.cardForeground,
+            )
 
-        actionError?.let { err ->
-            ActionErrorBanner(message = stringResource(Res.string.settings_channel_action_error, err))
+            actionError?.let { err ->
+                ActionErrorBanner(message = stringResource(Res.string.settings_channel_action_error, err))
+            }
+
+            // Join
+            ChannelActionRow(
+                label = stringResource(Res.string.settings_bot_join),
+                description = stringResource(Res.string.settings_bot_join_desc),
+                buttonLabel = stringResource(Res.string.settings_bot_join),
+                destructive = false,
+                manage = manage,
+                onClick = onJoin,
+            )
+
+            // Leave
+            ChannelActionRow(
+                label = stringResource(Res.string.settings_bot_leave),
+                description = stringResource(Res.string.settings_bot_leave_desc),
+                buttonLabel = stringResource(Res.string.settings_bot_leave),
+                destructive = false,
+                manage = manage,
+                onClick = onLeave,
+            )
+
+            // Reset config
+            ChannelActionRow(
+                label = stringResource(Res.string.settings_reset_config),
+                description = stringResource(Res.string.settings_reset_config_desc),
+                buttonLabel = stringResource(Res.string.settings_reset_config),
+                destructive = true,
+                manage = manage,
+                onClick = onReset,
+            )
+
+            // Delete channel
+            ChannelActionRow(
+                label = stringResource(Res.string.settings_delete_channel),
+                description = stringResource(Res.string.settings_delete_channel_desc),
+                buttonLabel = stringResource(Res.string.settings_delete_channel),
+                destructive = true,
+                manage = manage,
+                onClick = onDelete,
+            )
         }
-
-        // Join
-        ChannelActionRow(
-            label = stringResource(Res.string.settings_bot_join),
-            description = stringResource(Res.string.settings_bot_join_desc),
-            buttonLabel = stringResource(Res.string.settings_bot_join),
-            destructive = false,
-            manage = manage,
-            onClick = onJoin,
-        )
-
-        // Leave
-        ChannelActionRow(
-            label = stringResource(Res.string.settings_bot_leave),
-            description = stringResource(Res.string.settings_bot_leave_desc),
-            buttonLabel = stringResource(Res.string.settings_bot_leave),
-            destructive = false,
-            manage = manage,
-            onClick = onLeave,
-        )
-
-        // Reset config
-        ChannelActionRow(
-            label = stringResource(Res.string.settings_reset_config),
-            description = stringResource(Res.string.settings_reset_config_desc),
-            buttonLabel = stringResource(Res.string.settings_reset_config),
-            destructive = true,
-            manage = manage,
-            onClick = onReset,
-        )
-
-        // Delete channel
-        ChannelActionRow(
-            label = stringResource(Res.string.settings_delete_channel),
-            description = stringResource(Res.string.settings_delete_channel_desc),
-            buttonLabel = stringResource(Res.string.settings_delete_channel),
-            destructive = true,
-            manage = manage,
-            onClick = onDelete,
-        )
     }
 }
 
@@ -1360,16 +1349,11 @@ private fun BillingInviteSection(onRedeem: (String) -> Unit) {
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth(),
         ) {
-            OutlinedTextField(
+            AppTextField(
                 value = code,
                 onValueChange = { code = it; validationLabel = null },
-                placeholder = {
-                    Text(
-                        text = stringResource(Res.string.settings_billing_invite_placeholder),
-                        style = typography.sm,
-                    )
-                },
-                singleLine = true,
+                label = "",
+                placeholder = stringResource(Res.string.settings_billing_invite_placeholder),
                 modifier = Modifier.weight(1f),
             )
             OutlinedButton(

@@ -23,7 +23,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.OutlinedTextField
+import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
@@ -356,28 +356,23 @@ private fun QuoteFormDialog(
         title = { Text(text = title) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
-                OutlinedTextField(
+                AppTextField(
                     value = text,
                     onValueChange = { text = it },
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text(stringResource(Res.string.quotes_dialog_text_label)) },
-                    colors = fieldColors(),
+                    label = stringResource(Res.string.quotes_dialog_text_label),
                 )
-                OutlinedTextField(
+                AppTextField(
                     value = name,
                     onValueChange = { name = it },
-                    singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text(stringResource(Res.string.quotes_dialog_name_label)) },
-                    colors = fieldColors(),
+                    label = stringResource(Res.string.quotes_dialog_name_label),
                 )
-                OutlinedTextField(
+                AppTextField(
                     value = game,
                     onValueChange = { game = it },
-                    singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text(stringResource(Res.string.quotes_dialog_game_label)) },
-                    colors = fieldColors(),
+                    label = stringResource(Res.string.quotes_dialog_game_label),
                 )
             }
         },

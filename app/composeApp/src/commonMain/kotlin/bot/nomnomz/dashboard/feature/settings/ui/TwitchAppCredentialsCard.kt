@@ -23,7 +23,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import bot.nomnomz.dashboard.core.designsystem.component.Button
-import androidx.compose.material3.OutlinedTextField
+import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import androidx.compose.material3.Text
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import androidx.compose.animation.AnimatedVisibility
@@ -316,20 +316,14 @@ private fun ClientIdField(
     invalid: Boolean,
     enabled: Boolean,
 ) {
-    OutlinedTextField(
+    AppTextField(
         value = value,
         onValueChange = onValueChange,
         enabled = enabled,
-        singleLine = true,
         isError = invalid,
         modifier = Modifier.fillMaxWidth(),
-        label = { Text(stringResource(Res.string.twitch_app_clientId_label)) },
-        supportingText =
-            if (invalid) {
-                { Text(stringResource(Res.string.twitch_app_missing_client_id)) }
-            } else {
-                null
-            },
+        label = stringResource(Res.string.twitch_app_clientId_label),
+        errorText = stringResource(Res.string.twitch_app_missing_client_id),
     )
 }
 
@@ -343,21 +337,16 @@ private fun ClientSecretField(
 ) {
     var revealed: Boolean by remember { mutableStateOf(false) }
 
-    OutlinedTextField(
+    AppTextField(
         value = value,
         onValueChange = onValueChange,
         enabled = enabled,
-        singleLine = true,
         modifier = Modifier.fillMaxWidth(),
-        label = {
-            Text(
-                stringResource(
-                    Res.string.twitch_app_clientSecret_optional,
-                    stringResource(Res.string.twitch_app_clientSecret_label),
-                )
-            )
-        },
-        supportingText = { Text(stringResource(Res.string.twitch_app_clientSecret_help)) },
+        label = stringResource(
+            Res.string.twitch_app_clientSecret_optional,
+            stringResource(Res.string.twitch_app_clientSecret_label),
+        ),
+        supportingText = stringResource(Res.string.twitch_app_clientSecret_help),
         // A secret is masked by default so it can't leak on camera, with a Show/Hide reveal toggle.
         visualTransformation =
             if (revealed) VisualTransformation.None else PasswordVisualTransformation(),

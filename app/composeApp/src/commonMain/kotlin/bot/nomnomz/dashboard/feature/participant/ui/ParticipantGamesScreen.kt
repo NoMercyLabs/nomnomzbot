@@ -20,7 +20,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.OutlinedTextField
+import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import androidx.compose.material3.Text
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import androidx.compose.runtime.Composable
@@ -164,11 +164,10 @@ private fun GameRow(game: GameSummary, onPlay: (String, Long) -> Unit) {
             if (game.requires18Plus) ParticipantBadge(label = stringResource(Res.string.participant_games_18plus))
         }
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
-            OutlinedTextField(
+            AppTextField(
                 value = bet,
                 onValueChange = { bet = it.filter { ch -> ch.isDigit() } },
-                label = { Text(text = stringResource(Res.string.participant_games_bet)) },
-                singleLine = true,
+                label = stringResource(Res.string.participant_games_bet),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 modifier = Modifier.weight(1f),
             )

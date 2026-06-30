@@ -20,7 +20,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.OutlinedTextField
+import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import androidx.compose.material3.Text
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import androidx.compose.runtime.Composable
@@ -149,19 +149,17 @@ private fun TransferCard(frozen: Boolean, onTransfer: (String, Long) -> Unit) {
     val enabled: Boolean = !frozen && recipient.isNotBlank() && parsedAmount != null && parsedAmount > 0
 
     SectionCard(title = stringResource(Res.string.participant_store_transfer_title)) {
-        OutlinedTextField(
+        AppTextField(
             value = recipient,
             onValueChange = { recipient = it },
-            label = { Text(text = stringResource(Res.string.participant_store_transfer_recipient)) },
-            singleLine = true,
+            label = stringResource(Res.string.participant_store_transfer_recipient),
             modifier = Modifier.fillMaxWidth(),
         )
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
-            OutlinedTextField(
+            AppTextField(
                 value = amount,
                 onValueChange = { amount = it.filter { ch -> ch.isDigit() } },
-                label = { Text(text = stringResource(Res.string.participant_store_transfer_amount)) },
-                singleLine = true,
+                label = stringResource(Res.string.participant_store_transfer_amount),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 modifier = Modifier.weight(1f),
             )
@@ -293,11 +291,10 @@ private fun JarRow(jar: SavingsJar, frozen: Boolean, onContribute: (String, Long
             color = tokens.mutedForeground,
         )
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
-            OutlinedTextField(
+            AppTextField(
                 value = amount,
                 onValueChange = { amount = it.filter { ch -> ch.isDigit() } },
-                label = { Text(text = stringResource(Res.string.participant_store_contribute)) },
-                singleLine = true,
+                label = stringResource(Res.string.participant_store_contribute),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 modifier = Modifier.weight(1f),
             )

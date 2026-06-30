@@ -490,12 +490,11 @@ private fun SourceFormDialog(
                 }
                 if (sourceKind == "poll") {
                     item {
-                        OutlinedTextField(
+                        AppTextField(
                             value = pollInterval,
                             onValueChange = { pollInterval = it.filter { c -> c.isDigit() } },
-                            label = { Text(stringResource(Res.string.custom_events_field_poll_interval)) },
+                            label = stringResource(Res.string.custom_events_field_poll_interval),
                             modifier = Modifier.fillMaxWidth(),
-                            colors = appFieldColors(),
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         )
                     }

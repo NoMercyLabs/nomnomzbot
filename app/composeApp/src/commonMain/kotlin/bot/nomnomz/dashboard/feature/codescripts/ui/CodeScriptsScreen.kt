@@ -34,7 +34,6 @@ import bot.nomnomz.dashboard.core.designsystem.icon.CloseGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.EditLineGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.PowerGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -50,6 +49,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
+import bot.nomnomz.dashboard.core.designsystem.component.appFieldColors
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
@@ -324,17 +324,7 @@ private fun EditorContent(
             modifier = Modifier.fillMaxWidth().weight(1f),
             label = { Text(stringResource(Res.string.scripts_editor_source_label)) },
             textStyle = typography.base.copy(fontFamily = FontFamily.Monospace),
-            colors = TextFieldDefaults.colors(
-                focusedContainerColor = tokens.card,
-                unfocusedContainerColor = tokens.card,
-                focusedTextColor = tokens.cardForeground,
-                unfocusedTextColor = tokens.cardForeground,
-                focusedLabelColor = tokens.primary,
-                unfocusedLabelColor = tokens.mutedForeground,
-                focusedIndicatorColor = tokens.primary,
-                unfocusedIndicatorColor = tokens.border,
-                cursorColor = tokens.primary,
-            ),
+            colors = appFieldColors(),
         )
 
         // Validation errors from the current version, if any.
@@ -410,16 +400,7 @@ private fun CreateScriptDialog(
                     label = { Text(stringResource(Res.string.scripts_create_source)) },
                     textStyle = typography.sm.copy(fontFamily = FontFamily.Monospace),
                     minLines = 5,
-                    colors = TextFieldDefaults.colors(
-                        focusedContainerColor = tokens.card,
-                        unfocusedContainerColor = tokens.card,
-                        focusedTextColor = tokens.cardForeground,
-                        unfocusedTextColor = tokens.cardForeground,
-                        focusedLabelColor = tokens.primary,
-                        unfocusedLabelColor = tokens.mutedForeground,
-                        focusedIndicatorColor = tokens.primary,
-                        unfocusedIndicatorColor = tokens.border,
-                    ),
+                    colors = appFieldColors(),
                 )
             }
         },

@@ -24,14 +24,12 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
+import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Button
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
-import androidx.compose.material3.TextFieldColors
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -410,21 +408,18 @@ private fun AlertFormDialog(
         title = { Text(text = title) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
-                OutlinedTextField(
+                AppTextField(
                     value = eventType,
                     onValueChange = { eventType = it },
+                    label = stringResource(Res.string.alerts_dialog_event_label),
                     enabled = !editor.isEdit,
-                    singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text(stringResource(Res.string.alerts_dialog_event_label)) },
-                    colors = fieldColors(),
                 )
-                OutlinedTextField(
+                AppTextField(
                     value = message,
                     onValueChange = { message = it },
+                    label = stringResource(Res.string.alerts_dialog_message_label),
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text(stringResource(Res.string.alerts_dialog_message_label)) },
-                    colors = fieldColors(),
                 )
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -463,24 +458,6 @@ private fun AlertFormDialog(
                 )
             }
         },
-    )
-}
-
-// The shared text-field color set: every slot driven by a token so the field reads on-theme in light + dark.
-@Composable
-private fun fieldColors(): TextFieldColors {
-    val tokens: Tokens = LocalTokens.current
-    return OutlinedTextFieldDefaults.colors(
-        focusedTextColor = tokens.cardForeground,
-        unfocusedTextColor = tokens.cardForeground,
-        disabledTextColor = tokens.mutedForeground,
-        focusedBorderColor = tokens.ring,
-        unfocusedBorderColor = tokens.border,
-        disabledBorderColor = tokens.border,
-        focusedLabelColor = tokens.mutedForeground,
-        unfocusedLabelColor = tokens.mutedForeground,
-        disabledLabelColor = tokens.mutedForeground,
-        cursorColor = tokens.primary,
     )
 }
 

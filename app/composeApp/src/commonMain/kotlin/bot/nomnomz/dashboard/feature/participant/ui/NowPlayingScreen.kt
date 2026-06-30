@@ -22,7 +22,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.OutlinedTextField
+import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import androidx.compose.material3.Text
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import androidx.compose.runtime.Composable
@@ -147,11 +147,11 @@ private fun SubmitCard(pendingLimit: Int, subLaneUnlocked: Boolean, onSubmit: (S
             if (subLaneUnlocked) ParticipantBadge(label = stringResource(Res.string.participant_sr_sub_lane))
         }
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
-            OutlinedTextField(
+            AppTextField(
                 value = query,
                 onValueChange = { query = it },
-                placeholder = { Text(text = stringResource(Res.string.participant_sr_submit_placeholder)) },
-                singleLine = true,
+                label = "",
+                placeholder = stringResource(Res.string.participant_sr_submit_placeholder),
                 modifier = Modifier.weight(1f),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
                 keyboardActions = KeyboardActions(onSend = { submit() }),

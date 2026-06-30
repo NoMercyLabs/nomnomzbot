@@ -25,7 +25,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.Button
-import androidx.compose.material3.OutlinedTextField
+import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
@@ -577,30 +577,25 @@ private fun RewardFormDialog(
         title = { Text(text = dialogTitle) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
-                OutlinedTextField(
+                AppTextField(
                     value = title,
                     onValueChange = { title = it },
-                    singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text(stringResource(Res.string.rewards_dialog_title_label)) },
-                    colors = fieldColors(),
+                    label = stringResource(Res.string.rewards_dialog_title_label),
                 )
-                OutlinedTextField(
+                AppTextField(
                     value = cost,
                     // Digits only — drop anything else so the cost field can never hold a non-number.
                     onValueChange = { input -> cost = input.filter { it.isDigit() } },
-                    singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text(stringResource(Res.string.rewards_dialog_cost_label)) },
-                    colors = fieldColors(),
+                    label = stringResource(Res.string.rewards_dialog_cost_label),
                 )
-                OutlinedTextField(
+                AppTextField(
                     value = prompt,
                     onValueChange = { prompt = it },
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text(stringResource(Res.string.rewards_dialog_prompt_label)) },
-                    colors = fieldColors(),
+                    label = stringResource(Res.string.rewards_dialog_prompt_label),
                 )
                 Row(
                     modifier = Modifier.fillMaxWidth(),

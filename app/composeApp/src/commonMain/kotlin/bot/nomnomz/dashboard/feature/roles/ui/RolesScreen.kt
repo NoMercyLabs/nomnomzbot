@@ -96,7 +96,7 @@ import nomnomzbot.composeapp.generated.resources.roles_revoke_dismiss
 import nomnomzbot.composeapp.generated.resources.roles_revoke_message
 import nomnomzbot.composeapp.generated.resources.roles_revoke_title
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.OutlinedTextField
+import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import androidx.compose.ui.text.input.KeyboardType
 import nomnomzbot.composeapp.generated.resources.roles_action_overrides_section
 import nomnomzbot.composeapp.generated.resources.roles_members_section
@@ -752,18 +752,13 @@ private fun SetOverrideDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
                 Text(text = desc, style = typography.sm, color = tokens.mutedForeground)
-                OutlinedTextField(
+                AppTextField(
                     value = raw,
                     onValueChange = { raw = it },
-                    label = { Text(stringResource(Res.string.roles_override_level_label)) },
+                    label = stringResource(Res.string.roles_override_level_label),
                     isError = !isValid && raw.isNotEmpty(),
-                    supportingText = {
-                        if (!isValid && raw.isNotEmpty()) {
-                            Text(stringResource(Res.string.roles_override_level_invalid), color = tokens.destructive)
-                        }
-                    },
+                    errorText = stringResource(Res.string.roles_override_level_invalid),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    singleLine = true,
                 )
             }
         },

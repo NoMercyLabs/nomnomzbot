@@ -51,6 +51,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
@@ -332,18 +333,11 @@ private fun EditDialog(
             Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
                 // Response type picker
                 Box {
-                    OutlinedTextField(
+                    AppTextField(
                         value = selectedType.toResponseTypeLabel(),
                         onValueChange = {},
-                        readOnly = true,
-                        label = {
-                            Text(
-                                text = stringResource(Res.string.event_responses_dialog_response_type_label),
-                                style = typography.sm,
-                            )
-                        },
+                        label = stringResource(Res.string.event_responses_dialog_response_type_label),
                         modifier = Modifier.fillMaxWidth(),
-                        colors = fieldColors,
                         trailingIcon = {
                             IconButton(onClick = { typeMenuOpen = true }) {
                                 Icon(
@@ -390,25 +384,16 @@ private fun EditDialog(
                         },
                         modifier = Modifier.fillMaxWidth(),
                         colors = fieldColors,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
                         maxLines = 3,
                     )
                 }
                 // Pipeline ID — only when pipeline
                 if (selectedType == "pipeline") {
-                    OutlinedTextField(
+                    AppTextField(
                         value = pipelineId,
                         onValueChange = { pipelineId = it },
-                        label = {
-                            Text(
-                                text = stringResource(Res.string.event_responses_dialog_pipeline_label),
-                                style = typography.sm,
-                            )
-                        },
+                        label = stringResource(Res.string.event_responses_dialog_pipeline_label),
                         modifier = Modifier.fillMaxWidth(),
-                        colors = fieldColors,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
-                        singleLine = true,
                     )
                 }
             }

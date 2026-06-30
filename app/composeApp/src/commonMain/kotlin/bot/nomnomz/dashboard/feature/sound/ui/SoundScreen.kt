@@ -26,7 +26,7 @@ import androidx.compose.material3.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
-import androidx.compose.material3.OutlinedTextField
+import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
@@ -361,12 +361,10 @@ private fun EditClipDialog(
         },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(spacing.s4)) {
-                OutlinedTextField(
+                AppTextField(
                     value = displayName,
                     onValueChange = { displayName = it },
-                    label = { Text(stringResource(Res.string.sound_clips_dialog_display_name_label)) },
-                    colors = fieldColors,
-                    singleLine = true,
+                    label = stringResource(Res.string.sound_clips_dialog_display_name_label),
                     modifier = Modifier.fillMaxWidth(),
                 )
                 Column {

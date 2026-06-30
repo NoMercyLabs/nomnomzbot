@@ -14,6 +14,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -26,6 +27,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.verticalScroll
 import bot.nomnomz.dashboard.core.designsystem.component.Button
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
@@ -754,18 +756,18 @@ private fun MusicConfigSection(config: MusicConfig, manage: ManageDecision, onSa
         // Provider selector (text buttons)
         Column(verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
             Text(text = stringResource(Res.string.music_config_provider), style = typography.sm, color = tokens.mutedForeground)
-            Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+                verticalArrangement = Arrangement.spacedBy(spacing.s2),
+            ) {
                 providerOptions.forEach { (key, label) ->
-                    ManageGate(decision = manage) { enabled ->
-                        TextButton(
+                    ManageGate(decision = manage) { gateEnabled ->
+                        FilterChip(
+                            selected = preferredProvider == key,
                             onClick = { preferredProvider = key },
-                            enabled = enabled,
-                        ) {
-                            Text(
-                                text = label,
-                                color = if (preferredProvider == key) tokens.primary else tokens.mutedForeground,
-                            )
-                        }
+                            enabled = gateEnabled,
+                            label = { Text(label, maxLines = 1) },
+                        )
                     }
                 }
             }
@@ -823,16 +825,18 @@ private fun MusicConfigSection(config: MusicConfig, manage: ManageDecision, onSa
         // Trust level
         Column(verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
             Text(text = stringResource(Res.string.music_config_trust), style = typography.sm, color = tokens.mutedForeground)
-            Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+                verticalArrangement = Arrangement.spacedBy(spacing.s2),
+            ) {
                 trustLevels.forEach { level ->
-                    ManageGate(decision = manage) { enabled ->
-                        TextButton(onClick = { minTrustLevel = level }, enabled = enabled) {
-                            Text(
-                                text = level,
-                                style = typography.xs,
-                                color = if (minTrustLevel == level) tokens.primary else tokens.mutedForeground,
-                            )
-                        }
+                    ManageGate(decision = manage) { gateEnabled ->
+                        FilterChip(
+                            selected = minTrustLevel == level,
+                            onClick = { minTrustLevel = level },
+                            enabled = gateEnabled,
+                            label = { Text(level, maxLines = 1) },
+                        )
                     }
                 }
             }

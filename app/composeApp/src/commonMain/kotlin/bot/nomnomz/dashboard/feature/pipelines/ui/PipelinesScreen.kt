@@ -27,13 +27,11 @@ import androidx.compose.material3.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
+import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
-import androidx.compose.material3.TextFieldColors
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -65,7 +63,6 @@ import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
-import bot.nomnomz.dashboard.core.designsystem.theme.Tokens
 import bot.nomnomz.dashboard.core.network.BlockField
 import bot.nomnomz.dashboard.core.network.BlockType
 import bot.nomnomz.dashboard.core.network.FieldKind
@@ -742,13 +739,11 @@ private fun ParamFields(block: BlockType, params: MutableMap<String, String>) {
                     onSelect = { params[field.key] = it },
                 )
             } else {
-                OutlinedTextField(
+                AppTextField(
                     value = params[field.key].orEmpty(),
                     onValueChange = { params[field.key] = it },
-                    singleLine = field.kind == FieldKind.Number,
+                    label = fieldLabelWithRequired(field),
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text(fieldLabelWithRequired(field)) },
-                    colors = fieldColors(),
                 )
             }
         }
@@ -889,20 +884,17 @@ private fun PipelineFormDialog(
         title = { Text(text = title) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
-                OutlinedTextField(
+                AppTextField(
                     value = name,
                     onValueChange = { name = it },
-                    singleLine = true,
+                    label = stringResource(Res.string.pipelines_dialog_name_label),
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text(stringResource(Res.string.pipelines_dialog_name_label)) },
-                    colors = fieldColors(),
                 )
-                OutlinedTextField(
+                AppTextField(
                     value = description,
                     onValueChange = { description = it },
+                    label = stringResource(Res.string.pipelines_dialog_description_label),
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text(stringResource(Res.string.pipelines_dialog_description_label)) },
-                    colors = fieldColors(),
                 )
             }
         },
@@ -969,23 +961,6 @@ private fun switchColors() =
         uncheckedTrackColor = LocalTokens.current.muted,
         uncheckedBorderColor = LocalTokens.current.border,
     )
-
-@Composable
-private fun fieldColors(): TextFieldColors {
-    val tokens: Tokens = LocalTokens.current
-    return OutlinedTextFieldDefaults.colors(
-        focusedTextColor = tokens.cardForeground,
-        unfocusedTextColor = tokens.cardForeground,
-        disabledTextColor = tokens.mutedForeground,
-        focusedBorderColor = tokens.ring,
-        unfocusedBorderColor = tokens.border,
-        disabledBorderColor = tokens.border,
-        focusedLabelColor = tokens.mutedForeground,
-        unfocusedLabelColor = tokens.mutedForeground,
-        disabledLabelColor = tokens.mutedForeground,
-        cursorColor = tokens.primary,
-    )
-}
 
 // Resolve a block type's display name from its i18n key, falling back to the raw backend type when uncatalogued.
 @Composable

@@ -23,8 +23,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -131,14 +131,13 @@ fun ConnectScreen(controller: ConnectController) {
                     )
                 }
 
-                OutlinedTextField(
+                AppTextField(
                     value = baseUrl,
                     onValueChange = controller::onBaseUrlChange,
                     enabled = !busy,
-                    singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text(stringResource(Res.string.connect_url_label)) },
-                    placeholder = { Text(stringResource(Res.string.connect_url_placeholder)) },
+                    label = stringResource(Res.string.connect_url_label),
+                    placeholder = stringResource(Res.string.connect_url_placeholder),
                 )
 
                 // Make the account unambiguous: this is the streamer's OWN account, and the bot is a

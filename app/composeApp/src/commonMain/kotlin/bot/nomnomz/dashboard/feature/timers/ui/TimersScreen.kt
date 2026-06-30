@@ -23,7 +23,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.OutlinedTextField
+import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Button
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -353,26 +353,24 @@ private fun TimerEditDialog(
         title = { Text(text = stringResource(titleRes)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
-                OutlinedTextField(
+                AppTextField(
                     value = name,
                     onValueChange = { name = it },
-                    singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text(stringResource(Res.string.timers_dialog_name)) },
+                    label = stringResource(Res.string.timers_dialog_name),
                 )
-                OutlinedTextField(
+                AppTextField(
                     value = message,
                     onValueChange = { message = it },
+                    label = stringResource(Res.string.timers_dialog_message),
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text(stringResource(Res.string.timers_dialog_message)) },
                 )
-                OutlinedTextField(
+                AppTextField(
                     value = interval,
                     onValueChange = { interval = it.filter { ch -> ch.isDigit() } },
-                    singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text(stringResource(Res.string.timers_dialog_interval)) },
+                    label = stringResource(Res.string.timers_dialog_interval),
                 )
                 Row(
                     modifier = Modifier.fillMaxWidth(),

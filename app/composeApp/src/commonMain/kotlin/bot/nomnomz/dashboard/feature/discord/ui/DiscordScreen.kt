@@ -28,7 +28,6 @@ import androidx.compose.material3.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
@@ -713,29 +712,24 @@ private fun RuleFormDialog(
         title = { Text(text = title) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
-                OutlinedTextField(
+                AppTextField(
                     value = triggerType,
                     onValueChange = { triggerType = it },
                     enabled = !editor.isEdit,
-                    singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text(stringResource(Res.string.discord_dialog_trigger_label)) },
-                    colors = fieldColors(),
+                    label = stringResource(Res.string.discord_dialog_trigger_label),
                 )
-                OutlinedTextField(
+                AppTextField(
                     value = channelId,
                     onValueChange = { channelId = it },
-                    singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text(stringResource(Res.string.discord_dialog_channel_label)) },
-                    colors = fieldColors(),
+                    label = stringResource(Res.string.discord_dialog_channel_label),
                 )
-                OutlinedTextField(
+                AppTextField(
                     value = message,
                     onValueChange = { message = it },
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text(stringResource(Res.string.discord_dialog_message_label)) },
-                    colors = fieldColors(),
+                    label = stringResource(Res.string.discord_dialog_message_label),
                 )
                 Row(
                     modifier = Modifier.fillMaxWidth(),

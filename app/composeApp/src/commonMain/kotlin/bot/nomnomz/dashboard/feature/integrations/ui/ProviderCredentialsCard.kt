@@ -16,9 +16,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentWidth
+import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Button
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import androidx.compose.runtime.Composable
@@ -137,20 +137,14 @@ private fun ClientIdField(
     invalid: Boolean,
     enabled: Boolean,
 ) {
-    OutlinedTextField(
+    AppTextField(
         value = value,
         onValueChange = onValueChange,
         enabled = enabled,
-        singleLine = true,
         isError = invalid,
         modifier = Modifier.fillMaxWidth(),
-        label = { Text(stringResource(Res.string.provider_credentials_clientId_label)) },
-        supportingText =
-            if (invalid) {
-                { Text(stringResource(Res.string.provider_credentials_missing_client_id)) }
-            } else {
-                null
-            },
+        label = stringResource(Res.string.provider_credentials_clientId_label),
+        errorText = stringResource(Res.string.provider_credentials_missing_client_id),
     )
 }
 
@@ -164,16 +158,13 @@ private fun ClientSecretField(
 ) {
     var revealed: Boolean by remember { mutableStateOf(false) }
 
-    OutlinedTextField(
+    AppTextField(
         value = value,
         onValueChange = onValueChange,
         enabled = enabled,
-        singleLine = true,
         modifier = Modifier.fillMaxWidth(),
-        label = { Text(stringResource(Res.string.provider_credentials_clientSecret_label)) },
-        supportingText = {
-            Text(stringResource(Res.string.provider_credentials_clientSecret_help, providerDisplayName))
-        },
+        label = stringResource(Res.string.provider_credentials_clientSecret_label),
+        supportingText = stringResource(Res.string.provider_credentials_clientSecret_help, providerDisplayName),
         visualTransformation =
             if (revealed) VisualTransformation.None else PasswordVisualTransformation(),
         trailingIcon = {
