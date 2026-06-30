@@ -27,15 +27,17 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.material3.DrawerState
 import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberDrawerState
+import androidx.compose.runtime.key
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -315,6 +317,8 @@ private fun ShellContent(
     onChannelDeleted: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
+    val activeChannelId: String? by graph.channelSwitcherController.activeChannelId.collectAsStateWithLifecycle()
+    key(activeChannelId) {
     Box(modifier = modifier) {
         when (selected) {
             ShellRoute.Dashboard -> HomeScreen(
@@ -395,6 +399,7 @@ private fun ShellContent(
             ShellRoute.Admin -> AdminScreen(controller = graph.adminController)
         }
     }
+    } // key(activeChannelId)
 }
 
 @Composable
@@ -497,9 +502,10 @@ private fun Sidebar(
     }
 }
 
-// Channel-picker block for the sidebar. Shows the active channel name; clicking expands an inline list
-// so the user can switch channels. Single-channel operators see just the name (no expand affordance).
-// Inline AnimatedVisibility avoids DropdownMenu/Popup which deadlocks the Compose Wasm compositor.
+// Channel-picker block for the sidebar. Shows the active channel name; clicking the row opens a
+// DropdownMenu so the user can switch channels. Single-channel operators see just the name (no
+// expand affordance). CMP 1.9.0 ships a fixed Wasm Popup implementation — the previous
+// AnimatedVisibility workaround is no longer needed.
 @Composable
 private fun ChannelPickerBlock(switcher: ChannelSwitcherController) {
     val state: SwitcherState by switcher.state.collectAsStateWithLifecycle()
@@ -522,78 +528,76 @@ private fun ChannelPickerBlock(switcher: ChannelSwitcherController) {
     val label: String = stringResource(Res.string.shell_channel_pick)
 
     Column(modifier = Modifier.padding(horizontal = spacing.s1, vertical = spacing.s1)) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(tokens.radius.md))
-                .background(tokens.sidebarAccent)
-                .then(if (hasOtherChannels) Modifier.clickable { expanded = !expanded } else Modifier)
-                .semantics { contentDescription = label }
-                .padding(horizontal = spacing.s2, vertical = spacing.s2),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Text(
-                text = active?.displayName?.takeIf { it.isNotBlank() } ?: active?.login ?: "",
-                style = typography.sm,
-                color = tokens.sidebarAccentForeground,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f),
-            )
-            if (hasOtherChannels) {
-                Icon(
-                    imageVector = if (expanded) ChevronUpGlyph else ChevronDownGlyph,
-                    contentDescription = null,
-                    tint = tokens.mutedForeground,
-                    modifier = Modifier.size(spacing.s4),
+        Box {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(tokens.radius.md))
+                    .background(tokens.sidebarAccent)
+                    .then(if (hasOtherChannels) Modifier.clickable { expanded = !expanded } else Modifier)
+                    .semantics { contentDescription = label }
+                    .padding(horizontal = spacing.s2, vertical = spacing.s2),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text(
+                    text = active?.displayName?.takeIf { it.isNotBlank() } ?: active?.login ?: "",
+                    style = typography.sm,
+                    color = tokens.sidebarAccentForeground,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
                 )
+                if (hasOtherChannels) {
+                    Icon(
+                        imageVector = if (expanded) ChevronUpGlyph else ChevronDownGlyph,
+                        contentDescription = null,
+                        tint = tokens.mutedForeground,
+                        modifier = Modifier.size(spacing.s4),
+                    )
+                }
             }
-        }
-
-        AnimatedVisibility(visible = expanded) {
-            Column(modifier = Modifier.padding(top = spacing.s1)) {
-                // Registered channels the user can switch to.
-                otherRegistered.forEach { channel ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(tokens.radius.md))
-                            .clickable {
+            if (hasOtherChannels) {
+                DropdownMenu(
+                    expanded = expanded,
+                    onDismissRequest = { expanded = false },
+                    modifier = Modifier.background(tokens.popover),
+                ) {
+                    otherRegistered.forEach { channel ->
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    text = channel.displayName.takeIf { it.isNotBlank() } ?: channel.login,
+                                    style = typography.sm,
+                                    color = tokens.popoverForeground,
+                                )
+                            },
+                            onClick = {
                                 expanded = false
                                 switcher.select(channel.id)
-                            }
-                            .padding(horizontal = spacing.s2, vertical = spacing.s2),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(
-                            text = channel.displayName.takeIf { it.isNotBlank() } ?: channel.login,
-                            style = typography.sm,
-                            color = tokens.sidebarForeground,
+                            },
                         )
                     }
-                }
-                // Unregistered channels the user mods on Twitch — shown dimmed.
-                if (unregisteredModerated.isNotEmpty()) {
-                    HorizontalDivider(
-                        color = tokens.sidebarBorder,
-                        modifier = Modifier.padding(vertical = spacing.s1),
-                    )
-                    unregisteredModerated.forEach { channel ->
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = spacing.s2, vertical = spacing.s2),
-                        ) {
-                            Text(
-                                text = channel.displayName.takeIf { it.isNotBlank() } ?: channel.login,
-                                style = typography.sm,
-                                color = tokens.mutedForeground,
-                            )
-                            Text(
-                                text = stringResource(Res.string.shell_channel_bot_not_installed),
-                                style = typography.xs,
-                                color = tokens.mutedForeground,
+                    if (unregisteredModerated.isNotEmpty()) {
+                        HorizontalDivider(color = tokens.border)
+                        unregisteredModerated.forEach { channel ->
+                            DropdownMenuItem(
+                                enabled = false,
+                                text = {
+                                    Column {
+                                        Text(
+                                            text = channel.displayName.takeIf { it.isNotBlank() } ?: channel.login,
+                                            style = typography.sm,
+                                            color = tokens.mutedForeground,
+                                        )
+                                        Text(
+                                            text = stringResource(Res.string.shell_channel_bot_not_installed),
+                                            style = typography.xs,
+                                            color = tokens.mutedForeground,
+                                        )
+                                    }
+                                },
+                                onClick = {},
                             )
                         }
                     }
@@ -670,9 +674,9 @@ private fun NavItem(route: ShellRoute, selected: Boolean, onClick: () -> Unit) {
     }
 }
 
-// Profile block at the bottom of the sidebar. Clicking the profile row expands an inline menu
-// above it (language + logout). Inline AnimatedVisibility avoids DropdownMenu/Popup which
-// deadlocks the Compose Wasm compositor.
+// Profile block at the bottom of the sidebar. Clicking the profile row opens a DropdownMenu
+// (language + logout) anchored to the row — Compose positions it above when there is no room
+// below. CMP 1.9.0 ships a fixed Wasm Popup, so DropdownMenu works without deadlocking.
 @Composable
 private fun ProfileBlock(
     user: SessionUser?,
@@ -689,57 +693,7 @@ private fun ProfileBlock(
     val name: String = user?.displayName ?: ""
     val roleLabel: String = role.label()
 
-    Column {
-        // Menu expands ABOVE the profile row, so it appears to slide up from the profile row.
-        AnimatedVisibility(visible = open) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(tokens.radius.md))
-                    .background(tokens.card)
-                    .padding(vertical = spacing.s1),
-            ) {
-                Column(modifier = Modifier.padding(horizontal = spacing.s3, vertical = spacing.s2)) {
-                    Text(text = name, style = typography.sm, color = tokens.cardForeground)
-                    Text(text = roleLabel, style = typography.xs, color = tokens.mutedForeground)
-                }
-                HorizontalDivider(color = tokens.border)
-                AppLanguage.entries.forEach { language ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                languageController.select(language)
-                                open = false
-                            }
-                            .padding(horizontal = spacing.s3, vertical = spacing.s2),
-                    ) {
-                        Text(
-                            text = language.menuLabel(),
-                            style = typography.sm,
-                            color = tokens.cardForeground,
-                        )
-                    }
-                }
-                HorizontalDivider(color = tokens.border)
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable {
-                            open = false
-                            onLogout()
-                        }
-                        .padding(horizontal = spacing.s3, vertical = spacing.s2),
-                ) {
-                    Text(
-                        text = stringResource(Res.string.shell_profile_logout),
-                        style = typography.sm,
-                        color = tokens.destructive,
-                    )
-                }
-            }
-        }
-
+    Box {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -767,6 +721,48 @@ private fun ProfileBlock(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
+        }
+        // DropdownMenu anchors to the Box that wraps the profile row. Compose positions it above
+        // the row automatically when there is no room below (profile is at the bottom of the sidebar).
+        DropdownMenu(
+            expanded = open,
+            onDismissRequest = { open = false },
+            modifier = Modifier.background(tokens.popover),
+        ) {
+            Column(modifier = Modifier.padding(horizontal = spacing.s3, vertical = spacing.s2)) {
+                Text(text = name, style = typography.sm, color = tokens.popoverForeground)
+                Text(text = roleLabel, style = typography.xs, color = tokens.mutedForeground)
+            }
+            HorizontalDivider(color = tokens.border)
+            AppLanguage.entries.forEach { language ->
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            text = language.menuLabel(),
+                            style = typography.sm,
+                            color = tokens.popoverForeground,
+                        )
+                    },
+                    onClick = {
+                        languageController.select(language)
+                        open = false
+                    },
+                )
+            }
+            HorizontalDivider(color = tokens.border)
+            DropdownMenuItem(
+                text = {
+                    Text(
+                        text = stringResource(Res.string.shell_profile_logout),
+                        style = typography.sm,
+                        color = tokens.destructive,
+                    )
+                },
+                onClick = {
+                    open = false
+                    onLogout()
+                },
+            )
         }
     }
 }
