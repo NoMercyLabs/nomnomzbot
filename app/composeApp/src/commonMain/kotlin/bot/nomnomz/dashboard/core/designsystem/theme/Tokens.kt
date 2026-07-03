@@ -92,7 +92,8 @@ internal val LightTokens: Tokens = Tokens(
     input = oklch(0.922, 0.0, 0.0),
     ring = oklch(0.708, 0.0, 0.0),
     success = oklch(0.627, 0.194, 142.5),
-    sidebar = oklch(0.985, 0.0, 0.0),
+    // Sidebar sits a shade DARKER than the app canvas (background = 1.0) for a distinct panel.
+    sidebar = oklch(0.96, 0.0, 0.0),
     sidebarForeground = oklch(0.145, 0.0, 0.0),
     sidebarPrimary = oklch(0.205, 0.0, 0.0),
     sidebarPrimaryForeground = oklch(0.985, 0.0, 0.0),
@@ -125,7 +126,9 @@ internal val DarkTokens: Tokens = Tokens(
     input = oklch(1.0, 0.0, 0.0, 0.15),
     ring = oklch(0.556, 0.0, 0.0),
     success = oklch(0.723, 0.209, 142.5),
-    sidebar = oklch(0.145, 0.0, 0.0),
+    // Darker than the canvas (background = 0.145) so the rail reads as a distinct, deeper panel;
+    // content cards (0.205) sit lighter, giving sidebar < background < card depth order.
+    sidebar = oklch(0.10, 0.0, 0.0),
     sidebarForeground = oklch(0.985, 0.0, 0.0),
     // Violet-600 — matches shadcn sidebar primary in a purple-accented dark theme.
     // Overridden per-user by withAccent() once the streamer's Twitch chat color is known.
