@@ -19,6 +19,9 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.hoverable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -720,14 +723,30 @@ private fun NavItem(route: ShellRoute, selected: Boolean, onClick: () -> Unit) {
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
 
-    val container: Color = if (selected) tokens.sidebarPrimary else Color.Transparent
-    val content: Color = if (selected) tokens.sidebarPrimaryForeground else tokens.sidebarForeground
+    // shadcn SidebarMenuButton hover: an unselected item tints to `sidebar-accent` on pointer hover;
+    // the selected item keeps its primary fill (hover is a no-op on top of the active state).
+    val interactionSource: MutableInteractionSource = remember { MutableInteractionSource() }
+    val hovered: Boolean by interactionSource.collectIsHoveredAsState()
+
+    val container: Color =
+        when {
+            selected -> tokens.sidebarPrimary
+            hovered -> tokens.sidebarAccent
+            else -> Color.Transparent
+        }
+    val content: Color =
+        when {
+            selected -> tokens.sidebarPrimaryForeground
+            hovered -> tokens.sidebarAccentForeground
+            else -> tokens.sidebarForeground
+        }
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(tokens.radius.md))
             .background(container)
+            .hoverable(interactionSource)
             .selectable(selected = selected, role = Role.Tab, onClick = onClick)
             .padding(horizontal = spacing.s3, vertical = spacing.s2),
         verticalAlignment = Alignment.CenterVertically,
