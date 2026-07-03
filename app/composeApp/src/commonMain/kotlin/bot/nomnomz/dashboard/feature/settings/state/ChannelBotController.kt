@@ -35,7 +35,9 @@ class ChannelBotController(private val channelsApi: ChannelsApi) {
 
     /** Resolve the active channel, then load the bot status and the broadcaster-token scope list. */
     suspend fun load() {
-        _state.value = ChannelBotState.Loading
+        // Only show the full-page loading state on first load; a refetch after a mutation keeps
+        // the current content on screen (no flash) and swaps it when the new data arrives.
+        if (_state.value !is ChannelBotState.Ready) _state.value = ChannelBotState.Loading
 
         val channel: ChannelSummary =
             when (val result: ApiResult<ChannelSummary> = channelsApi.primaryChannel()) {

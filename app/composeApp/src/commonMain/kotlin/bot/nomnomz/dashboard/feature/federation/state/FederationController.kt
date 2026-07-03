@@ -38,7 +38,9 @@ class FederationController(
 
     /** Resolve the active channel, then load peers + opt-ins. */
     suspend fun load() {
-        _state.value = FederationState.Loading
+        // Only show the full-page loading state on first load; a refetch after a mutation keeps
+        // the current content on screen (no flash) and swaps it when the new data arrives.
+        if (_state.value !is FederationState.Ready) _state.value = FederationState.Loading
 
         val channel: ChannelSummary =
             when (val result: ApiResult<ChannelSummary> = channelsApi.primaryChannel()) {

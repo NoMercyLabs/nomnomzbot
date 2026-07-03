@@ -41,7 +41,9 @@ class TimersController(
 
     /** Resolve the active channel, then load its scheduled timers. */
     suspend fun load() {
-        _state.value = TimersState.Loading
+        // Only show the full-page loading state on first load; a refetch after a mutation keeps
+        // the current content on screen (no flash) and swaps it when the new data arrives.
+        if (_state.value !is TimersState.Ready) _state.value = TimersState.Loading
 
         val channel: ChannelSummary =
             when (val result: ApiResult<ChannelSummary> = channelsApi.primaryChannel()) {

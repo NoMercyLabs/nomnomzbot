@@ -81,7 +81,9 @@ class IntegrationsController(
 
     /** Resolve the active channel, then load the bot + integration statuses. */
     suspend fun load() {
-        _state.value = IntegrationsState.Loading
+        // Only show the full-page loading state on first load; a refetch after a mutation keeps
+        // the current content on screen (no flash) and swaps it when the new data arrives.
+        if (_state.value !is IntegrationsState.Ready) _state.value = IntegrationsState.Loading
 
         val channel: ChannelSummary =
             when (val result: ApiResult<ChannelSummary> = channelsApi.primaryChannel()) {

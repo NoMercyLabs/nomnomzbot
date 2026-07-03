@@ -41,7 +41,9 @@ class QuotesController(
 
     /** List the channel's quotes. */
     suspend fun load() {
-        _state.value = QuotesState.Loading
+        // Only show the full-page loading state on first load; a refetch after a mutation keeps
+        // the current content on screen (no flash) and swaps it when the new data arrives.
+        if (_state.value !is QuotesState.Ready) _state.value = QuotesState.Loading
 
         when (val result: ApiResult<List<Quote>> = quotesApi.list()) {
             is ApiResult.Failure -> _state.value = QuotesState.Error(result.error.message)

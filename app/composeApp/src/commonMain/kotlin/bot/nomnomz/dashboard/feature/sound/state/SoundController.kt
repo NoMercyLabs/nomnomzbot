@@ -41,7 +41,9 @@ class SoundController(
     val isUploading: StateFlow<Boolean> = _isUploading.asStateFlow()
 
     suspend fun load() {
-        _state.value = SoundState.Loading
+        // Only show the full-page loading state on first load; a refetch after a mutation keeps
+        // the current content on screen (no flash) and swaps it when the new data arrives.
+        if (_state.value !is SoundState.Ready) _state.value = SoundState.Loading
         when (val result: ApiResult<List<SoundClip>> = soundApi.list()) {
             is ApiResult.Failure -> _state.value = SoundState.Error(result.error.message)
             is ApiResult.Ok ->

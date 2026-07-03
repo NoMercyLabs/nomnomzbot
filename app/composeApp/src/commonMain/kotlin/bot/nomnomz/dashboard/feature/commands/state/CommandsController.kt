@@ -56,7 +56,9 @@ class CommandsController(
 
     /** Resolve the active channel, then list its commands, built-in commands, and available pipelines. */
     suspend fun load() {
-        _state.value = CommandsState.Loading
+        // Only show the full-page loading state on first load; a refetch after a mutation keeps
+        // the current content on screen (no flash) and swaps it when the new data arrives.
+        if (_state.value !is CommandsState.Ready) _state.value = CommandsState.Loading
 
         val channel: ChannelSummary =
             when (val result: ApiResult<ChannelSummary> = channelsApi.primaryChannel()) {

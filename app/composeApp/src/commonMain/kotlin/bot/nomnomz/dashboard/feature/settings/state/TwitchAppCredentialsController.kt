@@ -52,7 +52,9 @@ class TwitchAppCredentialsController(
 
     /** Read the live system status to render whether a personal Twitch app is configured or the shared client is in use. */
     suspend fun load() {
-        _state.value = TwitchAppCredentialsState.Loading
+        // Only show the full-page loading state on first load; a refetch after a mutation keeps
+        // the current content on screen (no flash) and swaps it when the new data arrives.
+        if (_state.value !is TwitchAppCredentialsState.Ready) _state.value = TwitchAppCredentialsState.Loading
         reload(saving = false)
     }
 

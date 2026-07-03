@@ -39,7 +39,9 @@ class AnalyticsController(
 
     /** Resolve the active channel, then load summary + daily trends + top viewers concurrently. */
     suspend fun load() {
-        _state.value = AnalyticsState.Loading
+        // Only show the full-page loading state on first load; a refetch after a mutation keeps
+        // the current content on screen (no flash) and swaps it when the new data arrives.
+        if (_state.value !is AnalyticsState.Ready) _state.value = AnalyticsState.Loading
 
         val channel: ChannelSummary =
             when (val result: ApiResult<ChannelSummary> = channelsApi.primaryChannel()) {

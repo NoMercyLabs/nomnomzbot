@@ -53,7 +53,9 @@ class PipelinesController(
 
     /** Resolve the active channel, then list its pipelines. Returns to the list view. */
     suspend fun load() {
-        _state.value = PipelinesState.Loading
+        // Only show the full-page loading state on first load; a refetch after a mutation keeps
+        // the current content on screen (no flash) and swaps it when the new data arrives.
+        if (_state.value !is PipelinesState.Ready) _state.value = PipelinesState.Loading
 
         val channel: ChannelSummary =
             when (val result: ApiResult<ChannelSummary> = channelsApi.primaryChannel()) {
