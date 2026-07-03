@@ -119,7 +119,7 @@
     <string name="shell_group_chat">Chat</string>
     <string name="shell_group_moderation">Moderatie</string>
     <string name="shell_group_loyalty">Loyaliteit</string>
-    <string name="shell_group_music">Muziek</string>
+    <string name="shell_group_music">Audio</string>
     <string name="shell_group_stream">Stream</string>
     <string name="shell_group_community">Community</string>
     <string name="shell_group_connect">Verbinden</string>

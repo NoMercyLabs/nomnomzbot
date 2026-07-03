@@ -122,7 +122,7 @@
     <string name="shell_group_chat">Chat</string>
     <string name="shell_group_moderation">Moderation</string>
     <string name="shell_group_loyalty">Loyalty</string>
-    <string name="shell_group_music">Music</string>
+    <string name="shell_group_music">Audio</string>
     <string name="shell_group_stream">Stream</string>
     <string name="shell_group_community">Community</string>
     <string name="shell_group_connect">Connect</string>
