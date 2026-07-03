@@ -41,7 +41,9 @@ class AlertsController(
 
     /** Resolve the active channel, then list its event responses. */
     suspend fun load() {
-        _state.value = AlertsState.Loading
+        // Only show the full-page loading state on first load; a refetch after a mutation keeps
+        // the current content on screen (no flash) and swaps it when the new data arrives.
+        if (_state.value !is AlertsState.Ready) _state.value = AlertsState.Loading
 
         val channel: ChannelSummary =
             when (val result: ApiResult<ChannelSummary> = channelsApi.primaryChannel()) {

@@ -44,7 +44,9 @@ class GamesController(
 
     /** Resolve the active channel, then load its configured games and recent play history. */
     suspend fun load() {
-        _state.value = GamesState.Loading
+        // Only show the full-page loading state on first load; a refetch after a mutation keeps
+        // the current content on screen (no flash) and swaps it when the new data arrives.
+        if (_state.value !is GamesState.Ready) _state.value = GamesState.Loading
 
         val channel: ChannelSummary =
             when (val result: ApiResult<ChannelSummary> = channelsApi.primaryChannel()) {

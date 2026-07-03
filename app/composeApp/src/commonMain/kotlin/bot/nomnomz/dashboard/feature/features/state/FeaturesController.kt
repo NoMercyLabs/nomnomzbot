@@ -35,7 +35,9 @@ class FeaturesController(
 
     /** Resolve the active channel, then list its feature flags. */
     suspend fun load() {
-        _state.value = FeaturesState.Loading
+        // Only show the full-page loading state on first load; a refetch after a mutation keeps
+        // the current content on screen (no flash) and swaps it when the new data arrives.
+        if (_state.value !is FeaturesState.Ready) _state.value = FeaturesState.Loading
 
         val channel: ChannelSummary =
             when (val result: ApiResult<ChannelSummary> = channelsApi.primaryChannel()) {

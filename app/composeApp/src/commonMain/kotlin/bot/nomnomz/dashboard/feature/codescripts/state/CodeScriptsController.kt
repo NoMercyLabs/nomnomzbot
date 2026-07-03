@@ -32,7 +32,9 @@ class CodeScriptsController(private val api: CodeScriptsApi) {
 
     /** Load (or reload) the full script list. */
     suspend fun load() {
-        _state.value = CodeScriptsState.Loading
+        // Only show the full-page loading state on first load; a refetch after a mutation keeps
+        // the current content on screen (no flash) and swaps it when the new data arrives.
+        if (_state.value !is CodeScriptsState.Ready) _state.value = CodeScriptsState.Loading
         when (val result: ApiResult<List<CodeScriptSummary>> = api.list()) {
             is ApiResult.Failure -> _state.value = CodeScriptsState.Error(result.error.message)
             is ApiResult.Ok ->

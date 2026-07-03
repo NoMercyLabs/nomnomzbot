@@ -32,7 +32,9 @@ class CustomEventsController(private val api: CustomEventsApi) {
 
     /** Load (or reload) both the source list and the preset catalogue. */
     suspend fun load() {
-        _state.value = CustomEventsState.Loading
+        // Only show the full-page loading state on first load; a refetch after a mutation keeps
+        // the current content on screen (no flash) and swaps it when the new data arrives.
+        if (_state.value !is CustomEventsState.Ready) _state.value = CustomEventsState.Loading
 
         val sources: List<CustomDataSource> =
             when (val result: ApiResult<List<CustomDataSource>> = api.list()) {

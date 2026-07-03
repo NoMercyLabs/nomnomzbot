@@ -48,7 +48,9 @@ class MusicController(
 
     /** Resolve the active channel, then load its now-playing track and upcoming queue. */
     suspend fun load() {
-        _state.value = MusicState.Loading
+        // Only show the full-page loading state on first load; a refetch after a mutation keeps
+        // the current content on screen (no flash) and swaps it when the new data arrives.
+        if (_state.value !is MusicState.Ready) _state.value = MusicState.Loading
 
         val channel: ChannelSummary =
             when (val result: ApiResult<ChannelSummary> = channelsApi.primaryChannel()) {

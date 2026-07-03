@@ -44,7 +44,9 @@ class RolesController(
 
     /** Resolve the active channel, then load its membership, permit grants, and grantable action keys. */
     suspend fun load() {
-        _state.value = RolesState.Loading
+        // Only show the full-page loading state on first load; a refetch after a mutation keeps
+        // the current content on screen (no flash) and swaps it when the new data arrives.
+        if (_state.value !is RolesState.Ready) _state.value = RolesState.Loading
 
         val channel: ChannelSummary =
             when (val result: ApiResult<ChannelSummary> = channelsApi.primaryChannel()) {
