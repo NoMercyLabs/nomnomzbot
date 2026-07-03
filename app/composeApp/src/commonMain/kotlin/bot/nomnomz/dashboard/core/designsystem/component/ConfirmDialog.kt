@@ -10,7 +10,6 @@
 
 package bot.nomnomz.dashboard.core.designsystem.component
 
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
@@ -19,6 +18,7 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 // viewer, clear a queue, disconnect an integration) routes its confirm step through here, so the wording,
 // the destructive-red affirmative, and the cancel affordance are identical everywhere (design-system rule:
 // destructive actions MUST confirm). Caller owns the open/closed state; this only renders when shown.
+// Built on the DS [AlertDialog] (shadcn Dialog) — no raw Material3.
 @Composable
 fun ConfirmDialog(
     title: String,
@@ -33,9 +33,6 @@ fun ConfirmDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = tokens.card,
-        titleContentColor = tokens.cardForeground,
-        textContentColor = tokens.mutedForeground,
         title = { Text(text = title) },
         text = { Text(text = message) },
         confirmButton = {

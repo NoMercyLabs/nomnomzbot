@@ -34,12 +34,13 @@ in §4.2. Foundation = `androidx.compose.foundation`; M3 = a themed `androidx.co
 | `Popover` | Foundation (`Popup`) | (single) | (single) | open · closed | anchored overlay |
 | `Tooltip` | Foundation (`Popup`) | (single) | (single) | shown · hidden | hover/focus triggered; delay param |
 | `Card` | Foundation | (single) | (single) | default | parts: Header/Title/Description/Content/Footer |
-| `Badge` | Foundation | default · secondary · destructive · outline | (single) | default | — |
+| `Badge` | Foundation | default · secondary · destructive · outline | (single) | default · selected (selectable) | selectable state (`selected` + `onClick`) covers single-select chip rows in place of a Toggle |
 | `Alert` | Foundation | default · destructive | (single) | default | parts: Icon/Title/Description |
 | `Separator` | Foundation | orientation: horizontal · vertical | (single) | default | decorative by default |
 | `Skeleton` | Foundation | (single) | (single) | default (animated shimmer) | placeholder while loading |
 | `Avatar` | Foundation | (single) | sm · default · lg | image · fallback | fallback = initials when no image |
-| `Progress` | Foundation | (single) | (single) | determinate · indeterminate | value 0–100 |
+| `Progress` | Foundation | (single) | (single) | determinate | value 0–100; for indeterminate/loading use `Spinner` |
+| `Spinner` | M3-wrapped | (single) | sm · default · lg | indeterminate | circular loading indicator (shadcn Spinner); replaces `CircularProgressIndicator` |
 | `Tabs` | Foundation | (single) | (single) | tab: selected · unselected · focused · disabled | parts: List/Trigger/Content |
 | `Table` | Foundation | (single) | (single) | row: default · hovered · selected | parts: Header/Body/Row/Head/Cell/Caption |
 | `ScrollArea` | Foundation | orientation: vertical · horizontal · both | (single) | default | styled scrollbar |
