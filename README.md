@@ -5,9 +5,7 @@
 > moderation, channel-point rewards, timers, an economy, text-to-speech, song requests, OBS
 > overlays, and integrations (Spotify, Discord, YouTube).
 
-[![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](server/LICENSE)
-[![Backend: .NET 10](https://img.shields.io/badge/backend-.NET%2010-512BD4.svg)](#how-it-works)
-[![Status: pre-release](https://img.shields.io/badge/status-pre--release-orange.svg)](#project-status)
+[![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](server/LICENSE) [![Backend: .NET 10](https://img.shields.io/badge/backend-.NET%2010-512BD4.svg)](#how-it-works) [![Status: pre-release](https://img.shields.io/badge/status-pre--release-orange.svg)](#project-status)
 
 You run NomNomzBot through its **dashboard app**, which gives you a **guided setup** — it connects your
 Twitch and bot accounts and collects everything the bot needs through proper input fields, so you never
@@ -20,19 +18,28 @@ IRC — and exposes a versioned REST API plus real-time SignalR feeds.
 
 ## Table of contents
 
-- [Project status](#project-status)
-- [Features](#features)
-- [How it works](#how-it-works)
-- [Getting started](#getting-started)
-  - [Set up with the dashboard](#set-up-with-the-dashboard)
-  - [Run your own backend (Docker)](#run-your-own-backend-docker)
-- [Using NomNomzBot](#using-nomnomzbot)
-- [Configuration](#configuration)
-- [Production deployment](#production-deployment)
-- [Development](#development)
-- [Contributing](#contributing)
-- [Security](#security)
-- [License](#license)
+- [NomNomzBot](#nomnomzbot)
+  - [Table of contents](#table-of-contents)
+  - [Project status](#project-status)
+  - [Features](#features)
+  - [How it works](#how-it-works)
+  - [Getting started](#getting-started)
+    - [Set up with the dashboard](#set-up-with-the-dashboard)
+    - [Run your own backend (Docker)](#run-your-own-backend-docker)
+      - [Key URLs](#key-urls)
+  - [Using NomNomzBot](#using-nomnomzbot)
+    - [What the guided setup does](#what-the-guided-setup-does)
+    - [Configuring your bot](#configuring-your-bot)
+    - [Public surfaces (viewers + OBS)](#public-surfaces-viewers--obs)
+  - [Configuration](#configuration)
+  - [Production deployment](#production-deployment)
+  - [Development](#development)
+    - [Project layout](#project-layout)
+    - [Run the backend locally](#run-the-backend-locally)
+    - [Build \& test](#build--test)
+  - [Contributing](#contributing)
+  - [Security](#security)
+  - [License](#license)
 
 ---
 
@@ -83,7 +90,7 @@ What a connected channel gets:
 
 ```
 ┌─ server/  — .NET 10 backend (the bot)
-│   PostgreSQL + Redis · Twitch Helix + EventSub (WebSocket) + IRC · SignalR · Serilog
+│   PostgreSQL + Redis · Twitch Helix + EventSub (WebSocket) · SignalR · Serilog
 │   Versioned REST API (v1)  ·  interactive docs at /scalar
 │   Public surfaces (OBS overlays, song-request) — compiled widgets served by the bot, CDN-cached for SaaS
 │
