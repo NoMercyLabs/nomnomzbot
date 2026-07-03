@@ -22,12 +22,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextFieldColors
 import androidx.compose.runtime.Composable
@@ -46,6 +41,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
+import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.Card
@@ -54,6 +50,8 @@ import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
+import bot.nomnomz.dashboard.core.designsystem.component.Separator
+import bot.nomnomz.dashboard.core.designsystem.component.Switch
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import bot.nomnomz.dashboard.core.designsystem.icon.CheckCircleGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.EditGlyph
@@ -445,7 +443,7 @@ private fun GuildCard(
                                 onPreview = { onPreviewRule(rule) },
                             )
                             if (index < guild.configs.lastIndex) {
-                                HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+                                Separator()
                             }
                         }
                     }
@@ -453,7 +451,7 @@ private fun GuildCard(
             }
 
             // ── Notification roles ─────────────────────────────────────────────
-            HorizontalDivider(color = tokens.border)
+            Separator()
             RolesSection(
                 roles = roles,
                 loading = rolesLoading,
@@ -464,7 +462,7 @@ private fun GuildCard(
             )
 
             // ── Dispatch log (load on demand) ──────────────────────────────────
-            HorizontalDivider(color = tokens.border)
+            Separator()
             DispatchLogSection(
                 entries = logEntries,
                 loading = logLoading,
@@ -650,7 +648,6 @@ private fun RuleRow(
                 checked = rule.enabled,
                 onCheckedChange = onToggle,
                 enabled = enabled,
-                colors = switchColors(),
                 modifier = Modifier.semantics { contentDescription = toggleLabel },
             )
         }
@@ -705,9 +702,6 @@ private fun RuleFormDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = tokens.card,
-        titleContentColor = tokens.cardForeground,
-        textContentColor = tokens.mutedForeground,
         title = { Text(text = title) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
@@ -739,7 +733,6 @@ private fun RuleFormDialog(
                     Switch(
                         checked = enabled,
                         onCheckedChange = { enabled = it },
-                        colors = switchColors(),
                         modifier = Modifier.semantics { contentDescription = enabledLabel },
                     )
                 }
@@ -810,7 +803,7 @@ private fun RolesSection(
                         roles.forEachIndexed { index, role ->
                             RoleRow(role = role, manage = manage, onDelete = onDelete, onPostButton = onPostButton)
                             if (index < roles.lastIndex) {
-                                HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+                                Separator()
                             }
                         }
                     }
@@ -923,7 +916,7 @@ private fun DispatchLogSection(
                         entries.forEachIndexed { index, entry ->
                             DispatchLogRow(entry = entry)
                             if (index < entries.lastIndex) {
-                                HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+                                Separator()
                             }
                         }
                     }
@@ -970,9 +963,6 @@ private fun ApproveConsentDialog(onDismiss: () -> Unit, onApprove: (discordUserI
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = tokens.card,
-        titleContentColor = tokens.cardForeground,
-        textContentColor = tokens.mutedForeground,
         title = { Text(stringResource(Res.string.discord_consent_approve_title)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
@@ -1017,9 +1007,6 @@ private fun CreateRoleDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = tokens.card,
-        titleContentColor = tokens.cardForeground,
-        textContentColor = tokens.mutedForeground,
         title = { Text(stringResource(Res.string.discord_roles_create_title)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
@@ -1048,7 +1035,6 @@ private fun CreateRoleDialog(
                     Switch(
                         checked = selfAssign,
                         onCheckedChange = { selfAssign = it },
-                        colors = switchColors(),
                     )
                 }
             }
@@ -1079,9 +1065,6 @@ private fun PostButtonDialog(onDismiss: () -> Unit, onPost: (channelId: String) 
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = tokens.card,
-        titleContentColor = tokens.cardForeground,
-        textContentColor = tokens.mutedForeground,
         title = { Text(stringResource(Res.string.discord_roles_post_button_title)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
@@ -1119,9 +1102,6 @@ private fun PreviewDialog(preview: DiscordConfigPreview, onDismiss: () -> Unit) 
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = tokens.card,
-        titleContentColor = tokens.cardForeground,
-        textContentColor = tokens.mutedForeground,
         title = { Text(stringResource(Res.string.discord_preview_title)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
@@ -1207,17 +1187,6 @@ private fun CenteredMessage(text: String) {
         Text(text = text, style = typography.base, color = tokens.mutedForeground)
     }
 }
-
-// The shared switch color set: every slot driven by a token so the control reads on-theme in light + dark.
-@Composable
-private fun switchColors() =
-    SwitchDefaults.colors(
-        checkedThumbColor = LocalTokens.current.primaryForeground,
-        checkedTrackColor = LocalTokens.current.primary,
-        uncheckedThumbColor = LocalTokens.current.mutedForeground,
-        uncheckedTrackColor = LocalTokens.current.muted,
-        uncheckedBorderColor = LocalTokens.current.border,
-    )
 
 // The shared text-field color set: every slot driven by a token so the field reads on-theme in light + dark.
 @Composable

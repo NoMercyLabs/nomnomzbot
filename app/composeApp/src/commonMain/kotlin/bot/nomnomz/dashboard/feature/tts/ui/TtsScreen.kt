@@ -28,10 +28,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.Card
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
@@ -54,10 +50,14 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
+import bot.nomnomz.dashboard.core.designsystem.component.Badge
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
+import bot.nomnomz.dashboard.core.designsystem.component.Separator
+import bot.nomnomz.dashboard.core.designsystem.component.Spinner
+import bot.nomnomz.dashboard.core.designsystem.component.Switch
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -308,7 +308,7 @@ private fun VoicePicker(
             )
         }
         shown.forEach { voice ->
-            HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+            Separator()
             VoiceMatchRow(
                 voice = voice,
                 manage = manage,
@@ -319,7 +319,7 @@ private fun VoicePicker(
             )
         }
         if (matches.size > shown.size) {
-            HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+            Separator()
             Text(
                 text = stringResource(Res.string.tts_voices_more, matches.size),
                 style = typography.sm,
@@ -433,11 +433,11 @@ private fun EditCard(
                     enabled = enabled,
                 )
             }
-            HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+            Separator()
             Column(modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.s4, vertical = spacing.s3)) {
                 VoiceField(value = defaultVoiceId, onValueChange = onVoiceChange, manage = manage, enabled = enabled)
             }
-            HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+            Separator()
             Column(modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.s4, vertical = spacing.s3)) {
                 MaxLengthField(
                     value = maxLengthText,
@@ -447,7 +447,7 @@ private fun EditCard(
                     enabled = enabled,
                 )
             }
-            HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+            Separator()
             Column(modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.s4, vertical = spacing.s3)) {
                 PermissionPicker(
                     selected = minPermission,
@@ -456,7 +456,7 @@ private fun EditCard(
                     enabled = enabled,
                 )
             }
-            HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+            Separator()
             Column(modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.s4, vertical = spacing.s3)) {
                 SwitchRow(
                     labelRes = Res.string.tts_label_skip_bot_messages,
@@ -466,7 +466,7 @@ private fun EditCard(
                     enabled = enabled,
                 )
             }
-            HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+            Separator()
             Column(modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.s4, vertical = spacing.s3)) {
                 SwitchRow(
                     labelRes = Res.string.tts_label_read_usernames,
@@ -580,13 +580,12 @@ private fun PermissionPicker(
             for ((value: String, labelRes: StringResource) in PERMISSIONS) {
                 val label: String = stringResource(labelRes)
                 ManageGate(decision = manage) { gateEnabled ->
-                    FilterChip(
+                    Badge(
                         selected = selected == value,
                         onClick = { onSelect(value) },
                         enabled = gateEnabled && enabled,
-                        label = { Text(label, maxLines = 1) },
                         modifier = Modifier.clearAndSetSemantics { contentDescription = label },
-                    )
+                    ) { Text(label, maxLines = 1) }
                 }
             }
         }
@@ -632,7 +631,7 @@ private fun SaveBar(
 
         if (saving) {
             val savingLabel: String = stringResource(Res.string.tts_saving)
-            CircularProgressIndicator(
+            Spinner(
                 modifier = Modifier
                     .size(spacing.s6)
                     .clearAndSetSemantics { contentDescription = savingLabel },
@@ -720,10 +719,9 @@ private fun TestSpeakSection(
                     enabled = enabled && !testing && testText.isNotBlank(),
                 ) {
                     if (testing) {
-                        CircularProgressIndicator(
+                        Spinner(
                             modifier = Modifier.size(spacing.s4),
                             color = tokens.primaryForeground,
-                            strokeWidth = spacing.s1,
                         )
                     } else {
                         Text(text = stringResource(Res.string.tts_test_play))

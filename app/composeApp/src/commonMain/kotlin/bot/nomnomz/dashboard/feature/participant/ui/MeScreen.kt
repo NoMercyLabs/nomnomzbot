@@ -21,11 +21,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
+import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenu
+import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenuItem
 import bot.nomnomz.dashboard.core.designsystem.component.OutlinedButton
-import androidx.compose.material3.Switch
+import bot.nomnomz.dashboard.core.designsystem.component.Spinner
+import bot.nomnomz.dashboard.core.designsystem.component.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -159,7 +159,7 @@ private fun ProfileCard(
         ) {
             ParticipantBadge(label = stringResource(standing.labelResource()))
             if (saving) {
-                CircularProgressIndicator(modifier = Modifier.padding(spacing.s1))
+                Spinner(modifier = Modifier.padding(spacing.s1))
             } else if (pronouns.isNotEmpty()) {
                 Box {
                     OutlinedButton(onClick = { expanded = true }) {
@@ -325,7 +325,7 @@ private fun AnalyticsPrivacyCard(
                 Text(text = description, style = typography.xs, color = tokens.mutedForeground)
             }
             if (saving) {
-                CircularProgressIndicator()
+                Spinner()
             } else {
                 Switch(checked = !optedOut, onCheckedChange = { checked -> onToggle(!checked) })
             }

@@ -20,13 +20,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.AlertDialog
-import bot.nomnomz.dashboard.core.designsystem.component.Button
+import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
+import bot.nomnomz.dashboard.core.designsystem.component.Button
+import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
+import bot.nomnomz.dashboard.core.designsystem.component.Switch
 import androidx.compose.material3.Text
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import androidx.compose.material3.TextFieldColors
@@ -320,7 +319,7 @@ private fun RewardList(
         LazyColumn(modifier = Modifier.fillMaxSize()) {
             itemsIndexed(items = rewards, key = { _, reward -> reward.id }) { index, reward ->
                 if (index > 0) {
-                    HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+                    Separator()
                 }
                 RewardRow(
                     reward = reward,
@@ -338,7 +337,7 @@ private fun RewardList(
                 item(key = "redemption-queue-header") { RedemptionsHeader() }
                 itemsIndexed(items = redemptions, key = { _, r -> r.redemptionId }) { index, redemption ->
                     if (index > 0) {
-                        HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+                        Separator()
                     }
                     RedemptionRow(
                         redemption = redemption,
@@ -512,13 +511,6 @@ private fun RewardRow(
                 checked = reward.isEnabled,
                 onCheckedChange = onToggle,
                 enabled = enabled,
-                colors = SwitchDefaults.colors(
-                    checkedThumbColor = tokens.primaryForeground,
-                    checkedTrackColor = tokens.primary,
-                    uncheckedThumbColor = tokens.mutedForeground,
-                    uncheckedTrackColor = tokens.muted,
-                    uncheckedBorderColor = tokens.border,
-                ),
                 modifier = Modifier.semantics { contentDescription = toggleLabel },
             )
         }
@@ -569,9 +561,6 @@ private fun RewardFormDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = tokens.card,
-        titleContentColor = tokens.cardForeground,
-        textContentColor = tokens.mutedForeground,
         title = { Text(text = dialogTitle) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
@@ -604,13 +593,6 @@ private fun RewardFormDialog(
                     Switch(
                         checked = enabled,
                         onCheckedChange = { enabled = it },
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = tokens.primaryForeground,
-                            checkedTrackColor = tokens.primary,
-                            uncheckedThumbColor = tokens.mutedForeground,
-                            uncheckedTrackColor = tokens.muted,
-                            uncheckedBorderColor = tokens.border,
-                        ),
                         modifier = Modifier.semantics { contentDescription = enabledLabel },
                     )
                 }

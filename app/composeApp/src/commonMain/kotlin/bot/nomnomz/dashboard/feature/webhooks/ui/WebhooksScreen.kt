@@ -19,11 +19,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material3.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.Button
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import androidx.compose.runtime.Composable
@@ -39,6 +35,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
+import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
@@ -47,6 +44,8 @@ import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
+import bot.nomnomz.dashboard.core.designsystem.component.Separator
+import bot.nomnomz.dashboard.core.designsystem.component.Switch
 import bot.nomnomz.dashboard.core.designsystem.icon.AddGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.PlayCircleGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.PowerGlyph
@@ -193,14 +192,14 @@ fun WebhooksScreen(controller: WebhooksController, role: ManagementRole?) {
                                             onDelete = { pendingDeleteInbound = ep },
                                         )
                                         if (index < current.inbound.lastIndex) {
-                                            HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+                                            Separator()
                                         }
                                     }
                                 }
                             }
                         }
                     }
-                    item(key = "outbound-divider") { HorizontalDivider() }
+                    item(key = "outbound-divider") { Separator() }
                     // ── Outbound ──────────────────────────────────────────
                     item(key = "outbound-section") {
                         Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
@@ -246,7 +245,7 @@ fun WebhooksScreen(controller: WebhooksController, role: ManagementRole?) {
                                             onDelete = { pendingDeleteOutbound = ep },
                                         )
                                         if (index < current.outbound.lastIndex) {
-                                            HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+                                            Separator()
                                         }
                                     }
                                 }
@@ -317,7 +316,6 @@ fun WebhooksScreen(controller: WebhooksController, role: ManagementRole?) {
                     Text(stringResource(Res.string.webhooks_secret_once_dismiss))
                 }
             },
-            containerColor = LocalTokens.current.card,
         )
     }
 
@@ -382,13 +380,6 @@ private fun InboundRow(
                     checked = ep.isEnabled,
                     onCheckedChange = { onToggle() },
                     enabled = enabled,
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = tokens.primaryForeground,
-                        checkedTrackColor = tokens.primary,
-                        uncheckedThumbColor = tokens.mutedForeground,
-                        uncheckedTrackColor = tokens.muted,
-                        uncheckedBorderColor = tokens.border,
-                    ),
                 )
             }
         }
@@ -456,13 +447,6 @@ private fun OutboundRow(
                     checked = ep.isEnabled,
                     onCheckedChange = { onToggle() },
                     enabled = enabled,
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = tokens.primaryForeground,
-                        checkedTrackColor = tokens.primary,
-                        uncheckedThumbColor = tokens.mutedForeground,
-                        uncheckedTrackColor = tokens.muted,
-                        uncheckedBorderColor = tokens.border,
-                    ),
                 )
             }
         }
@@ -541,7 +525,6 @@ private fun SecretOnceDialog(secret: String, onDismiss: () -> Unit) {
         confirmButton = {
             Button(onClick = onDismiss) { Text(stringResource(Res.string.webhooks_secret_once_dismiss)) }
         },
-        containerColor = tokens.card,
     )
 }
 
@@ -589,7 +572,6 @@ private fun CreateInboundDialog(
             }) { Text(stringResource(Res.string.webhooks_create_inbound_confirm)) }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.webhooks_create_inbound_dismiss)) } },
-        containerColor = tokens.card,
     )
 }
 
@@ -649,7 +631,6 @@ private fun CreateOutboundDialog(
             }) { Text(stringResource(Res.string.webhooks_create_outbound_confirm)) }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.webhooks_create_outbound_dismiss)) } },
-        containerColor = tokens.card,
     )
 }
 

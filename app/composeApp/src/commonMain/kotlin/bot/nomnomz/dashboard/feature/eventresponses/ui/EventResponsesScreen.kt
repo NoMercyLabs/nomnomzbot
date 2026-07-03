@@ -18,17 +18,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -45,12 +36,17 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
+import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Card
+import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenu
+import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenuItem
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
+import bot.nomnomz.dashboard.core.designsystem.component.Separator
+import bot.nomnomz.dashboard.core.designsystem.component.Switch
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import bot.nomnomz.dashboard.core.designsystem.icon.ChevronDownGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.EditGlyph
@@ -196,7 +192,7 @@ private fun ReadyContent(
                             onEdit = { onEdit(response) },
                         )
                         if (index < responses.lastIndex) {
-                            HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+                            Separator()
                         }
                     }
                 }
@@ -254,13 +250,6 @@ private fun EventResponseRow(
                 checked = response.isEnabled,
                 onCheckedChange = onToggle,
                 enabled = enabled,
-                colors = SwitchDefaults.colors(
-                    checkedThumbColor = tokens.primaryForeground,
-                    checkedTrackColor = tokens.primary,
-                    uncheckedThumbColor = tokens.mutedForeground,
-                    uncheckedTrackColor = tokens.muted,
-                    uncheckedBorderColor = tokens.border,
-                ),
                 modifier = Modifier.clearAndSetSemantics { contentDescription = toggleSemantics },
             )
         }
@@ -293,9 +282,6 @@ private fun EditDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = tokens.card,
-        titleContentColor = tokens.cardForeground,
-        textContentColor = tokens.mutedForeground,
         title = {
             Text(
                 text = stringResource(Res.string.event_responses_dialog_title, response.eventType.toEventLabel()),
@@ -313,20 +299,17 @@ private fun EditDialog(
                         label = stringResource(Res.string.event_responses_dialog_response_type_label),
                         modifier = Modifier.fillMaxWidth().clickable { typeMenuOpen = true },
                         trailingIcon = {
-                            IconButton(onClick = { typeMenuOpen = true }) {
-                                Icon(
-                                    imageVector = ChevronDownGlyph,
-                                    contentDescription = null,
-                                    tint = tokens.mutedForeground,
-                                    modifier = Modifier.size(spacing.s4),
-                                )
-                            }
+                            GlyphButton(
+                                imageVector = ChevronDownGlyph,
+                                label = stringResource(Res.string.event_responses_dialog_response_type_label),
+                                onClick = { typeMenuOpen = true },
+                                tint = tokens.mutedForeground,
+                            )
                         },
                     )
                     DropdownMenu(
                         expanded = typeMenuOpen,
                         onDismissRequest = { typeMenuOpen = false },
-                        containerColor = tokens.popover,
                     ) {
                         ResponseTypes.forEach { type ->
                             DropdownMenuItem(

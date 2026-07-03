@@ -25,7 +25,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import bot.nomnomz.dashboard.core.designsystem.component.Button
-import androidx.compose.material3.CircularProgressIndicator
 import bot.nomnomz.dashboard.core.designsystem.component.OutlinedButton
 import androidx.compose.material3.Text
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
@@ -45,6 +44,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.CopyValue
 import bot.nomnomz.dashboard.core.designsystem.component.LinkedText
+import bot.nomnomz.dashboard.core.designsystem.component.Spinner
 import bot.nomnomz.dashboard.core.designsystem.component.StepState
 import bot.nomnomz.dashboard.core.designsystem.component.Stepper
 import bot.nomnomz.dashboard.core.designsystem.component.StepperStep
@@ -116,7 +116,7 @@ fun SetupWizardScreen(controller: SetupController) {
         contentAlignment = Alignment.TopCenter,
     ) {
         when (val current: SetupState = state) {
-            SetupState.Loading -> SetupCentered { CircularProgressIndicator(modifier = Modifier.size(spacing.s6)) }
+            SetupState.Loading -> SetupCentered { Spinner(modifier = Modifier.size(spacing.s6)) }
 
             is SetupState.Error -> SetupCentered { LoadError(detail = current.detail, controller = controller) }
 
@@ -473,7 +473,7 @@ private fun CredentialFields(
         }
 
         if (busy) {
-            CircularProgressIndicator(modifier = Modifier.size(spacing.s6))
+            Spinner(modifier = Modifier.size(spacing.s6))
         } else {
             Button(onClick = onSave, modifier = Modifier.fillMaxWidth()) {
                 Text(stringResource(Res.string.setup_action_save))
@@ -578,7 +578,7 @@ private fun BotConnect(
             ErrorText(stringResource(Res.string.setup_error_bot, error.detail))
         }
         if (busy) {
-            CircularProgressIndicator(modifier = Modifier.size(spacing.s6))
+            Spinner(modifier = Modifier.size(spacing.s6))
         } else {
             Button(onClick = onConnectBot, modifier = Modifier.fillMaxWidth()) {
                 Text(stringResource(Res.string.setup_action_connect_bot))

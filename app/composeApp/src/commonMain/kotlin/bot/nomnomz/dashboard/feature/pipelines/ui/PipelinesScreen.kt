@@ -21,15 +21,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.AlertDialog
+import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
+import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.Card
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.HorizontalDivider
-import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
+import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenu
+import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenuItem
+import bot.nomnomz.dashboard.core.designsystem.component.Separator
+import bot.nomnomz.dashboard.core.designsystem.component.Switch
 import androidx.compose.material3.Text
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import androidx.compose.runtime.Composable
@@ -257,7 +256,7 @@ private fun ListContent(
                 LazyColumn(modifier = Modifier.fillMaxWidth()) {
                     itemsIndexed(items = pipelines, key = { _, pipeline -> pipeline.id }) { index, pipeline ->
                         if (index > 0) {
-                            HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+                            Separator()
                         }
                         PipelineRow(
                             pipeline = pipeline,
@@ -382,7 +381,6 @@ private fun PipelineRow(
                 checked = pipeline.isEnabled,
                 onCheckedChange = onToggle,
                 enabled = enabled,
-                colors = switchColors(),
                 modifier = Modifier.semantics { contentDescription = toggleLabel },
             )
         }
@@ -486,7 +484,7 @@ private fun ChainEditor(
                 LazyColumn(modifier = Modifier.fillMaxWidth()) {
                     itemsIndexed(items = editing.steps) { index, step ->
                         if (index > 0) {
-                            HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+                            Separator()
                         }
                         StepCard(
                             index = index,
@@ -658,9 +656,6 @@ private fun StepFormDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = tokens.card,
-        titleContentColor = tokens.cardForeground,
-        textContentColor = tokens.mutedForeground,
         title = { Text(text = title) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
@@ -698,7 +693,6 @@ private fun StepFormDialog(
                     Switch(
                         checked = stopOnMatch,
                         onCheckedChange = { stopOnMatch = it },
-                        colors = switchColors(),
                         modifier = Modifier.semantics { contentDescription = stopLabel },
                     )
                 }
@@ -877,9 +871,6 @@ private fun PipelineFormDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = tokens.card,
-        titleContentColor = tokens.cardForeground,
-        textContentColor = tokens.mutedForeground,
         title = { Text(text = title) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
@@ -950,16 +941,6 @@ private fun CenteredMessage(text: String) {
         Text(text = text, style = typography.base, color = tokens.mutedForeground)
     }
 }
-
-@Composable
-private fun switchColors() =
-    SwitchDefaults.colors(
-        checkedThumbColor = LocalTokens.current.primaryForeground,
-        checkedTrackColor = LocalTokens.current.primary,
-        uncheckedThumbColor = LocalTokens.current.mutedForeground,
-        uncheckedTrackColor = LocalTokens.current.muted,
-        uncheckedBorderColor = LocalTokens.current.border,
-    )
 
 // Resolve a block type's display name from its i18n key, falling back to the raw backend type when uncatalogued.
 @Composable

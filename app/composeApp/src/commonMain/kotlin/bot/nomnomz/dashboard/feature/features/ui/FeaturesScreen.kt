@@ -20,9 +20,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
@@ -42,6 +39,8 @@ import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
+import bot.nomnomz.dashboard.core.designsystem.component.Separator
+import bot.nomnomz.dashboard.core.designsystem.component.Switch
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -110,7 +109,7 @@ fun FeaturesScreen(controller: FeaturesController, role: ManagementRole?) {
                                 onToggle = { scope.launch { controller.toggle(feature.featureKey) } },
                             )
                             if (index < current.features.lastIndex) {
-                                HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+                                Separator()
                             }
                         }
                     }
@@ -182,13 +181,6 @@ private fun FeatureRow(
                     checked = feature.isEnabled,
                     onCheckedChange = { onToggle() },
                     enabled = enabled,
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = tokens.primaryForeground,
-                        checkedTrackColor = tokens.primary,
-                        uncheckedThumbColor = tokens.mutedForeground,
-                        uncheckedTrackColor = tokens.muted,
-                        uncheckedBorderColor = tokens.border,
-                    ),
                     modifier = Modifier.semantics { contentDescription = toggleLabel },
                 )
             }

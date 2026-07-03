@@ -18,7 +18,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentWidth
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Button
-import androidx.compose.material3.CircularProgressIndicator
+import bot.nomnomz.dashboard.core.designsystem.component.Spinner
 import androidx.compose.material3.Text
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import androidx.compose.runtime.Composable
@@ -190,7 +190,7 @@ private fun SaveBar(saving: Boolean, onSave: () -> Unit) {
     ) {
         if (saving) {
             val savingLabel: String = stringResource(Res.string.provider_credentials_saving)
-            CircularProgressIndicator(
+            Spinner(
                 modifier = Modifier
                     .size(spacing.s6)
                     .clearAndSetSemantics { contentDescription = savingLabel },

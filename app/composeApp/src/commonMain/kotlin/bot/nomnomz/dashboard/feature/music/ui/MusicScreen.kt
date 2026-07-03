@@ -26,11 +26,10 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.verticalScroll
+import bot.nomnomz.dashboard.core.designsystem.component.Badge as DsBadge
 import bot.nomnomz.dashboard.core.designsystem.component.Button
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
+import bot.nomnomz.dashboard.core.designsystem.component.Separator
+import bot.nomnomz.dashboard.core.designsystem.component.Switch
 import androidx.compose.material3.Text
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import androidx.compose.runtime.Composable
@@ -272,7 +271,7 @@ private fun ReadyContent(
                     queue.forEachIndexed { index, track ->
                         QueueRow(track = track, manage = manage, onRemove = { pendingRemoval = track })
                         if (index < queue.lastIndex) {
-                            HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+                            Separator()
                         }
                     }
                 }
@@ -280,24 +279,24 @@ private fun ReadyContent(
         }
 
         // ── Add to queue ──────────────────────────────────────────────────
-        HorizontalDivider(color = tokens.border)
+        Separator()
         AddToQueueSection(manage = manage, onAdd = onAddToQueue)
 
         // ── SR config ────────────────────────────────────────────────────
         if (config != null) {
-            HorizontalDivider(color = tokens.border)
+            Separator()
             MusicConfigSection(config = config, manage = manage, onSave = onSaveConfig)
         }
 
         // ── SR-page token ─────────────────────────────────────────────────
         if (srPageToken != null) {
-            HorizontalDivider(color = tokens.border)
+            Separator()
             SrTokenSection(token = srPageToken, manage = manage, onRotate = { pendingRotate = true })
         }
 
         // ── Remote controls (shuffle / repeat / devices / playlists) ──────
         if (devices.isNotEmpty() || playlists.isNotEmpty()) {
-            HorizontalDivider(color = tokens.border)
+            Separator()
             RemoteControlsSection(
                 devices = devices,
                 playlists = playlists,
@@ -747,12 +746,6 @@ private fun MusicConfigSection(config: MusicConfig, manage: ManageDecision, onSa
                     checked = isEnabled,
                     onCheckedChange = { isEnabled = it },
                     enabled = enabled,
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = tokens.primaryForeground,
-                        checkedTrackColor = tokens.primary,
-                        uncheckedThumbColor = tokens.mutedForeground,
-                        uncheckedTrackColor = tokens.muted,
-                    ),
                 )
             }
         }
@@ -766,12 +759,11 @@ private fun MusicConfigSection(config: MusicConfig, manage: ManageDecision, onSa
             ) {
                 providerOptions.forEach { (key, label) ->
                     ManageGate(decision = manage) { gateEnabled ->
-                        FilterChip(
+                        DsBadge(
                             selected = preferredProvider == key,
                             onClick = { preferredProvider = key },
                             enabled = gateEnabled,
-                            label = { Text(label, maxLines = 1) },
-                        )
+                        ) { Text(label, maxLines = 1) }
                     }
                 }
             }
@@ -808,7 +800,6 @@ private fun MusicConfigSection(config: MusicConfig, manage: ManageDecision, onSa
                         checked = allowYouTube,
                         onCheckedChange = { allowYouTube = it },
                         enabled = enabled,
-                        colors = SwitchDefaults.colors(checkedThumbColor = tokens.primaryForeground, checkedTrackColor = tokens.primary, uncheckedThumbColor = tokens.mutedForeground, uncheckedTrackColor = tokens.muted),
                     )
                     Text(text = stringResource(Res.string.music_config_allow_youtube), style = typography.sm, color = tokens.cardForeground)
                 }
@@ -819,7 +810,6 @@ private fun MusicConfigSection(config: MusicConfig, manage: ManageDecision, onSa
                         checked = allowSpotify,
                         onCheckedChange = { allowSpotify = it },
                         enabled = enabled,
-                        colors = SwitchDefaults.colors(checkedThumbColor = tokens.primaryForeground, checkedTrackColor = tokens.primary, uncheckedThumbColor = tokens.mutedForeground, uncheckedTrackColor = tokens.muted),
                     )
                     Text(text = stringResource(Res.string.music_config_allow_spotify), style = typography.sm, color = tokens.cardForeground)
                 }
@@ -835,12 +825,11 @@ private fun MusicConfigSection(config: MusicConfig, manage: ManageDecision, onSa
             ) {
                 trustLevels.forEach { level ->
                     ManageGate(decision = manage) { gateEnabled ->
-                        FilterChip(
+                        DsBadge(
                             selected = minTrustLevel == level,
                             onClick = { minTrustLevel = level },
                             enabled = gateEnabled,
-                            label = { Text(level, maxLines = 1) },
-                        )
+                        ) { Text(level, maxLines = 1) }
                     }
                 }
             }

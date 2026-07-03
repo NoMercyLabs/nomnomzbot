@@ -22,10 +22,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.material3.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.Button
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
@@ -45,12 +42,15 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
+import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
+import bot.nomnomz.dashboard.core.designsystem.component.Badge
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
+import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -333,7 +333,7 @@ private fun BansList(
                         bans.forEachIndexed { index, ban ->
                             BanRow(ban = ban, manage = manage, onUnban = { pendingUnban = ban })
                             if (index < bans.lastIndex) {
-                                HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+                                Separator()
                             }
                         }
                     }
@@ -355,7 +355,7 @@ private fun BansList(
                         modLog.forEachIndexed { index, entry ->
                             ModLogRow(entry = entry)
                             if (index < modLog.lastIndex) {
-                                HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+                                Separator()
                             }
                         }
                     }
@@ -379,7 +379,7 @@ private fun BansList(
                         blockedTerms.forEachIndexed { index, term ->
                             BlockedTermRow(term = term, manage = manage, onRemove = { onRemoveTerm(term) })
                             if (index < blockedTerms.lastIndex) {
-                                HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+                                Separator()
                             }
                         }
                     }
@@ -404,7 +404,7 @@ private fun BansList(
                         manage = manage,
                         onToggle = { onToggleFilter(AutomodFilter.Link) },
                     )
-                    HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+                    Separator()
                     AutomodRow(
                         name = stringResource(Res.string.moderation_automod_caps),
                         enabled = automod.capsFilter.enabled,
@@ -416,7 +416,7 @@ private fun BansList(
                         manage = manage,
                         onToggle = { onToggleFilter(AutomodFilter.Caps) },
                     )
-                    HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+                    Separator()
                     AutomodRow(
                         name = stringResource(Res.string.moderation_automod_phrases),
                         enabled = automod.bannedPhrases.enabled,
@@ -424,7 +424,7 @@ private fun BansList(
                         manage = manage,
                         onToggle = { onToggleFilter(AutomodFilter.Phrases) },
                     )
-                    HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+                    Separator()
                     AutomodRow(
                         name = stringResource(Res.string.moderation_automod_emotes),
                         enabled = automod.emoteSpam.enabled,
@@ -474,7 +474,7 @@ private fun BansList(
                                 onDelete = { pendingDeleteRule = rule },
                             )
                             if (index < rules.lastIndex) {
-                                HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+                                Separator()
                             }
                         }
                     }
@@ -588,16 +588,14 @@ private fun ModerateViewerDialog(
                     modifier = Modifier.fillMaxWidth(),
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
-                    FilterChip(
+                    Badge(
                         selected = isBan,
                         onClick = { isBan = true },
-                        label = { Text(stringResource(Res.string.moderation_action_type_ban)) },
-                    )
-                    FilterChip(
+                    ) { Text(stringResource(Res.string.moderation_action_type_ban)) }
+                    Badge(
                         selected = !isBan,
                         onClick = { isBan = false },
-                        label = { Text(stringResource(Res.string.moderation_action_type_timeout)) },
-                    )
+                    ) { Text(stringResource(Res.string.moderation_action_type_timeout)) }
                 }
                 if (!isBan) {
                     AppTextField(
@@ -1180,11 +1178,10 @@ private fun CreateRuleDialog(
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
                     types.forEach { (key, label) ->
-                        FilterChip(
+                        Badge(
                             selected = selectedType == key,
                             onClick = { selectedType = key },
-                            label = { Text(label, style = typography.xs) },
-                        )
+                        ) { Text(label, style = typography.xs) }
                     }
                 }
                 Text(
@@ -1194,11 +1191,10 @@ private fun CreateRuleDialog(
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
                     actions.forEach { (key, label) ->
-                        FilterChip(
+                        Badge(
                             selected = selectedAction == key,
                             onClick = { selectedAction = key },
-                            label = { Text(label, style = typography.xs) },
-                        )
+                        ) { Text(label, style = typography.xs) }
                     }
                 }
                 if (selectedAction == "timeout") {
@@ -1235,7 +1231,6 @@ private fun CreateRuleDialog(
                 Text(stringResource(Res.string.moderation_rules_create_dismiss))
             }
         },
-        containerColor = tokens.card,
     )
 }
 
@@ -1292,11 +1287,10 @@ private fun AnnounceDialog(
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     colorOptions.forEach { (colorKey, label) ->
-                        FilterChip(
+                        Badge(
                             selected = selectedColor == colorKey,
                             onClick = { selectedColor = colorKey },
-                            label = { Text(text = label, style = typography.xs) },
-                        )
+                        ) { Text(text = label, style = typography.xs) }
                     }
                 }
             }
@@ -1316,6 +1310,5 @@ private fun AnnounceDialog(
                 Text(stringResource(Res.string.moderation_announce_dismiss))
             }
         },
-        containerColor = tokens.card,
     )
 }

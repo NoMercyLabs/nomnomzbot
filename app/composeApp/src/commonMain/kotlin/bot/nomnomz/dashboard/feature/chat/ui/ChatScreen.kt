@@ -31,15 +31,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import bot.nomnomz.dashboard.core.designsystem.icon.DotsHorizontalGlyph
@@ -68,8 +60,12 @@ import coil3.compose.AsyncImage
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
+import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
+import bot.nomnomz.dashboard.core.designsystem.component.Badge
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
+import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenu
+import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenuItem
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
@@ -649,24 +645,13 @@ private fun ChatModeChip(
     val tokens = LocalTokens.current
     val typography = LocalTypography.current
 
-    FilterChip(
+    Badge(
         selected = active,
         onClick = { if (enabled) onToggle() },
-        label = { Text(text = label, style = typography.sm) },
         enabled = enabled,
-        colors = FilterChipDefaults.filterChipColors(
-            selectedContainerColor = tokens.primary,
-            selectedLabelColor = tokens.primaryForeground,
-            containerColor = tokens.card,
-            labelColor = tokens.mutedForeground,
-        ),
-        border = FilterChipDefaults.filterChipBorder(
-            enabled = enabled,
-            selected = active,
-            selectedBorderColor = tokens.primary,
-            borderColor = tokens.border,
-        ),
-    )
+    ) {
+        Text(text = label, style = typography.sm)
+    }
 }
 
 // ─── Announce dialog ──────────────────────────────────────────────────────────
@@ -752,9 +737,6 @@ private fun AnnounceDialog(onDismiss: () -> Unit, onSend: (message: String, colo
                 Text(stringResource(Res.string.moderation_announce_dismiss))
             }
         },
-        containerColor = tokens.card,
-        titleContentColor = tokens.foreground,
-        textContentColor = tokens.foreground,
     )
 }
 

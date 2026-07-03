@@ -22,10 +22,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Switch
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
@@ -53,6 +50,8 @@ import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
+import bot.nomnomz.dashboard.core.designsystem.component.Separator
+import bot.nomnomz.dashboard.core.designsystem.component.Switch
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -215,7 +214,7 @@ private fun ReadyContent(
                                 onRemove = { pendingRemoval = song },
                             )
                             if (index < queue.lastIndex) {
-                                HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+                                Separator()
                             }
                         }
                     }
@@ -345,10 +344,6 @@ private fun SrToggleRow(
                 checked = checked,
                 onCheckedChange = { onToggle(it) },
                 enabled = enabled,
-                colors = SwitchDefaults.colors(
-                    checkedTrackColor = tokens.primary,
-                    checkedThumbColor = tokens.primaryForeground,
-                ),
             )
         }
     }

@@ -21,8 +21,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Text
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
@@ -48,15 +46,17 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.HorizontalDivider
 import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
+import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
+import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenu
+import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenuItem
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
+import bot.nomnomz.dashboard.core.designsystem.component.Separator
+import bot.nomnomz.dashboard.core.designsystem.component.Spinner
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -295,7 +295,7 @@ private fun MemberList(
                             )
                         }
                         if (index < chatters.lastIndex) {
-                            HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+                            Separator()
                         }
                     }
                 }
@@ -320,7 +320,7 @@ private fun MemberList(
                         onViewStats = { onViewStats(member) },
                     )
                     if (index < members.lastIndex) {
-                        HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+                        Separator()
                     }
                 }
             }
@@ -686,15 +686,13 @@ private fun ViewerStatsDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = tokens.card,
-        titleContentColor = tokens.cardForeground,
         title = { Text(text = stringResource(Res.string.community_stats_title, name), style = typography.base) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
                 when {
                     loading -> {
                         Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator(color = tokens.primary)
+                            Spinner(color = tokens.primary)
                         }
                         Text(
                             text = stringResource(Res.string.community_stats_loading),
@@ -726,7 +724,7 @@ private fun ViewerStatsDialog(
 
                         if (isBroadcaster) {
                             Spacer(modifier = Modifier.height(spacing.s2))
-                            HorizontalDivider(color = tokens.border)
+                            Separator()
                             Spacer(modifier = Modifier.height(spacing.s2))
                             Text(
                                 text = stringResource(Res.string.community_gdpr_section),

@@ -26,7 +26,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.HorizontalDivider
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import androidx.compose.material3.Text
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
@@ -42,6 +41,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
+import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -178,7 +178,7 @@ private fun DailyTrendsSection(daily: List<DailyMetricRow>) {
                     isHeader = true,
                 )
                 daily.reversed().forEach { row: DailyMetricRow ->
-                    HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+                    Separator()
                     DailyRow(
                         date = row.activityDate.take(10),
                         chatters = row.uniqueChatters.toString(),
@@ -243,7 +243,7 @@ private fun TopViewersSection(topViewers: List<TopViewerEntry>) {
             Card(modifier = Modifier.fillMaxWidth()) {
                 topViewers.forEachIndexed { index: Int, entry: TopViewerEntry ->
                     if (index > 0) {
-                        HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+                        Separator()
                     }
                     Row(
                         modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.s4, vertical = spacing.s3),

@@ -21,7 +21,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.CircularProgressIndicator
 import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import androidx.compose.material3.Text
@@ -47,6 +46,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.CopyValue
 import bot.nomnomz.dashboard.core.designsystem.component.LinkedText
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
+import bot.nomnomz.dashboard.core.designsystem.component.Spinner
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -129,7 +129,7 @@ fun TwitchAppCredentialsCard(controller: TwitchAppCredentialsController, manage:
         when (val current: TwitchAppCredentialsState = state) {
             TwitchAppCredentialsState.Loading ->
                 Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(modifier = Modifier.size(spacing.s6))
+                    Spinner(modifier = Modifier.size(spacing.s6))
                 }
 
             is TwitchAppCredentialsState.Error ->
@@ -392,7 +392,7 @@ private fun SaveBar(
 
         if (state.saving) {
             val savingLabel: String = stringResource(Res.string.twitch_app_saving)
-            CircularProgressIndicator(
+            Spinner(
                 modifier = Modifier
                     .size(spacing.s6)
                     .clearAndSetSemantics { contentDescription = savingLabel },

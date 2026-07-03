@@ -22,7 +22,7 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -97,10 +97,12 @@ fun Sheet(
                         )
             )
 
+            // Horizontal sheets fill height and cap at the default width, wrapping to narrower
+            // content (e.g. a self-sized sidebar) so no panel gutter shows beside it.
             val panelModifier: Modifier =
                 when (side) {
                     SheetSide.Left,
-                    SheetSide.Right -> modifier.fillMaxHeight().width(SheetSideWidth)
+                    SheetSide.Right -> modifier.fillMaxHeight().widthIn(max = SheetSideWidth)
                     SheetSide.Top,
                     SheetSide.Bottom -> modifier.fillMaxWidth()
                 }

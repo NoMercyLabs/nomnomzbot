@@ -19,9 +19,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.material3.AlertDialog
+import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
-import androidx.compose.material3.HorizontalDivider
+import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import bot.nomnomz.dashboard.core.designsystem.component.Card
@@ -210,7 +210,7 @@ private fun ManagedContent(
                             onDelete = { onDelete(quote) },
                         )
                         if (index < quotes.lastIndex) {
-                            HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+                            Separator()
                         }
                     }
                 }
@@ -343,9 +343,6 @@ private fun QuoteFormDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = tokens.card,
-        titleContentColor = tokens.cardForeground,
-        textContentColor = tokens.mutedForeground,
         title = { Text(text = title) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {

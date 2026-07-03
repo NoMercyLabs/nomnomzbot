@@ -22,10 +22,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -44,6 +40,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.Card
@@ -52,6 +49,8 @@ import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
+import bot.nomnomz.dashboard.core.designsystem.component.Separator
+import bot.nomnomz.dashboard.core.designsystem.component.Switch
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import bot.nomnomz.dashboard.core.designsystem.icon.EditGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
@@ -246,7 +245,7 @@ private fun ManagedContent(
                             onDelete = { onDelete(timer) },
                         )
                         if (index < filteredTimers.lastIndex) {
-                            HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+                            Separator()
                         }
                     }
                 }
@@ -318,13 +317,6 @@ private fun TimerTableRow(
                 checked = timer.isEnabled,
                 onCheckedChange = { onToggle() },
                 enabled = enabled,
-                colors = SwitchDefaults.colors(
-                    checkedThumbColor = tokens.primaryForeground,
-                    checkedTrackColor = tokens.primary,
-                    uncheckedThumbColor = tokens.mutedForeground,
-                    uncheckedTrackColor = tokens.muted,
-                    uncheckedBorderColor = tokens.border,
-                ),
                 modifier = Modifier.semantics { contentDescription = toggleLabel },
             )
         }
@@ -370,9 +362,6 @@ private fun TimerEditDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = tokens.card,
-        titleContentColor = tokens.cardForeground,
-        textContentColor = tokens.mutedForeground,
         title = { Text(text = stringResource(titleRes)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
@@ -407,13 +396,6 @@ private fun TimerEditDialog(
                     Switch(
                         checked = enabled,
                         onCheckedChange = { enabled = it },
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = tokens.primaryForeground,
-                            checkedTrackColor = tokens.primary,
-                            uncheckedThumbColor = tokens.mutedForeground,
-                            uncheckedTrackColor = tokens.muted,
-                            uncheckedBorderColor = tokens.border,
-                        ),
                     )
                 }
             }

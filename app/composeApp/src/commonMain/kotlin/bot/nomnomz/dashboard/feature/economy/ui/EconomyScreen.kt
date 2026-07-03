@@ -27,12 +27,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.Button
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
@@ -54,6 +50,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
@@ -61,6 +58,9 @@ import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
+import bot.nomnomz.dashboard.core.designsystem.component.Separator
+import bot.nomnomz.dashboard.core.designsystem.component.Spinner
+import bot.nomnomz.dashboard.core.designsystem.component.Switch
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -69,7 +69,6 @@ import bot.nomnomz.dashboard.core.designsystem.icon.CheckCircleGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.RemoveGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.ui.unit.dp
 import bot.nomnomz.dashboard.core.network.CatalogItem
 import bot.nomnomz.dashboard.core.network.CatalogPurchase
@@ -700,7 +699,6 @@ private fun SwitchRow(
             checked = checked,
             onCheckedChange = onCheckedChange,
             enabled = enabled,
-            colors = switchColors(),
         )
     }
 }
@@ -787,7 +785,7 @@ private fun SaveBar(
 
         if (saving) {
             val savingLabel: String = stringResource(Res.string.economy_saving)
-            CircularProgressIndicator(
+            Spinner(
                 modifier = Modifier
                     .size(spacing.s6)
                     .clearAndSetSemantics { contentDescription = savingLabel },
@@ -836,7 +834,7 @@ private fun LeaderboardSection(entries: List<LeaderboardEntry>) {
             entries.forEachIndexed { index, entry ->
                 LeaderboardRow(entry = entry)
                 if (index < entries.lastIndex) {
-                    HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+                    Separator()
                 }
             }
         }
@@ -948,7 +946,7 @@ private fun AccountsSection(
                         loadLedger = loadLedger,
                     )
                     if (index < accounts.lastIndex) {
-                        HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+                        Separator()
                     }
                 }
             }
@@ -1138,7 +1136,6 @@ private fun AccountAdjustDialog(
             }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.economy_account_adjust_cancel)) } },
-        containerColor = tokens.card,
     )
 }
 
@@ -1165,7 +1162,7 @@ private fun LedgerDialog(
         text = {
             when {
                 loading -> Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
+                    Spinner()
                 }
                 entries == null -> Text(
                     stringResource(Res.string.economy_ledger_error),
@@ -1211,13 +1208,12 @@ private fun LedgerDialog(
                                 maxLines = 1,
                             )
                         }
-                        HorizontalDivider(color = tokens.border)
+                        Separator()
                     }
                 }
             }
         },
         confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.economy_ledger_close)) } },
-        containerColor = tokens.card,
     )
 }
 
@@ -1293,7 +1289,6 @@ private fun TransferDialog(
             }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.economy_transfer_cancel)) } },
-        containerColor = tokens.card,
     )
 }
 
@@ -1336,7 +1331,7 @@ private fun EarningRulesSection(
                     onDelete = { onDelete(rule.id) },
                 )
                 if (index < rules.lastIndex) {
-                    HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+                    Separator()
                 }
             }
         }
@@ -1494,7 +1489,7 @@ private fun CatalogSection(
                         onDelete = { pendingDelete = item },
                     )
                     if (index < catalog.lastIndex) {
-                        HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+                        Separator()
                     }
                 }
             }
@@ -1708,7 +1703,6 @@ private fun CreateCatalogItemDialog(
                 Text(stringResource(Res.string.economy_catalog_cancel))
             }
         },
-        containerColor = tokens.card,
     )
 }
 
@@ -1772,7 +1766,7 @@ private fun SavingsJarsSection(
                         onManage = { managingJar = jar },
                     )
                     if (index < jars.lastIndex) {
-                        HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+                        Separator()
                     }
                 }
             }
@@ -2276,7 +2270,6 @@ private fun CreateSavingsJarDialog(
                 Text(stringResource(Res.string.economy_jars_cancel))
             }
         },
-        containerColor = tokens.card,
     )
 }
 
@@ -2327,7 +2320,7 @@ private fun CatalogPurchasesSection(
                         }
                     }
                     if (index < purchases.lastIndex) {
-                        HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+                        Separator()
                     }
                 }
             }
@@ -2347,16 +2340,6 @@ private fun CatalogPurchasesSection(
     }
 }
 
-// The shared switch color set: every slot driven by a token so the control reads on-theme in light + dark.
-@Composable
-private fun switchColors() =
-    SwitchDefaults.colors(
-        checkedThumbColor = LocalTokens.current.primaryForeground,
-        checkedTrackColor = LocalTokens.current.primary,
-        uncheckedThumbColor = LocalTokens.current.mutedForeground,
-        uncheckedTrackColor = LocalTokens.current.muted,
-        uncheckedBorderColor = LocalTokens.current.border,
-    )
 
 // The shared text-field color set: every slot driven by a token so the field reads on-theme in light + dark.
 @Composable

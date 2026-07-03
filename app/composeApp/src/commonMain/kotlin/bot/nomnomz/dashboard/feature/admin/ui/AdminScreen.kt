@@ -23,15 +23,15 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Text
 import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.Card
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
-import androidx.compose.material3.Text
-import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
+import bot.nomnomz.dashboard.core.designsystem.component.Separator
+import bot.nomnomz.dashboard.core.designsystem.component.Spinner
+import bot.nomnomz.dashboard.core.designsystem.component.TabsList
+import bot.nomnomz.dashboard.core.designsystem.component.TabsTrigger
+import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -111,23 +111,20 @@ fun AdminScreen(controller: AdminController) {
             title = stringResource(Res.string.shell_nav_admin),
             modifier = Modifier.padding(horizontal = spacing.s6, vertical = spacing.s4),
         )
-        TabRow(
-            selectedTabIndex = selectedTab,
-            containerColor = tokens.card,
-            contentColor = tokens.primary,
-        ) {
+        TabsList(modifier = Modifier.padding(horizontal = spacing.s6)) {
             tabs.forEachIndexed { index, label ->
-                Tab(
+                TabsTrigger(
                     selected = selectedTab == index,
                     onClick = { selectedTab = index },
-                    text = { Text(text = label, style = typography.sm) },
-                )
+                ) {
+                    Text(text = label, style = typography.sm)
+                }
             }
         }
 
         if (state.isLoading) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = tokens.primary)
+                Spinner(color = tokens.primary)
             }
             return@Column
         }
@@ -186,7 +183,7 @@ private fun OverviewTab(state: AdminState) {
                             Text(text = event.time, style = typography.xs, color = tokens.mutedForeground)
                         }
                         if (index < state.events.lastIndex) {
-                            HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+                            Separator()
                         }
                     }
                 }
@@ -233,7 +230,7 @@ private fun ChannelsTab(state: AdminState) {
                         )
                     }
                     if (index < state.channels.lastIndex) {
-                        HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+                        Separator()
                     }
                 }
             }
@@ -278,7 +275,7 @@ private fun UsersTab(state: AdminState) {
                         )
                     }
                     if (index < state.users.lastIndex) {
-                        HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+                        Separator()
                     }
                 }
             }
@@ -330,7 +327,7 @@ private fun SystemTab(state: AdminState) {
                             )
                         }
                         if (index < sys.services.lastIndex) {
-                            HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+                            Separator()
                         }
                     }
                 }
@@ -362,7 +359,7 @@ private fun SystemTab(state: AdminState) {
                         )
                     }
                     if (index < state.health.lastIndex) {
-                        HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+                        Separator()
                     }
                 }
             }
@@ -403,7 +400,7 @@ private fun FeatureFlagsTab(state: AdminState, controller: AdminController) {
                         )
                     }
                     if (index < state.featureFlags.lastIndex) {
-                        HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+                        Separator()
                     }
                 }
             }
@@ -494,7 +491,7 @@ private fun BillingTab(state: AdminState, controller: AdminController) {
                         )
                     }
                     if (index < state.inviteCodes.lastIndex) {
-                        HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+                        Separator()
                     }
                 }
             }

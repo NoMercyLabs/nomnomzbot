@@ -25,10 +25,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.OutlinedButton
+import bot.nomnomz.dashboard.core.designsystem.component.Spinner
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -206,7 +206,7 @@ fun IntegrationsScreen(
         when (val current: IntegrationsState = state) {
             IntegrationsState.Loading ->
                 Box(modifier = Modifier.fillMaxWidth().padding(spacing.s8), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(modifier = Modifier.size(spacing.s6))
+                    Spinner(modifier = Modifier.size(spacing.s6))
                 }
 
             is IntegrationsState.Error ->
@@ -449,7 +449,7 @@ private fun IntegrationCard(
         }
 
         if (busy) {
-            CircularProgressIndicator(modifier = Modifier.size(spacing.s6))
+            Spinner(modifier = Modifier.size(spacing.s6))
         } else {
             Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2), verticalAlignment = Alignment.CenterVertically) {
                 if (connected && onDisconnect != null) {

@@ -19,9 +19,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -42,13 +39,17 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
+import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
+import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenu
+import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenuItem
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
+import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import bot.nomnomz.dashboard.core.designsystem.icon.EditGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
@@ -205,7 +206,7 @@ private fun RolesContent(
                                 onGrant = { pendingGrant = member },
                             )
                             if (index < state.members.lastIndex) {
-                                HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+                                Separator()
                             }
                         }
                     }
@@ -233,7 +234,7 @@ private fun RolesContent(
                                     onRevoke = { pendingRevoke = permit },
                                 )
                                 if (index < state.permits.lastIndex) {
-                                    HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+                                    Separator()
                                 }
                             }
                         }
@@ -256,7 +257,7 @@ private fun RolesContent(
                                     onReset = { onResetOverride(action.actionKey) },
                                 )
                                 if (index < state.allActions.lastIndex) {
-                                    HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+                                    Separator()
                                 }
                             }
                         }
@@ -532,11 +533,8 @@ private fun GrantCapabilityDialog(
     val confirmLabel: String = stringResource(Res.string.roles_grant_action_short)
     val dismissLabel: String = stringResource(Res.string.roles_remove_dismiss)
 
-    androidx.compose.material3.AlertDialog(
+    AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = tokens.card,
-        titleContentColor = tokens.cardForeground,
-        textContentColor = tokens.mutedForeground,
         title = { Text(text = title) },
         text = {
             if (actions.isEmpty()) {
@@ -766,11 +764,8 @@ private fun SetOverrideDialog(
     val title: String = stringResource(Res.string.roles_override_dialog_title, action.actionKey)
     val desc: String = stringResource(Res.string.roles_override_dialog_desc)
 
-    androidx.compose.material3.AlertDialog(
+    AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = tokens.card,
-        titleContentColor = tokens.cardForeground,
-        textContentColor = tokens.mutedForeground,
         title = { Text(text = title) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {

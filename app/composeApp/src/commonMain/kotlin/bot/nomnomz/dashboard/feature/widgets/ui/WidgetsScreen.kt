@@ -23,12 +23,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.material3.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.Button
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
@@ -48,7 +43,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
+import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
+import bot.nomnomz.dashboard.core.designsystem.component.Badge
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.CopyValue
@@ -56,6 +53,8 @@ import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
+import bot.nomnomz.dashboard.core.designsystem.component.Separator
+import bot.nomnomz.dashboard.core.designsystem.component.Switch
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -258,7 +257,6 @@ private fun WidgetList(
     onRename: (WidgetSummary) -> Unit,
     onClone: (WidgetSummary) -> Unit,
 ) {
-    val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
 
     Card(modifier = Modifier.fillMaxSize()) {
@@ -268,7 +266,7 @@ private fun WidgetList(
         ) {
             itemsIndexed(items = widgets, key = { _, widget -> widget.id }) { index, widget ->
                 if (index > 0) {
-                    HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+                    Separator()
                 }
                 WidgetRow(
                     widget = widget,
@@ -349,13 +347,6 @@ private fun WidgetRow(
                     checked = widget.isEnabled,
                     onCheckedChange = onToggle,
                     enabled = enabled,
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = tokens.primaryForeground,
-                        checkedTrackColor = tokens.primary,
-                        uncheckedThumbColor = tokens.mutedForeground,
-                        uncheckedTrackColor = tokens.muted,
-                        uncheckedBorderColor = tokens.border,
-                    ),
                     modifier = Modifier.semantics { contentDescription = toggleLabel },
                 )
             }
@@ -497,11 +488,10 @@ private fun CreateWidgetDialog(
                     types.chunked(3).forEach { row ->
                         Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
                             row.forEach { t ->
-                                FilterChip(
+                                Badge(
                                     selected = selectedType == t,
                                     onClick = { selectedType = t },
-                                    label = { Text(t, style = typography.xs) },
-                                )
+                                ) { Text(t, style = typography.xs) }
                             }
                         }
                     }
@@ -521,7 +511,6 @@ private fun CreateWidgetDialog(
         dismissButton = {
             TextButton(onClick = onDismiss) { Text(stringResource(Res.string.widgets_create_dismiss)) }
         },
-        containerColor = tokens.card,
     )
 }
 
@@ -570,6 +559,5 @@ private fun RenameWidgetDialog(
         dismissButton = {
             TextButton(onClick = onDismiss) { Text(stringResource(Res.string.widgets_rename_dismiss)) }
         },
-        containerColor = tokens.card,
     )
 }

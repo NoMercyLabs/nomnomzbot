@@ -29,16 +29,13 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.DrawerState
-import androidx.compose.material3.DrawerValue
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.ModalDrawerSheet
-import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberDrawerState
+import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenu
+import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenuItem
+import bot.nomnomz.dashboard.core.designsystem.component.Separator
+import bot.nomnomz.dashboard.core.designsystem.component.Sheet
+import bot.nomnomz.dashboard.core.designsystem.component.SheetSide
 import androidx.compose.runtime.key
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.runtime.Composable
@@ -239,44 +236,42 @@ fun ShellScreen(
         val compact: Boolean = maxWidth < CompactBreakpoint
 
         if (compact) {
-            // Mobile: the sidebar is an overlay drawer behind a hamburger; picking a page closes it.
-            val drawerState: DrawerState = rememberDrawerState(DrawerValue.Closed)
-            val scope: CoroutineScope = rememberCoroutineScope()
+            // Mobile: the sidebar is a modal Sheet behind a hamburger; picking a page closes it.
+            var drawerOpen: Boolean by remember { mutableStateOf(false) }
 
-            ModalNavigationDrawer(
-                drawerState = drawerState,
-                drawerContent = {
-                    ModalDrawerSheet(drawerContainerColor = tokens.sidebar) {
-                        Sidebar(
-                            role = role,
-                            selected = selected,
-                            isAdmin = user?.isAdmin == true,
-                            onSelect = {
-                                selected = it
-                                scope.launch { drawerState.close() }
-                            },
-                            user = user,
-                            channelSwitcher = graph.channelSwitcherController,
-                            languageController = languageController,
-                            onLogout = onLogout,
-                        )
-                    }
-                },
+            Column(modifier = Modifier.fillMaxSize()) {
+                TopBar(
+                    title = selected.label(),
+                    channelName = user?.displayName,
+                    onMenu = { drawerOpen = true },
+                )
+                ShellContent(
+                    selected = selected,
+                    graph = graph,
+                    role = role,
+                    onChannelDeleted = onLogout,
+                    modifier = Modifier.weight(1f).fillMaxWidth(),
+                )
+            }
+
+            Sheet(
+                open = drawerOpen,
+                onDismissRequest = { drawerOpen = false },
+                side = SheetSide.Left,
             ) {
-                Column(modifier = Modifier.fillMaxSize()) {
-                    TopBar(
-                        title = selected.label(),
-                        channelName = user?.displayName,
-                        onMenu = { scope.launch { drawerState.open() } },
-                    )
-                    ShellContent(
-                        selected = selected,
-                        graph = graph,
-                        role = role,
-                        onChannelDeleted = onLogout,
-                        modifier = Modifier.weight(1f).fillMaxWidth(),
-                    )
-                }
+                Sidebar(
+                    role = role,
+                    selected = selected,
+                    isAdmin = user?.isAdmin == true,
+                    onSelect = {
+                        selected = it
+                        drawerOpen = false
+                    },
+                    user = user,
+                    channelSwitcher = graph.channelSwitcherController,
+                    languageController = languageController,
+                    onLogout = onLogout,
+                )
             }
         } else {
             // Desktop / wide: persistent sidebar beside the content. The content column takes the
@@ -454,10 +449,7 @@ private fun Sidebar(
         }
 
         if (pinned.isNotEmpty()) {
-            HorizontalDivider(
-                color = tokens.sidebarBorder,
-                modifier = Modifier.padding(vertical = spacing.s2),
-            )
+            Separator(modifier = Modifier.padding(vertical = spacing.s2))
             SidebarGroupLabel(label = NavGroup.Setup.label())
             Column(verticalArrangement = Arrangement.spacedBy(spacing.s0_5)) {
                 pinned.forEach { page ->
@@ -467,17 +459,11 @@ private fun Sidebar(
         }
 
         if (isAdmin) {
-            HorizontalDivider(
-                color = tokens.sidebarBorder,
-                modifier = Modifier.padding(vertical = spacing.s2),
-            )
+            Separator(modifier = Modifier.padding(vertical = spacing.s2))
             NavItem(route = ShellRoute.Admin, selected = ShellRoute.Admin == selected) { onSelect(ShellRoute.Admin) }
         }
 
-        HorizontalDivider(
-            color = tokens.sidebarBorder,
-            modifier = Modifier.padding(top = spacing.s2, bottom = spacing.s2),
-        )
+        Separator(modifier = Modifier.padding(top = spacing.s2, bottom = spacing.s2))
         ProfileBlock(
             user = user,
             role = role,
@@ -573,7 +559,7 @@ private fun SidebarHeader(switcher: ChannelSwitcherController) {
                     )
                 }
                 if (unregisteredModerated.isNotEmpty()) {
-                    HorizontalDivider(color = tokens.border)
+                    Separator()
                     unregisteredModerated.forEach { channel ->
                         DropdownMenuItem(
                             enabled = false,
@@ -713,7 +699,7 @@ private fun ProfileBlock(
                 Text(text = name, style = typography.sm, color = tokens.popoverForeground)
                 Text(text = roleLabel, style = typography.xs, color = tokens.mutedForeground)
             }
-            HorizontalDivider(color = tokens.border)
+            Separator()
             AppLanguage.entries.forEach { language ->
                 DropdownMenuItem(
                     text = {
@@ -729,7 +715,7 @@ private fun ProfileBlock(
                     },
                 )
             }
-            HorizontalDivider(color = tokens.border)
+            Separator()
             DropdownMenuItem(
                 text = {
                     Text(
@@ -811,7 +797,7 @@ private fun TopBar(title: String, channelName: String?, onMenu: (() -> Unit)?) {
                 HubDot()
             }
         }
-        HorizontalDivider(color = tokens.border)
+        Separator()
     }
 }
 

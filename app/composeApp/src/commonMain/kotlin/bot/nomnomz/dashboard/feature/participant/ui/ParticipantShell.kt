@@ -29,20 +29,11 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.DrawerState
-import androidx.compose.material3.DrawerValue
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.ModalDrawerSheet
-import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -55,6 +46,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import bot.nomnomz.dashboard.core.connection.SessionUser
+import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenu
+import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenuItem
+import bot.nomnomz.dashboard.core.designsystem.component.Separator
+import bot.nomnomz.dashboard.core.designsystem.component.Sheet
+import bot.nomnomz.dashboard.core.designsystem.component.SheetSide
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -66,8 +62,6 @@ import bot.nomnomz.dashboard.feature.shell.nav.ParticipantPage
 import bot.nomnomz.dashboard.feature.shell.nav.ParticipantStanding
 import bot.nomnomz.dashboard.feature.shell.nav.ShellNav
 import bot.nomnomz.dashboard.feature.shell.state.ShellAccess
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.app_name
 import nomnomzbot.composeapp.generated.resources.language_label
@@ -125,40 +119,38 @@ fun ParticipantShell(
         val compact: Boolean = maxWidth < CompactBreakpoint
 
         if (compact) {
-            val drawerState: DrawerState = rememberDrawerState(DrawerValue.Closed)
-            val scope: CoroutineScope = rememberCoroutineScope()
+            var drawerOpen: Boolean by remember { mutableStateOf(false) }
 
-            ModalNavigationDrawer(
-                drawerState = drawerState,
-                drawerContent = {
-                    ModalDrawerSheet(drawerContainerColor = tokens.sidebar) {
-                        Sidebar(
-                            pages = visible,
-                            selected = selected,
-                            standing = access.standing,
-                            onSelect = {
-                                selected = it
-                                scope.launch { drawerState.close() }
-                            },
-                            user = user,
-                            languageController = languageController,
-                            onLogout = onLogout,
-                        )
-                    }
-                },
+            Column(modifier = Modifier.fillMaxSize()) {
+                TopBar(
+                    title = selected.label(),
+                    channelName = user?.displayName,
+                    onMenu = { drawerOpen = true },
+                )
+                Content(
+                    selected = selected,
+                    controller = controller,
+                    modifier = Modifier.weight(1f).fillMaxWidth(),
+                )
+            }
+
+            Sheet(
+                open = drawerOpen,
+                onDismissRequest = { drawerOpen = false },
+                side = SheetSide.Left,
             ) {
-                Column(modifier = Modifier.fillMaxSize()) {
-                    TopBar(
-                        title = selected.label(),
-                        channelName = user?.displayName,
-                        onMenu = { scope.launch { drawerState.open() } },
-                    )
-                    Content(
-                        selected = selected,
-                        controller = controller,
-                        modifier = Modifier.weight(1f).fillMaxWidth(),
-                    )
-                }
+                Sidebar(
+                    pages = visible,
+                    selected = selected,
+                    standing = access.standing,
+                    onSelect = {
+                        selected = it
+                        drawerOpen = false
+                    },
+                    user = user,
+                    languageController = languageController,
+                    onLogout = onLogout,
+                )
             }
         } else {
             Row(modifier = Modifier.fillMaxSize()) {
@@ -241,10 +233,7 @@ private fun Sidebar(
             }
         }
 
-        HorizontalDivider(
-            color = tokens.sidebarBorder,
-            modifier = Modifier.padding(top = spacing.s2, bottom = spacing.s2),
-        )
+        Separator(modifier = Modifier.padding(top = spacing.s2, bottom = spacing.s2))
         ProfileBlock(
             user = user,
             standing = standing,
@@ -326,7 +315,7 @@ private fun ProfileBlock(
                 Text(text = name, style = typography.sm, color = tokens.popoverForeground)
                 Text(text = standingLabel, style = typography.xs, color = tokens.mutedForeground)
             }
-            HorizontalDivider(color = tokens.border)
+            Separator()
 
             AppLanguage.entries.forEach { language ->
                 DropdownMenuItem(
@@ -337,7 +326,7 @@ private fun ProfileBlock(
                     },
                 )
             }
-            HorizontalDivider(color = tokens.border)
+            Separator()
 
             DropdownMenuItem(
                 text = {
@@ -404,7 +393,7 @@ private fun TopBar(title: String, channelName: String?, onMenu: (() -> Unit)?) {
             }
             if (!channelName.isNullOrBlank()) ChannelChip(name = channelName)
         }
-        HorizontalDivider(color = tokens.border)
+        Separator()
     }
 }
 

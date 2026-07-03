@@ -22,9 +22,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
+import bot.nomnomz.dashboard.core.designsystem.component.Spinner
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -295,7 +295,7 @@ private fun DeviceCodePanel(userCode: String, verificationUri: String) {
         )
         DeviceOpenButton(verificationUri = verificationUri, uriHandler = uriHandler)
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            CircularProgressIndicator(modifier = Modifier.size(spacing.s6))
+            Spinner(modifier = Modifier.size(spacing.s6))
             Text(
                 text = stringResource(Res.string.connect_device_waiting),
                 style = typography.xs,
@@ -329,7 +329,7 @@ private fun ConnectStatusRow(status: ConnectStatus) {
     when (status) {
         is ConnectStatus.Connecting ->
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                CircularProgressIndicator(modifier = Modifier.size(spacing.s6))
+                Spinner(modifier = Modifier.size(spacing.s6))
                 Text(
                     text = stringResource(Res.string.connect_connecting),
                     style = typography.sm,
