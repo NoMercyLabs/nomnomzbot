@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
@@ -31,6 +32,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import bot.nomnomz.dashboard.core.designsystem.component.Button
+import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -182,21 +184,28 @@ fun CustomEventsScreen(controller: CustomEventsController, role: ManagementRole?
                     HorizontalDivider(color = tokens.border)
                 }
 
-                if (current.sources.isEmpty()) {
-                    CenteredMessage(stringResource(Res.string.custom_events_empty))
-                } else {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        verticalArrangement = Arrangement.spacedBy(spacing.s3),
-                    ) {
-                        items(items = current.sources, key = { it.id }) { source ->
-                            SourceRow(
-                                source = source,
-                                manage = manage,
-                                onEdit = { dialogKey++; editTarget = source },
-                                onDelete = { dialogKey++; deleteTarget = source },
-                                onTest = { dialogKey++; testTarget = source; testSuccess = false },
-                            )
+                Card(modifier = Modifier.fillMaxWidth().weight(1f)) {
+                    if (current.sources.isEmpty()) {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            CenteredMessage(stringResource(Res.string.custom_events_empty))
+                        }
+                    } else {
+                        LazyColumn(modifier = Modifier.fillMaxSize()) {
+                            itemsIndexed(
+                                items = current.sources,
+                                key = { _, source -> source.id },
+                            ) { index, source ->
+                                SourceRow(
+                                    source = source,
+                                    manage = manage,
+                                    onEdit = { dialogKey++; editTarget = source },
+                                    onDelete = { dialogKey++; deleteTarget = source },
+                                    onTest = { dialogKey++; testTarget = source; testSuccess = false },
+                                )
+                                if (index < current.sources.lastIndex) {
+                                    HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+                                }
+                            }
                         }
                     }
                 }
@@ -313,8 +322,6 @@ private fun SourceRow(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(tokens.radius.lg))
-            .background(tokens.card)
             .padding(spacing.s4),
         verticalArrangement = Arrangement.spacedBy(spacing.s2),
     ) {

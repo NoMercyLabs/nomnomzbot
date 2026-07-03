@@ -10,19 +10,17 @@
 
 package bot.nomnomz.dashboard.feature.rewards.ui
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
@@ -41,7 +39,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -50,6 +47,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
+import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
@@ -316,35 +314,39 @@ private fun RewardList(
     onFulfill: (RedemptionSummary) -> Unit,
     onRefund: (RedemptionSummary) -> Unit,
 ) {
-    val spacing = LocalSpacing.current
+    val tokens = LocalTokens.current
 
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(vertical = spacing.s1),
-        verticalArrangement = Arrangement.spacedBy(spacing.s3),
-    ) {
-        items(items = rewards, key = { reward -> reward.id }) { reward ->
-            RewardRow(
-                reward = reward,
-                edit = edit,
-                lifecycle = lifecycle,
-                onEdit = { onEdit(reward) },
-                onToggle = { enabled -> onToggle(reward, enabled) },
-                onDelete = { onDelete(reward) },
-            )
-        }
-
-        // The pending redemption queue (read-only for now — fulfil/refund actions land with their backend
-        // endpoints). A labelled section beneath the rewards so the whole page scrolls as one.
-        if (redemptions.isNotEmpty()) {
-            item(key = "redemption-queue-header") { RedemptionsHeader() }
-            items(items = redemptions, key = { it.redemptionId }) { redemption ->
-                RedemptionRow(
-                    redemption = redemption,
+    Card(modifier = Modifier.fillMaxWidth()) {
+        LazyColumn(modifier = Modifier.fillMaxSize()) {
+            itemsIndexed(items = rewards, key = { _, reward -> reward.id }) { index, reward ->
+                if (index > 0) {
+                    HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+                }
+                RewardRow(
+                    reward = reward,
                     edit = edit,
-                    onFulfill = { onFulfill(redemption) },
-                    onRefund = { onRefund(redemption) },
+                    lifecycle = lifecycle,
+                    onEdit = { onEdit(reward) },
+                    onToggle = { enabled -> onToggle(reward, enabled) },
+                    onDelete = { onDelete(reward) },
                 )
+            }
+
+            // The pending redemption queue (read-only for now — fulfil/refund actions land with their backend
+            // endpoints). A labelled section beneath the rewards so the whole page scrolls as one.
+            if (redemptions.isNotEmpty()) {
+                item(key = "redemption-queue-header") { RedemptionsHeader() }
+                itemsIndexed(items = redemptions, key = { _, r -> r.redemptionId }) { index, redemption ->
+                    if (index > 0) {
+                        HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+                    }
+                    RedemptionRow(
+                        redemption = redemption,
+                        edit = edit,
+                        onFulfill = { onFulfill(redemption) },
+                        onRefund = { onRefund(redemption) },
+                    )
+                }
             }
         }
     }
@@ -392,9 +394,7 @@ private fun RedemptionRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(tokens.radius.lg))
-            .background(tokens.card)
-            .padding(spacing.s4),
+            .padding(horizontal = spacing.s4, vertical = spacing.s3),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(spacing.s3),
     ) {
@@ -479,9 +479,7 @@ private fun RewardRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(tokens.radius.lg))
-            .background(tokens.card)
-            .padding(spacing.s4),
+            .padding(horizontal = spacing.s4, vertical = spacing.s3),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(spacing.s3),
     ) {

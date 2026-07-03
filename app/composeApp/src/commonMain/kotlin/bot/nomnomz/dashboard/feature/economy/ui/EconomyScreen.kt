@@ -55,6 +55,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
+import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
@@ -830,12 +831,14 @@ private fun LeaderboardSection(entries: List<LeaderboardEntry>) {
         return
     }
 
-    Column(
-        modifier = Modifier.fillMaxWidth().padding(vertical = spacing.s1),
-        verticalArrangement = Arrangement.spacedBy(spacing.s2),
-    ) {
-        entries.forEach { entry ->
-            LeaderboardRow(entry = entry)
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            entries.forEachIndexed { index, entry ->
+                LeaderboardRow(entry = entry)
+                if (index < entries.lastIndex) {
+                    HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+                }
+            }
         }
     }
 }
@@ -859,8 +862,6 @@ private fun LeaderboardRow(entry: LeaderboardEntry) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(tokens.radius.lg))
-            .background(tokens.card)
             .padding(horizontal = spacing.s4, vertical = spacing.s3)
             .clearAndSetSemantics { contentDescription = rowDescription },
         verticalAlignment = Alignment.CenterVertically,
@@ -936,18 +937,20 @@ private fun AccountsSection(
             color = tokens.mutedForeground,
         )
     } else {
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(vertical = spacing.s1),
-            verticalArrangement = Arrangement.spacedBy(spacing.s2),
-        ) {
-            accounts.forEach { account ->
-                AccountRow(
-                    account = account,
-                    manage = manage,
-                    onFreeze = onFreeze,
-                    onAdjust = onAdjust,
-                    loadLedger = loadLedger,
-                )
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                accounts.forEachIndexed { index, account ->
+                    AccountRow(
+                        account = account,
+                        manage = manage,
+                        onFreeze = onFreeze,
+                        onAdjust = onAdjust,
+                        loadLedger = loadLedger,
+                    )
+                    if (index < accounts.lastIndex) {
+                        HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+                    }
+                }
             }
         }
     }
@@ -1001,8 +1004,6 @@ private fun AccountRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(tokens.radius.lg))
-            .background(tokens.card)
             .padding(horizontal = spacing.s4, vertical = spacing.s3),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(spacing.s3),
@@ -1325,17 +1326,19 @@ private fun EarningRulesSection(
         return
     }
 
-    Column(
-        modifier = Modifier.fillMaxWidth().padding(vertical = spacing.s1),
-        verticalArrangement = Arrangement.spacedBy(spacing.s2),
-    ) {
-        rules.forEach { rule ->
-            EarningRuleRow(
-                rule = rule,
-                manage = manage,
-                onToggle = { onToggle(rule.source, !rule.isEnabled) },
-                onDelete = { onDelete(rule.id) },
-            )
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            rules.forEachIndexed { index, rule ->
+                EarningRuleRow(
+                    rule = rule,
+                    manage = manage,
+                    onToggle = { onToggle(rule.source, !rule.isEnabled) },
+                    onDelete = { onDelete(rule.id) },
+                )
+                if (index < rules.lastIndex) {
+                    HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+                }
+            }
         }
     }
 }
@@ -1365,8 +1368,6 @@ private fun EarningRuleRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(tokens.radius.lg))
-            .background(tokens.card)
             .padding(horizontal = spacing.s4, vertical = spacing.s3)
             .semantics { contentDescription = rowDescription },
         verticalAlignment = Alignment.CenterVertically,
@@ -1483,17 +1484,19 @@ private fun CatalogSection(
             color = tokens.mutedForeground,
         )
     } else {
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(vertical = spacing.s1),
-            verticalArrangement = Arrangement.spacedBy(spacing.s2),
-        ) {
-            catalog.forEach { item ->
-                CatalogItemRow(
-                    item = item,
-                    manage = manage,
-                    onToggle = onToggle,
-                    onDelete = { pendingDelete = item },
-                )
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                catalog.forEachIndexed { index, item ->
+                    CatalogItemRow(
+                        item = item,
+                        manage = manage,
+                        onToggle = onToggle,
+                        onDelete = { pendingDelete = item },
+                    )
+                    if (index < catalog.lastIndex) {
+                        HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+                    }
+                }
             }
         }
     }
@@ -1548,8 +1551,6 @@ private fun CatalogItemRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(tokens.radius.lg))
-            .background(tokens.card)
             .padding(horizontal = spacing.s4, vertical = spacing.s3),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(spacing.s3),
@@ -1762,16 +1763,18 @@ private fun SavingsJarsSection(
             color = tokens.mutedForeground,
         )
     } else {
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(vertical = spacing.s1),
-            verticalArrangement = Arrangement.spacedBy(spacing.s2),
-        ) {
-            jars.forEach { jar ->
-                SavingsJarRow(
-                    jar = jar,
-                    manage = manage,
-                    onManage = { managingJar = jar },
-                )
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                jars.forEachIndexed { index, jar ->
+                    SavingsJarRow(
+                        jar = jar,
+                        manage = manage,
+                        onManage = { managingJar = jar },
+                    )
+                    if (index < jars.lastIndex) {
+                        HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+                    }
+                }
             }
         }
     }
@@ -1818,8 +1821,6 @@ private fun SavingsJarRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(tokens.radius.lg))
-            .background(tokens.card)
             .padding(horizontal = spacing.s4, vertical = spacing.s3)
             .clearAndSetSemantics { contentDescription = rowDescription },
         verticalAlignment = Alignment.CenterVertically,
@@ -2296,37 +2297,37 @@ private fun CatalogPurchasesSection(
     if (purchases.isEmpty()) {
         Text(text = stringResource(Res.string.economy_purchases_empty), style = typography.sm, color = tokens.mutedForeground)
     } else {
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(vertical = spacing.s1),
-            verticalArrangement = Arrangement.spacedBy(spacing.s2),
-        ) {
-            purchases.forEach { purchase ->
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(tokens.radius.lg))
-                        .background(tokens.card)
-                        .padding(horizontal = spacing.s4, vertical = spacing.s3),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(spacing.s3),
-                ) {
-                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
-                        Text(text = purchase.itemNameSnapshot, style = typography.base, color = tokens.cardForeground, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
-                            Text(text = stringResource(Res.string.economy_purchases_buyer, purchase.buyerUserId), style = typography.xs, color = tokens.mutedForeground)
-                            Text(text = stringResource(Res.string.economy_purchases_status, purchase.status), style = typography.xs, color = tokens.mutedForeground)
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                purchases.forEachIndexed { index, purchase ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = spacing.s4, vertical = spacing.s3),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(spacing.s3),
+                    ) {
+                        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
+                            Text(text = purchase.itemNameSnapshot, style = typography.base, color = tokens.cardForeground, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
+                                Text(text = stringResource(Res.string.economy_purchases_buyer, purchase.buyerUserId), style = typography.xs, color = tokens.mutedForeground)
+                                Text(text = stringResource(Res.string.economy_purchases_status, purchase.status), style = typography.xs, color = tokens.mutedForeground)
+                            }
+                        }
+                        Text(text = purchase.costPaid.toString(), style = typography.base, color = tokens.primary)
+                        ManageGate(manage) { enabled ->
+                            val refundEnabled: Boolean = enabled && purchase.status != "refunded"
+                            GlyphButton(
+                                imageVector = RemoveGlyph,
+                                label = stringResource(Res.string.economy_purchases_refund),
+                                onClick = { pendingRefund = purchase },
+                                enabled = refundEnabled,
+                                tint = tokens.destructive,
+                            )
                         }
                     }
-                    Text(text = purchase.costPaid.toString(), style = typography.base, color = tokens.primary)
-                    ManageGate(manage) { enabled ->
-                        val refundEnabled: Boolean = enabled && purchase.status != "refunded"
-                        GlyphButton(
-                            imageVector = RemoveGlyph,
-                            label = stringResource(Res.string.economy_purchases_refund),
-                            onClick = { pendingRefund = purchase },
-                            enabled = refundEnabled,
-                            tint = tokens.destructive,
-                        )
+                    if (index < purchases.lastIndex) {
+                        HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
                     }
                 }
             }

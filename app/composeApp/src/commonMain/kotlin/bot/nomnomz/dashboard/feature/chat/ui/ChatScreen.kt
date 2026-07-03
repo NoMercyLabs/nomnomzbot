@@ -278,8 +278,6 @@ private fun MessageRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(tokens.radius.lg))
-            .background(tokens.card)
             .padding(horizontal = spacing.s4, vertical = spacing.s3),
         verticalAlignment = Alignment.Top,
         horizontalArrangement = Arrangement.spacedBy(spacing.s2),

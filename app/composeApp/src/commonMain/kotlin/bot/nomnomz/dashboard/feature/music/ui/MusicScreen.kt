@@ -60,6 +60,7 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.designsystem.icon.RefreshGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
 import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
+import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.network.MusicConfig
 import bot.nomnomz.dashboard.core.network.MusicDevice
@@ -266,9 +267,14 @@ private fun ReadyContent(
                 modifier = Modifier.padding(horizontal = spacing.s1),
             )
         } else {
-            Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
-                queue.forEach { track ->
-                    QueueRow(track = track, manage = manage, onRemove = { pendingRemoval = track })
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column {
+                    queue.forEachIndexed { index, track ->
+                        QueueRow(track = track, manage = manage, onRemove = { pendingRemoval = track })
+                        if (index < queue.lastIndex) {
+                            HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+                        }
+                    }
                 }
             }
         }
@@ -586,8 +592,6 @@ private fun QueueRow(track: MusicTrack, manage: ManageDecision, onRemove: () -> 
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(tokens.radius.lg))
-            .background(tokens.card)
             .padding(horizontal = spacing.s4, vertical = spacing.s3),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(spacing.s3),

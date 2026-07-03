@@ -20,8 +20,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -29,6 +29,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 
+import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import androidx.compose.material3.TextFieldColors
 import androidx.compose.runtime.Composable
@@ -173,13 +174,22 @@ private fun ManagedContent(
         actionError?.let { detail ->
             item(key = "action-error") { ActionErrorBanner(message = stringResource(Res.string.games_action_error, detail)) }
         }
-        items(items = games, key = { game -> game.id }) { game ->
-            GameRow(
-                game = game,
-                manage = manage,
-                onToggle = { enabled -> onToggle(game, enabled) },
-                onEdit = { onEdit(game) },
-            )
+        item(key = "games-card") {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column {
+                    games.forEachIndexed { index, game ->
+                        GameRow(
+                            game = game,
+                            manage = manage,
+                            onToggle = { enabled -> onToggle(game, enabled) },
+                            onEdit = { onEdit(game) },
+                        )
+                        if (index < games.lastIndex) {
+                            HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+                        }
+                    }
+                }
+            }
         }
         item(key = "history-header") {
             Text(
@@ -199,8 +209,17 @@ private fun ManagedContent(
                 )
             }
         } else {
-            items(items = history, key = { play -> "play-${play.id}" }) { play ->
-                HistoryRow(play = play)
+            item(key = "history-card") {
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column {
+                        history.forEachIndexed { index, play ->
+                            HistoryRow(play = play)
+                            if (index < history.lastIndex) {
+                                HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+                            }
+                        }
+                    }
+                }
             }
         }
     }
@@ -216,9 +235,7 @@ private fun HistoryRow(play: GamePlayEntry) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(tokens.radius.lg))
-            .background(tokens.card)
-            .padding(horizontal = spacing.s4, vertical = spacing.s2),
+            .padding(horizontal = spacing.s4, vertical = spacing.s3),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -274,8 +291,6 @@ private fun GameRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(tokens.radius.lg))
-            .background(tokens.card)
             .padding(horizontal = spacing.s4, vertical = spacing.s3),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(spacing.s2),

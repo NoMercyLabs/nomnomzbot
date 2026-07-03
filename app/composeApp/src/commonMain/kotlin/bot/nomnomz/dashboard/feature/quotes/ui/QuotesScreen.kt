@@ -10,22 +10,21 @@
 
 package bot.nomnomz.dashboard.feature.quotes.ui
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
+import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import androidx.compose.material3.TextFieldColors
 import androidx.compose.runtime.Composable
@@ -37,7 +36,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -171,8 +169,8 @@ fun QuotesScreen(controller: QuotesController, role: ManagementRole?) {
 }
 
 // The list-bearing content: the header with the "+ New quote" action, an optional write-failure banner, and
-// either the rows or the empty hint. Shared by the Ready and Empty states so a fresh channel can still create
-// its first quote from the same header.
+// one Card wrapping either the rows (with HorizontalDividers) or the empty hint. Shared by the Ready and
+// Empty states so a fresh channel can still create its first quote from the same header.
 @Composable
 private fun ManagedContent(
     quotes: List<Quote>,
@@ -182,7 +180,9 @@ private fun ManagedContent(
     onEdit: (Quote) -> Unit,
     onDelete: (Quote) -> Unit,
 ) {
+    val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
 
     Column(
         modifier = Modifier.fillMaxSize(),
@@ -191,10 +191,30 @@ private fun ManagedContent(
         Header(manage = manage, onNew = onNew)
         actionError?.let { ActionErrorBanner(message = stringResource(Res.string.quotes_action_error, it)) }
 
-        if (quotes.isEmpty()) {
-            CenteredMessage(stringResource(Res.string.quotes_empty))
-        } else {
-            QuoteList(quotes = quotes, manage = manage, onEdit = onEdit, onDelete = onDelete)
+        Card(modifier = Modifier.fillMaxWidth().weight(1f)) {
+            if (quotes.isEmpty()) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text(
+                        text = stringResource(Res.string.quotes_empty),
+                        style = typography.base,
+                        color = tokens.mutedForeground,
+                    )
+                }
+            } else {
+                LazyColumn(modifier = Modifier.fillMaxSize()) {
+                    itemsIndexed(items = quotes, key = { _, quote -> quote.id }) { index, quote ->
+                        QuoteRow(
+                            quote = quote,
+                            manage = manage,
+                            onEdit = { onEdit(quote) },
+                            onDelete = { onDelete(quote) },
+                        )
+                        if (index < quotes.lastIndex) {
+                            HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -217,31 +237,6 @@ private fun Header(manage: ManageDecision, onNew: () -> Unit) {
 }
 
 @Composable
-private fun QuoteList(
-    quotes: List<Quote>,
-    manage: ManageDecision,
-    onEdit: (Quote) -> Unit,
-    onDelete: (Quote) -> Unit,
-) {
-    val spacing = LocalSpacing.current
-
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(vertical = spacing.s1),
-        verticalArrangement = Arrangement.spacedBy(spacing.s3),
-    ) {
-        items(items = quotes, key = { quote -> quote.id }) { quote ->
-            QuoteRow(
-                quote = quote,
-                manage = manage,
-                onEdit = { onEdit(quote) },
-                onDelete = { onDelete(quote) },
-            )
-        }
-    }
-}
-
-@Composable
 private fun QuoteRow(quote: Quote, manage: ManageDecision, onEdit: () -> Unit, onDelete: () -> Unit) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -255,9 +250,7 @@ private fun QuoteRow(quote: Quote, manage: ManageDecision, onEdit: () -> Unit, o
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(tokens.radius.lg))
-            .background(tokens.card)
-            .padding(spacing.s4),
+            .padding(horizontal = spacing.s4, vertical = spacing.s3),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(spacing.s3),
     ) {

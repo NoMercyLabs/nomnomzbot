@@ -24,12 +24,13 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import bot.nomnomz.dashboard.core.designsystem.component.Button
+import bot.nomnomz.dashboard.core.designsystem.component.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 
@@ -274,41 +275,40 @@ private fun VoicePicker(
     val current: TtsVoice? = voices.firstOrNull { it.id == currentVoiceId }
     val selectedLabel: String? = current?.let { "${it.displayName} (${it.locale})" }
 
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(tokens.radius.lg))
-            .background(tokens.card)
-            .padding(spacing.s4),
-        verticalArrangement = Arrangement.spacedBy(spacing.s2),
-    ) {
-        Text(
-            text = stringResource(Res.string.tts_voices_title),
-            style = typography.base,
-            color = tokens.cardForeground,
-            maxLines = 1,
-        )
-        Text(
-            text = stringResource(Res.string.tts_voices_count, voices.size),
-            style = typography.sm,
-            color = tokens.mutedForeground,
-            maxLines = 1,
-        )
-        if (selectedLabel != null) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(spacing.s4),
+            verticalArrangement = Arrangement.spacedBy(spacing.s2),
+        ) {
             Text(
-                text = stringResource(Res.string.tts_voices_default, selectedLabel),
+                text = stringResource(Res.string.tts_voices_title),
+                style = typography.base,
+                color = tokens.cardForeground,
+                maxLines = 1,
+            )
+            Text(
+                text = stringResource(Res.string.tts_voices_count, voices.size),
                 style = typography.sm,
                 color = tokens.mutedForeground,
                 maxLines = 1,
             )
+            if (selectedLabel != null) {
+                Text(
+                    text = stringResource(Res.string.tts_voices_default, selectedLabel),
+                    style = typography.sm,
+                    color = tokens.mutedForeground,
+                    maxLines = 1,
+                )
+            }
+            AppTextField(
+                value = query,
+                onValueChange = { query = it },
+                label = stringResource(Res.string.tts_voices_search),
+                modifier = Modifier.fillMaxWidth(),
+            )
         }
-        AppTextField(
-            value = query,
-            onValueChange = { query = it },
-            label = stringResource(Res.string.tts_voices_search),
-            modifier = Modifier.fillMaxWidth(),
-        )
         shown.forEach { voice ->
+            HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
             VoiceMatchRow(
                 voice = voice,
                 manage = manage,
@@ -319,11 +319,13 @@ private fun VoicePicker(
             )
         }
         if (matches.size > shown.size) {
+            HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
             Text(
                 text = stringResource(Res.string.tts_voices_more, matches.size),
                 style = typography.sm,
                 color = tokens.mutedForeground,
                 maxLines = 1,
+                modifier = Modifier.padding(horizontal = spacing.s4, vertical = spacing.s3),
             )
         }
     }
@@ -340,7 +342,7 @@ private fun VoiceMatchRow(voice: TtsVoice, manage: ManageDecision, onUse: () -> 
     val rowDescription: String = "${voice.displayName}, ${voice.locale}, ${voice.provider}"
 
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.s4, vertical = spacing.s3),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(spacing.s2),
     ) {
@@ -378,24 +380,24 @@ private fun StatusBanner(isEnabled: Boolean) {
     val statusText: String =
         stringResource(if (isEnabled) Res.string.tts_status_enabled else Res.string.tts_status_disabled)
 
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(tokens.radius.lg))
-            .background(tokens.card)
-            .padding(spacing.s4)
-            // One node for screen readers: "TTS enabled" rather than a disconnected dot + label.
-            .clearAndSetSemantics { contentDescription = statusText },
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(spacing.s2),
-    ) {
-        Box(
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Row(
             modifier = Modifier
-                .size(spacing.s2)
-                .clip(CircleShape)
-                .background(if (isEnabled) tokens.primary else tokens.mutedForeground),
-        )
-        Text(text = statusText, style = typography.xl, color = tokens.cardForeground)
+                .fillMaxWidth()
+                .padding(horizontal = spacing.s4, vertical = spacing.s3)
+                // One node for screen readers: "TTS enabled" rather than a disconnected dot + label.
+                .clearAndSetSemantics { contentDescription = statusText },
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(spacing.s2)
+                    .clip(CircleShape)
+                    .background(if (isEnabled) tokens.primary else tokens.mutedForeground),
+            )
+            Text(text = statusText, style = typography.xl, color = tokens.cardForeground)
+        }
     }
 }
 
@@ -420,49 +422,61 @@ private fun EditCard(
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
 
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(tokens.radius.lg))
-            .background(tokens.card)
-            .padding(spacing.s4),
-        verticalArrangement = Arrangement.spacedBy(spacing.s4),
-    ) {
-        SwitchRow(
-            labelRes = Res.string.tts_toggle_enabled,
-            checked = isEnabled,
-            onCheckedChange = onEnabledChange,
-            manage = manage,
-            enabled = enabled,
-        )
-        VoiceField(value = defaultVoiceId, onValueChange = onVoiceChange, manage = manage, enabled = enabled)
-        MaxLengthField(
-            value = maxLengthText,
-            onValueChange = onMaxLengthChange,
-            valid = maxLengthValid,
-            manage = manage,
-            enabled = enabled,
-        )
-        PermissionPicker(
-            selected = minPermission,
-            onSelect = onPermissionChange,
-            manage = manage,
-            enabled = enabled,
-        )
-        SwitchRow(
-            labelRes = Res.string.tts_label_skip_bot_messages,
-            checked = skipBotMessages,
-            onCheckedChange = onSkipBotMessagesChange,
-            manage = manage,
-            enabled = enabled,
-        )
-        SwitchRow(
-            labelRes = Res.string.tts_label_read_usernames,
-            checked = readUsernames,
-            onCheckedChange = onReadUsernamesChange,
-            manage = manage,
-            enabled = enabled,
-        )
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.s4, vertical = spacing.s3)) {
+                SwitchRow(
+                    labelRes = Res.string.tts_toggle_enabled,
+                    checked = isEnabled,
+                    onCheckedChange = onEnabledChange,
+                    manage = manage,
+                    enabled = enabled,
+                )
+            }
+            HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+            Column(modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.s4, vertical = spacing.s3)) {
+                VoiceField(value = defaultVoiceId, onValueChange = onVoiceChange, manage = manage, enabled = enabled)
+            }
+            HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+            Column(modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.s4, vertical = spacing.s3)) {
+                MaxLengthField(
+                    value = maxLengthText,
+                    onValueChange = onMaxLengthChange,
+                    valid = maxLengthValid,
+                    manage = manage,
+                    enabled = enabled,
+                )
+            }
+            HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+            Column(modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.s4, vertical = spacing.s3)) {
+                PermissionPicker(
+                    selected = minPermission,
+                    onSelect = onPermissionChange,
+                    manage = manage,
+                    enabled = enabled,
+                )
+            }
+            HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+            Column(modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.s4, vertical = spacing.s3)) {
+                SwitchRow(
+                    labelRes = Res.string.tts_label_skip_bot_messages,
+                    checked = skipBotMessages,
+                    onCheckedChange = onSkipBotMessagesChange,
+                    manage = manage,
+                    enabled = enabled,
+                )
+            }
+            HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+            Column(modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.s4, vertical = spacing.s3)) {
+                SwitchRow(
+                    labelRes = Res.string.tts_label_read_usernames,
+                    checked = readUsernames,
+                    onCheckedChange = onReadUsernamesChange,
+                    manage = manage,
+                    enabled = enabled,
+                )
+            }
+        }
     }
 }
 

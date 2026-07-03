@@ -20,13 +20,14 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Switch
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -204,8 +205,21 @@ private fun ReadyContent(
                 CenteredMessage(stringResource(Res.string.songrequests_empty))
             }
         } else {
-            items(items = queue, key = { song -> song.position }) { song ->
-                QueueRow(song = song, moderate = moderate, onRemove = { pendingRemoval = song })
+            item {
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column {
+                        queue.forEachIndexed { index, song ->
+                            QueueRow(
+                                song = song,
+                                moderate = moderate,
+                                onRemove = { pendingRemoval = song },
+                            )
+                            if (index < queue.lastIndex) {
+                                HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+                            }
+                        }
+                    }
+                }
             }
         }
 
@@ -276,37 +290,37 @@ private fun ConfigSection(
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
 
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(tokens.radius.lg))
-            .background(tokens.card)
-            .padding(spacing.s4),
-        verticalArrangement = Arrangement.spacedBy(spacing.s3),
-    ) {
-        Text(
-            text = stringResource(Res.string.songrequests_config_title),
-            style = typography.base.copy(fontWeight = FontWeight.SemiBold),
-            color = tokens.cardForeground,
-        )
-        SrToggleRow(
-            label = stringResource(Res.string.songrequests_config_enabled),
-            checked = config.isEnabled,
-            configure = configure,
-            onToggle = { onUpdate(UpdateMusicConfigBody(isEnabled = it)) },
-        )
-        SrToggleRow(
-            label = stringResource(Res.string.songrequests_config_allow_spotify),
-            checked = config.allowSpotify,
-            configure = configure,
-            onToggle = { onUpdate(UpdateMusicConfigBody(allowSpotify = it)) },
-        )
-        SrToggleRow(
-            label = stringResource(Res.string.songrequests_config_allow_youtube),
-            checked = config.allowYouTube,
-            configure = configure,
-            onToggle = { onUpdate(UpdateMusicConfigBody(allowYouTube = it)) },
-        )
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(spacing.s4),
+            verticalArrangement = Arrangement.spacedBy(spacing.s3),
+        ) {
+            Text(
+                text = stringResource(Res.string.songrequests_config_title),
+                style = typography.base.copy(fontWeight = FontWeight.SemiBold),
+                color = tokens.cardForeground,
+            )
+            SrToggleRow(
+                label = stringResource(Res.string.songrequests_config_enabled),
+                checked = config.isEnabled,
+                configure = configure,
+                onToggle = { onUpdate(UpdateMusicConfigBody(isEnabled = it)) },
+            )
+            SrToggleRow(
+                label = stringResource(Res.string.songrequests_config_allow_spotify),
+                checked = config.allowSpotify,
+                configure = configure,
+                onToggle = { onUpdate(UpdateMusicConfigBody(allowSpotify = it)) },
+            )
+            SrToggleRow(
+                label = stringResource(Res.string.songrequests_config_allow_youtube),
+                checked = config.allowYouTube,
+                configure = configure,
+                onToggle = { onUpdate(UpdateMusicConfigBody(allowYouTube = it)) },
+            )
+        }
     }
 }
 
@@ -351,49 +365,49 @@ private fun SrTokenSection(
     val typography = LocalTypography.current
     @Suppress("DEPRECATION") val clipboard = LocalClipboardManager.current
 
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(tokens.radius.lg))
-            .background(tokens.card)
-            .padding(spacing.s4),
-        verticalArrangement = Arrangement.spacedBy(spacing.s3),
-    ) {
-        Text(
-            text = stringResource(Res.string.songrequests_token_title),
-            style = typography.base.copy(fontWeight = FontWeight.SemiBold),
-            color = tokens.cardForeground,
-        )
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(spacing.s4),
+            verticalArrangement = Arrangement.spacedBy(spacing.s3),
         ) {
-            SelectionContainer(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = token,
-                    style = typography.sm,
-                    color = tokens.mutedForeground,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-            TextButton(onClick = { clipboard.setText(AnnotatedString(token)) }) {
-                Text(
-                    text = stringResource(Res.string.songrequests_token_copy),
-                    color = tokens.primary,
-                    style = typography.sm,
-                )
-            }
-        }
-        ManageGate(decision = configure) { enabled ->
-            GlyphButton(
-                imageVector = RefreshGlyph,
-                label = stringResource(Res.string.songrequests_token_rotate),
-                onClick = onRotate,
-                enabled = enabled,
-                tint = tokens.destructive,
+            Text(
+                text = stringResource(Res.string.songrequests_token_title),
+                style = typography.base.copy(fontWeight = FontWeight.SemiBold),
+                color = tokens.cardForeground,
             )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+            ) {
+                SelectionContainer(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = token,
+                        style = typography.sm,
+                        color = tokens.mutedForeground,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                TextButton(onClick = { clipboard.setText(AnnotatedString(token)) }) {
+                    Text(
+                        text = stringResource(Res.string.songrequests_token_copy),
+                        color = tokens.primary,
+                        style = typography.sm,
+                    )
+                }
+            }
+            ManageGate(decision = configure) { enabled ->
+                GlyphButton(
+                    imageVector = RefreshGlyph,
+                    label = stringResource(Res.string.songrequests_token_rotate),
+                    onClick = onRotate,
+                    enabled = enabled,
+                    tint = tokens.destructive,
+                )
+            }
         }
     }
 }
@@ -452,8 +466,6 @@ private fun QueueRow(song: QueuedSong, moderate: ManageDecision, onRemove: () ->
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(tokens.radius.lg))
-            .background(tokens.card)
             .padding(horizontal = spacing.s4, vertical = spacing.s3),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(spacing.s3),

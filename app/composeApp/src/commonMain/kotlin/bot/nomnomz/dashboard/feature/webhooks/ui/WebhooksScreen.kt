@@ -15,14 +15,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.Button
 import androidx.compose.material3.HorizontalDivider
@@ -39,12 +35,12 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
+import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.CopyValue
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
@@ -162,82 +158,100 @@ fun WebhooksScreen(controller: WebhooksController, role: ManagementRole?) {
                 }
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.spacedBy(spacing.s3),
+                    verticalArrangement = Arrangement.spacedBy(spacing.s4),
                 ) {
                     // ── Inbound ───────────────────────────────────────────
-                    item(key = "inbound-header") {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Text(
-                                text = stringResource(Res.string.webhooks_inbound_title),
-                                style = typography.lg,
-                                color = tokens.cardForeground,
-                            )
-                            ManageGate(manage) { enabled ->
-                                GlyphButton(
-                                    imageVector = AddGlyph,
-                                    label = stringResource(Res.string.webhooks_inbound_add),
-                                    onClick = { showCreateInbound = true },
-                                    enabled = enabled,
+                    item(key = "inbound-section") {
+                        Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(
+                                    text = stringResource(Res.string.webhooks_inbound_title),
+                                    style = typography.lg,
+                                    color = tokens.cardForeground,
                                 )
+                                ManageGate(manage) { enabled ->
+                                    GlyphButton(
+                                        imageVector = AddGlyph,
+                                        label = stringResource(Res.string.webhooks_inbound_add),
+                                        onClick = { showCreateInbound = true },
+                                        enabled = enabled,
+                                    )
+                                }
+                            }
+                            Card(modifier = Modifier.fillMaxWidth()) {
+                                Column {
+                                    current.inbound.forEachIndexed { index, ep ->
+                                        InboundRow(
+                                            ep = ep,
+                                            manage = manage,
+                                            onToggle = { scope.launch { controller.toggleInbound(ep.id, !ep.isEnabled) } },
+                                            onRotate = { scope.launch { shownSecret = controller.rotateInboundToken(ep.id) } },
+                                            onDelete = { pendingDeleteInbound = ep },
+                                        )
+                                        if (index < current.inbound.lastIndex) {
+                                            HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+                                        }
+                                    }
+                                }
                             }
                         }
-                    }
-                    items(items = current.inbound, key = { "in-${it.id}" }) { ep ->
-                        InboundRow(
-                            ep = ep,
-                            manage = manage,
-                            onToggle = { scope.launch { controller.toggleInbound(ep.id, !ep.isEnabled) } },
-                            onRotate = { scope.launch { shownSecret = controller.rotateInboundToken(ep.id) } },
-                            onDelete = { pendingDeleteInbound = ep },
-                        )
                     }
                     item(key = "outbound-divider") { HorizontalDivider() }
                     // ── Outbound ──────────────────────────────────────────
-                    item(key = "outbound-header") {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Text(
-                                text = stringResource(Res.string.webhooks_outbound_title),
-                                style = typography.lg,
-                                color = tokens.cardForeground,
-                            )
-                            ManageGate(manage) { enabled ->
-                                GlyphButton(
-                                    imageVector = AddGlyph,
-                                    label = stringResource(Res.string.webhooks_outbound_add),
-                                    onClick = { showCreateOutbound = true },
-                                    enabled = enabled,
+                    item(key = "outbound-section") {
+                        Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(
+                                    text = stringResource(Res.string.webhooks_outbound_title),
+                                    style = typography.lg,
+                                    color = tokens.cardForeground,
                                 )
+                                ManageGate(manage) { enabled ->
+                                    GlyphButton(
+                                        imageVector = AddGlyph,
+                                        label = stringResource(Res.string.webhooks_outbound_add),
+                                        onClick = { showCreateOutbound = true },
+                                        enabled = enabled,
+                                    )
+                                }
                             }
-                        }
-                    }
-                    items(items = current.outbound, key = { "out-${it.id}" }) { ep ->
-                        OutboundRow(
-                            ep = ep,
-                            manage = manage,
-                            onToggle = { scope.launch { controller.toggleOutbound(ep.id, !ep.isEnabled) } },
-                            onReenable = { pendingReenable = ep },
-                            onRotateSecret = { scope.launch { shownSecret = controller.rotateOutboundSecret(ep.id) } },
-                            onTest = {
-                                scope.launch {
-                                    val result = controller.testOutbound(ep.id)
-                                    if (result != null) {
-                                        testResult = if (result.delivered)
-                                            "✓ ${result.responseCode} (${result.durationMs}ms)"
-                                        else
-                                            "✗ ${result.error ?: "no response"}"
+                            Card(modifier = Modifier.fillMaxWidth()) {
+                                Column {
+                                    current.outbound.forEachIndexed { index, ep ->
+                                        OutboundRow(
+                                            ep = ep,
+                                            manage = manage,
+                                            onToggle = { scope.launch { controller.toggleOutbound(ep.id, !ep.isEnabled) } },
+                                            onReenable = { pendingReenable = ep },
+                                            onRotateSecret = { scope.launch { shownSecret = controller.rotateOutboundSecret(ep.id) } },
+                                            onTest = {
+                                                scope.launch {
+                                                    val result = controller.testOutbound(ep.id)
+                                                    if (result != null) {
+                                                        testResult = if (result.delivered)
+                                                            "✓ ${result.responseCode} (${result.durationMs}ms)"
+                                                        else
+                                                            "✗ ${result.error ?: "no response"}"
+                                                    }
+                                                }
+                                            },
+                                            onDelete = { pendingDeleteOutbound = ep },
+                                        )
+                                        if (index < current.outbound.lastIndex) {
+                                            HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+                                        }
                                     }
                                 }
-                            },
-                            onDelete = { pendingDeleteOutbound = ep },
-                        )
+                            }
+                        }
                     }
                 }
             }
@@ -346,9 +360,7 @@ private fun InboundRow(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(tokens.radius.lg))
-            .background(tokens.card)
-            .padding(spacing.s4),
+            .padding(horizontal = spacing.s4, vertical = spacing.s3),
         verticalArrangement = Arrangement.spacedBy(spacing.s2),
     ) {
         Row(
@@ -421,9 +433,7 @@ private fun OutboundRow(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(tokens.radius.lg))
-            .background(tokens.card)
-            .padding(spacing.s4),
+            .padding(horizontal = spacing.s4, vertical = spacing.s3),
         verticalArrangement = Arrangement.spacedBy(spacing.s2),
     ) {
         Row(

@@ -10,7 +10,6 @@
 
 package bot.nomnomz.dashboard.feature.codescripts.ui
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,21 +18,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.AlertDialog
-import bot.nomnomz.dashboard.core.designsystem.component.Button
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
-import bot.nomnomz.dashboard.core.designsystem.component.TextButton
-import bot.nomnomz.dashboard.core.designsystem.icon.AddGlyph
-import bot.nomnomz.dashboard.core.designsystem.icon.CheckGlyph
-import bot.nomnomz.dashboard.core.designsystem.icon.CloseGlyph
-import bot.nomnomz.dashboard.core.designsystem.icon.EditLineGlyph
-import bot.nomnomz.dashboard.core.designsystem.icon.PowerGlyph
-import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -43,19 +34,27 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
-import bot.nomnomz.dashboard.core.designsystem.component.appFieldColors
-import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
-import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
-import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
-import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
+import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
+import bot.nomnomz.dashboard.core.designsystem.component.Button
+import bot.nomnomz.dashboard.core.designsystem.component.Card
+import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
+import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
+import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
+import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
+import bot.nomnomz.dashboard.core.designsystem.component.TextButton
+import bot.nomnomz.dashboard.core.designsystem.component.appFieldColors
+import bot.nomnomz.dashboard.core.designsystem.icon.AddGlyph
+import bot.nomnomz.dashboard.core.designsystem.icon.CheckGlyph
+import bot.nomnomz.dashboard.core.designsystem.icon.CloseGlyph
+import bot.nomnomz.dashboard.core.designsystem.icon.EditLineGlyph
+import bot.nomnomz.dashboard.core.designsystem.icon.PowerGlyph
+import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -91,9 +90,8 @@ import nomnomzbot.composeapp.generated.resources.scripts_loading
 import nomnomzbot.composeapp.generated.resources.scripts_retry
 import nomnomzbot.composeapp.generated.resources.scripts_status_label
 import nomnomzbot.composeapp.generated.resources.scripts_subtitle
-
-import nomnomzbot.composeapp.generated.resources.shell_nav_code_scripts
 import nomnomzbot.composeapp.generated.resources.scripts_version_label
+import nomnomzbot.composeapp.generated.resources.shell_nav_code_scripts
 import org.jetbrains.compose.resources.stringResource
 
 // The Code Scripts page: a list of versioned Lua scripts on the left (or in the main column) and an inline
@@ -116,7 +114,7 @@ fun CodeScriptsScreen(controller: CodeScriptsController, role: ManagementRole?) 
     LaunchedEffect(Unit) { controller.load() }
 
     Column(
-        modifier = Modifier.fillMaxSize().background(tokens.background).padding(spacing.s6),
+        modifier = Modifier.fillMaxSize().padding(spacing.s6),
         verticalArrangement = Arrangement.spacedBy(spacing.s4),
     ) {
         // Page header is shared between list and editor — always visible.
@@ -162,32 +160,32 @@ fun CodeScriptsScreen(controller: CodeScriptsController, role: ManagementRole?) 
                         )
                     }
                 }
-
-                when (current) {
-                    is CodeScriptsState.Loading -> CenteredMessage(stringResource(Res.string.scripts_loading))
-                    is CodeScriptsState.Empty -> CenteredMessage(stringResource(Res.string.scripts_empty))
-                    is CodeScriptsState.Error ->
-                        ErrorContent(detail = current.detail, onRetry = { scope.launch { controller.load() } })
-                    is CodeScriptsState.Ready -> {
-                        current.actionError?.let { detail ->
-                            ActionErrorBanner(message = stringResource(Res.string.scripts_action_error, detail))
-                        }
-                        LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
-                            verticalArrangement = Arrangement.spacedBy(spacing.s3),
-                        ) {
-                            items(items = current.scripts, key = { it.id }) { script ->
-                                ScriptRow(
-                                    script = script,
-                                    manage = manage,
-                                    onOpen = { scope.launch { controller.open(script.id) } },
-                                    onToggle = { scope.launch { controller.setEnabled(script.id, !script.isEnabled) } },
-                                    onDelete = { pendingDelete = script },
-                                )
+                (current as? CodeScriptsState.Ready)?.actionError?.let { detail ->
+                    ActionErrorBanner(message = stringResource(Res.string.scripts_action_error, detail))
+                }
+                Card(modifier = Modifier.fillMaxWidth().weight(1f)) {
+                    when (current) {
+                        is CodeScriptsState.Loading -> CenteredMessage(stringResource(Res.string.scripts_loading))
+                        is CodeScriptsState.Empty -> CenteredMessage(stringResource(Res.string.scripts_empty))
+                        is CodeScriptsState.Error ->
+                            ErrorContent(detail = current.detail, onRetry = { scope.launch { controller.load() } })
+                        is CodeScriptsState.Ready ->
+                            LazyColumn(modifier = Modifier.fillMaxSize()) {
+                                itemsIndexed(current.scripts, key = { _, script -> script.id }) { index, script ->
+                                    ScriptRow(
+                                        script = script,
+                                        manage = manage,
+                                        onOpen = { scope.launch { controller.open(script.id) } },
+                                        onToggle = { scope.launch { controller.setEnabled(script.id, !script.isEnabled) } },
+                                        onDelete = { pendingDelete = script },
+                                    )
+                                    if (index < current.scripts.lastIndex) {
+                                        HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+                                    }
+                                }
                             }
-                        }
+                        is CodeScriptsState.Editing -> Unit // handled above
                     }
-                    is CodeScriptsState.Editing -> Unit // handled above
                 }
             }
         }
@@ -231,9 +229,7 @@ private fun ScriptRow(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(tokens.radius.lg))
-            .background(tokens.card)
-            .padding(spacing.s4),
+            .padding(horizontal = spacing.s4, vertical = spacing.s3),
         verticalArrangement = Arrangement.spacedBy(spacing.s2),
     ) {
         Row(

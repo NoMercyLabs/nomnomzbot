@@ -10,31 +10,26 @@
 
 package bot.nomnomz.dashboard.feature.eventresponses.ui
 
-import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -44,24 +39,24 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
+import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
+import bot.nomnomz.dashboard.core.designsystem.component.TextButton
+import bot.nomnomz.dashboard.core.designsystem.icon.ChevronDownGlyph
+import bot.nomnomz.dashboard.core.designsystem.icon.EditGlyph
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
-import bot.nomnomz.dashboard.core.designsystem.icon.EditGlyph
-import bot.nomnomz.dashboard.core.designsystem.icon.ChevronDownGlyph
-import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.network.EventResponseSummary
 import bot.nomnomz.dashboard.feature.eventresponses.state.EventResponsesController
 import bot.nomnomz.dashboard.feature.eventresponses.state.EventResponsesState
@@ -70,7 +65,6 @@ import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
 import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecision
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
-import nomnomzbot.composeapp.generated.resources.shell_nav_event_responses
 import nomnomzbot.composeapp.generated.resources.event_responses_action_error
 import nomnomzbot.composeapp.generated.resources.event_responses_dialog_cancel
 import nomnomzbot.composeapp.generated.resources.event_responses_dialog_delete
@@ -101,12 +95,11 @@ import nomnomzbot.composeapp.generated.resources.event_type_channel_subscription
 import nomnomzbot.composeapp.generated.resources.event_type_stream_offline
 import nomnomzbot.composeapp.generated.resources.event_type_stream_online
 import nomnomzbot.composeapp.generated.resources.event_type_unknown
+import nomnomzbot.composeapp.generated.resources.shell_nav_event_responses
 import org.jetbrains.compose.resources.stringResource
 
-// The Event Responses page (commands-pipelines.md): maps Twitch channel events to a configured bot reaction
-// (chat message, overlay, pipeline, or none). The Moderator+ can view the full list and toggle individual
-// responses. The Editor+ can edit the response type/body and delete a response to restore its seeded default.
-// Every write re-lists on success; a failure surfaces as a banner over the intact list.
+// The Event Responses page: maps Twitch channel events to a configured bot reaction
+// (chat message, overlay, pipeline, or none). Moderator+ can view/toggle; Editor+ can edit.
 @Composable
 fun EventResponsesScreen(
     controller: EventResponsesController,
@@ -115,11 +108,11 @@ fun EventResponsesScreen(
     val state: EventResponsesState by controller.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val manage: ManageDecision = rememberManageDecision(role = role, route = ShellRoute.EventResponses)
+    val spacing = LocalSpacing.current
+
     var editing: EventResponseSummary? by remember { mutableStateOf(null) }
 
     LaunchedEffect(Unit) { controller.load() }
-
-    val spacing = LocalSpacing.current
 
     Box(modifier = Modifier.fillMaxSize().padding(spacing.s6)) {
         when (val current: EventResponsesState = state) {
@@ -160,40 +153,7 @@ fun EventResponsesScreen(
     }
 }
 
-@Composable
-private fun CenteredMessage(text: String) {
-    val tokens = LocalTokens.current
-    val typography = LocalTypography.current
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Text(text = text, style = typography.sm, color = tokens.mutedForeground)
-    }
-}
-
-@Composable
-private fun ErrorContent(detail: String, onRetry: () -> Unit) {
-    val tokens = LocalTokens.current
-    val typography = LocalTypography.current
-    val spacing = LocalSpacing.current
-    Column(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Text(
-            text = stringResource(Res.string.event_responses_error, detail),
-            style = typography.sm,
-            color = tokens.destructiveForeground,
-        )
-        TextButton(onClick = onRetry, modifier = Modifier.padding(top = spacing.s2)) {
-            Text(
-                text = stringResource(Res.string.event_responses_retry),
-                style = typography.sm,
-                color = tokens.primary,
-            )
-        }
-    }
-}
-
+// Ready state: PageHeader + optional error banner + single-card table of event responses.
 @Composable
 private fun ReadyContent(
     responses: List<EventResponseSummary>,
@@ -202,28 +162,50 @@ private fun ReadyContent(
     onToggle: (EventResponseSummary, Boolean) -> Unit,
     onEdit: (EventResponseSummary) -> Unit,
 ) {
+    val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
 
-    LazyColumn(
+    Column(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(vertical = spacing.s1),
-        verticalArrangement = Arrangement.spacedBy(spacing.s2),
+        verticalArrangement = Arrangement.spacedBy(spacing.s4),
     ) {
-        item(key = "page-header") { PageHeader(title = stringResource(Res.string.shell_nav_event_responses)) }
+        PageHeader(title = stringResource(Res.string.shell_nav_event_responses))
+
         actionError?.let { detail ->
-            item(key = "action-error") { ActionErrorBanner(message = stringResource(Res.string.event_responses_action_error, detail)) }
+            ActionErrorBanner(message = stringResource(Res.string.event_responses_action_error, detail))
         }
-        items(items = responses, key = { it.id }) { response ->
-            EventResponseRow(
-                response = response,
-                manage = manage,
-                onToggle = { enabled -> onToggle(response, enabled) },
-                onEdit = { onEdit(response) },
-            )
+
+        // Single card table — all events in one container, rows separated by hairlines.
+        Card(modifier = Modifier.fillMaxWidth().weight(1f)) {
+            if (responses.isEmpty()) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text(
+                        text = stringResource(Res.string.event_responses_empty),
+                        style = typography.base,
+                        color = tokens.mutedForeground,
+                    )
+                }
+            } else {
+                LazyColumn(modifier = Modifier.fillMaxSize()) {
+                    itemsIndexed(items = responses, key = { _, r -> r.id }) { index, response ->
+                        EventResponseRow(
+                            response = response,
+                            manage = manage,
+                            onToggle = { enabled -> onToggle(response, enabled) },
+                            onEdit = { onEdit(response) },
+                        )
+                        if (index < responses.lastIndex) {
+                            HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+                        }
+                    }
+                }
+            }
         }
     }
 }
 
+// Single event row inside the shared card — no per-row background; dividers separate entries.
 @Composable
 private fun EventResponseRow(
     response: EventResponseSummary,
@@ -243,29 +225,16 @@ private fun EventResponseRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(tokens.radius.lg))
-            .background(tokens.card)
             .padding(horizontal = spacing.s4, vertical = spacing.s3),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(spacing.s3),
     ) {
-        ManageGate(decision = manage) { enabled ->
-            Switch(
-                checked = response.isEnabled,
-                onCheckedChange = onToggle,
-                enabled = enabled,
-                colors = SwitchDefaults.colors(
-                    checkedThumbColor = tokens.primaryForeground,
-                    checkedTrackColor = tokens.primary,
-                    uncheckedThumbColor = tokens.mutedForeground,
-                    uncheckedTrackColor = tokens.muted,
-                ),
-                modifier = Modifier.clearAndSetSemantics {
-                    contentDescription = toggleSemantics
-                },
-            )
-        }
-        Column(modifier = Modifier.weight(1f)) {
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .clearAndSetSemantics { contentDescription = "$eventLabel, $typeLabel" },
+            verticalArrangement = Arrangement.spacedBy(spacing.s0_5),
+        ) {
             Text(
                 text = eventLabel,
                 style = typography.sm,
@@ -281,6 +250,21 @@ private fun EventResponseRow(
             )
         }
         ManageGate(decision = manage) { enabled ->
+            Switch(
+                checked = response.isEnabled,
+                onCheckedChange = onToggle,
+                enabled = enabled,
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = tokens.primaryForeground,
+                    checkedTrackColor = tokens.primary,
+                    uncheckedThumbColor = tokens.mutedForeground,
+                    uncheckedTrackColor = tokens.muted,
+                    uncheckedBorderColor = tokens.border,
+                ),
+                modifier = Modifier.clearAndSetSemantics { contentDescription = toggleSemantics },
+            )
+        }
+        ManageGate(decision = manage) { enabled ->
             GlyphButton(imageVector = EditGlyph, label = editSemantics, onClick = onEdit, enabled = enabled)
         }
     }
@@ -288,6 +272,8 @@ private fun EventResponseRow(
 
 private val ResponseTypes: List<String> = listOf("none", "chat_message", "overlay", "pipeline")
 
+// Edit dialog — response type picker, optional message template, optional pipeline ID.
+// Uses AppTextField throughout for design-system consistency.
 @Composable
 private fun EditDialog(
     response: EventResponseSummary,
@@ -305,23 +291,11 @@ private fun EditDialog(
     var pipelineId: String by remember { mutableStateOf("") }
     var typeMenuOpen: Boolean by remember { mutableStateOf(false) }
 
-    val fieldColors = OutlinedTextFieldDefaults.colors(
-        focusedTextColor = tokens.cardForeground,
-        unfocusedTextColor = tokens.cardForeground,
-        disabledTextColor = tokens.mutedForeground,
-        focusedBorderColor = tokens.ring,
-        unfocusedBorderColor = tokens.border,
-        disabledBorderColor = tokens.border,
-        focusedLabelColor = tokens.mutedForeground,
-        unfocusedLabelColor = tokens.mutedForeground,
-        disabledLabelColor = tokens.mutedForeground,
-        cursorColor = tokens.primary,
-    )
-
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = tokens.card,
         titleContentColor = tokens.cardForeground,
+        textContentColor = tokens.mutedForeground,
         title = {
             Text(
                 text = stringResource(Res.string.event_responses_dialog_title, response.eventType.toEventLabel()),
@@ -331,13 +305,13 @@ private fun EditDialog(
         },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
-                // Response type picker
+                // Response-type dropdown — AppTextField as read-only trigger + chevron icon.
                 Box {
                     AppTextField(
                         value = selectedType.toResponseTypeLabel(),
                         onValueChange = {},
                         label = stringResource(Res.string.event_responses_dialog_response_type_label),
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth().clickable { typeMenuOpen = true },
                         trailingIcon = {
                             IconButton(onClick = { typeMenuOpen = true }) {
                                 Icon(
@@ -371,23 +345,18 @@ private fun EditDialog(
                         }
                     }
                 }
-                // Message template — only when chat_message or overlay
+
+                // Message template — chat_message and overlay responses need a body.
                 if (selectedType == "chat_message" || selectedType == "overlay") {
-                    OutlinedTextField(
+                    AppTextField(
                         value = message,
                         onValueChange = { message = it },
-                        label = {
-                            Text(
-                                text = stringResource(Res.string.event_responses_dialog_message_label),
-                                style = typography.sm,
-                            )
-                        },
+                        label = stringResource(Res.string.event_responses_dialog_message_label),
                         modifier = Modifier.fillMaxWidth(),
-                        colors = fieldColors,
-                        maxLines = 3,
                     )
                 }
-                // Pipeline ID — only when pipeline
+
+                // Pipeline ID — pipeline responses point to a pipeline by ID.
                 if (selectedType == "pipeline") {
                     AppTextField(
                         value = pipelineId,
@@ -432,6 +401,43 @@ private fun EditDialog(
             }
         },
     )
+}
+
+@Composable
+private fun ErrorContent(detail: String, onRetry: () -> Unit) {
+    val tokens = LocalTokens.current
+    val typography = LocalTypography.current
+    val spacing = LocalSpacing.current
+
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(spacing.s2),
+        ) {
+            Text(
+                text = stringResource(Res.string.event_responses_error, detail),
+                style = typography.sm,
+                color = tokens.mutedForeground,
+                textAlign = TextAlign.Center,
+            )
+            TextButton(onClick = onRetry) {
+                Text(
+                    text = stringResource(Res.string.event_responses_retry),
+                    color = tokens.primary,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun CenteredMessage(text: String) {
+    val tokens = LocalTokens.current
+    val typography = LocalTypography.current
+
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Text(text = text, style = typography.sm, color = tokens.mutedForeground)
+    }
 }
 
 @Composable

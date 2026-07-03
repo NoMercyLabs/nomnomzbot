@@ -414,6 +414,10 @@
     <string name="commands_delete_message">%1$s verwijderen? Dit kan niet ongedaan worden gemaakt.</string>
     <string name="commands_delete_confirm">Verwijderen</string>
     <string name="commands_delete_cancel">Annuleren</string>
+    <string name="commands_search_placeholder">Commando\'s zoeken…</string>
+    <string name="commands_filter_all">Alle</string>
+    <string name="commands_filter_custom">Aangepast</string>
+    <string name="commands_filter_builtin">Ingebouwd</string>
     <string name="timers_new">+ Nieuwe timer</string>
     <string name="timers_toggle">%1$s aan/uit</string>
     <string name="timers_edit">%1$s bewerken</string>
@@ -433,6 +437,7 @@
     <string name="timers_delete_title">Timer verwijderen</string>
     <string name="timers_delete_message">De timer "%1$s" verwijderen? Dit kan niet ongedaan worden gemaakt.</string>
     <string name="timers_delete_confirm">Verwijderen</string>
+    <string name="timers_search_placeholder">Timers zoeken…</string>
     <string name="moderation_unban_action_short">Ontban</string>
     <string name="moderation_unban_action">Ontban %1$s</string>
     <string name="moderation_unban_title">Deze ban opheffen?</string>

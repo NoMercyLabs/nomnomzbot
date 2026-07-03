@@ -22,11 +22,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.Button
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -41,15 +41,15 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
+import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
+import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.CopyValue
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
@@ -258,22 +258,27 @@ private fun WidgetList(
     onRename: (WidgetSummary) -> Unit,
     onClone: (WidgetSummary) -> Unit,
 ) {
+    val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
 
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(vertical = spacing.s1),
-        verticalArrangement = Arrangement.spacedBy(spacing.s3),
-    ) {
-        items(items = widgets, key = { widget -> widget.id }) { widget ->
-            WidgetRow(
-                widget = widget,
-                manage = manage,
-                onToggle = { enabled -> onToggle(widget, enabled) },
-                onDelete = { onDelete(widget) },
-                onRename = { onRename(widget) },
-                onClone = { onClone(widget) },
-            )
+    Card(modifier = Modifier.fillMaxSize()) {
+        LazyColumn(
+            modifier = Modifier.fillMaxWidth(),
+            contentPadding = PaddingValues(vertical = spacing.s1),
+        ) {
+            itemsIndexed(items = widgets, key = { _, widget -> widget.id }) { index, widget ->
+                if (index > 0) {
+                    HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+                }
+                WidgetRow(
+                    widget = widget,
+                    manage = manage,
+                    onToggle = { enabled -> onToggle(widget, enabled) },
+                    onDelete = { onDelete(widget) },
+                    onRename = { onRename(widget) },
+                    onClone = { onClone(widget) },
+                )
+            }
         }
     }
 }
@@ -308,9 +313,7 @@ private fun WidgetRow(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(tokens.radius.lg))
-            .background(tokens.card)
-            .padding(spacing.s4),
+            .padding(horizontal = spacing.s4, vertical = spacing.s3),
         verticalArrangement = Arrangement.spacedBy(spacing.s3),
     ) {
         Row(

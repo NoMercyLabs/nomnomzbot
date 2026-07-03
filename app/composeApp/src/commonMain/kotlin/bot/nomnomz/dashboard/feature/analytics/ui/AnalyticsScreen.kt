@@ -26,6 +26,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.HorizontalDivider
+import bot.nomnomz.dashboard.core.designsystem.component.Card
 import androidx.compose.material3.Text
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import androidx.compose.runtime.Composable
@@ -149,11 +151,7 @@ private fun DailyTrendsSection(daily: List<DailyMetricRow>) {
     val typography = LocalTypography.current
 
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(tokens.radius.lg))
-            .background(tokens.card)
-            .padding(spacing.s4),
+        modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(spacing.s2),
     ) {
         Text(
@@ -169,24 +167,27 @@ private fun DailyTrendsSection(daily: List<DailyMetricRow>) {
                 color = tokens.mutedForeground,
             )
         } else {
-            // Header row
-            DailyRow(
-                date = stringResource(Res.string.analytics_col_date),
-                chatters = stringResource(Res.string.analytics_col_chatters),
-                messages = stringResource(Res.string.analytics_col_messages),
-                followers = stringResource(Res.string.analytics_col_followers),
-                peak = stringResource(Res.string.analytics_col_peak),
-                isHeader = true,
-            )
-            daily.reversed().forEach { row: DailyMetricRow ->
+            Card(modifier = Modifier.fillMaxWidth()) {
+                // Header row
                 DailyRow(
-                    date = row.activityDate.take(10),
-                    chatters = row.uniqueChatters.toString(),
-                    messages = row.totalMessages.toString(),
-                    followers = row.newFollowers.toString(),
-                    peak = row.peakViewers?.toString() ?: "—",
-                    isHeader = false,
+                    date = stringResource(Res.string.analytics_col_date),
+                    chatters = stringResource(Res.string.analytics_col_chatters),
+                    messages = stringResource(Res.string.analytics_col_messages),
+                    followers = stringResource(Res.string.analytics_col_followers),
+                    peak = stringResource(Res.string.analytics_col_peak),
+                    isHeader = true,
                 )
+                daily.reversed().forEach { row: DailyMetricRow ->
+                    HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+                    DailyRow(
+                        date = row.activityDate.take(10),
+                        chatters = row.uniqueChatters.toString(),
+                        messages = row.totalMessages.toString(),
+                        followers = row.newFollowers.toString(),
+                        peak = row.peakViewers?.toString() ?: "—",
+                        isHeader = false,
+                    )
+                }
             }
         }
     }
@@ -202,11 +203,12 @@ private fun DailyRow(
     isHeader: Boolean,
 ) {
     val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
     val typography = LocalTypography.current
     val style = if (isHeader) typography.xs.copy(fontWeight = FontWeight.SemiBold) else typography.xs
     val color = if (isHeader) tokens.mutedForeground else tokens.cardForeground
 
-    Row(modifier = Modifier.fillMaxWidth()) {
+    Row(modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.s4, vertical = spacing.s3)) {
         Text(text = date, style = style, color = color, modifier = Modifier.weight(2f))
         Text(text = chatters, style = style, color = color, modifier = Modifier.weight(1.2f), textAlign = TextAlign.End)
         Text(text = messages, style = style, color = color, modifier = Modifier.weight(1.5f), textAlign = TextAlign.End)
@@ -222,11 +224,7 @@ private fun TopViewersSection(topViewers: List<TopViewerEntry>) {
     val typography = LocalTypography.current
 
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(tokens.radius.lg))
-            .background(tokens.card)
-            .padding(spacing.s4),
+        modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(spacing.s2),
     ) {
         Text(
@@ -242,30 +240,35 @@ private fun TopViewersSection(topViewers: List<TopViewerEntry>) {
                 color = tokens.mutedForeground,
             )
         } else {
-            topViewers.forEachIndexed { index: Int, entry: TopViewerEntry ->
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(spacing.s3),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        text = stringResource(Res.string.analytics_top_viewers_rank, index + 1),
-                        style = typography.xs.copy(fontWeight = FontWeight.SemiBold),
-                        color = tokens.mutedForeground,
-                        modifier = Modifier.width(spacing.s8),
-                    )
-                    Text(
-                        text = entry.displayName ?: entry.viewerUserId,
-                        style = typography.sm,
-                        color = tokens.cardForeground,
-                        modifier = Modifier.weight(1f),
-                    )
-                    Spacer(modifier = Modifier.width(spacing.s2))
-                    Text(
-                        text = entry.metricValue.toString(),
-                        style = typography.sm.copy(fontWeight = FontWeight.SemiBold),
-                        color = tokens.cardForeground,
-                    )
+            Card(modifier = Modifier.fillMaxWidth()) {
+                topViewers.forEachIndexed { index: Int, entry: TopViewerEntry ->
+                    if (index > 0) {
+                        HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.s4, vertical = spacing.s3),
+                        horizontalArrangement = Arrangement.spacedBy(spacing.s3),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = stringResource(Res.string.analytics_top_viewers_rank, index + 1),
+                            style = typography.xs.copy(fontWeight = FontWeight.SemiBold),
+                            color = tokens.mutedForeground,
+                            modifier = Modifier.width(spacing.s8),
+                        )
+                        Text(
+                            text = entry.displayName ?: entry.viewerUserId,
+                            style = typography.sm,
+                            color = tokens.cardForeground,
+                            modifier = Modifier.weight(1f),
+                        )
+                        Spacer(modifier = Modifier.width(spacing.s2))
+                        Text(
+                            text = entry.metricValue.toString(),
+                            style = typography.sm.copy(fontWeight = FontWeight.SemiBold),
+                            color = tokens.cardForeground,
+                        )
+                    }
                 }
             }
         }

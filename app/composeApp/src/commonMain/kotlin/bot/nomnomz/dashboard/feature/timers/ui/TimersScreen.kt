@@ -19,15 +19,14 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
-import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
-import bot.nomnomz.dashboard.core.designsystem.component.Button
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
-import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -45,12 +44,15 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
+import bot.nomnomz.dashboard.core.designsystem.component.Button
+import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
-import bot.nomnomz.dashboard.core.designsystem.icon.AddGlyph
+import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import bot.nomnomz.dashboard.core.designsystem.icon.EditGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
@@ -64,6 +66,7 @@ import bot.nomnomz.dashboard.feature.timers.state.TimersController
 import bot.nomnomz.dashboard.feature.timers.state.TimersState
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.shell_nav_timers
 import nomnomzbot.composeapp.generated.resources.timers_delete
 import nomnomzbot.composeapp.generated.resources.timers_delete_action
 import nomnomzbot.composeapp.generated.resources.timers_delete_confirm
@@ -88,15 +91,12 @@ import nomnomzbot.composeapp.generated.resources.timers_interval
 import nomnomzbot.composeapp.generated.resources.timers_loading
 import nomnomzbot.composeapp.generated.resources.timers_message_count
 import nomnomzbot.composeapp.generated.resources.timers_new
-import nomnomzbot.composeapp.generated.resources.shell_nav_timers
 import nomnomzbot.composeapp.generated.resources.timers_retry
+import nomnomzbot.composeapp.generated.resources.timers_search_placeholder
 import nomnomzbot.composeapp.generated.resources.timers_toggle
 import nomnomzbot.composeapp.generated.resources.timers_write_error
 import org.jetbrains.compose.resources.stringResource
 
-// The Timers page: the channel's scheduled chat timers — real rows from [TimersController], with the full
-// create / edit / toggle / delete management surface. The screen is a pure projection of the controller's
-// state; it loads on first composition, offers a retry on failure, and reloads after every successful write.
 @Composable
 fun TimersScreen(controller: TimersController, role: ManagementRole?) {
     val state: TimersState by controller.state.collectAsStateWithLifecycle()
@@ -104,16 +104,11 @@ fun TimersScreen(controller: TimersController, role: ManagementRole?) {
     val scope = rememberCoroutineScope()
     val spacing = LocalSpacing.current
 
-    // One decision for the whole page: Timers gates every write control at its single Editor manage floor
-    // (frontend-ia.md §3). A caller below it sees the list but every new/toggle/edit/delete control disabled
-    // with "Requires Editor" (§7); the backend re-checks every write regardless.
     val manage: ManageDecision = rememberManageDecision(role, ShellRoute.Timers)
 
     LaunchedEffect(Unit) { controller.load() }
 
-    // The open dialog, if any: null = closed, a [TimerEditTarget] = the create/edit form is showing.
     var editTarget: TimerEditTarget? by remember { mutableStateOf(null) }
-    // The timer the user asked to delete (the confirm dialog is showing), or null when none is pending.
     var deleteTarget: TimerSummary? by remember { mutableStateOf(null) }
 
     Box(modifier = Modifier.fillMaxSize().padding(spacing.s6)) {
@@ -180,7 +175,6 @@ fun TimersScreen(controller: TimersController, role: ManagementRole?) {
     }
 }
 
-// Whether the edit dialog is creating a new timer or editing an existing one — carries the row to pre-fill.
 private sealed interface TimerEditTarget {
     data object New : TimerEditTarget
 
@@ -200,6 +194,13 @@ private fun ManagedContent(
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    var searchQuery: String by remember { mutableStateOf("") }
+
+    val filteredTimers: List<TimerSummary> = timers.filter { timer ->
+        searchQuery.isBlank() || timer.name.contains(searchQuery, ignoreCase = true)
+    }
 
     Column(
         modifier = Modifier.fillMaxSize(),
@@ -207,42 +208,56 @@ private fun ManagedContent(
     ) {
         PageHeader(title = stringResource(Res.string.shell_nav_timers)) {
             ManageGate(decision = manage) { enabled ->
-                GlyphButton(
-                    imageVector = AddGlyph,
-                    label = stringResource(Res.string.timers_new),
-                    onClick = onNew,
-                    enabled = enabled,
-                )
+                Button(onClick = onNew, enabled = enabled) {
+                    Text(text = stringResource(Res.string.timers_new))
+                }
             }
         }
 
+        // Search bar — filters timers by name.
+        AppTextField(
+            value = searchQuery,
+            onValueChange = { searchQuery = it },
+            label = "",
+            placeholder = stringResource(Res.string.timers_search_placeholder),
+            modifier = Modifier.fillMaxWidth(),
+        )
+
         writeError?.let { detail -> WriteErrorBanner(detail = detail, onDismiss = onDismissError) }
 
-        if (timers.isEmpty()) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CenteredText(stringResource(Res.string.timers_empty))
-            }
-        } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(spacing.s3),
-            ) {
-                items(items = timers, key = { it.id }) { timer ->
-                    TimerRow(
-                        timer = timer,
-                        manage = manage,
-                        onToggle = { onToggle(timer) },
-                        onEdit = { onEdit(timer) },
-                        onDelete = { onDelete(timer) },
+        // Single card wrapping the entire table — rows are separated by dividers.
+        Card(modifier = Modifier.fillMaxWidth().weight(1f)) {
+            if (filteredTimers.isEmpty()) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text(
+                        text = stringResource(Res.string.timers_empty),
+                        style = typography.base,
+                        color = tokens.mutedForeground,
                     )
+                }
+            } else {
+                LazyColumn(modifier = Modifier.fillMaxSize()) {
+                    itemsIndexed(items = filteredTimers, key = { _, timer -> timer.id }) { index, timer ->
+                        TimerTableRow(
+                            timer = timer,
+                            manage = manage,
+                            onToggle = { onToggle(timer) },
+                            onEdit = { onEdit(timer) },
+                            onDelete = { onDelete(timer) },
+                        )
+                        if (index < filteredTimers.lastIndex) {
+                            HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+                        }
+                    }
                 }
             }
         }
     }
 }
 
+// Timer row inside the shared card — no per-row background; dividers separate entries.
 @Composable
-private fun TimerRow(
+private fun TimerTableRow(
     timer: TimerSummary,
     manage: ManageDecision,
     onToggle: () -> Unit,
@@ -253,8 +268,8 @@ private fun TimerRow(
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
 
-    val interval: String = stringResource(Res.string.timers_interval, timer.intervalMinutes)
-    val messages: String = stringResource(Res.string.timers_message_count, timer.messageCount)
+    val intervalText: String = stringResource(Res.string.timers_interval, timer.intervalMinutes)
+    val messagesText: String = stringResource(Res.string.timers_message_count, timer.messageCount)
     val statusLabel: String =
         stringResource(if (timer.isEnabled) Res.string.timers_enabled else Res.string.timers_disabled)
     val toggleLabel: String = stringResource(Res.string.timers_toggle, timer.name)
@@ -264,32 +279,37 @@ private fun TimerRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(tokens.radius.lg))
-            .background(tokens.card)
-            .padding(spacing.s4),
+            .padding(horizontal = spacing.s4, vertical = spacing.s3),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(spacing.s3),
     ) {
+        // Name + interval/message-count badges, folded into one a11y node.
         Column(
             modifier = Modifier
                 .weight(1f)
-                // Fold the read-only facts into one screen-reader node ("Welcome, every 10m, 3 messages, On");
-                // the interactive controls keep their own labels beside it.
                 .clearAndSetSemantics {
-                    contentDescription = "${timer.name}, $interval, $messages, $statusLabel"
+                    contentDescription = "${timer.name}, $intervalText, $messagesText, $statusLabel"
                 },
             verticalArrangement = Arrangement.spacedBy(spacing.s1),
         ) {
             Text(
                 text = timer.name,
-                style = typography.lg,
+                style = typography.sm,
                 color = tokens.cardForeground,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
             Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
-                Text(text = interval, style = typography.sm, color = tokens.mutedForeground)
-                Text(text = messages, style = typography.sm, color = tokens.mutedForeground)
+                // Interval badge — muted chip showing the repeat cadence.
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(tokens.radius.sm))
+                        .background(tokens.muted)
+                        .padding(horizontal = spacing.s2, vertical = spacing.s0_5),
+                ) {
+                    Text(text = intervalText, style = typography.xs, color = tokens.mutedForeground)
+                }
+                Text(text = messagesText, style = typography.xs, color = tokens.mutedForeground)
             }
         }
 
@@ -298,6 +318,13 @@ private fun TimerRow(
                 checked = timer.isEnabled,
                 onCheckedChange = { onToggle() },
                 enabled = enabled,
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = tokens.primaryForeground,
+                    checkedTrackColor = tokens.primary,
+                    uncheckedThumbColor = tokens.mutedForeground,
+                    uncheckedTrackColor = tokens.muted,
+                    uncheckedBorderColor = tokens.border,
+                ),
                 modifier = Modifier.semantics { contentDescription = toggleLabel },
             )
         }
@@ -316,9 +343,6 @@ private fun TimerRow(
     }
 }
 
-// The one reusable create/edit form. New starts blank-and-enabled; Edit pre-fills from the row. The host owns
-// open/closed; this only renders when shown and reports the entered fields up on confirm. Create is disabled
-// until name + message are non-blank and the interval parses to a positive minute count.
 @Composable
 private fun TimerEditDialog(
     target: TimerEditTarget,
@@ -337,8 +361,7 @@ private fun TimerEditDialog(
     var enabled: Boolean by remember { mutableStateOf(existing?.isEnabled ?: true) }
 
     val intervalMinutes: Int? = interval.toIntOrNull()?.takeIf { it in 1..MAX_INTERVAL_MINUTES }
-    val canSubmit: Boolean =
-        name.isNotBlank() && message.isNotBlank() && intervalMinutes != null
+    val canSubmit: Boolean = name.isNotBlank() && message.isNotBlank() && intervalMinutes != null
 
     val isCreate: Boolean = target is TimerEditTarget.New
     val titleRes =
@@ -381,7 +404,17 @@ private fun TimerEditDialog(
                         text = stringResource(Res.string.timers_dialog_enabled),
                         color = tokens.cardForeground,
                     )
-                    Switch(checked = enabled, onCheckedChange = { enabled = it })
+                    Switch(
+                        checked = enabled,
+                        onCheckedChange = { enabled = it },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = tokens.primaryForeground,
+                            checkedTrackColor = tokens.primary,
+                            uncheckedThumbColor = tokens.mutedForeground,
+                            uncheckedTrackColor = tokens.muted,
+                            uncheckedBorderColor = tokens.border,
+                        ),
+                    )
                 }
             }
         },
@@ -404,8 +437,7 @@ private fun TimerEditDialog(
     )
 }
 
-// A dismissible inline banner for a failed write — surfaced above the list so the rows the user was looking at
-// stay put (the mutation left the list unchanged).
+// Dismissible inline error banner — shown above the list so the rows the user was looking at stay put.
 @Composable
 private fun WriteErrorBanner(detail: String, onDismiss: () -> Unit) {
     val tokens = LocalTokens.current
@@ -457,19 +489,13 @@ private fun ErrorContent(detail: String, onRetry: () -> Unit) {
 
 @Composable
 private fun CenteredMessage(text: String) {
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        CenteredText(text)
-    }
-}
-
-@Composable
-private fun CenteredText(text: String) {
     val tokens = LocalTokens.current
     val typography = LocalTypography.current
 
-    Text(text = text, style = typography.base, color = tokens.mutedForeground)
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Text(text = text, style = typography.base, color = tokens.mutedForeground)
+    }
 }
 
-// shadcn's timer defaults (CreateTimerDto): a 30-minute interval, capped at the backend's 1440-minute ceiling.
 private const val DEFAULT_INTERVAL_MINUTES: Int = 30
 private const val MAX_INTERVAL_MINUTES: Int = 1440

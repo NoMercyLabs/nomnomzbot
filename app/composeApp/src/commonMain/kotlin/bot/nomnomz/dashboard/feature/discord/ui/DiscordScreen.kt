@@ -10,29 +10,25 @@
 
 package bot.nomnomz.dashboard.feature.discord.ui
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.AlertDialog
-import bot.nomnomz.dashboard.core.designsystem.component.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
-import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import androidx.compose.material3.TextFieldColors
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -43,28 +39,30 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
+import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
+import bot.nomnomz.dashboard.core.designsystem.component.Button
+import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
-import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
+import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
-import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
-import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
-import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
-import bot.nomnomz.dashboard.core.designsystem.theme.Tokens
+import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import bot.nomnomz.dashboard.core.designsystem.icon.CheckCircleGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.EditGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.RemoveGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
-import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
-import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
+import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
+import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
+import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
+import bot.nomnomz.dashboard.core.designsystem.theme.Tokens
 import bot.nomnomz.dashboard.core.network.DiscordConfigPreview
 import bot.nomnomz.dashboard.core.network.DiscordDispatchLogEntry
 import bot.nomnomz.dashboard.core.network.DiscordGuildConnection
@@ -80,6 +78,20 @@ import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.discord_action_error
 import nomnomzbot.composeapp.generated.resources.discord_config_load_error
+import nomnomzbot.composeapp.generated.resources.discord_consent_approve
+import nomnomzbot.composeapp.generated.resources.discord_consent_approve_action
+import nomnomzbot.composeapp.generated.resources.discord_consent_approve_title
+import nomnomzbot.composeapp.generated.resources.discord_consent_approved
+import nomnomzbot.composeapp.generated.resources.discord_consent_cancel
+import nomnomzbot.composeapp.generated.resources.discord_consent_discord_user_id
+import nomnomzbot.composeapp.generated.resources.discord_consent_pending
+import nomnomzbot.composeapp.generated.resources.discord_consent_revoke
+import nomnomzbot.composeapp.generated.resources.discord_consent_revoke_confirm
+import nomnomzbot.composeapp.generated.resources.discord_consent_revoke_dismiss
+import nomnomzbot.composeapp.generated.resources.discord_consent_revoke_message
+import nomnomzbot.composeapp.generated.resources.discord_consent_revoke_title
+import nomnomzbot.composeapp.generated.resources.discord_delete_action
+import nomnomzbot.composeapp.generated.resources.discord_delete_action_short
 import nomnomzbot.composeapp.generated.resources.discord_delete_cancel
 import nomnomzbot.composeapp.generated.resources.discord_delete_confirm
 import nomnomzbot.composeapp.generated.resources.discord_delete_message
@@ -94,63 +106,49 @@ import nomnomzbot.composeapp.generated.resources.discord_dialog_message_label
 import nomnomzbot.composeapp.generated.resources.discord_dialog_save
 import nomnomzbot.composeapp.generated.resources.discord_dialog_trigger_label
 import nomnomzbot.composeapp.generated.resources.discord_edit_action
-import nomnomzbot.composeapp.generated.resources.discord_delete_action
-import nomnomzbot.composeapp.generated.resources.discord_delete_action_short
 import nomnomzbot.composeapp.generated.resources.discord_empty_body
 import nomnomzbot.composeapp.generated.resources.discord_empty_title
 import nomnomzbot.composeapp.generated.resources.discord_error
-import nomnomzbot.composeapp.generated.resources.discord_guild_inactive
 import nomnomzbot.composeapp.generated.resources.discord_guild_active
+import nomnomzbot.composeapp.generated.resources.discord_guild_inactive
 import nomnomzbot.composeapp.generated.resources.discord_guild_unnamed
 import nomnomzbot.composeapp.generated.resources.discord_loading
-import nomnomzbot.composeapp.generated.resources.discord_new_rule_action
-import nomnomzbot.composeapp.generated.resources.discord_no_rules
-import nomnomzbot.composeapp.generated.resources.discord_retry
-import nomnomzbot.composeapp.generated.resources.discord_rule_channel
-import nomnomzbot.composeapp.generated.resources.discord_rule_no_message
-import nomnomzbot.composeapp.generated.resources.shell_nav_discord
-import nomnomzbot.composeapp.generated.resources.discord_toggle_action
-import nomnomzbot.composeapp.generated.resources.discord_consent_approved
-import nomnomzbot.composeapp.generated.resources.discord_consent_pending
-import nomnomzbot.composeapp.generated.resources.discord_consent_approve
-import nomnomzbot.composeapp.generated.resources.discord_consent_revoke
-import nomnomzbot.composeapp.generated.resources.discord_consent_approve_title
-import nomnomzbot.composeapp.generated.resources.discord_consent_discord_user_id
-import nomnomzbot.composeapp.generated.resources.discord_consent_approve_action
-import nomnomzbot.composeapp.generated.resources.discord_consent_cancel
-import nomnomzbot.composeapp.generated.resources.discord_consent_revoke_title
-import nomnomzbot.composeapp.generated.resources.discord_consent_revoke_message
-import nomnomzbot.composeapp.generated.resources.discord_consent_revoke_confirm
-import nomnomzbot.composeapp.generated.resources.discord_consent_revoke_dismiss
-import nomnomzbot.composeapp.generated.resources.discord_roles_title
-import nomnomzbot.composeapp.generated.resources.discord_roles_empty
-import nomnomzbot.composeapp.generated.resources.discord_roles_add
-import nomnomzbot.composeapp.generated.resources.discord_roles_create_title
-import nomnomzbot.composeapp.generated.resources.discord_roles_discord_role_id
-import nomnomzbot.composeapp.generated.resources.discord_roles_role_name
-import nomnomzbot.composeapp.generated.resources.discord_roles_self_assign
-import nomnomzbot.composeapp.generated.resources.discord_roles_role_id_required
-import nomnomzbot.composeapp.generated.resources.discord_roles_create
-import nomnomzbot.composeapp.generated.resources.discord_roles_cancel
-import nomnomzbot.composeapp.generated.resources.discord_roles_delete_title
-import nomnomzbot.composeapp.generated.resources.discord_roles_delete_message
-import nomnomzbot.composeapp.generated.resources.discord_roles_delete_confirm
-import nomnomzbot.composeapp.generated.resources.discord_roles_delete_cancel
-import nomnomzbot.composeapp.generated.resources.discord_roles_delete_action
-import nomnomzbot.composeapp.generated.resources.discord_roles_post_button
-import nomnomzbot.composeapp.generated.resources.discord_roles_post_button_title
-import nomnomzbot.composeapp.generated.resources.discord_roles_button_channel_id
-import nomnomzbot.composeapp.generated.resources.discord_roles_button_channel_required
-import nomnomzbot.composeapp.generated.resources.discord_roles_button_post
-import nomnomzbot.composeapp.generated.resources.discord_roles_opt_in_count
-import nomnomzbot.composeapp.generated.resources.discord_log_title
 import nomnomzbot.composeapp.generated.resources.discord_log_empty
 import nomnomzbot.composeapp.generated.resources.discord_log_load
 import nomnomzbot.composeapp.generated.resources.discord_log_loading
+import nomnomzbot.composeapp.generated.resources.discord_log_title
+import nomnomzbot.composeapp.generated.resources.discord_new_rule_action
+import nomnomzbot.composeapp.generated.resources.discord_no_rules
 import nomnomzbot.composeapp.generated.resources.discord_preview_action
-import nomnomzbot.composeapp.generated.resources.discord_preview_title
-import nomnomzbot.composeapp.generated.resources.discord_preview_ping_label
 import nomnomzbot.composeapp.generated.resources.discord_preview_close
+import nomnomzbot.composeapp.generated.resources.discord_preview_ping_label
+import nomnomzbot.composeapp.generated.resources.discord_preview_title
+import nomnomzbot.composeapp.generated.resources.discord_retry
+import nomnomzbot.composeapp.generated.resources.discord_roles_add
+import nomnomzbot.composeapp.generated.resources.discord_roles_button_channel_id
+import nomnomzbot.composeapp.generated.resources.discord_roles_button_channel_required
+import nomnomzbot.composeapp.generated.resources.discord_roles_button_post
+import nomnomzbot.composeapp.generated.resources.discord_roles_cancel
+import nomnomzbot.composeapp.generated.resources.discord_roles_create
+import nomnomzbot.composeapp.generated.resources.discord_roles_create_title
+import nomnomzbot.composeapp.generated.resources.discord_roles_delete_action
+import nomnomzbot.composeapp.generated.resources.discord_roles_delete_cancel
+import nomnomzbot.composeapp.generated.resources.discord_roles_delete_confirm
+import nomnomzbot.composeapp.generated.resources.discord_roles_delete_message
+import nomnomzbot.composeapp.generated.resources.discord_roles_delete_title
+import nomnomzbot.composeapp.generated.resources.discord_roles_discord_role_id
+import nomnomzbot.composeapp.generated.resources.discord_roles_empty
+import nomnomzbot.composeapp.generated.resources.discord_roles_opt_in_count
+import nomnomzbot.composeapp.generated.resources.discord_roles_post_button
+import nomnomzbot.composeapp.generated.resources.discord_roles_post_button_title
+import nomnomzbot.composeapp.generated.resources.discord_roles_role_id_required
+import nomnomzbot.composeapp.generated.resources.discord_roles_role_name
+import nomnomzbot.composeapp.generated.resources.discord_roles_self_assign
+import nomnomzbot.composeapp.generated.resources.discord_roles_title
+import nomnomzbot.composeapp.generated.resources.discord_rule_channel
+import nomnomzbot.composeapp.generated.resources.discord_rule_no_message
+import nomnomzbot.composeapp.generated.resources.discord_toggle_action
+import nomnomzbot.composeapp.generated.resources.shell_nav_discord
 import org.jetbrains.compose.resources.stringResource
 
 // The Discord page (frontend-ia.md, Stream group): the channel's linked Discord guild(s) and, per guild, the
@@ -354,7 +352,7 @@ private fun ReadyContent(
             contentPadding = PaddingValues(vertical = spacing.s1),
             verticalArrangement = Arrangement.spacedBy(spacing.s4),
         ) {
-            items(items = guilds, key = { guild -> guild.connection.id }) { guild ->
+            itemsIndexed(items = guilds, key = { _, guild -> guild.connection.id }) { _, guild ->
                 GuildCard(
                     guild = guild,
                     manage = manage,
@@ -411,74 +409,77 @@ private fun GuildCard(
         rolesLoading = false
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(tokens.radius.lg))
-            .background(tokens.card)
-            .padding(spacing.s4),
-        verticalArrangement = Arrangement.spacedBy(spacing.s3),
-    ) {
-        GuildHeader(
-            connection = guild.connection,
-            manage = manage,
-            onNewRule = onNewRule,
-            onApproveConsent = onApproveConsent,
-            onRevokeConsent = onRevokeConsent,
-        )
-
-        guild.loadError?.let {
-            ActionErrorBanner(message = stringResource(Res.string.discord_config_load_error, it))
-        }
-
-        if (guild.configs.isEmpty()) {
-            Text(
-                text = stringResource(Res.string.discord_no_rules),
-                style = LocalTypography.current.sm,
-                color = tokens.mutedForeground,
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(spacing.s4),
+            verticalArrangement = Arrangement.spacedBy(spacing.s3),
+        ) {
+            GuildHeader(
+                connection = guild.connection,
+                manage = manage,
+                onNewRule = onNewRule,
+                onApproveConsent = onApproveConsent,
+                onRevokeConsent = onRevokeConsent,
             )
-        } else {
-            Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
-                guild.configs.forEach { rule ->
-                    RuleRow(
-                        rule = rule,
-                        manage = manage,
-                        onEdit = { onEditRule(rule) },
-                        onToggle = { enabled -> onToggleRule(rule, enabled) },
-                        onDelete = { onDeleteRule(rule) },
-                        onPreview = { onPreviewRule(rule) },
-                    )
+
+            guild.loadError?.let {
+                ActionErrorBanner(message = stringResource(Res.string.discord_config_load_error, it))
+            }
+
+            if (guild.configs.isEmpty()) {
+                Text(
+                    text = stringResource(Res.string.discord_no_rules),
+                    style = LocalTypography.current.sm,
+                    color = tokens.mutedForeground,
+                )
+            } else {
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column {
+                        guild.configs.forEachIndexed { index, rule ->
+                            RuleRow(
+                                rule = rule,
+                                manage = manage,
+                                onEdit = { onEditRule(rule) },
+                                onToggle = { enabled -> onToggleRule(rule, enabled) },
+                                onDelete = { onDeleteRule(rule) },
+                                onPreview = { onPreviewRule(rule) },
+                            )
+                            if (index < guild.configs.lastIndex) {
+                                HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+                            }
+                        }
+                    }
                 }
             }
-        }
 
-        // ── Notification roles ─────────────────────────────────────────────
-        HorizontalDivider(color = tokens.border)
-        RolesSection(
-            roles = roles,
-            loading = rolesLoading,
-            manage = manage,
-            onAdd = onAddRole,
-            onDelete = onDeleteRole,
-            onPostButton = onPostRoleButton,
-        )
+            // ── Notification roles ─────────────────────────────────────────────
+            HorizontalDivider(color = tokens.border)
+            RolesSection(
+                roles = roles,
+                loading = rolesLoading,
+                manage = manage,
+                onAdd = onAddRole,
+                onDelete = onDeleteRole,
+                onPostButton = onPostRoleButton,
+            )
 
-        // ── Dispatch log (load on demand) ──────────────────────────────────
-        HorizontalDivider(color = tokens.border)
-        DispatchLogSection(
-            entries = logEntries,
-            loading = logLoading,
-            onLoad = {
-                scope.launch {
-                    logLoading = true
-                    when (val result = controller.dispatchLog(guild.connection.id)) {
-                        is bot.nomnomz.dashboard.core.network.ApiResult.Ok -> logEntries = result.value
-                        is bot.nomnomz.dashboard.core.network.ApiResult.Failure -> logEntries = emptyList()
+            // ── Dispatch log (load on demand) ──────────────────────────────────
+            HorizontalDivider(color = tokens.border)
+            DispatchLogSection(
+                entries = logEntries,
+                loading = logLoading,
+                onLoad = {
+                    scope.launch {
+                        logLoading = true
+                        when (val result = controller.dispatchLog(guild.connection.id)) {
+                            is bot.nomnomz.dashboard.core.network.ApiResult.Ok -> logEntries = result.value
+                            is bot.nomnomz.dashboard.core.network.ApiResult.Failure -> logEntries = emptyList()
+                        }
+                        logLoading = false
                     }
-                    logLoading = false
-                }
-            },
-        )
+                },
+            )
+        }
     }
 }
 
@@ -608,9 +609,7 @@ private fun RuleRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(tokens.radius.md))
-            .background(tokens.muted)
-            .padding(spacing.s3),
+            .padding(horizontal = spacing.s4, vertical = spacing.s3),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(spacing.s3),
     ) {
@@ -806,8 +805,15 @@ private fun RolesSection(
                     color = tokens.mutedForeground,
                 )
             else ->
-                Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
-                    roles.forEach { role -> RoleRow(role = role, manage = manage, onDelete = onDelete, onPostButton = onPostButton) }
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column {
+                        roles.forEachIndexed { index, role ->
+                            RoleRow(role = role, manage = manage, onDelete = onDelete, onPostButton = onPostButton)
+                            if (index < roles.lastIndex) {
+                                HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+                            }
+                        }
+                    }
                 }
         }
     }
@@ -829,9 +835,7 @@ private fun RoleRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(tokens.radius.md))
-            .background(tokens.muted)
-            .padding(spacing.s3),
+            .padding(horizontal = spacing.s4, vertical = spacing.s3),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(spacing.s3),
     ) {
@@ -914,8 +918,15 @@ private fun DispatchLogSection(
                     color = tokens.mutedForeground,
                 )
             else ->
-                Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
-                    entries.forEach { entry -> DispatchLogRow(entry = entry) }
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column {
+                        entries.forEachIndexed { index, entry ->
+                            DispatchLogRow(entry = entry)
+                            if (index < entries.lastIndex) {
+                                HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+                            }
+                        }
+                    }
                 }
         }
     }
@@ -931,9 +942,7 @@ private fun DispatchLogRow(entry: DiscordDispatchLogEntry) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(tokens.radius.sm))
-            .background(tokens.muted)
-            .padding(horizontal = spacing.s3, vertical = spacing.s2),
+            .padding(horizontal = spacing.s4, vertical = spacing.s3),
         horizontalArrangement = Arrangement.spacedBy(spacing.s3),
         verticalAlignment = Alignment.Top,
     ) {

@@ -10,7 +10,6 @@
 
 package bot.nomnomz.dashboard.feature.roles.ui
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,12 +18,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
-import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -34,26 +32,29 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
+import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
+import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
-import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
+import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
+import bot.nomnomz.dashboard.core.designsystem.component.TextButton
+import bot.nomnomz.dashboard.core.designsystem.icon.EditGlyph
+import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
-import bot.nomnomz.dashboard.core.designsystem.icon.EditGlyph
-import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
 import bot.nomnomz.dashboard.core.network.ActionPermission
 import bot.nomnomz.dashboard.core.network.ChannelMembership
 import bot.nomnomz.dashboard.core.network.ManagementRole
@@ -66,8 +67,8 @@ import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
 import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecision
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
-import nomnomzbot.composeapp.generated.resources.shell_nav_roles
 import nomnomzbot.composeapp.generated.resources.roles_action_error
+import nomnomzbot.composeapp.generated.resources.roles_action_overrides_section
 import nomnomzbot.composeapp.generated.resources.roles_assign_picker
 import nomnomzbot.composeapp.generated.resources.roles_empty
 import nomnomzbot.composeapp.generated.resources.roles_error
@@ -78,6 +79,17 @@ import nomnomzbot.composeapp.generated.resources.roles_grant_empty
 import nomnomzbot.composeapp.generated.resources.roles_grant_pick_action
 import nomnomzbot.composeapp.generated.resources.roles_loading
 import nomnomzbot.composeapp.generated.resources.roles_member_description
+import nomnomzbot.composeapp.generated.resources.roles_members_section
+import nomnomzbot.composeapp.generated.resources.roles_override_active
+import nomnomzbot.composeapp.generated.resources.roles_override_cancel
+import nomnomzbot.composeapp.generated.resources.roles_override_confirm
+import nomnomzbot.composeapp.generated.resources.roles_override_default
+import nomnomzbot.composeapp.generated.resources.roles_override_dialog_desc
+import nomnomzbot.composeapp.generated.resources.roles_override_dialog_title
+import nomnomzbot.composeapp.generated.resources.roles_override_level_invalid
+import nomnomzbot.composeapp.generated.resources.roles_override_level_label
+import nomnomzbot.composeapp.generated.resources.roles_override_reset
+import nomnomzbot.composeapp.generated.resources.roles_override_set
 import nomnomzbot.composeapp.generated.resources.roles_permit_capability
 import nomnomzbot.composeapp.generated.resources.roles_permit_description
 import nomnomzbot.composeapp.generated.resources.roles_permit_role
@@ -95,25 +107,11 @@ import nomnomzbot.composeapp.generated.resources.roles_revoke_confirm
 import nomnomzbot.composeapp.generated.resources.roles_revoke_dismiss
 import nomnomzbot.composeapp.generated.resources.roles_revoke_message
 import nomnomzbot.composeapp.generated.resources.roles_revoke_title
-import androidx.compose.foundation.text.KeyboardOptions
-import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
-import androidx.compose.ui.text.input.KeyboardType
-import nomnomzbot.composeapp.generated.resources.roles_action_overrides_section
-import nomnomzbot.composeapp.generated.resources.roles_members_section
-import nomnomzbot.composeapp.generated.resources.roles_override_active
-import nomnomzbot.composeapp.generated.resources.roles_override_cancel
-import nomnomzbot.composeapp.generated.resources.roles_override_confirm
-import nomnomzbot.composeapp.generated.resources.roles_override_default
-import nomnomzbot.composeapp.generated.resources.roles_override_dialog_desc
-import nomnomzbot.composeapp.generated.resources.roles_override_dialog_title
-import nomnomzbot.composeapp.generated.resources.roles_override_level_invalid
-import nomnomzbot.composeapp.generated.resources.roles_override_level_label
-import nomnomzbot.composeapp.generated.resources.roles_override_reset
-import nomnomzbot.composeapp.generated.resources.roles_override_set
 import nomnomzbot.composeapp.generated.resources.roles_role_broadcaster
 import nomnomzbot.composeapp.generated.resources.roles_role_editor
 import nomnomzbot.composeapp.generated.resources.roles_role_lead_moderator
 import nomnomzbot.composeapp.generated.resources.roles_role_moderator
+import nomnomzbot.composeapp.generated.resources.shell_nav_roles
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -184,7 +182,7 @@ private fun RolesContent(
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(spacing.s2),
+        verticalArrangement = Arrangement.spacedBy(spacing.s4),
     ) {
         state.actionError?.let { detail ->
             item(key = "action-error") {
@@ -192,45 +190,78 @@ private fun RolesContent(
             }
         }
 
-        item(key = "members-header") { SectionLabel(stringResource(Res.string.roles_members_section)) }
-        items(items = state.members, key = { "member-${it.id}" }) { member ->
-            MemberRow(
-                member = member,
-                manage = manage,
-                canGrant = state.grantableActions.isNotEmpty(),
-                onAssignRole = { role -> onAssignRole(member.userId, role) },
-                onRemove = { pendingRemove = member },
-                onGrant = { pendingGrant = member },
-            )
+        item(key = "members-section") {
+            Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
+                SectionLabel(stringResource(Res.string.roles_members_section))
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column {
+                        state.members.forEachIndexed { index, member ->
+                            MemberRow(
+                                member = member,
+                                manage = manage,
+                                canGrant = state.grantableActions.isNotEmpty(),
+                                onAssignRole = { role -> onAssignRole(member.userId, role) },
+                                onRemove = { pendingRemove = member },
+                                onGrant = { pendingGrant = member },
+                            )
+                            if (index < state.members.lastIndex) {
+                                HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+                            }
+                        }
+                    }
+                }
+            }
         }
 
-        item(key = "permits-header") { SectionLabel(stringResource(Res.string.roles_permits_section)) }
-        if (state.permits.isEmpty()) {
-            item(key = "permits-empty") {
-                Text(
-                    text = stringResource(Res.string.roles_permits_empty),
-                    style = typography.sm,
-                    color = tokens.mutedForeground,
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.s1),
-                )
-            }
-        } else {
-            items(items = state.permits, key = { "permit-${it.id}" }) { permit ->
-                PermitRow(permit = permit, manage = manage, onRevoke = { pendingRevoke = permit })
+        item(key = "permits-section") {
+            Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
+                SectionLabel(stringResource(Res.string.roles_permits_section))
+                if (state.permits.isEmpty()) {
+                    Text(
+                        text = stringResource(Res.string.roles_permits_empty),
+                        style = typography.sm,
+                        color = tokens.mutedForeground,
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.s1),
+                    )
+                } else {
+                    Card(modifier = Modifier.fillMaxWidth()) {
+                        Column {
+                            state.permits.forEachIndexed { index, permit ->
+                                PermitRow(
+                                    permit = permit,
+                                    manage = manage,
+                                    onRevoke = { pendingRevoke = permit },
+                                )
+                                if (index < state.permits.lastIndex) {
+                                    HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
 
         if (state.allActions.isNotEmpty()) {
-            item(key = "actions-header") {
-                SectionLabel(stringResource(Res.string.roles_action_overrides_section))
-            }
-            items(items = state.allActions, key = { "action-${it.actionKey}" }) { action ->
-                ActionPermissionRow(
-                    action = action,
-                    manage = manage,
-                    onEdit = { pendingOverride = action },
-                    onReset = { onResetOverride(action.actionKey) },
-                )
+            item(key = "actions-section") {
+                Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
+                    SectionLabel(stringResource(Res.string.roles_action_overrides_section))
+                    Card(modifier = Modifier.fillMaxWidth()) {
+                        Column {
+                            state.allActions.forEachIndexed { index, action ->
+                                ActionPermissionRow(
+                                    action = action,
+                                    manage = manage,
+                                    onEdit = { pendingOverride = action },
+                                    onReset = { onResetOverride(action.actionKey) },
+                                )
+                                if (index < state.allActions.lastIndex) {
+                                    HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
     }
@@ -311,8 +342,6 @@ private fun MemberRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(tokens.radius.lg))
-            .background(tokens.card)
             .padding(horizontal = spacing.s4, vertical = spacing.s3),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(spacing.s2),
@@ -410,7 +439,6 @@ private fun GrantButton(name: String, manage: ManageDecision, onGrant: () -> Uni
 @Composable
 private fun RemoveButton(name: String, manage: ManageDecision, onRemove: () -> Unit) {
     val tokens = LocalTokens.current
-    val spacing = LocalSpacing.current
     val removeLabel: String = stringResource(Res.string.roles_remove_action, name)
 
     ManageGate(decision = manage) { enabled ->
@@ -438,8 +466,6 @@ private fun PermitRow(permit: PermitGrant, manage: ManageDecision, onRevoke: () 
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(tokens.radius.lg))
-            .background(tokens.card)
             .padding(horizontal = spacing.s4, vertical = spacing.s3),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(spacing.s2),
@@ -680,12 +706,9 @@ private fun ActionPermissionRow(
         }
 
     Row(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(spacing.s1))
-                .background(tokens.card)
-                .padding(horizontal = spacing.s3, vertical = spacing.s2),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = spacing.s3, vertical = spacing.s2),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(spacing.s2),
     ) {

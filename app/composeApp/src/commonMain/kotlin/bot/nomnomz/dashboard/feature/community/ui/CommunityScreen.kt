@@ -19,11 +19,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Text
+import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import bot.nomnomz.dashboard.core.designsystem.icon.DotsVerticalGlyph
 import androidx.compose.runtime.Composable
@@ -259,38 +260,44 @@ private fun MemberList(
                         .padding(horizontal = spacing.s1, vertical = spacing.s1),
                 )
             }
-            items(items = topChatters.take(10), key = { it.userId + "-chatter" }) { entry ->
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(spacing.s2))
-                        .background(tokens.card)
-                        .padding(horizontal = spacing.s3, vertical = spacing.s2),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(spacing.s2),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(
-                            text = "#${entry.rank}",
-                            style = typography.sm,
-                            color = tokens.mutedForeground,
-                        )
-                        Text(
-                            text = entry.displayName.ifBlank { entry.userId },
-                            style = typography.sm,
-                            color = tokens.foreground,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
+            item(key = "top-chatters-card") {
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    val chatters: List<ChatActivityEntry> = topChatters.take(10)
+                    chatters.forEachIndexed { index, entry ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = spacing.s4, vertical = spacing.s3),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(
+                                    text = "#${entry.rank}",
+                                    style = typography.sm,
+                                    color = tokens.mutedForeground,
+                                )
+                                Text(
+                                    text = entry.displayName.ifBlank { entry.userId },
+                                    style = typography.sm,
+                                    color = tokens.foreground,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
+                            Text(
+                                text = stringResource(Res.string.community_top_chatters_messages, entry.points),
+                                style = typography.sm,
+                                color = tokens.mutedForeground,
+                            )
+                        }
+                        if (index < chatters.lastIndex) {
+                            HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+                        }
                     }
-                    Text(
-                        text = stringResource(Res.string.community_top_chatters_messages, entry.points),
-                        style = typography.sm,
-                        color = tokens.mutedForeground,
-                    )
                 }
             }
             item(key = "top-chatters-spacer") {
@@ -299,17 +306,24 @@ private fun MemberList(
                 )
             }
         }
-        items(items = members, key = { member -> member.id }) { member ->
-            MemberRow(
-                member = member,
-                manage = manage,
-                onSetTrust = { level -> onSetTrust(member.id, level) },
-                onBan = { pendingBan = member },
-                onUnban = { pendingUnban = member },
-                onShoutout = { onShoutout(member.id) },
-                onVipToggle = { onVipToggle(member.id, member.trustLevel == CommunityTrustLevel.Vip) },
-                onViewStats = { onViewStats(member) },
-            )
+        item(key = "members-card") {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                members.forEachIndexed { index, member ->
+                    MemberRow(
+                        member = member,
+                        manage = manage,
+                        onSetTrust = { level -> onSetTrust(member.id, level) },
+                        onBan = { pendingBan = member },
+                        onUnban = { pendingUnban = member },
+                        onShoutout = { onShoutout(member.id) },
+                        onVipToggle = { onVipToggle(member.id, member.trustLevel == CommunityTrustLevel.Vip) },
+                        onViewStats = { onViewStats(member) },
+                    )
+                    if (index < members.lastIndex) {
+                        HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+                    }
+                }
+            }
         }
     }
 
@@ -370,8 +384,6 @@ private fun MemberRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(tokens.radius.lg))
-            .background(tokens.card)
             .padding(horizontal = spacing.s4, vertical = spacing.s3),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(spacing.s2),

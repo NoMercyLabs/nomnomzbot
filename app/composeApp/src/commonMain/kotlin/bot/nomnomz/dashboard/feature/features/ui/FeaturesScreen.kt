@@ -19,11 +19,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -31,7 +32,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -98,16 +98,21 @@ fun FeaturesScreen(controller: FeaturesController, role: ManagementRole?) {
                 current.actionError?.let { detail ->
                     ActionErrorBanner(message = stringResource(Res.string.features_action_error, detail))
                 }
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.spacedBy(spacing.s3),
-                ) {
-                    items(items = current.features, key = { it.featureKey }) { feature ->
-                        FeatureRow(
-                            feature = feature,
-                            manage = manage,
-                            onToggle = { scope.launch { controller.toggle(feature.featureKey) } },
-                        )
+                Card(modifier = Modifier.fillMaxWidth().weight(1f)) {
+                    LazyColumn(modifier = Modifier.fillMaxSize()) {
+                        itemsIndexed(
+                            items = current.features,
+                            key = { _, feature -> feature.featureKey },
+                        ) { index, feature ->
+                            FeatureRow(
+                                feature = feature,
+                                manage = manage,
+                                onToggle = { scope.launch { controller.toggle(feature.featureKey) } },
+                            )
+                            if (index < current.features.lastIndex) {
+                                HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+                            }
+                        }
                     }
                 }
             }
@@ -131,9 +136,7 @@ private fun FeatureRow(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(tokens.radius.lg))
-            .background(tokens.card)
-            .padding(spacing.s4),
+            .padding(horizontal = spacing.s4, vertical = spacing.s3),
         verticalArrangement = Arrangement.spacedBy(spacing.s2),
     ) {
         Row(

@@ -386,24 +386,25 @@ private fun StatusBanner(isLive: Boolean) {
     val statusText: String =
         stringResource(if (isLive) Res.string.settings_status_live else Res.string.settings_status_offline)
 
-    Row(
+    // One node for screen readers: "Live" rather than a disconnected dot + label.
+    Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(tokens.radius.lg))
-            .background(tokens.card)
-            .padding(spacing.s4)
-            // One node for screen readers: "Live" rather than a disconnected dot + label.
             .clearAndSetSemantics { contentDescription = statusText },
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(spacing.s2),
     ) {
-        Box(
-            modifier = Modifier
-                .size(spacing.s2)
-                .clip(CircleShape)
-                .background(if (isLive) tokens.primary else tokens.mutedForeground),
-        )
-        Text(text = statusText, style = typography.xl, color = tokens.cardForeground)
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(spacing.s4),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(spacing.s2)
+                    .clip(CircleShape)
+                    .background(if (isLive) tokens.primary else tokens.mutedForeground),
+            )
+            Text(text = statusText, style = typography.xl, color = tokens.cardForeground)
+        }
     }
 }
 
@@ -693,13 +694,11 @@ private fun ChannelBotSection(controller: ChannelBotController, manage: ManageDe
 
     LaunchedEffect(Unit) { controller.load() }
 
+    Card(modifier = Modifier.fillMaxWidth()) {
     Column(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(tokens.radius.lg))
-                .background(tokens.card)
-                .padding(spacing.s4),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(spacing.s4),
         verticalArrangement = Arrangement.spacedBy(spacing.s3),
     ) {
         Text(
@@ -829,6 +828,7 @@ private fun ChannelBotSection(controller: ChannelBotController, manage: ManageDe
             }
         }
     }
+    }
 
     if (pendingDisconnect) {
         ConfirmDialog(
@@ -860,11 +860,10 @@ private fun EventJournalSection(controller: JournalPortabilityController, manage
     var confirmImport: Boolean by remember { mutableStateOf(false) }
     var confirmRebuild: Boolean by remember { mutableStateOf(false) }
 
+    Card(modifier = Modifier.fillMaxWidth()) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(tokens.radius.lg))
-            .background(tokens.card)
             .padding(spacing.s4),
         verticalArrangement = Arrangement.spacedBy(spacing.s4),
     ) {
@@ -920,6 +919,7 @@ private fun EventJournalSection(controller: JournalPortabilityController, manage
 
             JournalStatus(state = state, onDismiss = { controller.dismiss() })
         }
+    }
     }
 
     if (confirmImport) {

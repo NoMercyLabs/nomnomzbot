@@ -19,14 +19,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -37,7 +36,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -157,13 +155,22 @@ fun FederationScreen(controller: FederationController, role: ManagementRole?) {
                             }
                         }
                     }
-                    items(items = current.peers, key = { "peer-${it.id}" }) { peer ->
-                        PeerRow(
-                            peer = peer,
-                            manage = manage,
-                            onTrust = { scope.launch { controller.trustPeer(peer.id) } },
-                            onRevoke = { pendingRevoke = peer },
-                        )
+                    item(key = "peers-card") {
+                        Card(modifier = Modifier.fillMaxWidth()) {
+                            Column {
+                                current.peers.forEachIndexed { index, peer ->
+                                    PeerRow(
+                                        peer = peer,
+                                        manage = manage,
+                                        onTrust = { scope.launch { controller.trustPeer(peer.id) } },
+                                        onRevoke = { pendingRevoke = peer },
+                                    )
+                                    if (index < current.peers.lastIndex) {
+                                        HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+                                    }
+                                }
+                            }
+                        }
                     }
                     item(key = "optins-divider") { HorizontalDivider() }
                     item(key = "optins-header") {
@@ -183,13 +190,22 @@ fun FederationScreen(controller: FederationController, role: ManagementRole?) {
                             }
                         }
                     }
-                    items(items = current.optIns, key = { "optin-${it.id}" }) { optIn ->
-                        OptInRow(
-                            optIn = optIn,
-                            manage = manage,
-                            onToggle = { scope.launch { controller.upsertOptIn(optIn.peerId, optIn.capability, !optIn.isEnabled) } },
-                            onRemove = { pendingRemoveOptIn = optIn },
-                        )
+                    item(key = "optins-card") {
+                        Card(modifier = Modifier.fillMaxWidth()) {
+                            Column {
+                                current.optIns.forEachIndexed { index, optIn ->
+                                    OptInRow(
+                                        optIn = optIn,
+                                        manage = manage,
+                                        onToggle = { scope.launch { controller.upsertOptIn(optIn.peerId, optIn.capability, !optIn.isEnabled) } },
+                                        onRemove = { pendingRemoveOptIn = optIn },
+                                    )
+                                    if (index < current.optIns.lastIndex) {
+                                        HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -257,9 +273,7 @@ private fun PeerRow(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(tokens.radius.lg))
-            .background(tokens.card)
-            .padding(spacing.s4),
+            .padding(horizontal = spacing.s4, vertical = spacing.s3),
         verticalArrangement = Arrangement.spacedBy(spacing.s2),
     ) {
         Row(
@@ -322,9 +336,7 @@ private fun OptInRow(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(tokens.radius.lg))
-            .background(tokens.card)
-            .padding(spacing.s4),
+            .padding(horizontal = spacing.s4, vertical = spacing.s3),
         verticalArrangement = Arrangement.spacedBy(spacing.s2),
     ) {
         Row(

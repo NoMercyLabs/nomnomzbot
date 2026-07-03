@@ -417,6 +417,10 @@
     <string name="commands_delete_message">Delete %1$s? This can't be undone.</string>
     <string name="commands_delete_confirm">Delete</string>
     <string name="commands_delete_cancel">Cancel</string>
+    <string name="commands_search_placeholder">Search commands…</string>
+    <string name="commands_filter_all">All</string>
+    <string name="commands_filter_custom">Custom</string>
+    <string name="commands_filter_builtin">Built-in</string>
     <string name="timers_new">+ New timer</string>
     <string name="timers_toggle">Toggle %1$s</string>
     <string name="timers_edit">Edit %1$s</string>
@@ -436,6 +440,7 @@
     <string name="timers_delete_title">Delete timer</string>
     <string name="timers_delete_message">Delete the timer "%1$s"? This cannot be undone.</string>
     <string name="timers_delete_confirm">Delete</string>
+    <string name="timers_search_placeholder">Search timers…</string>
     <string name="moderation_unban_action_short">Unban</string>
     <string name="moderation_unban_action">Unban %1$s</string>
     <string name="moderation_unban_title">Lift this ban?</string>

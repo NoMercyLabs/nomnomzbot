@@ -10,28 +10,25 @@
 
 package bot.nomnomz.dashboard.feature.commands.ui
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
-import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
-import bot.nomnomz.dashboard.core.designsystem.component.Button
-import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -41,19 +38,23 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
+import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
+import bot.nomnomz.dashboard.core.designsystem.component.Button
+import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
+import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import bot.nomnomz.dashboard.core.designsystem.icon.EditGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
@@ -67,13 +68,14 @@ import bot.nomnomz.dashboard.feature.commands.state.CommandsState
 import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
 import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
 import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecision
+import bot.nomnomz.dashboard.core.realtime.HubEvent
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.commands_action_error
-import nomnomzbot.composeapp.generated.resources.commands_badge_disabled
-import nomnomzbot.composeapp.generated.resources.commands_badge_enabled
+import nomnomzbot.composeapp.generated.resources.commands_builtins_section
+import nomnomzbot.composeapp.generated.resources.commands_builtins_toggle
 import nomnomzbot.composeapp.generated.resources.commands_delete_action
-import nomnomzbot.composeapp.generated.resources.commands_delete_action_short
 import nomnomzbot.composeapp.generated.resources.commands_delete_cancel
 import nomnomzbot.composeapp.generated.resources.commands_delete_confirm
 import nomnomzbot.composeapp.generated.resources.commands_delete_message
@@ -81,34 +83,29 @@ import nomnomzbot.composeapp.generated.resources.commands_delete_title
 import nomnomzbot.composeapp.generated.resources.commands_dialog_cancel
 import nomnomzbot.composeapp.generated.resources.commands_dialog_create
 import nomnomzbot.composeapp.generated.resources.commands_dialog_create_title
+import nomnomzbot.composeapp.generated.resources.commands_dialog_edit_title
 import nomnomzbot.composeapp.generated.resources.commands_dialog_enabled_label
 import nomnomzbot.composeapp.generated.resources.commands_dialog_name_label
+import nomnomzbot.composeapp.generated.resources.commands_dialog_pipeline_label
+import nomnomzbot.composeapp.generated.resources.commands_dialog_pipeline_none
 import nomnomzbot.composeapp.generated.resources.commands_dialog_response_label
+import nomnomzbot.composeapp.generated.resources.commands_dialog_response_optional
 import nomnomzbot.composeapp.generated.resources.commands_dialog_save
-import nomnomzbot.composeapp.generated.resources.commands_dialog_edit_title
 import nomnomzbot.composeapp.generated.resources.commands_edit_action
-import nomnomzbot.composeapp.generated.resources.commands_edit_action_short
 import nomnomzbot.composeapp.generated.resources.commands_empty
 import nomnomzbot.composeapp.generated.resources.commands_error
+import nomnomzbot.composeapp.generated.resources.commands_filter_all
+import nomnomzbot.composeapp.generated.resources.commands_filter_builtin
+import nomnomzbot.composeapp.generated.resources.commands_filter_custom
 import nomnomzbot.composeapp.generated.resources.commands_loading
 import nomnomzbot.composeapp.generated.resources.commands_new_action
 import nomnomzbot.composeapp.generated.resources.commands_no_description
 import nomnomzbot.composeapp.generated.resources.commands_retry
+import nomnomzbot.composeapp.generated.resources.commands_search_placeholder
 import nomnomzbot.composeapp.generated.resources.commands_title
 import nomnomzbot.composeapp.generated.resources.commands_toggle_action
-import nomnomzbot.composeapp.generated.resources.commands_builtins_section
-import nomnomzbot.composeapp.generated.resources.commands_builtins_toggle
-import nomnomzbot.composeapp.generated.resources.commands_dialog_pipeline_label
-import nomnomzbot.composeapp.generated.resources.commands_dialog_pipeline_none
-import nomnomzbot.composeapp.generated.resources.commands_dialog_response_optional
-import bot.nomnomz.dashboard.core.realtime.HubEvent
-import kotlinx.coroutines.flow.SharedFlow
 import org.jetbrains.compose.resources.stringResource
 
-// The Commands page (frontend-ia.md §3, Chat group): the channel's custom chat commands, all real data from
-// [CommandsController]. The screen is a pure projection of the controller's state; it loads on first
-// composition. This is the full management surface — create, edit, enable/disable, and delete — each routed
-// back through the controller, which re-lists after every successful write so the page reflects the backend.
 @Composable
 fun CommandsScreen(
     controller: CommandsController,
@@ -119,13 +116,8 @@ fun CommandsScreen(
     val scope = rememberCoroutineScope()
     val spacing = LocalSpacing.current
 
-    // One decision for the whole page: Commands gates every write control at its single Editor manage floor
-    // (frontend-ia.md §3). A caller below it sees the list but every create/edit/toggle/delete control disabled
-    // with "Requires Editor" (§7); the backend re-checks every write regardless.
     val manage: ManageDecision = rememberManageDecision(role, ShellRoute.Commands)
 
-    // The create/edit dialog target: null = closed, a value = open (an empty editor = create, a pre-filled one
-    // = edit). The delete-confirm target is the command name pending confirmation, or null when none.
     var editor: CommandEditor? by remember { mutableStateOf(null) }
     var pendingDelete: String? by remember { mutableStateOf(null) }
 
@@ -177,7 +169,6 @@ fun CommandsScreen(
     }
 
     editor?.let { open ->
-        // Resolve the current pipeline list from state (non-null pipelines come from Ready or Empty).
         val pipelines: List<PipelineSummary> = when (val s: CommandsState = state) {
             is CommandsState.Ready -> s.pipelines
             is CommandsState.Empty -> s.pipelines
@@ -213,9 +204,6 @@ fun CommandsScreen(
     }
 }
 
-// The list-bearing content: the header with the "+ New command" action, an optional write-failure banner, and
-// either the rows or the empty hint. Shared by the Ready and Empty states so a fresh channel can still create
-// its first command from the same header.
 @Composable
 private fun ManagedContent(
     commands: List<CommandSummary>,
@@ -229,146 +217,149 @@ private fun ManagedContent(
     onDelete: (CommandSummary) -> Unit,
     onToggleBuiltin: (builtinKey: String, Boolean) -> Unit,
 ) {
+    val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    var searchQuery: String by remember { mutableStateOf("") }
+    var activeTab: CommandTab by remember { mutableStateOf(CommandTab.All) }
+
+    val showCustom: Boolean = activeTab != CommandTab.Builtin
+    val showBuiltin: Boolean = activeTab != CommandTab.Custom
+
+    val filteredCommands: List<CommandSummary> = commands.filter { cmd ->
+        showCustom && (
+            searchQuery.isBlank() ||
+            cmd.name.contains(searchQuery, ignoreCase = true) ||
+            cmd.description?.contains(searchQuery, ignoreCase = true) == true
+        )
+    }
+
+    val filteredBuiltins: List<BuiltinCommand> = builtins.filter { builtin ->
+        showBuiltin && (
+            searchQuery.isBlank() ||
+            builtin.name.contains(searchQuery, ignoreCase = true)
+        )
+    }
 
     Column(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(spacing.s4),
     ) {
-        Header(manage = manage, onNew = onNew)
-        actionError?.let { ActionErrorBanner(message = stringResource(Res.string.commands_action_error, it)) }
+        PageHeader(title = stringResource(Res.string.commands_title)) {
+            ManageGate(decision = manage) { enabled ->
+                Button(onClick = onNew, enabled = enabled) {
+                    Text(text = stringResource(Res.string.commands_new_action))
+                }
+            }
+        }
 
+        // Search bar — filters both custom commands and built-ins by name/description.
+        AppTextField(
+            value = searchQuery,
+            onValueChange = { searchQuery = it },
+            label = "",
+            placeholder = stringResource(Res.string.commands_search_placeholder),
+            modifier = Modifier.fillMaxWidth(),
+        )
+
+        // Tab strip — only shown when there are built-in commands to distinguish.
         if (builtins.isNotEmpty()) {
-            BuiltinCommandList(builtins = builtins, manage = manage, onToggle = onToggleBuiltin)
+            Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
+                CommandTab.entries.forEach { tab ->
+                    FilterChip(
+                        selected = activeTab == tab,
+                        onClick = { activeTab = tab },
+                        label = { Text(text = tab.label(), style = typography.sm) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = tokens.primary,
+                            selectedLabelColor = tokens.primaryForeground,
+                            containerColor = tokens.card,
+                            labelColor = tokens.mutedForeground,
+                        ),
+                        border = FilterChipDefaults.filterChipBorder(
+                            enabled = true,
+                            selected = activeTab == tab,
+                            selectedBorderColor = tokens.primary,
+                            borderColor = tokens.border,
+                        ),
+                    )
+                }
+            }
         }
 
-        if (commands.isEmpty()) {
-            CenteredMessage(stringResource(Res.string.commands_empty))
-        } else {
-            CommandList(
-                commands = commands,
-                manage = manage,
-                onEdit = onEdit,
-                onToggle = onToggle,
-                onDelete = onDelete,
-            )
+        actionError?.let {
+            ActionErrorBanner(message = stringResource(Res.string.commands_action_error, it))
         }
-    }
-}
 
-@Composable
-private fun BuiltinCommandList(
-    builtins: List<BuiltinCommand>,
-    manage: ManageDecision,
-    onToggle: (builtinKey: String, Boolean) -> Unit,
-) {
-    val tokens = LocalTokens.current
-    val typography = LocalTypography.current
-    val spacing = LocalSpacing.current
+        // Single card wrapping the entire table — rows are divided by hairlines, not individual cards.
+        Card(modifier = Modifier.fillMaxWidth().weight(1f)) {
+            if (filteredCommands.isEmpty() && filteredBuiltins.isEmpty()) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text(
+                        text = stringResource(Res.string.commands_empty),
+                        style = typography.base,
+                        color = tokens.mutedForeground,
+                    )
+                }
+            } else {
+                LazyColumn(modifier = Modifier.fillMaxSize()) {
+                    itemsIndexed(
+                        items = filteredCommands,
+                        key = { _, cmd -> "custom-${cmd.id}" },
+                    ) { index, command ->
+                        CommandTableRow(
+                            command = command,
+                            manage = manage,
+                            onEdit = { onEdit(command) },
+                            onToggle = { enabled -> onToggle(command, enabled) },
+                            onDelete = { onDelete(command) },
+                        )
+                        if (index < filteredCommands.lastIndex || filteredBuiltins.isNotEmpty()) {
+                            HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+                        }
+                    }
 
-    Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
-        Text(
-            text = stringResource(Res.string.commands_builtins_section),
-            style = typography.sm,
-            color = tokens.mutedForeground,
-        )
-        builtins.forEach { builtin ->
-            BuiltinRow(builtin = builtin, manage = manage, onToggle = { enabled -> onToggle(builtin.builtinKey, enabled) })
-        }
-    }
-}
+                    // Labelled section separator before built-ins (only when both sections are present).
+                    if (filteredBuiltins.isNotEmpty() && filteredCommands.isNotEmpty()) {
+                        item(key = "builtins-header") {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = spacing.s4, vertical = spacing.s2),
+                            ) {
+                                Text(
+                                    text = stringResource(Res.string.commands_builtins_section),
+                                    style = typography.xs,
+                                    color = tokens.mutedForeground,
+                                )
+                            }
+                            HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+                        }
+                    }
 
-@Composable
-private fun BuiltinRow(
-    builtin: BuiltinCommand,
-    manage: ManageDecision,
-    onToggle: (Boolean) -> Unit,
-) {
-    val tokens = LocalTokens.current
-    val spacing = LocalSpacing.current
-    val typography = LocalTypography.current
-    val toggleLabel: String = stringResource(Res.string.commands_builtins_toggle, builtin.name)
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(tokens.radius.lg))
-            .background(tokens.card)
-            .padding(spacing.s4),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween,
-    ) {
-        Text(
-            text = builtin.name,
-            style = typography.base,
-            color = tokens.cardForeground,
-            modifier = Modifier.weight(1f),
-        )
-        ManageGate(decision = manage) { enabled ->
-            Switch(
-                checked = builtin.isEnabled,
-                onCheckedChange = onToggle,
-                enabled = enabled,
-                colors = SwitchDefaults.colors(
-                    checkedThumbColor = tokens.primaryForeground,
-                    checkedTrackColor = tokens.primary,
-                    uncheckedThumbColor = tokens.mutedForeground,
-                    uncheckedTrackColor = tokens.muted,
-                    uncheckedBorderColor = tokens.border,
-                ),
-                modifier = Modifier.semantics { contentDescription = toggleLabel },
-            )
-        }
-    }
-}
-
-@Composable
-private fun Header(manage: ManageDecision, onNew: () -> Unit) {
-    val tokens = LocalTokens.current
-    val newLabel: String = stringResource(Res.string.commands_new_action)
-
-    PageHeader(title = stringResource(Res.string.commands_title)) {
-        ManageGate(decision = manage) { enabled ->
-            Button(
-                onClick = onNew,
-                enabled = enabled,
-                modifier = Modifier.semantics { contentDescription = newLabel },
-            ) {
-                Text(text = newLabel)
+                    itemsIndexed(
+                        items = filteredBuiltins,
+                        key = { _, builtin -> "builtin-${builtin.builtinKey}" },
+                    ) { index, builtin ->
+                        BuiltinTableRow(
+                            builtin = builtin,
+                            manage = manage,
+                            onToggle = { enabled -> onToggleBuiltin(builtin.builtinKey, enabled) },
+                        )
+                        if (index < filteredBuiltins.lastIndex) {
+                            HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+                        }
+                    }
+                }
             }
         }
     }
 }
 
+// Command row inside the shared card — no per-row background/clip; dividers separate rows.
 @Composable
-private fun CommandList(
-    commands: List<CommandSummary>,
-    manage: ManageDecision,
-    onEdit: (CommandSummary) -> Unit,
-    onToggle: (CommandSummary, Boolean) -> Unit,
-    onDelete: (CommandSummary) -> Unit,
-) {
-    val spacing = LocalSpacing.current
-
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(vertical = spacing.s1),
-        verticalArrangement = Arrangement.spacedBy(spacing.s3),
-    ) {
-        items(items = commands, key = { command -> command.id }) { command ->
-            CommandRow(
-                command = command,
-                manage = manage,
-                onEdit = { onEdit(command) },
-                onToggle = { enabled -> onToggle(command, enabled) },
-                onDelete = { onDelete(command) },
-            )
-        }
-    }
-}
-
-@Composable
-private fun CommandRow(
+private fun CommandTableRow(
     command: CommandSummary,
     manage: ManageDecision,
     onEdit: () -> Unit,
@@ -379,17 +370,11 @@ private fun CommandRow(
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
 
-    // Prefer the human-authored description; fall back to the response text (so the row isn't blank
-    // for commands that have a response but no separate description).
     val snippet: String =
         command.description?.takeIf { it.isNotBlank() }
             ?: command.templateResponse?.takeIf { it.isNotBlank() }
             ?: stringResource(Res.string.commands_no_description)
-    val stateLabel: String =
-        stringResource(
-            if (command.isEnabled) Res.string.commands_badge_enabled
-            else Res.string.commands_badge_disabled
-        )
+
     val toggleLabel: String = stringResource(Res.string.commands_toggle_action, command.name)
     val editLabel: String = stringResource(Res.string.commands_edit_action, command.name)
     val deleteLabel: String = stringResource(Res.string.commands_delete_action, command.name)
@@ -397,29 +382,26 @@ private fun CommandRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(tokens.radius.lg))
-            .background(tokens.card)
-            .padding(spacing.s4),
+            .padding(horizontal = spacing.s4, vertical = spacing.s3),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(spacing.s3),
     ) {
         Column(
             modifier = Modifier
                 .weight(1f)
-                // One node for the text block: "!hello, enabled. <description>".
-                .clearAndSetSemantics { contentDescription = "${command.name}, $stateLabel. $snippet" },
-            verticalArrangement = Arrangement.spacedBy(spacing.s1),
+                .clearAndSetSemantics { contentDescription = "${command.name}. $snippet" },
+            verticalArrangement = Arrangement.spacedBy(spacing.s0_5),
         ) {
             Text(
                 text = command.name,
-                style = typography.lg,
-                color = tokens.cardForeground,
+                style = typography.sm.copy(fontFamily = FontFamily.Monospace),
+                color = tokens.primary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
                 text = snippet,
-                style = typography.sm,
+                style = typography.xs,
                 color = tokens.mutedForeground,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -456,9 +438,53 @@ private fun CommandRow(
     }
 }
 
-// One composable for both create and edit (DRY): an empty [editor] = create, a pre-filled one = edit.
-// A command requires EITHER a non-blank response OR a pipeline (or both). The submit button is disabled
-// until that invariant is satisfied. On edit the name is read-only — it is the backend's address for the row.
+// Built-in command row — toggle only; platform commands can't be edited or deleted.
+@Composable
+private fun BuiltinTableRow(
+    builtin: BuiltinCommand,
+    manage: ManageDecision,
+    onToggle: (Boolean) -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+    val toggleLabel: String = stringResource(Res.string.commands_builtins_toggle, builtin.name)
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = spacing.s4, vertical = spacing.s3),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(spacing.s3),
+    ) {
+        Text(
+            text = builtin.name,
+            style = typography.sm.copy(fontFamily = FontFamily.Monospace),
+            color = tokens.primary,
+            modifier = Modifier.weight(1f),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        ManageGate(decision = manage) { enabled ->
+            Switch(
+                checked = builtin.isEnabled,
+                onCheckedChange = onToggle,
+                enabled = enabled,
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = tokens.primaryForeground,
+                    checkedTrackColor = tokens.primary,
+                    uncheckedThumbColor = tokens.mutedForeground,
+                    uncheckedTrackColor = tokens.muted,
+                    uncheckedBorderColor = tokens.border,
+                ),
+                modifier = Modifier.semantics { contentDescription = toggleLabel },
+            )
+        }
+    }
+}
+
+// One composable for both create and edit. Requires name + (response OR pipeline). Name is
+// read-only on edit (the backend addresses a command by name).
 @Composable
 private fun CommandFormDialog(
     editor: CommandEditor,
@@ -475,7 +501,6 @@ private fun CommandFormDialog(
     var enabled: Boolean by remember { mutableStateOf(editor.isEnabled) }
     var pipelineMenuOpen: Boolean by remember { mutableStateOf(false) }
 
-    // Submit requires name + (response OR pipeline).
     val hasPipeline: Boolean = selectedPipelineId != null
     val canSubmit: Boolean = name.isNotBlank() && (response.isNotBlank() || hasPipeline)
 
@@ -495,7 +520,6 @@ private fun CommandFormDialog(
         if (hasPipeline) stringResource(Res.string.commands_dialog_response_optional)
         else stringResource(Res.string.commands_dialog_response_label)
 
-    // The display label for the selected pipeline (or the "none" placeholder).
     val selectedPipelineName: String =
         selectedPipelineId?.let { id -> pipelines.firstOrNull { it.id == id }?.name } ?: pipelineNoneLabel
 
@@ -520,22 +544,18 @@ private fun CommandFormDialog(
                     modifier = Modifier.fillMaxWidth(),
                     label = responseLabel,
                 )
-                // Pipeline selector — only shown when there are pipelines to attach.
                 if (pipelines.isNotEmpty()) {
                     Box {
                         AppTextField(
                             value = selectedPipelineName,
                             onValueChange = {},
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { pipelineMenuOpen = true },
+                            modifier = Modifier.fillMaxWidth().clickable { pipelineMenuOpen = true },
                             label = pipelineLabel,
                         )
                         DropdownMenu(
                             expanded = pipelineMenuOpen,
                             onDismissRequest = { pipelineMenuOpen = false },
                         ) {
-                            // "None" clears the attachment.
                             DropdownMenuItem(
                                 text = { Text(pipelineNoneLabel, color = tokens.mutedForeground) },
                                 onClick = {
@@ -591,10 +611,7 @@ private fun CommandFormDialog(
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text(
-                    text = stringResource(Res.string.commands_dialog_cancel),
-                    color = tokens.mutedForeground,
-                )
+                Text(text = stringResource(Res.string.commands_dialog_cancel), color = tokens.mutedForeground)
             }
         },
     )
@@ -632,9 +649,6 @@ private fun CenteredMessage(text: String) {
     }
 }
 
-// The create/edit dialog's seed: an empty editor opens a blank create form; one seeded from a command opens a
-// pre-filled edit form. [isEdit] decides create-vs-update on submit and locks the name field (the backend
-// addresses a command by name). [pipelineId] pre-selects the attached pipeline in the dropdown.
 private data class CommandEditor(
     val isEdit: Boolean,
     val name: String,
@@ -650,12 +664,22 @@ private data class CommandEditor(
             CommandEditor(
                 isEdit = true,
                 name = command.name,
-                // Seed the response from the stored templateResponse (the actual response text), not the
-                // description (a short blurb shown in the list). Defaults to empty when no response is set
-                // (pipeline-only commands).
                 response = command.templateResponse.orEmpty(),
                 isEnabled = command.isEnabled,
                 pipelineId = command.pipelineId,
             )
     }
 }
+
+// Three-way tab: All shows everything, Custom hides built-ins, Builtin hides custom commands.
+private enum class CommandTab { All, Custom, Builtin }
+
+@Composable
+private fun CommandTab.label(): String =
+    stringResource(
+        when (this) {
+            CommandTab.All -> Res.string.commands_filter_all
+            CommandTab.Custom -> Res.string.commands_filter_custom
+            CommandTab.Builtin -> Res.string.commands_filter_builtin
+        }
+    )

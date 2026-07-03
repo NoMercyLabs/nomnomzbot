@@ -10,7 +10,6 @@
 
 package bot.nomnomz.dashboard.feature.moderation.ui
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,12 +21,13 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.Button
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
+import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -38,7 +38,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
@@ -283,10 +282,14 @@ private fun BansList(
             }
         }
         item(key = "stats") {
-            ModerationStatsBanner(stats = stats)
+            Card(modifier = Modifier.fillMaxWidth()) {
+                ModerationStatsBanner(stats = stats)
+            }
         }
         item(key = "shield-toggle") {
-            ShieldToggle(enabled = shieldEnabled, manage = manage, onToggle = onToggleShield)
+            Card(modifier = Modifier.fillMaxWidth()) {
+                ShieldToggle(enabled = shieldEnabled, manage = manage, onToggle = onToggleShield)
+            }
         }
         // "Moderate a viewer" and "Send Announcement" quick-action buttons.
         item(key = "action-button") {
@@ -324,8 +327,17 @@ private fun BansList(
                     maxLines = 1,
                 )
             }
-            items(items = bans, key = { it.id }) { ban ->
-                BanRow(ban = ban, manage = manage, onUnban = { pendingUnban = ban })
+            item(key = "bans-card") {
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column {
+                        bans.forEachIndexed { index, ban ->
+                            BanRow(ban = ban, manage = manage, onUnban = { pendingUnban = ban })
+                            if (index < bans.lastIndex) {
+                                HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+                            }
+                        }
+                    }
+                }
             }
         }
         if (modLog.isNotEmpty()) {
@@ -337,7 +349,18 @@ private fun BansList(
                     maxLines = 1,
                 )
             }
-            items(items = modLog, key = { "log-${it.id}" }) { entry -> ModLogRow(entry = entry) }
+            item(key = "log-card") {
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column {
+                        modLog.forEachIndexed { index, entry ->
+                            ModLogRow(entry = entry)
+                            if (index < modLog.lastIndex) {
+                                HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+                            }
+                        }
+                    }
+                }
+            }
         }
         // Always shown in Ready so the add input is reachable even with no terms yet.
         item(key = "terms-header") {
@@ -349,8 +372,19 @@ private fun BansList(
             )
         }
         item(key = "terms-add") { AddTermRow(manage = manage, onAdd = onAddTerm) }
-        items(items = blockedTerms, key = { "term-$it" }) { term ->
-            BlockedTermRow(term = term, manage = manage, onRemove = { onRemoveTerm(term) })
+        if (blockedTerms.isNotEmpty()) {
+            item(key = "terms-card") {
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column {
+                        blockedTerms.forEachIndexed { index, term ->
+                            BlockedTermRow(term = term, manage = manage, onRemove = { onRemoveTerm(term) })
+                            if (index < blockedTerms.lastIndex) {
+                                HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+                            }
+                        }
+                    }
+                }
+            }
         }
         item(key = "automod-header") {
             Text(
@@ -360,49 +394,50 @@ private fun BansList(
                 maxLines = 1,
             )
         }
-        item(key = "automod-link") {
-            AutomodRow(
-                name = stringResource(Res.string.moderation_automod_link),
-                enabled = automod.linkFilter.enabled,
-                detail = null,
-                manage = manage,
-                onToggle = { onToggleFilter(AutomodFilter.Link) },
-            )
-        }
-        item(key = "automod-caps") {
-            AutomodRow(
-                name = stringResource(Res.string.moderation_automod_caps),
-                enabled = automod.capsFilter.enabled,
-                detail =
-                    stringResource(
-                        Res.string.moderation_automod_caps_detail,
-                        automod.capsFilter.threshold,
-                    ),
-                manage = manage,
-                onToggle = { onToggleFilter(AutomodFilter.Caps) },
-            )
-        }
-        item(key = "automod-phrases") {
-            AutomodRow(
-                name = stringResource(Res.string.moderation_automod_phrases),
-                enabled = automod.bannedPhrases.enabled,
-                detail = null,
-                manage = manage,
-                onToggle = { onToggleFilter(AutomodFilter.Phrases) },
-            )
-        }
-        item(key = "automod-emotes") {
-            AutomodRow(
-                name = stringResource(Res.string.moderation_automod_emotes),
-                enabled = automod.emoteSpam.enabled,
-                detail =
-                    stringResource(
-                        Res.string.moderation_automod_emote_detail,
-                        automod.emoteSpam.maxEmotes,
-                    ),
-                manage = manage,
-                onToggle = { onToggleFilter(AutomodFilter.Emotes) },
-            )
+        item(key = "automod-card") {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column {
+                    AutomodRow(
+                        name = stringResource(Res.string.moderation_automod_link),
+                        enabled = automod.linkFilter.enabled,
+                        detail = null,
+                        manage = manage,
+                        onToggle = { onToggleFilter(AutomodFilter.Link) },
+                    )
+                    HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+                    AutomodRow(
+                        name = stringResource(Res.string.moderation_automod_caps),
+                        enabled = automod.capsFilter.enabled,
+                        detail =
+                            stringResource(
+                                Res.string.moderation_automod_caps_detail,
+                                automod.capsFilter.threshold,
+                            ),
+                        manage = manage,
+                        onToggle = { onToggleFilter(AutomodFilter.Caps) },
+                    )
+                    HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+                    AutomodRow(
+                        name = stringResource(Res.string.moderation_automod_phrases),
+                        enabled = automod.bannedPhrases.enabled,
+                        detail = null,
+                        manage = manage,
+                        onToggle = { onToggleFilter(AutomodFilter.Phrases) },
+                    )
+                    HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+                    AutomodRow(
+                        name = stringResource(Res.string.moderation_automod_emotes),
+                        enabled = automod.emoteSpam.enabled,
+                        detail =
+                            stringResource(
+                                Res.string.moderation_automod_emote_detail,
+                                automod.emoteSpam.maxEmotes,
+                            ),
+                        manage = manage,
+                        onToggle = { onToggleFilter(AutomodFilter.Emotes) },
+                    )
+                }
+            }
         }
         item(key = "rules-header") {
             Row(
@@ -428,13 +463,22 @@ private fun BansList(
             }
         }
         if (rules.isNotEmpty()) {
-            items(items = rules, key = { "rule-${it.id}" }) { rule ->
-                RuleRow(
-                    rule = rule,
-                    manage = manage,
-                    onToggle = { onToggleRule(rule.id, !rule.isEnabled) },
-                    onDelete = { pendingDeleteRule = rule },
-                )
+            item(key = "rules-card") {
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column {
+                        rules.forEachIndexed { index, rule ->
+                            RuleRow(
+                                rule = rule,
+                                manage = manage,
+                                onToggle = { onToggleRule(rule.id, !rule.isEnabled) },
+                                onDelete = { pendingDeleteRule = rule },
+                            )
+                            if (index < rules.lastIndex) {
+                                HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+                            }
+                        }
+                    }
+                }
             }
         }
     }
@@ -611,8 +655,6 @@ private fun BanRow(ban: BannedUser, manage: ManageDecision, onUnban: () -> Unit)
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(tokens.radius.lg))
-            .background(tokens.card)
             .padding(spacing.s4),
         horizontalArrangement = Arrangement.spacedBy(spacing.s3),
         verticalAlignment = Alignment.CenterVertically,
@@ -721,8 +763,6 @@ private fun RuleRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(tokens.radius.lg))
-            .background(tokens.card)
             .padding(horizontal = spacing.s4, vertical = spacing.s3),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(spacing.s2),
@@ -807,8 +847,6 @@ private fun AutomodRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(tokens.radius.lg))
-            .background(tokens.card)
             .padding(horizontal = spacing.s4, vertical = spacing.s3),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(spacing.s3),
@@ -921,8 +959,6 @@ private fun BlockedTermRow(term: String, manage: ManageDecision, onRemove: () ->
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(tokens.radius.lg))
-            .background(tokens.card)
             .padding(horizontal = spacing.s4, vertical = spacing.s3),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(spacing.s3),
@@ -955,15 +991,11 @@ private fun BlockedTermRow(term: String, manage: ManageDecision, onRemove: () ->
 // reads destructive (red) when active. Editor floor (ManageGate); the backend re-checks moderation:shieldmode.
 @Composable
 private fun ModerationStatsBanner(stats: ModerationStats) {
-    val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
-    val typography = LocalTypography.current
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(tokens.radius.lg))
-            .background(tokens.card)
             .padding(spacing.s3),
         horizontalArrangement = Arrangement.spacedBy(spacing.s4),
     ) {
@@ -1000,8 +1032,6 @@ private fun ShieldToggle(enabled: Boolean, manage: ManageDecision, onToggle: (Bo
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(tokens.radius.lg))
-            .background(tokens.card)
             .padding(horizontal = spacing.s4, vertical = spacing.s3),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(spacing.s3),
@@ -1053,8 +1083,6 @@ private fun ModLogRow(entry: ModLogEntry) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(tokens.radius.lg))
-            .background(tokens.card)
             .padding(horizontal = spacing.s4, vertical = spacing.s3)
             .clearAndSetSemantics { contentDescription = rowDescription },
         verticalAlignment = Alignment.CenterVertically,

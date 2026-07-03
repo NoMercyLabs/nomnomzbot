@@ -14,19 +14,19 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.Button
+import bot.nomnomz.dashboard.core.designsystem.component.Card
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
@@ -236,6 +236,7 @@ private fun ListContent(
     controller: PipelinesController,
     scope: kotlinx.coroutines.CoroutineScope,
 ) {
+    val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
 
     // null = no dialog; a value = the create/edit dialog seed. A null id is a create, an id an edit.
@@ -252,20 +253,21 @@ private fun ListContent(
         if (pipelines.isEmpty()) {
             CenteredMessage(stringResource(Res.string.pipelines_empty))
         } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(vertical = spacing.s1),
-                verticalArrangement = Arrangement.spacedBy(spacing.s3),
-            ) {
-                items(items = pipelines, key = { it.id }) { pipeline ->
-                    PipelineRow(
-                        pipeline = pipeline,
-                        manage = manage,
-                        onOpen = { scope.launch { controller.openEditor(pipeline) } },
-                        onEdit = { editor = PipelineEditor.edit(pipeline) },
-                        onToggle = { enabled -> scope.launch { controller.togglePipeline(pipeline.id, enabled) } },
-                        onDelete = { pendingDelete = pipeline },
-                    )
+            Card(modifier = Modifier.fillMaxWidth().weight(1f)) {
+                LazyColumn(modifier = Modifier.fillMaxWidth()) {
+                    itemsIndexed(items = pipelines, key = { _, pipeline -> pipeline.id }) { index, pipeline ->
+                        if (index > 0) {
+                            HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+                        }
+                        PipelineRow(
+                            pipeline = pipeline,
+                            manage = manage,
+                            onOpen = { scope.launch { controller.openEditor(pipeline) } },
+                            onEdit = { editor = PipelineEditor.edit(pipeline) },
+                            onToggle = { enabled -> scope.launch { controller.togglePipeline(pipeline.id, enabled) } },
+                            onDelete = { pendingDelete = pipeline },
+                        )
+                    }
                 }
             }
         }
@@ -348,9 +350,7 @@ private fun PipelineRow(
     Row(
         modifier =
             Modifier.fillMaxWidth()
-                .clip(RoundedCornerShape(tokens.radius.lg))
-                .background(tokens.card)
-                .padding(spacing.s4),
+                .padding(horizontal = spacing.s4, vertical = spacing.s3),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(spacing.s3),
     ) {
@@ -482,22 +482,23 @@ private fun ChainEditor(
                 CenteredMessage(stringResource(Res.string.pipelines_chain_empty))
             }
         } else {
-            LazyColumn(
-                modifier = Modifier.weight(1f).fillMaxWidth(),
-                contentPadding = PaddingValues(vertical = spacing.s1),
-                verticalArrangement = Arrangement.spacedBy(spacing.s3),
-            ) {
-                itemsIndexed(items = editing.steps) { index, step ->
-                    StepCard(
-                        index = index,
-                        total = editing.steps.size,
-                        step = step,
-                        manage = manage,
-                        onEdit = { stepDialog = StepDialogTarget(index = index, step = step) },
-                        onRemove = { controller.removeStep(index) },
-                        onMoveUp = { controller.moveStepUp(index) },
-                        onMoveDown = { controller.moveStepDown(index) },
-                    )
+            Card(modifier = Modifier.fillMaxWidth().weight(1f)) {
+                LazyColumn(modifier = Modifier.fillMaxWidth()) {
+                    itemsIndexed(items = editing.steps) { index, step ->
+                        if (index > 0) {
+                            HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+                        }
+                        StepCard(
+                            index = index,
+                            total = editing.steps.size,
+                            step = step,
+                            manage = manage,
+                            onEdit = { stepDialog = StepDialogTarget(index = index, step = step) },
+                            onRemove = { controller.removeStep(index) },
+                            onMoveUp = { controller.moveStepUp(index) },
+                            onMoveDown = { controller.moveStepDown(index) },
+                        )
+                    }
                 }
             }
         }
@@ -548,9 +549,7 @@ private fun StepCard(
     Column(
         modifier =
             Modifier.fillMaxWidth()
-                .clip(RoundedCornerShape(tokens.radius.lg))
-                .background(tokens.card)
-                .padding(spacing.s4),
+                .padding(horizontal = spacing.s4, vertical = spacing.s3),
         verticalArrangement = Arrangement.spacedBy(spacing.s2),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(spacing.s3)) {

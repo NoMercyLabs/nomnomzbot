@@ -14,25 +14,20 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
-import bot.nomnomz.dashboard.core.designsystem.component.Button
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.CheckboxDefaults
-import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
-import bot.nomnomz.dashboard.core.designsystem.component.TextButton
-import androidx.compose.material3.TextFieldColors
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -43,28 +38,33 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
+import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
+import bot.nomnomz.dashboard.core.designsystem.component.Button
+import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
-import bot.nomnomz.dashboard.core.designsystem.icon.AddGlyph
+import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import bot.nomnomz.dashboard.core.designsystem.icon.EditGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
-import bot.nomnomz.dashboard.core.designsystem.theme.Tokens
 import bot.nomnomz.dashboard.core.network.SoundClip
-import bot.nomnomz.dashboard.feature.shell.ui.SoundClipsGlyph
-import bot.nomnomz.dashboard.feature.sound.state.SoundController
-import bot.nomnomz.dashboard.feature.sound.state.SoundState
 import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
 import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
 import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecision
+import bot.nomnomz.dashboard.feature.shell.ui.SoundClipsGlyph
+import bot.nomnomz.dashboard.feature.sound.state.SoundController
+import bot.nomnomz.dashboard.feature.sound.state.SoundState
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.shell_nav_sound
@@ -93,9 +93,9 @@ import nomnomzbot.composeapp.generated.resources.sound_clips_upload_action
 import nomnomzbot.composeapp.generated.resources.sound_clips_volume_pct
 import org.jetbrains.compose.resources.stringResource
 
-// The Sound Clips page: the channel's uploaded audio library. Lists real clips from the backend; brokers
-// upload (native OS file picker → multipart POST), enable/disable, display-name rename, volume adjustment,
-// overlay preview, and delete back through SoundController.
+// The Sound Clips page: the channel's uploaded audio library. Lists real clips from the backend;
+// brokers upload (native OS file picker → multipart POST), enable/disable, display-name rename,
+// volume adjustment, overlay preview, and delete.
 @Composable
 fun SoundScreen(controller: SoundController, role: ManagementRole?) {
     val state: SoundState by controller.state.collectAsStateWithLifecycle()
@@ -185,49 +185,57 @@ private fun ClipList(
     onDelete: (SoundClip) -> Unit,
     onPreview: (SoundClip) -> Unit,
 ) {
+    val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
 
-    Column(modifier = Modifier.fillMaxSize()) {
-        PageHeader(
-            title = stringResource(Res.string.shell_nav_sound),
-            trailing = {
-                ManageGate(decision = manage) { enabled ->
-                    GlyphButton(
-                        imageVector = AddGlyph,
-                        label = stringResource(Res.string.sound_clips_upload_action),
-                        onClick = onUpload,
-                        enabled = enabled && !isUploading,
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(spacing.s4),
+    ) {
+        PageHeader(title = stringResource(Res.string.shell_nav_sound)) {
+            ManageGate(decision = manage) { enabled ->
+                Button(onClick = onUpload, enabled = enabled && !isUploading) {
+                    Text(text = stringResource(Res.string.sound_clips_upload_action))
+                }
+            }
+        }
+
+        actionError?.let { detail ->
+            ActionErrorBanner(message = stringResource(Res.string.sound_clips_action_error, detail))
+        }
+
+        // Single card table — all clips in one container, rows separated by hairlines.
+        Card(modifier = Modifier.fillMaxWidth().weight(1f)) {
+            if (clips.isEmpty()) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text(
+                        text = stringResource(Res.string.sound_clips_empty),
+                        style = typography.base,
+                        color = tokens.mutedForeground,
                     )
                 }
-            },
-        )
-        if (actionError != null) {
-            ActionErrorBanner(
-                message = stringResource(Res.string.sound_clips_action_error, actionError),
-                modifier = Modifier.padding(bottom = spacing.s4),
-            )
-        }
-        if (clips.isEmpty()) {
-            CenteredMessage(stringResource(Res.string.sound_clips_empty))
-        } else {
-            LazyColumn(
-                contentPadding = PaddingValues(vertical = spacing.s2),
-                verticalArrangement = Arrangement.spacedBy(spacing.s2),
-            ) {
-                items(clips, key = { it.id }) { clip ->
-                    ClipRow(
-                        clip = clip,
-                        manage = manage,
-                        onEdit = { onEdit(clip) },
-                        onDelete = { onDelete(clip) },
-                        onPreview = { onPreview(clip) },
-                    )
+            } else {
+                LazyColumn(modifier = Modifier.fillMaxSize()) {
+                    itemsIndexed(items = clips, key = { _, clip -> clip.id }) { index, clip ->
+                        ClipRow(
+                            clip = clip,
+                            manage = manage,
+                            onEdit = { onEdit(clip) },
+                            onDelete = { onDelete(clip) },
+                            onPreview = { onPreview(clip) },
+                        )
+                        if (index < clips.lastIndex) {
+                            HorizontalDivider(color = tokens.border.copy(alpha = 0.5f))
+                        }
+                    }
                 }
             }
         }
     }
 }
 
+// Sound clip row inside the shared card — no per-row background; dividers separate entries.
 @Composable
 private fun ClipRow(
     clip: SoundClip,
@@ -237,7 +245,7 @@ private fun ClipRow(
     onPreview: () -> Unit,
 ) {
     val spacing = LocalSpacing.current
-    val tokens: Tokens = LocalTokens.current
+    val tokens = LocalTokens.current
     val typography = LocalTypography.current
 
     val previewLabel: String = stringResource(Res.string.sound_clips_preview_action, clip.displayName)
@@ -245,44 +253,55 @@ private fun ClipRow(
     val deleteLabel: String = stringResource(Res.string.sound_clips_delete_action, clip.displayName)
 
     Row(
-        modifier =
-            Modifier.fillMaxWidth()
-                .clip(RoundedCornerShape(spacing.s2))
-                .background(tokens.card)
-                .padding(horizontal = spacing.s4, vertical = spacing.s3),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = spacing.s4, vertical = spacing.s3),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(spacing.s3),
     ) {
-        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(spacing.s1),
+        ) {
             Row(
                 horizontalArrangement = Arrangement.spacedBy(spacing.s2),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
                     text = clip.displayName,
-                    style = typography.base,
+                    style = typography.sm,
                     color = tokens.foreground,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
                 if (!clip.isEnabled) {
-                    Text(
-                        text = stringResource(Res.string.sound_clips_disabled_badge),
-                        style = typography.xs,
-                        color = tokens.mutedForeground,
-                    )
+                    // Muted "disabled" badge — subtle, pill-shaped.
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(tokens.radius.sm))
+                            .background(tokens.muted)
+                            .padding(horizontal = spacing.s2, vertical = spacing.s0_5),
+                    ) {
+                        Text(
+                            text = stringResource(Res.string.sound_clips_disabled_badge),
+                            style = typography.xs,
+                            color = tokens.mutedForeground,
+                        )
+                    }
                 }
             }
+            // Secondary row: filename + optional duration + optional size + volume
             Row(
                 horizontalArrangement = Arrangement.spacedBy(spacing.s3),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
                     text = clip.name,
-                    style = typography.sm,
+                    style = typography.xs,
                     color = tokens.mutedForeground,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false),
                 )
                 if (clip.durationMs > 0) {
                     Text(
@@ -306,21 +325,29 @@ private fun ClipRow(
             }
         }
 
+        // Action buttons grouped in a Row — all gated on manage role.
         ManageGate(decision = manage) { enabled ->
-            GlyphButton(
-                imageVector = SoundClipsGlyph,
-                label = previewLabel,
-                onClick = onPreview,
-                enabled = enabled,
-            )
-            GlyphButton(imageVector = EditGlyph, label = editLabel, onClick = onEdit, enabled = enabled)
-            GlyphButton(
-                imageVector = TrashGlyph,
-                label = deleteLabel,
-                onClick = onDelete,
-                enabled = enabled,
-                tint = tokens.destructive,
-            )
+            Row(horizontalArrangement = Arrangement.spacedBy(spacing.s1)) {
+                GlyphButton(
+                    imageVector = SoundClipsGlyph,
+                    label = previewLabel,
+                    onClick = onPreview,
+                    enabled = enabled,
+                )
+                GlyphButton(
+                    imageVector = EditGlyph,
+                    label = editLabel,
+                    onClick = onEdit,
+                    enabled = enabled,
+                )
+                GlyphButton(
+                    imageVector = TrashGlyph,
+                    label = deleteLabel,
+                    onClick = onDelete,
+                    enabled = enabled,
+                    tint = tokens.destructive,
+                )
+            }
         }
     }
 }
@@ -331,7 +358,7 @@ private fun EditClipDialog(
     onDismiss: () -> Unit,
     onSave: (String, Int, Boolean) -> Unit,
 ) {
-    val tokens: Tokens = LocalTokens.current
+    val tokens = LocalTokens.current
     val typography = LocalTypography.current
     val spacing = LocalSpacing.current
 
@@ -339,24 +366,18 @@ private fun EditClipDialog(
     var volume: Float by remember(clip.id) { mutableStateOf(clip.defaultVolume.toFloat()) }
     var isEnabled: Boolean by remember(clip.id) { mutableStateOf(clip.isEnabled) }
 
-    val fieldColors: TextFieldColors =
-        OutlinedTextFieldDefaults.colors(
-            focusedTextColor = tokens.foreground,
-            unfocusedTextColor = tokens.foreground,
-            focusedBorderColor = tokens.border,
-            unfocusedBorderColor = tokens.border,
-            focusedLabelColor = tokens.mutedForeground,
-            unfocusedLabelColor = tokens.mutedForeground,
-        )
+    val enabledLabel: String = stringResource(Res.string.sound_clips_dialog_enabled_label)
 
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = tokens.card,
+        titleContentColor = tokens.cardForeground,
+        textContentColor = tokens.mutedForeground,
         title = {
             Text(
-                stringResource(Res.string.sound_clips_dialog_edit_title),
+                text = stringResource(Res.string.sound_clips_dialog_edit_title),
                 style = typography.xl,
-                color = tokens.foreground,
+                color = tokens.cardForeground,
             )
         },
         text = {
@@ -367,7 +388,7 @@ private fun EditClipDialog(
                     label = stringResource(Res.string.sound_clips_dialog_display_name_label),
                     modifier = Modifier.fillMaxWidth(),
                 )
-                Column {
+                Column(verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
                     Text(
                         text = stringResource(Res.string.sound_clips_dialog_volume_label, volume.toInt()),
                         style = typography.sm,
@@ -378,31 +399,34 @@ private fun EditClipDialog(
                         onValueChange = { volume = it },
                         valueRange = 0f..100f,
                         steps = 9,
-                        colors =
-                            SliderDefaults.colors(
-                                thumbColor = tokens.primary,
-                                activeTrackColor = tokens.primary,
-                                inactiveTrackColor = tokens.muted,
-                            ),
+                        colors = SliderDefaults.colors(
+                            thumbColor = tokens.primary,
+                            activeTrackColor = tokens.primary,
+                            inactiveTrackColor = tokens.muted,
+                        ),
                     )
                 }
                 Row(
+                    modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+                    horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
-                    Checkbox(
-                        checked = isEnabled,
-                        onCheckedChange = { isEnabled = it },
-                        colors =
-                            CheckboxDefaults.colors(
-                                checkedColor = tokens.primary,
-                                uncheckedColor = tokens.mutedForeground,
-                            ),
-                    )
                     Text(
                         text = stringResource(Res.string.sound_clips_dialog_enabled_label),
-                        style = typography.base,
-                        color = tokens.foreground,
+                        style = typography.sm,
+                        color = tokens.cardForeground,
+                    )
+                    Switch(
+                        checked = isEnabled,
+                        onCheckedChange = { isEnabled = it },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = tokens.primaryForeground,
+                            checkedTrackColor = tokens.primary,
+                            uncheckedThumbColor = tokens.mutedForeground,
+                            uncheckedTrackColor = tokens.muted,
+                            uncheckedBorderColor = tokens.border,
+                        ),
+                        modifier = Modifier.semantics { contentDescription = enabledLabel },
                     )
                 }
             }
@@ -411,15 +435,14 @@ private fun EditClipDialog(
             Button(
                 onClick = { onSave(displayName.trim(), volume.toInt(), isEnabled) },
                 enabled = displayName.isNotBlank(),
-
             ) {
-                Text(stringResource(Res.string.sound_clips_dialog_save))
+                Text(text = stringResource(Res.string.sound_clips_dialog_save))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
                 Text(
-                    stringResource(Res.string.sound_clips_dialog_cancel),
+                    text = stringResource(Res.string.sound_clips_dialog_cancel),
                     color = tokens.mutedForeground,
                 )
             }
@@ -429,29 +452,34 @@ private fun EditClipDialog(
 
 @Composable
 private fun ErrorContent(detail: String, onRetry: () -> Unit) {
-    val tokens: Tokens = LocalTokens.current
+    val tokens = LocalTokens.current
     val typography = LocalTypography.current
     val spacing = LocalSpacing.current
 
-    Column(
-        modifier = Modifier.fillMaxSize(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-    ) {
-        Text(
-            text = stringResource(Res.string.sound_clips_error, detail),
-            style = typography.base,
-            color = tokens.destructive,
-        )
-        TextButton(onClick = onRetry, modifier = Modifier.padding(top = spacing.s2)) {
-            Text(stringResource(Res.string.sound_clips_retry), color = tokens.primary)
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(spacing.s2),
+        ) {
+            Text(
+                text = stringResource(Res.string.sound_clips_error, detail),
+                style = typography.base,
+                color = tokens.destructive,
+                textAlign = TextAlign.Center,
+            )
+            TextButton(onClick = onRetry) {
+                Text(
+                    text = stringResource(Res.string.sound_clips_retry),
+                    color = tokens.primary,
+                )
+            }
         }
     }
 }
 
 @Composable
 private fun CenteredMessage(text: String) {
-    val tokens: Tokens = LocalTokens.current
+    val tokens = LocalTokens.current
     val typography = LocalTypography.current
 
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
