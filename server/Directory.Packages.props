@@ -79,6 +79,12 @@
     <PackageVersion Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.3" />
     <PackageVersion Include="SQLitePCLRaw.provider.e_sqlite3" Version="3.0.3" />
   </ItemGroup>
+  <!-- Microsoft.OpenApi: the 2.0.0 transitively pulled by Microsoft.AspNetCore.OpenApi 10.0.8 carries
+       GHSA-v5pm-xwqc-g5wc / CVE-2026-49451 (high — stack overflow on circular schema $refs). Pin to the
+       patched 2.7.x line; transitive pinning applies it without an explicit ref. -->
+  <ItemGroup Label="OpenAPI (CVE-patched transitive pin)">
+    <PackageVersion Include="Microsoft.OpenApi" Version="2.7.5" />
+  </ItemGroup>
   <ItemGroup Label="Testing">
     <PackageVersion Include="coverlet.collector" Version="10.0.0" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.InMemory" Version="10.0.8" />
