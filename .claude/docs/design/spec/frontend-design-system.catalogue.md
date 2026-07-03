@@ -24,7 +24,7 @@ in §4.2. Foundation = `androidx.compose.foundation`; M3 = a themed `androidx.co
 | `Textarea` | Foundation (`BasicTextField`, multiline) | (single) | (single) | default · focused · disabled · invalid | min/max rows are params |
 | `Label` | Foundation | (single) | (single) | default · disabled | pairs with a field id for a11y |
 | `Checkbox` | M3-wrapped | (single) | (single) | unchecked · checked · indeterminate · focused · disabled | tristate supported |
-| `Switch` | M3-wrapped | (single) | (single) | off · on · focused · disabled | — |
+| `Switch` | Foundation | (single) | (single) | off · on · focused · disabled | pill track + sliding circular thumb via `toggleable`/`Role.Switch` — Foundation so it reads as shadcn, not Material |
 | `RadioGroup` / `RadioItem` | M3-wrapped | (single) | (single) | unselected · selected · focused · disabled | group owns selection |
 | `Select` | M3-wrapped (menu semantics) | (single) | (single) | closed · open · focused · disabled | single-select; trigger + content |
 | `DropdownMenu` | M3-wrapped (menu semantics) | (single) | (single) | closed · open; item: default · hovered · focused · disabled | supports separators, checkable items |

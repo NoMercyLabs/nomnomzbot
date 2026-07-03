@@ -26,8 +26,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -433,10 +435,11 @@ private fun Sidebar(
 
         Spacer(modifier = Modifier.height(spacing.s2))
 
-        // Flat nav — all groups and their pages are always visible (no accordion).
-        // The sidebar is ~240dp wide; even the widest group fits without scrolling.
+        // Flat nav — all groups and their pages are always visible (no accordion). The nav region
+        // takes the remaining height and scrolls, so every item stays reachable at any window height
+        // (and inside the compact Sheet drawer, which shares this composable).
         Column(
-            modifier = Modifier.weight(1f),
+            modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(spacing.s0_5),
         ) {
             groups.forEach { (group, pages) ->

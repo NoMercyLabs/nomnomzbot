@@ -11,14 +11,8 @@
 package bot.nomnomz.dashboard.core.designsystem.component
 
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.PlainTooltip
-import androidx.compose.material3.Text
-import androidx.compose.material3.TooltipBox
-import androidx.compose.material3.TooltipDefaults
-import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -27,16 +21,15 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
-import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 
 // A labelled icon-only action button:
-//   • `label` is the visible tooltip on hover (mouse) and the contentDescription for screen readers.
-//   • The icon is rendered at 16dp (spacing.s4) inside Material3's 40dp touch target.
+//   • `label` is the visible tooltip on hover (via the DS [Tooltip]) and the contentDescription for
+//     screen readers — set on the button so both hover and the a11y tree carry the name.
+//   • The icon is rendered at 16dp (spacing.s4) inside the 40dp touch target.
 //   • `tint` defaults to `tokens.foreground`; callers pass `tokens.destructive` for delete actions.
 //
 // Use this in place of a bare IconButton any time the button has no adjacent text label — it satisfies
 // WCAG 1.3.1 (name visible on pointer hover) and 4.1.2 (name in accessibility tree).
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GlyphButton(
     imageVector: ImageVector,
@@ -48,7 +41,6 @@ fun GlyphButton(
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
-    val typography = LocalTypography.current
 
     val iconTint: Color = when {
         !enabled -> tokens.muted
@@ -56,16 +48,7 @@ fun GlyphButton(
         else -> tokens.foreground
     }
 
-    TooltipBox(
-        positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
-        tooltip = {
-            PlainTooltip {
-                Text(text = label, style = typography.xs, color = tokens.popoverForeground)
-            }
-        },
-        state = rememberTooltipState(),
-        modifier = modifier,
-    ) {
+    Tooltip(text = label, modifier = modifier) {
         IconButton(
             onClick = onClick,
             enabled = enabled,
