@@ -25,7 +25,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.Card
@@ -56,7 +55,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import bot.nomnomz.dashboard.core.designsystem.component.Switch
-import bot.nomnomz.dashboard.core.designsystem.component.appFieldColors
+import bot.nomnomz.dashboard.core.designsystem.component.Textarea
 import bot.nomnomz.dashboard.core.designsystem.icon.AddGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.EditGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.PlayCircleGlyph
@@ -482,12 +481,11 @@ private fun SourceFormDialog(
                     )
                 }
                 item {
-                    OutlinedTextField(
+                    Textarea(
                         value = fieldMapJson,
                         onValueChange = { fieldMapJson = it },
-                        label = { Text(stringResource(Res.string.custom_events_field_field_map_json)) },
+                        label = stringResource(Res.string.custom_events_field_field_map_json),
                         modifier = Modifier.fillMaxWidth(),
-                        colors = appFieldColors(),
                         minLines = 2,
                     )
                 }
@@ -600,12 +598,11 @@ private fun TestDialog(
         title = { Text(text = source.displayName, style = typography.lg) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
-                OutlinedTextField(
+                Textarea(
                     value = payload,
                     onValueChange = { payload = it },
-                    label = { Text(stringResource(Res.string.custom_events_test_payload_label)) },
+                    label = stringResource(Res.string.custom_events_test_payload_label),
                     modifier = Modifier.fillMaxWidth(),
-                    colors = appFieldColors(),
                     minLines = 2,
                 )
                 if (succeeded) {

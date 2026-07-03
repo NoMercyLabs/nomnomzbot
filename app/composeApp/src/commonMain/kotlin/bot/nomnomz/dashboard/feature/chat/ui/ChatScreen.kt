@@ -31,7 +31,6 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import bot.nomnomz.dashboard.core.designsystem.icon.DotsHorizontalGlyph
@@ -70,7 +69,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
-import bot.nomnomz.dashboard.core.designsystem.component.appFieldColors
+import bot.nomnomz.dashboard.core.designsystem.component.Textarea
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -685,18 +684,15 @@ private fun AnnounceDialog(onDismiss: () -> Unit, onSend: (message: String, colo
         title = { Text(stringResource(Res.string.moderation_announce_title)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(spacing.s4)) {
-                OutlinedTextField(
+                Textarea(
                     value = message,
                     onValueChange = { message = it },
-                    label = { Text(stringResource(Res.string.moderation_announce_message_label)) },
+                    label = stringResource(Res.string.moderation_announce_message_label),
                     isError = !hasMessage && message.isNotEmpty(),
-                    supportingText = if (!hasMessage && message.isNotEmpty()) {
-                        { Text(stringResource(Res.string.moderation_announce_message_required)) }
-                    } else null,
+                    errorText = stringResource(Res.string.moderation_announce_message_required),
                     minLines = 2,
                     maxLines = 4,
                     modifier = Modifier.fillMaxWidth(),
-                    colors = appFieldColors(),
                 )
                 Text(
                     text = stringResource(Res.string.moderation_announce_color_label),

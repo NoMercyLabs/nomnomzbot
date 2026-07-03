@@ -22,9 +22,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextFieldColors
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -60,7 +58,6 @@ import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
-import bot.nomnomz.dashboard.core.designsystem.theme.Tokens
 import bot.nomnomz.dashboard.core.network.DiscordConfigPreview
 import bot.nomnomz.dashboard.core.network.DiscordDispatchLogEntry
 import bot.nomnomz.dashboard.core.network.DiscordGuildConnection
@@ -1186,24 +1183,6 @@ private fun CenteredMessage(text: String) {
     Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
         Text(text = text, style = typography.base, color = tokens.mutedForeground)
     }
-}
-
-// The shared text-field color set: every slot driven by a token so the field reads on-theme in light + dark.
-@Composable
-private fun fieldColors(): TextFieldColors {
-    val tokens: Tokens = LocalTokens.current
-    return OutlinedTextFieldDefaults.colors(
-        focusedTextColor = tokens.cardForeground,
-        unfocusedTextColor = tokens.cardForeground,
-        disabledTextColor = tokens.mutedForeground,
-        focusedBorderColor = tokens.ring,
-        unfocusedBorderColor = tokens.border,
-        disabledBorderColor = tokens.border,
-        focusedLabelColor = tokens.mutedForeground,
-        unfocusedLabelColor = tokens.mutedForeground,
-        disabledLabelColor = tokens.mutedForeground,
-        cursorColor = tokens.primary,
-    )
 }
 
 // The create/edit dialog's seed: an editor without a [configId] opens a blank create form scoped to a guild

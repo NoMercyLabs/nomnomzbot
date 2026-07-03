@@ -24,11 +24,9 @@ import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import bot.nomnomz.dashboard.core.designsystem.component.Switch
 import androidx.compose.material3.Text
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
-import androidx.compose.material3.TextFieldColors
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -59,7 +57,6 @@ import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
-import bot.nomnomz.dashboard.core.designsystem.theme.Tokens
 import bot.nomnomz.dashboard.core.network.RedemptionSummary
 import bot.nomnomz.dashboard.core.network.RewardSummary
 import bot.nomnomz.dashboard.feature.rewards.state.RewardsController
@@ -617,24 +614,6 @@ private fun RewardFormDialog(
                 )
             }
         },
-    )
-}
-
-// The shared text-field color set: every slot driven by a token so the field reads on-theme in light + dark.
-@Composable
-private fun fieldColors(): TextFieldColors {
-    val tokens: Tokens = LocalTokens.current
-    return OutlinedTextFieldDefaults.colors(
-        focusedTextColor = tokens.cardForeground,
-        unfocusedTextColor = tokens.cardForeground,
-        disabledTextColor = tokens.mutedForeground,
-        focusedBorderColor = tokens.ring,
-        unfocusedBorderColor = tokens.border,
-        disabledBorderColor = tokens.border,
-        focusedLabelColor = tokens.mutedForeground,
-        unfocusedLabelColor = tokens.mutedForeground,
-        disabledLabelColor = tokens.mutedForeground,
-        cursorColor = tokens.primary,
     )
 }
 

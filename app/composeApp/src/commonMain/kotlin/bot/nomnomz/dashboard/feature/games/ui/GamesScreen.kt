@@ -22,12 +22,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
-import androidx.compose.material3.TextFieldColors
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -58,7 +56,6 @@ import bot.nomnomz.dashboard.core.designsystem.component.Switch
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
-import bot.nomnomz.dashboard.core.designsystem.theme.Tokens
 import bot.nomnomz.dashboard.core.designsystem.icon.EditGlyph
 import bot.nomnomz.dashboard.core.network.GamePlayEntry
 import bot.nomnomz.dashboard.core.network.GameSummary
@@ -465,26 +462,6 @@ private fun Badge(
     }
 }
 
-
-// The shared text-field color set: every slot driven by a token so the field reads on-theme in light + dark.
-@Composable
-private fun fieldColors(): TextFieldColors {
-    val tokens: Tokens = LocalTokens.current
-    return OutlinedTextFieldDefaults.colors(
-        focusedTextColor = tokens.cardForeground,
-        unfocusedTextColor = tokens.cardForeground,
-        disabledTextColor = tokens.mutedForeground,
-        focusedBorderColor = tokens.ring,
-        unfocusedBorderColor = tokens.border,
-        disabledBorderColor = tokens.border,
-        errorBorderColor = tokens.destructive,
-        focusedLabelColor = tokens.mutedForeground,
-        unfocusedLabelColor = tokens.mutedForeground,
-        disabledLabelColor = tokens.mutedForeground,
-        errorLabelColor = tokens.destructive,
-        cursorColor = tokens.primary,
-    )
-}
 
 @Composable
 private fun ErrorContent(detail: String, onRetry: () -> Unit) {

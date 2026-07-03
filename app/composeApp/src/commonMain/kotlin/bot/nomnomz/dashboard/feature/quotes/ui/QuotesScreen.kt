@@ -22,11 +22,9 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
-import androidx.compose.material3.TextFieldColors
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -52,7 +50,6 @@ import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
-import bot.nomnomz.dashboard.core.designsystem.theme.Tokens
 import bot.nomnomz.dashboard.core.designsystem.icon.AddGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.EditGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
@@ -382,24 +379,6 @@ private fun QuoteFormDialog(
                 )
             }
         },
-    )
-}
-
-// The shared text-field color set: every slot driven by a token so the field reads on-theme in light + dark.
-@Composable
-private fun fieldColors(): TextFieldColors {
-    val tokens: Tokens = LocalTokens.current
-    return OutlinedTextFieldDefaults.colors(
-        focusedTextColor = tokens.cardForeground,
-        unfocusedTextColor = tokens.cardForeground,
-        disabledTextColor = tokens.mutedForeground,
-        focusedBorderColor = tokens.ring,
-        unfocusedBorderColor = tokens.border,
-        disabledBorderColor = tokens.border,
-        focusedLabelColor = tokens.mutedForeground,
-        unfocusedLabelColor = tokens.mutedForeground,
-        disabledLabelColor = tokens.mutedForeground,
-        cursorColor = tokens.primary,
     )
 }
 

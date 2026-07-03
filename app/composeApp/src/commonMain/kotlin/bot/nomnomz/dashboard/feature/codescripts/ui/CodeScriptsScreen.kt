@@ -19,7 +19,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -30,7 +29,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -47,7 +45,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import bot.nomnomz.dashboard.core.designsystem.component.Switch
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
-import bot.nomnomz.dashboard.core.designsystem.component.appFieldColors
+import bot.nomnomz.dashboard.core.designsystem.component.Textarea
 import bot.nomnomz.dashboard.core.designsystem.icon.AddGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.CheckGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.CloseGlyph
@@ -94,7 +92,7 @@ import nomnomzbot.composeapp.generated.resources.shell_nav_code_scripts
 import org.jetbrains.compose.resources.stringResource
 
 // The Code Scripts page: a list of versioned Lua scripts on the left (or in the main column) and an inline
-// editor when one is open. The editor is a plain multi-line OutlinedTextField — no syntax highlighting
+// editor when one is open. The editor is a plain multi-line Textarea — no syntax highlighting
 // dependency; the monospace font gives enough visual structure. All backend ops go through
 // [CodeScriptsController]; the page reacts to [CodeScriptsState] only.
 @Composable
@@ -306,13 +304,13 @@ private fun EditorContent(
         verticalArrangement = Arrangement.spacedBy(spacing.s3),
     ) {
         // The editor — monospace textarea, no external syntax-highlighting dep.
-        OutlinedTextField(
+        Textarea(
             value = source,
             onValueChange = onSourceChange,
+            label = stringResource(Res.string.scripts_editor_source_label),
             modifier = Modifier.fillMaxWidth().weight(1f),
-            label = { Text(stringResource(Res.string.scripts_editor_source_label)) },
-            textStyle = typography.base.copy(fontFamily = FontFamily.Monospace),
-            colors = appFieldColors(),
+            monospace = true,
+            fillHeight = true,
         )
 
         // Validation errors from the current version, if any.
@@ -381,14 +379,13 @@ private fun CreateScriptDialog(
                     label = stringResource(Res.string.scripts_create_description),
                     isError = false, errorText = null,
                 )
-                OutlinedTextField(
+                Textarea(
                     value = source,
                     onValueChange = { source = it },
+                    label = stringResource(Res.string.scripts_create_source),
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text(stringResource(Res.string.scripts_create_source)) },
-                    textStyle = typography.sm.copy(fontFamily = FontFamily.Monospace),
+                    monospace = true,
                     minLines = 5,
-                    colors = appFieldColors(),
                 )
             }
         },

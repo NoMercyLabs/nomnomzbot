@@ -16,8 +16,8 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -29,14 +29,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -51,19 +48,19 @@ import bot.nomnomz.dashboard.core.designsystem.theme.Typography
 private val FieldBorderWidth: Dp = 1.dp
 
 /**
- * shadcn/ui Input ported to Compose (frontend-design-system.md §4, catalogue row).
+ * shadcn/ui Textarea ported to Compose (frontend-design-system.md §4, catalogue row).
  *
- * Foundation-based (no Material floating label, no bottom-line animation). The label sits
- * ABOVE the field in a Column — the shadcn/new-york convention. Border color responds to focus
- * (ring token) and error state (destructive token).
+ * The multi-line sibling of [AppTextField] (shadcn Input): Foundation-based ([BasicTextField]),
+ * label above the field, token-driven border that responds to focus ([Tokens.ring]) and error
+ * ([Tokens.destructive]). [minLines]/[maxLines] size the field to content; pass [fillHeight] with a
+ * height-bounded [modifier] (e.g. `weight(1f)`) for an editor that fills its container. [monospace]
+ * switches the input to a monospace family for code/JSON.
  *
  * @param placeholder optional ghost text shown inside the field when [value] is empty.
  * @param supportingText optional help text shown below the field when there is no active error.
- * @param trailingIcon optional icon slot at the trailing edge of the field.
- * @param visualTransformation controls input masking — pass [PasswordVisualTransformation].
  */
 @Composable
-fun AppTextField(
+fun Textarea(
     value: String,
     onValueChange: (String) -> Unit,
     label: String,
@@ -73,10 +70,10 @@ fun AppTextField(
     errorText: String? = null,
     placeholder: String? = null,
     supportingText: String? = null,
-    visualTransformation: VisualTransformation = VisualTransformation.None,
-    keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
-    keyboardActions: KeyboardActions = KeyboardActions.Default,
-    trailingIcon: @Composable (() -> Unit)? = null,
+    minLines: Int = 3,
+    maxLines: Int = Int.MAX_VALUE,
+    monospace: Boolean = false,
+    fillHeight: Boolean = false,
 ) {
     val tokens: Tokens = LocalTokens.current
     val spacing: Spacing = LocalSpacing.current
@@ -93,71 +90,63 @@ fun AppTextField(
             else -> tokens.border
         }
 
-    val textColor: Color =
-        if (enabled) tokens.foreground else tokens.mutedForeground
-
+    val textColor: Color = if (enabled) tokens.foreground else tokens.mutedForeground
     val shape: RoundedCornerShape = RoundedCornerShape(tokens.radius.md)
+    val fieldTextStyle =
+        typography.sm.copy(
+            color = textColor,
+            fontFamily = if (monospace) FontFamily.Monospace else null,
+        )
 
     Column(modifier = modifier) {
-        // Label above field — shadcn convention (no floating label inside the border)
         if (label.isNotEmpty()) {
-            CompositionLocalProvider(LocalTextStyle provides typography.sm.copy(color = tokens.foreground)) {
-                Text(
-                    text = label,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
+            CompositionLocalProvider(
+                LocalTextStyle provides typography.sm.copy(color = tokens.foreground)
+            ) {
+                Text(text = label, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             Spacer(modifier = Modifier.height(spacing.s1_5))
         }
 
-        // Field container — border lives on this Box; BasicTextField fills it
+        // The field container — border lives on the decoration Box; the BasicTextField fills it.
+        // fillHeight lets an editor grab the Column's remaining height (caller supplies the bound).
+        val fieldSlotModifier: Modifier =
+            if (fillHeight) Modifier.fillMaxWidth().weight(1f) else Modifier.fillMaxWidth()
+
         BasicTextField(
             value = value,
             onValueChange = onValueChange,
             enabled = enabled,
-            singleLine = true,
-            textStyle = typography.sm.copy(color = textColor),
+            singleLine = false,
+            minLines = minLines,
+            maxLines = maxLines,
+            textStyle = fieldTextStyle,
             cursorBrush = SolidColor(tokens.primary),
-            visualTransformation = visualTransformation,
-            keyboardOptions = keyboardOptions,
-            keyboardActions = keyboardActions,
             interactionSource = interactionSource,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = fieldSlotModifier,
             decorationBox = { innerTextField ->
-                Row(
+                Box(
                     modifier =
                         Modifier
+                            .then(if (fillHeight) Modifier.fillMaxHeight() else Modifier)
                             .fillMaxWidth()
                             .border(width = FieldBorderWidth, color = borderColor, shape = shape)
                             .clip(shape)
                             .background(color = tokens.background)
                             .padding(horizontal = spacing.s3, vertical = spacing.s2),
-                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Box(modifier = Modifier.weight(1f)) {
-                        // Placeholder shown when the field is empty
-                        if (value.isEmpty() && placeholder != null) {
-                            CompositionLocalProvider(
-                                LocalTextStyle provides typography.sm.copy(color = tokens.mutedForeground)
-                            ) {
-                                Text(
-                                    text = placeholder,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
-                            }
+                    if (value.isEmpty() && placeholder != null) {
+                        CompositionLocalProvider(
+                            LocalTextStyle provides typography.sm.copy(color = tokens.mutedForeground)
+                        ) {
+                            Text(text = placeholder)
                         }
-                        innerTextField()
                     }
-                    if (trailingIcon != null) {
-                        trailingIcon()
-                    }
+                    innerTextField()
                 }
             },
         )
 
-        // Error / supporting text beneath the field
         val subText: String? =
             when {
                 isError && !errorText.isNullOrEmpty() -> errorText
