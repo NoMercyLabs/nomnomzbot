@@ -5,7 +5,7 @@
 > moderation, channel-point rewards, timers, an economy, text-to-speech, song requests, OBS
 > overlays, and integrations (Spotify, Discord, YouTube).
 
-[![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](server/LICENSE) [![Backend: .NET 10](https://img.shields.io/badge/backend-.NET%2010-512BD4.svg)](#how-it-works) [![Status: pre-release](https://img.shields.io/badge/status-pre--release-orange.svg)](#project-status)
+[![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](server/LICENSE) [![Backend: .NET 10](https://img.shields.io/badge/backend-.NET%2010-512BD4.svg)](#how-it-works) [![Frontend: Kotlin Multiplatform + Compose](https://img.shields.io/badge/frontend-Kotlin%20Multiplatform%20%2B%20Compose-7F52FF.svg)](#how-it-works) [![Status: pre-release](https://img.shields.io/badge/status-pre--release-orange.svg)](#project-status)
 
 You run NomNomzBot through its **dashboard app**, which gives you a **guided setup** — it connects your
 Twitch and bot accounts and collects everything the bot needs through proper input fields, so you never
@@ -108,7 +108,7 @@ points it at the SaaS API. There is no central broker.
 | ORM | EF Core 10 + Npgsql → PostgreSQL 16 |
 | Cache / pub-sub | Redis 7 |
 | Real-time | ASP.NET SignalR (WebSocket) |
-| Auth | JWT + Twitch OAuth (Authorization Code) |
+| Auth | JWT + Twitch Device Code Flow (secret-free login) · OAuth code flow for integrations |
 | Twitch | Helix API, EventSub (WebSocket) — chat reads via EventSub, sends via Helix; no IRC |
 | Logging | Serilog |
 | Dashboard | Kotlin Multiplatform + Compose (desktop + web) |
