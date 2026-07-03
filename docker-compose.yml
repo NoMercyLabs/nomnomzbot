@@ -77,6 +77,10 @@ services:
       retries: 5
       start_period: 30s
     restart: unless-stopped
+    # File state the API keeps outside Postgres (NOMNOMZ_DATA_DIR=/app/data): uploaded sound
+    # clips, key files when secrets aren't supplied via .env. Persist it across recreates.
+    volumes:
+      - api_data:/app/data
     networks:
       - nomnomzbot
 
@@ -141,6 +145,7 @@ services:
 
 volumes:
   postgres_data:
+  api_data:
 
 networks:
   nomnomzbot:
