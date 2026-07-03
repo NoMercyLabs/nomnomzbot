@@ -10,6 +10,12 @@
 
 package bot.nomnomz.dashboard.feature.shell.ui
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.EaseOut
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -38,18 +44,22 @@ import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenuItem
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import bot.nomnomz.dashboard.core.designsystem.component.Sheet
 import bot.nomnomz.dashboard.core.designsystem.component.SheetSide
+import bot.nomnomz.dashboard.core.designsystem.icon.ChevronDownGlyph
 import androidx.compose.runtime.key
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshots.SnapshotStateMap
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -180,6 +190,9 @@ import org.jetbrains.compose.resources.stringResource
 // design-system spacing token.
 private val CompactBreakpoint: Dp = 720.dp
 
+// shadcn Collapsible animation duration (0.2s ease-out) — the sidebar accordion matches it.
+private const val CollapseDurationMillis: Int = 200
+
 @Composable
 fun ShellScreen(
     graph: AppGraph,
@@ -242,8 +255,9 @@ fun ShellScreen(
             var drawerOpen: Boolean by remember { mutableStateOf(false) }
 
             Column(modifier = Modifier.fillMaxSize()) {
+                // Compact only: a slim bar carrying the hamburger (to open the nav drawer) and channel
+                // context. No page title here — the screen's own PageHeader owns that.
                 TopBar(
-                    title = selected.label(),
                     channelName = user?.displayName,
                     onMenu = { drawerOpen = true },
                 )
@@ -292,7 +306,9 @@ fun ShellScreen(
                     onLogout = onLogout,
                 )
                 Column(modifier = Modifier.weight(1f).fillMaxHeight()) {
-                    TopBar(title = selected.label(), channelName = user?.displayName, onMenu = null)
+                    // No top bar on desktop: each screen renders its own PageHeader, so a shell-level
+                    // title bar would just duplicate it. The hamburger-bearing bar exists only in the
+                    // compact layout below (where the sidebar is a drawer).
                     ShellContent(
                         selected = selected,
                         graph = graph,
@@ -435,30 +451,45 @@ private fun Sidebar(
 
         Spacer(modifier = Modifier.height(spacing.s2))
 
-        // Flat nav — all groups and their pages are always visible (no accordion). The nav region
-        // takes the remaining height and scrolls, so every item stays reachable at any window height
-        // (and inside the compact Sheet drawer, which shares this composable).
+        // Grouped nav. A group with more than two pages is collapsible (accordion header with a
+        // rotating chevron); one- or two-page groups render as a plain, always-visible label. The
+        // nav region takes the remaining height and scrolls, so every item stays reachable at any
+        // window height (and inside the compact Sheet drawer, which shares this composable).
+        val sectionExpanded: SnapshotStateMap<NavGroup, Boolean> = remember { mutableStateMapOf() }
         Column(
             modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(spacing.s0_5),
         ) {
             groups.forEach { (group, pages) ->
-                SidebarGroupLabel(label = group.label())
-                pages.forEach { page ->
-                    NavItem(route = page.route, selected = page.route == selected) { onSelect(page.route) }
-                }
+                SidebarSection(
+                    label = group.label(),
+                    pages = pages,
+                    selected = selected,
+                    expanded = sectionExpanded[group] ?: true,
+                    onToggleExpanded =
+                        if (pages.size > 2) {
+                            { sectionExpanded[group] = !(sectionExpanded[group] ?: true) }
+                        } else null,
+                    onSelect = onSelect,
+                )
                 Spacer(modifier = Modifier.height(spacing.s1))
             }
         }
 
         if (pinned.isNotEmpty()) {
             Separator(modifier = Modifier.padding(vertical = spacing.s2))
-            SidebarGroupLabel(label = NavGroup.Setup.label())
-            Column(verticalArrangement = Arrangement.spacedBy(spacing.s0_5)) {
-                pinned.forEach { page ->
-                    NavItem(route = page.route, selected = page.route == selected) { onSelect(page.route) }
-                }
-            }
+            SidebarSection(
+                label = NavGroup.Setup.label(),
+                pages = pinned,
+                selected = selected,
+                // Setup is a rarely-touched config group — start it collapsed.
+                expanded = sectionExpanded[NavGroup.Setup] ?: false,
+                onToggleExpanded =
+                    if (pinned.size > 2) {
+                        { sectionExpanded[NavGroup.Setup] = !(sectionExpanded[NavGroup.Setup] ?: true) }
+                    } else null,
+                onSelect = onSelect,
+            )
         }
 
         if (isAdmin) {
@@ -589,7 +620,83 @@ private fun SidebarHeader(switcher: ChannelSwitcherController) {
     }
 }
 
-// Non-collapsible group label — all nav groups are always expanded (shadcn sidebar pattern).
+// One sidebar nav group. When [onToggleExpanded] is non-null the group is collapsible: its label
+// becomes a clickable accordion header with a chevron that rotates on toggle, and its pages expand/
+// collapse with an animation. When null it renders as a plain, always-visible [SidebarGroupLabel]
+// (used for one- and two-page groups, which aren't worth collapsing).
+@Composable
+private fun SidebarSection(
+    label: String,
+    pages: List<NavPage>,
+    selected: ShellRoute,
+    expanded: Boolean,
+    onToggleExpanded: (() -> Unit)?,
+    onSelect: (ShellRoute) -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    if (onToggleExpanded != null) {
+        val chevronRotation: Float by animateFloatAsState(
+            targetValue = if (expanded) 0f else -90f,
+            animationSpec = tween(durationMillis = CollapseDurationMillis, easing = EaseOut),
+            label = "sidebarChevron",
+        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(tokens.radius.sm))
+                .clickable { onToggleExpanded() }
+                .padding(start = spacing.s2, end = spacing.s1, top = spacing.s3, bottom = spacing.s1),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = label.uppercase(),
+                style = typography.xs,
+                color = tokens.mutedForeground,
+                modifier = Modifier.weight(1f),
+            )
+            Icon(
+                imageVector = ChevronDownGlyph,
+                contentDescription = null,
+                tint = tokens.mutedForeground,
+                modifier = Modifier.size(spacing.s4).rotate(chevronRotation),
+            )
+        }
+    } else if (pages.size > 1) {
+        SidebarGroupLabel(label = label)
+    }
+    // A single-entry group (Home, Moderation, Community) drops its label and shows just the page.
+
+    // Pages that belong to a titled group (collapsible header or plain label) are indented so they
+    // read as children of that header; a single-entry group's lone page stays at the root indent.
+    val hasHeader: Boolean = onToggleExpanded != null || pages.size > 1
+
+    // shadcn Collapsible motion: a plain height expand/collapse — 200ms ease-out, no fade or spring.
+    AnimatedVisibility(
+        visible = onToggleExpanded == null || expanded,
+        enter = expandVertically(
+            animationSpec = tween(durationMillis = CollapseDurationMillis, easing = EaseOut),
+            expandFrom = Alignment.Top,
+        ),
+        exit = shrinkVertically(
+            animationSpec = tween(durationMillis = CollapseDurationMillis, easing = EaseOut),
+            shrinkTowards = Alignment.Top,
+        ),
+    ) {
+        Column(
+            modifier = if (hasHeader) Modifier.padding(start = spacing.s3) else Modifier,
+            verticalArrangement = Arrangement.spacedBy(spacing.s0_5),
+        ) {
+            pages.forEach { page ->
+                NavItem(route = page.route, selected = page.route == selected) { onSelect(page.route) }
+            }
+        }
+    }
+}
+
+// Non-collapsible group label — used for one- and two-page groups (shadcn sidebar pattern).
 // The label is uppercased at render time to match the design system's category label style.
 @Composable
 private fun SidebarGroupLabel(label: String) {
@@ -763,10 +870,9 @@ private fun Avatar(name: String, size: Dp, imageUrl: String? = null) {
 }
 
 @Composable
-private fun TopBar(title: String, channelName: String?, onMenu: (() -> Unit)?) {
+private fun TopBar(channelName: String?, onMenu: (() -> Unit)?) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
-    val typography = LocalTypography.current
 
     Column {
         Row(
@@ -778,20 +884,7 @@ private fun TopBar(title: String, channelName: String?, onMenu: (() -> Unit)?) {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            Row(
-                modifier = Modifier.weight(1f),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(spacing.s3),
-            ) {
-                if (onMenu != null) HamburgerButton(onClick = onMenu)
-                Text(
-                    text = title,
-                    style = typography.xl,
-                    color = tokens.foreground,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
+            if (onMenu != null) HamburgerButton(onClick = onMenu) else Spacer(modifier = Modifier)
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(spacing.s3),
