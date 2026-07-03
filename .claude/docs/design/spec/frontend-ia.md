@@ -37,7 +37,7 @@ and its **purpose**. It invents no new route name that §5 does not declare.
 
 | Plane | Vocabulary (`roles-permissions.md`) | Nav surface | Who |
 |---|---|---|---|
-| **A — Community** | `CommunityStanding`: `Everyone` `Subscriber_T1/2/3` `VIP` `Moderator` `Broadcaster` | **none** (gates only) | viewers — read-only standing inferred from Twitch |
+| **A — Community** | `CommunityStanding`: `Everyone` `Subscriber` `Vip` `Artist` `Moderator` (sub tier = separate `SubTier` column, not enum values) | **none** (gates only) | viewers — read-only standing inferred from Twitch |
 | **B — Management** | `ManagementRole`: `Moderator`(10) `SuperMod`(20) `Editor`(30) `Broadcaster`(40) | **Main shell** (§2–§5) | the streamer + anyone they delegate a `ManagementRole` (or an active `PermitGrant`, or a Plane-C `tenant:access`) |
 | **C — Platform IAM** | `IamRole`: `platform-super-admin` `platform-iam-admin` `platform-analyst` | **Admin area** (§6) | NoMercy Labs staff / service principals (SaaS only; self-host = `OwnerIsFullIamService` no-op) |
 

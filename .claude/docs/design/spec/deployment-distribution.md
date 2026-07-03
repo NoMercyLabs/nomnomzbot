@@ -63,10 +63,13 @@ spec is their contract, not their source.
   (RIDs: `win-x64`, `linux-x64`, `linux-arm64`, `osx-x64`, `osx-arm64`). One file, **no .NET runtime install
   required**, **no Docker**. Carries **zero crypto third-parties** (the `kms_envelope` Azure branch is never
   referenced in this branch — `gdpr-crypto.md` §7) and the in-process scaling adapters (`InProcessRateLimiter`,
-  `InProcessFairWorkScheduler`, in-memory `ICache`/`IEventBus`, WebSocket EventSub, `IrcChatTransport`). Ships the
+  `InProcessFairWorkScheduler`, in-memory `ICache`/`IEventBus`, WebSocket EventSub; chat sends via
+  `HelixChatProvider` — IRC is retired on every profile). Ships the
   embedded SQLite migration set and the embedded wasmJs dashboard + public pages (§5). Published as a **GitHub
-  Release** asset per RID (e.g. `nomnomz-linux-x64`), `chmod +x`, run as `./nomnomz`. First run creates
-  `./nomnomz.db` (SQLite) and the local-AES KEK (§6) beside it; everything is one folder, trivially backed up.
+  Release** asset per RID (e.g. `nomnomz-linux-x64`), `chmod +x`, run as `./nomnomz`. First run creates the
+  per-user data folder (`SelfHostDataPaths`: `%LOCALAPPDATA%\NomNomzBot` / `~/.local/share/NomNomzBot` /
+  `~/Library/Application Support/NomNomzBot`; `NOMNOMZ_DATA_DIR` overrides) holding `nomnomz.db` (SQLite), the
+  local-AES KEK (§6), and logs; everything is one folder, trivially backed up.
 - **Docker image — `full` + SaaS.**
   Built from `server/Dockerfile`, published to **GHCR as `ghcr.io/nomercylabs/nomnomzbot`** (tags: `latest`, the
   semver, the commit SHA — multi-arch `amd64`/`arm64`). The **same image** runs `self_host_full` (auto-detects
@@ -131,7 +134,7 @@ which adapters that pipeline resolves. The ordering below is binding (fail-close
 
 **Per-mode collapse of that pipeline:**
 
-- **`self_host_lite` (binary).** `./nomnomz` → step 1 resolves *lite* → SQLite opened/created beside the binary →
+- **`self_host_lite` (binary).** `./nomnomz` → step 1 resolves *lite* → SQLite opened/created in the per-user data folder (`SelfHostDataPaths`) →
   local-AES KEK bootstrapped in the OS vault → SQLite migrations applied (no guard — single process) → seed →
   WebSocket EventSub connects + reconnects with backoff (`twitch-eventsub.md`) → **mDNS advertiser announces
   `_nomnomz._tcp`** → static files + SPA served → ready. A restart is a clean stop→start (a brief gap is

@@ -13,8 +13,8 @@ You run NomNomzBot through its **dashboard app**, which gives you a **guided set
 Twitch and bot accounts and collects everything the bot needs through proper input fields, so you never
 edit a config file. The bot itself is **self-hostable from day one** (point the dashboard at your own
 server — zero external infrastructure or oversight), and the same codebase powers an optional hosted
-(SaaS) offering. Under the hood it speaks Twitch over Helix, EventSub (WebSocket), and IRC, and exposes a
-versioned REST API plus real-time SignalR feeds.
+(SaaS) offering. Under the hood it speaks Twitch over Helix and EventSub (WebSocket) — chat included, no
+IRC — and exposes a versioned REST API plus real-time SignalR feeds.
 
 ---
 
@@ -46,9 +46,10 @@ Pre-1.0, under active development. Honest snapshot:
   and the sandboxed custom-code action.
 - **Public surfaces (overlays + song-request)** — delivered by the **widget system**: widgets are compiled
   from source at build time, served by the bot, and CDN-cached for SaaS (not static files). In development.
-- **Dashboard (`app/`)** — the **Kotlin Multiplatform + Compose** client (one codebase for desktop and web)
-  that provides the guided setup described below is **in active development**. Until it ships, the same
-  onboarding flow runs through the bot's self-describing REST API (interactive docs at `/scalar`).
+- **Dashboard (`app/`)** — the **Kotlin Multiplatform + Compose** client (one codebase for desktop and
+  web) is **built and functional**: guided setup, Twitch device-code login, and management pages for the
+  core modules, all against the live API. The web build ships inside every backend artifact; pre-release
+  polish is ongoing. Every operation is also available through the self-describing REST API (`/scalar`).
 
 It has not yet been validated in a long-running production deployment, so treat it as early software.
 
@@ -86,7 +87,7 @@ What a connected channel gets:
 │   Versioned REST API (v1)  ·  interactive docs at /scalar
 │   Public surfaces (OBS overlays, song-request) — compiled widgets served by the bot, CDN-cached for SaaS
 │
-└─ app/     — Kotlin Multiplatform + Compose dashboard (in active development)
+└─ app/     — Kotlin Multiplatform + Compose dashboard (desktop + web/Wasm; the web build is served by the bot)
 ```
 
 The backend is **profile-agnostic and direct-connect**: the dashboard just needs the backend URL and talks
@@ -101,7 +102,7 @@ points it at the SaaS API. There is no central broker.
 | Cache / pub-sub | Redis 7 |
 | Real-time | ASP.NET SignalR (WebSocket) |
 | Auth | JWT + Twitch OAuth (Authorization Code) |
-| Twitch | Helix API, EventSub (WebSocket), IRC |
+| Twitch | Helix API, EventSub (WebSocket) — chat reads via EventSub, sends via Helix; no IRC |
 | Logging | Serilog |
 | Dashboard | Kotlin Multiplatform + Compose (desktop + web) |
 | API docs | OpenAPI + Scalar |
@@ -110,7 +111,11 @@ points it at the SaaS API. There is no central broker.
 
 There are two pieces: the **dashboard**, which you set the bot up and run it from, and the **backend**, the
 server the dashboard talks to. On the hosted offering the backend is run for you, so you only need the
-dashboard. To **self-host**, run your own backend (Docker) and point the dashboard at it.
+dashboard. To **self-host**, run your own backend and point the dashboard at it.
+
+> **Quickest path:** the deploy script — `./deploy.sh` (Linux/macOS) or `.\deploy.ps1` (Windows) — covers
+> every scenario: the zero-dependency single-file binary, the Docker stack, and SaaS mode, each with the
+> bundled web dashboard or the standalone desktop app. **[DEPLOY.md](DEPLOY.md)** explains which to choose.
 
 ### Set up with the dashboard
 
@@ -129,10 +134,10 @@ wizard** walks you through everything, with a labelled input for each value the 
 
 When you finish, you land on the dashboard home with the bot live in your channel.
 
-> **In development.** The Compose dashboard isn't released yet. In the meantime the **exact same guided
-> flow** is available through the bot's self-describing API: `GET /api/v1/system/setup/wizard` returns each
-> step, what it needs, and the endpoint to call, and you can run every step from the interactive docs at
-> **`/scalar`**. See [Using NomNomzBot](#using-nomnomzbot).
+> **Where to get it:** the **web dashboard ships inside every backend build** — just open the bot's URL in
+> a browser. The **desktop app** builds with `./deploy.sh <scenario> --app` (see [DEPLOY.md](DEPLOY.md)).
+> The same guided flow is also available through the self-describing API: `GET /api/v1/system/setup/wizard`
+> returns each step and the endpoint to call, runnable from the interactive docs at **`/scalar`**.
 
 ### Run your own backend (Docker)
 
@@ -145,15 +150,16 @@ runtime from `App:BaseUrl`, so register exactly one callback — `{App:BaseUrl}/
 (locally, `http://localhost:5080/api/v1/auth/twitch/callback`).
 
 ```bash
-cd server
-cp .env.example .env          # then set TWITCH_CLIENT_ID / TWITCH_CLIENT_SECRET / TWITCH_BOT_USERNAME
-docker compose up -d          # PostgreSQL, Redis, and the API
+./deploy.sh docker            # Linux / macOS — Windows: .\deploy.ps1 docker
 ```
 
-The Twitch **Client ID / Secret** are the one value the backend needs to boot (self-hosters can also enter
-them in the dashboard wizard once it ships). On first start the API waits for Postgres and Redis, runs
-migrations, seeds reference data (TTS voices, permission presets), and connects the Twitch EventSub
-WebSocket. Point your dashboard at `http://localhost:5080` (or your exposed URL) and run the setup above.
+The script creates `.env` with **generated secrets**, asks for your Twitch credentials (press Enter to
+skip and enter them in the dashboard wizard instead), starts PostgreSQL, Redis, and the API, and waits
+until the stack reports ready. Prefer raw compose? `cp .env.example .env && docker compose up -d --build`
+from the repo root does the same thing. The zero-Docker single-file path and SaaS mode are covered in
+**[DEPLOY.md](DEPLOY.md)**. On first start the API waits for Postgres and Redis, runs migrations, seeds
+reference data (TTS voices, permission presets), and connects the Twitch EventSub WebSocket. Point your
+dashboard at `http://localhost:5080` (or your exposed URL) and run the setup above.
 
 For local backend development without Docker (`dotnet run`), see [Development](#development).
 
@@ -169,8 +175,9 @@ For local backend development without Docker (`dotnet run`), see [Development](#
 | `http://localhost:5080/health/version` | Deployed build version |
 | `http://localhost:8082` | Adminer (Postgres browser) — dev override only |
 
-> Adminer is a development-only convenience: `docker compose -f docker-compose.yml -f docker-compose.dev.yml
-> up -d adminer`. It is excluded from the production compose.
+> The root quickstart compose includes Adminer **bound to loopback only**. The production compose
+> (`server/docker-compose.yml`) excludes it — there it is a dev-overlay extra
+> (`docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d adminer`).
 
 ## Using NomNomzBot
 
@@ -219,9 +226,9 @@ This is in development; the compiled-widget pipeline (build → serve → CDN ca
 
 The dashboard collects most settings for you; these are the backend's own knobs:
 
-- **Docker / deploy** — `server/.env` (copy from `server/.env.example`, which documents every variable).
-  Config keys map to env vars with `__`, e.g. `Twitch:ClientId` → `TWITCH_CLIENT_ID`; `docker-compose.yml`
-  also maps the friendly `API_BASE_URL` onto `App__BaseUrl`.
+- **Docker / deploy** — `.env` at the repo root (the deploy script creates it; `.env.example` documents
+  every variable). Config keys map to env vars with `__`, e.g. `Twitch:ClientId` → `TWITCH_CLIENT_ID`;
+  `docker-compose.yml` also maps the friendly `API_BASE_URL` onto `App__BaseUrl`.
 - **Local dev (`dotnet run`)** — `server/src/NomNomzBot.Api/appsettings.json` (defaults) +
   `appsettings.Development.json` (your secrets). Everything else falls back to the defaults.
 - **Twitch redirect URI** is computed at runtime from `App:BaseUrl` — register only

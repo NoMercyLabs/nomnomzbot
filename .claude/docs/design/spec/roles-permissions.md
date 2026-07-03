@@ -671,6 +671,7 @@ Least-privilege bundles; each row seeds the `IamRole` and its `IamRolePermission
 | platform-trust-safety | tenant:read, tenant:suspend, tenant:access, audit:read |
 | platform-billing | billing:read, billing:refund |
 | platform-iam-admin | iam:manage, iam:principal:create, audit:read |
+| platform-analyst | tenant:read, platform:analytics:read |
 
 `platform-super-admin` is the role the §7 bootstrap principal is assigned. Every other principal is provisioned via `IPlatformIamService.CreatePrincipalAsync` and assigned one of these system roles (or a custom role).
 

@@ -137,14 +137,16 @@ nomnomzbot/
 │   │   ├── NomNomzBot.Infrastructure.Tests/
 │   │   └── NomNomzBot.Api.Tests/
 │   └── Dockerfile
-├── app/                     # Frontend — Kotlin Multiplatform + Compose Multiplatform
-│   │                        #   (desktop-first dashboard; mobile later). Internal module
-│   │                        #   structure to be specified in the frontend spec phase.
+├── app/                     # Frontend — Kotlin Multiplatform + Compose Multiplatform (desktop + web/Wasm)
+│   └── composeApp/          #   src/commonMain: App.kt, core/ (network client, i18n, design system),
+│                            #   feature/<domain>/ (screens + state); i18n resources in
+│                            #   composeResources/values/strings.xml (en) + values-nl/ (nl)
 │                            # Public surfaces (OBS overlays, song-request) = compiled widgets served by the
 │                            # bot + CDN-cached for SaaS (widgets-overlays); there is no static web/ folder.
 ├── handoff/                 # Cross-track work orders — for-backend.md / for-frontend.md
 ├── docker-compose.yml       # Root compose — references ./server
-├── deploy.sh
+├── DEPLOY.md                # Deployment chooser — desktop / docker / saas × web / desktop app
+├── deploy.sh                # One deploy script per OS: <scenario> [--app]
 ├── deploy.ps1
 ├── .env.example
 └── nomnomzbot-design/       # HTML mockups, research docs, architecture specs (separate repo)
@@ -163,7 +165,7 @@ nomnomzbot/
 | ORM | EF Core 10 + Npgsql (PostgreSQL 16) |
 | Cache / pub-sub | Redis 7 |
 | Real-time | ASP.NET SignalR (WebSocket) |
-| Auth | JWT + Twitch OAuth (Authorization Code Flow) |
+| Auth | JWT + Twitch **Device Code Flow** login (secret-free) · OAuth code flow for integrations · web refresh token in an HttpOnly cookie |
 | Logging | Serilog |
 | Frontend (dashboard) | Kotlin Multiplatform (KMP) + Compose Multiplatform — one codebase, **desktop + web (Wasm)** identical UI; mobile later |
 | Public surfaces | Widget system (OBS overlays, song-request, OAuth landing) — compiled from source at build time, served by the bot, CDN-cached for SaaS; the build→serve→cache pipeline is being specced |
@@ -199,32 +201,25 @@ NomNomzBot.Domain          → Entities, domain events, value objects, no extern
 
 | Service | Location | Purpose |
 |---------|----------|---------|
-| `AuthService` | Infrastructure | JWT creation, Twitch token exchange, refresh |
-| `TwitchApiService` | Infrastructure | Helix API calls (channel info, followers, bans, etc.) |
-| `TwitchEventSubService` | Infrastructure | WebSocket EventSub lifecycle (`IHostedService`) |
+| `AuthService` | Infrastructure | JWT creation, Twitch token exchange (device code + refresh) |
+| `ITwitchHelixClient` | Application contract, Infrastructure impl | Typed Helix client — 26 sub-clients covering the full Helix surface |
+| `TwitchEventSubHostedService` | Infrastructure (`Platform/Eventing`) | EventSub lifecycle over `WebSocketEventSubTransport`; 74 event translators |
 | `HelixChatProvider` | Infrastructure | Chat send (`IChatProvider`) via Helix Send Chat Message — every profile |
 | `SpotifyService` | Infrastructure | Now playing, queue, playback control |
 | `DiscordService` | Infrastructure | Guild sync, notifications |
 | `TtsService` | Infrastructure | Azure Cognitive Services + ElevenLabs provider |
 | `PipelineEngine` | Infrastructure | Executes pipeline action chains |
 
-### Controllers (all under `/api/v1/`)
+### Controllers (all under `/api/v1/`, source in `NomNomzBot.Api/Controllers/V1/`)
 
-- `AuthController` — Twitch OAuth login/callback, JWT refresh, logout
-- `ChannelBotController` — Bot account OAuth, bot config
-- `ChannelsController` — Channel CRUD, stream info, bot callback
-- `ChatController` — Chat messages (read via EventSub `channel.chat.message`; send via `IChatProvider` → `HelixChatProvider` — Helix Send Chat Message, every profile)
-- `CommandsController` — Custom command CRUD, pipeline attachment
-- `CommunityController` — Viewer list from Twitch API (no seed data)
-- `DashboardController` — Stats aggregation for dashboard widgets
-- `IntegrationOAuthController` — Spotify, Discord, YouTube OAuth flows
-- `ModerationController` — Bans, timeouts, automod settings
-- `RewardsController` — Channel point rewards
-- `StreamController` — Stream title/game/tags updates
-- `SystemController` — System health, setup wizard status, TTS voices
-- `TtsController` — TTS config, preview, queue
-- `TimersController` — Scheduled message timers
-- `PipelinesController` — Pipeline CRUD + execution
+**~56 controllers, one per module** — do not rely on a hand-maintained list; browse them at
+`http://localhost:5080/scalar` or in `Controllers/V1/`. Each domain spec's **§5 table** is the
+authoritative contract (routes + Gate-2 action keys). Major groups: auth/channels/users,
+commands/builtins/pipelines/event-responses/timers/quotes, chat/moderation, rewards/live-ops/stream,
+economy (currency, catalog, games, savings jars, leaderboards) , music + public song-request, TTS,
+community/analytics/dashboard, integrations + OAuth (Spotify/Discord/YouTube), webhooks (in/out),
+widgets, sound clips, code scripts (sandbox), roles/permissions/permits, event store, federation,
+billing, platform admin (IAM, feature flags, tenant ops).
 
 ### API Conventions
 
@@ -247,11 +242,16 @@ The frontend connects through the shared KMP SignalR client. Auth token passed a
 
 ### Authentication Flow
 
-1. `/api/v1/auth/twitch/login` → redirected to Twitch OAuth
-2. Twitch calls `/api/v1/auth/twitch/callback` with code
-3. API exchanges code for tokens, stores AES-encrypted tokens in Postgres, returns JWT
-4. Frontend stores JWT in the platform's secure storage, sends as `Authorization: Bearer <token>`
-5. Progressive scopes — additional permissions requested only when the user enables a feature
+1. **Login = Twitch Device Code Flow (secret-free):** `POST /api/v1/auth/twitch/device` → user approves
+   on twitch.tv/activate → `POST /api/v1/auth/twitch/device/poll` returns JWTs. The bot account connects
+   the same way (`/api/v1/auth/twitch/bot/device` + poll). Shared public client by default, BYOC encouraged.
+2. The authorization-code callback (`/api/v1/auth/twitch/callback`, GET + POST) remains for redirect-based
+   flows and integration OAuth.
+3. Tokens are AES-encrypted at rest. JWT sent as `Authorization: Bearer <token>`; refresh via
+   `POST /api/v1/auth/refresh`. Native clients keep tokens in the OS keychain; the **web build keeps the
+   refresh token in an HttpOnly+Secure cookie — never localStorage**.
+4. **Progressive scopes** — enabling a feature that needs new scopes triggers the action-required flow
+   (chat + dashboard prompt → one-click additive re-grant). Never force a logout for a scope change.
 
 ### Running the Backend
 
@@ -290,12 +290,11 @@ dotnet test tests/NomNomzBot.Domain.Tests      # one project
 ## Frontend Architecture
 
 > **Locked stack.** The frontend is **Kotlin Multiplatform (KMP) + Compose Multiplatform** —
-> shared logic *and* shared Compose UI. The previous React Native / Expo app has been deleted.
-> Source of truth: `docs/design/2026-06-16-frontend.md`.
->
-> Detailed frontend architecture — navigation/routing, state management, and module/folder
-> structure — is **not designed yet**. It will be **specified in the frontend spec phase**.
-> Do not invent a routing tree, state library, or folder layout ahead of that spec.
+> shared logic *and* shared Compose UI. It is **built and live**: the core dashboard pages exist and
+> run against the real API (desktop + web/Wasm from one codebase).
+> Authoritative specs in `.claude/docs/design/spec/`: `frontend.md` (stack), `frontend-ia.md`
+> (navigation/IA, three-plane shell, role gating), `frontend-structure.md` (module layout),
+> `frontend-data-layer.md` (query/cache layer), `frontend-design-system.md` + `.catalogue.md` (shadcn port).
 
 ### What's established
 
@@ -332,12 +331,22 @@ dotnet test tests/NomNomzBot.Domain.Tests      # one project
 ### i18n
 
 - Supported languages: English (`en`), Dutch (`nl`). Never hardcode user-facing strings.
-- The KMP localization approach is **to be specified in the frontend spec phase**.
+- Strings live in `composeApp/src/commonMain/composeResources/values/strings.xml` (+ `values-nl/`);
+  locale switching via `core/i18n/LocalAppLocale`. Every new string gets both languages.
 
 ### Running the Frontend
 
-- KMP + Compose Multiplatform build/run commands (Gradle tasks for desktop/mobile targets)
-  are **to be specified in the frontend spec phase**.
+From `app/`:
+
+```bash
+./gradlew :composeApp:wasmJsBrowserDevelopmentRun --watch-fs -t   # web dev server (hot reload)
+./gradlew :composeApp:run                                         # desktop (dev)
+./gradlew :composeApp:wasmJsBrowserDistribution                    # prod web bundle (use --rerun-tasks for a clean prod build)
+./gradlew :composeApp:packageDistributionForCurrentOS              # desktop installer (MSI/DMG/DEB)
+```
+
+The prod web bundle is bundled automatically into the API publish and Docker image; the deploy
+script's `--app` flag wraps the installer task (see `DEPLOY.md`).
 
 ---
 
@@ -461,8 +470,9 @@ For local `dotnet run` dev (not Docker): put Twitch credentials in `appsettings.
 ### Frontend
 
 The KMP + Compose dashboard is **profile-agnostic** — its only required configuration is the
-**backend URL** (`localhost` for self-host, the SaaS API URL for SaaS). How that value is
-supplied/persisted by the app is **to be specified in the frontend spec phase**.
+**backend URL**. The web build talks to the origin that served it (no picker); the native app keeps
+a list of saved server connections (mDNS LAN discovery + manual add) with per-server tokens in the
+OS keychain, switchable from the profile menu.
 
 ### `appsettings.json` structure (config hierarchy)
 
@@ -490,25 +500,27 @@ supplied/persisted by the app is **to be specified in the frontend spec phase**.
 1. Define the service interface in `NomNomzBot.Application/<Module>/Services/`
 2. Implement it in `NomNomzBot.Infrastructure/<Module>/`
 3. Register it in `NomNomzBot.Infrastructure/DependencyInjection.cs`
-4. Create controller in `NomNomzBot.Api/Controllers/` with `[ApiVersion("1.0")]` and `[Route("api/v{version:apiVersion}/...")]`
+4. Create controller in `NomNomzBot.Api/Controllers/V1/` with `[ApiVersion("1.0")]` and `[Route("api/v{version:apiVersion}/...")]`
 5. Return `StatusResponseDto<T>` or `PaginatedResponse<T>`
 
 ### Adding a New Dashboard Page
 
-The dashboard is the KMP + Compose Multiplatform app. The concrete page/navigation/state
-conventions are **to be specified in the frontend spec phase** (`docs/design/2026-06-16-frontend.md`).
-Until then, the only fixed rules are:
-
-- Build the page as a Compose Multiplatform screen in the KMP `app/` module.
-- Fetch and mutate data exclusively through the **typed shared KMP client** (REST + SignalR) — never call the API ad hoc.
-- Add i18n keys for both English (`en`) and Dutch (`nl`); never hardcode user-facing strings.
+1. Screen + state under `app/composeApp/src/commonMain/.../feature/<domain>/`; navigation and page
+   placement per `frontend-ia.md` (the definitive page inventory).
+2. Fetch/mutate exclusively through the **typed shared KMP client** (`core/network`, REST + SignalR) —
+   never call the API ad hoc. New DTOs register in `ApiContractTest`; refresh `server/openapi/v1.json`
+   on any contract change.
+3. Design-system components only (`frontend-design-system.md` + catalogue) — no raw hex/`dp`.
+4. i18n keys for both `en` and `nl`; never hardcode user-facing strings.
+5. Role-gate per `frontend-ia.md` §7 — hide pages below the read floor; **disable** (don't hide)
+   actions below the manage floor, with a reason tooltip.
 
 ### Adding a New Twitch EventSub Subscription
 
-1. Add event type to `TwitchEventTypes` enum in Domain
-2. Add subscription in `TwitchEventSubService.RegisterSubscriptionsAsync()`
-3. Add handler in `TwitchEventSubService.HandleMessageAsync()` switch
-4. Fire domain event or call service method from handler
+Per the `twitch-eventsub.md` spec: add the topic to the subscription catalogue and write a
+translator beside the 74 existing ones in `NomNomzBot.Infrastructure/Platform/Eventing/` —
+`TwitchEventSubHostedService` re-registers the full set on every (re)connect, and the translator
+turns the wire payload into a domain event on the bus.
 
 ### Adding a New Integration (OAuth pattern)
 
@@ -516,7 +528,7 @@ Until then, the only fixed rules are:
 2. Add `I{Provider}Service` interface in Application
 3. Implement `{Provider}Service` in Infrastructure
 4. Add `{Provider}:ClientId/ClientSecret` to `appsettings.json` and `.env.example`
-5. Surface the integration in the dashboard's integrations screen (KMP + Compose); gate the feature in the frontend on the integration's connection state. Exact UI/state placement is **to be specified in the frontend spec phase**.
+5. Surface the integration in the dashboard's Integrations screen (`feature/integrations`); gate the feature in the frontend on the integration's connection state (placement per `frontend-ia.md`).
 
 ### Adding a New Pipeline Action
 
@@ -524,7 +536,7 @@ Until then, the only fixed rules are:
 2. Set `Type` property to a unique snake_case string
 3. Register in `NomNomzBot.Infrastructure/DependencyInjection.cs`
 4. Add the contract/DTO to `NomNomzBot.Application/Abstractions/Pipeline/`
-5. Surface the action in the dashboard's pipeline builder (KMP + Compose). Exact UI placement is **to be specified in the frontend spec phase**.
+5. Surface the action in the dashboard's pipeline builder block palette (`feature/pipelines`).
 
 ---
 
@@ -552,16 +564,13 @@ All action blocks are compiled C# classes — no scripting engine.
 
 ---
 
-## Known Issues / Current State (as of 2026-04-07)
+## Known Issues / Current State (as of 2026-07-04)
 
 | Issue | Notes |
 |-------|-------|
-| Chat messages 403 error | Bot token may need re-auth or `user:write:chat` scope re-requested |
-| Subscriber count always 0 | Helix endpoint requires `channel:read:subscriptions` — check scope grant |
-| No emote picker / FrankerFaceZ / BTTV | Not yet implemented |
-| Commands show 0 on existing installs | Channel join/registration flow may have skipped command seeding |
 | EventSub reconnects every ~5 min | Normal Twitch behavior — server sends a `reconnect` message |
 | Bot token invalid after key change | `ENCRYPTION_KEY` rotation requires bot re-auth |
+| Application test suite rare flake | ~5% intermittent failure; a lone red that won't reproduce locally → re-run once before digging |
 
 ---
 
@@ -586,7 +595,9 @@ The app detects when no streamer account is configured and routes to the setup w
 3. **Configure basics** — bot prefix, default language, timezone
 4. **Enable integrations** — Spotify, Discord, etc. (can skip and do later from Settings)
 
-After completion, lands on the dashboard home. Wizard navigation/route specifics are **to be specified in the frontend spec phase**.
+After completion, lands on the dashboard home. The wizard is implemented in the dashboard
+(device-code onboarding); returning users get quick login or a remembered-session restore —
+never a repeat of the device-code dance.
 
 ---
 
