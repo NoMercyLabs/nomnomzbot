@@ -23,6 +23,9 @@ Licensed under **AGPL-3.0**. Copyright (C) NoMercy Labs.
 - **Match the design system exactly** — the shadcn (new-york) tokens, component catalogue, and variant tables in `frontend-design-system.md`; correct tokens/spacing/variants. Never hardcode a color or `dp`; do not approximate.
 - **Test every interactive element** — never claim something "works" without full validation.
 - **No half-assed work** — seed ALL data, test EVERY button, run parallel where possible.
+- **Track split** — backend (`server/`) = `Stoney_Eagle` + Claude; frontend (`app/`) = `aaoa-dev` (designer). Commits never cross the boundary; cross-track needs go through `handoff/`. See *Team & Track Ownership*.
+- **CI green before sign-off** — run the full test suite before EVERY commit; after EVERY push, `gh run watch <run-id> --exit-status` and fix failures immediately. See *CI Gate*.
+- **Check your handoff inbox at session start** — `handoff/for-backend.md` (backend track) / `handoff/for-frontend.md` (frontend track). Open items are picked up automatically, no prompt needed.
 
 ---
 
@@ -73,6 +76,50 @@ Work structured and organized — small, complete vertical slices, not scattered
 
 ---
 
+## Team & Track Ownership — Backend vs Frontend
+
+Two people, one repo, two strictly separated tracks. Detect the active track from `git config user.name`.
+
+| Track | Person | Owns (commit surface) | Never touches |
+|-------|--------|-----------------------|---------------|
+| **Backend** | `Stoney_Eagle` | `server/`, root infra (`docker-compose.yml`, `deploy.*`, `.env.example`, `.github/`), `CLAUDE.md`, `.claude/` | `app/` |
+| **Frontend** | `aaoa-dev` (designer) | `app/` | `server/`, root infra, `CLAUDE.md`, anything security-sensitive |
+
+- **Commits never cross the boundary.** A backend commit contains no `app/` files; a frontend commit contains no `server/` or root-infra files. If the working tree mixes both, stage and commit only your track's files — leave the rest untouched.
+- **Never rewrite the other track's history.** No rebase, amend, force-push, or revert of anything the other track has pushed. Rebasing your **own unpushed** commits onto `origin/master` is fine (`git pull --rebase`); everything already on the remote stays as-is. A conflict inside the other track's files → stop and coordinate via a handoff entry, don't resolve it yourself.
+- **`aaoa-dev` does not do backend or security — Claude carries that for him.** On the frontend track: never edit server code, secrets, tokens, OAuth, CORS, JWT, or auth logic. If a task seems to need it, write a handoff entry for the backend track instead, and explain the backend/security reasoning to him in plain, non-jargon language so he learns why.
+- **The API contract is the only bridge.** The frontend consumes the backend exclusively through the typed shared KMP client and the committed `server/openapi/v1.json` snapshot. Contract changes originate on the backend track; the frontend syncs Kotlin DTOs from the snapshot (`ApiContractTest` guards drift).
+
+### Handoff TODOs — cross-track work orders
+
+Two committed files (so they travel through git between machines):
+
+- `handoff/for-backend.md` — frontend leaves work for the backend track here
+- `handoff/for-frontend.md` — backend leaves work for the frontend track here
+
+Rules:
+
+1. **At session start and before starting new work, read YOUR inbox.** Open items there are picked up automatically — the user does not need to mention them.
+2. **Leaving work:** append an entry to the OTHER track's file using the template inside it (date, from, what, why, where, done-when). Commit it together with the work that produced it.
+3. **Completing work:** move the entry to the file's **Done** section with the commit hash(es), committed alongside the fix.
+4. **Entries must be self-contained** — the reader has no access to your conversation. Name the files, endpoints, and acceptance criteria explicitly.
+
+---
+
+## CI Gate — a push is not done until CI is green
+
+1. **Before EVERY commit: run the tests.** Backend: `dotnet test` + `dotnet csharpier check .` from `server/`. Frontend: the Gradle test tasks incl. `jvmTest` (`ApiContractTest`). Never commit on red.
+2. **After EVERY push: watch the run and block on it.**
+   ```bash
+   gh run list --limit 1                 # grab the run id for the pushed commit
+   gh run watch <run-id> --exit-status   # block until it finishes
+   ```
+   Watching is part of the push — never end a turn with "CI will probably pass" or "I'll check later".
+3. **CI red → fix it now.** Diagnose, fix, commit, push, watch again — before signing off or starting anything else. `master` never stays red.
+4. **Known flake:** the Application test suite fails intermittently (~5%). A lone red that doesn't reproduce locally → re-run the job once before digging.
+
+---
+
 ## Repository Layout
 
 ```
@@ -94,6 +141,7 @@ nomnomzbot/
 │   │                        #   structure to be specified in the frontend spec phase.
 │                            # Public surfaces (OBS overlays, song-request) = compiled widgets served by the
 │                            # bot + CDN-cached for SaaS (widgets-overlays); there is no static web/ folder.
+├── handoff/                 # Cross-track work orders — for-backend.md / for-frontend.md
 ├── docker-compose.yml       # Root compose — references ./server
 ├── deploy.sh
 ├── deploy.ps1
@@ -549,3 +597,5 @@ After completion, lands on the dashboard home. Wizard navigation/route specifics
 - Remotes: `origin` = `NoMercyLabs/nomnomzbot` (canonical, push here); `fork` = personal `StoneyEagle/nomnomzbot`
 - Feature branches: `feat/description` or `fix/description`
 - All code lives in this monorepo (`server/` backend, `app/` KMP + Compose frontend)
+- Backend and frontend are separate tracks — commits never mix `server/` and `app/` files, and neither track rewrites the other's history (see *Team & Track Ownership*)
+- Tests pass before every commit; every push is followed by `gh run watch <run-id> --exit-status` (see *CI Gate*)
