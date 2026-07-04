@@ -255,13 +255,14 @@ The frontend connects through the shared KMP SignalR client. Auth token passed a
 
 ### Running the Backend
 
+Commands are identical on every OS (run from the repo root):
+
 ```bash
-# Start infrastructure (first time and after docker restart)
-cd nomnomzbot
-docker-compose up -d postgres redis adminer
+# Optional — only for the full profile; plain `dotnet run` is self_host_lite on SQLite
+docker compose up -d postgres redis adminer
 
 # Run API locally (auto-migrates, auto-seeds on first start)
-cd src/NomNomzBot.Api
+cd server/src/NomNomzBot.Api
 dotnet run
 ```
 
@@ -280,7 +281,7 @@ Local dev URLs:
 ### Running Tests
 
 ```bash
-cd nomnomzbot
+cd server
 dotnet test                                    # all projects
 dotnet test tests/NomNomzBot.Domain.Tests      # one project
 ```
@@ -336,7 +337,7 @@ dotnet test tests/NomNomzBot.Domain.Tests      # one project
 
 ### Running the Frontend
 
-From `app/`:
+From `app/` (Windows: `.\gradlew.bat` instead of `./gradlew`):
 
 ```bash
 ./gradlew :composeApp:wasmJsBrowserDevelopmentRun --watch-fs -t   # web dev server (hot reload)
