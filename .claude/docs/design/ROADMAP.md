@@ -7,20 +7,8 @@ except where a dependency is named ([[no-fake-priority]]).
 
 ---
 
-## Audit band — verify + fix existing functionality (goal 2026-07-04)
-
-- **API documentation** — every endpoint fully described in the OpenAPI document (XML summaries, `ProducesResponseType`, problem-details responses); Scalar renders it usable.
-- **Event handling, internal** — every source handled the way its spec demands: Twitch (EventSub topic coverage incl. gaps), Spotify, Discord, OBS, and our own dashboard-originated events.
-- **Event forwarding to clients** — nothing missed from title change to going live to the last topic; events needing user data are hydrated with FULL user info (incl. pronouns) before fan-out.
-- **Onboarding seeding** — onboarding seeds the DB 100% with every piece of broadcaster information.
-- **Channel switching** — works end-to-end; per-channel `/effective/me` re-gating correct.
-- **Role-scoped usage** — moderators/VIPs/subscribers/viewers can use the bot exactly as far as their permissions and per-role features reach.
-- **Chat decoration** — REST and SignalR chat responses carry all fragments the broadcaster enabled; the broadcaster can change those options and it takes effect.
-
 ## Full-API-coverage rule (owner, 2026-07-04) — every method and event of every integrated API is implemented; missing = ADD, never remove
 
-- **Helix: last two broadcaster-usable endpoints** — audit (2026-07-04, vs live reference) found the 26 sub-clients cover every broadcaster area 100%; remaining: `GET /helix/clips/download` (verify existence in live reference first — recent addition) → `ITwitchClipsApi`, and `GET /helix/schedule/icalendar` → `ITwitchScheduleApi`.
-- **Helix: user-extensions management** — `GET /helix/users/extensions`, `GET+PUT /helix/users/extensions/active` (`user:read:broadcast`/`user:manage:broadcast`) — broadcaster extension-panel management, implement per the full-coverage rule.
 - **OWNER CONFIRM N/A: org-gated Helix/EventSub surfaces** — Extensions area (12 endpoints), Drops entitlements (2), Get Extension Transactions/Analytics, Get Game Analytics require being a Twitch extension/drops/game organization — a bot cannot exercise them. Twitch-deprecated Tags endpoints excluded outright (docs-verified). Confirm these stay N/A or order them built.
 - **Music provider interface widening (PREREQUISITE for the two items below)** — both providers still implement the legacy string-keyed `IMusicProvider`; build the spec's unified surface: `Guid` key + `MusicProviderCapabilities` flagset + `ResolveTrackAsync` + `IMusicProviderManageApi` (`music-sr.md` §3.5/§3.10).
 - **Spotify completeness (spec-promised, audit 2026-07-04)** — add: `PUT /me/player/volume` (`SetVolumeAsync`), `POST /me/player/previous`, `GET /me/player` full state (sequencer poll), `GET /tracks/{id}` (`ResolveTrackAsync`), and the §3.10 manage surface (`/me/tracks`, playlist create/update/items, `/me/following`, playlist followers). OWNER-CONFIRM-N/A bucket: queue read, recently-played, top-items, markets, albums/artists/audiobooks/episodes/shows/browse (verify which are Spotify-removed vs merely unused — provider header claims Feb-2026 removals the live reference still lists). Spotify has no webhooks — polling is the only pattern (confirmed).

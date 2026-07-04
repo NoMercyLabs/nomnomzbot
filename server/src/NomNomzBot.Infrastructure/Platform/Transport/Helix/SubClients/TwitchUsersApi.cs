@@ -197,6 +197,82 @@ public sealed class TwitchUsersApi(
         return await transport.SendAsync(request, ct);
     }
 
+    public async Task<Result<IReadOnlyList<TwitchInstalledExtension>>> GetInstalledExtensionsAsync(
+        Guid broadcasterId,
+        CancellationToken ct = default
+    )
+    {
+        // Twitch accepts either broadcast scope; only user:edit:broadcast surfaces inactive extensions.
+        Result scope = await RequireAnyScopeAsync(
+            broadcasterId,
+            [TwitchScopes.UserReadBroadcast, TwitchScopes.UserEditBroadcast],
+            ct
+        );
+        if (scope.IsFailure)
+            return scope.WithValue<IReadOnlyList<TwitchInstalledExtension>>(default!);
+
+        Result<string> user = await ResolveUserAsync(broadcasterId, ct);
+        if (user.IsFailure)
+            return user.WithValue<IReadOnlyList<TwitchInstalledExtension>>(default!);
+
+        // No query parameters — the user id in the access token identifies the broadcaster.
+        TwitchHelixRequest request = new(
+            HttpMethod.Get,
+            "users/extensions/list",
+            TwitchHelixAuth.User,
+            broadcasterId
+        );
+
+        return await transport.GetListAsync<TwitchInstalledExtension>(request, ct);
+    }
+
+    public async Task<Result<TwitchActiveExtensions>> GetActiveExtensionsAsync(
+        Guid broadcasterId,
+        CancellationToken ct = default
+    )
+    {
+        Result<string> user = await ResolveUserAsync(broadcasterId, ct);
+        if (user.IsFailure)
+            return user.WithValue<TwitchActiveExtensions>(default!);
+
+        // App token ⇒ user_id is required; it also needs no scope, so the read works for every tenant.
+        TwitchHelixRequest request = new(
+            HttpMethod.Get,
+            "users/extensions",
+            TwitchHelixAuth.App,
+            broadcasterId,
+            Query: [new("user_id", user.Value)]
+        );
+
+        return await transport.GetSingleAsync<TwitchActiveExtensions>(request, ct);
+    }
+
+    public async Task<Result<TwitchActiveExtensions>> UpdateActiveExtensionsAsync(
+        Guid broadcasterId,
+        UpdateUserExtensionsRequest request,
+        CancellationToken ct = default
+    )
+    {
+        Result scope = await RequireScopeAsync(broadcasterId, TwitchScopes.UserEditBroadcast, ct);
+        if (scope.IsFailure)
+            return scope.WithValue<TwitchActiveExtensions>(default!);
+
+        Result<string> user = await ResolveUserAsync(broadcasterId, ct);
+        if (user.IsFailure)
+            return user.WithValue<TwitchActiveExtensions>(default!);
+
+        TwitchHelixRequest helixRequest = new(
+            HttpMethod.Put,
+            "users/extensions",
+            TwitchHelixAuth.User,
+            broadcasterId,
+            Body: request,
+            Priority: TwitchCallPriority.UserInteractive
+        );
+
+        return await transport.SendWithResultAsync<TwitchActiveExtensions>(helixRequest, ct);
+    }
+
     /// <summary>Resolves the tenant Guid to its Twitch user id, or <c>not_found</c> when unknown locally.</summary>
     private async Task<Result<string>> ResolveUserAsync(Guid broadcasterId, CancellationToken ct)
     {
@@ -217,5 +293,24 @@ public sealed class TwitchUsersApi(
         return granted
             ? Result.Success()
             : Result.Failure($"Missing required scope '{scope}'.", TwitchErrorCodes.MissingScope);
+    }
+
+    /// <summary>Pre-checks that at least one of the acceptable user-token scopes is granted, short-circuiting with <c>missing_scope</c> when none is.</summary>
+    private async Task<Result> RequireAnyScopeAsync(
+        Guid broadcasterId,
+        IReadOnlyList<string> scopes,
+        CancellationToken ct
+    )
+    {
+        foreach (string scope in scopes)
+        {
+            if (await tokens.HasScopeAsync(broadcasterId, scope, ct))
+                return Result.Success();
+        }
+
+        return Result.Failure(
+            $"Missing required scope '{string.Join("' or '", scopes)}'.",
+            TwitchErrorCodes.MissingScope
+        );
     }
 }

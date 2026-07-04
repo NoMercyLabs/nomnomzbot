@@ -239,6 +239,122 @@ public class TwitchClipsApiTests
     }
 
     [Fact]
+    public async Task GetClipDownloadUrls_MissingBothClipScopes_ShortCircuits_WithoutCallingTransport()
+    {
+        CapturingHelixTransport transport = new();
+        TwitchClipsApi api = Build(transport); // neither editor:manage:clips nor channel:manage:clips
+
+        Result<IReadOnlyList<TwitchClipDownload>> result = await api.GetClipDownloadUrlsAsync(
+            Tenant,
+            TwitchId,
+            ["InexpensiveDistinctFoxChefFrank"]
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be(TwitchErrorCodes.MissingScope);
+        transport.CallCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task GetClipDownloadUrls_WithEditorScope_BuildsUserTokenGet_OneClipIdParamPerClip_MapsUrls()
+    {
+        CapturingHelixTransport transport = new()
+        {
+            ListResult =
+                (IReadOnlyList<TwitchClipDownload>)
+                    [
+                        new TwitchClipDownload(
+                            "InexpensiveDistinctFoxChefFrank",
+                            "https://production.assets.clips.twitchcdn.net/yFZG",
+                            null
+                        ),
+                        new TwitchClipDownload(
+                            "SpinelessCloudyLeopardMcaT",
+                            "https://production.assets.clips.twitchcdn.net/542j",
+                            "https://production.assets.clips.twitchcdn.net/542j-portrait"
+                        ),
+                    ],
+        };
+        TwitchClipsApi api = Build(transport, TwitchScopes.EditorManageClips);
+
+        Result<IReadOnlyList<TwitchClipDownload>> result = await api.GetClipDownloadUrlsAsync(
+            Tenant,
+            TwitchId,
+            ["InexpensiveDistinctFoxChefFrank", "SpinelessCloudyLeopardMcaT"]
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().HaveCount(2);
+        result.Value[0].ClipId.Should().Be("InexpensiveDistinctFoxChefFrank");
+        result
+            .Value[0]
+            .LandscapeDownloadUrl.Should()
+            .Be("https://production.assets.clips.twitchcdn.net/yFZG");
+        result.Value[0].PortraitDownloadUrl.Should().BeNull();
+        result
+            .Value[1]
+            .PortraitDownloadUrl.Should()
+            .Be("https://production.assets.clips.twitchcdn.net/542j-portrait");
+        transport.LastRequest!.Method.Should().Be(HttpMethod.Get);
+        transport.LastRequest.Path.Should().Be("clips/downloads");
+        transport.LastRequest.Auth.Should().Be(TwitchHelixAuth.User);
+        transport
+            .LastRequest.Query.Should()
+            .Contain(q => q.Key == "broadcaster_id" && q.Value == TwitchId);
+        transport
+            .LastRequest.Query.Should()
+            .Contain(q => q.Key == "editor_id" && q.Value == TwitchId);
+        transport
+            .LastRequest.Query.Should()
+            .Contain(q => q.Key == "clip_id" && q.Value == "InexpensiveDistinctFoxChefFrank");
+        transport
+            .LastRequest.Query.Should()
+            .Contain(q => q.Key == "clip_id" && q.Value == "SpinelessCloudyLeopardMcaT");
+        transport.LastRequest.Query!.Count(q => q.Key == "clip_id").Should().Be(2);
+    }
+
+    [Fact]
+    public async Task GetClipDownloadUrls_WithChannelManageScopeAlone_AlsoPasses()
+    {
+        // Twitch accepts channel:manage:clips as the broadcaster's alternative to editor:manage:clips.
+        CapturingHelixTransport transport = new()
+        {
+            ListResult = (IReadOnlyList<TwitchClipDownload>)[],
+        };
+        TwitchClipsApi api = Build(transport, TwitchScopes.ChannelManageClips);
+
+        Result<IReadOnlyList<TwitchClipDownload>> result = await api.GetClipDownloadUrlsAsync(
+            Tenant,
+            TwitchId,
+            ["InexpensiveDistinctFoxChefFrank"]
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        transport.CallCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task GetClipDownloadUrls_UnknownTenant_ReturnsNotFound_WithoutCallingTransport()
+    {
+        CapturingHelixTransport transport = new();
+        TwitchClipsApi api = new(
+            transport,
+            new StubIdentityResolver(Guid.NewGuid(), "other"),
+            new StubScopeTokenResolver(TwitchScopes.EditorManageClips)
+        );
+
+        Result<IReadOnlyList<TwitchClipDownload>> result = await api.GetClipDownloadUrlsAsync(
+            Tenant,
+            TwitchId,
+            ["InexpensiveDistinctFoxChefFrank"]
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be(TwitchErrorCodes.NotFound);
+        transport.CallCount.Should().Be(0);
+    }
+
+    [Fact]
     public async Task GetClipsByIds_BuildsAppTokenRequest_WithRepeatedIdParams()
     {
         CapturingHelixTransport transport = new()

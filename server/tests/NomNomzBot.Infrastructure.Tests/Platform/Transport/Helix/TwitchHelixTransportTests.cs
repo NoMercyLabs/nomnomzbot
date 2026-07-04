@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using System.Net;
+using System.Text.Json;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -187,6 +188,252 @@ public class TwitchHelixTransportTests
 
         RecordedRequest sent = wire.Requests.Should().ContainSingle().Subject;
         sent.ClientId.Should().Be("config-client-id");
+    }
+
+    [Fact]
+    public async Task GetRawAsync_ReturnsTextCalendarBodyVerbatim()
+    {
+        // The schedule iCalendar endpoint returns RFC 5545 text (Content-Type text/calendar), not the
+        // JSON envelope — the raw path must hand the body back byte-for-byte.
+        const string ical = """
+            BEGIN:VCALENDAR
+            PRODID:-//twitch.tv//StreamSchedule//1.0
+            VERSION:2.0
+            CALSCALE:GREGORIAN
+            NAME:TwitchDev
+            BEGIN:VEVENT
+            UID:e4acc724-371f-402c-81ca-23ada79759d4
+            SUMMARY:TwitchDev Monthly Update // July 1, 2021
+            END:VEVENT
+            END:VCALENDAR
+            """;
+        (TwitchHelixTransport transport, RecordingHelixHandler wire, _, _) = Build([
+            () => RecordingHelixHandler.Text(HttpStatusCode.OK, ical, "text/calendar"),
+        ]);
+
+        Result<string> result = await transport.GetRawAsync(
+            new TwitchHelixRequest(
+                HttpMethod.Get,
+                "schedule/icalendar",
+                TwitchHelixAuth.App,
+                Query: [new("broadcaster_id", "141981764")]
+            )
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().Be(ical);
+        RecordedRequest sent = wire.Requests.Should().ContainSingle().Subject;
+        sent.Method.Should().Be(HttpMethod.Get);
+        sent.Uri.AbsolutePath.Should().Be("/helix/schedule/icalendar");
+        sent.Uri.Query.Should().Be("?broadcaster_id=141981764");
+    }
+
+    [Fact]
+    public async Task GetRawAsync_NonSuccess_MapsToTypedError()
+    {
+        // 400 (e.g. a bad broadcaster_id on the iCalendar endpoint) maps into the closed error-code set
+        // exactly like the JSON sends do.
+        (TwitchHelixTransport transport, _, _, _) = Build([
+            () =>
+                RecordingHelixHandler.Json(
+                    HttpStatusCode.BadRequest,
+                    """{ "error": "Bad Request", "status": 400, "message": "The ID in the broadcaster_id query parameter is not valid." }"""
+                ),
+        ]);
+
+        Result<string> result = await transport.GetRawAsync(
+            new TwitchHelixRequest(HttpMethod.Get, "schedule/icalendar", TwitchHelixAuth.App)
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be(TwitchErrorCodes.TwitchError);
+    }
+
+    [Fact]
+    public async Task GetSingleAsync_DataAsObject_ParsesSingleNestedSchedule()
+    {
+        // Get Channel Stream Schedule sends data as a single nested OBJECT, not an array — the envelope's
+        // object-or-array converter must wrap it into the one element GetSingleAsync returns.
+        const string body = """
+            {
+              "data": {
+                "segments": [
+                  {
+                    "id": "eyJzZWdtZW50SUQiOiJlNGFjYzcyNCJ9",
+                    "start_time": "2021-07-01T18:00:00Z",
+                    "end_time": "2021-07-01T19:00:00Z",
+                    "title": "TwitchDev Monthly Update // July 1, 2021",
+                    "canceled_until": null,
+                    "category": { "id": "509670", "name": "Science & Technology" },
+                    "is_recurring": false
+                  }
+                ],
+                "broadcaster_id": "141981764",
+                "broadcaster_name": "TwitchDev",
+                "broadcaster_login": "twitchdev",
+                "vacation": null
+              },
+              "pagination": {}
+            }
+            """;
+        (TwitchHelixTransport transport, _, _, _) = Build([
+            () => RecordingHelixHandler.Json(HttpStatusCode.OK, body),
+        ]);
+
+        Result<TwitchSchedule> result = await transport.GetSingleAsync<TwitchSchedule>(
+            new TwitchHelixRequest(HttpMethod.Get, "schedule", TwitchHelixAuth.App)
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.BroadcasterId.Should().Be("141981764");
+        result.Value.BroadcasterLogin.Should().Be("twitchdev");
+        result.Value.Vacation.Should().BeNull();
+        TwitchScheduleSegment segment = result.Value.Segments.Should().ContainSingle().Subject;
+        segment.Title.Should().Be("TwitchDev Monthly Update // July 1, 2021");
+        segment.StartTime.Should().Be(new DateTimeOffset(2021, 7, 1, 18, 0, 0, TimeSpan.Zero));
+        segment.Category!.Name.Should().Be("Science & Technology");
+        segment.IsRecurring.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task GetSingleAsync_DataAsObject_ParsesActiveExtensionSlotMaps()
+    {
+        // Get User Active Extensions: data is an object of slot maps keyed "1", "2", … — numeric keys must
+        // pass through untouched, inactive slots carry only "active", and component slots add x/y.
+        const string body = """
+            {
+              "data": {
+                "panel": {
+                  "1": { "active": true, "id": "rh6jq1q334hqc2rr1qlzqbvwlfl3x0", "version": "1.1.0", "name": "TopClip" },
+                  "2": { "active": false }
+                },
+                "overlay": {
+                  "1": { "active": true, "id": "zfh2irvx2jb4s60f02jq0ajm8vwgka", "version": "1.0.19", "name": "Streamlabs" }
+                },
+                "component": {
+                  "1": { "active": true, "id": "lqnf3zxk0rv0g7gq92mtmnirjz2cjj", "version": "0.0.1", "name": "Dev Experience Test", "x": 0, "y": 0 },
+                  "2": { "active": false }
+                }
+              }
+            }
+            """;
+        (TwitchHelixTransport transport, _, _, _) = Build([
+            () => RecordingHelixHandler.Json(HttpStatusCode.OK, body),
+        ]);
+
+        Result<TwitchActiveExtensions> result =
+            await transport.GetSingleAsync<TwitchActiveExtensions>(
+                new TwitchHelixRequest(
+                    HttpMethod.Get,
+                    "users/extensions",
+                    TwitchHelixAuth.App,
+                    Query: [new("user_id", "141981764")]
+                )
+            );
+
+        result.IsSuccess.Should().BeTrue();
+        TwitchActiveExtensions active = result.Value;
+        active.Panel.Should().HaveCount(2);
+        active.Panel["1"].Active.Should().BeTrue();
+        active.Panel["1"].Id.Should().Be("rh6jq1q334hqc2rr1qlzqbvwlfl3x0");
+        active.Panel["1"].Version.Should().Be("1.1.0");
+        active.Panel["1"].Name.Should().Be("TopClip");
+        active.Panel["2"].Active.Should().BeFalse();
+        active.Panel["2"].Id.Should().BeNull();
+        active.Overlay["1"].Name.Should().Be("Streamlabs");
+        active.Component["1"].X.Should().Be(0);
+        active.Component["1"].Y.Should().Be(0);
+        active.Component["2"].Active.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task SendWithResultAsync_SerializesDataWrappedExtensionBody_SnakeCase_OmittingNulls()
+    {
+        // Update User Extensions wraps the slot maps in a top-level "data" object; the wire body must be
+        // snake_case, keep the numeric slot keys verbatim, and omit every unset field/map.
+        (TwitchHelixTransport transport, RecordingHelixHandler wire, _, _) = Build([
+            () =>
+                RecordingHelixHandler.Json(
+                    HttpStatusCode.OK,
+                    """
+                    {
+                      "data": {
+                        "panel": { "1": { "active": true, "id": "rh6jq1q334hqc2rr1qlzqbvwlfl3x0", "version": "1.1.0", "name": "TopClip" } },
+                        "overlay": {},
+                        "component": { "1": { "active": true, "id": "lqnf3zxk0rv0g7gq92mtmnirjz2cjj", "version": "0.0.1", "name": "Dev Experience Test", "x": 0, "y": 0 } }
+                      }
+                    }
+                    """
+                ),
+        ]);
+        UpdateUserExtensionsRequest request = new(
+            new UpdateUserExtensionsData(
+                Panel: new Dictionary<string, TwitchExtensionSlotUpdate>
+                {
+                    ["1"] = new(true, "rh6jq1q334hqc2rr1qlzqbvwlfl3x0", "1.1.0"),
+                    ["2"] = new(false),
+                },
+                Component: new Dictionary<string, TwitchExtensionSlotUpdate>
+                {
+                    ["1"] = new(true, "lqnf3zxk0rv0g7gq92mtmnirjz2cjj", "0.0.1", X: 0, Y: 0),
+                }
+            )
+        );
+
+        Result<TwitchActiveExtensions> result =
+            await transport.SendWithResultAsync<TwitchActiveExtensions>(
+                new TwitchHelixRequest(
+                    HttpMethod.Put,
+                    "users/extensions",
+                    TwitchHelixAuth.User,
+                    Tenant,
+                    Body: request
+                )
+            );
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Panel["1"].Name.Should().Be("TopClip");
+        result.Value.Component["1"].X.Should().Be(0);
+
+        RecordedRequest sent = wire.Requests.Should().ContainSingle().Subject;
+        sent.Body.Should().NotBeNull();
+        using JsonDocument doc = JsonDocument.Parse(sent.Body!);
+        JsonElement data = doc.RootElement.GetProperty("data");
+        data.GetProperty("panel")
+            .GetProperty("1")
+            .GetProperty("active")
+            .GetBoolean()
+            .Should()
+            .BeTrue();
+        data.GetProperty("panel")
+            .GetProperty("1")
+            .GetProperty("id")
+            .GetString()
+            .Should()
+            .Be("rh6jq1q334hqc2rr1qlzqbvwlfl3x0");
+        data.GetProperty("panel")
+            .GetProperty("1")
+            .GetProperty("version")
+            .GetString()
+            .Should()
+            .Be("1.1.0");
+        // A deactivation slot carries only "active": false — no id/version keys.
+        data.GetProperty("panel")
+            .GetProperty("2")
+            .GetProperty("active")
+            .GetBoolean()
+            .Should()
+            .BeFalse();
+        data.GetProperty("panel")
+            .GetProperty("2")
+            .TryGetProperty("id", out JsonElement _)
+            .Should()
+            .BeFalse();
+        // Component slots serialize their placement coordinate.
+        data.GetProperty("component").GetProperty("1").GetProperty("x").GetInt32().Should().Be(0);
+        data.GetProperty("component").GetProperty("1").GetProperty("y").GetInt32().Should().Be(0);
+        // The unset overlay map is omitted entirely (WhenWritingNull).
+        data.TryGetProperty("overlay", out JsonElement _).Should().BeFalse();
     }
 
     [Fact]

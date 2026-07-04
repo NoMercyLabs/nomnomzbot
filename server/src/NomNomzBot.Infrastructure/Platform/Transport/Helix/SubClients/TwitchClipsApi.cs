@@ -144,6 +144,45 @@ public sealed class TwitchClipsApi(
         return await transport.GetListAsync<TwitchClip>(request, ct);
     }
 
+    public async Task<Result<IReadOnlyList<TwitchClipDownload>>> GetClipDownloadUrlsAsync(
+        Guid broadcasterId,
+        string editorId,
+        IReadOnlyList<string> clipIds,
+        CancellationToken ct = default
+    )
+    {
+        // Twitch accepts either the editor scope or the broadcaster's own channel:manage:clips here.
+        Result scope = await RequireAnyScopeAsync(
+            broadcasterId,
+            [TwitchScopes.EditorManageClips, TwitchScopes.ChannelManageClips],
+            ct
+        );
+        if (scope.IsFailure)
+            return scope.WithValue<IReadOnlyList<TwitchClipDownload>>(default!);
+
+        Result<string> channel = await ResolveAsync(broadcasterId, ct);
+        if (channel.IsFailure)
+            return channel.WithValue<IReadOnlyList<TwitchClipDownload>>(default!);
+
+        List<KeyValuePair<string, string>> query =
+        [
+            new("broadcaster_id", channel.Value),
+            new("editor_id", editorId),
+        ];
+        foreach (string clipId in clipIds)
+            query.Add(new("clip_id", clipId));
+
+        TwitchHelixRequest request = new(
+            HttpMethod.Get,
+            "clips/downloads",
+            TwitchHelixAuth.User,
+            broadcasterId,
+            Query: query
+        );
+
+        return await transport.GetListAsync<TwitchClipDownload>(request, ct);
+    }
+
     /// <summary>Resolves the tenant Guid to its Twitch channel id, or <c>not_found</c> when unknown locally.</summary>
     private async Task<Result<string>> ResolveAsync(Guid broadcasterId, CancellationToken ct)
     {
@@ -164,5 +203,24 @@ public sealed class TwitchClipsApi(
         return granted
             ? Result.Success()
             : Result.Failure($"Missing required scope '{scope}'.", TwitchErrorCodes.MissingScope);
+    }
+
+    /// <summary>Pre-checks that at least one of the acceptable user-token scopes is granted, short-circuiting with <c>missing_scope</c> when none is.</summary>
+    private async Task<Result> RequireAnyScopeAsync(
+        Guid broadcasterId,
+        IReadOnlyList<string> scopes,
+        CancellationToken ct
+    )
+    {
+        foreach (string scope in scopes)
+        {
+            if (await tokens.HasScopeAsync(broadcasterId, scope, ct))
+                return Result.Success();
+        }
+
+        return Result.Failure(
+            $"Missing required scope '{string.Join("' or '", scopes)}'.",
+            TwitchErrorCodes.MissingScope
+        );
     }
 }

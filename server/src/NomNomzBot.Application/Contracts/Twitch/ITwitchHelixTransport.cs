@@ -61,6 +61,13 @@ public interface ITwitchHelixTransport
     Task<Result<int>> GetTotalAsync(TwitchHelixRequest request, CancellationToken ct = default);
 
     /// <summary>
+    /// Sends a request whose success body is raw non-JSON text (e.g. the schedule iCalendar's
+    /// <c>text/calendar</c>) and returns it verbatim — no <c>data[]</c> envelope parsing. Non-2xx maps to
+    /// the same typed errors as every other send.
+    /// </summary>
+    Task<Result<string>> GetRawAsync(TwitchHelixRequest request, CancellationToken ct = default);
+
+    /// <summary>
     /// Sends a mutating request whose success is signalled only by the status code (e.g. ban / unban /
     /// add-moderator / delete-message). 2xx ⇒ success; otherwise the typed error.
     /// </summary>

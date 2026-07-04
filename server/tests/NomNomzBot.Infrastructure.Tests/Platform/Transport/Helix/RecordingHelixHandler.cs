@@ -28,11 +28,15 @@ public sealed class RecordingHelixHandler(IEnumerable<Func<HttpResponseMessage>>
 
     public int CallCount => Requests.Count;
 
-    protected override Task<HttpResponseMessage> SendAsync(
+    protected override async Task<HttpResponseMessage> SendAsync(
         HttpRequestMessage request,
         CancellationToken cancellationToken
     )
     {
+        string? body = request.Content is null
+            ? null
+            : await request.Content.ReadAsStringAsync(cancellationToken);
+
         Requests.Add(
             new RecordedRequest(
                 request.Method,
@@ -40,7 +44,8 @@ public sealed class RecordingHelixHandler(IEnumerable<Func<HttpResponseMessage>>
                 request.Headers.Authorization?.Parameter,
                 request.Headers.TryGetValues("Client-Id", out IEnumerable<string>? clientIds)
                     ? clientIds.FirstOrDefault()
-                    : null
+                    : null,
+                body
             )
         );
 
@@ -49,7 +54,7 @@ public sealed class RecordingHelixHandler(IEnumerable<Func<HttpResponseMessage>>
                 ? _responses.Dequeue()
                 : () => new HttpResponseMessage(HttpStatusCode.OK);
 
-        return Task.FromResult(next());
+        return next();
     }
 
     public static HttpResponseMessage Json(HttpStatusCode status, string body)
@@ -57,6 +62,14 @@ public sealed class RecordingHelixHandler(IEnumerable<Func<HttpResponseMessage>>
         return new HttpResponseMessage(status)
         {
             Content = new StringContent(body, Encoding.UTF8, "application/json"),
+        };
+    }
+
+    public static HttpResponseMessage Text(HttpStatusCode status, string body, string mediaType)
+    {
+        return new HttpResponseMessage(status)
+        {
+            Content = new StringContent(body, Encoding.UTF8, mediaType),
         };
     }
 
@@ -74,10 +87,11 @@ public sealed class RecordingHelixHandler(IEnumerable<Func<HttpResponseMessage>>
     }
 }
 
-/// <summary>One captured outbound request: verb, URL, and the Authorization / Client-Id headers it carried.</summary>
+/// <summary>One captured outbound request: verb, URL, the Authorization / Client-Id headers it carried, and the serialized body (null when bodyless).</summary>
 public sealed record RecordedRequest(
     HttpMethod Method,
     Uri Uri,
     string? AuthorizationParameter,
-    string? ClientId
+    string? ClientId,
+    string? Body = null
 );

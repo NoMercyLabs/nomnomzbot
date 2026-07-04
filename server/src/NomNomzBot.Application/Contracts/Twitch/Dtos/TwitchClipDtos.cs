@@ -10,10 +10,10 @@
 
 namespace NomNomzBot.Application.Contracts.Twitch;
 
-// Helix "Clips" category wire models (POST /clips, GET /clips, POST /videos/clips). These records
-// deserialize straight from Twitch's snake_case JSON via the transport's naming policy — no per-property
-// annotations. Twitch ids stay strings (they are other users' / channels' / clips' ids); the owning tenant
-// is always passed in as a Guid method argument, never here.
+// Helix "Clips" category wire models (POST /clips, GET /clips, POST /videos/clips, GET /clips/downloads).
+// These records deserialize straight from Twitch's snake_case JSON via the transport's naming policy — no
+// per-property annotations. Twitch ids stay strings (they are other users' / channels' / clips' ids); the
+// owning tenant is always passed in as a Guid method argument, never here.
 
 /// <summary>
 /// The stub returned by a clip-create call (Create Clip, Create Clip From VOD): the new clip's id and the
@@ -33,6 +33,16 @@ public sealed record CreateClipFromVodRequest(
     int VodOffset,
     string Title,
     double? Duration = null
+);
+
+/// <summary>
+/// One clip's temporary download URLs (Get Clips Download). Twitch flags the links as short-lived; either
+/// orientation URL is null when no video file exists for it.
+/// </summary>
+public sealed record TwitchClipDownload(
+    string ClipId,
+    string? LandscapeDownloadUrl,
+    string? PortraitDownloadUrl
 );
 
 /// <summary>One video clip captured from a stream (Get Clips), with its metadata and view stats.</summary>

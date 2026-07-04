@@ -107,6 +107,50 @@ public class TwitchScheduleApiTests
     }
 
     [Fact]
+    public async Task GetICalendar_ResolvesTenant_BuildsAppTokenRawGet_ReturnsICalTextVerbatim()
+    {
+        const string ical = """
+            BEGIN:VCALENDAR
+            PRODID:-//twitch.tv//StreamSchedule//1.0
+            VERSION:2.0
+            BEGIN:VEVENT
+            SUMMARY:TwitchDev Monthly Update // July 1, 2021
+            END:VEVENT
+            END:VCALENDAR
+            """;
+        CapturingHelixTransport transport = new() { RawResult = ical };
+        TwitchScheduleApi api = Build(transport); // no scope required
+
+        Result<string> result = await api.GetICalendarAsync(Tenant);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().Be(ical);
+        transport.LastRequest!.Method.Should().Be(HttpMethod.Get);
+        transport.LastRequest.Path.Should().Be("schedule/icalendar");
+        transport.LastRequest.Auth.Should().Be(TwitchHelixAuth.App);
+        transport
+            .LastRequest.Query.Should()
+            .ContainSingle(q => q.Key == "broadcaster_id" && q.Value == TwitchId);
+    }
+
+    [Fact]
+    public async Task GetICalendar_UnknownTenant_ReturnsNotFound_WithoutCallingTransport()
+    {
+        CapturingHelixTransport transport = new();
+        TwitchScheduleApi api = new(
+            transport,
+            new StubIdentityResolver(Guid.NewGuid(), "other"),
+            new StubScopeTokenResolver()
+        );
+
+        Result<string> result = await api.GetICalendarAsync(Tenant);
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be(TwitchErrorCodes.NotFound);
+        transport.CallCount.Should().Be(0);
+    }
+
+    [Fact]
     public async Task UpdateScheduleSettings_MissingScope_ShortCircuits_WithoutCallingTransport()
     {
         CapturingHelixTransport transport = new();

@@ -58,6 +58,26 @@ public sealed class TwitchScheduleApi(
         return await transport.GetSingleAsync<TwitchSchedule>(request, ct);
     }
 
+    public async Task<Result<string>> GetICalendarAsync(
+        Guid broadcasterId,
+        CancellationToken ct = default
+    )
+    {
+        Result<string> channel = await ResolveAsync(broadcasterId, ct);
+        if (channel.IsFailure)
+            return channel;
+
+        TwitchHelixRequest request = new(
+            HttpMethod.Get,
+            "schedule/icalendar",
+            TwitchHelixAuth.App,
+            broadcasterId,
+            Query: [new("broadcaster_id", channel.Value)]
+        );
+
+        return await transport.GetRawAsync(request, ct);
+    }
+
     public async Task<Result> UpdateScheduleSettingsAsync(
         Guid broadcasterId,
         bool? isVacationEnabled,

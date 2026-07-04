@@ -32,6 +32,13 @@ public interface ITwitchScheduleApi
     );
 
     /// <summary>
+    /// Get Channel iCalendar — the broadcaster's schedule as raw iCalendar text (RFC 5545, served as
+    /// <c>text/calendar</c>), returned verbatim. Twitch requires no Client-Id/Authorization here; the call
+    /// rides the app-token pipeline for uniform rate limiting. No scope.
+    /// </summary>
+    Task<Result<string>> GetICalendarAsync(Guid broadcasterId, CancellationToken ct = default);
+
+    /// <summary>
     /// Update Channel Stream Schedule — the schedule settings (toggle / schedule a vacation). Status-only.
     /// Requires <c>channel:manage:schedule</c>.
     /// </summary>

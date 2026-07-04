@@ -13,8 +13,8 @@ using NomNomzBot.Application.Common.Models;
 namespace NomNomzBot.Application.Contracts.Twitch;
 
 /// <summary>
-/// The Helix "Users" category sub-client: user lookups, the tenant's own profile description, and the
-/// block list (twitch-helix.md §3.2). One of the grouped sub-clients exposed by <see cref="ITwitchHelixClient"/>.
+/// The Helix "Users" category sub-client: user lookups, the tenant's own profile description, the
+/// block list, and user-extension management (twitch-helix.md §3.2). One of the grouped sub-clients exposed by <see cref="ITwitchHelixClient"/>.
 /// Every method takes the owning tenant as a <see cref="Guid"/> and resolves it to the Twitch id internally
 /// (the invariant: a Guid never reaches Twitch); other users are passed as raw Twitch id strings. Each
 /// returns <see cref="Result"/>/<see cref="Result{T}"/> carrying a closed <see cref="TwitchErrorCodes"/> on failure.
@@ -64,6 +64,36 @@ public interface ITwitchUsersApi
     Task<Result> UnblockUserAsync(
         Guid broadcasterId,
         string targetTwitchUserId,
+        CancellationToken ct = default
+    );
+
+    /// <summary>
+    /// Get User Extensions — every extension (active and inactive) the tenant has installed. The user
+    /// token identifies the broadcaster (no query parameters). Requires <c>user:read:broadcast</c> or
+    /// <c>user:edit:broadcast</c>; Twitch only includes inactive extensions with <c>user:edit:broadcast</c>.
+    /// </summary>
+    Task<Result<IReadOnlyList<TwitchInstalledExtension>>> GetInstalledExtensionsAsync(
+        Guid broadcasterId,
+        CancellationToken ct = default
+    );
+
+    /// <summary>
+    /// Get User Active Extensions — the tenant's activated extensions per slot type (panel / overlay /
+    /// component maps keyed by slot number). App token with an explicit <c>user_id</c>; no scope.
+    /// </summary>
+    Task<Result<TwitchActiveExtensions>> GetActiveExtensionsAsync(
+        Guid broadcasterId,
+        CancellationToken ct = default
+    );
+
+    /// <summary>
+    /// Update User Extensions — activates, deactivates or moves the tenant's extensions via the
+    /// <c>data</c>-wrapped slot maps, returning the post-update active-extension state.
+    /// Requires <c>user:edit:broadcast</c>.
+    /// </summary>
+    Task<Result<TwitchActiveExtensions>> UpdateActiveExtensionsAsync(
+        Guid broadcasterId,
+        UpdateUserExtensionsRequest request,
         CancellationToken ct = default
     );
 }

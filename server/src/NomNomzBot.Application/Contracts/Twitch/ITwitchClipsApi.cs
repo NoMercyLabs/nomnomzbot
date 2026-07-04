@@ -58,4 +58,17 @@ public interface ITwitchClipsApi
         IReadOnlyList<string> clipIds,
         CancellationToken ct = default
     );
+
+    /// <summary>
+    /// Get Clips Download — temporary download URLs for the broadcaster's clips (up to 10, one repeated
+    /// <c>clip_id</c> query param each). <paramref name="editorId"/> is the Twitch user id of the
+    /// broadcaster or editor downloading (must match the user token). Requires <c>editor:manage:clips</c>
+    /// (the broadcaster may alternatively hold <c>channel:manage:clips</c>).
+    /// </summary>
+    Task<Result<IReadOnlyList<TwitchClipDownload>>> GetClipDownloadUrlsAsync(
+        Guid broadcasterId,
+        string editorId,
+        IReadOnlyList<string> clipIds,
+        CancellationToken ct = default
+    );
 }

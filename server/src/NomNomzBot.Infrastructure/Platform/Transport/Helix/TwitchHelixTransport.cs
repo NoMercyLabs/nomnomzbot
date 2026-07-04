@@ -116,6 +116,26 @@ public sealed class TwitchHelixTransport(
         return result.IsFailure ? result.WithValue(0) : Result.Success(result.Value.Total ?? 0);
     }
 
+    public async Task<Result<string>> GetRawAsync(
+        TwitchHelixRequest request,
+        CancellationToken ct = default
+    )
+    {
+        Result<HttpResponseMessage> sent = await SendCoreAsync(request, ct);
+        if (sent.IsFailure)
+            return sent.WithValue<string>(default!);
+
+        using HttpResponseMessage response = sent.Value;
+        if (!response.IsSuccessStatusCode)
+        {
+            Result error = await MapErrorAsync(request, response, ct);
+            return error.WithValue<string>(default!);
+        }
+
+        string body = await response.Content.ReadAsStringAsync(ct);
+        return Result.Success(body);
+    }
+
     public async Task<Result> SendAsync(TwitchHelixRequest request, CancellationToken ct = default)
     {
         Result<HttpResponseMessage> sent = await SendCoreAsync(request, ct);

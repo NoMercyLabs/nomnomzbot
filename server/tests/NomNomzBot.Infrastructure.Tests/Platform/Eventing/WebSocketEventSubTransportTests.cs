@@ -458,6 +458,11 @@ public sealed class WebSocketEventSubTransportTests
             CancellationToken ct = default
         ) => Task.FromResult(Result.Success(0));
 
+        public Task<Result<string>> GetRawAsync(
+            TwitchHelixRequest request,
+            CancellationToken ct = default
+        ) => Task.FromResult(Result.Success(""));
+
         public Task<Result> SendAsync(TwitchHelixRequest request, CancellationToken ct = default) =>
             Task.FromResult(Result.Success());
 

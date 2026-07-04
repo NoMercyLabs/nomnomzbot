@@ -14,13 +14,16 @@ namespace NomNomzBot.Infrastructure.Platform.Transport.Helix;
 
 /// <summary>
 /// The generic Helix response envelope (twitch-helix.md §4.2). Every Helix read wraps its rows in a
-/// <c>data[]</c> array, paged endpoints add a <c>pagination.cursor</c>, and count endpoints add a top-level
-/// <c>total</c>. The transport deserialises into this once (System.Text.Json, snake_case wire) and exposes
-/// items + cursor + total generically, so per-endpoint methods only supply the row type <typeparamref name="T"/>.
+/// <c>data[]</c> array — except a handful of endpoints (schedule, user active extensions) where <c>data</c>
+/// is a single nested object, which <see cref="HelixDataConverter"/> wraps into a one-element list. Paged
+/// endpoints add a <c>pagination.cursor</c>, and count endpoints add a top-level <c>total</c>. The transport
+/// deserialises into this once (System.Text.Json, snake_case wire) and exposes items + cursor + total
+/// generically, so per-endpoint methods only supply the row type <typeparamref name="T"/>.
 /// </summary>
 internal sealed class HelixEnvelope<T>
 {
     [JsonPropertyName("data")]
+    [JsonConverter(typeof(HelixDataConverter))]
     public List<T>? Data { get; init; }
 
     [JsonPropertyName("pagination")]

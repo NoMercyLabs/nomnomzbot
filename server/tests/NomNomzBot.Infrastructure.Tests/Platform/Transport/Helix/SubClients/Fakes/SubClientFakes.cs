@@ -28,6 +28,7 @@ public sealed class CapturingHelixTransport : ITwitchHelixTransport
     public object? ListResult { get; set; }
     public object? PageResult { get; set; }
     public int TotalResult { get; set; }
+    public string RawResult { get; set; } = "";
     public Result SendResult { get; set; } = Result.Success();
 
     public Task<Result<T>> GetSingleAsync<T>(
@@ -64,6 +65,15 @@ public sealed class CapturingHelixTransport : ITwitchHelixTransport
     {
         Capture(request);
         return Task.FromResult(Result.Success(TotalResult));
+    }
+
+    public Task<Result<string>> GetRawAsync(
+        TwitchHelixRequest request,
+        CancellationToken ct = default
+    )
+    {
+        Capture(request);
+        return Task.FromResult(Result.Success(RawResult));
     }
 
     public Task<Result> SendAsync(TwitchHelixRequest request, CancellationToken ct = default)
