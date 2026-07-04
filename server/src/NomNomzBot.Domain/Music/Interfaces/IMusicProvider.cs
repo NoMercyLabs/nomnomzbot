@@ -49,4 +49,9 @@ public class TrackInfo
     public string? AlbumArtUrl { get; init; }
     public int DurationMs { get; init; }
     public required string Provider { get; init; }
+
+    // Only meaningful on a GetCurrentTrackAsync result (the provider's "currently playing" read) — a
+    // SearchAsync hit is not "playing" anything, so it is left at the default (false / 0) there.
+    public bool IsPlaying { get; init; }
+    public int ProgressMs { get; init; }
 }

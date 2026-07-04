@@ -133,7 +133,7 @@ public sealed class SpotifyMusicProvider : IMusicProvider, IMusicRemoteProvider
         if (json?.Item is null)
             return null;
 
-        return MapToTrackInfo(json.Item);
+        return MapToTrackInfo(json.Item, json.IsPlaying, json.ProgressMs);
     }
 
     public async Task<IReadOnlyList<TrackInfo>> SearchAsync(
@@ -168,7 +168,7 @@ public sealed class SpotifyMusicProvider : IMusicProvider, IMusicRemoteProvider
         if (json?.Tracks?.Items is null)
             return [];
 
-        return json.Tracks.Items.Where(t => t is not null).Select(MapToTrackInfo).ToList();
+        return json.Tracks.Items.Where(t => t is not null).Select(t => MapToTrackInfo(t)).ToList();
     }
 
     public async Task<bool> AddToQueueAsync(
@@ -593,7 +593,13 @@ public sealed class SpotifyMusicProvider : IMusicProvider, IMusicRemoteProvider
 
     // ─── Mapping ─────────────────────────────────────────────────────────────
 
-    private static TrackInfo MapToTrackInfo(SpotifyTrack track) =>
+    // isPlaying/progressMs are only known for a "currently playing" read (GetCurrentTrackAsync); a
+    // SearchAsync hit passes neither, leaving TrackInfo.IsPlaying/ProgressMs at their false/0 defaults.
+    private static TrackInfo MapToTrackInfo(
+        SpotifyTrack track,
+        bool isPlaying = false,
+        int progressMs = 0
+    ) =>
         new()
         {
             TrackName = track.Name,
@@ -603,6 +609,8 @@ public sealed class SpotifyMusicProvider : IMusicProvider, IMusicRemoteProvider
             AlbumArtUrl = track.Album?.Images?.FirstOrDefault()?.Url,
             DurationMs = track.DurationMs,
             Provider = ProviderName,
+            IsPlaying = isPlaying,
+            ProgressMs = progressMs,
         };
 
     // ─── Spotify API response models ─────────────────────────────────────────

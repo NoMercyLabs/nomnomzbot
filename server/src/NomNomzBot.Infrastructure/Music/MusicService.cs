@@ -12,7 +12,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Music.Services;
+using NomNomzBot.Domain.Music.Events;
 using NomNomzBot.Domain.Music.Interfaces;
+using NomNomzBot.Domain.Platform.Interfaces;
 
 namespace NomNomzBot.Infrastructure.Music;
 
@@ -24,6 +26,7 @@ public sealed class MusicService : IMusicService
 {
     private readonly IEnumerable<IMusicProvider> _providers;
     private readonly IApplicationDbContext _db;
+    private readonly IEventBus _eventBus;
     private readonly ILogger<MusicService> _logger;
 
     // Per-channel song request queues (channelId → fair queue)
@@ -33,11 +36,13 @@ public sealed class MusicService : IMusicService
     public MusicService(
         IEnumerable<IMusicProvider> providers,
         IApplicationDbContext db,
+        IEventBus eventBus,
         ILogger<MusicService> logger
     )
     {
         _providers = providers;
         _db = db;
+        _eventBus = eventBus;
         _logger = logger;
     }
 
@@ -82,6 +87,7 @@ public sealed class MusicService : IMusicService
             return false;
 
         await provider.PlayAsync(broadcasterId, cancellationToken);
+        await PublishPlaybackStateChangedAsync(broadcasterId, provider, cancellationToken);
         return true;
     }
 
@@ -95,6 +101,7 @@ public sealed class MusicService : IMusicService
             return false;
 
         await provider.PauseAsync(broadcasterId, cancellationToken);
+        await PublishPlaybackStateChangedAsync(broadcasterId, provider, cancellationToken);
         return true;
     }
 
@@ -115,6 +122,7 @@ public sealed class MusicService : IMusicService
         }
 
         await provider.SkipAsync(broadcasterId, cancellationToken);
+        await PublishPlaybackStateChangedAsync(broadcasterId, provider, cancellationToken);
         return true;
     }
 
@@ -256,8 +264,8 @@ public sealed class MusicService : IMusicService
             track.Album,
             track.AlbumArtUrl,
             track.DurationMs,
-            0,
-            true,
+            track.ProgressMs,
+            track.IsPlaying,
             100,
             null,
             track.Provider
@@ -465,7 +473,42 @@ public sealed class MusicService : IMusicService
         if (remote is null)
             return false;
         await remote.PlayContextAsync(broadcasterId, contextUri, cancellationToken);
+
+        // Every current IMusicRemoteProvider implementation (Spotify) is also an IMusicProvider, so the
+        // current-track read used to publish the fresh state is available on the same instance. Guarded
+        // rather than assumed, in case a future remote-only provider does not also implement IMusicProvider.
+        if (remote is IMusicProvider musicProvider)
+            await PublishPlaybackStateChangedAsync(broadcasterId, musicProvider, cancellationToken);
+
         return true;
+    }
+
+    /// <summary>
+    /// Publishes <see cref="PlaybackStateChangedEvent"/> right after a successful mutation (play/pause/skip/
+    /// play-context) so the dashboard + overlay update instantly instead of waiting for the next
+    /// <c>MusicStatePollingService</c> tick. Re-reads the provider's current track rather than guessing the new
+    /// state, since e.g. a skip's next track is only known to the provider.
+    /// </summary>
+    private async Task PublishPlaybackStateChangedAsync(
+        string broadcasterId,
+        IMusicProvider provider,
+        CancellationToken cancellationToken
+    )
+    {
+        if (!Guid.TryParse(broadcasterId, out Guid tenantId))
+            return;
+
+        TrackInfo? track = await provider.GetCurrentTrackAsync(broadcasterId, cancellationToken);
+
+        await _eventBus.PublishAsync(
+            new PlaybackStateChangedEvent
+            {
+                BroadcasterId = tenantId,
+                IsPlaying = track?.IsPlaying ?? false,
+                TrackName = track?.TrackName,
+            },
+            cancellationToken
+        );
     }
 
     private async Task<IMusicRemoteProvider?> GetRemoteProviderAsync(
