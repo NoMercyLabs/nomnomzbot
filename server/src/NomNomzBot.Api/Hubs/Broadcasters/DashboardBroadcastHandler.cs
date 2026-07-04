@@ -12,7 +12,6 @@ using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Application.Chat.Decoration;
 using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Domain.Chat.Events;
-using NomNomzBot.Domain.Chat.ValueObjects;
 using NomNomzBot.Domain.Identity;
 using NomNomzBot.Domain.Platform.Interfaces;
 
@@ -70,7 +69,7 @@ public sealed class ChatMessageBroadcastHandler : IEventHandler<ChatMessageRecei
             DisplayName: evt.UserDisplayName,
             Username: evt.UserLogin,
             Message: evt.Message,
-            Fragments: decorated.Fragments.Select(MapFragment).ToList(),
+            Fragments: decorated.Fragments.Select(ChatFragmentMapper.MapFragment).ToList(),
             UserType: userType,
             IsSubscriber: evt.IsSubscriber,
             IsVip: evt.IsVip,
@@ -78,14 +77,7 @@ public sealed class ChatMessageBroadcastHandler : IEventHandler<ChatMessageRecei
             IsBroadcaster: evt.IsBroadcaster,
             IsCheer: evt.Bits > 0,
             IsCommand: false,
-            Badges: decorated
-                .Badges.Select(badge => new ChatBadgeDto(
-                    badge.SetId,
-                    badge.Id,
-                    badge.Info,
-                    badge.Urls
-                ))
-                .ToList(),
+            Badges: decorated.Badges.Select(ChatFragmentMapper.MapBadge).ToList(),
             BitsAmount: evt.Bits,
             Color: evt.ColorHex,
             MessageType: evt.MessageType,
@@ -99,48 +91,4 @@ public sealed class ChatMessageBroadcastHandler : IEventHandler<ChatMessageRecei
 
         await _notifier.SendChatMessageAsync(evt.BroadcasterId.ToString(), dto, ct);
     }
-
-    private static ChatFragmentDto MapFragment(ChatMessageFragment f) =>
-        new(
-            Type: f.Type,
-            Text: f.Text,
-            Emote: f.Emote is not null
-                ? new ChatEmoteDto(
-                    Id: f.Emote.Id,
-                    SetId: f.Emote.SetId,
-                    Format: f.Emote.Animated ? "animated" : "static",
-                    Provider: f.Emote.Provider.ToString(),
-                    Urls: f.Emote.Urls,
-                    Animated: f.Emote.Animated,
-                    ZeroWidth: f.Emote.ZeroWidth
-                )
-                : null,
-            Cheermote: f.CheermotePrefix is not null
-                ? new ChatCheermoteDto(
-                    Prefix: f.CheermotePrefix,
-                    Bits: f.CheermoteBits ?? 0,
-                    Tier: f.CheermoteTier ?? 1,
-                    Urls: f.CheermoteImage?.Urls,
-                    Animated: f.CheermoteImage?.Animated ?? false,
-                    ColorHex: f.CheermoteImage?.ColorHex
-                )
-                : null,
-            Mention: f.MentionUserId is not null
-                ? new ChatMentionDto(
-                    UserId: f.MentionUserId,
-                    Username: f.MentionUserLogin ?? string.Empty,
-                    DisplayName: f.MentionUserName ?? string.Empty,
-                    Color: f.MentionColorHex
-                )
-                : null,
-            LinkUrl: f.LinkUrl,
-            LinkPreview: f.LinkPreview is not null
-                ? new ChatLinkPreviewDto(
-                    Host: f.LinkPreview.Host,
-                    Title: f.LinkPreview.Title,
-                    Description: f.LinkPreview.Description,
-                    ImageUrl: f.LinkPreview.ImageUrl
-                )
-                : null
-        );
 }

@@ -116,7 +116,7 @@ public sealed class ChatMessageDecorator : IChatMessageDecorator
         CancellationToken ct
     )
     {
-        string cacheKey = $"chat:decoration:rules:{broadcasterId}";
+        string cacheKey = ChatDecorationRulesCacheKeys.Channel(broadcasterId);
         HashSet<string>? cached = await _cache.GetAsync<HashSet<string>>(cacheKey, ct);
         if (cached is not null)
             return cached;

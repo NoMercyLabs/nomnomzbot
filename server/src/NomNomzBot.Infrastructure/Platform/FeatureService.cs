@@ -33,18 +33,54 @@ public class FeatureService : IFeatureService
     }
 
     // The static catalogue of all opt-in channel features.
-    // key → (label, description, required Twitch scopes)
+    // key → (label, description, required Twitch scopes, default state when no ChannelFeature row exists yet)
     private static readonly IReadOnlyDictionary<
         string,
-        (string Label, string Description, string[] Scopes)
-    > Catalogue = new Dictionary<string, (string, string, string[])>(StringComparer.Ordinal)
+        (string Label, string Description, string[] Scopes, bool DefaultOn)
+    > Catalogue = new Dictionary<string, (string, string, string[], bool)>(StringComparer.Ordinal)
     {
         ["custom_code"] = (
             "Custom Code",
             "Author Lua scripts to use as pipeline actions for advanced automation.",
-            []
+            [],
+            false
+        ),
+        // The four chat-decoration toggles (chat-decoration spec §5/§9·9). Third-party emote rendering is ON by
+        // default — the near-universal want, matching every emote extension — and a channel opts OUT with an
+        // explicit toggle. Link preview makes an outbound fetch per shared link, so it is opt-in (off by default).
+        ["use_7tv"] = (
+            "7TV Emotes",
+            "Render 7TV third-party emotes — including animated and zero-width overlay emotes — in chat.",
+            [],
+            true
+        ),
+        ["use_bttv"] = (
+            "BetterTTV Emotes",
+            "Render BetterTTV (BTTV) third-party emotes in chat.",
+            [],
+            true
+        ),
+        ["use_ffz"] = (
+            "FrankerFaceZ Emotes",
+            "Render FrankerFaceZ (FFZ) third-party emotes in chat.",
+            [],
+            true
+        ),
+        ["use_link_preview"] = (
+            "Link Previews",
+            "Show an OpenGraph preview (title, description, image) for links shared by subscribers and above. "
+                + "Off by default because it makes an outbound fetch for every shared link.",
+            [],
+            false
         ),
     };
+
+    /// <summary>The key's resting state when no <see cref="ChannelFeature"/> row exists yet — false for an unrecognized key.</summary>
+    private static bool DefaultOnFor(string featureKey) =>
+        Catalogue.TryGetValue(
+            featureKey,
+            out (string Label, string Description, string[] Scopes, bool DefaultOn) meta
+        ) && meta.DefaultOn;
 
     public async Task<Result<List<FeatureStatusDto>>> GetFeaturesAsync(
         string channelId,
@@ -61,7 +97,9 @@ public class FeatureService : IFeatureService
                 .ToListAsync(cancellationToken)
         ).ToDictionary(f => f.FeatureKey, StringComparer.Ordinal);
 
-        // Return every catalogue entry; fall back to disabled/no-scopes when no row exists yet.
+        // Return every catalogue entry; fall back to the KEY'S OWN default (not blanket-disabled) when no row
+        // exists yet — a channel that has never touched "use_7tv" still reports it enabled, matching the
+        // decorator's own default-on behavior for third-party emotes.
         List<FeatureStatusDto> features =
         [
             .. Catalogue.Select(entry =>
@@ -71,7 +109,7 @@ public class FeatureService : IFeatureService
                     entry.Key,
                     entry.Value.Label,
                     entry.Value.Description,
-                    row?.IsEnabled ?? false,
+                    row?.IsEnabled ?? entry.Value.DefaultOn,
                     row?.EnabledAt,
                     row?.RequiredScopes ?? entry.Value.Scopes
                 );
@@ -116,20 +154,21 @@ public class FeatureService : IFeatureService
 
         if (feature is null)
         {
+            // Seed a missing row at the key's own default (true for the emote-provider keys, false otherwise) —
+            // a channel with no row yet is sitting at that default, so the flip below moves it away in ONE call
+            // instead of always materializing an enabled row that a default-ON key would then need a second
+            // click to turn off.
             feature = new()
             {
                 BroadcasterId = broadcasterId,
                 FeatureKey = featureKey,
-                IsEnabled = true,
-                EnabledAt = _timeProvider.GetUtcNow().UtcDateTime,
+                IsEnabled = DefaultOnFor(featureKey),
             };
             _db.ChannelFeatures.Add(feature);
         }
-        else
-        {
-            feature.IsEnabled = !feature.IsEnabled;
-            feature.EnabledAt = feature.IsEnabled ? _timeProvider.GetUtcNow().UtcDateTime : null;
-        }
+
+        feature.IsEnabled = !feature.IsEnabled;
+        feature.EnabledAt = feature.IsEnabled ? _timeProvider.GetUtcNow().UtcDateTime : null;
 
         await _db.SaveChangesAsync(cancellationToken);
         await _eventBus.PublishAsync(
@@ -145,7 +184,7 @@ public class FeatureService : IFeatureService
 
         Catalogue.TryGetValue(
             feature.FeatureKey,
-            out (string Label, string Description, string[] Scopes) meta
+            out (string Label, string Description, string[] Scopes, bool DefaultOn) meta
         );
         return Result.Success(
             new FeatureStatusDto(

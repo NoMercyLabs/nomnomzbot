@@ -14,12 +14,16 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Api.Authorization;
+using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Chat.Decoration;
+using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
+using NomNomzBot.Domain.Chat.Entities;
+using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Chat.Interfaces;
-using NomNomzBot.Domain.Chat.ValueObjects;
 using ConfigEntity = NomNomzBot.Domain.Platform.Entities.Configuration;
 
 namespace NomNomzBot.Api.Controllers.V1;
@@ -37,16 +41,26 @@ public class ChatController : BaseController
     private readonly IApplicationDbContext _db;
     private readonly IChatProvider _chat;
     private readonly ITwitchChatApi _chatApi;
+    private readonly IChatMessageDecorator _decorator;
 
-    public ChatController(IApplicationDbContext db, IChatProvider chat, ITwitchChatApi chatApi)
+    public ChatController(
+        IApplicationDbContext db,
+        IChatProvider chat,
+        ITwitchChatApi chatApi,
+        IChatMessageDecorator decorator
+    )
     {
         _db = db;
         _chat = chat;
         _chatApi = chatApi;
+        _decorator = decorator;
     }
 
     // ── DTOs ──────────────────────────────────────────────────────────────────
 
+    // Badges/Fragments carry the SAME decorated shape the DashboardHub live broadcast sends (chat-decoration
+    // spec §4) — third-party emote urls, resolved badge images, cheermote images, mention colors, link previews —
+    // never the raw persisted fragments, so chat history renders identically to the live feed.
     public record ChatMessageDto(
         string Id,
         string ChannelId,
@@ -56,8 +70,8 @@ public class ChatController : BaseController
         string UserType,
         string? Color,
         string Message,
-        List<ChatBadge> Badges,
-        List<ChatMessageFragment> Fragments,
+        IReadOnlyList<ChatBadgeDto> Badges,
+        IReadOnlyList<ChatFragmentDto> Fragments,
         string MessageType,
         bool IsCommand,
         bool IsCheer,
@@ -107,35 +121,116 @@ public class ChatController : BaseController
         if (!Guid.TryParse(channelId, out Guid broadcasterId))
             return BadRequestResponse("Invalid channel id.");
 
-        List<ChatMessageDto> messages = await _db
+        List<ChatMessage> rows = await _db
             .ChatMessages.Where(m => m.BroadcasterId == broadcasterId && m.DeletedAt == null)
             .OrderByDescending(m => m.CreatedAt)
             .Take(limit)
-            .Select(m => new ChatMessageDto(
-                m.Id,
-                channelId,
-                m.UserId,
-                m.Username,
-                m.DisplayName,
-                m.UserType,
-                m.ColorHex,
-                m.Message,
-                m.Badges,
-                m.Fragments,
-                m.MessageType,
-                m.IsCommand,
-                m.IsCheer,
-                m.BitsAmount,
-                m.ReplyToMessageId,
-                m.CreatedAt.ToString("o")
-            ))
             .ToListAsync(ct);
 
-        // Return in chronological order (oldest first)
-        messages.Reverse();
+        // Chronological order (oldest first), matching the hub's live-append order.
+        rows.Reverse();
+
+        // One extra lookup for the channel's Twitch id (once per request, not once per message) so the
+        // third-party emote adapters can match this channel's OWN emote set, not just the global ones
+        // (chat-decoration spec §3.2). Empty when the channel row is somehow missing — decoration then simply
+        // falls back to global-only sets, exactly like the live hub path degrades on an unknown channel.
+        string twitchBroadcasterId =
+            await _db
+                .Channels.Where(c => c.Id == broadcasterId)
+                .Select(c => c.TwitchChannelId)
+                .FirstOrDefaultAsync(ct)
+            ?? string.Empty;
+
+        // Decorate sequentially — the decorator reads only ICacheService on this path (never an external
+        // provider HTTP call; chat-decoration spec §0), and its own resolved-feature-set cache means every
+        // message after the first is a cache hit, so a page of 25-50 messages is cheap without concurrency.
+        // Sequential also keeps every message going through the SAME request-scoped decorator/DbContext
+        // instance one at a time, avoiding the "second operation started on this context" hazard a
+        // concurrent fan-out would risk.
+        List<ChatMessageDto> messages = new(rows.Count);
+        foreach (ChatMessage row in rows)
+        {
+            DecoratedChatMessage decorated = await _decorator.DecorateAsync(
+                ToDecorationEvent(row, twitchBroadcasterId),
+                ct
+            );
+
+            messages.Add(
+                new ChatMessageDto(
+                    row.Id,
+                    channelId,
+                    row.UserId,
+                    row.Username,
+                    row.DisplayName,
+                    row.UserType,
+                    row.ColorHex,
+                    row.Message,
+                    decorated.Badges.Select(ChatFragmentMapper.MapBadge).ToList(),
+                    decorated.Fragments.Select(ChatFragmentMapper.MapFragment).ToList(),
+                    row.MessageType,
+                    row.IsCommand,
+                    row.IsCheer,
+                    row.BitsAmount,
+                    row.ReplyToMessageId,
+                    row.CreatedAt.ToString("o")
+                )
+            );
+        }
 
         return Ok(new StatusResponseDto<List<ChatMessageDto>> { Data = messages });
     }
+
+    // Rebuilds the minimal ChatMessageReceivedEvent the decorator needs from a persisted (raw, un-enriched)
+    // ChatMessage row, so the exact same IChatMessageDecorator pipeline that decorates the live hub broadcast
+    // also decorates chat history — no separate/duplicated enrichment logic for the REST page.
+    private static ChatMessageReceivedEvent ToDecorationEvent(
+        ChatMessage row,
+        string twitchBroadcasterId
+    )
+    {
+        (bool isBroadcaster, bool isModerator, bool isVip, bool isSubscriber) = ParseUserType(
+            row.UserType
+        );
+
+        return new ChatMessageReceivedEvent
+        {
+            BroadcasterId = row.BroadcasterId,
+            MessageId = row.Id,
+            TwitchBroadcasterId = twitchBroadcasterId,
+            UserId = row.UserId,
+            UserDisplayName = row.DisplayName,
+            UserLogin = row.Username,
+            Message = row.Message,
+            Fragments = row.Fragments,
+            Badges = row.Badges,
+            ColorHex = row.ColorHex,
+            MessageType = row.MessageType,
+            IsSubscriber = isSubscriber,
+            IsVip = isVip,
+            IsModerator = isModerator,
+            IsBroadcaster = isBroadcaster,
+            Bits = row.BitsAmount ?? 0,
+            ReplyParentMessageId = row.ReplyToMessageId,
+        };
+    }
+
+    // The reverse of ChatMessagePersistenceHandler.ResolveUserType's priority (broadcaster > moderator > vip >
+    // subscriber), recovering the sender's role flags the decorator's link-preview standing gate needs
+    // (chat-decoration spec §9·9) from the single UserType string persisted on the row.
+    private static (
+        bool IsBroadcaster,
+        bool IsModerator,
+        bool IsVip,
+        bool IsSubscriber
+    ) ParseUserType(string userType) =>
+        userType switch
+        {
+            "broadcaster" => (true, false, false, false),
+            "moderator" => (false, true, false, false),
+            "vip" => (false, false, true, false),
+            "subscriber" => (false, false, false, true),
+            _ => (false, false, false, false),
+        };
 
     // ── POST message (send as the bot) ─────────────────────────────────────────
     // The dashboard's REST send path — the same Helix Send Chat Message that DashboardHub.SendChatMessage
