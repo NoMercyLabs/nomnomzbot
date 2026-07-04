@@ -209,6 +209,14 @@ public static class DependencyInjection
         // Music providers (scoped — multi-binding consumed as IEnumerable<IMusicProvider>).
         services.AddImplementationsOf<IMusicProvider>(infrastructure, ServiceLifetime.Scoped);
 
+        // §3.10 manage surface (music-sr.md) — capability-gating front over the registered providers;
+        // scoped because it delegates to the scoped IMusicProvider instances. Explicit registration:
+        // the interface does not match the I<X>Service convention scan.
+        services.AddScoped<
+            Application.Contracts.Music.IMusicProviderManageApi,
+            Music.MusicProviderManageApi
+        >();
+
         // Third-party emote providers (singleton — stateless HTTP-fetch adapters, multi-bound + registry-indexed).
         services.AddImplementationsOf<Application.Chat.Services.IThirdPartyEmoteProvider>(
             infrastructure,

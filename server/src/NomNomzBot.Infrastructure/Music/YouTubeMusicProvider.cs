@@ -14,8 +14,11 @@ using NomNomzBot.Domain.Music.Interfaces;
 namespace NomNomzBot.Infrastructure.Music;
 
 /// <summary>
-/// YouTube Music provider stub (Phase 2 implementation).
-/// Requires YouTube Data API v3 OAuth 2.0 integration.
+/// YouTube music provider stub — the YouTube-provider slice wires the Data API v3 search/resolve and
+/// the §3.10 manage surface. YouTube playback rides the browser-source IFrame player by design
+/// (music-sr.md §3.5.2), so the transport capabilities (Volume/Seek/Previous/Shuffle/Repeat/
+/// TransferDevice) are permanently absent: the YouTube Data API has no playback-transport control,
+/// and consumers gate those members off with <c>CAPABILITY_UNSUPPORTED</c>.
 /// </summary>
 public sealed class YouTubeMusicProvider : IMusicProvider
 {
@@ -28,26 +31,96 @@ public sealed class YouTubeMusicProvider : IMusicProvider
         _logger = logger;
     }
 
-    public Task PlayAsync(string broadcasterId, CancellationToken cancellationToken = default)
+    public string Provider => ProviderName;
+
+    /// <summary>
+    /// The §3.5 routing set. The manage flags (<c>Library</c>/<c>Playlists</c>/<c>Subscriptions</c>)
+    /// arrive with the YouTube-provider slice that wires videos.rate / playlists.* / subscriptions.*.
+    /// </summary>
+    public MusicProviderCapabilities Capabilities =>
+        MusicProviderCapabilities.Search
+        | MusicProviderCapabilities.Queue
+        | MusicProviderCapabilities.NowPlaying
+        | MusicProviderCapabilities.AcceptsSongRequests;
+
+    public Task PlayAsync(Guid broadcasterId, CancellationToken cancellationToken = default)
     {
         _logger.LogDebug("YouTubeMusicProvider.PlayAsync not yet implemented");
         return Task.CompletedTask;
     }
 
-    public Task PauseAsync(string broadcasterId, CancellationToken cancellationToken = default)
+    public Task PauseAsync(Guid broadcasterId, CancellationToken cancellationToken = default)
     {
         _logger.LogDebug("YouTubeMusicProvider.PauseAsync not yet implemented");
         return Task.CompletedTask;
     }
 
-    public Task SkipAsync(string broadcasterId, CancellationToken cancellationToken = default)
+    public Task SkipAsync(Guid broadcasterId, CancellationToken cancellationToken = default)
     {
         _logger.LogDebug("YouTubeMusicProvider.SkipAsync not yet implemented");
         return Task.CompletedTask;
     }
 
+    public Task PreviousAsync(Guid broadcasterId, CancellationToken cancellationToken = default)
+    {
+        // No transport control on the YouTube Data API — capability permanently absent; consumers
+        // never reach this member through the capability gate.
+        _logger.LogDebug("YouTubeMusicProvider.PreviousAsync has no API-side transport");
+        return Task.CompletedTask;
+    }
+
+    public Task SeekAsync(
+        Guid broadcasterId,
+        int positionSeconds,
+        CancellationToken cancellationToken = default
+    )
+    {
+        _logger.LogDebug("YouTubeMusicProvider.SeekAsync has no API-side transport");
+        return Task.CompletedTask;
+    }
+
+    public Task SetShuffleAsync(
+        Guid broadcasterId,
+        bool enabled,
+        CancellationToken cancellationToken = default
+    )
+    {
+        _logger.LogDebug("YouTubeMusicProvider.SetShuffleAsync has no API-side transport");
+        return Task.CompletedTask;
+    }
+
+    public Task SetRepeatAsync(
+        Guid broadcasterId,
+        MusicRepeatMode mode,
+        CancellationToken cancellationToken = default
+    )
+    {
+        _logger.LogDebug("YouTubeMusicProvider.SetRepeatAsync has no API-side transport");
+        return Task.CompletedTask;
+    }
+
+    public Task<IReadOnlyList<MusicDeviceInfo>> GetDevicesAsync(
+        Guid broadcasterId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        _logger.LogDebug("YouTubeMusicProvider.GetDevicesAsync has no API-side transport");
+        return Task.FromResult<IReadOnlyList<MusicDeviceInfo>>([]);
+    }
+
+    public Task TransferPlaybackAsync(
+        Guid broadcasterId,
+        string deviceId,
+        bool play,
+        CancellationToken cancellationToken = default
+    )
+    {
+        _logger.LogDebug("YouTubeMusicProvider.TransferPlaybackAsync has no API-side transport");
+        return Task.CompletedTask;
+    }
+
     public Task<TrackInfo?> GetCurrentTrackAsync(
-        string broadcasterId,
+        Guid broadcasterId,
         CancellationToken cancellationToken = default
     )
     {
@@ -56,7 +129,7 @@ public sealed class YouTubeMusicProvider : IMusicProvider
     }
 
     public Task<IReadOnlyList<TrackInfo>> SearchAsync(
-        string broadcasterId,
+        Guid broadcasterId,
         string query,
         int maxResults = 5,
         CancellationToken cancellationToken = default
@@ -66,8 +139,19 @@ public sealed class YouTubeMusicProvider : IMusicProvider
         return Task.FromResult<IReadOnlyList<TrackInfo>>([]);
     }
 
+    public Task<TrackInfo?> ResolveTrackAsync(
+        Guid broadcasterId,
+        string uriOrId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        // §3.5: null = not found/unavailable. The YouTube-provider slice wires videos.list here.
+        _logger.LogDebug("YouTubeMusicProvider.ResolveTrackAsync not yet implemented");
+        return Task.FromResult<TrackInfo?>(null);
+    }
+
     public Task<bool> AddToQueueAsync(
-        string broadcasterId,
+        Guid broadcasterId,
         string trackUri,
         CancellationToken cancellationToken = default
     )

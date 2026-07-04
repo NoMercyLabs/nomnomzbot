@@ -11,70 +11,29 @@
 namespace NomNomzBot.Domain.Music.Interfaces;
 
 /// <summary>
-/// Extended playback controls not supported by all providers.
-/// Implemented by providers that offer seek, shuffle, repeat, device transfer, and playlist management
-/// (currently Spotify). Check <c>is IMusicRemoteProvider</c> before calling.
+/// Residual provider surface not (yet) part of the unified music-sr.md seams. Seek/shuffle/repeat/
+/// device members moved onto <see cref="IMusicProvider"/> (§3.5); the two members left here back the
+/// live paged-playlists and play-context endpoints until their spec homes land: playlist listing is
+/// absorbed by the §3.10 manage surface (<c>IMusicProviderManageApi</c>) with the §5 provider-scoped
+/// endpoints, and play-context by the §3.5.2 sequencer's context playback. Consumers gate on
+/// <see cref="IMusicProvider.Capabilities"/> (Playlists / PlaybackControl) before casting to this.
 /// </summary>
 public interface IMusicRemoteProvider
 {
-    /// <summary>Seeks to <paramref name="positionMs"/> milliseconds in the current track.</summary>
-    Task SeekAsync(
-        string broadcasterId,
-        int positionMs,
-        CancellationToken cancellationToken = default
-    );
-
-    /// <summary>Enables or disables shuffle mode.</summary>
-    Task SetShuffleAsync(
-        string broadcasterId,
-        bool enabled,
-        CancellationToken cancellationToken = default
-    );
-
-    /// <summary>Sets the repeat mode: <c>off</c>, <c>track</c>, or <c>context</c>.</summary>
-    Task SetRepeatAsync(
-        string broadcasterId,
-        string mode,
-        CancellationToken cancellationToken = default
-    );
-
-    /// <summary>Transfers playback to <paramref name="deviceId"/>.</summary>
-    Task TransferPlaybackAsync(
-        string broadcasterId,
-        string deviceId,
-        bool play = false,
-        CancellationToken cancellationToken = default
-    );
-
-    /// <summary>Returns all available devices for the authenticated user.</summary>
-    Task<IReadOnlyList<MusicDevice>> GetDevicesAsync(
-        string broadcasterId,
-        CancellationToken cancellationToken = default
-    );
-
-    /// <summary>Returns the user's playlists.</summary>
+    /// <summary>Returns the user's playlists, paged. Gated on <see cref="MusicProviderCapabilities.Playlists"/>.</summary>
     Task<IReadOnlyList<MusicPlaylist>> GetPlaylistsAsync(
-        string broadcasterId,
+        Guid broadcasterId,
         int offset = 0,
         int limit = 20,
         CancellationToken cancellationToken = default
     );
 
-    /// <summary>Starts playback of a playlist or context URI.</summary>
+    /// <summary>Starts playback of a playlist or context URI. Gated on <see cref="MusicProviderCapabilities.PlaybackControl"/>.</summary>
     Task PlayContextAsync(
-        string broadcasterId,
+        Guid broadcasterId,
         string contextUri,
         CancellationToken cancellationToken = default
     );
-}
-
-public sealed class MusicDevice
-{
-    public required string Id { get; init; }
-    public required string Name { get; init; }
-    public required string Type { get; init; }
-    public bool IsActive { get; init; }
-    public int VolumePercent { get; init; }
 }
 
 public sealed class MusicPlaylist

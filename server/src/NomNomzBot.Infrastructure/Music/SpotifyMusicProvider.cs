@@ -15,6 +15,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
+using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Music;
 using NomNomzBot.Domain.Music.Interfaces;
 using NomNomzBot.Domain.Platform.Entities;
 
@@ -22,7 +24,7 @@ namespace NomNomzBot.Infrastructure.Music;
 
 /// <summary>
 /// Spotify Web API music provider.
-/// Requires the broadcaster to have connected their Spotify account (Premium required).
+/// Requires the broadcaster to have connected their Spotify account (Premium required for transport).
 /// Token stored as Service(Name="spotify", BroadcasterId=broadcasterId).
 ///
 /// Feb 2026 API changes respected:
@@ -30,7 +32,10 @@ namespace NomNomzBot.Infrastructure.Music;
 /// - Batch endpoints removed — no GET /tracks?ids=
 /// - Browse endpoints removed
 /// </summary>
-public sealed class SpotifyMusicProvider : IMusicProvider, IMusicRemoteProvider
+public sealed class SpotifyMusicProvider
+    : IMusicProvider,
+        IMusicRemoteProvider,
+        IMusicProviderManageApi
 {
     private const string SpotifyApiBase = "https://api.spotify.com/v1";
     private const string SpotifyTokenEndpoint = "https://accounts.spotify.com/api/token";
@@ -57,7 +62,28 @@ public sealed class SpotifyMusicProvider : IMusicProvider, IMusicRemoteProvider
         _logger = logger;
     }
 
-    public async Task PlayAsync(string broadcasterId, CancellationToken cancellationToken = default)
+    public string Provider => ProviderName;
+
+    /// <summary>
+    /// Today's live Spotify surface. The §3.5 target set additionally holds <c>Volume</c>,
+    /// <c>Previous</c>, and <c>Library</c> — withheld here until the Spotify-completeness slice wires
+    /// PUT /me/player/volume, POST /me/player/previous, and the /me/tracks + /me/following calls, so
+    /// the capability flags never promise more than the provider actually does.
+    /// </summary>
+    public MusicProviderCapabilities Capabilities =>
+        MusicProviderCapabilities.Search
+        | MusicProviderCapabilities.Queue
+        | MusicProviderCapabilities.PlaybackControl
+        | MusicProviderCapabilities.Skip
+        | MusicProviderCapabilities.Seek
+        | MusicProviderCapabilities.NowPlaying
+        | MusicProviderCapabilities.AcceptsSongRequests
+        | MusicProviderCapabilities.Shuffle
+        | MusicProviderCapabilities.Repeat
+        | MusicProviderCapabilities.TransferDevice
+        | MusicProviderCapabilities.Playlists;
+
+    public async Task PlayAsync(Guid broadcasterId, CancellationToken cancellationToken = default)
     {
         string? token = await GetTokenAsync(broadcasterId, cancellationToken);
         if (token is null)
@@ -72,10 +98,7 @@ public sealed class SpotifyMusicProvider : IMusicProvider, IMusicRemoteProvider
         );
     }
 
-    public async Task PauseAsync(
-        string broadcasterId,
-        CancellationToken cancellationToken = default
-    )
+    public async Task PauseAsync(Guid broadcasterId, CancellationToken cancellationToken = default)
     {
         string? token = await GetTokenAsync(broadcasterId, cancellationToken);
         if (token is null)
@@ -90,7 +113,7 @@ public sealed class SpotifyMusicProvider : IMusicProvider, IMusicRemoteProvider
         );
     }
 
-    public async Task SkipAsync(string broadcasterId, CancellationToken cancellationToken = default)
+    public async Task SkipAsync(Guid broadcasterId, CancellationToken cancellationToken = default)
     {
         string? token = await GetTokenAsync(broadcasterId, cancellationToken);
         if (token is null)
@@ -105,8 +128,17 @@ public sealed class SpotifyMusicProvider : IMusicProvider, IMusicRemoteProvider
         );
     }
 
+    public Task PreviousAsync(Guid broadcasterId, CancellationToken cancellationToken = default)
+    {
+        // TODO next slice: Spotify-completeness — wire POST /me/player/previous and declare the
+        // Previous capability. Unreachable today: the capability is withheld, so consumers gate this
+        // member off with CAPABILITY_UNSUPPORTED before it is ever called.
+        _logger.LogDebug("SpotifyMusicProvider.PreviousAsync is not wired yet");
+        return Task.CompletedTask;
+    }
+
     public async Task<TrackInfo?> GetCurrentTrackAsync(
-        string broadcasterId,
+        Guid broadcasterId,
         CancellationToken cancellationToken = default
     )
     {
@@ -137,7 +169,7 @@ public sealed class SpotifyMusicProvider : IMusicProvider, IMusicRemoteProvider
     }
 
     public async Task<IReadOnlyList<TrackInfo>> SearchAsync(
-        string broadcasterId,
+        Guid broadcasterId,
         string query,
         int maxResults = 5,
         CancellationToken cancellationToken = default
@@ -171,8 +203,37 @@ public sealed class SpotifyMusicProvider : IMusicProvider, IMusicRemoteProvider
         return json.Tracks.Items.Where(t => t is not null).Select(t => MapToTrackInfo(t)).ToList();
     }
 
+    public async Task<TrackInfo?> ResolveTrackAsync(
+        Guid broadcasterId,
+        string uriOrId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        string? trackId = ExtractTrackId(uriOrId);
+        if (trackId is null)
+            return null;
+
+        string? token = await GetTokenAsync(broadcasterId, cancellationToken);
+        if (token is null)
+            return null;
+
+        HttpResponseMessage? response = await SendAsync(
+            HttpMethod.Get,
+            $"{SpotifyApiBase}/tracks/{Uri.EscapeDataString(trackId)}",
+            token,
+            cancellationToken
+        );
+        if (response is null || !response.IsSuccessStatusCode)
+            return null;
+
+        SpotifyTrack? track = await response.Content.ReadFromJsonAsync<SpotifyTrack>(
+            cancellationToken: cancellationToken
+        );
+        return track is null ? null : MapToTrackInfo(track);
+    }
+
     public async Task<bool> AddToQueueAsync(
-        string broadcasterId,
+        Guid broadcasterId,
         string trackUri,
         CancellationToken cancellationToken = default
     )
@@ -193,11 +254,11 @@ public sealed class SpotifyMusicProvider : IMusicProvider, IMusicRemoteProvider
         return response?.IsSuccessStatusCode == true;
     }
 
-    // ─── IMusicRemoteProvider ────────────────────────────────────────────────
+    // ─── Transport (capability-gated members) ────────────────────────────────
 
     public async Task SeekAsync(
-        string broadcasterId,
-        int positionMs,
+        Guid broadcasterId,
+        int positionSeconds,
         CancellationToken cancellationToken = default
     )
     {
@@ -205,12 +266,13 @@ public sealed class SpotifyMusicProvider : IMusicProvider, IMusicRemoteProvider
         if (token is null)
             return;
 
+        long positionMs = (long)positionSeconds * 1000;
         string url = $"{SpotifyApiBase}/me/player/seek?position_ms={positionMs}";
         await SendPlayerCommandAsync(HttpMethod.Put, url, token, null, cancellationToken);
     }
 
     public async Task SetShuffleAsync(
-        string broadcasterId,
+        Guid broadcasterId,
         bool enabled,
         CancellationToken cancellationToken = default
     )
@@ -225,8 +287,8 @@ public sealed class SpotifyMusicProvider : IMusicProvider, IMusicRemoteProvider
     }
 
     public async Task SetRepeatAsync(
-        string broadcasterId,
-        string mode,
+        Guid broadcasterId,
+        MusicRepeatMode mode,
         CancellationToken cancellationToken = default
     )
     {
@@ -234,14 +296,20 @@ public sealed class SpotifyMusicProvider : IMusicProvider, IMusicRemoteProvider
         if (token is null)
             return;
 
-        string url = $"{SpotifyApiBase}/me/player/repeat?state={Uri.EscapeDataString(mode)}";
+        string state = mode switch
+        {
+            MusicRepeatMode.Track => "track",
+            MusicRepeatMode.Context => "context",
+            _ => "off",
+        };
+        string url = $"{SpotifyApiBase}/me/player/repeat?state={state}";
         await SendPlayerCommandAsync(HttpMethod.Put, url, token, null, cancellationToken);
     }
 
     public async Task TransferPlaybackAsync(
-        string broadcasterId,
+        Guid broadcasterId,
         string deviceId,
-        bool play = false,
+        bool play,
         CancellationToken cancellationToken = default
     )
     {
@@ -259,8 +327,8 @@ public sealed class SpotifyMusicProvider : IMusicProvider, IMusicRemoteProvider
         );
     }
 
-    public async Task<IReadOnlyList<MusicDevice>> GetDevicesAsync(
-        string broadcasterId,
+    public async Task<IReadOnlyList<MusicDeviceInfo>> GetDevicesAsync(
+        Guid broadcasterId,
         CancellationToken cancellationToken = default
     )
     {
@@ -283,21 +351,22 @@ public sealed class SpotifyMusicProvider : IMusicProvider, IMusicRemoteProvider
                 cancellationToken: cancellationToken
             );
 
-        return json?.Devices?.Select(d => new MusicDevice
-                {
-                    Id = d.Id,
-                    Name = d.Name,
-                    Type = d.Type,
-                    IsActive = d.IsActive,
-                    VolumePercent = d.VolumePercent,
-                })
+        return json?.Devices?.Select(d => new MusicDeviceInfo(
+                    d.Id,
+                    d.Name,
+                    d.Type,
+                    d.IsActive,
+                    d.VolumePercent
+                ))
                 .ToList()
                 .AsReadOnly()
-            ?? (IReadOnlyList<MusicDevice>)[];
+            ?? (IReadOnlyList<MusicDeviceInfo>)[];
     }
 
+    // ─── IMusicRemoteProvider (residual — see interface doc) ─────────────────
+
     public async Task<IReadOnlyList<MusicPlaylist>> GetPlaylistsAsync(
-        string broadcasterId,
+        Guid broadcasterId,
         int offset = 0,
         int limit = 20,
         CancellationToken cancellationToken = default
@@ -307,35 +376,26 @@ public sealed class SpotifyMusicProvider : IMusicProvider, IMusicRemoteProvider
         if (token is null)
             return [];
 
-        string url = $"{SpotifyApiBase}/me/playlists?offset={offset}&limit={Math.Min(limit, 50)}";
-        HttpResponseMessage? response = await SendAsync(
-            HttpMethod.Get,
-            url,
-            token,
-            cancellationToken
-        );
-        if (response is null || !response.IsSuccessStatusCode)
+        (HttpStatusCode? status, SpotifyPaging<SpotifyPlaylist>? page) =
+            await FetchPlaylistsPageAsync(token, offset, limit, cancellationToken);
+        if (status is null || page?.Items is null)
             return [];
 
-        SpotifyPaging<SpotifyPlaylist>? json = await response.Content.ReadFromJsonAsync<
-            SpotifyPaging<SpotifyPlaylist>
-        >(cancellationToken: cancellationToken);
-
-        return json?.Items?.Select(p => new MusicPlaylist
-                {
-                    Id = p.Id,
-                    Name = p.Name,
-                    Uri = p.Uri,
-                    TrackCount = p.Tracks?.Total ?? 0,
-                    ImageUrl = p.Images?.FirstOrDefault()?.Url,
-                })
-                .ToList()
-                .AsReadOnly()
-            ?? (IReadOnlyList<MusicPlaylist>)[];
+        return page
+            .Items.Select(p => new MusicPlaylist
+            {
+                Id = p.Id,
+                Name = p.Name,
+                Uri = p.Uri,
+                TrackCount = p.Tracks?.Total ?? 0,
+                ImageUrl = p.Images?.FirstOrDefault()?.Url,
+            })
+            .ToList()
+            .AsReadOnly();
     }
 
     public async Task PlayContextAsync(
-        string broadcasterId,
+        Guid broadcasterId,
         string contextUri,
         CancellationToken cancellationToken = default
     )
@@ -354,20 +414,161 @@ public sealed class SpotifyMusicProvider : IMusicProvider, IMusicRemoteProvider
         );
     }
 
+    // ─── IMusicProviderManageApi (§3.10 — Spotify's own manage surface) ──────
+
+    public async Task<Result<IReadOnlyList<MusicPlaylistDto>>> ListPlaylistsAsync(
+        Guid broadcasterId,
+        string provider,
+        CancellationToken cancellationToken = default
+    )
+    {
+        string? token = await GetTokenAsync(broadcasterId, cancellationToken);
+        if (token is null)
+            return Result.Failure<IReadOnlyList<MusicPlaylistDto>>(
+                "Spotify is not connected for this channel.",
+                "MISSING_SCOPE"
+            );
+
+        (HttpStatusCode? status, SpotifyPaging<SpotifyPlaylist>? page) =
+            await FetchPlaylistsPageAsync(token, offset: 0, limit: 50, cancellationToken);
+
+        if (status is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
+            return Result.Failure<IReadOnlyList<MusicPlaylistDto>>(
+                "The Spotify connection is missing the playlist-read scope.",
+                "MISSING_SCOPE"
+            );
+
+        if (page?.Items is null)
+            return Result.Failure<IReadOnlyList<MusicPlaylistDto>>(
+                "Spotify is temporarily unavailable.",
+                "SERVICE_UNAVAILABLE"
+            );
+
+        IReadOnlyList<MusicPlaylistDto> playlists = page
+            .Items.Select(p => new MusicPlaylistDto(
+                p.Id,
+                p.Name,
+                string.IsNullOrEmpty(p.Description) ? null : p.Description,
+                p.Public ?? false,
+                p.Tracks?.Total ?? 0,
+                p.Images?.FirstOrDefault()?.Url,
+                ProviderName
+            ))
+            .ToList()
+            .AsReadOnly();
+
+        return Result.Success(playlists);
+    }
+
+    public Task<Result<MusicPlaylistDto>> CreatePlaylistAsync(
+        Guid broadcasterId,
+        string provider,
+        CreateMusicPlaylistDto request,
+        CancellationToken cancellationToken = default
+    ) =>
+        // TODO next slice: Spotify §3.10 — wire POST /users/{id}/playlists.
+        Task.FromResult(PlaylistWritesNotWired<MusicPlaylistDto>());
+
+    public Task<Result<MusicPlaylistDto>> UpdatePlaylistAsync(
+        Guid broadcasterId,
+        string provider,
+        string playlistId,
+        UpdateMusicPlaylistDto request,
+        CancellationToken cancellationToken = default
+    ) =>
+        // TODO next slice: Spotify §3.10 — wire PUT /playlists/{id}.
+        Task.FromResult(PlaylistWritesNotWired<MusicPlaylistDto>());
+
+    public Task<Result> DeletePlaylistAsync(
+        Guid broadcasterId,
+        string provider,
+        string playlistId,
+        CancellationToken cancellationToken = default
+    ) =>
+        // TODO next slice: Spotify §3.10 — wire DELETE /playlists/{id}/followers (unfollow-own).
+        Task.FromResult(PlaylistWritesNotWired());
+
+    public Task<Result> AddPlaylistTracksAsync(
+        Guid broadcasterId,
+        string provider,
+        string playlistId,
+        IReadOnlyList<string> trackUris,
+        CancellationToken cancellationToken = default
+    ) =>
+        // TODO next slice: Spotify §3.10 — wire POST /playlists/{id}/tracks.
+        Task.FromResult(PlaylistWritesNotWired());
+
+    public Task<Result> RemovePlaylistTracksAsync(
+        Guid broadcasterId,
+        string provider,
+        string playlistId,
+        IReadOnlyList<string> trackUris,
+        CancellationToken cancellationToken = default
+    ) =>
+        // TODO next slice: Spotify §3.10 — wire DELETE /playlists/{id}/tracks.
+        Task.FromResult(PlaylistWritesNotWired());
+
+    // Library / follow members: the Library and Subscriptions capabilities are withheld above, so the
+    // capability gate fails these closed before dispatch. Present for interface completeness only.
+    // TODO next slice: Spotify §3.10 — wire PUT/DELETE /me/tracks and /me/following, then declare Library.
+
+    public Task<Result> SaveTracksAsync(
+        Guid broadcasterId,
+        string provider,
+        IReadOnlyList<string> trackUris,
+        CancellationToken cancellationToken = default
+    ) => Task.FromResult(LibraryNotWired());
+
+    public Task<Result> RemoveSavedTracksAsync(
+        Guid broadcasterId,
+        string provider,
+        IReadOnlyList<string> trackUris,
+        CancellationToken cancellationToken = default
+    ) => Task.FromResult(LibraryNotWired());
+
+    public Task<Result> RateTrackAsync(
+        Guid broadcasterId,
+        string provider,
+        string trackUri,
+        MusicRating rating,
+        CancellationToken cancellationToken = default
+    ) => Task.FromResult(LibraryNotWired());
+
+    public Task<Result> FollowAsync(
+        Guid broadcasterId,
+        string provider,
+        MusicFollowTarget target,
+        string targetId,
+        CancellationToken cancellationToken = default
+    ) => Task.FromResult(LibraryNotWired());
+
+    public Task<Result> UnfollowAsync(
+        Guid broadcasterId,
+        string provider,
+        MusicFollowTarget target,
+        string targetId,
+        CancellationToken cancellationToken = default
+    ) => Task.FromResult(LibraryNotWired());
+
+    private static Result<T> PlaylistWritesNotWired<T>() =>
+        Result.Failure<T>("Spotify playlist writes are not wired yet.", "CAPABILITY_UNSUPPORTED");
+
+    private static Result PlaylistWritesNotWired() =>
+        Result.Failure("Spotify playlist writes are not wired yet.", "CAPABILITY_UNSUPPORTED");
+
+    private static Result LibraryNotWired() =>
+        Result.Failure("Spotify library writes are not wired yet.", "CAPABILITY_UNSUPPORTED");
+
     // ─── Token management ────────────────────────────────────────────────────
 
     private async Task<string?> GetTokenAsync(
-        string broadcasterId,
+        Guid broadcasterId,
         CancellationToken cancellationToken
     )
     {
-        // Service.BroadcasterId is the tenant Guid (null = platform row); the provider receives it as a string.
-        if (!Guid.TryParse(broadcasterId, out Guid tenantId))
-            return null;
-
         Service? service = await _db.Services.FirstOrDefaultAsync(
             s =>
-                s.BroadcasterId == tenantId
+                s.BroadcasterId == broadcasterId
                 && s.Name == ProviderName
                 && s.Enabled
                 && s.AccessToken != null,
@@ -521,6 +722,35 @@ public sealed class SpotifyMusicProvider : IMusicProvider, IMusicRemoteProvider
 
     // ─── HTTP helpers ────────────────────────────────────────────────────────
 
+    private async Task<(
+        HttpStatusCode? Status,
+        SpotifyPaging<SpotifyPlaylist>? Page
+    )> FetchPlaylistsPageAsync(
+        string token,
+        int offset,
+        int limit,
+        CancellationToken cancellationToken
+    )
+    {
+        string url = $"{SpotifyApiBase}/me/playlists?offset={offset}&limit={Math.Min(limit, 50)}";
+        HttpResponseMessage? response = await SendAsync(
+            HttpMethod.Get,
+            url,
+            token,
+            cancellationToken
+        );
+        if (response is null)
+            return (null, null);
+
+        if (!response.IsSuccessStatusCode)
+            return (response.StatusCode, null);
+
+        SpotifyPaging<SpotifyPlaylist>? page = await response.Content.ReadFromJsonAsync<
+            SpotifyPaging<SpotifyPlaylist>
+        >(cancellationToken: cancellationToken);
+        return (response.StatusCode, page);
+    }
+
     private async Task<HttpResponseMessage?> SendAsync(
         HttpMethod method,
         string url,
@@ -593,8 +823,42 @@ public sealed class SpotifyMusicProvider : IMusicProvider, IMusicRemoteProvider
 
     // ─── Mapping ─────────────────────────────────────────────────────────────
 
+    /// <summary>Extracts the Spotify track id from a <c>spotify:track:…</c> URI, an
+    /// <c>open.spotify.com/track/…</c> URL (with or without locale segment), or a bare id.</summary>
+    private static string? ExtractTrackId(string uriOrId)
+    {
+        if (string.IsNullOrWhiteSpace(uriOrId))
+            return null;
+
+        string value = uriOrId.Trim();
+
+        const string uriPrefix = "spotify:track:";
+        if (value.StartsWith(uriPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            string id = value[uriPrefix.Length..];
+            return id.Length > 0 && id.All(char.IsLetterOrDigit) ? id : null;
+        }
+
+        if (
+            Uri.TryCreate(value, UriKind.Absolute, out Uri? url)
+            && url.Host.EndsWith("open.spotify.com", StringComparison.OrdinalIgnoreCase)
+        )
+        {
+            string[] segments = url.AbsolutePath.Trim('/').Split('/');
+            int trackIndex = Array.IndexOf(segments, "track");
+            if (trackIndex < 0 || trackIndex + 1 >= segments.Length)
+                return null;
+            string id = segments[trackIndex + 1];
+            return id.Length > 0 && id.All(char.IsLetterOrDigit) ? id : null;
+        }
+
+        // Bare id — Spotify ids are base62 alphanumerics.
+        return value.All(char.IsLetterOrDigit) ? value : null;
+    }
+
     // isPlaying/progressMs are only known for a "currently playing" read (GetCurrentTrackAsync); a
-    // SearchAsync hit passes neither, leaving TrackInfo.IsPlaying/ProgressMs at their false/0 defaults.
+    // SearchAsync/ResolveTrackAsync hit passes neither, leaving TrackInfo.IsPlaying/ProgressMs at
+    // their false/0 defaults.
     private static TrackInfo MapToTrackInfo(
         SpotifyTrack track,
         bool isPlaying = false,
@@ -609,6 +873,10 @@ public sealed class SpotifyMusicProvider : IMusicProvider, IMusicRemoteProvider
             AlbumArtUrl = track.Album?.Images?.FirstOrDefault()?.Url,
             DurationMs = track.DurationMs,
             Provider = ProviderName,
+            ProviderTrackId = track.Id ?? string.Empty,
+            IsExplicit = track.Explicit,
+            IsAgeRestricted = false, // Spotify exposes no age-restriction flag; the gate is a YouTube knob.
+            IsEmbeddable = true, // No embed constraint applies to Spotify drip-feed playback.
             IsPlaying = isPlaying,
             ProgressMs = progressMs,
         };
@@ -641,6 +909,9 @@ public sealed class SpotifyMusicProvider : IMusicProvider, IMusicRemoteProvider
 
     private sealed class SpotifyTrack
     {
+        [JsonPropertyName("id")]
+        public string? Id { get; set; }
+
         [JsonPropertyName("name")]
         public string Name { get; set; } = null!;
 
@@ -649,6 +920,9 @@ public sealed class SpotifyMusicProvider : IMusicProvider, IMusicRemoteProvider
 
         [JsonPropertyName("duration_ms")]
         public int DurationMs { get; set; }
+
+        [JsonPropertyName("explicit")]
+        public bool Explicit { get; set; }
 
         [JsonPropertyName("artists")]
         public List<SpotifyArtist> Artists { get; set; } = [];
@@ -711,7 +985,7 @@ public sealed class SpotifyMusicProvider : IMusicProvider, IMusicRemoteProvider
         public bool IsActive { get; set; }
 
         [JsonPropertyName("volume_percent")]
-        public int VolumePercent { get; set; }
+        public int? VolumePercent { get; set; }
     }
 
     private sealed class SpotifyPlaylist
@@ -724,6 +998,12 @@ public sealed class SpotifyMusicProvider : IMusicProvider, IMusicRemoteProvider
 
         [JsonPropertyName("uri")]
         public string Uri { get; set; } = null!;
+
+        [JsonPropertyName("description")]
+        public string? Description { get; set; }
+
+        [JsonPropertyName("public")]
+        public bool? Public { get; set; }
 
         [JsonPropertyName("images")]
         public List<SpotifyImage>? Images { get; set; }

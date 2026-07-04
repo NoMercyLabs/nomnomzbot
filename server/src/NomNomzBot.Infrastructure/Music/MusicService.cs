@@ -21,6 +21,10 @@ namespace NomNomzBot.Infrastructure.Music;
 /// <summary>
 /// Orchestrates music playback using the registered IMusicProvider implementations.
 /// Maintains a per-channel fair queue for song requests and enforces trust-level limits.
+/// Provider selection and per-operation gating run purely on <see cref="IMusicProvider.Provider"/>
+/// keys and <see cref="IMusicProvider.Capabilities"/> flags — never provider-name checks
+/// (music-sr.md §3.5): a member whose required capability is absent fails closed without
+/// touching the provider.
 /// </summary>
 public sealed class MusicService : IMusicService
 {
@@ -53,12 +57,15 @@ public sealed class MusicService : IMusicService
         CancellationToken cancellationToken = default
     )
     {
-        IMusicProvider? provider = await GetActiveProviderAsync(broadcasterId, cancellationToken);
+        if (!Guid.TryParse(broadcasterId, out Guid tenantId))
+            return [];
+
+        IMusicProvider? provider = await GetActiveProviderAsync(tenantId, cancellationToken);
         if (provider is null)
             return [];
 
         IReadOnlyList<TrackInfo> results = await provider.SearchAsync(
-            broadcasterId,
+            tenantId,
             query,
             maxResults,
             cancellationToken
@@ -82,12 +89,15 @@ public sealed class MusicService : IMusicService
         CancellationToken cancellationToken = default
     )
     {
-        IMusicProvider? provider = await GetActiveProviderAsync(broadcasterId, cancellationToken);
-        if (provider is null)
+        if (!Guid.TryParse(broadcasterId, out Guid tenantId))
             return false;
 
-        await provider.PlayAsync(broadcasterId, cancellationToken);
-        await PublishPlaybackStateChangedAsync(broadcasterId, provider, cancellationToken);
+        IMusicProvider? provider = await GetActiveProviderAsync(tenantId, cancellationToken);
+        if (provider is null || !HasCapability(provider, MusicProviderCapabilities.PlaybackControl))
+            return false;
+
+        await provider.PlayAsync(tenantId, cancellationToken);
+        await PublishPlaybackStateChangedAsync(tenantId, provider, cancellationToken);
         return true;
     }
 
@@ -96,12 +106,15 @@ public sealed class MusicService : IMusicService
         CancellationToken cancellationToken = default
     )
     {
-        IMusicProvider? provider = await GetActiveProviderAsync(broadcasterId, cancellationToken);
-        if (provider is null)
+        if (!Guid.TryParse(broadcasterId, out Guid tenantId))
             return false;
 
-        await provider.PauseAsync(broadcasterId, cancellationToken);
-        await PublishPlaybackStateChangedAsync(broadcasterId, provider, cancellationToken);
+        IMusicProvider? provider = await GetActiveProviderAsync(tenantId, cancellationToken);
+        if (provider is null || !HasCapability(provider, MusicProviderCapabilities.PlaybackControl))
+            return false;
+
+        await provider.PauseAsync(tenantId, cancellationToken);
+        await PublishPlaybackStateChangedAsync(tenantId, provider, cancellationToken);
         return true;
     }
 
@@ -110,19 +123,22 @@ public sealed class MusicService : IMusicService
         CancellationToken cancellationToken = default
     )
     {
-        IMusicProvider? provider = await GetActiveProviderAsync(broadcasterId, cancellationToken);
-        if (provider is null)
+        if (!Guid.TryParse(broadcasterId, out Guid tenantId))
+            return false;
+
+        IMusicProvider? provider = await GetActiveProviderAsync(tenantId, cancellationToken);
+        if (provider is null || !HasCapability(provider, MusicProviderCapabilities.Skip))
             return false;
 
         // Dequeue next from fair queue and add to provider queue
         SongRequestEntry? next = DequeueNext(broadcasterId);
         if (next is not null)
         {
-            await provider.AddToQueueAsync(broadcasterId, next.TrackUri, cancellationToken);
+            await provider.AddToQueueAsync(tenantId, next.TrackUri, cancellationToken);
         }
 
-        await provider.SkipAsync(broadcasterId, cancellationToken);
-        await PublishPlaybackStateChangedAsync(broadcasterId, provider, cancellationToken);
+        await provider.SkipAsync(tenantId, cancellationToken);
+        await PublishPlaybackStateChangedAsync(tenantId, provider, cancellationToken);
         return true;
     }
 
@@ -162,13 +178,16 @@ public sealed class MusicService : IMusicService
         CancellationToken cancellationToken = default
     )
     {
-        IMusicProvider? provider = await GetActiveProviderAsync(broadcasterId, cancellationToken);
+        if (!Guid.TryParse(broadcasterId, out Guid tenantId))
+            return false;
+
+        IMusicProvider? provider = await GetActiveProviderAsync(tenantId, cancellationToken);
         if (provider is null)
             return false;
 
         // Look up track info for the queue display
         IReadOnlyList<TrackInfo> track = await provider.SearchAsync(
-            broadcasterId,
+            tenantId,
             trackUri,
             1,
             cancellationToken
@@ -210,7 +229,7 @@ public sealed class MusicService : IMusicService
         int queueSize = queue.Count;
         if (queueSize <= 1)
         {
-            await provider.AddToQueueAsync(broadcasterId, trackUri, cancellationToken);
+            await provider.AddToQueueAsync(tenantId, trackUri, cancellationToken);
         }
 
         _logger.LogInformation(
@@ -229,20 +248,22 @@ public sealed class MusicService : IMusicService
         CancellationToken cancellationToken = default
     )
     {
-        // Volume control is Spotify-specific; try Spotify provider first
-        SpotifyMusicProvider? spotifyProvider = _providers
-            .OfType<SpotifyMusicProvider>()
-            .FirstOrDefault();
-        if (spotifyProvider is null)
+        if (!Guid.TryParse(broadcasterId, out Guid tenantId))
             return false;
 
-        // Direct Spotify volume — not in IMusicProvider interface, logged only
-        _logger.LogDebug(
-            "SetVolumeAsync({Volume}) called for {BroadcasterId}",
-            volume,
-            broadcasterId
+        IMusicProvider? provider = await GetActiveProviderAsync(tenantId, cancellationToken);
+        if (provider is null || !HasCapability(provider, MusicProviderCapabilities.Volume))
+            return false;
+
+        // §3.5 defines the Volume capability but no provider declares it yet — the
+        // Spotify-completeness slice wires PUT /me/player/volume and adds the SetVolume member
+        // alongside the flag. Until then this gate fails closed above; reaching here means a
+        // provider declared Volume without the seam having a member to call.
+        _logger.LogWarning(
+            "Provider '{Provider}' declares Volume but the provider seam has no SetVolume member yet",
+            provider.Provider
         );
-        return await Task.FromResult(false);
+        return false;
     }
 
     public async Task<NowPlaying?> GetNowPlayingAsync(
@@ -250,11 +271,14 @@ public sealed class MusicService : IMusicService
         CancellationToken cancellationToken = default
     )
     {
-        IMusicProvider? provider = await GetActiveProviderAsync(broadcasterId, cancellationToken);
-        if (provider is null)
+        if (!Guid.TryParse(broadcasterId, out Guid tenantId))
             return null;
 
-        TrackInfo? track = await provider.GetCurrentTrackAsync(broadcasterId, cancellationToken);
+        IMusicProvider? provider = await GetActiveProviderAsync(tenantId, cancellationToken);
+        if (provider is null || !HasCapability(provider, MusicProviderCapabilities.NowPlaying))
+            return null;
+
+        TrackInfo? track = await provider.GetCurrentTrackAsync(tenantId, cancellationToken);
         if (track is null)
             return null;
 
@@ -294,43 +318,39 @@ public sealed class MusicService : IMusicService
 
     // ─── Helpers ─────────────────────────────────────────────────────────────
 
+    /// <summary>
+    /// Resolves the channel's active provider: the connected-integration names for the tenant,
+    /// intersected with the registered provider keys, preferring a provider that can drive playback
+    /// (interim priority rule until the §3.1 ProviderPriority config lands; keeps today's
+    /// Spotify-before-YouTube ordering without naming either).
+    /// </summary>
     private async Task<IMusicProvider?> GetActiveProviderAsync(
-        string broadcasterId,
+        Guid tenantId,
         CancellationToken cancellationToken
     )
     {
-        // Service.BroadcasterId is the tenant Guid; the service receives it as a string.
-        if (!Guid.TryParse(broadcasterId, out Guid tenantId))
-            return null;
-
         // Look up which services are connected for this broadcaster
-        List<string> services = await _db
+        List<string> connected = await _db
             .Services.Where(s => s.BroadcasterId == tenantId && s.Enabled && s.AccessToken != null)
             .Select(s => s.Name)
             .ToListAsync(cancellationToken);
 
-        // Priority: Spotify > YouTube
-        if (services.Contains("spotify"))
-        {
-            SpotifyMusicProvider? spotify = _providers
-                .OfType<SpotifyMusicProvider>()
-                .FirstOrDefault();
-            if (spotify is not null)
-                return spotify;
-        }
+        IMusicProvider? provider = _providers
+            .Where(p => connected.Contains(p.Provider))
+            .OrderByDescending(p => HasCapability(p, MusicProviderCapabilities.PlaybackControl))
+            .ThenBy(p => p.Provider, StringComparer.Ordinal)
+            .FirstOrDefault();
 
-        if (services.Contains("youtube"))
-        {
-            YouTubeMusicProvider? youtube = _providers
-                .OfType<YouTubeMusicProvider>()
-                .FirstOrDefault();
-            if (youtube is not null)
-                return youtube;
-        }
+        if (provider is null)
+            _logger.LogDebug("No active music provider for broadcaster {BroadcasterId}", tenantId);
 
-        _logger.LogDebug("No active music provider for broadcaster {BroadcasterId}", broadcasterId);
-        return null;
+        return provider;
     }
+
+    private static bool HasCapability(
+        IMusicProvider provider,
+        MusicProviderCapabilities capability
+    ) => (provider.Capabilities & capability) == capability;
 
     public Task<bool> RemoveFromQueueAsync(
         string broadcasterId,
@@ -347,7 +367,7 @@ public sealed class MusicService : IMusicService
         }
     }
 
-    // ── Remote controls (delegate to IMusicRemoteProvider when available) ────────
+    // ── Remote controls (capability-gated §3.5 members) ─────────────────────────
 
     public async Task<bool> SeekAsync(
         string broadcasterId,
@@ -355,13 +375,15 @@ public sealed class MusicService : IMusicService
         CancellationToken cancellationToken = default
     )
     {
-        IMusicRemoteProvider? remote = await GetRemoteProviderAsync(
-            broadcasterId,
-            cancellationToken
-        );
-        if (remote is null)
+        if (positionMs < 0 || !Guid.TryParse(broadcasterId, out Guid tenantId))
             return false;
-        await remote.SeekAsync(broadcasterId, positionMs, cancellationToken);
+
+        IMusicProvider? provider = await GetActiveProviderAsync(tenantId, cancellationToken);
+        if (provider is null || !HasCapability(provider, MusicProviderCapabilities.Seek))
+            return false;
+
+        // The §3.5 seam speaks whole seconds; the legacy wire contract still carries milliseconds.
+        await provider.SeekAsync(tenantId, positionMs / 1000, cancellationToken);
         return true;
     }
 
@@ -371,13 +393,14 @@ public sealed class MusicService : IMusicService
         CancellationToken cancellationToken = default
     )
     {
-        IMusicRemoteProvider? remote = await GetRemoteProviderAsync(
-            broadcasterId,
-            cancellationToken
-        );
-        if (remote is null)
+        if (!Guid.TryParse(broadcasterId, out Guid tenantId))
             return false;
-        await remote.SetShuffleAsync(broadcasterId, enabled, cancellationToken);
+
+        IMusicProvider? provider = await GetActiveProviderAsync(tenantId, cancellationToken);
+        if (provider is null || !HasCapability(provider, MusicProviderCapabilities.Shuffle))
+            return false;
+
+        await provider.SetShuffleAsync(tenantId, enabled, cancellationToken);
         return true;
     }
 
@@ -387,13 +410,17 @@ public sealed class MusicService : IMusicService
         CancellationToken cancellationToken = default
     )
     {
-        IMusicRemoteProvider? remote = await GetRemoteProviderAsync(
-            broadcasterId,
-            cancellationToken
-        );
-        if (remote is null)
+        if (!Guid.TryParse(broadcasterId, out Guid tenantId))
             return false;
-        await remote.SetRepeatAsync(broadcasterId, mode, cancellationToken);
+
+        if (!Enum.TryParse(mode, ignoreCase: true, out MusicRepeatMode repeatMode))
+            return false;
+
+        IMusicProvider? provider = await GetActiveProviderAsync(tenantId, cancellationToken);
+        if (provider is null || !HasCapability(provider, MusicProviderCapabilities.Repeat))
+            return false;
+
+        await provider.SetRepeatAsync(tenantId, repeatMode, cancellationToken);
         return true;
     }
 
@@ -404,13 +431,14 @@ public sealed class MusicService : IMusicService
         CancellationToken cancellationToken = default
     )
     {
-        IMusicRemoteProvider? remote = await GetRemoteProviderAsync(
-            broadcasterId,
-            cancellationToken
-        );
-        if (remote is null)
+        if (!Guid.TryParse(broadcasterId, out Guid tenantId))
             return false;
-        await remote.TransferPlaybackAsync(broadcasterId, deviceId, play, cancellationToken);
+
+        IMusicProvider? provider = await GetActiveProviderAsync(tenantId, cancellationToken);
+        if (provider is null || !HasCapability(provider, MusicProviderCapabilities.TransferDevice))
+            return false;
+
+        await provider.TransferPlaybackAsync(tenantId, deviceId, play, cancellationToken);
         return true;
     }
 
@@ -419,18 +447,19 @@ public sealed class MusicService : IMusicService
         CancellationToken cancellationToken = default
     )
     {
-        IMusicRemoteProvider? remote = await GetRemoteProviderAsync(
-            broadcasterId,
-            cancellationToken
-        );
-        if (remote is null)
+        if (!Guid.TryParse(broadcasterId, out Guid tenantId))
             return [];
-        IReadOnlyList<MusicDevice> devices = await remote.GetDevicesAsync(
-            broadcasterId,
+
+        IMusicProvider? provider = await GetActiveProviderAsync(tenantId, cancellationToken);
+        if (provider is null || !HasCapability(provider, MusicProviderCapabilities.TransferDevice))
+            return [];
+
+        IReadOnlyList<MusicDeviceInfo> devices = await provider.GetDevicesAsync(
+            tenantId,
             cancellationToken
         );
         return devices
-            .Select(d => new MusicDeviceDto(d.Id, d.Name, d.Type, d.IsActive, d.VolumePercent))
+            .Select(d => new MusicDeviceDto(d.Id, d.Name, d.Type, d.IsActive, d.VolumePercent ?? 0))
             .ToList()
             .AsReadOnly();
     }
@@ -442,14 +471,19 @@ public sealed class MusicService : IMusicService
         CancellationToken cancellationToken = default
     )
     {
-        IMusicRemoteProvider? remote = await GetRemoteProviderAsync(
-            broadcasterId,
-            cancellationToken
-        );
-        if (remote is null)
+        if (!Guid.TryParse(broadcasterId, out Guid tenantId))
             return [];
+
+        IMusicProvider? provider = await GetActiveProviderAsync(tenantId, cancellationToken);
+        if (
+            provider is null
+            || !HasCapability(provider, MusicProviderCapabilities.Playlists)
+            || provider is not IMusicRemoteProvider remote
+        )
+            return [];
+
         IReadOnlyList<MusicPlaylist> playlists = await remote.GetPlaylistsAsync(
-            broadcasterId,
+            tenantId,
             offset,
             limit,
             cancellationToken
@@ -466,20 +500,19 @@ public sealed class MusicService : IMusicService
         CancellationToken cancellationToken = default
     )
     {
-        IMusicRemoteProvider? remote = await GetRemoteProviderAsync(
-            broadcasterId,
-            cancellationToken
-        );
-        if (remote is null)
+        if (!Guid.TryParse(broadcasterId, out Guid tenantId))
             return false;
-        await remote.PlayContextAsync(broadcasterId, contextUri, cancellationToken);
 
-        // Every current IMusicRemoteProvider implementation (Spotify) is also an IMusicProvider, so the
-        // current-track read used to publish the fresh state is available on the same instance. Guarded
-        // rather than assumed, in case a future remote-only provider does not also implement IMusicProvider.
-        if (remote is IMusicProvider musicProvider)
-            await PublishPlaybackStateChangedAsync(broadcasterId, musicProvider, cancellationToken);
+        IMusicProvider? provider = await GetActiveProviderAsync(tenantId, cancellationToken);
+        if (
+            provider is null
+            || !HasCapability(provider, MusicProviderCapabilities.PlaybackControl)
+            || provider is not IMusicRemoteProvider remote
+        )
+            return false;
 
+        await remote.PlayContextAsync(tenantId, contextUri, cancellationToken);
+        await PublishPlaybackStateChangedAsync(tenantId, provider, cancellationToken);
         return true;
     }
 
@@ -490,15 +523,12 @@ public sealed class MusicService : IMusicService
     /// state, since e.g. a skip's next track is only known to the provider.
     /// </summary>
     private async Task PublishPlaybackStateChangedAsync(
-        string broadcasterId,
+        Guid tenantId,
         IMusicProvider provider,
         CancellationToken cancellationToken
     )
     {
-        if (!Guid.TryParse(broadcasterId, out Guid tenantId))
-            return;
-
-        TrackInfo? track = await provider.GetCurrentTrackAsync(broadcasterId, cancellationToken);
+        TrackInfo? track = await provider.GetCurrentTrackAsync(tenantId, cancellationToken);
 
         await _eventBus.PublishAsync(
             new PlaybackStateChangedEvent
@@ -509,15 +539,6 @@ public sealed class MusicService : IMusicService
             },
             cancellationToken
         );
-    }
-
-    private async Task<IMusicRemoteProvider?> GetRemoteProviderAsync(
-        string broadcasterId,
-        CancellationToken cancellationToken
-    )
-    {
-        IMusicProvider? provider = await GetActiveProviderAsync(broadcasterId, cancellationToken);
-        return provider as IMusicRemoteProvider;
     }
 
     private SongRequestEntry? DequeueNext(string broadcasterId)

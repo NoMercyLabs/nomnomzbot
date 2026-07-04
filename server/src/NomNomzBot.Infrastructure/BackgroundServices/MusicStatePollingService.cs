@@ -16,6 +16,7 @@ using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Domain.Music.Events;
+using NomNomzBot.Domain.Music.Interfaces;
 using NomNomzBot.Domain.Platform.Interfaces;
 
 namespace NomNomzBot.Infrastructure.BackgroundServices;
@@ -118,8 +119,16 @@ public sealed class MusicStatePollingService : BackgroundService
         IApplicationDbContext db =
             scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
         IMusicService musicService = scope.ServiceProvider.GetRequiredService<IMusicService>();
+        List<string> providerKeys = scope
+            .ServiceProvider.GetServices<IMusicProvider>()
+            .Select(p => p.Provider)
+            .ToList();
 
-        List<Guid> channelIds = await LoadConnectedChannelsAsync(db, cancellationToken);
+        List<Guid> channelIds = await LoadConnectedChannelsAsync(
+            db,
+            providerKeys,
+            cancellationToken
+        );
         if (channelIds.Count == 0)
             return;
 
@@ -152,11 +161,14 @@ public sealed class MusicStatePollingService : BackgroundService
         }
     }
 
-    /// <summary>Every channel with an enabled, token-bearing Spotify or YouTube connection — mirrors the
-    /// eligibility <see cref="NomNomzBot.Infrastructure.Music.MusicService"/> itself applies when resolving the
-    /// active provider, so "connected" means the same thing here as it does everywhere else in the product.</summary>
+    /// <summary>Every channel with an enabled, token-bearing connection to a <b>registered music provider</b>
+    /// — the same connected-names ∩ registered-provider-keys eligibility
+    /// <see cref="NomNomzBot.Infrastructure.Music.MusicService"/> applies when resolving the active provider,
+    /// so "connected" means the same thing here as it does everywhere else in the product (and a newly
+    /// registered provider is picked up without touching this poller).</summary>
     private static async Task<List<Guid>> LoadConnectedChannelsAsync(
         IApplicationDbContext db,
+        List<string> providerKeys,
         CancellationToken cancellationToken
     ) =>
         await db
@@ -164,7 +176,7 @@ public sealed class MusicStatePollingService : BackgroundService
                 s.BroadcasterId != null
                 && s.Enabled
                 && s.AccessToken != null
-                && (s.Name == "spotify" || s.Name == "youtube")
+                && providerKeys.Contains(s.Name)
             )
             .Select(s => s.BroadcasterId!.Value)
             .Distinct()

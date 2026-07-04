@@ -16,6 +16,7 @@ using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Domain.Music.Events;
+using NomNomzBot.Domain.Music.Interfaces;
 using NomNomzBot.Domain.Platform.Entities;
 using NomNomzBot.Infrastructure.BackgroundServices;
 using NomNomzBot.Infrastructure.Tests.Identity;
@@ -231,8 +232,10 @@ public sealed class MusicStatePollingServiceTests
             "spotify"
         );
 
-    /// <summary>A scope factory whose every scope resolves the one shared test <see cref="IApplicationDbContext"/>
-    /// + <see cref="IMusicService"/> — the two dependencies <see cref="MusicStatePollingService"/> resolves per tick.</summary>
+    /// <summary>A scope factory whose every scope resolves the shared test <see cref="IApplicationDbContext"/>,
+    /// <see cref="IMusicService"/>, and the registered <see cref="IMusicProvider"/> set — the three dependencies
+    /// <see cref="MusicStatePollingService"/> resolves per tick (the provider set supplies the integration
+    /// names whose connections count as "music-connected").</summary>
     private sealed class PollerScopeFactory(IApplicationDbContext db, IMusicService musicService)
         : IServiceScopeFactory
     {
@@ -250,11 +253,91 @@ public sealed class MusicStatePollingServiceTests
                     return db;
                 if (serviceType == typeof(IMusicService))
                     return musicService;
+                if (serviceType == typeof(IEnumerable<IMusicProvider>))
+                    return new List<IMusicProvider> { new RegisteredSpotifyStub() };
                 return null;
             }
 
             public void Dispose() { }
         }
+    }
+
+    /// <summary>Registration stub matching the tests' seeded Service(Name="spotify") rows. The poller only
+    /// reads <see cref="IMusicProvider.Provider"/>; every other member is unreachable from it.</summary>
+    private sealed class RegisteredSpotifyStub : IMusicProvider
+    {
+        public string Provider => "spotify";
+
+        public MusicProviderCapabilities Capabilities =>
+            MusicProviderCapabilities.NowPlaying | MusicProviderCapabilities.PlaybackControl;
+
+        public Task PlayAsync(Guid broadcasterId, CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task PauseAsync(Guid broadcasterId, CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task SkipAsync(Guid broadcasterId, CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task PreviousAsync(
+            Guid broadcasterId,
+            CancellationToken cancellationToken = default
+        ) => throw new NotSupportedException();
+
+        public Task SeekAsync(
+            Guid broadcasterId,
+            int positionSeconds,
+            CancellationToken cancellationToken = default
+        ) => throw new NotSupportedException();
+
+        public Task SetShuffleAsync(
+            Guid broadcasterId,
+            bool enabled,
+            CancellationToken cancellationToken = default
+        ) => throw new NotSupportedException();
+
+        public Task SetRepeatAsync(
+            Guid broadcasterId,
+            MusicRepeatMode mode,
+            CancellationToken cancellationToken = default
+        ) => throw new NotSupportedException();
+
+        public Task<IReadOnlyList<MusicDeviceInfo>> GetDevicesAsync(
+            Guid broadcasterId,
+            CancellationToken cancellationToken = default
+        ) => throw new NotSupportedException();
+
+        public Task TransferPlaybackAsync(
+            Guid broadcasterId,
+            string deviceId,
+            bool play,
+            CancellationToken cancellationToken = default
+        ) => throw new NotSupportedException();
+
+        public Task<TrackInfo?> GetCurrentTrackAsync(
+            Guid broadcasterId,
+            CancellationToken cancellationToken = default
+        ) => throw new NotSupportedException();
+
+        public Task<IReadOnlyList<TrackInfo>> SearchAsync(
+            Guid broadcasterId,
+            string query,
+            int maxResults = 5,
+            CancellationToken cancellationToken = default
+        ) => throw new NotSupportedException();
+
+        public Task<TrackInfo?> ResolveTrackAsync(
+            Guid broadcasterId,
+            string uriOrId,
+            CancellationToken cancellationToken = default
+        ) => throw new NotSupportedException();
+
+        public Task<bool> AddToQueueAsync(
+            Guid broadcasterId,
+            string trackUri,
+            CancellationToken cancellationToken = default
+        ) => throw new NotSupportedException();
     }
 
     /// <summary>Hand-rolled <see cref="IMusicService"/> test double. Only <see cref="GetNowPlayingAsync"/> is
