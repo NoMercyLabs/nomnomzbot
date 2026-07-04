@@ -19,8 +19,6 @@ except where a dependency is named ([[no-fake-priority]]).
 
 ## Small decided items
 
-- **Charity/Goals EventSub ingest** — subscribe `channel.charity_campaign.*` + `channel.goal.*`, fan out read-side events beside the other ingested topics (ingest-only; zero design uncertainty).
-- **HeatScore weighting** — verify `TrustScoreCalculator` already defines the heat-accumulation weighting (timeouts/bans/reports/filter-hits → heat); if not, it belongs in `moderation.md` §3.8 (`RecomputeTrustAsync`).
 - **Credential component DRY unification** — the client-setup credential components are still duplicated.
 - **Multi-channel residuals** — `Provider` discriminator on `Channel`; individual page controllers still call `primaryChannel()` independently instead of per-channel `/effective/me` re-resolution.
 

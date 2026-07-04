@@ -86,6 +86,13 @@ public sealed class AuthService : IAuthService
         "channel:read:predictions",
         "channel:manage:predictions",
         "channel:read:hype_train",
+        // Charity/Goals EventSub ingest (ROADMAP "Small decided items"): requested upfront alongside the
+        // other per-topic read scopes above (channel:read:hype_train et al.) rather than gated behind a
+        // feature toggle — this codebase requests the full per-channel scope set at login, not per-feature.
+        // A streamer who never runs a charity campaign or creator goal simply never triggers these topics;
+        // Twitch 403s the subscribe attempt gracefully if the scope is somehow missing (see BotLifecycleService).
+        "channel:read:charity",
+        "channel:read:goals",
         "channel:manage:schedule",
         "user:read:moderated_channels",
     ];

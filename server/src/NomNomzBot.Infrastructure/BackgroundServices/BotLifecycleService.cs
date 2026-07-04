@@ -35,8 +35,10 @@ public sealed class BotLifecycleService : BackgroundService
     private readonly HashSet<Guid> _joinedChannels = [];
     private readonly Lock _channelLock = new();
 
-    // EventSub event types to subscribe to per channel
-    private static readonly string[] ChannelEventTypes =
+    // EventSub event types to subscribe to per channel. Internal (not private) so
+    // BotLifecycleServiceTopicsTests can assert the desired-subscribe set directly — the InternalsVisibleTo
+    // to NomNomzBot.Infrastructure.Tests is already wired for exactly this kind of transport-seam assertion.
+    internal static readonly string[] ChannelEventTypes =
     [
         "channel.follow",
         "channel.subscribe",
@@ -53,6 +55,18 @@ public sealed class BotLifecycleService : BackgroundService
         "channel.prediction.end",
         "channel.hype_train.begin",
         "channel.hype_train.end",
+        // Charity/Goals ingest (ROADMAP "Small decided items" — ingest-only, no manage endpoints exist
+        // because Twitch offers none): scope-gated by channel:read:charity / channel:read:goals (AuthService
+        // RequiredScopes) exactly like the channel:read:hype_train-gated hype-train topics above — a missing
+        // scope 403s per-topic in TwitchEventSubHostedService.SubscribeAsync (logged + TwitchHelixReauthRequiredEvent)
+        // without blocking any other topic's subscribe.
+        "channel.charity_campaign.donate",
+        "channel.charity_campaign.start",
+        "channel.charity_campaign.progress",
+        "channel.charity_campaign.stop",
+        "channel.goal.begin",
+        "channel.goal.progress",
+        "channel.goal.end",
         "channel.chat.message",
         "stream.online",
         "stream.offline",
