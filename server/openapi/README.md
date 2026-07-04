@@ -33,9 +33,18 @@ forever — no manual review of field lists, ever again.
 Regenerate this file whenever you change a DTO or add an endpoint, then commit it — the diff makes the
 contract change reviewable, and the frontend test re-checks the app against it:
 
+With the API running (`http://localhost:5080`), from the repo root:
+
+**Linux / macOS**
+
 ```bash
-# with the API running (http://localhost:5080)
 curl -s http://localhost:5080/openapi/v1.json -o server/openapi/v1.json
+```
+
+**Windows (PowerShell)**
+
+```powershell
+Invoke-WebRequest http://localhost:5080/openapi/v1.json -OutFile server\openapi\v1.json
 ```
 
 If a DTO change lands without refreshing this snapshot, `ApiContractTest` keeps checking the app against the
