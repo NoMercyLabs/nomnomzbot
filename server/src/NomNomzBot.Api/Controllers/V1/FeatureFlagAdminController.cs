@@ -13,16 +13,19 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Platform;
+using NomNomzBot.Domain.Identity;
 
 namespace NomNomzBot.Api.Controllers.V1;
 
 /// <summary>
-/// The feature-flag admin write surface (rollout-updates §5) — Plane C (admin). Drives staged rollout: set the
-/// global definition + ramp, and set/clear per-tenant overrides (internal/beta opt-in, per-channel kill-switch).
+/// The feature-flag admin write surface (rollout-updates §5) — Plane C, gated on the
+/// <c>featureflag:write</c> IAM permission (stream-admin.md §5 platform rows; the policy name is the
+/// <c>IamPermission.Key</c> verbatim, audited per check on SaaS). Drives staged rollout: set the global
+/// definition + ramp, and set/clear per-tenant overrides (internal/beta opt-in, per-channel kill-switch).
 /// </summary>
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/admin/feature-flags")]
-[Authorize(Roles = "admin")]
+[Authorize(Policy = IamPermissionKeys.FeatureFlagWrite)]
 [Tags("Feature Flags")]
 public class FeatureFlagAdminController(
     IFeatureFlagAdminService flags,

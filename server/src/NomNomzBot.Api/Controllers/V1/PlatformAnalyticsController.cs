@@ -12,16 +12,18 @@ using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NomNomzBot.Application.Contracts.Analytics;
+using NomNomzBot.Domain.Identity;
 
 namespace NomNomzBot.Api.Controllers.V1;
 
 /// <summary>
-/// SaaS-only cross-tenant platform stats (analytics.md §5) — Plane C (admin). On self-host the service returns
-/// FEATURE_DISABLED (there is no cross-tenant view).
+/// SaaS-only cross-tenant platform stats (analytics.md §5) — Plane C, gated on the
+/// <c>platform:analytics:read</c> IAM permission (analytics.md §5 row; audited per check on SaaS). On
+/// self-host the service returns FEATURE_DISABLED (there is no cross-tenant view).
 /// </summary>
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/platform/analytics")]
-[Authorize(Roles = "admin")]
+[Authorize(Policy = IamPermissionKeys.PlatformAnalyticsRead)]
 [Tags("Platform Analytics")]
 public class PlatformAnalyticsController(IPlatformAnalyticsService platformAnalytics)
     : BaseController

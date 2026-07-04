@@ -268,6 +268,12 @@ public interface IPlatformIamService
     // Resolve the IamPrincipal for an authenticated platform user (Users.IsPlatformPrincipal). Null if not a platform principal.
     Task<Result<IamPrincipalDto?>> ResolvePrincipalAsync(Guid userId, CancellationToken cancellationToken = default);
 
+    // True when at least one IamPrincipal row exists — the service's own "is SaaS" discriminator, exposed for the
+    // ASP.NET Plane-C policy handler: a caller holding the platform-principal claim but NO principal row is allowed
+    // ONLY in the zero-principals (self-host implicit-full) state. The handler cannot probe via AuthorizePlatformAsync
+    // with a sentinel id — on SaaS that would write an IamAuditLog row violating its FK to IamPrincipals.
+    Task<bool> HasAnyPrincipalsAsync(CancellationToken cancellationToken = default);
+
     // Provision a new IamPrincipal: an employee (PrincipalType=Employee over an existing User flagged IsPlatformPrincipal)
     // or a service account (PrincipalType=ServiceAccount — generates a key, stores its ServiceAccountKeyHash, returns it once via the principal).
     // Assigns the requested RoleIds. Requires the acting principal to hold iam:principal:create. Emits via audit.

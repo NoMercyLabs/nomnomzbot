@@ -21,6 +21,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Integrations.Dtos;
+using NomNomzBot.Domain.Identity;
 
 namespace NomNomzBot.Api.Controllers.V1;
 
@@ -504,13 +505,14 @@ public class AuthController : BaseController
 
     /// <summary>
     /// Start the OAuth flow for the platform-shared bot account. This is a platform-level registration on top
-    /// of the operator's account (not a login), so it is admin-gated (identity-auth §5, <c>platform · iam:manage</c>,
-    /// enforced via the live <c>admin</c> role). Returns the Twitch authorize URL for the client to open —
-    /// the resulting token is stored globally (no per-channel binding). First-run setup uses the wizard's
-    /// <c>system/setup/bot/oauth-url</c> instead (before an admin exists).
+    /// of the operator's account (not a login), so it is Plane-C gated (identity-auth §5,
+    /// <c>platform · iam:manage</c> — the policy name is the IAM permission key verbatim, audited on SaaS).
+    /// Returns the Twitch authorize URL for the client to open — the resulting token is stored globally (no
+    /// per-channel binding). First-run setup uses the wizard's <c>system/setup/bot/oauth-url</c> instead
+    /// (before an admin exists).
     /// </summary>
     [HttpGet("twitch/bot")]
-    [Authorize(Roles = "admin")]
+    [Authorize(Policy = IamPermissionKeys.IamManage)]
     [EnableRateLimiting("auth")]
     public async Task<IActionResult> StartBotOAuth(
         [FromQuery] string? redirect_uri,
@@ -537,18 +539,18 @@ public class AuthController : BaseController
         );
     }
 
-    /// <summary>Get the current platform-shared bot account connection status (admin-only).</summary>
+    /// <summary>Get the current platform-shared bot account connection status (platform-operator only).</summary>
     [HttpGet("twitch/bot/status")]
-    [Authorize(Roles = "admin")]
+    [Authorize(Policy = IamPermissionKeys.IamManage)]
     public async Task<IActionResult> GetBotStatus(CancellationToken ct)
     {
         Result<BotStatusDto> result = await _authService.GetBotStatusAsync(ct);
         return ResultResponse(result);
     }
 
-    /// <summary>Disconnect the platform-shared bot account, revoking its Twitch token (admin-only).</summary>
+    /// <summary>Disconnect the platform-shared bot account, revoking its Twitch token (platform-operator only).</summary>
     [HttpDelete("twitch/bot")]
-    [Authorize(Roles = "admin")]
+    [Authorize(Policy = IamPermissionKeys.IamManage)]
     public async Task<IActionResult> DisconnectBot(CancellationToken ct)
     {
         Result result = await _authService.DisconnectBotAsync(ct);
@@ -561,7 +563,7 @@ public class AuthController : BaseController
     /// when they add a bot account (Streamer.bot parity).
     /// </summary>
     [HttpPost("twitch/bot/device")]
-    [Authorize(Roles = "admin")]
+    [Authorize(Policy = IamPermissionKeys.IamManage)]
     [EnableRateLimiting("auth")]
     [ProducesResponseType<StatusResponseDto<DeviceCodeStartDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> StartBotDeviceLogin(CancellationToken ct)
@@ -572,7 +574,7 @@ public class AuthController : BaseController
 
     /// <summary>Poll a bot device login once; on <c>authorized</c> the shared bot account is connected + vaulted.</summary>
     [HttpPost("twitch/bot/device/poll")]
-    [Authorize(Roles = "admin")]
+    [Authorize(Policy = IamPermissionKeys.IamManage)]
     [EnableRateLimiting("device-poll")]
     [ProducesResponseType<StatusResponseDto<DeviceBotPollDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> PollBotDeviceLogin(

@@ -10,14 +10,18 @@
 
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Options;
+using NomNomzBot.Domain.Identity;
 
 namespace NomNomzBot.Api.Authorization;
 
 /// <summary>
-/// Synthesizes an authorization policy on demand for any <c>rbac:&lt;actionKey&gt;</c> policy name — a
-/// single <see cref="ActionAuthorizationRequirement"/> over an authenticated user — so controllers can gate on
-/// the open-ended set of action keys without registering each one. Every other policy name falls through to
-/// the framework default provider.
+/// Synthesizes authorization policies on demand for the two dynamic planes, discriminated by namespace:
+/// a <c>rbac:&lt;actionKey&gt;</c> name (the Gate-2 prefix) becomes an
+/// <see cref="ActionAuthorizationRequirement"/>; a name that IS a seeded Plane-C permission key verbatim —
+/// membership in the closed compile-time <see cref="IamPermissionKeys.All"/> catalog (platform-conventions §5:
+/// "the policy name IS the <c>IamPermissions</c> key verbatim") — becomes a
+/// <see cref="PlatformIamRequirement"/>. Every other policy name falls through to the framework default
+/// provider.
 /// </summary>
 public sealed class ActionAuthorizationPolicyProvider : IAuthorizationPolicyProvider
 {
@@ -38,6 +42,15 @@ public sealed class ActionAuthorizationPolicyProvider : IAuthorizationPolicyProv
             AuthorizationPolicy policy = new AuthorizationPolicyBuilder()
                 .RequireAuthenticatedUser()
                 .AddRequirements(new ActionAuthorizationRequirement(actionKey))
+                .Build();
+            return Task.FromResult<AuthorizationPolicy?>(policy);
+        }
+
+        if (IamPermissionKeys.All.Contains(policyName))
+        {
+            AuthorizationPolicy policy = new AuthorizationPolicyBuilder()
+                .RequireAuthenticatedUser()
+                .AddRequirements(new PlatformIamRequirement(policyName))
                 .Build();
             return Task.FromResult<AuthorizationPolicy?>(policy);
         }

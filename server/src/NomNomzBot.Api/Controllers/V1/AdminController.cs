@@ -17,13 +17,20 @@ using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
+using NomNomzBot.Domain.Identity;
 
 namespace NomNomzBot.Api.Controllers.V1;
 
-/// <summary>Platform-admin dashboard: aggregate stats, channels, users, system health, and events.</summary>
+/// <summary>
+/// Platform-admin dashboard: aggregate stats, channels, users, system health, and events. Plane-C IAM gates
+/// (roles-permissions.md §5.5 rewires this controller off the legacy admin-role check): the tenant listing
+/// carries <c>tenant:read</c> (stream-admin.md §5 platform rows), aggregate stats carry
+/// <c>platform:analytics:read</c> (analytics.md §5), and the remaining operator reads carry <c>iam:manage</c>
+/// (no dedicated spec row — see OWNER-CONFIRM).
+/// </summary>
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/admin")]
-[Authorize(Roles = "admin")]
+[Authorize]
 [Tags("Admin")]
 public class AdminController : BaseController
 {
@@ -42,6 +49,7 @@ public class AdminController : BaseController
 
     /// <summary>Returns aggregate statistics for the admin dashboard.</summary>
     [HttpGet("stats")]
+    [Authorize(Policy = IamPermissionKeys.PlatformAnalyticsRead)]
     [ProducesResponseType<StatusResponseDto<AdminStatsDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetAdminStats(CancellationToken ct)
     {
@@ -51,6 +59,7 @@ public class AdminController : BaseController
 
     /// <summary>Returns all channels with their current status.</summary>
     [HttpGet("channels")]
+    [Authorize(Policy = IamPermissionKeys.TenantRead)]
     [ProducesResponseType<PaginatedResponse<AdminChannelDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> ListChannels(
         [FromQuery] PageRequestDto request,
@@ -69,6 +78,7 @@ public class AdminController : BaseController
 
     /// <summary>Returns all registered users.</summary>
     [HttpGet("users")]
+    [Authorize(Policy = IamPermissionKeys.IamManage)]
     [ProducesResponseType<PaginatedResponse<AdminUserDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> ListUsers(
         [FromQuery] PageRequestDto request,
@@ -84,6 +94,7 @@ public class AdminController : BaseController
 
     /// <summary>Returns system health and process metrics.</summary>
     [HttpGet("system")]
+    [Authorize(Policy = IamPermissionKeys.IamManage)]
     [ProducesResponseType<StatusResponseDto<AdminSystemDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetSystemHealth(CancellationToken ct)
     {
@@ -93,6 +104,7 @@ public class AdminController : BaseController
 
     /// <summary>Returns service health list (for dashboard health panel).</summary>
     [HttpGet("health")]
+    [Authorize(Policy = IamPermissionKeys.IamManage)]
     [ProducesResponseType<StatusResponseDto<List<ServiceHealthResponseDto>>>(
         StatusCodes.Status200OK
     )]
@@ -111,6 +123,7 @@ public class AdminController : BaseController
 
     /// <summary>Returns recent platform events for the admin dashboard.</summary>
     [HttpGet("events")]
+    [Authorize(Policy = IamPermissionKeys.IamManage)]
     [ProducesResponseType<StatusResponseDto<List<PlatformEventDto>>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetEvents(CancellationToken ct)
     {

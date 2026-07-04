@@ -233,8 +233,9 @@ try
 
     builder.Services.AddAuthorization();
 
-    // Roles-permissions Gate 2 (§6): a dynamic policy provider that synthesizes a policy for any
-    // rbac:<actionKey> name + the handler that enforces it via IActionAuthorizationService.
+    // Roles-permissions Gate 2 (§6) + Plane-C IAM (§3.7): ONE dynamic policy provider that synthesizes
+    // rbac:<actionKey> policies (Gate-2 handler over IActionAuthorizationService) and verbatim
+    // IamPermission-key policies (Plane-C handler over IPlatformIamService, audited on SaaS).
     builder.Services.AddSingleton<
         Microsoft.AspNetCore.Authorization.IAuthorizationPolicyProvider,
         NomNomzBot.Api.Authorization.ActionAuthorizationPolicyProvider
@@ -242,6 +243,10 @@ try
     builder.Services.AddScoped<
         Microsoft.AspNetCore.Authorization.IAuthorizationHandler,
         NomNomzBot.Api.Authorization.ActionAuthorizationHandler
+    >();
+    builder.Services.AddScoped<
+        Microsoft.AspNetCore.Authorization.IAuthorizationHandler,
+        NomNomzBot.Api.Authorization.PlatformIamAuthorizationHandler
     >();
 
     // Rate limiting — per-user (or per-IP for anonymous) sliding window.

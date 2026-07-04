@@ -40,6 +40,14 @@ public interface IPlatformIamService
     );
 
     /// <summary>
+    /// True when ANY <c>IamPrincipal</c> exists — the deployment-shape fact the whole plane keys on
+    /// (self-host = zero principals → the operator is implicitly full; SaaS = principals exist → default-deny).
+    /// The authorization handler consults this to decide the no-principal-row case for a platform-marked
+    /// caller: implicit-full on self-host, fail-closed misconfiguration on SaaS.
+    /// </summary>
+    Task<bool> HasAnyPrincipalsAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Provisions an employee (over an existing user) or a service account (generates a key, stores its hash,
     /// returns the key once on the principal) and assigns the requested roles. Requires the acting principal
     /// to hold <c>iam:principal:create</c>.

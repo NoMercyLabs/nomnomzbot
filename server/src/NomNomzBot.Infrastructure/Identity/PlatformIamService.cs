@@ -228,6 +228,9 @@ public sealed class PlatformIamService(
             await EffectivePermissionsAsync(principalId, scopeChannelId, cancellationToken)
         );
 
+    public async Task<bool> HasAnyPrincipalsAsync(CancellationToken cancellationToken = default) =>
+        await IsSaasAsync(cancellationToken);
+
     private async Task<bool> IsSaasAsync(CancellationToken ct) =>
         await db.IamPrincipals.AnyAsync(ct);
 

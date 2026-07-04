@@ -33,11 +33,13 @@ using NomNomzBot.Domain.Widgets.Entities;
 namespace NomNomzBot.Api.Tests.Controllers;
 
 /// <summary>
-/// A focused <see cref="IApplicationDbContext"/> over only the few entities the Discord OAuth controller reads
-/// — platform <see cref="Configuration"/> rows (the Discord client credentials), <see cref="Channel"/>, and
-/// <see cref="DiscordGuildConnection"/> — on the EF Core InMemory provider. Everything else throws, since the
-/// controller tests never reach it. The <c>DiscordGuildConnection</c> soft-delete global filter is applied so
-/// the "non-deleted connection" read semantics match production.
+/// A focused <see cref="IApplicationDbContext"/> over only the few entities the Api controller/authorization
+/// tests read — platform <see cref="Configuration"/> rows (the Discord client credentials),
+/// <see cref="Channel"/>, <see cref="DiscordGuildConnection"/>, and the six Plane-C IAM tables (so the
+/// platform-IAM handler tests run the REAL <c>PlatformIamService</c> against a seeded store) — on the EF Core
+/// InMemory provider. Everything else throws, since these tests never reach it. The
+/// <c>DiscordGuildConnection</c> soft-delete global filter is applied so the "non-deleted connection" read
+/// semantics match production.
 /// </summary>
 internal sealed class ApiTestDbContext : DbContext, IApplicationDbContext
 {
@@ -76,6 +78,14 @@ internal sealed class ApiTestDbContext : DbContext, IApplicationDbContext
         b.Entity<DiscordGuildConnection>().Ignore(e => e.Channel);
         b.Entity<DiscordGuildConnection>().HasQueryFilter(e => e.DeletedAt == null);
 
+        // Plane-C IAM tables — scalar/enum-only, so they materialize on InMemory as-is.
+        b.Entity<IamPermission>().HasKey(e => e.Id);
+        b.Entity<IamRole>().HasKey(e => e.Id);
+        b.Entity<IamRolePermission>().HasKey(e => e.Id);
+        b.Entity<IamPrincipal>().HasKey(e => e.Id);
+        b.Entity<IamRoleAssignment>().HasKey(e => e.Id);
+        b.Entity<IamAuditLog>().HasKey(e => e.Id);
+
         // EF discovers entity types from the DbSet<T> property declarations regardless of the throwing getter
         // bodies; ignore every entity these tests do not exercise so the model stays minimal + provider-agnostic.
         foreach (Type entity in UnmappedEntities)
@@ -87,6 +97,12 @@ internal sealed class ApiTestDbContext : DbContext, IApplicationDbContext
         typeof(NomNomzBot.Domain.Platform.Entities.Configuration),
         typeof(Channel),
         typeof(DiscordGuildConnection),
+        typeof(IamPermission),
+        typeof(IamRole),
+        typeof(IamRolePermission),
+        typeof(IamPrincipal),
+        typeof(IamRoleAssignment),
+        typeof(IamAuditLog),
     ];
 
     private static readonly IReadOnlyList<Type> UnmappedEntities = typeof(IApplicationDbContext)
@@ -176,12 +192,12 @@ internal sealed class ApiTestDbContext : DbContext, IApplicationDbContext
     public DbSet<PermitGrant> PermitGrants => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Identity.Entities.ChannelMissingScope> ChannelMissingScopes =>
         throw new NotSupportedException();
-    public DbSet<IamPermission> IamPermissions => throw new NotSupportedException();
-    public DbSet<IamRole> IamRoles => throw new NotSupportedException();
-    public DbSet<IamRolePermission> IamRolePermissions => throw new NotSupportedException();
-    public DbSet<IamPrincipal> IamPrincipals => throw new NotSupportedException();
-    public DbSet<IamRoleAssignment> IamRoleAssignments => throw new NotSupportedException();
-    public DbSet<IamAuditLog> IamAuditLogs => throw new NotSupportedException();
+    public DbSet<IamPermission> IamPermissions => Set<IamPermission>();
+    public DbSet<IamRole> IamRoles => Set<IamRole>();
+    public DbSet<IamRolePermission> IamRolePermissions => Set<IamRolePermission>();
+    public DbSet<IamPrincipal> IamPrincipals => Set<IamPrincipal>();
+    public DbSet<IamRoleAssignment> IamRoleAssignments => Set<IamRoleAssignment>();
+    public DbSet<IamAuditLog> IamAuditLogs => Set<IamAuditLog>();
     public DbSet<CurrencyConfig> CurrencyConfigs => throw new NotSupportedException();
     public DbSet<EarningRule> EarningRules => throw new NotSupportedException();
     public DbSet<CurrencyAccount> CurrencyAccounts => throw new NotSupportedException();

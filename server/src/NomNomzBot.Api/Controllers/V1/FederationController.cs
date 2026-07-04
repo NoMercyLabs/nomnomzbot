@@ -16,24 +16,26 @@ using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Federation;
 using NomNomzBot.Application.DTOs.Federation;
+using NomNomzBot.Domain.Identity;
 
 namespace NomNomzBot.Api.Controllers.V1;
 
 /// <summary>
 /// The global federation trust directory (federation-oidc.md §5) — peer registration, trust/revoke lifecycle, and
-/// key rotation. Platform-operator scope (the Plane-C IAM <c>iam:manage</c>/<c>audit:read</c> policy gate is the
-/// target — currently the live <c>admin</c> role gate). (Deferred: the mTLS handshake/inbound endpoints + the
-/// public descriptor await the handshake transport.)
+/// key rotation. Plane-C IAM gates per the §5 rows: the list-only reads carry <c>audit:read</c>, every trust
+/// mutation carries <c>iam:manage</c> (policy name = <c>IamPermission.Key</c> verbatim, audited on SaaS).
+/// (Deferred: the mTLS handshake/inbound endpoints + the public descriptor await the handshake transport.)
 /// </summary>
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/federation")]
-[Authorize(Roles = "admin")]
+[Authorize]
 [Tags("Federation")]
 public class FederationController(IFederationPeerService peers, ICurrentUserService currentUser)
     : BaseController
 {
     /// <summary>List registered federation peers, paginated, optionally filtered by trust state.</summary>
     [HttpGet("peers")]
+    [Authorize(Policy = IamPermissionKeys.AuditRead)]
     [ProducesResponseType<PaginatedResponse<FederationPeerDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> ListPeers(
         [FromQuery] PageRequestDto request,
@@ -54,11 +56,13 @@ public class FederationController(IFederationPeerService peers, ICurrentUserServ
 
     /// <summary>Fetch a single federation peer by id.</summary>
     [HttpGet("peers/{peerId:guid}")]
+    [Authorize(Policy = IamPermissionKeys.AuditRead)]
     public async Task<IActionResult> GetPeer(Guid peerId, CancellationToken ct) =>
         ResultResponse(await peers.GetPeerAsync(peerId, ct));
 
     /// <summary>Register a new peer instance in the federation trust directory.</summary>
     [HttpPost("peers")]
+    [Authorize(Policy = IamPermissionKeys.IamManage)]
     public async Task<IActionResult> RegisterPeer(
         [FromBody] RegisterFederationPeerRequest request,
         CancellationToken ct
@@ -66,6 +70,7 @@ public class FederationController(IFederationPeerService peers, ICurrentUserServ
 
     /// <summary>Mark a registered peer as trusted, recording the acting operator.</summary>
     [HttpPost("peers/{peerId:guid}/trust")]
+    [Authorize(Policy = IamPermissionKeys.IamManage)]
     public async Task<IActionResult> TrustPeer(Guid peerId, CancellationToken ct)
     {
         if (!TryGetCaller(out Guid caller))
@@ -75,6 +80,7 @@ public class FederationController(IFederationPeerService peers, ICurrentUserServ
 
     /// <summary>Revoke a peer's trust with a stated reason, recording the acting operator.</summary>
     [HttpPost("peers/{peerId:guid}/revoke")]
+    [Authorize(Policy = IamPermissionKeys.IamManage)]
     public async Task<IActionResult> RevokePeer(
         Guid peerId,
         [FromBody] RevokeFederationPeerRequest request,
@@ -88,6 +94,7 @@ public class FederationController(IFederationPeerService peers, ICurrentUserServ
 
     /// <summary>Add a new signing key to a peer for key rotation.</summary>
     [HttpPost("peers/{peerId:guid}/keys")]
+    [Authorize(Policy = IamPermissionKeys.IamManage)]
     public async Task<IActionResult> AddPeerKey(
         Guid peerId,
         [FromBody] AddFederationPeerKeyRequest request,
@@ -96,6 +103,7 @@ public class FederationController(IFederationPeerService peers, ICurrentUserServ
 
     /// <summary>Deactivate one of a peer's signing keys by key id.</summary>
     [HttpDelete("peers/{peerId:guid}/keys/{keyId}")]
+    [Authorize(Policy = IamPermissionKeys.IamManage)]
     public async Task<IActionResult> DeactivatePeerKey(
         Guid peerId,
         string keyId,
