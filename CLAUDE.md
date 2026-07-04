@@ -26,6 +26,7 @@ Licensed under **AGPL-3.0**. Copyright (C) NoMercy Labs.
 - **Track split** — backend (`server/`) = `Stoney_Eagle` + Claude; frontend (`app/`) = `aaoa-dev` (designer). Commits never cross the boundary; cross-track needs go through `handoff/`. See *Team & Track Ownership*.
 - **CI green before sign-off** — run the full test suite before EVERY commit; after EVERY push, `gh run watch <run-id> --exit-status` and fix failures immediately. See *CI Gate*.
 - **Check your handoff inbox at session start** — `handoff/for-backend.md` (backend track) / `handoff/for-frontend.md` (frontend track). Open items are picked up automatically, no prompt needed.
+- **`saas` mode is a RESTRICTED option** — operating NomNomzBot as a hosted service for third parties is against the project license (reserved to NoMercy Labs); self-hosting your own bot is always free. Every doc/script surface that shows saas instructions must carry this restriction marker — never drop it.
 
 ---
 

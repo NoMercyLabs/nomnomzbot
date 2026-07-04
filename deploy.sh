@@ -36,7 +36,10 @@ NomNomzBot deploy — pick a scenario (full guide: DEPLOY.md)
   ./deploy.sh docker    Full stack in Docker: Postgres + Redis + API (+ Adminer).
                         Best for: a home server, database durability, room to grow.
   ./deploy.sh saas      The same Docker stack in multi-tenant SaaS mode, behind
-                        YOUR HTTPS reverse proxy. Best for: hosting for others.
+                        YOUR HTTPS reverse proxy.
+                        RESTRICTED: hosting NomNomzBot as a service for others is
+                        against the project license (reserved to NoMercy Labs).
+                        Self-hosting your own bot is always free and unrestricted.
 
 Dashboard (both work in every scenario):
   web app     nothing to build — the bot serves it; open the API URL in a browser.
@@ -221,6 +224,10 @@ scenario_saas() {
     env_set DEPLOYMENT_MODE saas
   fi
 
+  echo "RESTRICTED OPTION: operating NomNomzBot as a hosted service for third parties is against"
+  echo "the project license — that right is reserved to NoMercy Labs. Self-hosting your own bot"
+  echo "(desktop/docker) is always free and unrestricted. See DEPLOY.md (SaaS)."
+  echo
   echo "SaaS mode: TLS terminates at YOUR reverse proxy; set TRUSTED_PROXY_NETWORKS in .env if the"
   echo "proxy reaches the API over a docker network (e.g. 172.16.0.0/12). Scale-out guidance: DEPLOY.md."
   compose_up_and_wait

@@ -21,7 +21,7 @@ Run yours with no arguments any time to see this guide's short form.
 |---|---|---|---|
 | The bot on **this machine**, zero dependencies, one file | **desktop** | `./deploy.sh desktop` | `.\deploy.ps1 desktop` |
 | The bot on a **home server** with a real database | **docker** | `./deploy.sh docker` | `.\deploy.ps1 docker` |
-| To **host the bot for other streamers** (multi-tenant) | **saas** | `./deploy.sh saas` | `.\deploy.ps1 saas` |
+| To **host the bot for other streamers** (multi-tenant) — **restricted, see below** | **saas** | `./deploy.sh saas` | `.\deploy.ps1 saas` |
 
 Any scenario can also build the **standalone desktop dashboard app** for your OS by adding the
 app flag (single dash on Windows — that's PowerShell's native flag style):
@@ -30,7 +30,7 @@ app flag (single dash on Windows — that's PowerShell's native flag style):
 - **Windows (PowerShell):** `.\deploy.ps1 desktop -App`
 
 Rule of thumb: start with **desktop**. Move to **docker** when you want Postgres-grade durability
-or the bot lives on a server. **saas** is only for operators running a public service.
+or the bot lives on a server. **saas** is a **restricted option** — see its section below.
 
 ## The dashboard — web vs desktop app
 
@@ -120,11 +120,15 @@ prints your URLs.
 - **Update** by re-running the scenario. **Logs:** `docker compose logs -f api`.
 - **Backup:** the `postgres_data` and `api_data` volumes plus your `.env`.
 
-## Scenario: saas — multi-tenant fleet mode
+## Scenario: saas — multi-tenant fleet mode (restricted)
+
+> **⚠ Restricted option.** Operating NomNomzBot as a hosted service for other people is **against
+> the project license** — that right is reserved to **NoMercy Labs** (the official cloud offering).
+> Self-hosting your own bot for your own channel(s) — desktop or docker — is always free and
+> unrestricted. This section documents the mode for the official cloud deployment.
 
 The same Docker stack switched to `saas` mode — multi-tenant, built to sit behind **your** HTTPS
-reverse proxy. This is for operators running NomNomzBot as a service; a single streamer never
-needs it.
+reverse proxy. A single streamer never needs it.
 
 **Requirements:** Docker, a public domain, and a reverse proxy terminating TLS (Caddy, nginx, or a
 Cloudflare Tunnel — see the [README's production deployment section](README.md#production-deployment)).
@@ -160,7 +164,7 @@ with your own orchestration.
 |---|---|---|---|
 | desktop | `http://localhost:5080` | `./deploy.sh desktop --app` | `.\deploy.ps1 desktop -App` |
 | docker | `http://localhost:5080` (or your URL) | `./deploy.sh docker --app` | `.\deploy.ps1 docker -App` |
-| saas | `https://your-domain` | `./deploy.sh saas --app` | `.\deploy.ps1 saas -App` |
+| saas *(restricted — see above)* | `https://your-domain` | `./deploy.sh saas --app` | `.\deploy.ps1 saas -App` |
 
 The `--app` build is independent of the backend scenario — you can also run it on a different
 machine than the bot (build the app on your PC, point it at the server).

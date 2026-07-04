@@ -121,8 +121,9 @@ server the dashboard talks to. On the hosted offering the backend is run for you
 dashboard. To **self-host**, run your own backend and point the dashboard at it.
 
 > **Quickest path:** one deploy script per OS, covering every scenario — the zero-dependency
-> single-file binary, the Docker stack, and SaaS mode, each with the bundled web dashboard or the
-> standalone desktop app. **[DEPLOY.md](DEPLOY.md)** explains which to choose.
+> single-file binary, the Docker stack, and SaaS mode (a **restricted option** — hosting NomNomzBot
+> for others is against the project license, reserved to NoMercy Labs), each with the bundled web
+> dashboard or the standalone desktop app. **[DEPLOY.md](DEPLOY.md)** explains which to choose.
 >
 > - **Linux / macOS:** `./deploy.sh <scenario> [--app]`
 > - **Windows (PowerShell):** `.\deploy.ps1 <scenario> [-App]`

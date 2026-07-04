@@ -7,6 +7,9 @@ To run the whole bot, use the deploy script at the repo root (full guide: [DEPLO
 - **Linux / macOS:** `./deploy.sh <desktop|docker|saas>`
 - **Windows (PowerShell):** `.\deploy.ps1 <desktop|docker|saas>`
 
+`saas` is a **restricted option** — hosting NomNomzBot as a service for others is against the
+project license (reserved to NoMercy Labs); see [DEPLOY.md](../DEPLOY.md).
+
 ## Manual development
 
 The commands below are identical on every OS. `dotnet run` alone starts the bot in **self_host_lite**
