@@ -124,6 +124,9 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
             if (builtin is null)
                 return;
 
+            if (IsBuiltinDisabled(ctx, commandName))
+                return;
+
             if (!HasPermission(@event, builtin.DefaultMinPermissionLevel))
                 return;
 
@@ -251,6 +254,9 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
                     if (builtin is null)
                         return;
 
+                    if (IsBuiltinDisabled(ctx, commandName))
+                        return;
+
                     BuiltinCommandContext builtinFallbackCtx = new()
                     {
                         BroadcasterId = @event.BroadcasterId,
@@ -299,6 +305,14 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
             );
         }
     }
+
+    /// <summary>
+    /// True when the channel has explicitly disabled this builtin (<c>ChannelBuiltinCommand.IsEnabled ==
+    /// false</c>, mirrored into <see cref="ChannelContext.DisabledBuiltins"/> by <c>ChannelRegistry</c>). A
+    /// disabled builtin is silently ignored — exactly like an unrecognized command — rather than executed.
+    /// </summary>
+    private static bool IsBuiltinDisabled(ChannelContext ctx, string commandName) =>
+        ctx.DisabledBuiltins.ContainsKey(commandName);
 
     private static bool HasPermission(ChatMessageReceivedEvent @event, int minPermissionLevel)
     {

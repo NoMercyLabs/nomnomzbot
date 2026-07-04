@@ -21,9 +21,10 @@ namespace NomNomzBot.Infrastructure.Identity.EventHandlers;
 
 /// <summary>
 /// Onboarding seed job (Identity / channel domain): when a channel finishes onboarding, pull its current
-/// title, category, language, and tags from the Helix "Get Channel Information" endpoint and persist them
-/// to the <c>Channel</c> row. This uses the app token (no streamer scope required) so it always succeeds.
-/// Without this, an offline channel's stored title/game stay null until their next <c>stream.online</c> event.
+/// title, category, language, tags, content classification labels, and stream delay from the Helix "Get
+/// Channel Information" endpoint and persist them to the <c>Channel</c> row. This uses the app token (no
+/// streamer scope required) so it always succeeds. Without this, an offline channel's stored title/game/CCL/
+/// delay stay at their defaults until their next <c>stream.online</c> event.
 /// Independently resilient — caught + logged, never propagated. Idempotent and safe to re-run.
 /// </summary>
 public sealed class ChannelInfoSeedOnOnboardingHandler(
@@ -100,15 +101,36 @@ public sealed class ChannelInfoSeedOnOnboardingHandler(
                 }
             }
 
+            if (info.ContentClassificationLabels.Count > 0)
+            {
+                List<string> incomingLabels = info
+                    .ContentClassificationLabels.OrderBy(l => l)
+                    .ToList();
+                List<string> existingLabels = channel.ContentLabels.OrderBy(l => l).ToList();
+                if (!incomingLabels.SequenceEqual(existingLabels))
+                {
+                    channel.ContentLabels = [.. info.ContentClassificationLabels];
+                    changed = true;
+                }
+            }
+
+            if (channel.StreamDelay != info.Delay)
+            {
+                channel.StreamDelay = info.Delay;
+                changed = true;
+            }
+
             if (changed)
                 await db.SaveChangesAsync(ct);
 
             logger.LogInformation(
-                "Onboarding seed (channel info): completed for {BroadcasterId} — title={Title}, game={Game}, lang={Lang}",
+                "Onboarding seed (channel info): completed for {BroadcasterId} — title={Title}, game={Game}, lang={Lang}, labels={Labels}, delay={Delay}",
                 @event.BroadcasterId,
                 info.Title,
                 info.GameName,
-                info.BroadcasterLanguage
+                info.BroadcasterLanguage,
+                string.Join(",", info.ContentClassificationLabels),
+                info.Delay
             );
         }
         catch (Exception ex) when (ex is not OperationCanceledException)

@@ -36,6 +36,13 @@ public interface IChannelRegistry
     /// </summary>
     Task InvalidateCommandsAsync(Guid broadcasterId, CancellationToken ct = default);
 
+    /// <summary>
+    /// Reloads the built-in command toggle cache for an already-registered channel. Call after a builtin's
+    /// per-channel enable/disable state changes so the in-process chat handler picks up the change without a
+    /// restart. No-ops if the channel is not yet in the registry.
+    /// </summary>
+    Task InvalidateBuiltinsAsync(Guid broadcasterId, CancellationToken ct = default);
+
     Task RemoveAsync(Guid broadcasterId, CancellationToken ct = default);
     IReadOnlyCollection<ChannelContext> GetAll();
     IReadOnlyCollection<ChannelContext> GetLiveChannels();
@@ -60,6 +67,15 @@ public class ChannelContext
 
     // Per-channel in-memory command cache: key = command name (lowercase)
     public ConcurrentDictionary<string, CachedCommand> Commands { get; } =
+        new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Per-channel builtin-toggle cache: keys are the builtin's bare catalog key (lowercase, no leading "!"
+    /// — the same form the builtin catalog and <c>ChatMessageHandler</c>'s parsed command name use) for every
+    /// builtin explicitly disabled for this channel. Absence = enabled (the catalog default), mirroring
+    /// <c>IBuiltinCommandService</c>'s "absent row = enabled" semantics.
+    /// </summary>
+    public ConcurrentDictionary<string, byte> DisabledBuiltins { get; } =
         new(StringComparer.OrdinalIgnoreCase);
 
     // Per-channel active pipelines: key = executionId

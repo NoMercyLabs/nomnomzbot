@@ -24,16 +24,19 @@ public sealed class BuiltinCommandService : IBuiltinCommandService
     private readonly IBuiltinCommandCatalog _catalog;
     private readonly IApplicationDbContext _db;
     private readonly IEventBus _eventBus;
+    private readonly IChannelRegistry _registry;
 
     public BuiltinCommandService(
         IBuiltinCommandCatalog catalog,
         IApplicationDbContext db,
-        IEventBus eventBus
+        IEventBus eventBus,
+        IChannelRegistry registry
     )
     {
         _catalog = catalog;
         _db = db;
         _eventBus = eventBus;
+        _registry = registry;
     }
 
     public async Task<Result<IReadOnlyList<BuiltinCommandDto>>> ListAsync(
@@ -108,6 +111,7 @@ public sealed class BuiltinCommandService : IBuiltinCommandService
         }
 
         await _db.SaveChangesAsync(ct);
+        await _registry.InvalidateBuiltinsAsync(broadcaster, ct);
         await _eventBus.PublishAsync(
             new ChannelConfigChangedEvent
             {

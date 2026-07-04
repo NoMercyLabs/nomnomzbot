@@ -26,6 +26,7 @@ using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Identity.Events;
 using NomNomzBot.Domain.Platform.Entities;
 using NomNomzBot.Infrastructure.BackgroundServices;
+using NomNomzBot.Infrastructure.Chat.EventHandlers;
 using NomNomzBot.Infrastructure.Commands.EventHandlers;
 using NomNomzBot.Infrastructure.Community.EventHandlers;
 using NomNomzBot.Infrastructure.Content.Commands;
@@ -734,6 +735,328 @@ public sealed class OnboardingSeedHandlerTests
 
         ListLogger<EventSubSubscribeOnOnboardingHandler> log = new();
         EventSubSubscribeOnOnboardingHandler sut = new(eventSub, log);
+
+        Func<Task> act = () => sut.HandleAsync(Event());
+
+        await act.Should().NotThrowAsync();
+        log.Entries.Should().Contain(e => e.Level == LogLevel.Error);
+    }
+
+    // ── Channel info seed handler (Slice C: content-labels + delay extension) ───
+
+    [Fact]
+    public async Task ChannelInfo_handler_seeds_title_game_tags_ccl_and_delay_for_the_event_broadcaster()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        db.Channels.Add(Channel(Broadcaster, "tw-123", "stoney_eagle", isOnboarded: true));
+        await db.SaveChangesAsync();
+
+        ITwitchChannelsApi channels = Substitute.For<ITwitchChannelsApi>();
+        channels
+            .GetChannelInformationAsync(Broadcaster, Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Success(
+                    new TwitchChannelInformation(
+                        "tw-123",
+                        "stoney_eagle",
+                        "Stoney_Eagle",
+                        "en",
+                        "509658",
+                        "Just Chatting",
+                        "Hello stream",
+                        30,
+                        ["gaming", "english"],
+                        ["DrugsIntoxication", "Gambling"],
+                        false
+                    )
+                )
+            );
+
+        ListLogger<ChannelInfoSeedOnOnboardingHandler> log = new();
+        ChannelInfoSeedOnOnboardingHandler sut = new(db, channels, log);
+
+        await sut.HandleAsync(Event());
+
+        Channel? updated = await db.Channels.FindAsync(Broadcaster);
+
+        updated.Should().NotBeNull();
+        updated!.Title.Should().Be("Hello stream");
+        updated.GameName.Should().Be("Just Chatting");
+        updated.Tags.Should().BeEquivalentTo(["gaming", "english"]);
+        updated.ContentLabels.Should().BeEquivalentTo(["DrugsIntoxication", "Gambling"]);
+        updated.StreamDelay.Should().Be(30);
+    }
+
+    [Fact]
+    public async Task ChannelInfo_handler_is_idempotent_a_second_identical_pull_leaves_the_same_state()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        db.Channels.Add(Channel(Broadcaster, "tw-123", "stoney_eagle", isOnboarded: true));
+        await db.SaveChangesAsync();
+
+        ITwitchChannelsApi channels = Substitute.For<ITwitchChannelsApi>();
+        channels
+            .GetChannelInformationAsync(Broadcaster, Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Success(
+                    new TwitchChannelInformation(
+                        "tw-123",
+                        "stoney_eagle",
+                        "Stoney_Eagle",
+                        "en",
+                        "509658",
+                        "Just Chatting",
+                        "Hello stream",
+                        30,
+                        ["gaming", "english"],
+                        ["DrugsIntoxication", "Gambling"],
+                        false
+                    )
+                )
+            );
+
+        ListLogger<ChannelInfoSeedOnOnboardingHandler> log = new();
+        ChannelInfoSeedOnOnboardingHandler sut = new(db, channels, log);
+
+        await sut.HandleAsync(Event());
+        await sut.HandleAsync(Event());
+
+        Channel? updated = await db.Channels.FindAsync(Broadcaster);
+
+        updated!.ContentLabels.Should().BeEquivalentTo(["DrugsIntoxication", "Gambling"]);
+        updated.StreamDelay.Should().Be(30);
+    }
+
+    [Fact]
+    public async Task ChannelInfo_handler_never_clears_existing_content_labels_when_twitch_reports_none()
+    {
+        // Mirrors the existing Tags guard: an empty CCL response must not wipe a previously-seeded value.
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        Channel channel = Channel(Broadcaster, "tw-123", "stoney_eagle", isOnboarded: true);
+        channel.ContentLabels = ["Gambling"];
+        db.Channels.Add(channel);
+        await db.SaveChangesAsync();
+
+        ITwitchChannelsApi channels = Substitute.For<ITwitchChannelsApi>();
+        channels
+            .GetChannelInformationAsync(Broadcaster, Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Success(
+                    new TwitchChannelInformation(
+                        "tw-123",
+                        "stoney_eagle",
+                        "Stoney_Eagle",
+                        "en",
+                        "509658",
+                        "Just Chatting",
+                        "Hello stream",
+                        0,
+                        [],
+                        [],
+                        false
+                    )
+                )
+            );
+
+        ListLogger<ChannelInfoSeedOnOnboardingHandler> log = new();
+        ChannelInfoSeedOnOnboardingHandler sut = new(db, channels, log);
+
+        await sut.HandleAsync(Event());
+
+        Channel? updated = await db.Channels.FindAsync(Broadcaster);
+        updated!.ContentLabels.Should().BeEquivalentTo(["Gambling"]);
+    }
+
+    [Fact]
+    public async Task ChannelInfo_handler_updates_stream_delay_unconditionally_including_down_to_zero()
+    {
+        // Unlike Tags/CCL, 0 is a legitimate delay value (disabled) rather than "not returned", so the
+        // handler must apply it even when it differs from a previously non-zero value.
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        Channel channel = Channel(Broadcaster, "tw-123", "stoney_eagle", isOnboarded: true);
+        channel.StreamDelay = 30;
+        db.Channels.Add(channel);
+        await db.SaveChangesAsync();
+
+        ITwitchChannelsApi channels = Substitute.For<ITwitchChannelsApi>();
+        channels
+            .GetChannelInformationAsync(Broadcaster, Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Success(
+                    new TwitchChannelInformation(
+                        "tw-123",
+                        "stoney_eagle",
+                        "Stoney_Eagle",
+                        "en",
+                        "509658",
+                        "Just Chatting",
+                        "Hello stream",
+                        0,
+                        [],
+                        [],
+                        false
+                    )
+                )
+            );
+
+        ListLogger<ChannelInfoSeedOnOnboardingHandler> log = new();
+        ChannelInfoSeedOnOnboardingHandler sut = new(db, channels, log);
+
+        await sut.HandleAsync(Event());
+
+        Channel? updated = await db.Channels.FindAsync(Broadcaster);
+        updated!.StreamDelay.Should().Be(0);
+    }
+
+    // ── Chat settings seed handler (Slice C) ─────────────────────────────────
+
+    [Fact]
+    public async Task ChatSettings_handler_seeds_the_chat_settings_row_from_twitch_for_the_event_broadcaster()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        ITwitchChatApi chatApi = Substitute.For<ITwitchChatApi>();
+        chatApi
+            .GetChatSettingsAsync(Broadcaster, Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Success(
+                    new TwitchChatSettings(
+                        Broadcaster.ToString(),
+                        EmoteMode: true,
+                        FollowerMode: true,
+                        FollowerModeDuration: 10,
+                        ModeratorId: null,
+                        NonModeratorChatDelay: null,
+                        NonModeratorChatDelayDuration: null,
+                        SlowMode: true,
+                        SlowModeWaitTime: 30,
+                        SubscriberMode: false,
+                        UniqueChatMode: false
+                    )
+                )
+            );
+
+        ListLogger<ChatSettingsSeedOnOnboardingHandler> log = new();
+        ChatSettingsSeedOnOnboardingHandler sut = new(db, chatApi, log);
+
+        await sut.HandleAsync(Event());
+
+        Configuration? row = await db.Configurations.FirstOrDefaultAsync(c =>
+            c.BroadcasterId == Broadcaster && c.Key == "chat.settings"
+        );
+
+        row.Should().NotBeNull();
+        row!.Value.Should().Contain("\"slowMode\":true");
+        row.Value.Should().Contain("\"slowModeDelay\":30");
+        row.Value.Should().Contain("\"subscriberOnly\":false");
+        row.Value.Should().Contain("\"emotesOnly\":true");
+        row.Value.Should().Contain("\"followersOnly\":true");
+        row.Value.Should().Contain("\"followersOnlyDuration\":10");
+    }
+
+    [Fact]
+    public async Task ChatSettings_handler_is_idempotent_and_never_overwrites_an_existing_row()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        ITwitchChatApi chatApi = Substitute.For<ITwitchChatApi>();
+        chatApi
+            .GetChatSettingsAsync(Broadcaster, Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Success(
+                    new TwitchChatSettings(
+                        Broadcaster.ToString(),
+                        EmoteMode: false,
+                        FollowerMode: false,
+                        FollowerModeDuration: 0,
+                        ModeratorId: null,
+                        NonModeratorChatDelay: null,
+                        NonModeratorChatDelayDuration: null,
+                        SlowMode: true,
+                        SlowModeWaitTime: 30,
+                        SubscriberMode: false,
+                        UniqueChatMode: false
+                    )
+                )
+            );
+
+        ListLogger<ChatSettingsSeedOnOnboardingHandler> log = new();
+        ChatSettingsSeedOnOnboardingHandler sut = new(db, chatApi, log);
+
+        await sut.HandleAsync(Event());
+
+        // The streamer customizes the settings afterwards via the dashboard.
+        Configuration row = await db.Configurations.SingleAsync(c =>
+            c.BroadcasterId == Broadcaster && c.Key == "chat.settings"
+        );
+        row.Value =
+            "{\"slowMode\":false,\"slowModeDelay\":0,\"subscriberOnly\":true,\"emotesOnly\":false,\"followersOnly\":false,\"followersOnlyDuration\":0}";
+        await db.SaveChangesAsync();
+
+        // Twitch now reports different settings on a re-onboard/backfill pass — must not clobber the row.
+        chatApi
+            .GetChatSettingsAsync(Broadcaster, Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Success(
+                    new TwitchChatSettings(
+                        Broadcaster.ToString(),
+                        EmoteMode: true,
+                        FollowerMode: true,
+                        FollowerModeDuration: 99,
+                        ModeratorId: null,
+                        NonModeratorChatDelay: null,
+                        NonModeratorChatDelayDuration: null,
+                        SlowMode: false,
+                        SlowModeWaitTime: 0,
+                        SubscriberMode: false,
+                        UniqueChatMode: false
+                    )
+                )
+            );
+
+        await sut.HandleAsync(Event());
+
+        List<Configuration> rows = await db
+            .Configurations.Where(c => c.BroadcasterId == Broadcaster && c.Key == "chat.settings")
+            .ToListAsync();
+
+        rows.Should().HaveCount(1);
+        rows.Single().Value.Should().Contain("\"subscriberOnly\":true");
+        rows.Single().Value.Should().NotContain("\"followersOnlyDuration\":99");
+    }
+
+    [Fact]
+    public async Task ChatSettings_handler_logs_a_warning_and_seeds_nothing_when_the_helix_call_fails()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        ITwitchChatApi chatApi = Substitute.For<ITwitchChatApi>();
+        chatApi
+            .GetChatSettingsAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Failure<TwitchChatSettings>(
+                    "Channel is not known locally.",
+                    TwitchErrorCodes.NotFound
+                )
+            );
+
+        ListLogger<ChatSettingsSeedOnOnboardingHandler> log = new();
+        ChatSettingsSeedOnOnboardingHandler sut = new(db, chatApi, log);
+
+        await sut.HandleAsync(Event());
+
+        (await db.Configurations.AnyAsync(c => c.BroadcasterId == Broadcaster)).Should().BeFalse();
+        log.Entries.Should().Contain(e => e.Level == LogLevel.Warning);
+    }
+
+    [Fact]
+    public async Task ChatSettings_handler_catches_and_logs_an_unexpected_failure_without_throwing()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        ITwitchChatApi chatApi = Substitute.For<ITwitchChatApi>();
+        chatApi
+            .GetChatSettingsAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .ThrowsAsync(new InvalidOperationException("twitch is down"));
+
+        ListLogger<ChatSettingsSeedOnOnboardingHandler> log = new();
+        ChatSettingsSeedOnOnboardingHandler sut = new(db, chatApi, log);
 
         Func<Task> act = () => sut.HandleAsync(Event());
 

@@ -27,7 +27,7 @@ except where a dependency is named ([[no-fake-priority]]).
 
 ## Small decided items
 
-- **Builtin enable-toggle has no runtime effect** — `ChannelBuiltinCommand.IsEnabled` is never consulted by `ChatMessageHandler`, so disabling a builtin in the dashboard changes nothing in chat; wire the toggle into the execution path (+ behavioral test proving a disabled builtin does not respond).
+- **Builtin key-format mismatch** — `DefaultCommandsSeeder` writes bang-prefixed `ChannelBuiltinCommand` keys (`"!sr"`) while `BuiltinCommandService`/the dashboard write bare keys (`"sr"`): seeded rows are orphaned from the toggle UI (runtime path already tolerates both via TrimStart). Normalize the seeder to bare keys + a repair migration for existing rows + test.
 - **Credential component DRY unification** — the client-setup credential components are still duplicated.
 - **Multi-channel residuals** — `Provider` discriminator on `Channel`; individual page controllers still call `primaryChannel()` independently instead of per-channel `/effective/me` re-resolution.
 - **User-plane topic attribution with a shared bot account** — `user.update`/`user.whisper.message` conditions carry no broadcaster id, so with one dedicated bot serving multiple channels only the first channel's subscribe succeeds (others 409 harmlessly) and events attribute to that channel; needs a routing decision (per-channel reader identity vs recipient-based demux).

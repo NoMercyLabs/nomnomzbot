@@ -92,8 +92,9 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
             LastActivityAt = now,
         };
 
-        // Load commands from DB
+        // Load commands + builtin toggles from DB
         await LoadCommandsAsync(ctx, ct);
+        await LoadBuiltinTogglesAsync(ctx, ct);
 
         _channels[broadcasterId] = ctx;
         _logger.LogInformation(
@@ -118,6 +119,21 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
         _logger.LogDebug(
             "Reloaded {Count} commands for channel {BroadcasterId}",
             ctx.Commands.Count,
+            broadcasterId
+        );
+    }
+
+    public async Task InvalidateBuiltinsAsync(Guid broadcasterId, CancellationToken ct = default)
+    {
+        if (!_channels.TryGetValue(broadcasterId, out ChannelContext? ctx))
+            return;
+
+        ctx.DisabledBuiltins.Clear();
+        await LoadBuiltinTogglesAsync(ctx, ct);
+
+        _logger.LogDebug(
+            "Reloaded {Count} disabled builtin(s) for channel {BroadcasterId}",
+            ctx.DisabledBuiltins.Count,
             broadcasterId
         );
     }
@@ -195,6 +211,29 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
         _logger.LogDebug(
             "Loaded {Count} commands for channel {BroadcasterId}",
             commands.Count,
+            ctx.BroadcasterId
+        );
+    }
+
+    private async Task LoadBuiltinTogglesAsync(ChannelContext ctx, CancellationToken ct)
+    {
+        using IServiceScope scope = _scopeFactory.CreateScope();
+        IApplicationDbContext db =
+            scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+
+        List<string> disabledKeys = await db
+            .ChannelBuiltinCommands.Where(c => c.BroadcasterId == ctx.BroadcasterId && !c.IsEnabled)
+            .Select(c => c.BuiltinKey)
+            .ToListAsync(ct);
+
+        foreach (string key in disabledKeys)
+            // Normalizes away the leading "!" some rows carry (DefaultCommandsSeeder writes bang-prefixed
+            // keys) so the lookup always matches ChatMessageHandler's bare, lowercased parsed command name.
+            ctx.DisabledBuiltins[key.TrimStart('!').ToLowerInvariant()] = 0;
+
+        _logger.LogDebug(
+            "Loaded {Count} disabled builtin(s) for channel {BroadcasterId}",
+            disabledKeys.Count,
             ctx.BroadcasterId
         );
     }
