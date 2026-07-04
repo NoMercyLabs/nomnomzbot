@@ -226,7 +226,7 @@ divergences were fixed inline (see "Fixed inline").
 10. **Clean.** Shared types referenced across specs all resolve to a definition: `Result<T>`/`PagedList<T>`/
     `PaginationParams`/`StatusResponseDto<T>`/`PaginatedResponse<T>` (existing app primitives); `ICommandAction`/
     `ActionContext`/`ActionResult`/`ITemplateEngine` (commands-pipelines, consumed by moderation/economy/music/tts/
-    discord/billing/stream-admin/custom-code/widgets actions); `IChatProvider`/`ITwitchApiService`/`IEventBus`/
+    discord/billing/stream-admin/custom-code/widgets actions); `IChatProvider`/`ITwitchHelixClient`/`IEventBus`/
     `ICacheService`/`IUnitOfWork`/`ICurrentTenantService`/`IChannelAccessService`/`IRunOnceGuard` (platform/identity
     primitives); `IScriptExecutor` (custom-code, consumed by commands-pipelines `run_code`); `EventJournal`/
     `EventSubjectKeys`/`TenantSequences`/`CryptoKey`/`ConsentRecords` (consumed by economy/eventsub/federation/gdpr).

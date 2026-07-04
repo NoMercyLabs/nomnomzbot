@@ -6,7 +6,7 @@
 
 **Binding conventions** (apply throughout, stated once): namespace `NomNomzBot.*`; .NET 10 / C# 14 / EF Core 10; file-scoped namespaces; `Nullable` enabled; async all the way (never `.Result`/`.Wait`); `Result<T>` over exceptions/null; Repository + `IUnitOfWork` (no raw `DbContext` in controllers); typed-interface DI, no MediatR, no Roslyn; responses `StatusResponseDto<T>` / `PaginatedResponse<T>`; controllers `[ApiVersion("1.0")]` `[Route("api/v{version:apiVersion}/...")]`; **Newtonsoft.Json** for app JSON / `[VC:JSON]` columns; surrogate PKs `guid` via `Guid.CreateVersion7()`; Twitch ids are indexed attribute columns; tenant key `BroadcasterId` is `Guid`; soft-delete (`IsDeleted`+`DeletedAt`) global filter.
 
-> **Scope boundary.** This subsystem is the **Helix request/response client and its supporting concerns**: HTTP pipeline, per-token adaptive rate limiting, scope pre-checks, typed error mapping, and the read/write Helix calls for channel info / followers / subs / bans / moderators / VIPs / rewards / categories. **Out of scope** (owned by sibling subsystems, referenced but not (re)defined here): EventSub transport (`ITwitchEventSubService`), OAuth token issuance/refresh/vault (`ITwitchAuthService`, `IntegrationTokens`, `CryptoKey`), IRC retirement, pipeline action wiring. This spec **extends and replaces** the existing `ITwitchApiService` (`server/src/NomNomzBot.Application/Contracts/Twitch/ITwitchApiService.cs`) and `TwitchApiService` (`.../Infrastructure/Services/Twitch/TwitchApiService.cs`) — same interface name, same DI registration slot — migrating `Task<bool>`/`Task<T?>` returns to `Task<Result<T>>` and the inline header-poll rate limiting to a dedicated handler.
+> **Scope boundary.** This subsystem is the **Helix request/response client and its supporting concerns**: HTTP pipeline, per-token adaptive rate limiting, scope pre-checks, typed error mapping, and the read/write Helix calls for channel info / followers / subs / bans / moderators / VIPs / rewards / categories. **Out of scope** (owned by sibling subsystems, referenced but not (re)defined here): EventSub transport (`ITwitchEventSubService`), OAuth token issuance/refresh/vault (`ITwitchAuthService`, `IntegrationTokens`, `CryptoKey`), IRC retirement, pipeline action wiring. This spec **replaced** the legacy `ITwitchApiService`/`TwitchApiService` pair — retired entirely, no shim (§3, §8); the built surface is `ITwitchHelixClient` (`server/src/NomNomzBot.Application/Contracts/Twitch/ITwitchHelixClient.cs`) + the granular sub-clients — migrating `Task<bool>`/`Task<T?>` returns to `Task<Result<T>>` and the inline header-poll rate limiting to a dedicated handler.
 
 ---
 
@@ -384,7 +384,7 @@ public sealed record TwitchRewardDto(
     string? Prompt, bool UserInputRequired);
 ```
 
-> These supersede the loosely-named `TwitchUserInfo`/`TwitchChannelInfo`/`TwitchRewardInfo`/etc. currently inlined in `ITwitchApiService.cs`. The compatibility shim maps old→new; new records carry the missing `IsPaused`/`PlanName`/`Language` fields the schema needs.
+> These supersede the loosely-named `TwitchUserInfo`/`TwitchChannelInfo`/`TwitchRewardInfo`/etc. that were inlined in the retired `ITwitchApiService.cs`; the new records carry the missing `IsPaused`/`PlanName`/`Language` fields the schema needs.
 
 ---
 
@@ -521,19 +521,19 @@ Two implementation conventions are fixed here so the owner codes first-try:
 
 ## 10. Test doubles & fixtures
 
-**Principle: no test hits live Twitch — CI is hermetic.** Helix/EventSub/chat are faked at **two seams**: the `ITwitchApiService` / `IChatTransport` interface boundary (for tests of *consumers* of Twitch) and the `HttpMessageHandler` boundary (for tests of the *real client's* deserialization + rate-limit handling). This is the Twitch-specific complement to the stack doc's testing decision (`2026-06-16-stack-and-dependencies.md` §"Testing / quality"): `Mvc.Testing` `WebApplicationFactory<Program>` for full-stack security tests, **SQLite + in-memory adapters as the default integration DB**, Testcontainers only for the SaaS RLS/pub-sub subset. All doubles below live in the **test projects** (`tests/...`), never in a production assembly.
+**Principle: no test hits live Twitch — CI is hermetic.** Helix/EventSub/chat are faked at **two seams**: the Helix sub-client (`ITwitchChannelsApi`, …) / `IChatTransport` interface boundary (for tests of *consumers* of Twitch) and the `HttpMessageHandler` boundary (for tests of the *real client's* deserialization + rate-limit handling). This is the Twitch-specific complement to the stack doc's testing decision (`2026-06-16-stack-and-dependencies.md` §"Testing / quality"): `Mvc.Testing` `WebApplicationFactory<Program>` for full-stack security tests, **SQLite + in-memory adapters as the default integration DB**, Testcontainers only for the SaaS RLS/pub-sub subset. All doubles below live in the **test projects** (`tests/...`), never in a production assembly.
 
 ### 10.1 Seam fakes — for unit/integration tests of Twitch *consumers*
 
 A consumer test (followage, subscriber count, chatters, send-message, a pipeline action) substitutes a hand-written fake at the public interface so it runs with **zero network**. The fakes return canned app-facing domain objects (the §4 DTOs, with `Guid BroadcasterId`), letting a test assert the consumer's resulting **state change / emitted events / side effects** rather than Twitch I/O.
 
-- `FakeTwitchApiService : ITwitchApiService` — implements the compatibility-shim surface (§3, §7); each method returns a pre-seeded `Result<T>` (success canned-DTO or a specific `Result.Failure(ErrorCode)` from `{ "no_token", "missing_scope", "unauthorized", "rate_limited", "not_found", "twitch_error", "transport" }`) so consumers can be tested against both happy-path and every failure mode. Per-sub-client fakes (`FakeTwitchChannelsApi : ITwitchChannelsApi`, etc.) follow the same pattern for new code targeting the sub-clients directly.
+- Per-sub-client fakes (`FakeTwitchChannelsApi : ITwitchChannelsApi`, etc. — one per consumed sub-client, §3) — each method returns a pre-seeded `Result<T>` (success canned-DTO or a specific `Result.Failure(ErrorCode)` from `{ "no_token", "missing_scope", "unauthorized", "rate_limited", "not_found", "twitch_error", "transport" }`) so consumers can be tested against both happy-path and every failure mode.
 - A fake `IChatTransport` (`HelixChatTransport` seam, `scaling-qos.md` §6 / `commands-pipelines.md` §6) — records outbound sends and yields canned inbound messages, so chat-send actions and `{{random.chatter}}`-style reads are verified without a socket.
 
 ```csharp
 namespace NomNomzBot.Application.Tests.Fakes;   // also Infrastructure.Tests.Fakes per the consuming layer
 
-public sealed class FakeTwitchApiService : ITwitchApiService
+public sealed class FakeTwitchChannelsApi : ITwitchChannelsApi   // pattern repeats per consumed sub-client
 {
     // Tests pre-seed canned Result<T> per method (success DTO or a specific Result.Failure(ErrorCode)).
     // No HttpClient, no token resolver, no network. Captures call args for behavioral assertions.
@@ -579,7 +579,7 @@ public sealed class FakeEventSubSource(INotificationDispatcher dispatcher)
 
 | Test target | Seam | Double |
 |---|---|---|
-| Twitch **consumers** (followage, sub count, chatters, send-message, pipeline actions) | `ITwitchApiService` / sub-client / `IChatTransport` interface | `FakeTwitchApiService` + sub-client/chat fakes (§10.1) |
+| Twitch **consumers** (followage, sub count, chatters, send-message, pipeline actions) | Helix sub-client / `IChatTransport` interface | per-sub-client fakes (`FakeTwitchChannelsApi`, …) + chat fake (§10.1) |
 | **Real client internals** (wire→app DTO mapping, `Ratelimit-*` adaptation, `401`/`429` handling) | `HttpMessageHandler` on `HttpClient("twitch-helix")` | `StubHelixHandler` + recorded fixtures `tests/Fixtures/Helix/` (§10.2) |
 | **Event-driven** subsystem behavior | `INotificationDispatcher.DispatchAsync` | `FakeEventSubSource` (§10.3, twitch-eventsub.md §3.4) |
 

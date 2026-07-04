@@ -176,7 +176,7 @@ public sealed record RewardConfigurationChangedEvent : DomainEventBase
 
 All interfaces in `NomNomzBot.Application/Contracts/Rewards/`; implementations in
 `NomNomzBot.Infrastructure/Services/Rewards/`. Every fallible op returns `Result`/`Result<T>`. Helix calls go
-through `ITwitchApiService` (`twitch-helix.md`) — this subsystem never builds raw Helix requests.
+through `ITwitchChannelPointsApi` (`twitch-helix.md`) — this subsystem never builds raw Helix requests.
 
 ### 3.1 `IRewardService` — managed reward lifecycle + local metadata
 
@@ -362,7 +362,7 @@ Registered transient (stateless) in the `ICommandAction` block. Surfaced in the 
 ## 7. DI registration
 
 In `NomNomzBot.Infrastructure/DependencyInjection.cs`, "Application services" block (scoped — all consume
-`IApplicationDbContext`/repositories/`IUnitOfWork`/`ITwitchApiService`). Implementations in
+`IApplicationDbContext`/repositories/`IUnitOfWork`/`ITwitchChannelPointsApi`). Implementations in
 `NomNomzBot.Infrastructure/Services/Rewards/`.
 
 ```csharp
@@ -386,7 +386,7 @@ registration convention (`commands-pipelines.md` event-response dispatch); no be
 
 ## 8. Dependencies (from the stack doc)
 
-- **`ITwitchApiService`** (`twitch-helix.md`) — Helix `Create/Update/Delete Custom Reward`, `Get Custom
+- **`ITwitchChannelPointsApi`** (`twitch-helix.md`) — Helix `Create/Update/Delete Custom Reward`, `Get Custom
   Rewards`, `Update Redemption Status`. The reward subsystem never calls Helix directly.
 - **`INotificationDispatcher`** (`twitch-eventsub.md` §3.4) — maps `channel.channel_points_custom_reward_
   redemption.add` to `RewardRedeemedEvent`. The `.update` topic is informational (Twitch echoes status changes

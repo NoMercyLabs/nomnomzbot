@@ -253,7 +253,7 @@ All in `NomNomzBot.Application.Services.Moderation` (new folder) except the **ex
 
 ### 3.1 `IModerationService` — direct mod actions (EXTEND existing)
 
-Replaces the `string`-keyed signatures with `Guid`; keeps method names. Each writes a `ModerationAction` (J.2) row, calls Helix via `ITwitchApiService`, fires `ModerationActionAppliedEvent`/`ModerationActionRevertedEvent`, and appends `ModerationAuditLog` (O.8). `actorUserId` is the authenticated principal (no longer implicit).
+Replaces the `string`-keyed signatures with `Guid`; keeps method names. Each writes a `ModerationAction` (J.2) row, calls Helix via `ITwitchModerationApi`, fires `ModerationActionAppliedEvent`/`ModerationActionRevertedEvent`, and appends `ModerationAuditLog` (O.8). `actorUserId` is the authenticated principal (no longer implicit).
 
 ```csharp
 namespace NomNomzBot.Application.Services;
@@ -447,10 +447,12 @@ public interface IModerationProjectionService
 ```
 
 > **Trust reuse (design "reuse TrustScoreCalculator").** `RecomputeTrustAsync` builds a `NomNomzBot.Infrastructure.Services.Trust.TrustContext` (existing) from `UserModerationHistory` (TimeoutCount/BanCount) + Helix/community data and calls the existing static `TrustScoreCalculator.Calculate`. **Do not fork** the algorithm. `HeatScore` is the inverse/complementary signal (recent-violation pressure); store both `decimal(8,4)` per J.5.
+>
+> **HeatScore accrual (decided).** Heat is a 0–100 signal with exponential decay, half-life **24 h**. On every recompute: `HeatScore = clamp(HeatScore × 0.5^(Δt / 24h) + delta, 0, 100)` with `Δt` = time since `LastHeatEventAt`. Per-violation deltas: filter/blocked-term hit **+5**; AutoMod-held message denied (confirmed violation) **+5**; validated viewer report **+10**; timeout **+15**; ban **+40**; the `apply_heat` pipeline action supplies its explicit `delta`. There is no negative accrual (unban/report-dismissed add nothing) — decay is the only cool-down. `UserHeatThresholdCrossedEvent` fires only on an **upward** crossing of `AutoModConfig.HeatTimeoutThreshold`.
 
 ### 3.9 `IChatControlService` — chat & channel controls (Group B)
 
-Twitch-native chat/channel knobs that are **Helix-relayed, not row-owned** here: chat settings, Shield Mode, announcements, and the bot's own chat color all mutate Twitch state via `ITwitchApiService` (Helix sub-clients). The single persisted bit is `AutoModConfigs.ShieldModeActive` (J.7, new column — Twitch is the system of record for the live toggle; the flag is a denormalized cache for dashboard reads without a Helix round-trip). Each write fires the matching §2 event + appends `ModerationAuditLog` (O.8, `EventType=action_taken`); none writes a `ModerationAction` row (these aren't per-target actions).
+Twitch-native chat/channel knobs that are **Helix-relayed, not row-owned** here: chat settings, Shield Mode, announcements, and the bot's own chat color all mutate Twitch state via `ITwitchHelixClient` (Helix sub-clients). The single persisted bit is `AutoModConfigs.ShieldModeActive` (J.7, new column — Twitch is the system of record for the live toggle; the flag is a denormalized cache for dashboard reads without a Helix round-trip). Each write fires the matching §2 event + appends `ModerationAuditLog` (O.8, `EventType=action_taken`); none writes a `ModerationAction` row (these aren't per-target actions).
 
 ```csharp
 namespace NomNomzBot.Application.Services.Moderation;
@@ -870,7 +872,7 @@ public sealed record SetShieldModeRequest(bool IsActive);
 public sealed record SetChatColorRequest(string Color);   // bot's own chat color: blue/green/orange/… or hex (Prime/Turbo)
 ```
 
-> The existing free-form `shield`, `blocked-terms`, `stats` actions on the current controller move to: `blocked-terms` → `ChatFilter(blocklist)` (J.6) plus the Twitch-native blocked-terms push (`IAutoModConfigService.SaveConfigAsync` → Helix `POST/DELETE /moderation/blocked_terms`, §3.2); `stats` → a `GetActionsAsync`-derived aggregate (or `IDashboardService`); `shield` → the first-class `IChatControlService.SetShieldModeAsync`/`GetShieldModeAsync` (§3.9, Helix Shield Mode via `ITwitchApiService`), persisted as the `AutoModConfigs.ShieldModeActive` cache column (J.7), NOT a `Configuration` key. These are migrations, not new surface — fold them in when porting the controller off `string` ids.
+> The existing free-form `shield`, `blocked-terms`, `stats` actions on the current controller move to: `blocked-terms` → `ChatFilter(blocklist)` (J.6) plus the Twitch-native blocked-terms push (`IAutoModConfigService.SaveConfigAsync` → Helix `POST/DELETE /moderation/blocked_terms`, §3.2); `stats` → a `GetActionsAsync`-derived aggregate (or `IDashboardService`); `shield` → the first-class `IChatControlService.SetShieldModeAsync`/`GetShieldModeAsync` (§3.9, Helix Shield Mode via `ITwitchModerationApi`), persisted as the `AutoModConfigs.ShieldModeActive` cache column (J.7), NOT a `Configuration` key. These are migrations, not new surface — fold them in when porting the controller off `string` ids.
 
 ---
 
@@ -930,7 +932,7 @@ services.AddScoped<IEventHandler<ViewerReportFiledEvent>, ViewerReportQueueLinkH
 | Network-nuke fan-out target resolution | channels in the local DB the actor mods | local DB; cross-instance partner legs only via federation when enabled |
 | Held-message expiry sweep (`IModerationQueueService.ExpireStaleAsync`) | `BackgroundService` + `PeriodicTimer` (single-instance safe) | same, behind `IRunOnceGuard` (no double-fire on multi-node) |
 
-The eleven core service interfaces have **one implementation each** regardless of profile (they call profile-agnostic abstractions: `ITwitchApiService`, `IEventBus`, `IUnitOfWork`); only the federation/sweep edges are adapter-swapped, so no second impl set is needed. `IModerationEscalationService` is likewise profile-agnostic (pure DB + `IModerationService` delegation). `IChatControlService` and `IModerationDirectoryService` are pure Helix relays (Twitch is the system of record) — profile-agnostic, no adapter variants.
+The eleven core service interfaces have **one implementation each** regardless of profile (they call profile-agnostic abstractions: `ITwitchHelixClient`, `IEventBus`, `IUnitOfWork`); only the federation/sweep edges are adapter-swapped, so no second impl set is needed. `IModerationEscalationService` is likewise profile-agnostic (pure DB + `IModerationService` delegation). `IChatControlService` and `IModerationDirectoryService` are pure Helix relays (Twitch is the system of record) — profile-agnostic, no adapter variants.
 
 ---
 
@@ -939,10 +941,10 @@ The eleven core service interfaces have **one implementation each** regardless o
 This subsystem uses **only second-party + already-present** packages — **zero new third-party deps**:
 
 - **Microsoft.EntityFrameworkCore 10.0.9** (+ provider via adapter: `Microsoft.EntityFrameworkCore.Sqlite` lite / `Npgsql.EntityFrameworkCore.PostgreSQL` SaaS) — all J.* persistence, soft-delete + tenant **named query filters** (EF10), `[VC:JSON]` converters on `ChatFilters.Terms`/`LinkPolicyJson`, `AutoModConfigs.CategoryLevelsJson`, `ModerationAuditLog.MetadataJson` via hand-rolled `ValueConverter<T,string>` + `ValueComparer` (Newtonsoft.Json per schema §1.4).
-- **`ITwitchApiService`** (hand-rolled Helix client; uses **Microsoft.Extensions.Http.Resilience 10.7.0** + custom rate-limit `DelegatingHandler`) — ban/unban/timeout/delete-message/banned-list + the `ITwitchModerationApi`/`ITwitchChannelsApi` legs this subsystem drives: warn, automod held-message ALLOW/DENY, blocked-terms CRUD, VIP add/remove, moderator remove, unban-requests, blocks, suspicious-users, plus chat-settings/shield-mode/announcements/chat-color + Twitch-native automod level (`twitch-helix.md` §3.2/§3.3). No `TwitchLib`.
+- **`ITwitchHelixClient`** (hand-rolled typed Helix client; uses **Microsoft.Extensions.Http.Resilience 10.7.0** + custom rate-limit `DelegatingHandler`) — ban/unban/timeout/delete-message/banned-list + the `ITwitchModerationApi`/`ITwitchChannelsApi` legs this subsystem drives: warn, automod held-message ALLOW/DENY, blocked-terms CRUD, VIP add/remove, moderator remove, unban-requests, blocks, suspicious-users, plus chat-settings/shield-mode/announcements/chat-color + Twitch-native automod level (`twitch-helix.md` §3.2/§3.3). No `TwitchLib`.
 - **`IEventBus`** (in-process `EventBus` lite / thin `RedisEventBus` over StackExchange.Redis **2.13.17** SaaS) — domain events incl. cross-instance `SharedChatBanIssuedEvent`.
 - **Background processing** — in-box `BackgroundService` + `PeriodicTimer` for the held-message TTL sweep; `IRunOnceGuard` (no-op lite / `pg_try_advisory_lock` SaaS) for multi-node.
-- **In-box `System.Security.Cryptography`** — only indirectly, via the token vault behind `ITwitchApiService`; this subsystem holds no `[PII-shred]` columns of its own (Twitch ids are `[PII-hash]`, content is `[PII-scrub]` — row-level scrub, not crypto-shred).
+- **In-box `System.Security.Cryptography`** — only indirectly, via the token vault behind `ITwitchHelixClient`; this subsystem holds no `[PII-shred]` columns of its own (Twitch ids are `[PII-hash]`, content is `[PII-scrub]` — row-level scrub, not crypto-shred).
 - **Validation** — in-box **.NET 10 `AddValidation()`** source generator on request records; async/uniqueness rules in the service layer returning `Result<T>`.
 - **Existing `TrustScoreCalculator`** (1st-party, `NomNomzBot.Infrastructure.Services.Trust`) — reused by `IModerationProjectionService.RecomputeTrustAsync`; **not** re-implemented.
 - **Testing** — xunit.v3 3.2.2, NSubstitute 5.3.0, AwesomeAssertions 9.4.0; SQLite in-memory for service tests; Testcontainers Postgres only for the RLS-isolation subset (cross-tenant IDOR on `/moderation/*`).
