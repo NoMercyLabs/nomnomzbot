@@ -21,6 +21,7 @@ except where a dependency is named ([[no-fake-priority]]).
 
 - **Credential component DRY unification** — the client-setup credential components are still duplicated.
 - **Multi-channel residuals** — `Provider` discriminator on `Channel`; individual page controllers still call `primaryChannel()` independently instead of per-channel `/effective/me` re-resolution.
+- **twitch-helix spec/code behavior drift** — align spec to shipped code in one pass: return-DTO names (`TwitchChannelInfoDto`/`TwitchStreamInfoDto` vs code `TwitchChannelInformation`/`TwitchStream`), empty `GET /streams` semantics (spec `IsLive=false` vs code `not_found`), `ModifyChannelInformationRequest` field names (`BroadcasterLanguage`/`ContentClassificationLabels`/`Delay`), and giveaways' whisper from-identity claim vs `ITwitchWhispersApi` tenant resolution.
 
 ## Specced, no backend yet — each blocks a dashboard page (`docs/bot-capabilities.md` §14)
 

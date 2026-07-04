@@ -54,7 +54,7 @@ soft-delete filter is introduced here. The complete set of read dependencies (ne
 | Read dependency | Owner spec | What this subsystem reads from it |
 |---|---|---|
 | Live Helix chatters / followers / subscribers / VIPs / moderators | `twitch-helix.md` §3.2–3.4 | The community lists — `GetChattersAsync`, `GetFollowersAsync`, `GetSubscribersAsync`, `GetVipsAsync`, `GetModeratorsAsync` (real Twitch data; **no seed/fake list, ever**) |
-| Live channel/stream state | `twitch-helix.md` §3.2 | `GetChannelInfoAsync` / `GetStreamInfoAsync` for the dashboard live-summary widget |
+| Live channel/stream state | `twitch-helix.md` §3.2 | `GetChannelInformationAsync` / `GetStreamAsync` for the dashboard live-summary widget |
 | **M.1 `ViewerProfiles`** (per-viewer aggregate) | `analytics.md` §3.2 | `IViewerAnalyticsService.GetProfileAsync` — the viewer detail's lifetime totals, first/last seen, follower/sub flags |
 | **M.7 `ViewerEngagementDaily`** | `analytics.md` §3.2 | viewer-detail engagement series (optional drill-down range) |
 | **M.8 `ChannelAnalyticsDaily`** | `analytics.md` §3.3 | `IChannelAnalyticsService.GetSummaryAsync` / `GetTopViewersAsync` — dashboard "today's stats" + top viewers |
@@ -349,7 +349,7 @@ Both implementations constructor-inject the **already-registered** owner interfa
 ## 8. Dependencies (from the stack doc)
 
 - **`ITwitchHelixClient`** (`twitch-helix.md`) — `Channels.GetChattersAsync`/`GetFollowersAsync`/
-  `GetChannelInfoAsync`/`GetStreamInfoAsync`/`GetVipsAsync`, `Moderation.GetModeratorsAsync`,
+  `GetChannelInformationAsync`/`GetVipsAsync`, `Streams.GetStreamAsync`, `Moderation.GetModeratorsAsync`,
   `Subscriptions.GetSubscribersAsync`/`GetSubscriberCountAsync`. Live Twitch reads (no seed data). Scope and
   rate-limit failures propagate as `Result.Failure(ErrorCode)`.
 - **`IViewerAnalyticsService` / `IChannelAnalyticsService`** (`analytics.md`) — `ViewerProfileDto` (M.1) for

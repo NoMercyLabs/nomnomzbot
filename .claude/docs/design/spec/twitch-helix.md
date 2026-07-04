@@ -130,8 +130,8 @@ public interface ITwitchChannelsApi
 {
     // ─ Reads ─
     Task<Result<TwitchUserDto>> GetUserAsync(string twitchUserId, CancellationToken ct = default);
-    Task<Result<TwitchChannelInfoDto>> GetChannelInfoAsync(Guid broadcasterId, CancellationToken ct = default);
-    Task<Result<TwitchStreamInfoDto>> GetStreamInfoAsync(Guid broadcasterId, CancellationToken ct = default);
+    Task<Result<TwitchChannelInfoDto>> GetChannelInformationAsync(Guid broadcasterId, CancellationToken ct = default);
+    Task<Result<TwitchStreamInfoDto>> GetStreamAsync(Guid broadcasterId, CancellationToken ct = default);
     Task<Result<int>> GetFollowerCountAsync(Guid broadcasterId, CancellationToken ct = default);
     Task<Result<TwitchPage<TwitchFollowerDto>>> GetFollowersAsync(Guid broadcasterId, TwitchPageRequest page, CancellationToken ct = default);
     Task<Result<IReadOnlyList<TwitchCategoryDto>>> SearchCategoriesAsync(string query, int first = 10, CancellationToken ct = default);
@@ -139,21 +139,21 @@ public interface ITwitchChannelsApi
     Task<Result<IReadOnlyList<TwitchChatterDto>>> GetChattersAsync(Guid broadcasterId, CancellationToken ct = default);
 
     // ─ Writes ─
-    Task<Result> UpdateChannelInfoAsync(Guid broadcasterId, UpdateChannelInfoRequest request, CancellationToken ct = default);
+    Task<Result> ModifyChannelInformationAsync(Guid broadcasterId, ModifyChannelInformationRequest request, CancellationToken ct = default);
 }
 ```
 
 | Method | Behavior (state change / events / side effects) |
 |---|---|
 | `GetUserAsync` | Read-only `GET /users?id=`. Uses app/bot token. No state change. Returns `not_found` if user array empty. |
-| `GetChannelInfoAsync` | Read-only `GET /channels`. On success **upserts** `Channels.Title/GameId/GameName/Tags/Language` and emits `TwitchChannelInfoSyncedEvent`. Resolves `Guid broadcasterId`→`TwitchChannelId` first; `not_found` if channel unknown locally. |
-| `GetStreamInfoAsync` | Read-only `GET /streams`. Empty array ⇒ returns a `TwitchStreamInfoDto` with `IsLive=false` (not a failure). Does **not** write `Streams` (EventSub owns lifecycle); may update `Channels.IsLive` for cheap UI freshness. |
+| `GetChannelInformationAsync` | Read-only `GET /channels`. On success **upserts** `Channels.Title/GameId/GameName/Tags/Language` and emits `TwitchChannelInfoSyncedEvent`. Resolves `Guid broadcasterId`→`TwitchChannelId` first; `not_found` if channel unknown locally. |
+| `GetStreamAsync` | Read-only `GET /streams`. Empty array ⇒ returns a `TwitchStreamInfoDto` with `IsLive=false` (not a failure). Does **not** write `Streams` (EventSub owns lifecycle); may update `Channels.IsLive` for cheap UI freshness. |
 | `GetFollowerCountAsync` | Read-only `GET /channels/followers?first=1`; returns `total`. Requires `moderator:read:followers` scope (pre-checked). No state change. |
 | `GetFollowersAsync` | Read-only paged `GET /channels/followers`. Returns one page + cursor + total. **Upserts** `TwitchFollowers` rows for the page (reconciliation; no per-row event). Requires `moderator:read:followers`. |
 | `SearchCategoriesAsync` | Read-only `GET /search/categories`. App/bot token. No state change. |
 | `GetVipsAsync` | Read-only `GET /channels/vips?first=100`. Requires `channel:read:vips`. No state change. |
 | `GetChattersAsync` | Read-only paged `GET /chat/chatters?first=1000` (auto-follows cursor, all pages) — the present-viewer list. Uses the **bot/moderator** identity (the bot is a channel mod), matching the existing Helix auth pattern. Requires `moderator:read:chatters` — a **progressive** scope (requested only when a feature that needs the chatter list is enabled, e.g. the `{{random.chatter}}` token / chatter-driven actions), not part of the base grant. No state change; callers cache short-TTL (the `{{random.chatter}}` token is rendered from this cached set, per `commands-pipelines.md` §6.3). Returns `missing_scope` if not granted. |
-| `UpdateChannelInfoAsync` | `PATCH /channels` (title/game/tags). **Idempotency-guarded** (`IdempotencyKey` scope `helix:channel:update`). On success writes the new values to `Channels` and emits `TwitchChannelInfoSyncedEvent`. Requires `channel:manage:broadcast`. |
+| `ModifyChannelInformationAsync` | `PATCH /channels` (title/game/tags). **Idempotency-guarded** (`IdempotencyKey` scope `helix:channel:update`). On success writes the new values to `Channels` and emits `TwitchChannelInfoSyncedEvent`. Requires `channel:manage:broadcast`. |
 
 ### 3.3 `ITwitchModerationApi` — bans, timeouts, unbans, moderators, message deletion, shoutouts, rewards
 
@@ -318,7 +318,7 @@ namespace NomNomzBot.Application.Contracts.Twitch;
 
 public sealed record TwitchPageRequest(string? After = null, int PageSize = 100);
 
-public sealed record UpdateChannelInfoRequest(
+public sealed record ModifyChannelInformationRequest(
     string? Title = null,
     string? GameId = null,
     IReadOnlyList<string>? Tags = null,
@@ -521,14 +521,14 @@ Two implementation conventions are fixed here so the owner codes first-try:
 
 ## 10. Test doubles & fixtures
 
-**Principle: no test hits live Twitch — CI is hermetic.** Helix/EventSub/chat are faked at **two seams**: the Helix sub-client (`ITwitchChannelsApi`, …) / `IChatTransport` interface boundary (for tests of *consumers* of Twitch) and the `HttpMessageHandler` boundary (for tests of the *real client's* deserialization + rate-limit handling). This is the Twitch-specific complement to the stack doc's testing decision (`2026-06-16-stack-and-dependencies.md` §"Testing / quality"): `Mvc.Testing` `WebApplicationFactory<Program>` for full-stack security tests, **SQLite + in-memory adapters as the default integration DB**, Testcontainers only for the SaaS RLS/pub-sub subset. All doubles below live in the **test projects** (`tests/...`), never in a production assembly.
+**Principle: no test hits live Twitch — CI is hermetic.** Helix/EventSub/chat are faked at **two seams**: the Helix sub-client (`ITwitchChannelsApi`, …) / `IChatProvider` interface boundary (for tests of *consumers* of Twitch) and the `HttpMessageHandler` boundary (for tests of the *real client's* deserialization + rate-limit handling). This is the Twitch-specific complement to the stack doc's testing decision (`2026-06-16-stack-and-dependencies.md` §"Testing / quality"): `Mvc.Testing` `WebApplicationFactory<Program>` for full-stack security tests, **SQLite + in-memory adapters as the default integration DB**, Testcontainers only for the SaaS RLS/pub-sub subset. All doubles below live in the **test projects** (`tests/...`), never in a production assembly.
 
 ### 10.1 Seam fakes — for unit/integration tests of Twitch *consumers*
 
 A consumer test (followage, subscriber count, chatters, send-message, a pipeline action) substitutes a hand-written fake at the public interface so it runs with **zero network**. The fakes return canned app-facing domain objects (the §4 DTOs, with `Guid BroadcasterId`), letting a test assert the consumer's resulting **state change / emitted events / side effects** rather than Twitch I/O.
 
 - Per-sub-client fakes (`FakeTwitchChannelsApi : ITwitchChannelsApi`, etc. — one per consumed sub-client, §3) — each method returns a pre-seeded `Result<T>` (success canned-DTO or a specific `Result.Failure(ErrorCode)` from `{ "no_token", "missing_scope", "unauthorized", "rate_limited", "not_found", "twitch_error", "transport" }`) so consumers can be tested against both happy-path and every failure mode.
-- A fake `IChatTransport` (`HelixChatTransport` seam, `scaling-qos.md` §6 / `commands-pipelines.md` §6) — records outbound sends and yields canned inbound messages, so chat-send actions and `{{random.chatter}}`-style reads are verified without a socket.
+- A fake `IChatProvider` (`HelixChatProvider` seam, `scaling-qos.md` §6 / `commands-pipelines.md` §6) — records outbound sends and yields canned inbound messages, so chat-send actions and `{{random.chatter}}`-style reads are verified without a socket.
 
 ```csharp
 namespace NomNomzBot.Application.Tests.Fakes;   // also Infrastructure.Tests.Fakes per the consuming layer
@@ -542,7 +542,7 @@ public sealed class FakeTwitchChannelsApi : ITwitchChannelsApi   // pattern repe
 
 These never reference `HttpClient` or `ITwitchRateLimiter`; they replace the whole subsystem at its seam.
 
-### 10.2 Recorded Helix fixtures — for testing the *real* `TwitchApiService` client internals
+### 10.2 Recorded Helix fixtures — for testing the *real* `TwitchHelixClient` sub-client internals
 
 To exercise the **actual** sub-client deserialization (wire DTO → §4 app DTO mapping) **and** the adaptive `ITwitchRateLimiter` reading `Ratelimit-*` headers, committed sample Helix JSON responses are replayed through a stub `HttpMessageHandler` / `DelegatingHandler` injected into `HttpClient("twitch-helix")`. No live call, fully deterministic.
 
@@ -579,7 +579,7 @@ public sealed class FakeEventSubSource(INotificationDispatcher dispatcher)
 
 | Test target | Seam | Double |
 |---|---|---|
-| Twitch **consumers** (followage, sub count, chatters, send-message, pipeline actions) | Helix sub-client / `IChatTransport` interface | per-sub-client fakes (`FakeTwitchChannelsApi`, …) + chat fake (§10.1) |
+| Twitch **consumers** (followage, sub count, chatters, send-message, pipeline actions) | Helix sub-client / `IChatProvider` interface | per-sub-client fakes (`FakeTwitchChannelsApi`, …) + chat fake (§10.1) |
 | **Real client internals** (wire→app DTO mapping, `Ratelimit-*` adaptation, `401`/`429` handling) | `HttpMessageHandler` on `HttpClient("twitch-helix")` | `StubHelixHandler` + recorded fixtures `tests/Fixtures/Helix/` (§10.2) |
 | **Event-driven** subsystem behavior | `INotificationDispatcher.DispatchAsync` | `FakeEventSubSource` (§10.3, twitch-eventsub.md §3.4) |
 

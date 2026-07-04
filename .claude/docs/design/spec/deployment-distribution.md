@@ -115,7 +115,7 @@ which adapters that pipeline resolves. The ordering below is binding (fail-close
    the `Scaling:*` knobs unless overridden (`platform-conventions.md` §3.3), upserts the single-row
    `DeploymentProfile` (P.12), emits `DeploymentProfileResolvedEvent`. Runs **before** the host starts.
 2. **Bind adapters.** `AddDeploymentAdapters(services, snapshot)` selects DB / cache / bus / EventSub transport /
-   executor / **`IKeyVault`** / `IChatTransport` / `IRateLimiter` / `IFairWorkScheduler` / `IRunOnceGuard` from the
+   executor / **`IKeyVault`** / `IChatProvider` / `IRateLimiter` / `IFairWorkScheduler` / `IRunOnceGuard` from the
    resolved snapshot (`scaling-qos.md` §9, `gdpr-crypto.md` §7).
 3. **Bootstrap the KEK** (§6) — first run generates the profile's root KEK into its vault; subsequent runs load it.
 4. **Migrate, once.** `IHost.MigrateAsync()` against the **provider's** migration set (Postgres *or* SQLite —

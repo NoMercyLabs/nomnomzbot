@@ -49,7 +49,7 @@ Phases are ordered; **slices within a phase** may run in parallel where they don
 
 ### Phase 4 — Event store + Twitch ingestion
 - Event store: `IEventJournal`, `ITenantSequenceAllocator`, projections (+ `ResetAsync`/replay), `IEventUpcaster` registry, `IJournalPostCommitHook`.
-- Twitch Helix client (codegen DTOs, `ITwitchRateLimiter` adaptive limiter, resilience handler); EventSub transport (WS lite / conduit+webhook SaaS) → dispatcher → journal → bus; `IChatTransport` (Helix send / IRC).
+- Twitch Helix client (codegen DTOs, `ITwitchRateLimiter` adaptive limiter, resilience handler); EventSub transport (WS lite / conduit+webhook SaaS) → dispatcher → journal → bus; `IChatProvider` (Helix send, every profile — IRC retired).
 - **Exit:** a faked EventSub notification flows source→dedupe→journal→projection→bus; replay rebuilds a projection deterministically.
 
 ### Phase 5 — Command & pipeline engine
