@@ -13,14 +13,17 @@ Run it with no arguments any time to see this guide's short form.
 
 ## Which scenario am I?
 
-| You want… | Scenario | Command (Linux/macOS · Windows) |
-|---|---|---|
-| The bot on **this machine**, zero dependencies, one file | **desktop** | `./deploy.sh desktop` · `.\deploy.ps1 desktop` |
-| The bot on a **home server** with a real database | **docker** | `./deploy.sh docker` · `.\deploy.ps1 docker` |
-| To **host the bot for other streamers** (multi-tenant) | **saas** | `./deploy.sh saas` · `.\deploy.ps1 saas` |
+| You want… | Scenario | Linux / macOS | Windows (PowerShell) |
+|---|---|---|---|
+| The bot on **this machine**, zero dependencies, one file | **desktop** | `./deploy.sh desktop` | `.\deploy.ps1 desktop` |
+| The bot on a **home server** with a real database | **docker** | `./deploy.sh docker` | `.\deploy.ps1 docker` |
+| To **host the bot for other streamers** (multi-tenant) | **saas** | `./deploy.sh saas` | `.\deploy.ps1 saas` |
 
-Add `--app` (Windows: `-App`) to any of them to also build the **standalone desktop dashboard
-app** for your OS — e.g. `./deploy.sh desktop --app`.
+Any scenario can also build the **standalone desktop dashboard app** for your OS by adding the
+app flag (single dash on Windows — that's PowerShell's native flag style):
+
+- **Linux / macOS:** `./deploy.sh desktop --app`
+- **Windows (PowerShell):** `.\deploy.ps1 desktop -App`
 
 Rule of thumb: start with **desktop**. Move to **docker** when you want Postgres-grade durability
 or the bot lives on a server. **saas** is only for operators running a public service.
@@ -57,9 +60,18 @@ macOS. Back up that folder and you've backed up the bot; set `NOMNOMZ_DATA_DIR` 
 
 The script prints where the binary landed. Copy it anywhere and run it:
 
+**Linux / macOS**
+
 ```bash
 cp server/src/NomNomzBot.Api/bin/Release/net10.0/<rid>/publish/nomnomz ./nomnomz
 ./nomnomz
+```
+
+**Windows (PowerShell)**
+
+```powershell
+Copy-Item server\src\NomNomzBot.Api\bin\Release\net10.0\win-x64\publish\nomnomz.exe .\nomnomz.exe
+.\nomnomz.exe
 ```
 
 First start creates the data folder and walks you through setup in the dashboard — open
@@ -125,11 +137,11 @@ with your own orchestration.
 
 ## Every combination at a glance
 
-| Backend scenario | Web dashboard | Standalone desktop app |
-|---|---|---|
-| desktop | `http://localhost:5080` | `./deploy.sh desktop --app` |
-| docker | `http://localhost:5080` (or your URL) | `./deploy.sh docker --app` |
-| saas | `https://your-domain` | `./deploy.sh saas --app` |
+| Backend scenario | Web dashboard | Desktop app (Linux/macOS) | Desktop app (Windows) |
+|---|---|---|---|
+| desktop | `http://localhost:5080` | `./deploy.sh desktop --app` | `.\deploy.ps1 desktop -App` |
+| docker | `http://localhost:5080` (or your URL) | `./deploy.sh docker --app` | `.\deploy.ps1 docker -App` |
+| saas | `https://your-domain` | `./deploy.sh saas --app` | `.\deploy.ps1 saas -App` |
 
 The `--app` build is independent of the backend scenario — you can also run it on a different
 machine than the bot (build the app on your PC, point it at the server).

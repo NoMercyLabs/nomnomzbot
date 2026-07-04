@@ -120,9 +120,12 @@ There are two pieces: the **dashboard**, which you set the bot up and run it fro
 server the dashboard talks to. On the hosted offering the backend is run for you, so you only need the
 dashboard. To **self-host**, run your own backend and point the dashboard at it.
 
-> **Quickest path:** the deploy script — `./deploy.sh` (Linux/macOS) or `.\deploy.ps1` (Windows) — covers
-> every scenario: the zero-dependency single-file binary, the Docker stack, and SaaS mode, each with the
-> bundled web dashboard or the standalone desktop app. **[DEPLOY.md](DEPLOY.md)** explains which to choose.
+> **Quickest path:** one deploy script per OS, covering every scenario — the zero-dependency
+> single-file binary, the Docker stack, and SaaS mode, each with the bundled web dashboard or the
+> standalone desktop app. **[DEPLOY.md](DEPLOY.md)** explains which to choose.
+>
+> - **Linux / macOS:** `./deploy.sh <scenario> [--app]`
+> - **Windows (PowerShell):** `.\deploy.ps1 <scenario> [-App]`
 
 ### Set up with the dashboard
 
@@ -142,7 +145,11 @@ wizard** walks you through everything, with a labelled input for each value the 
 When you finish, you land on the dashboard home with the bot live in your channel.
 
 > **Where to get it:** the **web dashboard ships inside every backend build** — just open the bot's URL in
-> a browser. The **desktop app** builds with `./deploy.sh <scenario> --app` (see [DEPLOY.md](DEPLOY.md)).
+> a browser. The **desktop app** builds with the deploy script's app flag (see [DEPLOY.md](DEPLOY.md)):
+>
+> - **Linux / macOS:** `./deploy.sh <scenario> --app`
+> - **Windows (PowerShell):** `.\deploy.ps1 <scenario> -App`
+>
 > The same guided flow is also available through the self-describing API: `GET /api/v1/system/setup/wizard`
 > returns each step and the endpoint to call, runnable from the interactive docs at **`/scalar`**.
 
@@ -156,15 +163,23 @@ Console](https://dev.twitch.tv/console/apps)) for its Client ID / Secret. Redire
 runtime from `App:BaseUrl`, so register exactly one callback — `{App:BaseUrl}/api/v1/auth/twitch/callback`
 (locally, `http://localhost:5080/api/v1/auth/twitch/callback`).
 
+**Linux / macOS**
+
 ```bash
-./deploy.sh docker            # Linux / macOS — Windows: .\deploy.ps1 docker
+./deploy.sh docker
+```
+
+**Windows (PowerShell)**
+
+```powershell
+.\deploy.ps1 docker
 ```
 
 The script creates `.env` with **generated secrets**, asks for your Twitch credentials (press Enter to
 skip and enter them in the dashboard wizard instead), starts PostgreSQL, Redis, and the API, and waits
-until the stack reports ready. Prefer raw compose? `cp .env.example .env && docker compose up -d --build`
-from the repo root does the same thing. The zero-Docker single-file path and SaaS mode are covered in
-**[DEPLOY.md](DEPLOY.md)**. On first start the API waits for Postgres and Redis, runs migrations, seeds
+until the stack reports ready. Prefer raw compose? Copy `.env.example` to `.env`, then
+`docker compose up -d --build` from the repo root — same result on every OS. The zero-Docker
+single-file path and SaaS mode are covered in **[DEPLOY.md](DEPLOY.md)**. On first start the API waits for Postgres and Redis, runs migrations, seeds
 reference data (TTS voices, permission presets), and connects the Twitch EventSub WebSocket. Point your
 dashboard at `http://localhost:5080` (or your exposed URL) and run the setup above.
 
@@ -188,9 +203,8 @@ For local backend development without Docker (`dotnet run`), see [Development](#
 
 ## Using NomNomzBot
 
-Day to day you drive the bot from the dashboard. While the Compose dashboard is in development, the same
-operations are available through the **REST API** — the interactive Scalar docs at `/scalar` let you call
-every endpoint from the browser.
+Day to day you drive the bot from the dashboard. Everything the dashboard does is also available through
+the **REST API** — the interactive Scalar docs at `/scalar` let you call every endpoint from the browser.
 
 ### What the guided setup does
 
