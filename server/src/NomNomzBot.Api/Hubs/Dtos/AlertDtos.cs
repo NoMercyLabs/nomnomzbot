@@ -71,3 +71,147 @@ public record ChatClearedDto(string ClearedByUserId);
 public record MessageDeletedDto(string MessageId, string DeletedByUserId, string TargetUserId);
 
 public record IntegrationEventDto(string Integration);
+
+// ─── Poll alert data DTOs ─────────────────────────────────────────────────────
+
+public record PollChoiceDto(string Id, string Title, int Votes, int ChannelPointsVotes);
+
+public record PollBeganAlertDto(
+    string PollId,
+    string Title,
+    IReadOnlyList<PollChoiceDto> Choices,
+    int DurationSeconds,
+    DateTimeOffset EndsAt
+);
+
+public record PollProgressAlertDto(
+    string PollId,
+    string Title,
+    IReadOnlyList<PollChoiceDto> Choices,
+    DateTimeOffset EndsAt
+);
+
+public record PollEndedAlertDto(
+    string PollId,
+    string Title,
+    string Status,
+    IReadOnlyList<PollChoiceDto> Choices,
+    string? WinningChoiceId
+);
+
+// ─── Prediction alert data DTOs ───────────────────────────────────────────────
+
+public record PredictionOutcomeDto(
+    string Id,
+    string Title,
+    int ChannelPoints,
+    int Users,
+    string Color
+);
+
+public record PredictionBeganAlertDto(
+    string PredictionId,
+    string Title,
+    IReadOnlyList<PredictionOutcomeDto> Outcomes,
+    int WindowSeconds,
+    DateTimeOffset LocksAt
+);
+
+public record PredictionProgressAlertDto(
+    string PredictionId,
+    string Title,
+    IReadOnlyList<PredictionOutcomeDto> Outcomes,
+    DateTimeOffset LocksAt
+);
+
+public record PredictionLockedAlertDto(
+    string PredictionId,
+    string Title,
+    IReadOnlyList<PredictionOutcomeDto> Outcomes
+);
+
+public record PredictionEndedAlertDto(
+    string PredictionId,
+    string Title,
+    string Status,
+    IReadOnlyList<PredictionOutcomeDto> Outcomes,
+    string? WinningOutcomeId
+);
+
+// ─── Hype train alert data DTOs ───────────────────────────────────────────────
+
+public record HypeTrainContributionDto(
+    string UserId,
+    string UserLogin,
+    string UserDisplayName,
+    string Type,
+    int Total
+);
+
+public record HypeTrainBeganAlertDto(
+    string HypeTrainId,
+    int Level,
+    int Total,
+    int Progress,
+    int Goal,
+    IReadOnlyList<HypeTrainContributionDto> TopContributions,
+    DateTimeOffset ExpiresAt
+);
+
+public record HypeTrainProgressAlertDto(
+    string HypeTrainId,
+    int Level,
+    int Total,
+    int Progress,
+    int Goal,
+    IReadOnlyList<HypeTrainContributionDto> TopContributions,
+    DateTimeOffset ExpiresAt
+);
+
+public record HypeTrainEndedAlertDto(
+    string HypeTrainId,
+    int Level,
+    int Total,
+    IReadOnlyList<HypeTrainContributionDto> TopContributions,
+    DateTimeOffset EndedAt
+);
+
+// ─── Shoutout alert data DTOs ─────────────────────────────────────────────────
+
+public record ShoutoutSentAlertDto(string ToUserId, string ToDisplayName);
+
+public record ShoutoutReceivedAlertDto(
+    string FromBroadcasterId,
+    string FromBroadcasterDisplayName,
+    string FromBroadcasterLogin,
+    int ViewerCount
+);
+
+// ─── Ad break alert data DTO ──────────────────────────────────────────────────
+
+public record AdBreakBeganAlertDto(
+    int DurationSeconds,
+    bool IsAutomatic,
+    DateTimeOffset StartedAt,
+    string? RequesterUserId,
+    string? RequesterDisplayName
+);
+
+// ─── Shield mode alert data DTOs ──────────────────────────────────────────────
+
+public record ShieldModeBeganAlertDto(
+    string ModeratorId,
+    string ModeratorDisplayName,
+    DateTimeOffset StartedAt
+);
+
+public record ShieldModeEndedAlertDto(
+    string ModeratorId,
+    string ModeratorDisplayName,
+    DateTimeOffset EndedAt
+);
+
+// ─── Moderator / VIP role change alert DTO ────────────────────────────────────
+
+/// <summary>Shared shape for moderator and VIP role grants/revocations (identical fields on all four events).</summary>
+public record RoleChangedAlertDto(string UserId, string UserDisplayName, string UserLogin);

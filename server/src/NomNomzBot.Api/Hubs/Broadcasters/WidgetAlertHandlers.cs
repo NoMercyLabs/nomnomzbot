@@ -188,3 +188,79 @@ public sealed class WidgetNowPlayingHandler(IApplicationDbContext db, IWidgetNot
             cancellationToken
         );
 }
+
+/// <summary>
+/// Hype train starts → the persistent <c>hype_train_begin</c> overlay meter. Like <see cref="WidgetNowPlayingHandler"/>
+/// this drives a standing display (not a one-off alert), so the browser-source can render the live level/progress
+/// bar for the train's whole lifetime.
+/// </summary>
+public sealed class WidgetHypeTrainBeganAlertHandler(
+    IApplicationDbContext db,
+    IWidgetNotifier notifier
+) : IEventHandler<HypeTrainBeganEvent>
+{
+    public Task HandleAsync(
+        HypeTrainBeganEvent @event,
+        CancellationToken cancellationToken = default
+    ) =>
+        WidgetAlertDispatch.RouteAsync(
+            db,
+            notifier,
+            @event.BroadcasterId,
+            "hype_train_begin",
+            new
+            {
+                level = @event.Level,
+                total = @event.Total,
+                progress = @event.Progress,
+                goal = @event.Goal,
+            },
+            cancellationToken
+        );
+}
+
+/// <summary>Hype train progress tick → updates the overlay's live level/progress meter.</summary>
+public sealed class WidgetHypeTrainProgressAlertHandler(
+    IApplicationDbContext db,
+    IWidgetNotifier notifier
+) : IEventHandler<HypeTrainProgressEvent>
+{
+    public Task HandleAsync(
+        HypeTrainProgressEvent @event,
+        CancellationToken cancellationToken = default
+    ) =>
+        WidgetAlertDispatch.RouteAsync(
+            db,
+            notifier,
+            @event.BroadcasterId,
+            "hype_train_progress",
+            new
+            {
+                level = @event.Level,
+                total = @event.Total,
+                progress = @event.Progress,
+                goal = @event.Goal,
+            },
+            cancellationToken
+        );
+}
+
+/// <summary>Hype train ends → tells the overlay to clear the level/progress meter, with the final level reached.</summary>
+public sealed class WidgetHypeTrainEndedAlertHandler(
+    IApplicationDbContext db,
+    IWidgetNotifier notifier
+) : IEventHandler<HypeTrainEndedEvent>
+{
+    public Task HandleAsync(
+        HypeTrainEndedEvent @event,
+        CancellationToken cancellationToken = default
+    ) =>
+        WidgetAlertDispatch.RouteAsync(
+            db,
+            notifier,
+            @event.BroadcasterId,
+            "hype_train_end",
+            new { level = @event.Level, total = @event.Total },
+            cancellationToken
+        );
+}

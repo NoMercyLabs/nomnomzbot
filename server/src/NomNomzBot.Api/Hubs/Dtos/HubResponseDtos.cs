@@ -20,6 +20,14 @@ public record StreamStatusDto(
     string? StartedAt
 );
 
+/// <summary>Broadcast when the channel's title/category changes (<c>channel.update</c>) — keeps the stream-info card live.</summary>
+public record StreamInfoChangedDto(
+    string BroadcasterId,
+    string BroadcasterDisplayName,
+    string Title,
+    string GameName
+);
+
 public record MusicStateDto(bool IsPlaying, MusicTrackDto? CurrentTrack);
 
 public record MusicTrackDto(
@@ -67,6 +75,22 @@ public record PermissionChangedDto(
     string ResourceType,
     string ResourceId,
     int Value
+);
+
+/// <summary>
+/// Broadcast for reward CONFIG lifecycle (create/update/remove on Twitch) — distinct from
+/// <see cref="RewardRedeemedDto"/>, which is a redemption. <paramref name="Action"/> is
+/// <c>created</c> / <c>updated</c> / <c>removed</c>; <c>Cost</c>/<c>IsEnabled</c> are <c>null</c> when the
+/// source event does not carry them (a removal only carries the reward's id/title).
+/// </summary>
+public record RewardChangedDto(
+    string BroadcasterId,
+    string Action,
+    string RewardId,
+    string Title,
+    int? Cost,
+    bool? IsEnabled,
+    string Timestamp
 );
 
 // ─── Overlay / widget / OBS ──────────────────────────────────────────────────

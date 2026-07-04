@@ -23,4 +23,6 @@ public interface IDashboardClient
     Task RewardRedeemed(RewardRedeemedDto evt);
     Task StreamStatusChanged(StreamStatusDto status);
     Task AlertTriggered(AlertDto alert);
+    Task StreamInfoChanged(StreamInfoChangedDto evt);
+    Task RewardChanged(RewardChangedDto evt);
 }

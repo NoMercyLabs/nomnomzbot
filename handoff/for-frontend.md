@@ -16,6 +16,22 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
 
 ## Open
 
+### 2026-07-04 — New SignalR hub events to consume (live-update surfaces)
+- **From:** Stoney_Eagle (via Claude, backend track)
+- **What:** the backend now pushes events that previously never reached clients. Two dedicated hub
+  methods: `StreamInfoChanged { broadcasterId, broadcasterDisplayName, title, gameName }` (title/
+  category edits) and `RewardChanged { broadcasterId, action: created|updated|removed, rewardId,
+  title, cost?, isEnabled?, timestamp }`. Plus new `ChannelEvent` types: `poll_begin/progress/end`,
+  `prediction_begin/progress/lock/end`, `hype_train_begin/progress/end`, `shoutout_sent`,
+  `shoutout_received`, `ad_break_begin`, `shield_mode_begin/end`, `moderator_added/removed`,
+  `vip_added/removed` (payload DTOs in `server/src/NomNomzBot.Api/Hubs/Dtos/AlertDtos.cs`).
+- **Why:** pages currently go stale — stream-info panel, rewards page, live-ops poll/prediction
+  panels, mod roster, and the activity feed can now update live instead of on refetch.
+- **Where:** consume via the existing SignalR client (`HubEvent.kt`); unknown events are currently
+  ignored so nothing breaks until you wire each one.
+- **Done when:** each listed event updates its owning page/panel live (stream info, rewards queue/
+  list, polls, predictions, hype train, moderation roster, activity feed + ad-break countdown).
+
 ### 2026-07-04 — Read the bot capability & permission reference before designing new pages
 - **From:** Stoney_Eagle (via Claude, backend track)
 - **What:** `docs/bot-capabilities.md` is the designer-facing inventory of everything the bot can do —

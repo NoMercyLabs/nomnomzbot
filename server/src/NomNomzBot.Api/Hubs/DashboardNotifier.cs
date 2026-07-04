@@ -54,6 +54,16 @@ public interface IDashboardNotifier
         MusicStateDto dto,
         CancellationToken ct = default
     );
+    Task SendStreamInfoChangedAsync(
+        string broadcasterId,
+        StreamInfoChangedDto dto,
+        CancellationToken ct = default
+    );
+    Task SendRewardChangedAsync(
+        string broadcasterId,
+        RewardChangedDto dto,
+        CancellationToken ct = default
+    );
 }
 
 public class DashboardNotifier : IDashboardNotifier
@@ -136,4 +146,16 @@ public class DashboardNotifier : IDashboardNotifier
         MusicStateDto dto,
         CancellationToken ct = default
     ) => _hub.Clients.Group($"channel-{broadcasterId}").MusicStateChanged(dto);
+
+    public Task SendStreamInfoChangedAsync(
+        string broadcasterId,
+        StreamInfoChangedDto dto,
+        CancellationToken ct = default
+    ) => _hub.Clients.Group($"channel-{broadcasterId}").StreamInfoChanged(dto);
+
+    public Task SendRewardChangedAsync(
+        string broadcasterId,
+        RewardChangedDto dto,
+        CancellationToken ct = default
+    ) => _hub.Clients.Group($"channel-{broadcasterId}").RewardChanged(dto);
 }
