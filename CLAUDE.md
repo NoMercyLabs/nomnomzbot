@@ -19,6 +19,7 @@ Licensed under **AGPL-3.0**. Copyright (C) NoMercy Labs.
 - **No Roslyn** — don't use Roslyn for code generation or analysis.
 - **Don't ask permission to fix bugs** — find it, fix it, move on.
 - **No fake/seed data for community** — all community/viewer data must come from the real Twitch API. Never fabricate viewer lists, subscriber counts, etc.
+- **Full external-API coverage — implement, never remove.** Every method and every event of every API we integrate (Twitch Helix + EventSub, Spotify, Discord, YouTube, …) gets implemented; a missing one is a gap to ADD. Beta/restricted surfaces ship with graceful degradation, never get skipped or deleted. Never act on a "deprecated/skip" claim about an external API without re-verifying the live docs first.
 - **Don't ask "should I continue?" or "want me to fix this?"** — just do it.
 - **Match the design system exactly** — the shadcn (new-york) tokens, component catalogue, and variant tables in `frontend-design-system.md`; correct tokens/spacing/variants. Never hardcode a color or `dp`; do not approximate.
 - **Test every interactive element** — never claim something "works" without full validation.

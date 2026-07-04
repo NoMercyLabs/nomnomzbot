@@ -17,7 +17,17 @@ except where a dependency is named ([[no-fake-priority]]).
 - **Role-scoped usage** — moderators/VIPs/subscribers/viewers can use the bot exactly as far as their permissions and per-role features reach.
 - **Chat decoration** — REST and SignalR chat responses carry all fragments the broadcaster enabled; the broadcaster can change those options and it takes effect.
 
+## Full-API-coverage rule (owner, 2026-07-04) — every method and event of every integrated API is implemented; missing = ADD, never remove
+
+- **EventSub catalogue completeness** — translators + subscriptions for the topics that have none: `user.authorization.grant/.revoke`, `drop.entitlement.grant`, `extension.bits_transaction.create`, `conduit.shard.disabled` (verify transport requirements against live docs at build time — several are webhook/conduit-only; gate by transport, degrade gracefully).
+- **Helix endpoint completeness audit** — diff the 26 sub-clients against the full current Helix reference; add any endpoint not yet exposed (then surface per the management-coverage rule).
+- **Spotify API completeness audit** — diff `SpotifyService`/provider surface against the current Spotify Web API reference; add missing methods + any missed events/webhooks.
+- **Discord API completeness audit** — diff `DiscordRestBotGateway` against the current Discord REST surface we can use bot-token-side; add missing methods; decide + wire the interactions webhook (role-button opt-in currently has no inbound handler).
+- **YouTube API completeness audit** — same treatment for the YouTube music/data surface.
+
 ## Small decided items
+
+- **Guest Star ingest — RESTORE + implement (owner override 2026-07-04)** — the old "Twitch deprecated it, skip" record is false against live docs (4 beta topics listed, no deprecation notice). Restore `GuestStarTranslators.cs` + tests + the beta/moderator `EventSubConditionBuilder` entries from git (deleted in the E1 commit), subscribe `channel.guest_star_session.begin/.end`, `channel.guest_star_guest.update`, `channel.guest_star_settings.update` (version `beta`, broadcaster+moderator condition, `channel:read:guest_star`/`moderator:read:guest_star` scopes), per-topic graceful degradation as usual.
 
 - **Credential component DRY unification** — the client-setup credential components are still duplicated.
 - **Multi-channel residuals** — `Provider` discriminator on `Channel`; individual page controllers still call `primaryChannel()` independently instead of per-channel `/effective/me` re-resolution.
