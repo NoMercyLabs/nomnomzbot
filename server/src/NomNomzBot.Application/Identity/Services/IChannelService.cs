@@ -52,7 +52,14 @@ public interface IChannelService
         CancellationToken cancellationToken = default
     );
 
-    /// <summary>Onboard a new channel: create record, join chat, set up defaults.</summary>
+    /// <summary>
+    /// Onboards a channel — creates the record on first onboard, or idempotently repairs an existing one — and
+    /// publishes <c>ChannelOnboardedEvent</c> either way. That single event is the entire onboarding fan-out:
+    /// every default (rewards, mods/VIPs/subs, channel info, owner profile, event responses, banned-user
+    /// import, bot mod-join, default builtin commands, EventSub subscribe) is seeded by an auto-discovered
+    /// <c>IEventHandler&lt;ChannelOnboardedEvent&gt;</c>, not by this method — the same single path the
+    /// Twitch-OAuth login flow (<c>AuthService</c>) uses.
+    /// </summary>
     Task<Result<ChannelDto>> OnboardAsync(
         string broadcasterId,
         CreateChannelRequest request,

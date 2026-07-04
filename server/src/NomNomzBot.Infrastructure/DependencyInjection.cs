@@ -406,6 +406,11 @@ public static class DependencyInjection
         // SeedRunner, which orders them by ISeeder.Order and runs them in one transaction).
         services.AddImplementationsOf<ISeeder>(infrastructure, ServiceLifetime.Scoped);
 
+        // Also resolvable by its own concrete type: DefaultCommandsSeedOnOnboardingHandler injects it
+        // directly to seed just the newly-onboarded channel immediately, without waiting for the next
+        // full-startup ISeeder pass.
+        services.AddScoped<Content.Commands.DefaultCommandsSeeder>();
+
         // Service impls bound by their I<X>Service interface (scoped). Singletons,
         // deployment-variant, and special-construction interfaces stay explicit below
         // and are excluded so the scan never picks a wrong binding. Ambiguity (two

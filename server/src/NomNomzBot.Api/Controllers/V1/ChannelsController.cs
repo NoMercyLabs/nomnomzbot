@@ -20,9 +20,6 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
-using NomNomzBot.Application.Rewards.Services;
-using NomNomzBot.Domain.Identity.Entities;
-using NomNomzBot.Domain.Platform.Entities;
 
 namespace NomNomzBot.Api.Controllers.V1;
 
@@ -34,32 +31,17 @@ public class ChannelsController : BaseController
 {
     private readonly IChannelService _channelService;
     private readonly IApplicationDbContext _db;
-    private readonly ITwitchChannelsApi _channels;
     private readonly ITwitchModeratorsApi _moderators;
-    private readonly ITwitchModerationApi _moderation;
-    private readonly IRewardService _rewardService;
-    private readonly ILogger<ChannelsController> _logger;
-    private readonly TimeProvider _timeProvider;
 
     public ChannelsController(
         IChannelService channelService,
         IApplicationDbContext db,
-        ITwitchChannelsApi channels,
-        ITwitchModeratorsApi moderators,
-        ITwitchModerationApi moderation,
-        IRewardService rewardService,
-        ILogger<ChannelsController> logger,
-        TimeProvider timeProvider
+        ITwitchModeratorsApi moderators
     )
     {
         _channelService = channelService;
         _db = db;
-        _channels = channels;
         _moderators = moderators;
-        _moderation = moderation;
-        _rewardService = rewardService;
-        _logger = logger;
-        _timeProvider = timeProvider;
     }
 
     [HttpGet]
@@ -164,6 +146,14 @@ public class ChannelsController : BaseController
         return ResultResponse(result);
     }
 
+    /// <summary>
+    /// Onboards the caller's channel. Thin by design: <see cref="IChannelService.OnboardAsync"/> owns every
+    /// side effect, including publishing <c>ChannelOnboardedEvent</c> — the single onboarding path that fans
+    /// out to the auto-discovered seed handlers (rewards, mods/VIPs/subs, channel info, owner profile, event
+    /// responses, banned-user import, bot mod-join, default builtin commands, EventSub subscribe). The former
+    /// inline Twitch-data sync that used to live here has moved into those handlers, matching every other
+    /// controller's validate → service → response shape.
+    /// </summary>
     [HttpPost]
     [ProducesResponseType<StatusResponseDto<ChannelDto>>(StatusCodes.Status201Created)]
     public async Task<IActionResult> OnboardChannel(
@@ -178,370 +168,6 @@ public class ChannelsController : BaseController
         );
         if (result.IsFailure)
             return ResultResponse(result);
-
-        // result.Value.Id is the tenant (channel) Guid as a string; request.BroadcasterId is the
-        // Twitch broadcaster string id. Service calls take the tenant string; Helix takes the Twitch id.
-        string channelId = result.Value.Id;
-        if (!Guid.TryParse(channelId, out Guid tenantId))
-            return InternalServerErrorResponse("Onboarded channel returned an invalid id.");
-
-        // Link any pre-existing broadcaster token (stored with BroadcasterId=null during login)
-        Service? unlinkedToken = await _db.Services.FirstOrDefaultAsync(
-            s => s.Name == "twitch" && s.BroadcasterId == null && s.UserId == request.BroadcasterId,
-            ct
-        );
-        if (unlinkedToken is not null)
-        {
-            unlinkedToken.BroadcasterId = tenantId;
-            await _db.SaveChangesAsync(ct);
-        }
-
-        // Auto-mod the platform bot in the new channel
-        Service? botService = await _db.Services.FirstOrDefaultAsync(
-            s => s.Name == "twitch_bot" && s.BroadcasterId == null && s.UserId != null,
-            ct
-        );
-        if (botService?.UserId is not null)
-        {
-            await _moderators.AddModeratorAsync(tenantId, botService.UserId, ct);
-        }
-
-        // ── Full Twitch data sync on onboarding ─────────────────────────────
-        // Each step is independent — one failure must not block the rest.
-        try
-        {
-            Result<TwitchChannelInformation> channelInfoResult =
-                await _channels.GetChannelInformationAsync(tenantId, ct);
-            if (channelInfoResult.IsSuccess)
-            {
-                TwitchChannelInformation channelInfo = channelInfoResult.Value;
-                Channel? channel = await _db.Channels.FindAsync([tenantId], ct);
-                if (channel is not null)
-                {
-                    channel.Title = channelInfo.Title;
-                    channel.GameName = channelInfo.GameName;
-                    channel.GameId = channelInfo.GameId;
-                    channel.Tags = [.. channelInfo.Tags];
-                    channel.Language = channelInfo.BroadcasterLanguage;
-                    await _db.SaveChangesAsync(ct);
-                    _logger.LogInformation(
-                        "Synced channel info for {ChannelId}: {Title} / {Game}",
-                        channelId,
-                        channelInfo.Title,
-                        channelInfo.GameName
-                    );
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Failed to sync channel info for {ChannelId}", channelId);
-        }
-
-        try
-        {
-            await _rewardService.SyncWithTwitchAsync(channelId, ct);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Failed to sync rewards for {ChannelId}", channelId);
-        }
-
-        try
-        {
-            Result<TwitchPage<TwitchBannedUser>> bannedResult =
-                await _moderation.GetBannedUsersAsync(tenantId, new TwitchPageRequest(), ct);
-            IReadOnlyList<TwitchBannedUser> bannedUsers = bannedResult.IsSuccess
-                ? bannedResult.Value.Items
-                : [];
-            foreach (TwitchBannedUser ban in bannedUsers)
-            {
-                bool exists = await _db.Configurations.AnyAsync(
-                    c => c.BroadcasterId == tenantId && c.Key == $"ban:{ban.UserId}",
-                    ct
-                );
-                if (!exists)
-                {
-                    _db.Configurations.Add(
-                        new NomNomzBot.Domain.Platform.Entities.Configuration
-                        {
-                            BroadcasterId = tenantId,
-                            Key = $"ban:{ban.UserId}",
-                            Value = System.Text.Json.JsonSerializer.Serialize(
-                                new
-                                {
-                                    userId = ban.UserId,
-                                    username = ban.UserLogin,
-                                    displayName = ban.UserName ?? ban.UserLogin,
-                                    reason = ban.Reason,
-                                    bannedBy = "",
-                                    bannedAt = _timeProvider.GetUtcNow().UtcDateTime.ToString("o"),
-                                }
-                            ),
-                        }
-                    );
-                }
-            }
-            if (bannedUsers.Count > 0)
-                await _db.SaveChangesAsync(ct);
-            _logger.LogInformation(
-                "Synced {Count} banned users for {ChannelId}",
-                bannedUsers.Count,
-                channelId
-            );
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Failed to sync banned users for {ChannelId}", channelId);
-        }
-
-        // ── Seed default commands for the new channel ─────────────────────────
-        try
-        {
-            (
-                string Name,
-                string PipelineJson,
-                string Permission,
-                int CooldownSeconds,
-                string Description
-            )[] defaultCommands = new (
-                string Name,
-                string PipelineJson,
-                string Permission,
-                int CooldownSeconds,
-                string Description
-            )[]
-            {
-                (
-                    "!sr",
-                    """{"steps":[{"action":{"type":"music_request"}}]}""",
-                    "everyone",
-                    5,
-                    "Request a song"
-                ),
-                (
-                    "!skip",
-                    """{"steps":[{"action":{"type":"music_skip"}}]}""",
-                    "moderator",
-                    0,
-                    "Skip the current song"
-                ),
-                (
-                    "!queue",
-                    """{"steps":[{"action":{"type":"music_queue"}}]}""",
-                    "everyone",
-                    10,
-                    "Show the song queue"
-                ),
-                (
-                    "!volume",
-                    """{"steps":[{"action":{"type":"music_volume"}}]}""",
-                    "moderator",
-                    0,
-                    "Set the music volume"
-                ),
-                (
-                    "!song",
-                    """{"steps":[{"action":{"type":"music_current"}}]}""",
-                    "everyone",
-                    5,
-                    "Show the current song"
-                ),
-            };
-
-            foreach (
-                (
-                    string Name,
-                    string PipelineJson,
-                    string Permission,
-                    int CooldownSeconds,
-                    string Description
-                ) def in defaultCommands
-            )
-            {
-                bool exists = await _db.Commands.AnyAsync(
-                    c => c.BroadcasterId == tenantId && c.Name == def.Name,
-                    ct
-                );
-
-                if (!exists)
-                {
-                    _db.Commands.Add(
-                        new NomNomzBot.Domain.Commands.Entities.Command
-                        {
-                            BroadcasterId = tenantId,
-                            Name = def.Name,
-                            NameNormalized = def.Name.ToLowerInvariant(),
-                            Tier = "template",
-                            MinPermissionLevel = 0,
-                            CooldownSeconds = def.CooldownSeconds,
-                            Description = def.Description,
-                            IsEnabled = true,
-                        }
-                    );
-                }
-            }
-
-            await _db.SaveChangesAsync(ct);
-            _logger.LogInformation("Seeded default commands for {ChannelId}", channelId);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Failed to seed default commands for {ChannelId}", channelId);
-        }
-
-        // ── Seed default event responses for the new channel ────────────────
-        try
-        {
-            (string EventType, string Message)[] defaultEventResponses = new (
-                string EventType,
-                string Message
-            )[]
-            {
-                ("channel.follow", "Welcome {user}! Thanks for the follow!"),
-                ("channel.subscribe", "{user} just subscribed! Thank you for the support!"),
-                ("channel.subscription.gift", "{user} gifted {amount} sub(s)! How generous!"),
-                (
-                    "channel.subscription.message",
-                    "{user} resubscribed for {months} months! {message}"
-                ),
-                ("channel.cheer", "{user} cheered {amount} bits! Thank you!"),
-                ("channel.raid", "{user} is raiding with {viewers} viewers! Welcome raiders!"),
-            };
-
-            foreach ((string EventType, string Message) def in defaultEventResponses)
-            {
-                bool exists = await _db.EventResponses.AnyAsync(
-                    er => er.BroadcasterId == tenantId && er.EventType == def.EventType,
-                    ct
-                );
-
-                if (!exists)
-                {
-                    _db.EventResponses.Add(
-                        new NomNomzBot.Domain.Commands.Entities.EventResponse
-                        {
-                            BroadcasterId = tenantId,
-                            EventType = def.EventType,
-                            IsEnabled = true,
-                            ResponseType = "chat_message",
-                            Message = def.Message,
-                        }
-                    );
-                }
-            }
-
-            await _db.SaveChangesAsync(ct);
-            _logger.LogInformation("Seeded default event responses for {ChannelId}", channelId);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(
-                ex,
-                "Failed to seed default event responses for {ChannelId}",
-                channelId
-            );
-        }
-
-        try
-        {
-            Result<TwitchPage<TwitchModerator>> modsResult = await _moderators.GetModeratorsAsync(
-                tenantId,
-                new TwitchPageRequest(),
-                ct
-            );
-            IReadOnlyList<TwitchModerator> mods = modsResult.IsSuccess
-                ? modsResult.Value.Items
-                : [];
-            Result<TwitchPage<TwitchVip>> vipsResult = await _moderators.GetVipsAsync(
-                tenantId,
-                new TwitchPageRequest(),
-                ct
-            );
-            IReadOnlyList<TwitchVip> vips = vipsResult.IsSuccess ? vipsResult.Value.Items : [];
-
-            // mod/vip .UserId are Twitch user string ids; Users key on TwitchUserId, the FK target
-            // (ChannelModerator.UserId) is the internal User.Id Guid.
-            List<string> allTwitchUserIds = mods.Select(m => m.UserId)
-                .Concat(vips.Select(v => v.UserId))
-                .Distinct()
-                .ToList();
-            List<string> existingTwitchUserIds = await _db
-                .Users.Where(u => allTwitchUserIds.Contains(u.TwitchUserId))
-                .Select(u => u.TwitchUserId)
-                .ToListAsync(ct);
-
-            foreach (
-                TwitchModerator? mod in mods.Where(m => !existingTwitchUserIds.Contains(m.UserId))
-            )
-            {
-                _db.Users.Add(
-                    new NomNomzBot.Domain.Identity.Entities.User
-                    {
-                        TwitchUserId = mod.UserId,
-                        Username = mod.UserLogin,
-                        DisplayName = mod.UserName ?? mod.UserLogin,
-                    }
-                );
-            }
-            foreach (
-                TwitchVip? vip in vips.Where(v =>
-                    !existingTwitchUserIds.Contains(v.UserId) && mods.All(m => m.UserId != v.UserId)
-                )
-            )
-            {
-                _db.Users.Add(
-                    new NomNomzBot.Domain.Identity.Entities.User
-                    {
-                        TwitchUserId = vip.UserId,
-                        Username = vip.UserLogin,
-                        DisplayName = vip.UserName ?? vip.UserLogin,
-                    }
-                );
-            }
-
-            await _db.SaveChangesAsync(ct);
-
-            // Resolve Twitch user ids → internal User.Id Guids for the moderator FK.
-            Dictionary<string, Guid> userIdMap = await _db
-                .Users.Where(u => allTwitchUserIds.Contains(u.TwitchUserId))
-                .ToDictionaryAsync(u => u.TwitchUserId, u => u.Id, ct);
-
-            // Store mod/VIP status in channel moderators table
-            foreach (TwitchModerator mod in mods)
-            {
-                if (!userIdMap.TryGetValue(mod.UserId, out Guid modUserId))
-                    continue;
-
-                bool modExists = await _db.ChannelModerators.AnyAsync(
-                    cm => cm.ChannelId == tenantId && cm.UserId == modUserId,
-                    ct
-                );
-                if (!modExists)
-                {
-                    _db.ChannelModerators.Add(
-                        new NomNomzBot.Domain.Identity.Entities.ChannelModerator
-                        {
-                            ChannelId = tenantId,
-                            UserId = modUserId,
-                            GrantedAt = _timeProvider.GetUtcNow().UtcDateTime,
-                        }
-                    );
-                }
-            }
-
-            await _db.SaveChangesAsync(ct);
-            _logger.LogInformation(
-                "Synced {ModCount} mods and {VipCount} VIPs for {ChannelId}",
-                mods.Count,
-                vips.Count,
-                channelId
-            );
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Failed to sync mods/VIPs for {ChannelId}", channelId);
-        }
 
         return CreatedAtAction(
             nameof(GetChannel),

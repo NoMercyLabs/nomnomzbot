@@ -141,11 +141,10 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
 
         b.Entity<Channel>().HasKey(e => e.Id);
         b.Entity<Channel>().Ignore(e => e.Tags).Ignore(e => e.ContentLabels);
-        b.Entity<Channel>()
-            .Ignore(e => e.User)
-            .Ignore(e => e.Moderators)
-            .Ignore(e => e.Streams)
-            .Ignore(e => e.Events);
+        b.Entity<Channel>().Ignore(e => e.Moderators).Ignore(e => e.Streams).Ignore(e => e.Events);
+
+        // Channel.User is mapped (via the domain entity's own [ForeignKey(nameof(OwnerUserId))]) so
+        // ChannelService tests can exercise its `.Include(c => c.User)` reads through this harness.
 
         b.Entity<AuthSession>().HasKey(e => e.Id);
         b.Entity<AuthSession>()
@@ -207,8 +206,11 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
         b.Ignore<NomNomzBot.Domain.Identity.Entities.Permission>();
         b.Ignore<NomNomzBot.Domain.Platform.Entities.ChannelFeature>();
         b.Ignore<NomNomzBot.Domain.Identity.Entities.ChannelBotAuthorization>();
-        b.Ignore<NomNomzBot.Domain.Identity.Entities.BotAccount>();
         b.Ignore<NomNomzBot.Domain.Identity.Entities.IpcDevModeKey>();
+
+        // BotAccount is scalar-only (no navigation properties at all), so it materializes on InMemory as-is.
+        // Mapped so BotJoinOnOnboardingHandler tests can seed/query the shared platform bot through this harness.
+        b.Entity<NomNomzBot.Domain.Identity.Entities.BotAccount>().HasKey(e => e.Id);
         b.Ignore<NomNomzBot.Domain.Discord.Entities.DiscordGuildConnection>();
         b.Ignore<NomNomzBot.Domain.Discord.Entities.DiscordNotificationConfig>();
         b.Ignore<NomNomzBot.Domain.Discord.Entities.DiscordNotificationRole>();
@@ -222,8 +224,22 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
         b.Ignore<NomNomzBot.Domain.Identity.Entities.Pronoun>();
         b.Ignore<NomNomzBot.Domain.Platform.Entities.DeletionAuditLog>();
         b.Ignore<NomNomzBot.Domain.Commands.Entities.Timer>();
-        b.Ignore<NomNomzBot.Domain.Commands.Entities.EventResponse>();
         b.Ignore<NomNomzBot.Domain.Rewards.Entities.WatchStreak>();
+
+        // EventResponse: mapped scalar-only (MetadataJson's jsonb column and both navs ignored) so
+        // EventResponseSeedOnOnboardingHandler tests can seed/query the six default responses through this
+        // harness.
+        b.Entity<NomNomzBot.Domain.Commands.Entities.EventResponse>().HasKey(e => e.Id);
+        b.Entity<NomNomzBot.Domain.Commands.Entities.EventResponse>()
+            .Ignore(e => e.Channel)
+            .Ignore(e => e.Pipeline)
+            .Ignore(e => e.MetadataJson);
+
+        // ChannelBuiltinCommand: mapped scalar-only (nav ignored) so DefaultCommandsSeedOnOnboardingHandler
+        // tests can drive the real DefaultCommandsSeeder through this harness.
+        b.Entity<NomNomzBot.Domain.Commands.Entities.ChannelBuiltinCommand>().HasKey(e => e.Id);
+        b.Entity<NomNomzBot.Domain.Commands.Entities.ChannelBuiltinCommand>()
+            .Ignore(e => e.Channel);
         b.Ignore<NomNomzBot.Domain.Commands.Entities.Pipeline>();
         b.Ignore<NomNomzBot.Domain.EventStore.Entities.EventJournal>();
         b.Ignore<NomNomzBot.Domain.EventStore.Entities.TenantSequence>();
@@ -270,7 +286,7 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
     public DbSet<NomNomzBot.Domain.Identity.Entities.ChannelBotAuthorization> ChannelBotAuthorizations =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Identity.Entities.BotAccount> BotAccounts =>
-        throw new NotSupportedException();
+        Set<NomNomzBot.Domain.Identity.Entities.BotAccount>();
     public DbSet<NomNomzBot.Domain.Identity.Entities.IpcDevModeKey> IpcDevModeKeys =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Discord.Entities.DiscordGuildConnection> DiscordGuildConnections =>
@@ -300,7 +316,7 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
     public DbSet<NomNomzBot.Domain.Commands.Entities.Timer> Timers =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Commands.Entities.EventResponse> EventResponses =>
-        throw new NotSupportedException();
+        Set<NomNomzBot.Domain.Commands.Entities.EventResponse>();
     public DbSet<NomNomzBot.Domain.Rewards.Entities.WatchStreak> WatchStreaks =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Commands.Entities.Pipeline> Pipelines =>
@@ -312,7 +328,7 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
     public DbSet<NomNomzBot.Domain.Commands.Entities.PipelineExecution> PipelineExecutions =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Commands.Entities.ChannelBuiltinCommand> ChannelBuiltinCommands =>
-        throw new NotSupportedException();
+        Set<NomNomzBot.Domain.Commands.Entities.ChannelBuiltinCommand>();
     public DbSet<NomNomzBot.Domain.Commands.Entities.CommandCooldownState> CommandCooldownStates =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Commands.Entities.NamedCounter> NamedCounters =>

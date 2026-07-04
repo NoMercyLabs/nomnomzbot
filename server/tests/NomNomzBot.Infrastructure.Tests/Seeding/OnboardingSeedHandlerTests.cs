@@ -9,7 +9,10 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Community.Services;
 using NomNomzBot.Application.Contracts.Authorization;
@@ -17,11 +20,20 @@ using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Rewards.Services;
+using NomNomzBot.Domain.Commands.Entities;
+using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Identity.Events;
+using NomNomzBot.Domain.Platform.Entities;
+using NomNomzBot.Infrastructure.BackgroundServices;
+using NomNomzBot.Infrastructure.Commands.EventHandlers;
 using NomNomzBot.Infrastructure.Community.EventHandlers;
+using NomNomzBot.Infrastructure.Content.Commands;
+using NomNomzBot.Infrastructure.Content.Commands.EventHandlers;
 using NomNomzBot.Infrastructure.Identity.EventHandlers;
+using NomNomzBot.Infrastructure.Platform.Eventing.EventHandlers;
 using NomNomzBot.Infrastructure.Rewards.EventHandlers;
+using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
 
@@ -229,6 +241,508 @@ public sealed class OnboardingSeedHandlerTests
             );
     }
 
+    // ── Event response seed handler ──────────────────────────────────────────
+
+    [Fact]
+    public async Task EventResponse_handler_seeds_the_six_defaults_for_the_event_broadcaster()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        ListLogger<EventResponseSeedOnOnboardingHandler> log = new();
+        EventResponseSeedOnOnboardingHandler sut = new(new SingleContextScopeFactory(db), log);
+
+        await sut.HandleAsync(Event());
+
+        List<EventResponse> seeded = await db
+            .EventResponses.Where(r => r.BroadcasterId == Broadcaster)
+            .ToListAsync();
+
+        seeded.Should().HaveCount(6);
+        seeded
+            .Select(r => r.EventType)
+            .Should()
+            .BeEquivalentTo([
+                "channel.follow",
+                "channel.subscribe",
+                "channel.subscription.gift",
+                "channel.subscription.message",
+                "channel.cheer",
+                "channel.raid",
+            ]);
+        seeded.Should().OnlyContain(r => r.IsEnabled && r.ResponseType == "chat_message");
+        seeded
+            .Single(r => r.EventType == "channel.follow")
+            .Message.Should()
+            .Be("Welcome {user}! Thanks for the follow!");
+    }
+
+    [Fact]
+    public async Task EventResponse_handler_is_idempotent_a_second_run_adds_nothing()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        ListLogger<EventResponseSeedOnOnboardingHandler> log = new();
+        EventResponseSeedOnOnboardingHandler sut = new(new SingleContextScopeFactory(db), log);
+
+        await sut.HandleAsync(Event());
+        await sut.HandleAsync(Event());
+
+        (await db.EventResponses.CountAsync(r => r.BroadcasterId == Broadcaster)).Should().Be(6);
+    }
+
+    [Fact]
+    public async Task EventResponse_handler_catches_and_logs_a_failure_without_throwing()
+    {
+        ListLogger<EventResponseSeedOnOnboardingHandler> log = new();
+        EventResponseSeedOnOnboardingHandler sut = new(new ThrowingScopeFactory(), log);
+
+        Func<Task> act = () => sut.HandleAsync(Event());
+
+        await act.Should().NotThrowAsync();
+        log.Entries.Should().Contain(e => e.Level == LogLevel.Error);
+    }
+
+    // ── Banned-user import seed handler ──────────────────────────────────────
+
+    [Fact]
+    public async Task BannedUser_handler_imports_every_page_of_bans_for_the_event_broadcaster()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        ITwitchModerationApi moderation = Substitute.For<ITwitchModerationApi>();
+        moderation
+            .GetBannedUsersAsync(
+                Broadcaster,
+                Arg.Is<TwitchPageRequest>(p => p.After == null),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                Result.Success(
+                    new TwitchPage<TwitchBannedUser>(
+                        [
+                            new TwitchBannedUser(
+                                "tw-ban-1",
+                                "banone",
+                                "BanOne",
+                                null,
+                                DateTimeOffset.UtcNow,
+                                "spam",
+                                "tw-mod-1",
+                                "modone",
+                                "ModOne"
+                            ),
+                        ],
+                        "cursor-2",
+                        2
+                    )
+                )
+            );
+        moderation
+            .GetBannedUsersAsync(
+                Broadcaster,
+                Arg.Is<TwitchPageRequest>(p => p.After == "cursor-2"),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                Result.Success(
+                    new TwitchPage<TwitchBannedUser>(
+                        [
+                            new TwitchBannedUser(
+                                "tw-ban-2",
+                                "bantwo",
+                                "BanTwo",
+                                null,
+                                DateTimeOffset.UtcNow,
+                                "harassment",
+                                "tw-mod-1",
+                                "modone",
+                                "ModOne"
+                            ),
+                        ],
+                        null,
+                        2
+                    )
+                )
+            );
+
+        ListLogger<BannedUserImportOnOnboardingHandler> log = new();
+        BannedUserImportOnOnboardingHandler sut = new(
+            new SingleContextScopeFactory(db),
+            moderation,
+            TimeProvider.System,
+            log
+        );
+
+        await sut.HandleAsync(Event());
+
+        List<Configuration> rows = await db
+            .Configurations.Where(c => c.BroadcasterId == Broadcaster && c.Key.StartsWith("ban:"))
+            .ToListAsync();
+
+        rows.Should().HaveCount(2);
+        rows.Select(r => r.Key).Should().BeEquivalentTo(["ban:tw-ban-1", "ban:tw-ban-2"]);
+        rows.Single(r => r.Key == "ban:tw-ban-1").Value.Should().Contain("\"reason\":\"spam\"");
+        rows.Single(r => r.Key == "ban:tw-ban-1").Value.Should().Contain("\"bannedBy\":\"ModOne\"");
+    }
+
+    [Fact]
+    public async Task BannedUser_handler_is_idempotent_and_never_overwrites_an_existing_ban_row()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        ITwitchModerationApi moderation = Substitute.For<ITwitchModerationApi>();
+        moderation
+            .GetBannedUsersAsync(
+                Broadcaster,
+                Arg.Any<TwitchPageRequest>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                Result.Success(
+                    new TwitchPage<TwitchBannedUser>(
+                        [
+                            new TwitchBannedUser(
+                                "tw-ban-1",
+                                "banone",
+                                "BanOne",
+                                null,
+                                DateTimeOffset.UtcNow,
+                                "original reason",
+                                "tw-mod-1",
+                                "modone",
+                                "ModOne"
+                            ),
+                        ],
+                        null,
+                        1
+                    )
+                )
+            );
+
+        ListLogger<BannedUserImportOnOnboardingHandler> log = new();
+        BannedUserImportOnOnboardingHandler sut = new(
+            new SingleContextScopeFactory(db),
+            moderation,
+            TimeProvider.System,
+            log
+        );
+
+        await sut.HandleAsync(Event());
+
+        // Twitch now reports a different reason for the same ban (e.g. re-worded by a moderator) — the
+        // handler must NOT clobber the existing row on re-fire.
+        moderation
+            .GetBannedUsersAsync(
+                Broadcaster,
+                Arg.Any<TwitchPageRequest>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                Result.Success(
+                    new TwitchPage<TwitchBannedUser>(
+                        [
+                            new TwitchBannedUser(
+                                "tw-ban-1",
+                                "banone",
+                                "BanOne",
+                                null,
+                                DateTimeOffset.UtcNow,
+                                "changed reason",
+                                "tw-mod-1",
+                                "modone",
+                                "ModOne"
+                            ),
+                        ],
+                        null,
+                        1
+                    )
+                )
+            );
+
+        await sut.HandleAsync(Event());
+
+        List<Configuration> rows = await db
+            .Configurations.Where(c => c.BroadcasterId == Broadcaster && c.Key.StartsWith("ban:"))
+            .ToListAsync();
+
+        rows.Should().HaveCount(1);
+        rows.Single().Value.Should().Contain("original reason");
+        rows.Single().Value.Should().NotContain("changed reason");
+    }
+
+    [Fact]
+    public async Task BannedUser_handler_logs_a_warning_and_imports_nothing_when_the_scope_is_missing()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        ITwitchModerationApi moderation = Substitute.For<ITwitchModerationApi>();
+        moderation
+            .GetBannedUsersAsync(
+                Broadcaster,
+                Arg.Any<TwitchPageRequest>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                Result.Failure<TwitchPage<TwitchBannedUser>>(
+                    "Missing required scope 'moderation:read'.",
+                    TwitchErrorCodes.MissingScope
+                )
+            );
+
+        ListLogger<BannedUserImportOnOnboardingHandler> log = new();
+        BannedUserImportOnOnboardingHandler sut = new(
+            new SingleContextScopeFactory(db),
+            moderation,
+            TimeProvider.System,
+            log
+        );
+
+        await sut.HandleAsync(Event());
+
+        (await db.Configurations.AnyAsync(c => c.BroadcasterId == Broadcaster)).Should().BeFalse();
+        log.Entries.Should().Contain(e => e.Level == LogLevel.Warning);
+    }
+
+    // ── Bot mod-join seed handler ─────────────────────────────────────────────
+
+    [Fact]
+    public async Task BotJoin_handler_grants_moderator_status_to_the_registered_shared_bot()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        db.BotAccounts.Add(SharedBot());
+        await db.SaveChangesAsync();
+
+        ITwitchModeratorsApi moderators = Substitute.For<ITwitchModeratorsApi>();
+        moderators
+            .AddModeratorAsync(Broadcaster, "tw-bot-1", Arg.Any<CancellationToken>())
+            .Returns(Result.Success());
+
+        ListLogger<BotJoinOnOnboardingHandler> log = new();
+        BotJoinOnOnboardingHandler sut = new(db, moderators, log);
+
+        await sut.HandleAsync(Event());
+
+        await moderators
+            .Received(1)
+            .AddModeratorAsync(Broadcaster, "tw-bot-1", Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task BotJoin_handler_is_a_noop_when_no_shared_bot_is_registered()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        ITwitchModeratorsApi moderators = Substitute.For<ITwitchModeratorsApi>();
+
+        ListLogger<BotJoinOnOnboardingHandler> log = new();
+        BotJoinOnOnboardingHandler sut = new(db, moderators, log);
+
+        await sut.HandleAsync(Event());
+
+        await moderators
+            .DidNotReceive()
+            .AddModeratorAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task BotJoin_handler_logs_a_warning_when_the_helix_mod_grant_fails()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        db.BotAccounts.Add(SharedBot());
+        await db.SaveChangesAsync();
+
+        ITwitchModeratorsApi moderators = Substitute.For<ITwitchModeratorsApi>();
+        moderators
+            .AddModeratorAsync(Broadcaster, "tw-bot-1", Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Failure(
+                    "Missing required scope 'channel:manage:moderators'.",
+                    TwitchErrorCodes.MissingScope
+                )
+            );
+
+        ListLogger<BotJoinOnOnboardingHandler> log = new();
+        BotJoinOnOnboardingHandler sut = new(db, moderators, log);
+
+        Func<Task> act = () => sut.HandleAsync(Event());
+
+        await act.Should().NotThrowAsync();
+        log.Entries.Should().Contain(e => e.Level == LogLevel.Warning);
+    }
+
+    [Fact]
+    public async Task BotJoin_handler_catches_and_logs_an_unexpected_failure_without_throwing()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        db.BotAccounts.Add(SharedBot());
+        await db.SaveChangesAsync();
+
+        ITwitchModeratorsApi moderators = Substitute.For<ITwitchModeratorsApi>();
+        moderators
+            .AddModeratorAsync(Broadcaster, "tw-bot-1", Arg.Any<CancellationToken>())
+            .ThrowsAsync(new InvalidOperationException("twitch is down"));
+
+        ListLogger<BotJoinOnOnboardingHandler> log = new();
+        BotJoinOnOnboardingHandler sut = new(db, moderators, log);
+
+        Func<Task> act = () => sut.HandleAsync(Event());
+
+        await act.Should().NotThrowAsync();
+        log.Entries.Should().Contain(e => e.Level == LogLevel.Error);
+    }
+
+    // ── Default builtin-commands seed handler ─────────────────────────────────
+
+    [Fact]
+    public async Task DefaultCommands_handler_seeds_the_five_music_builtins_for_the_event_broadcaster()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        db.Channels.Add(Channel(Broadcaster, "tw-123", "stoney_eagle", isOnboarded: true));
+        await db.SaveChangesAsync();
+
+        DefaultCommandsSeeder seeder = new(db);
+        ListLogger<DefaultCommandsSeedOnOnboardingHandler> log = new();
+        DefaultCommandsSeedOnOnboardingHandler sut = new(seeder, log);
+
+        await sut.HandleAsync(Event());
+
+        List<ChannelBuiltinCommand> seeded = await db
+            .ChannelBuiltinCommands.Where(c => c.BroadcasterId == Broadcaster)
+            .ToListAsync();
+
+        seeded.Should().HaveCount(5);
+        seeded
+            .Select(c => c.BuiltinKey)
+            .Should()
+            .BeEquivalentTo(["!sr", "!skip", "!queue", "!volume", "!song"]);
+        seeded.Should().OnlyContain(c => c.IsEnabled);
+    }
+
+    [Fact]
+    public async Task DefaultCommands_handler_is_idempotent_a_second_run_adds_nothing()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        db.Channels.Add(Channel(Broadcaster, "tw-123", "stoney_eagle", isOnboarded: true));
+        await db.SaveChangesAsync();
+
+        DefaultCommandsSeeder seeder = new(db);
+        ListLogger<DefaultCommandsSeedOnOnboardingHandler> log = new();
+        DefaultCommandsSeedOnOnboardingHandler sut = new(seeder, log);
+
+        await sut.HandleAsync(Event());
+        await sut.HandleAsync(Event());
+
+        (await db.ChannelBuiltinCommands.CountAsync(c => c.BroadcasterId == Broadcaster))
+            .Should()
+            .Be(5);
+    }
+
+    [Fact]
+    public async Task DefaultCommands_handler_only_seeds_the_event_broadcaster_not_other_channels()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        Guid otherChannel = Guid.Parse("0192a000-0000-7000-8000-00000000f001");
+        db.Channels.Add(Channel(Broadcaster, "tw-123", "stoney_eagle", isOnboarded: true));
+        db.Channels.Add(Channel(otherChannel, "tw-999", "someoneelse", isOnboarded: true));
+        await db.SaveChangesAsync();
+
+        DefaultCommandsSeeder seeder = new(db);
+        ListLogger<DefaultCommandsSeedOnOnboardingHandler> log = new();
+        DefaultCommandsSeedOnOnboardingHandler sut = new(seeder, log);
+
+        await sut.HandleAsync(Event());
+
+        (await db.ChannelBuiltinCommands.CountAsync(c => c.BroadcasterId == otherChannel))
+            .Should()
+            .Be(0);
+    }
+
+    [Fact]
+    public async Task DefaultCommands_handler_catches_and_logs_a_failure_without_throwing()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        await db.DisposeAsync();
+
+        DefaultCommandsSeeder seeder = new(db);
+        ListLogger<DefaultCommandsSeedOnOnboardingHandler> log = new();
+        DefaultCommandsSeedOnOnboardingHandler sut = new(seeder, log);
+
+        Func<Task> act = () => sut.HandleAsync(Event());
+
+        await act.Should().NotThrowAsync();
+        log.Entries.Should().Contain(e => e.Level == LogLevel.Error);
+    }
+
+    // ── EventSub-subscribe seed handler (Slice B) ─────────────────────────────
+
+    [Fact]
+    public async Task EventSub_handler_subscribes_the_broadcaster_to_BotLifecycleServices_topic_set()
+    {
+        ITwitchEventSubService eventSub = Substitute.For<ITwitchEventSubService>();
+        eventSub
+            .EnsureSubscribedAsync(
+                Broadcaster,
+                Arg.Any<IReadOnlyCollection<string>>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success());
+
+        ListLogger<EventSubSubscribeOnOnboardingHandler> log = new();
+        EventSubSubscribeOnOnboardingHandler sut = new(eventSub, log);
+
+        await sut.HandleAsync(Event());
+
+        // Proves the handler reuses BotLifecycleService.ChannelEventTypes verbatim rather than a duplicated
+        // (and driftable) copy of the topic list.
+        await eventSub
+            .Received(1)
+            .EnsureSubscribedAsync(
+                Broadcaster,
+                Arg.Is<IReadOnlyCollection<string>>(types =>
+                    types.SequenceEqual(BotLifecycleService.ChannelEventTypes)
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task EventSub_handler_logs_a_warning_when_the_subscribe_reconcile_fails()
+    {
+        ITwitchEventSubService eventSub = Substitute.For<ITwitchEventSubService>();
+        eventSub
+            .EnsureSubscribedAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<IReadOnlyCollection<string>>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Failure("Twitch request failed (500).", TwitchErrorCodes.TwitchError));
+
+        ListLogger<EventSubSubscribeOnOnboardingHandler> log = new();
+        EventSubSubscribeOnOnboardingHandler sut = new(eventSub, log);
+
+        Func<Task> act = () => sut.HandleAsync(Event());
+
+        await act.Should().NotThrowAsync();
+        log.Entries.Should().Contain(e => e.Level == LogLevel.Warning);
+    }
+
+    [Fact]
+    public async Task EventSub_handler_catches_and_logs_an_unexpected_failure_without_throwing()
+    {
+        ITwitchEventSubService eventSub = Substitute.For<ITwitchEventSubService>();
+        eventSub
+            .EnsureSubscribedAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<IReadOnlyCollection<string>>(),
+                Arg.Any<CancellationToken>()
+            )
+            .ThrowsAsync(new InvalidOperationException("transport is down"));
+
+        ListLogger<EventSubSubscribeOnOnboardingHandler> log = new();
+        EventSubSubscribeOnOnboardingHandler sut = new(eventSub, log);
+
+        Func<Task> act = () => sut.HandleAsync(Event());
+
+        await act.Should().NotThrowAsync();
+        log.Entries.Should().Contain(e => e.Level == LogLevel.Error);
+    }
+
+    // ── shared test scaffolding ────────────────────────────────────────────────
+
     private static Result<UserDto> UserResult(Guid id, string username, string displayName) =>
         Result.Success(
             new UserDto(
@@ -241,4 +755,52 @@ public sealed class OnboardingSeedHandlerTests
                 DateTime.UtcNow
             )
         );
+
+    private static BotAccount SharedBot() =>
+        new()
+        {
+            Id = Guid.NewGuid(),
+            IdentityType = AuthEnums.BotIdentityType.Shared,
+            Platform = "twitch",
+            BotUserId = "tw-bot-1",
+            BotUsername = "nomnomzbot",
+            IsActive = true,
+        };
+
+    private static Channel Channel(Guid id, string twitchId, string name, bool isOnboarded) =>
+        new()
+        {
+            Id = id,
+            OwnerUserId = Guid.NewGuid(),
+            TwitchChannelId = twitchId,
+            Name = name,
+            NameNormalized = name,
+            IsOnboarded = isOnboarded,
+        };
+
+    /// <summary>A scope factory whose every scope resolves the one shared test <see cref="AuthDbContext"/> —
+    /// mirrors <c>OnboardedChannelSeedBackfillServiceTests</c>' helper for handlers that create their own
+    /// scope (<see cref="IServiceScopeFactory"/>) to isolate a multi-row insert.</summary>
+    private sealed class SingleContextScopeFactory(IApplicationDbContext db) : IServiceScopeFactory
+    {
+        public IServiceScope CreateScope() => new Scope(db);
+
+        private sealed class Scope(IApplicationDbContext db) : IServiceScope, IServiceProvider
+        {
+            public IServiceProvider ServiceProvider => this;
+
+            public object? GetService(Type serviceType) =>
+                serviceType == typeof(IApplicationDbContext) ? db : null;
+
+            public void Dispose() { }
+        }
+    }
+
+    /// <summary>Simulates the DB being unavailable, so a handler's own-scope creation fails — proving the
+    /// catch-and-log contract without needing to corrupt a real context.</summary>
+    private sealed class ThrowingScopeFactory : IServiceScopeFactory
+    {
+        public IServiceScope CreateScope() =>
+            throw new InvalidOperationException("scope unavailable");
+    }
 }

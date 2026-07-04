@@ -14,6 +14,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Identity.Entities;
+using NomNomzBot.Domain.Identity.Events;
 using NomNomzBot.Domain.Platform.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
 
@@ -225,6 +226,7 @@ public class ChannelService : IChannelService
             existing.IsOnboarded = true;
             existing.BotJoinedAt ??= _timeProvider.GetUtcNow().UtcDateTime;
             await _db.SaveChangesAsync(cancellationToken);
+            await PublishOnboardedAsync(existing, cancellationToken);
             return Result.Success(ToDto(existing));
         }
 
@@ -241,6 +243,7 @@ public class ChannelService : IChannelService
             OwnerUserId = user.Id,
             TwitchChannelId = user.TwitchUserId,
             Name = user.Username,
+            NameNormalized = user.Username.ToLowerInvariant(),
             IsOnboarded = true,
             Enabled = true,
             BotJoinedAt = _timeProvider.GetUtcNow().UtcDateTime,
@@ -249,9 +252,30 @@ public class ChannelService : IChannelService
 
         _db.Channels.Add(channel);
         await _db.SaveChangesAsync(cancellationToken);
+        await PublishOnboardedAsync(channel, cancellationToken);
 
         return Result.Success(ToDto(channel));
     }
+
+    /// <summary>
+    /// Publishes <see cref="ChannelOnboardedEvent"/> so the auto-discovered onboarding seed handlers (rewards,
+    /// moderator roster, memberships, subscriber/VIP standing, channel info, owner profile, event responses,
+    /// banned-user import, bot mod-join, default commands, EventSub subscribe) run for this channel — the same
+    /// event the Twitch-OAuth login path publishes, and the one <see cref="BackgroundServices.OnboardedChannelSeedBackfillService"/>
+    /// re-fires at startup. Every handler is documented idempotent, so publishing on both a brand-new channel
+    /// and a repaired (already-existing but re-onboarded) one is always safe.
+    /// </summary>
+    private Task PublishOnboardedAsync(Channel channel, CancellationToken cancellationToken) =>
+        _eventBus.PublishAsync(
+            new ChannelOnboardedEvent
+            {
+                BroadcasterId = channel.Id,
+                OwnerUserId = channel.OwnerUserId,
+                TwitchChannelId = channel.TwitchChannelId,
+                Name = channel.Name,
+            },
+            cancellationToken
+        );
 
     public async Task<Result> DeleteAsync(
         string broadcasterId,

@@ -298,7 +298,6 @@ public sealed class AuthService : IAuthService
         // SelfHostLite is single-streamer: a 2nd login reuses the existing owner's channel rather than
         // creating a second one. The new user's JWT will carry the owner's broadcasterId, giving them
         // viewer-level access to the single-channel dashboard.
-        bool isNewChannel = false;
         Channel? channel;
         if (_deploymentMode == DeploymentMode.SelfHostLite)
         {
@@ -322,7 +321,6 @@ public sealed class AuthService : IAuthService
 
         if (channel is null)
         {
-            isNewChannel = true;
             channel = new()
             {
                 OwnerUserId = user.Id,
@@ -386,17 +384,23 @@ public sealed class AuthService : IAuthService
                 },
                 cancellationToken
             );
-        if (isNewChannel)
-            await _eventBus.PublishAsync(
-                new ChannelOnboardedEvent
-                {
-                    BroadcasterId = broadcasterId,
-                    OwnerUserId = user.Id,
-                    TwitchChannelId = twitchUser.Id,
-                    Name = twitchUser.Login,
-                },
-                cancellationToken
-            );
+
+        // Re-published on EVERY successful streamer session — not just a brand-new channel. The auto-discovered
+        // onboarding seed handlers (rewards, moderator roster, memberships, subscriber/VIP standing, channel
+        // info, owner profile, event responses, banned-user import, bot mod-join, default commands, EventSub
+        // subscribe) are all documented idempotent — the same guarantee OnboardedChannelSeedBackfillService
+        // relies on to safely re-fire this event for every onboarded channel at startup — so re-auth of an
+        // EXISTING channel is a safe repair path that keeps their seeded state in sync without a restart.
+        await _eventBus.PublishAsync(
+            new ChannelOnboardedEvent
+            {
+                BroadcasterId = broadcasterId,
+                OwnerUserId = user.Id,
+                TwitchChannelId = twitchUser.Id,
+                Name = twitchUser.Login,
+            },
+            cancellationToken
+        );
 
         // Open a session + issue the rotating refresh token + access JWT.
         Result<SessionTokensDto> session = await _sessions.CreateSessionAsync(

@@ -34,9 +34,20 @@ public sealed class DefaultCommandsSeeder : ISeeder
 
     private static readonly string[] DefaultKeys = ["!sr", "!skip", "!queue", "!volume", "!song"];
 
-    public async Task SeedAsync(CancellationToken ct = default)
+    /// <summary>The startup <see cref="ISeeder"/> pass: seeds every channel.</summary>
+    public Task SeedAsync(CancellationToken ct = default) => SeedAsync(broadcasterId: null, ct);
+
+    /// <summary>
+    /// Seeds the default builtins for a single channel (<paramref name="broadcasterId"/>) or, when null, every
+    /// channel. <c>DefaultCommandsSeedOnOnboardingHandler</c> (Content.Commands.EventHandlers) calls this
+    /// scoped to the newly-onboarded channel so it does not have to wait for the next full-startup pass; same
+    /// idempotent upsert-by-natural-key either way.
+    /// </summary>
+    public async Task SeedAsync(Guid? broadcasterId, CancellationToken ct = default)
     {
-        List<Guid> channelIds = await _db.Channels.Select(c => c.Id).ToListAsync(ct);
+        List<Guid> channelIds = broadcasterId is Guid id
+            ? [id]
+            : await _db.Channels.Select(c => c.Id).ToListAsync(ct);
 
         if (channelIds.Count == 0)
             return;
