@@ -27,16 +27,19 @@ public sealed class ChatMessageBroadcastHandler : IEventHandler<ChatMessageRecei
 {
     private readonly IDashboardNotifier _notifier;
     private readonly IChatMessageDecorator _decorator;
+    private readonly IHubUserEnricher _enricher;
     private readonly TimeProvider _timeProvider;
 
     public ChatMessageBroadcastHandler(
         IDashboardNotifier notifier,
         IChatMessageDecorator decorator,
+        IHubUserEnricher enricher,
         TimeProvider timeProvider
     )
     {
         _notifier = notifier;
         _decorator = decorator;
+        _enricher = enricher;
         _timeProvider = timeProvider;
     }
 
@@ -54,6 +57,11 @@ public sealed class ChatMessageBroadcastHandler : IEventHandler<ChatMessageRecei
         );
 
         DecoratedChatMessage decorated = await _decorator.DecorateAsync(evt, ct);
+        HubUserEnrichment? enrichment = await _enricher.EnrichAsync(
+            evt.BroadcasterId,
+            evt.UserId,
+            ct
+        );
 
         DashboardChatMessageDto dto = new(
             Id: evt.MessageId,
@@ -84,7 +92,9 @@ public sealed class ChatMessageBroadcastHandler : IEventHandler<ChatMessageRecei
             ReplyToMessageId: evt.ReplyParentMessageId,
             ReplyParentMessageBody: evt.ReplyParentMessageBody,
             ReplyParentUserName: evt.ReplyParentUserName,
-            Timestamp: _timeProvider.GetUtcNow().ToString("O")
+            Timestamp: _timeProvider.GetUtcNow().ToString("O"),
+            AvatarUrl: enrichment?.AvatarUrl,
+            Pronouns: enrichment?.Pronouns
         );
 
         await _notifier.SendChatMessageAsync(evt.BroadcasterId.ToString(), dto, ct);

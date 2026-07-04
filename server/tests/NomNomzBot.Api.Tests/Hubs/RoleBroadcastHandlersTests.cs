@@ -26,7 +26,8 @@ public sealed class RoleBroadcastHandlersTests
     public async Task ModeratorAdded_MapsUser_AsModeratorAddedChannelEvent()
     {
         IDashboardNotifier notifier = Substitute.For<IDashboardNotifier>();
-        ModeratorAddedBroadcastHandler handler = new(notifier);
+        IHubUserEnricher enricher = Substitute.For<IHubUserEnricher>();
+        ModeratorAddedBroadcastHandler handler = new(notifier, enricher);
         Guid channel = Guid.CreateVersion7();
 
         await handler.HandleAsync(
@@ -58,7 +59,8 @@ public sealed class RoleBroadcastHandlersTests
     public async Task ModeratorRemoved_MapsUser_AsModeratorRemovedChannelEvent()
     {
         IDashboardNotifier notifier = Substitute.For<IDashboardNotifier>();
-        ModeratorRemovedBroadcastHandler handler = new(notifier);
+        IHubUserEnricher enricher = Substitute.For<IHubUserEnricher>();
+        ModeratorRemovedBroadcastHandler handler = new(notifier, enricher);
         Guid channel = Guid.CreateVersion7();
 
         await handler.HandleAsync(
@@ -87,7 +89,8 @@ public sealed class RoleBroadcastHandlersTests
     public async Task VipAdded_MapsUser_AsVipAddedChannelEvent()
     {
         IDashboardNotifier notifier = Substitute.For<IDashboardNotifier>();
-        VipAddedBroadcastHandler handler = new(notifier);
+        IHubUserEnricher enricher = Substitute.For<IHubUserEnricher>();
+        VipAddedBroadcastHandler handler = new(notifier, enricher);
         Guid channel = Guid.CreateVersion7();
 
         await handler.HandleAsync(
@@ -119,7 +122,8 @@ public sealed class RoleBroadcastHandlersTests
     public async Task VipRemoved_MapsUser_AsVipRemovedChannelEvent()
     {
         IDashboardNotifier notifier = Substitute.For<IDashboardNotifier>();
-        VipRemovedBroadcastHandler handler = new(notifier);
+        IHubUserEnricher enricher = Substitute.For<IHubUserEnricher>();
+        VipRemovedBroadcastHandler handler = new(notifier, enricher);
         Guid channel = Guid.CreateVersion7();
 
         await handler.HandleAsync(
@@ -148,7 +152,8 @@ public sealed class RoleBroadcastHandlersTests
     public async Task ModeratorAdded_PlatformSentinelChannel_DoesNotNotify()
     {
         IDashboardNotifier notifier = Substitute.For<IDashboardNotifier>();
-        ModeratorAddedBroadcastHandler handler = new(notifier);
+        IHubUserEnricher enricher = Substitute.For<IHubUserEnricher>();
+        ModeratorAddedBroadcastHandler handler = new(notifier, enricher);
 
         await handler.HandleAsync(
             new ModeratorAddedEvent
@@ -166,6 +171,44 @@ public sealed class RoleBroadcastHandlersTests
                 Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<object>(),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task ModeratorAdded_WithKnownUser_CarriesTheEnrichedFields()
+    {
+        IDashboardNotifier notifier = Substitute.For<IDashboardNotifier>();
+        IHubUserEnricher enricher = Substitute.For<IHubUserEnricher>();
+        Guid channel = Guid.CreateVersion7();
+        enricher
+            .EnrichAsync(channel, "u1", Arg.Any<CancellationToken>())
+            .Returns(
+                new HubUserEnrichment("UserOne", "https://cdn/avatar.png", "he/him", "Moderator")
+            );
+        ModeratorAddedBroadcastHandler handler = new(notifier, enricher);
+
+        await handler.HandleAsync(
+            new ModeratorAddedEvent
+            {
+                BroadcasterId = channel,
+                UserId = "u1",
+                UserDisplayName = "UserOne",
+                UserLogin = "userone",
+            }
+        );
+
+        await notifier
+            .Received(1)
+            .NotifyChannelAsync(
+                channel.ToString(),
+                "moderator_added",
+                Arg.Is<object>(data =>
+                    data is RoleChangedAlertDto
+                    && ((RoleChangedAlertDto)data).AvatarUrl == "https://cdn/avatar.png"
+                    && ((RoleChangedAlertDto)data).Pronouns == "he/him"
+                    && ((RoleChangedAlertDto)data).CommunityStanding == "Moderator"
+                ),
                 Arg.Any<CancellationToken>()
             );
     }

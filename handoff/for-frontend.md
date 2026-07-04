@@ -31,6 +31,13 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
   ignored so nothing breaks until you wire each one.
 - **Done when:** each listed event updates its owning page/panel live (stream info, rewards queue/
   list, polls, predictions, hype train, moderation roster, activity feed + ad-break countdown).
+- **Update (same day):** hub payloads now also carry hydrated user info — additive nullable fields,
+  omitted from JSON when null: `avatarUrl`, `pronouns` (display string like `"they/them"`),
+  `communityStanding` (`Everyone|Subscriber|Vip|Artist|Moderator`) on `FollowAlertDto`,
+  `RewardRedeemedDto`, `RoleChangedAlertDto`, `ShoutoutReceivedAlertDto`, and the chat message DTO
+  (`avatarUrl` + `pronouns`); `ModActionDto` gets the same as `targetDisplayName`/`targetAvatarUrl`/
+  `targetPronouns`/`targetCommunityStanding` (the moderated viewer). Render avatars + pronoun badges
+  wherever these events surface.
 
 ### 2026-07-04 — Read the bot capability & permission reference before designing new pages
 - **From:** Stoney_Eagle (via Claude, backend track)

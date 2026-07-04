@@ -45,22 +45,36 @@ public sealed class ShoutoutSentBroadcastHandler : IEventHandler<ShoutoutSentEve
 public sealed class ShoutoutReceivedBroadcastHandler : IEventHandler<ShoutoutReceivedEvent>
 {
     private readonly IDashboardNotifier _notifier;
+    private readonly IHubUserEnricher _enricher;
 
-    public ShoutoutReceivedBroadcastHandler(IDashboardNotifier notifier) => _notifier = notifier;
+    public ShoutoutReceivedBroadcastHandler(IDashboardNotifier notifier, IHubUserEnricher enricher)
+    {
+        _notifier = notifier;
+        _enricher = enricher;
+    }
 
-    public Task HandleAsync(ShoutoutReceivedEvent @event, CancellationToken ct = default)
+    public async Task HandleAsync(ShoutoutReceivedEvent @event, CancellationToken ct = default)
     {
         if (@event.BroadcasterId == Guid.Empty)
-            return Task.CompletedTask;
+            return;
 
-        return _notifier.NotifyChannelAsync(
+        HubUserEnrichment? enrichment = await _enricher.EnrichAsync(
+            @event.BroadcasterId,
+            @event.FromBroadcasterId,
+            ct
+        );
+
+        await _notifier.NotifyChannelAsync(
             @event.BroadcasterId.ToString(),
             "shoutout_received",
             new ShoutoutReceivedAlertDto(
                 @event.FromBroadcasterId,
                 @event.FromBroadcasterDisplayName,
                 @event.FromBroadcasterLogin,
-                @event.ViewerCount
+                @event.ViewerCount,
+                enrichment?.AvatarUrl,
+                enrichment?.Pronouns,
+                enrichment?.CommunityStanding
             ),
             ct
         );

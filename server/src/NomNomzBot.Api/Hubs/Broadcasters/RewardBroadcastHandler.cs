@@ -18,13 +18,24 @@ namespace NomNomzBot.Api.Hubs.Broadcasters;
 public sealed class RewardRedeemedBroadcastHandler : IEventHandler<RewardRedeemedEvent>
 {
     private readonly IDashboardNotifier _notifier;
+    private readonly IHubUserEnricher _enricher;
 
-    public RewardRedeemedBroadcastHandler(IDashboardNotifier notifier) => _notifier = notifier;
+    public RewardRedeemedBroadcastHandler(IDashboardNotifier notifier, IHubUserEnricher enricher)
+    {
+        _notifier = notifier;
+        _enricher = enricher;
+    }
 
-    public Task HandleAsync(RewardRedeemedEvent @event, CancellationToken ct = default)
+    public async Task HandleAsync(RewardRedeemedEvent @event, CancellationToken ct = default)
     {
         if (@event.BroadcasterId == Guid.Empty)
-            return Task.CompletedTask;
+            return;
+
+        HubUserEnrichment? enrichment = await _enricher.EnrichAsync(
+            @event.BroadcasterId,
+            @event.UserId,
+            ct
+        );
 
         RewardRedeemedDto dto = new(
             BroadcasterId: @event.BroadcasterId.ToString(),
@@ -35,9 +46,12 @@ public sealed class RewardRedeemedBroadcastHandler : IEventHandler<RewardRedeeme
             UserDisplayName: @event.UserDisplayName,
             Cost: @event.Cost,
             UserInput: @event.UserInput,
-            Timestamp: @event.OccurredAt.ToString("O")
+            Timestamp: @event.OccurredAt.ToString("O"),
+            AvatarUrl: enrichment?.AvatarUrl,
+            Pronouns: enrichment?.Pronouns,
+            CommunityStanding: enrichment?.CommunityStanding
         );
 
-        return _notifier.SendRewardRedeemedAsync(@event.BroadcasterId.ToString(), dto, ct);
+        await _notifier.SendRewardRedeemedAsync(@event.BroadcasterId.ToString(), dto, ct);
     }
 }

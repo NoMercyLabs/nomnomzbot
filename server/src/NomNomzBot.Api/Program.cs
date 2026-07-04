@@ -151,6 +151,17 @@ try
         NomNomzBot.Api.Hubs.SoundClipOverlayNotifierAdapter
     >();
 
+    // Hub broadcast-layer viewer enrichment (avatar/pronouns/community standing) — the store does the DB read,
+    // the enricher cache-gates it so a burst of hub events for the same viewer is one DB read, not N.
+    builder.Services.AddScoped<
+        NomNomzBot.Api.Hubs.IHubUserEnrichmentStore,
+        NomNomzBot.Api.Hubs.HubUserEnrichmentStore
+    >();
+    builder.Services.AddScoped<
+        NomNomzBot.Api.Hubs.IHubUserEnricher,
+        NomNomzBot.Api.Hubs.HubUserEnricher
+    >();
+
     // Register event handlers declared in the API layer (e.g. ChatMessageBroadcastHandler)
     builder.Services.AddEventHandlersFromAssembly(typeof(Program).Assembly);
 

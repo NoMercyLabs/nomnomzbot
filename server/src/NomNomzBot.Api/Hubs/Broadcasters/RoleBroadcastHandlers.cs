@@ -18,18 +18,36 @@ namespace NomNomzBot.Api.Hubs.Broadcasters;
 public sealed class ModeratorAddedBroadcastHandler : IEventHandler<ModeratorAddedEvent>
 {
     private readonly IDashboardNotifier _notifier;
+    private readonly IHubUserEnricher _enricher;
 
-    public ModeratorAddedBroadcastHandler(IDashboardNotifier notifier) => _notifier = notifier;
+    public ModeratorAddedBroadcastHandler(IDashboardNotifier notifier, IHubUserEnricher enricher)
+    {
+        _notifier = notifier;
+        _enricher = enricher;
+    }
 
-    public Task HandleAsync(ModeratorAddedEvent @event, CancellationToken ct = default)
+    public async Task HandleAsync(ModeratorAddedEvent @event, CancellationToken ct = default)
     {
         if (@event.BroadcasterId == Guid.Empty)
-            return Task.CompletedTask;
+            return;
 
-        return _notifier.NotifyChannelAsync(
+        HubUserEnrichment? enrichment = await _enricher.EnrichAsync(
+            @event.BroadcasterId,
+            @event.UserId,
+            ct
+        );
+
+        await _notifier.NotifyChannelAsync(
             @event.BroadcasterId.ToString(),
             "moderator_added",
-            new RoleChangedAlertDto(@event.UserId, @event.UserDisplayName, @event.UserLogin),
+            new RoleChangedAlertDto(
+                @event.UserId,
+                @event.UserDisplayName,
+                @event.UserLogin,
+                enrichment?.AvatarUrl,
+                enrichment?.Pronouns,
+                enrichment?.CommunityStanding
+            ),
             ct
         );
     }
@@ -39,18 +57,36 @@ public sealed class ModeratorAddedBroadcastHandler : IEventHandler<ModeratorAdde
 public sealed class ModeratorRemovedBroadcastHandler : IEventHandler<ModeratorRemovedEvent>
 {
     private readonly IDashboardNotifier _notifier;
+    private readonly IHubUserEnricher _enricher;
 
-    public ModeratorRemovedBroadcastHandler(IDashboardNotifier notifier) => _notifier = notifier;
+    public ModeratorRemovedBroadcastHandler(IDashboardNotifier notifier, IHubUserEnricher enricher)
+    {
+        _notifier = notifier;
+        _enricher = enricher;
+    }
 
-    public Task HandleAsync(ModeratorRemovedEvent @event, CancellationToken ct = default)
+    public async Task HandleAsync(ModeratorRemovedEvent @event, CancellationToken ct = default)
     {
         if (@event.BroadcasterId == Guid.Empty)
-            return Task.CompletedTask;
+            return;
 
-        return _notifier.NotifyChannelAsync(
+        HubUserEnrichment? enrichment = await _enricher.EnrichAsync(
+            @event.BroadcasterId,
+            @event.UserId,
+            ct
+        );
+
+        await _notifier.NotifyChannelAsync(
             @event.BroadcasterId.ToString(),
             "moderator_removed",
-            new RoleChangedAlertDto(@event.UserId, @event.UserDisplayName, @event.UserLogin),
+            new RoleChangedAlertDto(
+                @event.UserId,
+                @event.UserDisplayName,
+                @event.UserLogin,
+                enrichment?.AvatarUrl,
+                enrichment?.Pronouns,
+                enrichment?.CommunityStanding
+            ),
             ct
         );
     }
@@ -60,18 +96,36 @@ public sealed class ModeratorRemovedBroadcastHandler : IEventHandler<ModeratorRe
 public sealed class VipAddedBroadcastHandler : IEventHandler<VipAddedEvent>
 {
     private readonly IDashboardNotifier _notifier;
+    private readonly IHubUserEnricher _enricher;
 
-    public VipAddedBroadcastHandler(IDashboardNotifier notifier) => _notifier = notifier;
+    public VipAddedBroadcastHandler(IDashboardNotifier notifier, IHubUserEnricher enricher)
+    {
+        _notifier = notifier;
+        _enricher = enricher;
+    }
 
-    public Task HandleAsync(VipAddedEvent @event, CancellationToken ct = default)
+    public async Task HandleAsync(VipAddedEvent @event, CancellationToken ct = default)
     {
         if (@event.BroadcasterId == Guid.Empty)
-            return Task.CompletedTask;
+            return;
 
-        return _notifier.NotifyChannelAsync(
+        HubUserEnrichment? enrichment = await _enricher.EnrichAsync(
+            @event.BroadcasterId,
+            @event.UserId,
+            ct
+        );
+
+        await _notifier.NotifyChannelAsync(
             @event.BroadcasterId.ToString(),
             "vip_added",
-            new RoleChangedAlertDto(@event.UserId, @event.UserDisplayName, @event.UserLogin),
+            new RoleChangedAlertDto(
+                @event.UserId,
+                @event.UserDisplayName,
+                @event.UserLogin,
+                enrichment?.AvatarUrl,
+                enrichment?.Pronouns,
+                enrichment?.CommunityStanding
+            ),
             ct
         );
     }
@@ -81,18 +135,36 @@ public sealed class VipAddedBroadcastHandler : IEventHandler<VipAddedEvent>
 public sealed class VipRemovedBroadcastHandler : IEventHandler<VipRemovedEvent>
 {
     private readonly IDashboardNotifier _notifier;
+    private readonly IHubUserEnricher _enricher;
 
-    public VipRemovedBroadcastHandler(IDashboardNotifier notifier) => _notifier = notifier;
+    public VipRemovedBroadcastHandler(IDashboardNotifier notifier, IHubUserEnricher enricher)
+    {
+        _notifier = notifier;
+        _enricher = enricher;
+    }
 
-    public Task HandleAsync(VipRemovedEvent @event, CancellationToken ct = default)
+    public async Task HandleAsync(VipRemovedEvent @event, CancellationToken ct = default)
     {
         if (@event.BroadcasterId == Guid.Empty)
-            return Task.CompletedTask;
+            return;
 
-        return _notifier.NotifyChannelAsync(
+        HubUserEnrichment? enrichment = await _enricher.EnrichAsync(
+            @event.BroadcasterId,
+            @event.UserId,
+            ct
+        );
+
+        await _notifier.NotifyChannelAsync(
             @event.BroadcasterId.ToString(),
             "vip_removed",
-            new RoleChangedAlertDto(@event.UserId, @event.UserDisplayName, @event.UserLogin),
+            new RoleChangedAlertDto(
+                @event.UserId,
+                @event.UserDisplayName,
+                @event.UserLogin,
+                enrichment?.AvatarUrl,
+                enrichment?.Pronouns,
+                enrichment?.CommunityStanding
+            ),
             ct
         );
     }

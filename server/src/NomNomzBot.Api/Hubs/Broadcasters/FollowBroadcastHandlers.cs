@@ -18,22 +18,36 @@ namespace NomNomzBot.Api.Hubs.Broadcasters;
 public sealed class FollowBroadcastHandler : IEventHandler<FollowEvent>
 {
     private readonly IDashboardNotifier _notifier;
+    private readonly IHubUserEnricher _enricher;
 
-    public FollowBroadcastHandler(IDashboardNotifier notifier) => _notifier = notifier;
+    public FollowBroadcastHandler(IDashboardNotifier notifier, IHubUserEnricher enricher)
+    {
+        _notifier = notifier;
+        _enricher = enricher;
+    }
 
-    public Task HandleAsync(FollowEvent @event, CancellationToken ct = default)
+    public async Task HandleAsync(FollowEvent @event, CancellationToken ct = default)
     {
         if (@event.BroadcasterId == Guid.Empty)
-            return Task.CompletedTask;
+            return;
 
-        return _notifier.NotifyChannelAsync(
+        HubUserEnrichment? enrichment = await _enricher.EnrichAsync(
+            @event.BroadcasterId,
+            @event.UserId,
+            ct
+        );
+
+        await _notifier.NotifyChannelAsync(
             @event.BroadcasterId.ToString(),
             "follow",
             new FollowAlertDto(
                 @event.UserId,
                 @event.UserDisplayName,
                 @event.UserLogin,
-                @event.FollowedAt
+                @event.FollowedAt,
+                enrichment?.AvatarUrl,
+                enrichment?.Pronouns,
+                enrichment?.CommunityStanding
             ),
             ct
         );
@@ -44,18 +58,37 @@ public sealed class FollowBroadcastHandler : IEventHandler<FollowEvent>
 public sealed class NewFollowerBroadcastHandler : IEventHandler<NewFollowerEvent>
 {
     private readonly IDashboardNotifier _notifier;
+    private readonly IHubUserEnricher _enricher;
 
-    public NewFollowerBroadcastHandler(IDashboardNotifier notifier) => _notifier = notifier;
+    public NewFollowerBroadcastHandler(IDashboardNotifier notifier, IHubUserEnricher enricher)
+    {
+        _notifier = notifier;
+        _enricher = enricher;
+    }
 
-    public Task HandleAsync(NewFollowerEvent @event, CancellationToken ct = default)
+    public async Task HandleAsync(NewFollowerEvent @event, CancellationToken ct = default)
     {
         if (@event.BroadcasterId == Guid.Empty)
-            return Task.CompletedTask;
+            return;
 
-        return _notifier.NotifyChannelAsync(
+        HubUserEnrichment? enrichment = await _enricher.EnrichAsync(
+            @event.BroadcasterId,
+            @event.UserId,
+            ct
+        );
+
+        await _notifier.NotifyChannelAsync(
             @event.BroadcasterId.ToString(),
             "follow",
-            new FollowAlertDto(@event.UserId, @event.UserDisplayName, @event.UserLogin, null),
+            new FollowAlertDto(
+                @event.UserId,
+                @event.UserDisplayName,
+                @event.UserLogin,
+                null,
+                enrichment?.AvatarUrl,
+                enrichment?.Pronouns,
+                enrichment?.CommunityStanding
+            ),
             ct
         );
     }

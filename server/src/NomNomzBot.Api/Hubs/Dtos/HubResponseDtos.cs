@@ -41,12 +41,21 @@ public record MusicTrackDto(
 
 // ─── Action DTOs ─────────────────────────────────────────────────────────────
 
+/// <summary>
+/// <paramref name="TargetDisplayName"/>/<paramref name="TargetAvatarUrl"/>/<paramref name="TargetPronouns"/>/
+/// <paramref name="TargetCommunityStanding"/> are additive hub-broadcast-layer enrichment
+/// (<c>IHubUserEnricher</c>) for the moderated viewer — null when unavailable.
+/// </summary>
 public record ModActionDto(
     string Action,
     string ModeratorId,
     string TargetUserId,
     string? Reason,
-    int? DurationSeconds
+    int? DurationSeconds,
+    string? TargetDisplayName = null,
+    string? TargetAvatarUrl = null,
+    string? TargetPronouns = null,
+    string? TargetCommunityStanding = null
 );
 
 public record CommandExecutedDto(
@@ -57,6 +66,10 @@ public record CommandExecutedDto(
     string Timestamp
 );
 
+/// <summary>
+/// <paramref name="AvatarUrl"/>/<paramref name="Pronouns"/>/<paramref name="CommunityStanding"/> are additive
+/// hub-broadcast-layer enrichment (<c>IHubUserEnricher</c>) for the redeeming viewer — null when unavailable.
+/// </summary>
 public record RewardRedeemedDto(
     string BroadcasterId,
     string RewardId,
@@ -66,7 +79,10 @@ public record RewardRedeemedDto(
     string UserDisplayName,
     int Cost,
     string? UserInput,
-    string Timestamp
+    string Timestamp,
+    string? AvatarUrl = null,
+    string? Pronouns = null,
+    string? CommunityStanding = null
 );
 
 public record PermissionChangedDto(

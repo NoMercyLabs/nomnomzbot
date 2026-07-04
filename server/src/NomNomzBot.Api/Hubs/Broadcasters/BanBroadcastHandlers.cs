@@ -17,17 +17,38 @@ namespace NomNomzBot.Api.Hubs.Broadcasters;
 public sealed class UserBannedBroadcastHandler : IEventHandler<UserBannedEvent>
 {
     private readonly IDashboardNotifier _notifier;
+    private readonly IHubUserEnricher _enricher;
 
-    public UserBannedBroadcastHandler(IDashboardNotifier notifier) => _notifier = notifier;
+    public UserBannedBroadcastHandler(IDashboardNotifier notifier, IHubUserEnricher enricher)
+    {
+        _notifier = notifier;
+        _enricher = enricher;
+    }
 
-    public Task HandleAsync(UserBannedEvent @event, CancellationToken ct = default)
+    public async Task HandleAsync(UserBannedEvent @event, CancellationToken ct = default)
     {
         if (@event.BroadcasterId == Guid.Empty)
-            return Task.CompletedTask;
+            return;
 
-        return _notifier.SendModActionAsync(
+        HubUserEnrichment? enrichment = await _enricher.EnrichAsync(
+            @event.BroadcasterId,
+            @event.TargetUserId,
+            ct
+        );
+
+        await _notifier.SendModActionAsync(
             @event.BroadcasterId.ToString(),
-            new("ban", @event.ModeratorUserId, @event.TargetUserId, @event.Reason, null),
+            new(
+                "ban",
+                @event.ModeratorUserId,
+                @event.TargetUserId,
+                @event.Reason,
+                null,
+                enrichment?.DisplayName,
+                enrichment?.AvatarUrl,
+                enrichment?.Pronouns,
+                enrichment?.CommunityStanding
+            ),
             ct
         );
     }
@@ -37,22 +58,37 @@ public sealed class UserBannedBroadcastHandler : IEventHandler<UserBannedEvent>
 public sealed class UserTimedOutBroadcastHandler : IEventHandler<UserTimedOutEvent>
 {
     private readonly IDashboardNotifier _notifier;
+    private readonly IHubUserEnricher _enricher;
 
-    public UserTimedOutBroadcastHandler(IDashboardNotifier notifier) => _notifier = notifier;
+    public UserTimedOutBroadcastHandler(IDashboardNotifier notifier, IHubUserEnricher enricher)
+    {
+        _notifier = notifier;
+        _enricher = enricher;
+    }
 
-    public Task HandleAsync(UserTimedOutEvent @event, CancellationToken ct = default)
+    public async Task HandleAsync(UserTimedOutEvent @event, CancellationToken ct = default)
     {
         if (@event.BroadcasterId == Guid.Empty)
-            return Task.CompletedTask;
+            return;
 
-        return _notifier.SendModActionAsync(
+        HubUserEnrichment? enrichment = await _enricher.EnrichAsync(
+            @event.BroadcasterId,
+            @event.TargetUserId,
+            ct
+        );
+
+        await _notifier.SendModActionAsync(
             @event.BroadcasterId.ToString(),
             new(
                 "timeout",
                 @event.ModeratorUserId,
                 @event.TargetUserId,
                 @event.Reason,
-                @event.DurationSeconds
+                @event.DurationSeconds,
+                enrichment?.DisplayName,
+                enrichment?.AvatarUrl,
+                enrichment?.Pronouns,
+                enrichment?.CommunityStanding
             ),
             ct
         );
@@ -63,17 +99,38 @@ public sealed class UserTimedOutBroadcastHandler : IEventHandler<UserTimedOutEve
 public sealed class UserUnbannedBroadcastHandler : IEventHandler<UserUnbannedEvent>
 {
     private readonly IDashboardNotifier _notifier;
+    private readonly IHubUserEnricher _enricher;
 
-    public UserUnbannedBroadcastHandler(IDashboardNotifier notifier) => _notifier = notifier;
+    public UserUnbannedBroadcastHandler(IDashboardNotifier notifier, IHubUserEnricher enricher)
+    {
+        _notifier = notifier;
+        _enricher = enricher;
+    }
 
-    public Task HandleAsync(UserUnbannedEvent @event, CancellationToken ct = default)
+    public async Task HandleAsync(UserUnbannedEvent @event, CancellationToken ct = default)
     {
         if (@event.BroadcasterId == Guid.Empty)
-            return Task.CompletedTask;
+            return;
 
-        return _notifier.SendModActionAsync(
+        HubUserEnrichment? enrichment = await _enricher.EnrichAsync(
+            @event.BroadcasterId,
+            @event.TargetUserId,
+            ct
+        );
+
+        await _notifier.SendModActionAsync(
             @event.BroadcasterId.ToString(),
-            new("unban", @event.ModeratorUserId, @event.TargetUserId, null, null),
+            new(
+                "unban",
+                @event.ModeratorUserId,
+                @event.TargetUserId,
+                null,
+                null,
+                enrichment?.DisplayName,
+                enrichment?.AvatarUrl,
+                enrichment?.Pronouns,
+                enrichment?.CommunityStanding
+            ),
             ct
         );
     }

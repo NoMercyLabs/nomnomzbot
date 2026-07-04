@@ -299,13 +299,11 @@ public sealed partial class TemplateResolver : ITemplateResolver
                 vars["user.accountAge"] = FormatAge(age);
             }
 
-            if (!vars.ContainsKey("user.pronouns") && user.Pronoun is not null)
+            if (!vars.ContainsKey("user.pronouns"))
             {
-                // With alt: "she/they" badge (primary subject + alt subject).
-                // Without alt: use the pronoun's own name, e.g. "they/them".
-                vars["user.pronouns"] = user.AltPronoun is not null
-                    ? $"{user.Pronoun.Subject}/{user.AltPronoun.Subject}"
-                    : user.Pronoun.Name;
+                string? pronounDisplay = UserPronounDisplay.Format(user.Pronoun, user.AltPronoun);
+                if (pronounDisplay is not null)
+                    vars["user.pronouns"] = pronounDisplay;
             }
 
             // Follow age & message count would require a ChannelEvent lookup — set placeholders for now

@@ -57,7 +57,8 @@ public sealed class ShoutoutBroadcastHandlersTests
     public async Task ShoutoutReceived_MapsSourceAndViewerCount_AsShoutoutReceivedChannelEvent()
     {
         IDashboardNotifier notifier = Substitute.For<IDashboardNotifier>();
-        ShoutoutReceivedBroadcastHandler handler = new(notifier);
+        IHubUserEnricher enricher = Substitute.For<IHubUserEnricher>();
+        ShoutoutReceivedBroadcastHandler handler = new(notifier, enricher);
         Guid channel = Guid.CreateVersion7();
 
         await handler.HandleAsync(
@@ -83,6 +84,43 @@ public sealed class ShoutoutBroadcastHandlersTests
                         == "SourceStreamer"
                     && ((ShoutoutReceivedAlertDto)data).FromBroadcasterLogin == "sourcestreamer"
                     && ((ShoutoutReceivedAlertDto)data).ViewerCount == 42
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task ShoutoutReceived_WithKnownBroadcaster_CarriesTheEnrichedFields()
+    {
+        IDashboardNotifier notifier = Substitute.For<IDashboardNotifier>();
+        IHubUserEnricher enricher = Substitute.For<IHubUserEnricher>();
+        Guid channel = Guid.CreateVersion7();
+        enricher
+            .EnrichAsync(channel, "source-1", Arg.Any<CancellationToken>())
+            .Returns(new HubUserEnrichment("SourceStreamer", "https://cdn/avatar.png", null, null));
+        ShoutoutReceivedBroadcastHandler handler = new(notifier, enricher);
+
+        await handler.HandleAsync(
+            new ShoutoutReceivedEvent
+            {
+                BroadcasterId = channel,
+                FromBroadcasterId = "source-1",
+                FromBroadcasterDisplayName = "SourceStreamer",
+                FromBroadcasterLogin = "sourcestreamer",
+                ViewerCount = 42,
+            }
+        );
+
+        await notifier
+            .Received(1)
+            .NotifyChannelAsync(
+                channel.ToString(),
+                "shoutout_received",
+                Arg.Is<object>(data =>
+                    data is ShoutoutReceivedAlertDto
+                    && ((ShoutoutReceivedAlertDto)data).AvatarUrl == "https://cdn/avatar.png"
+                    && ((ShoutoutReceivedAlertDto)data).Pronouns == null
+                    && ((ShoutoutReceivedAlertDto)data).CommunityStanding == null
                 ),
                 Arg.Any<CancellationToken>()
             );

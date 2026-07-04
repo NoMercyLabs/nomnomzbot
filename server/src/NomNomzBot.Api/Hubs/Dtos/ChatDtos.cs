@@ -42,7 +42,11 @@ public record DashboardChatMessageDto(
     string? ReplyToMessageId,
     string? ReplyParentMessageBody,
     string? ReplyParentUserName,
-    string Timestamp
+    string Timestamp,
+    /// <summary>Additive hub-broadcast-layer enrichment (<c>IHubUserEnricher</c>); null when unavailable.</summary>
+    string? AvatarUrl = null,
+    /// <summary>Additive hub-broadcast-layer enrichment (<c>IHubUserEnricher</c>); null when unavailable.</summary>
+    string? Pronouns = null
 );
 
 /// <summary>A single fragment of a chat message: text | emote | cheermote | mention | link.</summary>

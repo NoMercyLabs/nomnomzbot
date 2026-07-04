@@ -25,11 +25,19 @@ public record AlertDto(string Type, string? Message, object? Data);
 
 // ─── Alert-specific data DTOs (used as ChannelEventDto.Data) ─────────────────
 
+/// <summary>
+/// <paramref name="AvatarUrl"/>/<paramref name="Pronouns"/>/<paramref name="CommunityStanding"/> are additive
+/// hub-broadcast-layer enrichment (<c>IHubUserEnricher</c>) — null when the viewer has no internal <c>User</c>
+/// row yet, no avatar/pronouns on file, or no recorded standing in this channel.
+/// </summary>
 public record FollowAlertDto(
     string UserId,
     string DisplayName,
     string Login,
-    DateTimeOffset? FollowedAt
+    DateTimeOffset? FollowedAt,
+    string? AvatarUrl = null,
+    string? Pronouns = null,
+    string? CommunityStanding = null
 );
 
 public record SubscriptionAlertDto(string UserId, string DisplayName, string Tier);
@@ -180,11 +188,19 @@ public record HypeTrainEndedAlertDto(
 
 public record ShoutoutSentAlertDto(string ToUserId, string ToDisplayName);
 
+/// <summary>
+/// <paramref name="AvatarUrl"/>/<paramref name="Pronouns"/>/<paramref name="CommunityStanding"/> are additive
+/// hub-broadcast-layer enrichment (<c>IHubUserEnricher</c>), keyed off the shouting-out broadcaster's Twitch id
+/// — usually null since that broadcaster is rarely also a recorded viewer of this channel.
+/// </summary>
 public record ShoutoutReceivedAlertDto(
     string FromBroadcasterId,
     string FromBroadcasterDisplayName,
     string FromBroadcasterLogin,
-    int ViewerCount
+    int ViewerCount,
+    string? AvatarUrl = null,
+    string? Pronouns = null,
+    string? CommunityStanding = null
 );
 
 // ─── Ad break alert data DTO ──────────────────────────────────────────────────
@@ -213,5 +229,16 @@ public record ShieldModeEndedAlertDto(
 
 // ─── Moderator / VIP role change alert DTO ────────────────────────────────────
 
-/// <summary>Shared shape for moderator and VIP role grants/revocations (identical fields on all four events).</summary>
-public record RoleChangedAlertDto(string UserId, string UserDisplayName, string UserLogin);
+/// <summary>
+/// Shared shape for moderator and VIP role grants/revocations (identical fields on all four events).
+/// <paramref name="AvatarUrl"/>/<paramref name="Pronouns"/>/<paramref name="CommunityStanding"/> are additive
+/// hub-broadcast-layer enrichment (<c>IHubUserEnricher</c>).
+/// </summary>
+public record RoleChangedAlertDto(
+    string UserId,
+    string UserDisplayName,
+    string UserLogin,
+    string? AvatarUrl = null,
+    string? Pronouns = null,
+    string? CommunityStanding = null
+);
