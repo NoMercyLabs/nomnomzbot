@@ -82,6 +82,7 @@ public class StreamController : BaseController
     // ── Get current stream info ──────────────────────────────────────────────
 
     /// <summary>Retrieve current stream information (title, game, tags, live status, viewers).</summary>
+    [RequireAction("stream:read")]
     [HttpGet]
     [ProducesResponseType<StatusResponseDto<StreamInfoDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetStreamInfo(string channelId, CancellationToken ct)
@@ -269,6 +270,7 @@ public class StreamController : BaseController
     // ── Lightweight live status ──────────────────────────────────────────────
 
     /// <summary>Get whether the channel is currently live and current viewer count.</summary>
+    [RequireAction("stream:read")]
     [HttpGet("status")]
     [ProducesResponseType<StatusResponseDto<StreamStatusDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetStatus(string channelId, CancellationToken ct)
@@ -402,6 +404,7 @@ public class StreamController : BaseController
     // ── Category search (autocomplete) ───────────────────────────────────────
 
     /// <summary>Search Twitch game categories (for autocomplete).</summary>
+    [RequireAction("stream:read")]
     [HttpGet("categories")]
     [ProducesResponseType<StatusResponseDto<List<CategoryDto>>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> SearchCategories(

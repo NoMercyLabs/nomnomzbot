@@ -11,14 +11,22 @@
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Models;
+using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 
 namespace NomNomzBot.Api.Controllers.V1;
 
-/// <summary>Manages user profiles, search, and GDPR data requests.</summary>
+/// <summary>
+/// Manages user profiles, search, and GDPR data requests. User reads are self-or-Gate-2: a user always
+/// reads/edits their OWN row (the Me page), while reading ANOTHER user requires <c>community:read</c> on the
+/// resolved tenant (dashboard viewer tooling). GDPR export/delete and profile writes are strictly
+/// self-or-platform-admin.
+/// </summary>
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/users")]
 [Authorize]
@@ -28,16 +36,53 @@ public class UsersController : BaseController
     private readonly IUserService _userService;
     private readonly IGdprService _gdpr;
     private readonly TimeProvider _timeProvider;
+    private readonly IActionAuthorizationService _authorization;
+    private readonly ICurrentUserService _currentUser;
+    private readonly ICurrentTenantService _currentTenant;
 
-    public UsersController(IUserService userService, IGdprService gdpr, TimeProvider timeProvider)
+    public UsersController(
+        IUserService userService,
+        IGdprService gdpr,
+        TimeProvider timeProvider,
+        IActionAuthorizationService authorization,
+        ICurrentUserService currentUser,
+        ICurrentTenantService currentTenant
+    )
     {
         _userService = userService;
         _gdpr = gdpr;
         _timeProvider = timeProvider;
+        _authorization = authorization;
+        _currentUser = currentUser;
+        _currentTenant = currentTenant;
+    }
+
+    /// <summary>Self-or-Gate-2: the subject themselves, or a caller holding <c>community:read</c> on the tenant.</summary>
+    private async Task<bool> CanReadUserAsync(string subjectUserId, CancellationToken ct)
+    {
+        string? callerId = _currentUser.UserId;
+        if (string.IsNullOrEmpty(callerId))
+            return false;
+        if (string.Equals(callerId, subjectUserId, StringComparison.OrdinalIgnoreCase))
+            return true;
+        if (
+            !Guid.TryParse(callerId, out Guid callerGuid)
+            || _currentTenant.BroadcasterId is not Guid tenantId
+            || tenantId == Guid.Empty
+        )
+            return false;
+        Result<bool> authorized = await _authorization.AuthorizeActionAsync(
+            callerGuid,
+            tenantId,
+            "community:read",
+            ct
+        );
+        return authorized.IsSuccess && authorized.Value;
     }
 
     /// <summary>Search for users by name or username.</summary>
     [HttpGet]
+    [RequireAction("community:read")]
     [ProducesResponseType<PaginatedResponse<UserDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> SearchUsers(
         [FromQuery] string? query,
@@ -59,25 +104,29 @@ public class UsersController : BaseController
         return GetPaginatedResponse(result.Value, request);
     }
 
-    /// <summary>Retrieve a user by ID.</summary>
+    /// <summary>Retrieve a user by ID (self-or-Gate-2, authorized in-action).</summary>
     [HttpGet("{userId}")]
     [ProducesResponseType<StatusResponseDto<UserDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetUser(string userId, CancellationToken ct)
     {
+        if (!await CanReadUserAsync(userId, ct))
+            return UnauthorizedResponse();
         Result<UserDto> result = await _userService.GetAsync(userId, ct);
         return ResultResponse(result);
     }
 
-    /// <summary>Retrieve a user's profile information.</summary>
+    /// <summary>Retrieve a user's profile information (self-or-Gate-2, authorized in-action).</summary>
     [HttpGet("{userId}/profile")]
     [ProducesResponseType<StatusResponseDto<UserProfileDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetUserProfile(string userId, CancellationToken ct)
     {
+        if (!await CanReadUserAsync(userId, ct))
+            return UnauthorizedResponse();
         Result<UserProfileDto> result = await _userService.GetProfileAsync(userId, ct);
         return ResultResponse(result);
     }
 
-    /// <summary>Update a user's profile information.</summary>
+    /// <summary>Update a user's profile information — strictly the user themselves (or a platform admin).</summary>
     [HttpPut("{userId}/profile")]
     [ProducesResponseType<StatusResponseDto<UserProfileDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> UpdateUserProfile(
@@ -86,6 +135,15 @@ public class UsersController : BaseController
         CancellationToken ct
     )
     {
+        // Self-only write: a manager may READ a viewer's profile (community:read), but never edit another
+        // user's identity (display name / email / pronoun) — that is the subject's own data.
+        string? callerId = _currentUser.UserId;
+        if (
+            !string.Equals(callerId, userId, StringComparison.OrdinalIgnoreCase)
+            && !User.IsInRole("admin")
+        )
+            return UnauthorizedResponse("You may only edit your own profile.");
+
         Result<UserProfileDto> result = await _userService.UpdateProfileAsync(userId, request, ct);
         if (result.IsFailure)
             return ResultResponse(result);

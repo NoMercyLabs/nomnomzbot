@@ -163,6 +163,10 @@ public sealed class ActionDefinitionSeeder : ISeeder
         M("moderation:shieldmode:read", Mod);
         M("moderation:shieldmode:write", LeadModerator);
         M("chat:announce", Mod);
+        // Dashboard chat page (frontend-ia.md §Chat: read floor Moderator, manage floor Moderator — "live chat
+        // console, send-as-bot"): chat-history read + send-a-message-as-the-bot (REST and DashboardHub).
+        M("chat:read", Mod);
+        M("chat:send", Mod);
         M("moderation:shoutout", Mod);
         M("moderation:chatcolor:write", Editor);
         M("moderation:vip", Broadcaster);
@@ -200,6 +204,9 @@ public sealed class ActionDefinitionSeeder : ISeeder
 
         // Music
         M("music:config:write", Editor);
+        // music-sr.md §5.1 floors GET config at management/Moderator with no named key; the read key follows
+        // the catalogue's *:config:read convention (cf. economy:config:read) at that floor.
+        M("music:config:read", Mod);
         M("music:queue:moderate", Mod);
         M("music:token:read", Editor);
         M("music:token:rotate", Broadcaster, DangerTier.Critical, grant: false);
@@ -207,6 +214,9 @@ public sealed class ActionDefinitionSeeder : ISeeder
         M("music:library:write", Editor);
 
         // Stream / channel / live-ops
+        // stream-admin.md §5 floors the stream-info/status/category reads at management entry ("Gate 1 only",
+        // i.e. Moderator) with no named key; stream:read carries that floor now that Gate 1 is pure entry.
+        M("stream:read", Mod);
         M("stream:preset:write", Editor);
         M("stream:schedule:write", Editor);
         M("channel:title:write", Editor);
@@ -290,6 +300,16 @@ public sealed class ActionDefinitionSeeder : ISeeder
         M("quotes:read", Mod);
         M("quotes:write", Mod);
 
+        // Custom data sources (custom-events.md §5) — the pipeline-facing external data feeds (HypeRate,
+        // Pulsoid, webhooks). Read at Moderator, write (create/update/delete/test) at Editor.
+        M("customdata:read", Mod);
+        M("customdata:write", Editor);
+
+        // Sound clips (sound-system.md §5) — audio clip library for pipeline SendSound actions. Read
+        // (including preview playback, non-mutating) at Moderator, write (upload/update/delete) at Editor.
+        M("sounds:read", Mod);
+        M("sounds:write", Editor);
+
         // ── Community plane (Default = Floor = Everyone(0), Tier = Low, Grant = true) ──
         void C(string key) =>
             s.Add(
@@ -333,6 +353,10 @@ public sealed class ActionDefinitionSeeder : ISeeder
         C("economy:consent:revoke");
         C("economy:transfer:write");
         C("economy:earning");
+
+        // Pronouns (pronouns.md §5) — a viewer setting their OWN pronoun/override. The special-category
+        // consent gate is enforced in the service layer, not the role floor.
+        C("pronouns:self:write");
 
         return s;
     }

@@ -47,6 +47,7 @@ public class MusicController : BaseController
     // ─── Configuration ────────────────────────────────────────────────────────
 
     /// <summary>Get the channel's music integration configuration for the dashboard operator.</summary>
+    [RequireAction("music:config:read")]
     [HttpGet("config")]
     [ProducesResponseType<StatusResponseDto<MusicConfigDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetConfig(string channelId, CancellationToken ct)
@@ -142,6 +143,7 @@ public class MusicController : BaseController
     }
 
     /// <summary>Queue a song request by search query, submitted by a viewer or the operator.</summary>
+    [RequireAction("music:request:submit")]
     [HttpPost("queue")]
     [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> AddToQueue(
@@ -222,6 +224,7 @@ public class MusicController : BaseController
     // ─── Remote controls (seek / shuffle / repeat / transfer / playlists) ───────
 
     /// <summary>Seek the currently playing track to a specific position in milliseconds.</summary>
+    [RequireAction("music:remote:control")]
     [HttpPost("seek")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
@@ -238,6 +241,7 @@ public class MusicController : BaseController
     }
 
     /// <summary>Turn shuffle mode on or off on the active music provider.</summary>
+    [RequireAction("music:remote:control")]
     [HttpPatch("shuffle")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
@@ -254,6 +258,7 @@ public class MusicController : BaseController
     }
 
     /// <summary>Set the repeat mode on the active music provider.</summary>
+    [RequireAction("music:remote:control")]
     [HttpPatch("repeat")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
@@ -270,6 +275,7 @@ public class MusicController : BaseController
     }
 
     /// <summary>List the playback devices available on the channel's active music provider.</summary>
+    [RequireAction("music:remote:control")]
     [HttpGet("devices")]
     [ProducesResponseType<StatusResponseDto<IReadOnlyList<MusicDeviceDto>>>(
         StatusCodes.Status200OK
@@ -281,6 +287,7 @@ public class MusicController : BaseController
     }
 
     /// <summary>Transfer playback to a different device, optionally resuming playback immediately.</summary>
+    [RequireAction("music:remote:control")]
     [HttpPost("transfer")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
@@ -297,6 +304,7 @@ public class MusicController : BaseController
     }
 
     /// <summary>List the connected music account's playlists, paginated by offset and limit.</summary>
+    [RequireAction("music:library:write")]
     [HttpGet("playlists")]
     [ProducesResponseType<StatusResponseDto<IReadOnlyList<MusicPlaylistDto>>>(
         StatusCodes.Status200OK
@@ -318,6 +326,7 @@ public class MusicController : BaseController
     }
 
     /// <summary>Start playback of a playlist, album, or other provider context by URI.</summary>
+    [RequireAction("music:remote:control")]
     [HttpPost("play-context")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]

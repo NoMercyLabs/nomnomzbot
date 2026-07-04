@@ -11,6 +11,7 @@
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Common.Models;
@@ -55,6 +56,7 @@ public sealed class CustomDataSourcesController : BaseController
 
     /// <summary>List all custom data sources for the channel, paginated.</summary>
     [HttpGet]
+    [RequireAction("customdata:read")]
     [ProducesResponseType<PaginatedResponse<CustomDataSourceDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> List(
         [FromQuery] PageRequestDto pagination,
@@ -88,6 +90,7 @@ public sealed class CustomDataSourcesController : BaseController
 
     /// <summary>List available custom data source presets.</summary>
     [HttpGet("presets")]
+    [RequireAction("customdata:read")]
     [ProducesResponseType<StatusResponseDto<IReadOnlyList<CustomDataSourcePresetDto>>>(
         StatusCodes.Status200OK
     )]
@@ -111,6 +114,7 @@ public sealed class CustomDataSourcesController : BaseController
 
     /// <summary>Retrieve a custom data source by ID.</summary>
     [HttpGet("{id:guid}")]
+    [RequireAction("customdata:read")]
     [ProducesResponseType<StatusResponseDto<CustomDataSourceDto>>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Get(Guid id, CancellationToken ct)
@@ -128,6 +132,7 @@ public sealed class CustomDataSourcesController : BaseController
 
     /// <summary>Create a new custom data source.</summary>
     [HttpPost]
+    [RequireAction("customdata:write")]
     [ProducesResponseType<StatusResponseDto<CustomDataSourceDto>>(StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Create(
@@ -158,6 +163,7 @@ public sealed class CustomDataSourcesController : BaseController
 
     /// <summary>Update an existing custom data source.</summary>
     [HttpPut("{id:guid}")]
+    [RequireAction("customdata:write")]
     [ProducesResponseType<StatusResponseDto<CustomDataSourceDto>>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Update(
@@ -191,6 +197,7 @@ public sealed class CustomDataSourcesController : BaseController
 
     /// <summary>Delete a custom data source.</summary>
     [HttpDelete("{id:guid}")]
+    [RequireAction("customdata:write")]
     [ProducesResponseType<StatusResponseDto<bool>>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
@@ -209,6 +216,7 @@ public sealed class CustomDataSourcesController : BaseController
 
     /// <summary>Test a custom data source with sample payload.</summary>
     [HttpPost("{id:guid}/test")]
+    [RequireAction("customdata:write")]
     [ProducesResponseType<StatusResponseDto<bool>>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Test(

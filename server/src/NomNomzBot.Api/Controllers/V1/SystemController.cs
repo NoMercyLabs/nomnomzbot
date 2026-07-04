@@ -249,6 +249,13 @@ public class SystemController : BaseController
     [EnableRateLimiting("auth")]
     public async Task<IActionResult> GetBotOAuthUrl(CancellationToken ct)
     {
+        // Same first-run-window lock as the credential writes: completing this OAuth flow RE-POINTS the
+        // platform bot identity to whichever Twitch account authorizes, so once setup is complete only a
+        // platform admin may mint the (state-nonced) authorize URL — otherwise any visitor could hijack
+        // the bot account. Anonymous only while setup is still open (the bootstrap window).
+        if (await IsSetupCompleteAsync(ct) && !User.IsInRole("admin"))
+            return Forbid();
+
         string publicBaseUrl = Request.ResolvePublicOrigin(_config);
 
         // Issue a single-use bot-flow CSRF state nonce so the callback routes the setup-wizard bot auth

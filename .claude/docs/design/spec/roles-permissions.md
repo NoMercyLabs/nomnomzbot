@@ -19,7 +19,7 @@ This subsystem owns **three authorization planes** and the **two gates** that re
 
 **One unified ordered ladder** spans planes A+B for the per-action gate: `Everyone(0) < Subscriber(2) < Vip(4) < Artist(6) < Moderator(10) < SuperMod(20) < Editor(30) < Broadcaster(40)`. The numeric `LevelValue` is the only thing compared.
 
-- **Gate 1** = entry: "may this caller act under this channel at all?" Replaces today's broadcaster+mod+admin `ChannelAccessService` check; **adds Editor + SuperMod entry** (Plane B level ≥ Moderator), plus Plane-C `tenant:access`.
+- **Gate 1** = pure entry, **entry ≠ permission** (decided 2026-07-04): any authenticated caller may resolve tenant context for a channel that **exists** — community participant and channel manager alike. Fails closed only on a malformed id or a nonexistent channel. It carries **no** role floor: requiring management ≥ Moderator here would 403 every community-plane participant (viewer/sub/VIP) before their Everyone-floored actions ever reached Gate 2. All authorization — community AND management floors — is Gate 2's job, which makes **universal Gate-2 coverage a hard invariant**: every tenant-scoped controller action carries `[RequireAction]` (or a documented exemption), enforced by a reflection test.
 - **Gate 2** = per-action: "is the caller's resolved level ≥ this action's effective required level for this channel?" New with this epic; replaces the "almost everything is just `[Authorize]`" gap.
 - **`!permit`** — individual grants. **Effective level = MAX(Twitch-badge role, bot-role grants, individual capability grants)**, with two guardrails: **no escalation above the grantor's own level** (applies to every grantor), and **default-deny** (only capabilities whose `ActionDefinition.IsGrantableViaPermit == true` may be granted). The **Broadcaster (channel owner) is fully trusted and MAY grant Critical-tier capabilities** — paternalistic caps on what the owner can delegate do not exist; the owner is the sole authority over their channel. Critical grants are **always to a named individual user, never raised on a whole role tier** (§0.2), and the floor-tier guards that block a dangerous capability from being applied to a low *role* tier still hold.
 
@@ -149,8 +149,8 @@ Existing interface kept; signature widened `string → Guid` per §0.1; `IsPlatf
 ```csharp
 public interface IChannelAccessService
 {
-    // Gate 1 entry: caller's Plane-B management level ≥ Moderator (mod/super-mod/editor/broadcaster/owner),
-    // OR an active !permit role grant ≥ Moderator, OR Plane-C tenant:access on this channel. Fails closed.
+    // Gate 1 = pure entry (entry ≠ permission, §0): any authenticated caller resolves tenant context for a
+    // channel that exists. Fails closed only on malformed id / nonexistent channel; all floors are Gate 2's.
     Task<bool> CanResolveTenantAsync(Guid userId, Guid channelId, CancellationToken cancellationToken = default);
 
     // Owner-channel resolver — defined in platform-conventions.md §3.2; listed here so the surface is not truncated.

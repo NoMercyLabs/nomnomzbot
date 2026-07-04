@@ -16,6 +16,25 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
 
 ## Open
 
+### 2026-07-04 — Send channel context on user lookups; use analytics endpoints for participant stats
+- **From:** Stoney_Eagle (via Claude, backend track)
+- **What:** two client changes in the KMP network layer. (1) When the dashboard is operating on a
+  channel, send that channel's id with user-lookup calls (`X-Channel-Id` header or `?channelId=`) —
+  affects `GET /api/v1/users` (search) and `GET /api/v1/users/{id}` / `{id}/profile`. (2) In
+  `ParticipantApi`, stop calling `GET /api/v1/users/{id}/stats` for *other* users — that endpoint is
+  self-only and returns 403 for foreign ids (always has). Use the per-viewer analytics endpoints
+  instead: `GET /api/v1/analytics/viewers/{viewerUserId}` (+ `/engagement`, `/streak`), which allow
+  the viewer themself **or** channel managers.
+- **Why:** a security pass locked every endpoint to an explicit permission. User search and foreign-
+  profile reads are now authorized against the *channel you manage* — without the channel id the
+  backend assumes your own channel, so a moderator browsing someone else's dashboard would get 403s.
+  The stats swap fixes the participant panel showing errors for every viewer except yourself.
+- **Where:** `core/network` (client + DTOs unchanged — no contract change, only which endpoint is
+  called and the channel-context header/query); permission floors in `docs/bot-capabilities.md` §1.
+- **Done when:** user search + participant profile/stats panels work when signed in as a moderator
+  managing another user's channel (not just as the broadcaster), and the participant panel shows
+  stats for any viewer via the analytics endpoints.
+
 ### 2026-07-04 — New SignalR hub events to consume (live-update surfaces)
 - **From:** Stoney_Eagle (via Claude, backend track)
 - **What:** the backend now pushes events that previously never reached clients. Two dedicated hub

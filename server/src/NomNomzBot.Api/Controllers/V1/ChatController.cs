@@ -108,6 +108,7 @@ public class ChatController : BaseController
     // ── GET messages ──────────────────────────────────────────────────────────
 
     /// <summary>Get recent chat messages for the dashboard's chat feed, returned oldest first.</summary>
+    [RequireAction("chat:read")]
     [HttpGet("messages")]
     [ProducesResponseType<StatusResponseDto<List<ChatMessageDto>>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetMessages(
@@ -237,6 +238,7 @@ public class ChatController : BaseController
     // performs, exposed over REST so the chat page can send without holding a hub connection.
 
     /// <summary>Send a chat message to the channel as the bot, for the dashboard's chat page.</summary>
+    [RequireAction("chat:send")]
     [HttpPost("messages")]
     [ProducesResponseType<StatusResponseDto<bool>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> SendMessage(

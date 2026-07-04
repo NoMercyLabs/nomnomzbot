@@ -15,9 +15,12 @@ using NomNomzBot.Application.Identity.Services;
 namespace NomNomzBot.Infrastructure.Identity;
 
 /// <summary>
-/// Default <see cref="IChannelAccessService"/> — authorizes tenant resolution against the
-/// database: the caller's own channel (Channel.OwnerUserId == User.Id), an active moderator
-/// grant, or platform admin. Fails closed for everything else.
+/// Default <see cref="IChannelAccessService"/>. Gate 1 is pure entry (roles-permissions.md §0: "entry ≠
+/// permission") — any authenticated caller may resolve tenant context for a channel that exists, community
+/// participant or channel manager alike. Per-action authorization (both the management-plane floors like
+/// Moderator/Editor/Broadcaster AND the community-plane floors like Everyone) is Gate 2's job
+/// (<c>ActionAuthorizationHandler</c> / <c>[RequireAction]</c>), not this gate's. Fails closed only on a
+/// malformed id or a channel that does not exist.
 /// </summary>
 public sealed class ChannelAccessService : IChannelAccessService
 {
@@ -35,46 +38,20 @@ public sealed class ChannelAccessService : IChannelAccessService
     )
     {
         // userId / channelId are the internal user / tenant Guids in string form (JWT sub + tenant key).
-        if (
-            !Guid.TryParse(userId, out Guid userGuid)
-            || !Guid.TryParse(channelId, out Guid channelGuid)
-        )
+        // userGuid is validated (an authenticated caller must carry a real user id) but, per Gate 1's pure-entry
+        // role, is not otherwise checked against the channel here — that comparison is Gate 2's.
+        if (!Guid.TryParse(userId, out Guid _) || !Guid.TryParse(channelId, out Guid channelGuid))
             return false;
 
-        // Own channel — the caller owns the channel they are resolving.
-        if (
-            await _db.Channels.AnyAsync(
-                c => c.Id == channelGuid && c.OwnerUserId == userGuid,
-                cancellationToken
-            )
-        )
-            return true;
-
-        // Active moderator grant (soft-deleted grants are excluded by the global query filter).
-        if (
-            await _db.ChannelModerators.AnyAsync(
-                m => m.ChannelId == channelGuid && m.UserId == userGuid,
-                cancellationToken
-            )
-        )
-            return true;
-
-        // Active management membership — roles-permissions Gate 1 (§3.1): a Moderator/LeadModerator/Editor/
-        // Broadcaster membership grants tenant access. TenantResolutionMiddleware sets the tenant to channelGuid
-        // before this call, so the global tenant + soft-delete filters already scope ChannelMemberships here.
-        if (
-            await _db.ChannelMemberships.AnyAsync(
-                m => m.BroadcasterId == channelGuid && m.UserId == userGuid,
-                cancellationToken
-            )
-        )
-            return true;
-
-        // Platform principal may act on any channel.
-        return await _db.Users.AnyAsync(
-            u => u.Id == userGuid && u.IsPlatformPrincipal,
-            cancellationToken
-        );
+        // The channel must exist (soft-deleted channels are excluded by the global query filter). Previously
+        // this method also required the caller to be the owner, an active moderator, a management member, or a
+        // platform principal — which fail-closed 403'd every community-plane participant (viewers, subs, VIPs)
+        // before Gate 2 ever ran, since Gate 1 gates ALL explicit-channel-id requests regardless of the eventual
+        // action's plane. Community-plane actions floor at Everyone(0) specifically so any authenticated
+        // participant can reach them; management actions remain protected because Gate 2 still requires the
+        // caller's resolved level (IRoleResolver — MAX of community standing / management membership / permit
+        // grants, defaulting to 0 for an unrelated user) to meet that action's floor.
+        return await _db.Channels.AnyAsync(c => c.Id == channelGuid, cancellationToken);
     }
 
     public async Task<Guid> ResolveOwnChannelAsync(

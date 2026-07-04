@@ -11,6 +11,7 @@
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Identity.Dtos;
@@ -74,6 +75,7 @@ public sealed class PronounsController : BaseController
     /// <summary>Update the authenticated viewer's pronouns.</summary>
     [HttpPut("me")]
     [Authorize]
+    [RequireAction("pronouns:self:write")]
     [ProducesResponseType<StatusResponseDto<UserPronounDto>>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]

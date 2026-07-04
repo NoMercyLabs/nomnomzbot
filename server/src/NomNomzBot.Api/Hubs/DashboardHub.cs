@@ -13,6 +13,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 using NomNomzBot.Api.Hubs.Clients;
 using NomNomzBot.Api.Hubs.Dtos;
+using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Platform.Interfaces;
@@ -27,18 +29,21 @@ public class DashboardHub : Hub<IDashboardClient>
     private readonly ILogger<DashboardHub> _logger;
     private readonly IChatProvider _chat;
     private readonly IChannelAccessService _access;
+    private readonly IActionAuthorizationService _authorization;
 
     public DashboardHub(
         IChannelRegistry registry,
         ILogger<DashboardHub> logger,
         IChatProvider chat,
-        IChannelAccessService access
+        IChannelAccessService access,
+        IActionAuthorizationService authorization
     )
     {
         _registry = registry;
         _logger = logger;
         _chat = chat;
         _access = access;
+        _authorization = authorization;
     }
 
     private string? CallerId => Context.UserIdentifier ?? Context.User?.FindFirst("sub")?.Value;
@@ -100,6 +105,25 @@ public class DashboardHub : Hub<IDashboardClient>
         if (!Guid.TryParse(broadcasterId, out Guid tenantId))
             return new(false, "Invalid channel", null);
 
+        // Hubs cannot carry [RequireAction], so this enforces the SAME two gates the REST send path
+        // (ChatController POST messages) gets from the middleware + attribute: Gate 1 entry
+        // (CanResolveTenantAsync) and Gate 2 `chat:send` (Moderator floor) — sending AS THE BOT is a
+        // moderator action, never an any-authenticated-caller one.
+        string? userId = CallerId;
+        if (userId is null || !Guid.TryParse(userId, out Guid callerId))
+            return new(false, "Not authenticated", null);
+
+        if (!await _access.CanResolveTenantAsync(userId, broadcasterId))
+            return new(false, "Access denied", null);
+
+        Result<bool> allowed = await _authorization.AuthorizeActionAsync(
+            callerId,
+            tenantId,
+            "chat:send"
+        );
+        if (!allowed.IsSuccess || !allowed.Value)
+            return new(false, "Access denied", null);
+
         try
         {
             await _chat.SendMessageAsync(tenantId, message);
@@ -112,14 +136,15 @@ public class DashboardHub : Hub<IDashboardClient>
         }
     }
 
-    public async Task<ActionResponse> TriggerAction(
-        string broadcasterId,
-        string action,
-        object? data
-    )
+    public Task<ActionResponse> TriggerAction(string broadcasterId, string action, object? data)
     {
-        _logger.LogInformation("TriggerAction {Action} for {B}", action, broadcasterId);
-        // Action routing handled by business layer; return placeholder
-        return new(true, null);
+        // Not wired to any business action yet. Returning success here would LIE to the dashboard —
+        // the caller would believe the action ran when nothing happened. Fail honestly instead.
+        _logger.LogWarning(
+            "TriggerAction {Action} for {B} rejected: not implemented",
+            action,
+            broadcasterId
+        );
+        return Task.FromResult(new ActionResponse(false, "Not implemented."));
     }
 }

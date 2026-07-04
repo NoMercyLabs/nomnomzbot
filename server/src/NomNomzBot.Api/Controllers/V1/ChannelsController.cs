@@ -140,8 +140,9 @@ public class ChannelsController : BaseController
         bool IsOnboarded
     );
 
-    /// <summary>Retrieve a channel by ID.</summary>
+    /// <summary>Retrieve a channel by ID — dashboard channel info, Moderator-floored like every dashboard read.</summary>
     [HttpGet("{channelId}")]
+    [RequireAction("dashboard:read")]
     [ProducesResponseType<StatusResponseDto<ChannelDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetChannel(string channelId, CancellationToken ct)
     {
@@ -164,6 +165,21 @@ public class ChannelsController : BaseController
         CancellationToken ct
     )
     {
+        // Self-scoped: the body's BroadcasterId is the OWNER USER id, and onboarding fires the full seed
+        // fan-out (EventSub subscribe, bot join, default commands…). Only the caller themselves — or a
+        // platform admin — may onboard a channel; a foreign id would let any user onboard/re-onboard
+        // someone else's channel.
+        string? callerId =
+            User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+            ?? User.FindFirst("sub")?.Value;
+        if (string.IsNullOrEmpty(callerId))
+            return UnauthenticatedResponse();
+        if (
+            !string.Equals(callerId, request.BroadcasterId, StringComparison.OrdinalIgnoreCase)
+            && !User.IsInRole("admin")
+        )
+            return UnauthorizedResponse("You may only onboard your own channel.");
+
         Result<ChannelDto> result = await _channelService.OnboardAsync(
             request.BroadcasterId,
             request,

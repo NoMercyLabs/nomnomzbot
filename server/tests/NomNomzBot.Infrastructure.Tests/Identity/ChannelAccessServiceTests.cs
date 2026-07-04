@@ -16,9 +16,14 @@ using NomNomzBot.Infrastructure.Identity;
 namespace NomNomzBot.Infrastructure.Tests.Identity;
 
 /// <summary>
-/// Proves tenant-resolution access (the IDOR gate / roles-permissions Gate 1, §3.1): a caller may resolve a
-/// channel if they own it, hold a legacy moderator grant, OR — the new branch — hold a management membership
-/// (Moderator/LeadModerator/Editor/Broadcaster); everyone else, and any malformed id, is denied.
+/// Proves tenant-resolution access (Gate 1, roles-permissions §0/§3.1, post-fix): Gate 1 is pure entry — ANY
+/// authenticated caller may resolve tenant context for a channel that exists, whether or not they own it,
+/// moderate it, or hold a management membership. This is what lets community-plane participants (viewers,
+/// subs, VIPs — Everyone(0) floor) reach community-plane endpoints scoped to a streamer's channel they have no
+/// management relationship with (e.g. <c>music:request:submit</c>, <c>pronouns:self:write</c>); Gate 2
+/// (<c>IActionAuthorizationService</c> / <c>IRoleResolver</c>) is what still blocks them from management
+/// actions, since an unrelated caller's resolved level is 0. Only a malformed id or a channel that does not
+/// exist is denied here.
 /// </summary>
 public sealed class ChannelAccessServiceTests
 {
@@ -32,29 +37,49 @@ public sealed class ChannelAccessServiceTests
         return (new ChannelAccessService(db), db);
     }
 
-    [Fact]
-    public async Task Grants_access_to_the_channel_owner()
+    private static async Task SeedChannelAsync(AuthDbContext db, Guid ownerUserId)
     {
-        (ChannelAccessService sut, AuthDbContext db) = Build();
         db.Channels.Add(
             new Channel
             {
                 Id = Channel,
-                OwnerUserId = User,
+                OwnerUserId = ownerUserId,
                 TwitchChannelId = "1",
                 Name = "ch",
                 NameNormalized = "ch",
             }
         );
         await db.SaveChangesAsync();
+    }
+
+    [Fact]
+    public async Task Grants_access_to_the_channel_owner()
+    {
+        (ChannelAccessService sut, AuthDbContext db) = Build();
+        await SeedChannelAsync(db, ownerUserId: User);
 
         (await sut.CanResolveTenantAsync(User.ToString(), Channel.ToString())).Should().BeTrue();
     }
 
     [Fact]
-    public async Task Grants_access_to_a_management_member()
+    public async Task Grants_access_to_an_authenticated_user_with_zero_relationship_to_the_channel()
     {
+        // The Gate 1 fix: a plain viewer — not the owner, not a moderator, not a management member, holding no
+        // permit grant on this channel at all — still resolves the tenant. Before the fix this returned false
+        // and 403'd every non-management participant before Gate 2 (the actual per-action floor check) ever ran.
         (ChannelAccessService sut, AuthDbContext db) = Build();
+        await SeedChannelAsync(db, ownerUserId: Guid.NewGuid()); // owned by someone else entirely
+
+        (await sut.CanResolveTenantAsync(User.ToString(), Channel.ToString())).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Grants_access_to_a_management_member_too()
+    {
+        // Not the reason access is granted anymore (Gate 1 no longer inspects this table), but a management
+        // member must still resolve the tenant they administer.
+        (ChannelAccessService sut, AuthDbContext db) = Build();
+        await SeedChannelAsync(db, ownerUserId: Guid.NewGuid());
         db.ChannelMemberships.Add(
             new ChannelMembership
             {
@@ -72,25 +97,7 @@ public sealed class ChannelAccessServiceTests
     }
 
     [Fact]
-    public async Task Grants_access_to_a_legacy_moderator_grant()
-    {
-        (ChannelAccessService sut, AuthDbContext db) = Build();
-        db.ChannelModerators.Add(
-            new ChannelModerator
-            {
-                ChannelId = Channel,
-                UserId = User,
-                Role = "moderator",
-                GrantedAt = Now,
-            }
-        );
-        await db.SaveChangesAsync();
-
-        (await sut.CanResolveTenantAsync(User.ToString(), Channel.ToString())).Should().BeTrue();
-    }
-
-    [Fact]
-    public async Task Denies_a_user_with_no_relationship_to_the_channel()
+    public async Task Denies_when_the_channel_does_not_exist()
     {
         (ChannelAccessService sut, _) = Build();
 
@@ -98,10 +105,20 @@ public sealed class ChannelAccessServiceTests
     }
 
     [Fact]
-    public async Task Denies_a_malformed_id()
+    public async Task Denies_a_malformed_user_id()
     {
-        (ChannelAccessService sut, _) = Build();
+        (ChannelAccessService sut, AuthDbContext db) = Build();
+        await SeedChannelAsync(db, ownerUserId: User);
 
         (await sut.CanResolveTenantAsync("not-a-guid", Channel.ToString())).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Denies_a_malformed_channel_id()
+    {
+        (ChannelAccessService sut, AuthDbContext db) = Build();
+        await SeedChannelAsync(db, ownerUserId: User);
+
+        (await sut.CanResolveTenantAsync(User.ToString(), "not-a-guid")).Should().BeFalse();
     }
 }

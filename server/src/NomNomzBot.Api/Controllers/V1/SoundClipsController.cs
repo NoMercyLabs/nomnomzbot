@@ -11,6 +11,7 @@
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Common.Models;
@@ -58,6 +59,7 @@ public sealed class SoundClipsController : BaseController
 
     /// <summary>List all sound clips for the channel, paginated.</summary>
     [HttpGet]
+    [RequireAction("sounds:read")]
     [ProducesResponseType<PaginatedResponse<SoundClipDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> List(
         [FromQuery] PageRequestDto pagination,
@@ -91,6 +93,7 @@ public sealed class SoundClipsController : BaseController
 
     /// <summary>Retrieve a sound clip by ID.</summary>
     [HttpGet("{id:guid}")]
+    [RequireAction("sounds:read")]
     [ProducesResponseType<StatusResponseDto<SoundClipDto>>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Get(Guid id, CancellationToken ct)
@@ -108,6 +111,7 @@ public sealed class SoundClipsController : BaseController
 
     /// <summary>Upload a new sound clip (multipart audio file, max 10 MB).</summary>
     [HttpPost]
+    [RequireAction("sounds:write")]
     [RequestSizeLimit(11 * 1024 * 1024)] // 11 MB envelope (10 MB content + headers)
     [Consumes("multipart/form-data")]
     [ProducesResponseType<StatusResponseDto<SoundClipDto>>(StatusCodes.Status201Created)]
@@ -153,6 +157,7 @@ public sealed class SoundClipsController : BaseController
 
     /// <summary>Update sound clip metadata (name, display name, volume).</summary>
     [HttpPut("{id:guid}")]
+    [RequireAction("sounds:write")]
     [ProducesResponseType<StatusResponseDto<SoundClipDto>>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Update(
@@ -181,6 +186,7 @@ public sealed class SoundClipsController : BaseController
 
     /// <summary>Delete a sound clip.</summary>
     [HttpDelete("{id:guid}")]
+    [RequireAction("sounds:write")]
     [ProducesResponseType<StatusResponseDto<bool>>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
@@ -198,6 +204,7 @@ public sealed class SoundClipsController : BaseController
 
     /// <summary>Play preview of sound clip (for testing before use).</summary>
     [HttpPost("{id:guid}/preview")]
+    [RequireAction("sounds:write")]
     [ProducesResponseType<StatusResponseDto<bool>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> Preview(Guid id, CancellationToken ct)
     {
