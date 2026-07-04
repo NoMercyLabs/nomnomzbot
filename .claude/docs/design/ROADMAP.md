@@ -27,8 +27,6 @@ except where a dependency is named ([[no-fake-priority]]).
 
 ## Small decided items
 
-- **Guest Star ingest — RESTORE + implement (owner override 2026-07-04)** — the old "Twitch deprecated it, skip" record is false against live docs (4 beta topics listed, no deprecation notice). Restore `GuestStarTranslators.cs` + tests + the beta/moderator `EventSubConditionBuilder` entries from git (deleted in the E1 commit), subscribe `channel.guest_star_session.begin/.end`, `channel.guest_star_guest.update`, `channel.guest_star_settings.update` (version `beta`, broadcaster+moderator condition, `channel:read:guest_star`/`moderator:read:guest_star` scopes), per-topic graceful degradation as usual.
-
 - **Credential component DRY unification** — the client-setup credential components are still duplicated.
 - **Multi-channel residuals** — `Provider` discriminator on `Channel`; individual page controllers still call `primaryChannel()` independently instead of per-channel `/effective/me` re-resolution.
 - **User-plane topic attribution with a shared bot account** — `user.update`/`user.whisper.message` conditions carry no broadcaster id, so with one dedicated bot serving multiple channels only the first channel's subscribe succeeds (others 409 harmlessly) and events attribute to that channel; needs a routing decision (per-channel reader identity vs recipient-based demux).

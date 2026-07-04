@@ -115,6 +115,13 @@ public sealed class AuthService : IAuthService
         "moderator:read:vips", // channel.moderate v2 (distinct from channel:read:vips above)
         "moderator:read:warnings", // channel.warning.acknowledge / channel.warning.send, channel.moderate v2
         "user:read:whispers", // user.whisper.message
+        // Guest Star ingest (ROADMAP "Small decided items" — restored 2026-07-04; Twitch has not deprecated
+        // the API, live docs still list all four beta topics). Read variants suffice for ingest-only —
+        // channel:read:guest_star covers the broadcaster's own sessions, moderator:read:guest_star covers
+        // sessions in channels where the bot moderates; both feed the same broadcaster+moderator condition
+        // (EventSubConditionBuilder.ModeratorPlaneEvents).
+        "channel:read:guest_star", // channel.guest_star_session.begin/.end, .guest.update, .settings.update
+        "moderator:read:guest_star", // channel.guest_star_session.begin/.end, .guest.update, .settings.update
     ];
 
     private static readonly string[] BotScopes =

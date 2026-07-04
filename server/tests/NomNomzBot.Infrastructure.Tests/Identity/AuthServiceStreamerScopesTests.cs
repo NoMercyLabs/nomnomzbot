@@ -90,6 +90,26 @@ public sealed class AuthServiceStreamerScopesTests
             result.Value.Should().Contain(Uri.EscapeDataString(scope));
     }
 
+    /// <summary>
+    /// Proves Guest Star ingest (restored — the E1 commit's "Twitch deprecated it" claim was false against
+    /// live docs) requests both read scopes its beta topics need: <c>channel:read:guest_star</c> for the
+    /// broadcaster's own sessions and <c>moderator:read:guest_star</c> for channels the bot moderates.
+    /// </summary>
+    [Fact]
+    public async Task GetTwitchOAuthUrl_RequestsBothGuestStarReadScopes()
+    {
+        AuthService service = Build(ConfigWith(clientId: "public-id", secret: "shh"));
+
+        Result<string> result = await service.GetTwitchOAuthUrl(
+            state: "nonce",
+            baseUrl: "https://api.example.test"
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().Contain(Uri.EscapeDataString("channel:read:guest_star"));
+        result.Value.Should().Contain(Uri.EscapeDataString("moderator:read:guest_star"));
+    }
+
     // ─── scaffolding (mirrors AuthServiceBotDeviceTests.Build/ConfigWith) ──────────────────────────────
 
     private static AuthService Build(IConfiguration config)

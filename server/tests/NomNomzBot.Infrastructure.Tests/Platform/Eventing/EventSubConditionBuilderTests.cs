@@ -20,6 +20,12 @@ namespace NomNomzBot.Infrastructure.Tests.Platform.Eventing;
 /// object's field set, the topic version, and (via <see cref="EventSubConditionBuilder.RequiresBroadcasterToken"/>)
 /// the token owner. A wrong shape here is a silent 400 from Twitch at subscribe time, not a compile error, so
 /// each condition shape class gets a representative topic asserted field-by-field.
+/// <para>
+/// Also proves Guest Star ingest is restored (ROADMAP "Small decided items" — the E1 commit's "Twitch
+/// deprecated it" claim was false against live docs, which still list all four topics as <c>beta</c>, not
+/// removed): its four topics carry the same broadcaster+moderator condition shape as the other moderator-plane
+/// topics, and <see cref="EventSubConditionBuilder.GetVersion"/> resolves them to <c>"beta"</c>.
+/// </para>
 /// </summary>
 public sealed class EventSubConditionBuilderTests
 {
@@ -85,6 +91,10 @@ public sealed class EventSubConditionBuilderTests
     [InlineData("automod.message.update")]
     [InlineData("automod.settings.update")]
     [InlineData("automod.terms.update")]
+    [InlineData("channel.guest_star_session.begin")]
+    [InlineData("channel.guest_star_session.end")]
+    [InlineData("channel.guest_star_guest.update")]
+    [InlineData("channel.guest_star_settings.update")]
     public void BuildCondition_ModeratorPlaneTopics_CarryBroadcasterAndModeratorUserId(
         string eventType
     )
@@ -212,22 +222,35 @@ public sealed class EventSubConditionBuilderTests
         Builder.GetVersion(eventType).Should().Be(expectedVersion);
     }
 
-    [Fact]
-    public void GetVersion_NeverReturnsBeta_GuestStarIsNotASubscribableSurface()
+    [Theory]
+    [InlineData("channel.guest_star_session.begin")]
+    [InlineData("channel.guest_star_session.end")]
+    [InlineData("channel.guest_star_guest.update")]
+    [InlineData("channel.guest_star_settings.update")]
+    public void GetVersion_ReturnsBeta_ForGuestStarTopics(string eventType)
     {
-        // Guest Star is deprecated by Twitch and deliberately excluded — no topic in this codebase should ever
-        // resolve to the old "beta" version string.
-        string[] everyKnownTopic =
+        // Guest Star's EventSub topics are still documented by Twitch as "beta" (not deprecated, not removed) —
+        // this is the one surface where the version string is genuinely "beta" rather than "1" or "2".
+        Builder.GetVersion(eventType).Should().Be("beta");
+    }
+
+    [Fact]
+    public void GetVersion_OnlyGuestStarTopicsResolveToBeta()
+    {
+        // Regression guard for the inverse of the theory above: no non-Guest-Star topic should ever pick up
+        // the "beta" version string by accident (e.g. a copy/paste into the switch expression).
+        string[] nonGuestStarTopics =
         [
             "channel.update",
             "channel.moderate",
-            "channel.guest_star_session.begin",
-            "channel.guest_star_session.end",
-            "channel.guest_star_guest.update",
-            "channel.guest_star_settings.update",
+            "channel.hype_train.progress",
+            "automod.message.hold",
+            "channel.channel_points_automatic_reward_redemption.add",
+            "channel.chat.notification",
+            "user.update",
         ];
 
-        foreach (string eventType in everyKnownTopic)
+        foreach (string eventType in nonGuestStarTopics)
             Builder.GetVersion(eventType).Should().NotBe("beta");
     }
 
@@ -239,6 +262,7 @@ public sealed class EventSubConditionBuilderTests
     [InlineData("channel.chat.notification")]
     [InlineData("user.update")]
     [InlineData("user.whisper.message")]
+    [InlineData("channel.guest_star_session.begin")]
     public void RequiresBroadcasterToken_IsAlwaysFalse_EveryCreateRidesTheBotToken(string eventType)
     {
         // Multi-tenant WebSocket EventSub requires every subscription POST on one session to come from the

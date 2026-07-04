@@ -23,8 +23,13 @@ namespace NomNomzBot.Infrastructure.Tests.BackgroundServices;
 /// <para>
 /// Also proves E1 (subscribe every remaining translator-backed topic): the ~45 topics that already had a live
 /// <see cref="NomNomzBot.Infrastructure.Platform.Eventing.Translators.EventSubEventTranslator"/> but were never
-/// asked of Twitch are now in the desired-subscribe set, Guest Star is excluded (deprecated API), and the set
-/// carries no duplicates.
+/// asked of Twitch are now in the desired-subscribe set, and the set carries no duplicates.
+/// </para>
+/// <para>
+/// Also proves Guest Star ingest is restored (ROADMAP "Small decided items" — the E1 commit's "Twitch
+/// deprecated it" claim was false against live docs): its four <c>beta</c> topics are in the desired-subscribe
+/// set even though <see cref="NomNomzBot.Infrastructure.Platform.Eventing.Translators.EventSubEventTranslator"/>
+/// implementations for them were briefly deleted alongside it.
 /// </para>
 /// </summary>
 public sealed class BotLifecycleServiceTopicsTests
@@ -90,6 +95,15 @@ public sealed class BotLifecycleServiceTopicsTests
         "automod.terms.update",
     ];
 
+    // Guest Star ingest, restored after being wrongly deleted (ROADMAP "Small decided items").
+    private static readonly string[] ExpectedGuestStarTopics =
+    [
+        "channel.guest_star_session.begin",
+        "channel.guest_star_session.end",
+        "channel.guest_star_guest.update",
+        "channel.guest_star_settings.update",
+    ];
+
     [Fact]
     public void ChannelEventTypes_IncludesAllSevenCharityAndGoalTopics()
     {
@@ -127,20 +141,20 @@ public sealed class BotLifecycleServiceTopicsTests
     }
 
     [Fact]
-    public void ChannelEventTypes_HasExactlySeventyTopics()
+    public void ChannelEventTypes_HasExactlySeventyFourTopics()
     {
-        // 25 pre-existing + 45 added by E1. A hard count catches a silently-dropped or duplicated topic that
-        // the "Contain" assertions above would not (they only prove a subset is present).
-        BotLifecycleService.ChannelEventTypes.Should().HaveCount(70);
+        // 25 pre-existing + 45 added by E1 + 4 restored Guest Star topics. A hard count catches a
+        // silently-dropped or duplicated topic that the "Contain" assertions above would not (they only prove
+        // a subset is present).
+        BotLifecycleService.ChannelEventTypes.Should().HaveCount(74);
     }
 
     [Fact]
-    public void ChannelEventTypes_NeverIncludesGuestStarTopics()
+    public void ChannelEventTypes_IncludesAllFourGuestStarTopics()
     {
-        // Twitch deprecated the Guest Star API — its EventSub topics must never be requested, even though the
-        // translators for them still existed at some point in history.
-        BotLifecycleService
-            .ChannelEventTypes.Should()
-            .NotContain(type => type.Contains("guest_star", StringComparison.Ordinal));
+        // Guest Star ingest was wrongly deleted on a false "Twitch deprecated it" claim (live docs still list
+        // all four beta topics, no deprecation notice) and has been restored.
+        ExpectedGuestStarTopics.Should().HaveCount(4);
+        BotLifecycleService.ChannelEventTypes.Should().Contain(ExpectedGuestStarTopics);
     }
 }

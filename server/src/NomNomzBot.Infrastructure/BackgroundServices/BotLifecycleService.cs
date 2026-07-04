@@ -73,8 +73,7 @@ public sealed class BotLifecycleService : BackgroundService
         // The remaining translator-backed surface (twitch-eventsub.md): every subscription type that already
         // has a live IEventSubEventTranslator but was never asked of Twitch. Each is scope-gated exactly like
         // the blocks above — a missing scope 403s that one topic (logged + TwitchHelixReauthRequiredEvent)
-        // without blocking any other topic's subscribe. Guest Star is deliberately excluded: Twitch deprecated
-        // that API, so channel.guest_star_* is never subscribed even though its translators still exist.
+        // without blocking any other topic's subscribe.
 
         // Stream metadata.
         "channel.update",
@@ -132,6 +131,12 @@ public sealed class BotLifecycleService : BackgroundService
         "automod.message.update",
         "automod.settings.update",
         "automod.terms.update",
+        // Guest Star (beta — still live per Twitch's EventSub subscription-types reference, not deprecated;
+        // scope-gated by channel:read:guest_star / moderator:read:guest_star, same per-topic 403 degradation).
+        "channel.guest_star_session.begin",
+        "channel.guest_star_session.end",
+        "channel.guest_star_guest.update",
+        "channel.guest_star_settings.update",
     ];
 
     public BotLifecycleService(
