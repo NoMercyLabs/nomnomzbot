@@ -95,6 +95,26 @@ public sealed class AuthService : IAuthService
         "channel:read:goals",
         "channel:manage:schedule",
         "user:read:moderated_channels",
+        // The remaining translator-backed EventSub surface (twitch-eventsub.md, BotLifecycleService
+        // ChannelEventTypes): requested upfront alongside the scopes above rather than gated behind a feature
+        // toggle, same rationale as the charity/goals block — a streamer who never triggers these Twitch
+        // features simply never triggers their topic, and a missing scope 403s that one subscribe attempt
+        // (TwitchEventSubHostedService.SubscribeAsync) without blocking any other topic.
+        "channel:read:ads", // channel.ad_break.begin
+        "channel:read:vips", // channel.vip.add / channel.vip.remove
+        "moderation:read", // channel.moderator.add / channel.moderator.remove
+        "moderator:manage:automod", // automod.message.hold/update, automod.terms.update
+        "moderator:read:automod_settings", // automod.settings.update
+        "moderator:read:blocked_terms", // channel.moderate v2
+        "moderator:read:chat_settings", // channel.moderate v2
+        "moderator:read:moderators", // channel.moderate v2
+        "moderator:read:shield_mode", // channel.shield_mode.begin / channel.shield_mode.end
+        "moderator:read:shoutouts", // channel.shoutout.create / channel.shoutout.receive
+        "moderator:read:suspicious_users", // channel.suspicious_user.message / channel.suspicious_user.update
+        "moderator:read:unban_requests", // channel.unban_request.create / channel.unban_request.resolve, channel.moderate v2
+        "moderator:read:vips", // channel.moderate v2 (distinct from channel:read:vips above)
+        "moderator:read:warnings", // channel.warning.acknowledge / channel.warning.send, channel.moderate v2
+        "user:read:whispers", // user.whisper.message
     ];
 
     private static readonly string[] BotScopes =

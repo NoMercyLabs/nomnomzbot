@@ -19,9 +19,14 @@ namespace NomNomzBot.Infrastructure.Platform.Eventing;
 /// <para>
 /// Condition shape is classified, not enumerated per type: most topics key on <c>broadcaster_user_id</c> alone;
 /// moderator-plane topics (follow v2, chat moderation, automod, shield/shoutout, warnings, suspicious users,
-/// unban requests, guest star) additionally carry <c>moderator_user_id</c>; chat-read topics carry
-/// <c>user_id</c> (the reading identity); raids key on <c>to_broadcaster_user_id</c>; user-plane topics
-/// (<c>user.update</c>, <c>user.whisper.message</c>) key on <c>user_id</c> only.
+/// unban requests) additionally carry <c>moderator_user_id</c>; chat-read topics carry <c>user_id</c> (the
+/// reading identity); raids key on <c>to_broadcaster_user_id</c>; user-plane topics (<c>user.update</c>,
+/// <c>user.whisper.message</c>) key on <c>user_id</c> only.
+/// <para>
+/// Guest Star is intentionally absent from this surface: Twitch has deprecated the Guest Star API, so its
+/// EventSub topics (<c>channel.guest_star_*</c>, all <c>beta</c>) are never subscribed — see
+/// <c>twitch-eventsub.md</c> for the decision.
+/// </para>
 /// </para>
 /// <para>
 /// Multi-tenant WebSocket constraint: Twitch requires all subscription POSTs for a given WebSocket session to
@@ -91,10 +96,6 @@ public sealed class EventSubConditionBuilder : IEventSubConditionBuilder
             "automod.message.hold" => "2",
             "automod.message.update" => "2",
             "channel.channel_points_automatic_reward_redemption.add" => "2",
-            "channel.guest_star_session.begin" => "beta",
-            "channel.guest_star_session.end" => "beta",
-            "channel.guest_star_guest.update" => "beta",
-            "channel.guest_star_settings.update" => "beta",
             _ => "1",
         };
 
@@ -134,10 +135,6 @@ public sealed class EventSubConditionBuilder : IEventSubConditionBuilder
         "automod.message.update",
         "automod.settings.update",
         "automod.terms.update",
-        "channel.guest_star_session.begin",
-        "channel.guest_star_session.end",
-        "channel.guest_star_guest.update",
-        "channel.guest_star_settings.update",
     ];
 
     /// <summary>Chat-read topics whose condition carries the reading <c>user_id</c> alongside the broadcaster.</summary>

@@ -54,6 +54,21 @@ public sealed class WebSocketEventSubTransportTests
                     "event":{"broadcaster_user_id":"twitch-9","user_id":"42"}}}
         """;
 
+    // user.update carries no broadcaster_user_id at all — only user_id, the subscribed user's own identity.
+    private const string UserUpdateNotificationFrame = """
+        {"metadata":{"message_id":"n-2","message_type":"notification","message_timestamp":"2026-06-20T12:02:30Z"},
+         "payload":{"subscription":{"id":"sub-2","type":"user.update","version":"1","status":"enabled"},
+                    "event":{"user_id":"twitch-user-42","user_login":"someone","user_name":"Someone","description":""}}}
+        """;
+
+    // user.whisper.message names the recipient to_user_id (not user_id) — the transport must fall back to it too.
+    private const string WhisperNotificationFrame = """
+        {"metadata":{"message_id":"n-3","message_type":"notification","message_timestamp":"2026-06-20T12:02:45Z"},
+         "payload":{"subscription":{"id":"sub-3","type":"user.whisper.message","version":"1","status":"enabled"},
+                    "event":{"whisper_id":"w-1","from_user_id":"twitch-9","to_user_id":"twitch-recipient-7",
+                             "whisper":{"text":"hi"}}}}
+        """;
+
     private const string RevocationFrame = """
         {"metadata":{"message_id":"v-1","message_type":"revocation","message_timestamp":"2026-06-20T12:03:00Z"},
          "payload":{"subscription":{"id":"sub-1","type":"channel.follow","version":"2","status":"authorization_revoked"},
@@ -121,6 +136,54 @@ public sealed class WebSocketEventSubTransportTests
             .TwitchBroadcasterUserId.Should()
             .Be("twitch-9", "the broadcaster id is read from the event");
         notification.Event.GetProperty("user_id").GetString().Should().Be("42");
+
+        await transport.StopAsync();
+    }
+
+    [Fact]
+    public async Task Notification_UserUpdate_ResolvesTenantFromUserId_NotBroadcasterUserId()
+    {
+        // user.update's event has no broadcaster_user_id — the transport must fall back to user_id so the
+        // notification still resolves to a tenant instead of being silently dropped as "unknown channel".
+        FakeTimeProvider clock = new(new DateTimeOffset(2026, 6, 20, 12, 0, 0, TimeSpan.Zero));
+        CapturingSink sink = new();
+        ScriptedChannel channel = new([Welcome("session-A"), UserUpdateNotificationFrame]);
+        WebSocketEventSubTransport transport = NewTransport(
+            new ScriptedChannelFactory(channel),
+            clock,
+            sink
+        );
+
+        await transport.StartAsync();
+        await sink.WaitForNotificationsAsync(1);
+
+        CapturedNotification notification = sink.Notifications.Should().ContainSingle().Subject;
+        notification.SubscriptionType.Should().Be("user.update");
+        notification.TwitchBroadcasterUserId.Should().Be("twitch-user-42");
+
+        await transport.StopAsync();
+    }
+
+    [Fact]
+    public async Task Notification_Whisper_ResolvesTenantFromToUserId()
+    {
+        // user.whisper.message names the recipient to_user_id (neither user_id nor broadcaster_user_id) — the
+        // transport's fallback chain must reach it too.
+        FakeTimeProvider clock = new(new DateTimeOffset(2026, 6, 20, 12, 0, 0, TimeSpan.Zero));
+        CapturingSink sink = new();
+        ScriptedChannel channel = new([Welcome("session-A"), WhisperNotificationFrame]);
+        WebSocketEventSubTransport transport = NewTransport(
+            new ScriptedChannelFactory(channel),
+            clock,
+            sink
+        );
+
+        await transport.StartAsync();
+        await sink.WaitForNotificationsAsync(1);
+
+        CapturedNotification notification = sink.Notifications.Should().ContainSingle().Subject;
+        notification.SubscriptionType.Should().Be("user.whisper.message");
+        notification.TwitchBroadcasterUserId.Should().Be("twitch-recipient-7");
 
         await transport.StopAsync();
     }

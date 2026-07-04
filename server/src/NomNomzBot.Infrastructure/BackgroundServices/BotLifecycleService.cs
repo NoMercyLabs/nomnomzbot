@@ -70,6 +70,68 @@ public sealed class BotLifecycleService : BackgroundService
         "channel.chat.message",
         "stream.online",
         "stream.offline",
+        // The remaining translator-backed surface (twitch-eventsub.md): every subscription type that already
+        // has a live IEventSubEventTranslator but was never asked of Twitch. Each is scope-gated exactly like
+        // the blocks above — a missing scope 403s that one topic (logged + TwitchHelixReauthRequiredEvent)
+        // without blocking any other topic's subscribe. Guest Star is deliberately excluded: Twitch deprecated
+        // that API, so channel.guest_star_* is never subscribed even though its translators still exist.
+
+        // Stream metadata.
+        "channel.update",
+        // Chat moderation surface (condition carries the bot's user_id — EventSubConditionBuilder.ChatReadEvents).
+        "channel.chat.notification",
+        "channel.chat.message_delete",
+        "channel.chat.clear",
+        "channel.chat.clear_user_messages",
+        "channel.chat_settings.update",
+        "channel.chat.user_message_hold",
+        "channel.chat.user_message_update",
+        // Progress ticks for the three engagement-tracker topics already subscribed by begin/end.
+        "channel.hype_train.progress",
+        "channel.poll.progress",
+        "channel.prediction.progress",
+        // Channel points: redemption lifecycle + reward CRUD + the automatic/custom-power-up redemption paths.
+        "channel.channel_points_custom_reward_redemption.update",
+        "channel.channel_points_custom_reward.add",
+        "channel.channel_points_custom_reward.update",
+        "channel.channel_points_custom_reward.remove",
+        "channel.channel_points_automatic_reward_redemption.add",
+        "channel.custom_power_up_redemption.add",
+        // Moderation: unbans, unban requests, moderator/VIP roster changes, and the unified moderate action feed.
+        "channel.moderate",
+        "channel.unban",
+        "channel.unban_request.create",
+        "channel.unban_request.resolve",
+        "channel.moderator.add",
+        "channel.moderator.remove",
+        "channel.vip.add",
+        "channel.vip.remove",
+        // Warnings, suspicious users (ban evasion / low-trust), and Shield Mode.
+        "channel.warning.acknowledge",
+        "channel.warning.send",
+        "channel.suspicious_user.message",
+        "channel.suspicious_user.update",
+        "channel.shield_mode.begin",
+        "channel.shield_mode.end",
+        // Shoutouts (sent and received).
+        "channel.shoutout.create",
+        "channel.shoutout.receive",
+        // Ad breaks, the unified Bits event, and the two user-plane (not channel-plane) topics.
+        "channel.ad_break.begin",
+        "channel.bits.use",
+        "user.update",
+        "user.whisper.message",
+        // Shared Chat session lifecycle.
+        "channel.shared_chat.begin",
+        "channel.shared_chat.update",
+        "channel.shared_chat.end",
+        // Subscription lifecycle's missing leg (new/resub/gift were already covered above).
+        "channel.subscription.end",
+        // AutoMod.
+        "automod.message.hold",
+        "automod.message.update",
+        "automod.settings.update",
+        "automod.terms.update",
     ];
 
     public BotLifecycleService(

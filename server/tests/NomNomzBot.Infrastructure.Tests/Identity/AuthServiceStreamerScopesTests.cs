@@ -51,6 +51,45 @@ public sealed class AuthServiceStreamerScopesTests
         result.Value.Should().Contain("channel%3Aread%3Ahype_train");
     }
 
+    /// <summary>
+    /// Proves E1 (subscribe every remaining translator-backed EventSub topic) requests every scope its newly
+    /// added topics need — otherwise each one 403s on first subscribe (TwitchEventSubHostedService.SubscribeAsync)
+    /// with no way for an already-onboarded streamer to grant it short of the action-required re-grant flow.
+    /// </summary>
+    [Fact]
+    public async Task GetTwitchOAuthUrl_RequestsEveryE1EventSubScope()
+    {
+        AuthService service = Build(ConfigWith(clientId: "public-id", secret: "shh"));
+
+        Result<string> result = await service.GetTwitchOAuthUrl(
+            state: "nonce",
+            baseUrl: "https://api.example.test"
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        string[] expectedScopes =
+        [
+            "channel:read:ads",
+            "channel:read:vips",
+            "moderation:read",
+            "moderator:manage:automod",
+            "moderator:read:automod_settings",
+            "moderator:read:blocked_terms",
+            "moderator:read:chat_settings",
+            "moderator:read:moderators",
+            "moderator:read:shield_mode",
+            "moderator:read:shoutouts",
+            "moderator:read:suspicious_users",
+            "moderator:read:unban_requests",
+            "moderator:read:vips",
+            "moderator:read:warnings",
+            "user:read:whispers",
+        ];
+
+        foreach (string scope in expectedScopes)
+            result.Value.Should().Contain(Uri.EscapeDataString(scope));
+    }
+
     // ─── scaffolding (mirrors AuthServiceBotDeviceTests.Build/ConfigWith) ──────────────────────────────
 
     private static AuthService Build(IConfiguration config)

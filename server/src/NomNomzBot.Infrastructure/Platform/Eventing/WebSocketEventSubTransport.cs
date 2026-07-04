@@ -534,10 +534,20 @@ public sealed class WebSocketEventSubTransport : IEventSubTransport
         return string.Empty;
     }
 
+    // Every channel.*-prefixed topic's event body carries broadcaster_user_id (or, for raids, only
+    // to_broadcaster_user_id) — those two keys resolve the tenant for the whole channel-plane surface. The two
+    // user-plane topics (user.update, user.whisper.message) carry no broadcaster id at all: user.update's event
+    // names the subscribed user as user_id, and user.whisper.message names the whisper's recipient as
+    // to_user_id. Both resolve correctly whenever the subscribing identity IS the channel (self-host, or the
+    // fallback-to-broadcaster case in EventSubConditionBuilder) — a dedicated bot account shared across
+    // channels cannot be disambiguated this way, since the condition (and so the id on the wire) is identical
+    // for every channel that bot serves.
     private static readonly string[] BroadcasterIdKeys =
     [
         "broadcaster_user_id",
         "to_broadcaster_user_id",
+        "user_id",
+        "to_user_id",
     ];
 
     private static DateTimeOffset ParseTimestamp(string? raw) =>
