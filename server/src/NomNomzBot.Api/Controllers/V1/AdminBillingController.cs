@@ -30,6 +30,7 @@ namespace NomNomzBot.Api.Controllers.V1;
 public class AdminBillingController(IInviteCodeService invites, ISubscriptionService subscriptions)
     : BaseController
 {
+    /// <summary>List all invite codes platform-wide, paginated.</summary>
     [HttpGet("invites")]
     [ProducesResponseType<PaginatedResponse<InviteCodeDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> ListInvites(
@@ -47,16 +48,19 @@ public class AdminBillingController(IInviteCodeService invites, ISubscriptionSer
         return GetPaginatedResponse(result.Value, request);
     }
 
+    /// <summary>Mint an invite code with redemption cap, optional tier/founders-badge grant, and expiry.</summary>
     [HttpPost("invites")]
     public async Task<IActionResult> CreateInvite(
         [FromBody] CreateInviteCodeRequest request,
         CancellationToken ct
     ) => ResultResponse(await invites.CreateInviteCodeAsync(request, ct));
 
+    /// <summary>Revoke an invite code, blocking further redemptions.</summary>
     [HttpPost("invites/{inviteCodeId:guid}/revoke")]
     public async Task<IActionResult> RevokeInvite(Guid inviteCodeId, CancellationToken ct) =>
         ResultResponse(await invites.RevokeInviteCodeAsync(inviteCodeId, ct));
 
+    /// <summary>Manually grant a channel a tier without Stripe, optionally marked as an invite-only grant.</summary>
     [HttpPost("channels/{broadcasterId:guid}/grant-tier")]
     public async Task<IActionResult> GrantTier(
         Guid broadcasterId,
@@ -72,6 +76,7 @@ public class AdminBillingController(IInviteCodeService invites, ISubscriptionSer
             )
         );
 
+    /// <summary>Grant a channel the founders badge directly.</summary>
     [HttpPost("channels/{broadcasterId:guid}/grant-founder")]
     public async Task<IActionResult> GrantFounder(Guid broadcasterId, CancellationToken ct) =>
         ResultResponse(await invites.GrantFoundersBadgeAsync(broadcasterId, ct));

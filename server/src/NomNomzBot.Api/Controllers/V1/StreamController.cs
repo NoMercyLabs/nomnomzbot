@@ -23,6 +23,7 @@ using NomNomzBot.Domain.Platform.Interfaces;
 
 namespace NomNomzBot.Api.Controllers.V1;
 
+/// <summary>Manages stream metadata (title, game, tags, live status).</summary>
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/channels/{channelId}/stream")]
 [Authorize]
@@ -80,6 +81,7 @@ public class StreamController : BaseController
 
     // ── Get current stream info ──────────────────────────────────────────────
 
+    /// <summary>Retrieve current stream information (title, game, tags, live status, viewers).</summary>
     [HttpGet]
     [ProducesResponseType<StatusResponseDto<StreamInfoDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetStreamInfo(string channelId, CancellationToken ct)
@@ -266,6 +268,7 @@ public class StreamController : BaseController
 
     // ── Lightweight live status ──────────────────────────────────────────────
 
+    /// <summary>Get whether the channel is currently live and current viewer count.</summary>
     [HttpGet("status")]
     [ProducesResponseType<StatusResponseDto<StreamStatusDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetStatus(string channelId, CancellationToken ct)
@@ -296,6 +299,7 @@ public class StreamController : BaseController
 
     // ── PATCH sub-routes (used by StreamScreen) ──────────────────────────────
 
+    /// <summary>Update stream title.</summary>
     [RequireAction("channel:title:write")]
     [HttpPatch("title")]
     [ProducesResponseType<StatusResponseDto<StreamInfoDto>>(StatusCodes.Status200OK)]
@@ -323,6 +327,7 @@ public class StreamController : BaseController
         return await GetStreamInfo(channelId, ct);
     }
 
+    /// <summary>Update stream game/category (with Twitch search resolution).</summary>
     [RequireAction("channel:game:write")]
     [HttpPatch("game")]
     [ProducesResponseType<StatusResponseDto<StreamInfoDto>>(StatusCodes.Status200OK)]
@@ -370,6 +375,7 @@ public class StreamController : BaseController
         return await GetStreamInfo(channelId, ct);
     }
 
+    /// <summary>Update stream tags/categories.</summary>
     [RequireAction("channel:tags:write")]
     [HttpPatch("tags")]
     [ProducesResponseType<StatusResponseDto<StreamInfoDto>>(StatusCodes.Status200OK)]
@@ -395,6 +401,7 @@ public class StreamController : BaseController
 
     // ── Category search (autocomplete) ───────────────────────────────────────
 
+    /// <summary>Search Twitch game categories (for autocomplete).</summary>
     [HttpGet("categories")]
     [ProducesResponseType<StatusResponseDto<List<CategoryDto>>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> SearchCategories(

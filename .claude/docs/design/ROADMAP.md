@@ -19,11 +19,19 @@ except where a dependency is named ([[no-fake-priority]]).
 
 ## Full-API-coverage rule (owner, 2026-07-04) — every method and event of every integrated API is implemented; missing = ADD, never remove
 
-- **EventSub catalogue completeness** — translators + subscriptions for the topics that have none: `user.authorization.grant/.revoke`, `drop.entitlement.grant`, `extension.bits_transaction.create`, `conduit.shard.disabled` (verify transport requirements against live docs at build time — several are webhook/conduit-only; gate by transport, degrade gracefully).
-- **Helix endpoint completeness audit** — diff the 26 sub-clients against the full current Helix reference; add any endpoint not yet exposed (then surface per the management-coverage rule).
-- **Spotify API completeness audit** — diff `SpotifyService`/provider surface against the current Spotify Web API reference; add missing methods + any missed events/webhooks.
-- **Discord API completeness audit** — diff `DiscordRestBotGateway` against the current Discord REST surface we can use bot-token-side; add missing methods; decide + wire the interactions webhook (role-button opt-in currently has no inbound handler).
-- **YouTube API completeness audit** — same treatment for the YouTube music/data surface.
+- **Helix: last two broadcaster-usable endpoints** — audit (2026-07-04, vs live reference) found the 26 sub-clients cover every broadcaster area 100%; remaining: `GET /helix/clips/download` (verify existence in live reference first — recent addition) → `ITwitchClipsApi`, and `GET /helix/schedule/icalendar` → `ITwitchScheduleApi`.
+- **Helix: user-extensions management** — `GET /helix/users/extensions`, `GET+PUT /helix/users/extensions/active` (`user:read:broadcast`/`user:manage:broadcast`) — broadcaster extension-panel management, implement per the full-coverage rule.
+- **OWNER CONFIRM N/A: org-gated Helix/EventSub surfaces** — Extensions area (12 endpoints), Drops entitlements (2), Get Extension Transactions/Analytics, Get Game Analytics require being a Twitch extension/drops/game organization — a bot cannot exercise them. Twitch-deprecated Tags endpoints excluded outright (docs-verified). Confirm these stay N/A or order them built.
+- **Music provider interface widening (PREREQUISITE for the two items below)** — both providers still implement the legacy string-keyed `IMusicProvider`; build the spec's unified surface: `Guid` key + `MusicProviderCapabilities` flagset + `ResolveTrackAsync` + `IMusicProviderManageApi` (`music-sr.md` §3.5/§3.10).
+- **Spotify completeness (spec-promised, audit 2026-07-04)** — add: `PUT /me/player/volume` (`SetVolumeAsync`), `POST /me/player/previous`, `GET /me/player` full state (sequencer poll), `GET /tracks/{id}` (`ResolveTrackAsync`), and the §3.10 manage surface (`/me/tracks`, playlist create/update/items, `/me/following`, playlist followers). OWNER-CONFIRM-N/A bucket: queue read, recently-played, top-items, markets, albums/artists/audiobooks/episodes/shows/browse (verify which are Spotify-removed vs merely unused — provider header claims Feb-2026 removals the live reference still lists). Spotify has no webhooks — polling is the only pattern (confirmed).
+- **Discord: interactions webhook (functional gap — opt-in buttons dead-end today)** — public anonymous POST endpoint + mandatory Ed25519 signature verify (401 on invalid; Discord probes), PING→PONG handshake, MESSAGE_COMPONENT type-3 → `custom_id notify_optin:{roleId}` → existing role opt-in/out services, callback type 7/4 response; needs app public key config. Then: guild read endpoints (`GET /guilds/{id}` + `/roles` + `/channels`) for role/channel pickers instead of raw-id entry; message edit/delete for button re-posts. OWNER-CONFIRM: slash commands; N/A bucket: threads/reactions/scheduled-events/automod/audit-log/voice; gateway WebSocket stream deliberately not used (REST+interactions by spec).
+- **YouTube provider build-out (provider is a STUB — zero Data API calls exist)** — implement per `music-sr.md` §3.5/§3.10: `search.list` (app API key), `videos.list` (duration/embeddable/age gates for SR), `videos.rate`, `playlists.*` + `playlistItems.*`, `subscriptions.*`; stub playback methods must return `CAPABILITY_UNSUPPORTED` (YouTube plays via browser-source IFrame by design, not the Data API). OWNER-CONFIRM-N/A: getRating/activities/channels + captions/comments/members/i18n.
+
+## Multi-platform readiness (owner questions 2026-07-04 — audited, login is Twitch-welded today)
+
+- **Platform-agnostic identity spec (SPEC FIRST, before YouTube provider code)** — linked external identities per User (identity table, not 1:1 Twitch), login with any linked account, account linking/merge flow, primary platform per channel, `Channel.Provider` discriminator + generic external-channel key; de-Twitch community-standing sourcing and `EventJournal.ActorTwitchUserId`/hub keying. The vault/`IEventSource`/music seams are already provider-generic; chat (`IChatPlatform`) + platform API (`IPlatformApi`) seams still to build per the rebuild design.
+- **Render-manifest endpoint** — one client call returning features (tier-gated!) + integration connection states + scope grants + effective role, replacing the current 4-endpoint fan-out (`features`, `integrations`, `twitch/diagnostics/scopes`, `roles/effective/me`).
+- **FeaturesController must consult `IFeatureFlagService` gates** — today it reads only the opt-in rows, bypassing tier/deployment/consent precedence: "visible" ≠ "entitled".
 
 ## Small decided items
 
@@ -54,7 +62,7 @@ except where a dependency is named ([[no-fake-priority]]).
 
 ## Deferred by explicit decision
 
-- SaaS conduit EventSub transport (self-host WebSocket path is complete)
+- SaaS conduit/webhook EventSub transport (self-host WebSocket path is complete). Carries with it the 5 structurally-unreachable-today topics (`user.authorization.grant/.revoke`, `drop.entitlement.grant`, `extension.bits_transaction.create`, `conduit.shard.disabled` — all app-token webhook/conduit-only per live docs) and the 6 conduit-management Helix endpoints (DB entities already scaffolded).
 - Custom user groups (owner-deferred, streamerbot-parity batch)
 - YouTube/Kick chat platforms (after Twitch is complete)
 

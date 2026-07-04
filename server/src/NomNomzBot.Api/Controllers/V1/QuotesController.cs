@@ -40,6 +40,7 @@ public class QuotesController : BaseController
         _tenant = tenant;
     }
 
+    /// <summary>List the channel's quotes with optional text search, paginated.</summary>
     [RequireAction("quotes:read")]
     [HttpGet]
     [ProducesResponseType<PaginatedResponse<QuoteDto>>(StatusCodes.Status200OK)]
@@ -64,6 +65,7 @@ public class QuotesController : BaseController
         return GetPaginatedResponse(result.Value, request);
     }
 
+    /// <summary>Read a random quote from the channel's library.</summary>
     [RequireAction("quotes:read")]
     [HttpGet("random")]
     [ProducesResponseType<StatusResponseDto<QuoteDto>>(StatusCodes.Status200OK)]
@@ -76,6 +78,7 @@ public class QuotesController : BaseController
         return ResultResponse(result);
     }
 
+    /// <summary>Read a single quote by its channel-scoped number.</summary>
     [RequireAction("quotes:read")]
     [HttpGet("{number:int}")]
     [ProducesResponseType<StatusResponseDto<QuoteDto>>(StatusCodes.Status200OK)]
@@ -88,6 +91,7 @@ public class QuotesController : BaseController
         return ResultResponse(result);
     }
 
+    /// <summary>Add a new quote, returning 201 with its assigned number.</summary>
     [RequireAction("quotes:write")]
     [HttpPost]
     [ProducesResponseType<StatusResponseDto<QuoteDto>>(StatusCodes.Status201Created)]
@@ -114,6 +118,7 @@ public class QuotesController : BaseController
         );
     }
 
+    /// <summary>Edit an existing quote by its number.</summary>
     [RequireAction("quotes:write")]
     [HttpPut("{number:int}")]
     [ProducesResponseType<StatusResponseDto<QuoteDto>>(StatusCodes.Status200OK)]
@@ -130,6 +135,7 @@ public class QuotesController : BaseController
         return ResultResponse(result);
     }
 
+    /// <summary>Delete a quote by its number.</summary>
     [RequireAction("quotes:write")]
     [HttpDelete("{number:int}")]
     [ProducesResponseType<StatusResponseDto<QuoteDto>>(StatusCodes.Status200OK)]

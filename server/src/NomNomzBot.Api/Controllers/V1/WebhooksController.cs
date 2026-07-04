@@ -34,6 +34,7 @@ public class WebhooksController(
     NomNomzBot.Application.Abstractions.Auth.ICurrentUserService currentUser
 ) : BaseController
 {
+    /// <summary>List the channel's inbound webhook endpoints, paginated.</summary>
     [HttpGet("inbound")]
     [RequireAction("webhooks:inbound:read")]
     [ProducesResponseType<PaginatedResponse<InboundWebhookEndpointDto>>(StatusCodes.Status200OK)]
@@ -54,6 +55,7 @@ public class WebhooksController(
         return GetPaginatedResponse(result.Value, request);
     }
 
+    /// <summary>Fetch a single inbound webhook endpoint by id.</summary>
     [HttpGet("inbound/{endpointId:guid}")]
     [RequireAction("webhooks:inbound:read")]
     public async Task<IActionResult> GetInbound(
@@ -62,6 +64,7 @@ public class WebhooksController(
         CancellationToken ct
     ) => ResultResponse(await inbound.GetAsync(channelId, endpointId, ct));
 
+    /// <summary>Create an inbound webhook endpoint for the channel, recording the caller as its creator.</summary>
     [HttpPost("inbound")]
     [RequireAction("webhooks:inbound:write")]
     public async Task<IActionResult> CreateInbound(
@@ -75,6 +78,7 @@ public class WebhooksController(
         return ResultResponse(await inbound.CreateAsync(channelId, caller, request, ct));
     }
 
+    /// <summary>Update an inbound webhook endpoint's configuration.</summary>
     [HttpPut("inbound/{endpointId:guid}")]
     [RequireAction("webhooks:inbound:write")]
     public async Task<IActionResult> UpdateInbound(
@@ -84,6 +88,7 @@ public class WebhooksController(
         CancellationToken ct
     ) => ResultResponse(await inbound.UpdateAsync(channelId, endpointId, request, ct));
 
+    /// <summary>Rotate the opaque URL token for an inbound webhook endpoint, invalidating the old ingest URL.</summary>
     [HttpPost("inbound/{endpointId:guid}/rotate-token")]
     [RequireAction("webhooks:inbound:write")]
     public async Task<IActionResult> RotateInboundToken(
@@ -92,6 +97,7 @@ public class WebhooksController(
         CancellationToken ct
     ) => ResultResponse(await inbound.RotateTokenAsync(channelId, endpointId, ct));
 
+    /// <summary>Delete an inbound webhook endpoint, retiring its ingest URL.</summary>
     [HttpDelete("inbound/{endpointId:guid}")]
     [RequireAction("webhooks:inbound:write")]
     public async Task<IActionResult> DeleteInbound(
@@ -100,6 +106,7 @@ public class WebhooksController(
         CancellationToken ct
     ) => ResultResponse(await inbound.DeleteAsync(channelId, endpointId, ct));
 
+    /// <summary>List the channel's outbound webhook endpoints, paginated.</summary>
     [HttpGet("outbound")]
     [RequireAction("webhooks:outbound:read")]
     [ProducesResponseType<PaginatedResponse<OutboundWebhookEndpointDto>>(StatusCodes.Status200OK)]
@@ -120,6 +127,7 @@ public class WebhooksController(
         return GetPaginatedResponse(result.Value, request);
     }
 
+    /// <summary>Fetch a single outbound webhook endpoint by id.</summary>
     [HttpGet("outbound/{endpointId:guid}")]
     [RequireAction("webhooks:outbound:read")]
     public async Task<IActionResult> GetOutbound(
@@ -128,6 +136,7 @@ public class WebhooksController(
         CancellationToken ct
     ) => ResultResponse(await outbound.GetAsync(channelId, endpointId, ct));
 
+    /// <summary>Create an outbound webhook endpoint for the channel, recording the caller as its creator.</summary>
     [HttpPost("outbound")]
     [RequireAction("webhooks:outbound:write")]
     public async Task<IActionResult> CreateOutbound(
@@ -141,6 +150,7 @@ public class WebhooksController(
         return ResultResponse(await outbound.CreateAsync(channelId, caller, request, ct));
     }
 
+    /// <summary>Update an outbound webhook endpoint's configuration.</summary>
     [HttpPut("outbound/{endpointId:guid}")]
     [RequireAction("webhooks:outbound:write")]
     public async Task<IActionResult> UpdateOutbound(
@@ -150,6 +160,7 @@ public class WebhooksController(
         CancellationToken ct
     ) => ResultResponse(await outbound.UpdateAsync(channelId, endpointId, request, ct));
 
+    /// <summary>Rotate the shared secret used to sign an outbound webhook endpoint's deliveries.</summary>
     [HttpPost("outbound/{endpointId:guid}/rotate-secret")]
     [RequireAction("webhooks:outbound:write")]
     public async Task<IActionResult> RotateOutboundSecret(
@@ -158,6 +169,7 @@ public class WebhooksController(
         CancellationToken ct
     ) => ResultResponse(await outbound.RotateSecretAsync(channelId, endpointId, ct));
 
+    /// <summary>Re-enable an outbound webhook endpoint that was disabled after delivery failures.</summary>
     [HttpPost("outbound/{endpointId:guid}/reenable")]
     [RequireAction("webhooks:outbound:write")]
     public async Task<IActionResult> ReenableOutbound(
@@ -166,6 +178,7 @@ public class WebhooksController(
         CancellationToken ct
     ) => ResultResponse(await outbound.ReenableAsync(channelId, endpointId, ct));
 
+    /// <summary>Send a test delivery to an outbound webhook endpoint.</summary>
     [HttpPost("outbound/{endpointId:guid}/test")]
     [RequireAction("webhooks:outbound:write")]
     public async Task<IActionResult> TestOutbound(
@@ -174,6 +187,7 @@ public class WebhooksController(
         CancellationToken ct
     ) => ResultResponse(await outbound.SendTestAsync(channelId, endpointId, ct));
 
+    /// <summary>Delete an outbound webhook endpoint, stopping its deliveries.</summary>
     [HttpDelete("outbound/{endpointId:guid}")]
     [RequireAction("webhooks:outbound:write")]
     public async Task<IActionResult> DeleteOutbound(

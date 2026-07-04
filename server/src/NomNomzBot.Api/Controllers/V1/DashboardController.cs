@@ -25,6 +25,7 @@ using NomNomzBot.Domain.Platform.Interfaces;
 
 namespace NomNomzBot.Api.Controllers.V1;
 
+/// <summary>Aggregated per-channel stats and activity feed for the dashboard home screen.</summary>
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/dashboard")]
 [Authorize]

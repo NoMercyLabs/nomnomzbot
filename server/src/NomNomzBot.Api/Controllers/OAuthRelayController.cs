@@ -80,6 +80,7 @@ public class OAuthRelayController : ControllerBase
         </html>
         """;
 
+    /// <summary>Serve the relay page that posts the OAuth callback params to the opener window and auto-closes.</summary>
     [HttpGet]
     public IActionResult Get() => Content(Html, "text/html");
 }

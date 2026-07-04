@@ -18,6 +18,7 @@ using NomNomzBot.Application.Common.Models;
 
 namespace NomNomzBot.Api.Controllers.V1;
 
+/// <summary>Manages the channel's built-in commands: listing and per-command enable/configure.</summary>
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/channels/{channelId}/builtins")]
 [Authorize]

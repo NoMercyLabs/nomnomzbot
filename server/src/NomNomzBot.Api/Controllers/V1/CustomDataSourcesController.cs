@@ -18,6 +18,7 @@ using NomNomzBot.Application.CustomEvents.Services;
 
 namespace NomNomzBot.Api.Controllers.V1;
 
+/// <summary>Manages custom data sources for dynamic event integration.</summary>
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/custom-data-sources")]
 [Authorize]
@@ -52,6 +53,7 @@ public sealed class CustomDataSourcesController : BaseController
 
     // ── GET /custom-data-sources ─────────────────────────────────────────────
 
+    /// <summary>List all custom data sources for the channel, paginated.</summary>
     [HttpGet]
     [ProducesResponseType<PaginatedResponse<CustomDataSourceDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> List(
@@ -84,6 +86,7 @@ public sealed class CustomDataSourcesController : BaseController
 
     // ── GET /custom-data-sources/presets ────────────────────────────────────
 
+    /// <summary>List available custom data source presets.</summary>
     [HttpGet("presets")]
     [ProducesResponseType<StatusResponseDto<IReadOnlyList<CustomDataSourcePresetDto>>>(
         StatusCodes.Status200OK
@@ -106,6 +109,7 @@ public sealed class CustomDataSourcesController : BaseController
 
     // ── GET /custom-data-sources/{id} ────────────────────────────────────────
 
+    /// <summary>Retrieve a custom data source by ID.</summary>
     [HttpGet("{id:guid}")]
     [ProducesResponseType<StatusResponseDto<CustomDataSourceDto>>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -122,6 +126,7 @@ public sealed class CustomDataSourcesController : BaseController
 
     // ── POST /custom-data-sources ────────────────────────────────────────────
 
+    /// <summary>Create a new custom data source.</summary>
     [HttpPost]
     [ProducesResponseType<StatusResponseDto<CustomDataSourceDto>>(StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -151,6 +156,7 @@ public sealed class CustomDataSourcesController : BaseController
 
     // ── PUT /custom-data-sources/{id} ────────────────────────────────────────
 
+    /// <summary>Update an existing custom data source.</summary>
     [HttpPut("{id:guid}")]
     [ProducesResponseType<StatusResponseDto<CustomDataSourceDto>>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -183,6 +189,7 @@ public sealed class CustomDataSourcesController : BaseController
 
     // ── DELETE /custom-data-sources/{id} ─────────────────────────────────────
 
+    /// <summary>Delete a custom data source.</summary>
     [HttpDelete("{id:guid}")]
     [ProducesResponseType<StatusResponseDto<bool>>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -200,6 +207,7 @@ public sealed class CustomDataSourcesController : BaseController
 
     // ── POST /custom-data-sources/{id}/test ──────────────────────────────────
 
+    /// <summary>Test a custom data source with sample payload.</summary>
     [HttpPost("{id:guid}/test")]
     [ProducesResponseType<StatusResponseDto<bool>>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]

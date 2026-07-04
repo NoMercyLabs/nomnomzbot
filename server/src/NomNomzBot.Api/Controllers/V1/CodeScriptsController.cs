@@ -38,6 +38,7 @@ public class CodeScriptsController(
     ICurrentTenantService tenant
 ) : BaseController
 {
+    /// <summary>List the channel's code scripts, paginated (feature-gated like all script routes).</summary>
     [HttpGet]
     public async Task<IActionResult> List([FromQuery] PageRequestDto request, CancellationToken ct)
     {
@@ -53,6 +54,7 @@ public class CodeScriptsController(
         return GetPaginatedResponse(result.Value, request);
     }
 
+    /// <summary>Read a single code script by id.</summary>
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> Get(Guid id, CancellationToken ct)
     {
@@ -62,6 +64,7 @@ public class CodeScriptsController(
             : ResultResponse(await scripts.GetAsync(id, ct));
     }
 
+    /// <summary>Create a new code script for the channel.</summary>
     [HttpPost]
     public async Task<IActionResult> Create(
         [FromBody] CreateCodeScriptRequest request,
@@ -74,6 +77,7 @@ public class CodeScriptsController(
             : ResultResponse(await scripts.CreateAsync(request, ct));
     }
 
+    /// <summary>Add a new source version to a code script.</summary>
     [HttpPost("{id:guid}/versions")]
     public async Task<IActionResult> CreateVersion(
         Guid id,
@@ -87,6 +91,7 @@ public class CodeScriptsController(
             : ResultResponse(await scripts.CreateVersionAsync(id, request, ct));
     }
 
+    /// <summary>List a code script's versions, paginated.</summary>
     [HttpGet("{id:guid}/versions")]
     public async Task<IActionResult> ListVersions(
         Guid id,
@@ -107,6 +112,7 @@ public class CodeScriptsController(
         return GetPaginatedResponse(result.Value, request);
     }
 
+    /// <summary>Publish a specific version as the script's live version (the one run_code executes).</summary>
     [HttpPost("{id:guid}/versions/{versionId:guid}/publish")]
     public async Task<IActionResult> Publish(Guid id, Guid versionId, CancellationToken ct)
     {
@@ -116,6 +122,7 @@ public class CodeScriptsController(
             : ResultResponse(await scripts.PublishVersionAsync(id, versionId, ct));
     }
 
+    /// <summary>Enable or disable a code script.</summary>
     [HttpPatch("{id:guid}/enabled")]
     public async Task<IActionResult> SetEnabled(
         Guid id,
@@ -129,6 +136,7 @@ public class CodeScriptsController(
             : ResultResponse(await scripts.SetEnabledAsync(id, request.IsEnabled, ct));
     }
 
+    /// <summary>Delete a code script.</summary>
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
     {

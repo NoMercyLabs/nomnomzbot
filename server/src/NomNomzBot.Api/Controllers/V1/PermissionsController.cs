@@ -21,6 +21,7 @@ using NomNomzBot.Domain.Identity.Entities;
 
 namespace NomNomzBot.Api.Controllers.V1;
 
+/// <summary>Manages per-user fine-grained permissions for channel resources.</summary>
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/channels/{channelId}/permissions")]
 [Authorize]
@@ -53,6 +54,7 @@ public class PermissionsController : BaseController
 
     // ── List permissions ─────────────────────────────────────────────────────
 
+    /// <summary>List all permissions granted for the channel.</summary>
     [RequireAction("roles:read")]
     [HttpGet]
     [ProducesResponseType<StatusResponseDto<List<PermissionDto>>>(StatusCodes.Status200OK)]
@@ -102,6 +104,7 @@ public class PermissionsController : BaseController
 
     // ── Grant permission ─────────────────────────────────────────────────────
 
+    /// <summary>Grant a permission to a user for the channel.</summary>
     [RequireAction("roles:manage")]
     [HttpPost]
     [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
@@ -123,6 +126,7 @@ public class PermissionsController : BaseController
 
     // ── Revoke permission ────────────────────────────────────────────────────
 
+    /// <summary>Revoke a permission from a user for the channel.</summary>
     [RequireAction("roles:manage")]
     [HttpDelete("{userId}")]
     [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]

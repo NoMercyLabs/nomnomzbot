@@ -23,6 +23,7 @@ using NomNomzBot.Application.Identity.Services;
 
 namespace NomNomzBot.Api.Controllers.V1;
 
+/// <summary>Manages channels and their onboarding, settings, and bot lifecycle.</summary>
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/channels")]
 [Authorize]
@@ -44,6 +45,7 @@ public class ChannelsController : BaseController
         _moderators = moderators;
     }
 
+    /// <summary>List all channels the current user owns or moderates.</summary>
     [HttpGet]
     [ProducesResponseType<PaginatedResponse<ChannelDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> ListChannels(
@@ -138,6 +140,7 @@ public class ChannelsController : BaseController
         bool IsOnboarded
     );
 
+    /// <summary>Retrieve a channel by ID.</summary>
     [HttpGet("{channelId}")]
     [ProducesResponseType<StatusResponseDto<ChannelDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetChannel(string channelId, CancellationToken ct)
@@ -180,6 +183,7 @@ public class ChannelsController : BaseController
         );
     }
 
+    /// <summary>Update channel settings (language, timezone, etc.).</summary>
     [HttpPut("{channelId}")]
     [RequireAction("setup:write")]
     [ProducesResponseType<StatusResponseDto<ChannelDto>>(StatusCodes.Status200OK)]
@@ -199,6 +203,7 @@ public class ChannelsController : BaseController
         return Ok(new StatusResponseDto<ChannelDto> { Data = result.Value });
     }
 
+    /// <summary>Bot joins the channel (subscribes to EventSub and starts listening).</summary>
     [HttpPost("{channelId}/join")]
     [RequireAction("setup:write")]
     [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
@@ -210,6 +215,7 @@ public class ChannelsController : BaseController
         return Ok(new StatusResponseDto<object> { Message = "Bot joined channel." });
     }
 
+    /// <summary>Bot leaves the channel (unsubscribes from EventSub).</summary>
     [HttpPost("{channelId}/leave")]
     [RequireAction("setup:write")]
     [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
@@ -221,6 +227,7 @@ public class ChannelsController : BaseController
         return Ok(new StatusResponseDto<object> { Message = "Bot left channel." });
     }
 
+    /// <summary>Delete a channel and all its associated data.</summary>
     [HttpDelete("{channelId}")]
     [RequireAction("setup:write")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]

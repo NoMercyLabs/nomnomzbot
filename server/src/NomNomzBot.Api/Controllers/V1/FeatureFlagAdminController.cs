@@ -29,16 +29,19 @@ public class FeatureFlagAdminController(
     ICurrentUserService currentUser
 ) : BaseController
 {
+    /// <summary>List all feature-flag definitions.</summary>
     [HttpGet]
     public async Task<IActionResult> List(CancellationToken ct) =>
         ResultResponse(await flags.ListAsync(ct));
 
+    /// <summary>Create or update a feature flag's global definition and rollout ramp.</summary>
     [HttpPut]
     public async Task<IActionResult> SetFlag(
         [FromBody] SetFeatureFlagRequest request,
         CancellationToken ct
     ) => ResultResponse(await flags.SetFlagAsync(request, Caller(), ct));
 
+    /// <summary>Set a per-channel override for a feature flag (beta opt-in or kill-switch).</summary>
     [HttpPut("{flagKey}/overrides/{broadcasterId:guid}")]
     public async Task<IActionResult> SetOverride(
         string flagKey,
@@ -48,6 +51,7 @@ public class FeatureFlagAdminController(
     ) =>
         ResultResponse(await flags.SetOverrideAsync(flagKey, broadcasterId, request, Caller(), ct));
 
+    /// <summary>Clear a channel's feature-flag override, returning it to the global ramp.</summary>
     [HttpDelete("{flagKey}/overrides/{broadcasterId:guid}")]
     public async Task<IActionResult> RemoveOverride(
         string flagKey,

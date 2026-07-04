@@ -18,6 +18,7 @@ using NomNomzBot.Application.Contracts.Twitch;
 
 namespace NomNomzBot.Api.Controllers.V1;
 
+/// <summary>Manages live stream operations: polls, predictions, raids, commercials, and clips.</summary>
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/channels/{channelId}/live-ops")]
 [Authorize]
@@ -57,6 +58,7 @@ public class LiveOpsController : BaseController
 
     public record EndPollDto(string Status);
 
+    /// <summary>List active and ended polls for the channel.</summary>
     [RequireAction("live-ops:polls:read")]
     [HttpGet("polls")]
     [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
@@ -76,6 +78,7 @@ public class LiveOpsController : BaseController
             : Ok(new StatusResponseDto<IReadOnlyList<TwitchPoll>> { Data = result.Value.Items });
     }
 
+    /// <summary>Create a new poll with optional channel point voting.</summary>
     [RequireAction("live-ops:polls:write")]
     [HttpPost("polls")]
     [ProducesResponseType<StatusResponseDto<TwitchPoll>>(StatusCodes.Status201Created)]
@@ -111,6 +114,7 @@ public class LiveOpsController : BaseController
             );
     }
 
+    /// <summary>End a poll with a specified outcome (ARCHIVED or TERMINATED).</summary>
     [RequireAction("live-ops:polls:write")]
     [HttpPatch("polls/{pollId}/end")]
     [ProducesResponseType<StatusResponseDto<TwitchPoll>>(StatusCodes.Status200OK)]
@@ -145,6 +149,7 @@ public class LiveOpsController : BaseController
 
     public record EndPredictionDto(string Status, string? WinningOutcomeId = null);
 
+    /// <summary>List active and ended predictions for the channel.</summary>
     [RequireAction("live-ops:predictions:read")]
     [HttpGet("predictions")]
     [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
@@ -166,6 +171,7 @@ public class LiveOpsController : BaseController
             );
     }
 
+    /// <summary>Create a new channel prediction with multiple outcomes.</summary>
     [RequireAction("live-ops:predictions:write")]
     [HttpPost("predictions")]
     [ProducesResponseType<StatusResponseDto<TwitchPrediction>>(StatusCodes.Status201Created)]
@@ -201,6 +207,7 @@ public class LiveOpsController : BaseController
             );
     }
 
+    /// <summary>End a prediction with RESOLVED or CANCELED status and optional winning outcome.</summary>
     [RequireAction("live-ops:predictions:write")]
     [HttpPatch("predictions/{predictionId}/end")]
     [ProducesResponseType<StatusResponseDto<TwitchPrediction>>(StatusCodes.Status200OK)]
@@ -230,6 +237,7 @@ public class LiveOpsController : BaseController
 
     public record StartRaidDto(string TargetTwitchBroadcasterId);
 
+    /// <summary>Start a raid to another channel.</summary>
     [RequireAction("live-ops:raids:write")]
     [HttpPost("raids")]
     [ProducesResponseType<StatusResponseDto<TwitchRaid>>(StatusCodes.Status201Created)]
@@ -255,6 +263,7 @@ public class LiveOpsController : BaseController
             );
     }
 
+    /// <summary>Cancel a raid that has not yet begun.</summary>
     [RequireAction("live-ops:raids:write")]
     [HttpDelete("raids")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -271,6 +280,7 @@ public class LiveOpsController : BaseController
 
     public record StartCommercialDto(int LengthSeconds);
 
+    /// <summary>Get the channel's scheduled ad breaks from Twitch.</summary>
     [RequireAction("live-ops:ads:read")]
     [HttpGet("ads/schedule")]
     [ProducesResponseType<StatusResponseDto<TwitchAdSchedule>>(StatusCodes.Status200OK)]
@@ -285,6 +295,7 @@ public class LiveOpsController : BaseController
             : Ok(new StatusResponseDto<TwitchAdSchedule> { Data = result.Value });
     }
 
+    /// <summary>Start a commercial break of specified length (30, 60, 90, 120, 150, or 180 seconds).</summary>
     [RequireAction("live-ops:ads:write")]
     [HttpPost("ads/commercial")]
     [ProducesResponseType<StatusResponseDto<TwitchCommercial>>(StatusCodes.Status200OK)]
@@ -307,6 +318,7 @@ public class LiveOpsController : BaseController
             : Ok(new StatusResponseDto<TwitchCommercial> { Data = result.Value });
     }
 
+    /// <summary>Delay the next scheduled ad break by 8 minutes.</summary>
     [RequireAction("live-ops:ads:write")]
     [HttpPost("ads/snooze")]
     [ProducesResponseType<StatusResponseDto<TwitchAdSnooze>>(StatusCodes.Status200OK)]
@@ -323,6 +335,7 @@ public class LiveOpsController : BaseController
 
     // ─── Clips ────────────────────────────────────────────────────────────────
 
+    /// <summary>Create a clip of the current broadcast.</summary>
     [RequireAction("live-ops:clips:write")]
     [HttpPost("clips")]
     [ProducesResponseType<StatusResponseDto<TwitchClipStub>>(StatusCodes.Status201Created)]

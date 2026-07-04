@@ -27,6 +27,7 @@ namespace NomNomzBot.Api.Controllers.V1;
 [Tags("Economy — Leaderboards")]
 public class EconomyLeaderboardsController(IEconomyLeaderboardService leaderboards) : BaseController
 {
+    /// <summary>List the channel's leaderboard configurations.</summary>
     [HttpGet("configs")]
     [RequireAction("economy:leaderboards:config:read")]
     public async Task<IActionResult> ListConfigs(string channelId, CancellationToken ct)
@@ -36,6 +37,7 @@ public class EconomyLeaderboardsController(IEconomyLeaderboardService leaderboar
         return ResultResponse(await leaderboards.ListConfigsAsync(broadcasterId, ct));
     }
 
+    /// <summary>Create or update a leaderboard configuration for the channel.</summary>
     [HttpPut("configs")]
     [RequireAction("economy:leaderboards:config:write")]
     public async Task<IActionResult> UpsertConfig(
@@ -49,6 +51,7 @@ public class EconomyLeaderboardsController(IEconomyLeaderboardService leaderboar
         return ResultResponse(await leaderboards.UpsertConfigAsync(broadcasterId, request, ct));
     }
 
+    /// <summary>Delete a leaderboard configuration by id.</summary>
     [HttpDelete("configs/{configId:guid}")]
     [RequireAction("economy:leaderboards:config:delete")]
     public async Task<IActionResult> DeleteConfig(
@@ -62,6 +65,7 @@ public class EconomyLeaderboardsController(IEconomyLeaderboardService leaderboar
         return ResultResponse(await leaderboards.DeleteConfigAsync(broadcasterId, configId, ct));
     }
 
+    /// <summary>Read the live ranking for a leaderboard, optionally limited to the top N entries.</summary>
     [HttpGet("{configId:guid}")]
     [RequireAction("economy:leaderboards:read")]
     public async Task<IActionResult> GetRanking(
@@ -76,6 +80,7 @@ public class EconomyLeaderboardsController(IEconomyLeaderboardService leaderboar
         return ResultResponse(await leaderboards.GetRankingAsync(broadcasterId, configId, top, ct));
     }
 
+    /// <summary>Opt a viewer out of the channel's leaderboards, hiding them from rankings.</summary>
     [HttpPost("opt-out/{viewerUserId:guid}")]
     [RequireAction("economy:leaderboards:opt-out")]
     public async Task<IActionResult> OptOut(
@@ -89,6 +94,7 @@ public class EconomyLeaderboardsController(IEconomyLeaderboardService leaderboar
         return ResultResponse(await leaderboards.OptOutAsync(broadcasterId, viewerUserId, ct));
     }
 
+    /// <summary>Opt a viewer back into the channel's leaderboards.</summary>
     [HttpPost("opt-in/{viewerUserId:guid}")]
     [RequireAction("economy:leaderboards:opt-in")]
     public async Task<IActionResult> OptIn(

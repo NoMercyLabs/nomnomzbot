@@ -27,6 +27,7 @@ namespace NomNomzBot.Api.Controllers.V1;
 [Tags("Billing")]
 public class BillingWebhookController(IStripeWebhookHandler handler) : BaseController
 {
+    /// <summary>Receive a Stripe webhook event, passing the raw payload and Stripe-Signature header to the handler for HMAC verification and dispatch.</summary>
     [HttpPost]
     public async Task<IActionResult> Receive(CancellationToken ct)
     {

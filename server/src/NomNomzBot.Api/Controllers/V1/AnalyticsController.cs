@@ -39,6 +39,7 @@ public class AnalyticsController(
 {
     // ── Channel (management plane) ───────────────────────────────────────────
 
+    /// <summary>Read the channel's daily analytics series for a date range.</summary>
     [HttpGet("channel/daily")]
     [RequireAction("analytics:read")]
     public async Task<IActionResult> GetChannelDaily(
@@ -48,6 +49,7 @@ public class AnalyticsController(
         CancellationToken ct
     ) => ResultResponse(await channelAnalytics.GetDailySeriesAsync(channelId, from, to, ct));
 
+    /// <summary>Read the channel's aggregated analytics summary for a date range.</summary>
     [HttpGet("channel/summary")]
     [RequireAction("analytics:read")]
     public async Task<IActionResult> GetChannelSummary(
@@ -57,6 +59,7 @@ public class AnalyticsController(
         CancellationToken ct
     ) => ResultResponse(await channelAnalytics.GetSummaryAsync(channelId, from, to, ct));
 
+    /// <summary>Rank the channel's top viewers by the chosen metric over a date range.</summary>
     [HttpGet("channel/top-viewers")]
     [RequireAction("analytics:read")]
     public async Task<IActionResult> GetTopViewers(
@@ -73,6 +76,7 @@ public class AnalyticsController(
 
     // ── Viewers ──────────────────────────────────────────────────────────────
 
+    /// <summary>List viewer analytics profiles matching the query, paginated.</summary>
     [HttpGet("viewers")]
     [RequireAction("analytics:viewer:read")]
     public async Task<IActionResult> ListViewers(
@@ -90,6 +94,7 @@ public class AnalyticsController(
         return GetPaginatedResponse(result.Value, request);
     }
 
+    /// <summary>Read a single viewer's analytics profile (self-or-Gate-2, authorized in-action).</summary>
     [HttpGet("viewers/{viewerUserId:guid}")]
     public async Task<IActionResult> GetViewer(
         Guid channelId,
@@ -102,6 +107,7 @@ public class AnalyticsController(
         return ResultResponse(await viewerAnalytics.GetProfileAsync(channelId, viewerUserId, ct));
     }
 
+    /// <summary>Read a viewer's engagement series over a date range (self-or-Gate-2).</summary>
     [HttpGet("viewers/{viewerUserId:guid}/engagement")]
     public async Task<IActionResult> GetViewerEngagement(
         Guid channelId,
@@ -118,6 +124,7 @@ public class AnalyticsController(
         );
     }
 
+    /// <summary>Read a viewer's current attendance streak (self-or-Gate-2).</summary>
     [HttpGet("viewers/{viewerUserId:guid}/streak")]
     public async Task<IActionResult> GetViewerStreak(
         Guid channelId,
@@ -130,6 +137,7 @@ public class AnalyticsController(
         return ResultResponse(await viewerAnalytics.GetStreakAsync(channelId, viewerUserId, ct));
     }
 
+    /// <summary>Set or clear a viewer's analytics opt-out flag (self-or-Gate-2).</summary>
     [HttpPost("viewers/{viewerUserId:guid}/opt-out")]
     public async Task<IActionResult> SetViewerOptOut(
         Guid channelId,

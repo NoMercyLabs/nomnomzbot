@@ -21,6 +21,7 @@ using NomNomzBot.Application.Rewards.Services;
 
 namespace NomNomzBot.Api.Controllers.V1;
 
+/// <summary>Manages channel point rewards and redemption fulfillment.</summary>
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/channels/{channelId}/rewards")]
 [Authorize]
@@ -40,6 +41,7 @@ public class RewardsController : BaseController
 
     private sealed record ChatterTally(string UserId, int Count);
 
+    /// <summary>List all channel point rewards, paginated.</summary>
     [RequireAction("reward:read")]
     [HttpGet]
     [ProducesResponseType<PaginatedResponse<RewardDetail>>(StatusCodes.Status200OK)]
@@ -107,6 +109,7 @@ public class RewardsController : BaseController
             await _rewardService.SetRedemptionStatusAsync(channelId, redemptionId, "CANCELED", ct)
         );
 
+    /// <summary>Retrieve a channel point reward by ID.</summary>
     [RequireAction("reward:read")]
     [HttpGet("{rewardId}")]
     [ProducesResponseType<StatusResponseDto<RewardDetail>>(StatusCodes.Status200OK)]
@@ -120,6 +123,7 @@ public class RewardsController : BaseController
         return ResultResponse(result);
     }
 
+    /// <summary>Create a new channel point reward.</summary>
     [RequireAction("reward:manage")]
     [HttpPost]
     [ProducesResponseType<StatusResponseDto<RewardDetail>>(StatusCodes.Status201Created)]
@@ -144,6 +148,7 @@ public class RewardsController : BaseController
         );
     }
 
+    /// <summary>Partially update a channel point reward.</summary>
     [RequireAction("reward:manage")]
     [HttpPatch("{rewardId}")]
     [ProducesResponseType<StatusResponseDto<RewardDetail>>(StatusCodes.Status200OK)]
@@ -165,6 +170,7 @@ public class RewardsController : BaseController
         return Ok(new StatusResponseDto<RewardDetail> { Data = result.Value });
     }
 
+    /// <summary>Fully update a channel point reward.</summary>
     [RequireAction("reward:manage")]
     [HttpPut("{rewardId}")]
     [ProducesResponseType<StatusResponseDto<RewardDetail>>(StatusCodes.Status200OK)]
@@ -186,6 +192,7 @@ public class RewardsController : BaseController
         return Ok(new StatusResponseDto<RewardDetail> { Data = result.Value });
     }
 
+    /// <summary>Delete a channel point reward.</summary>
     [RequireAction("reward:manage")]
     [HttpDelete("{rewardId}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -201,6 +208,7 @@ public class RewardsController : BaseController
         return NoContent();
     }
 
+    /// <summary>Sync channel point rewards from Twitch Helix.</summary>
     [RequireAction("reward:sync")]
     [HttpPost("sync")]
     [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
@@ -212,6 +220,7 @@ public class RewardsController : BaseController
         return Ok(new StatusResponseDto<object> { Message = "Rewards synced with Twitch." });
     }
 
+    /// <summary>Top-50 chatter leaderboard ranked by message count, with resolved display names.</summary>
     [RequireAction("reward:read")]
     [HttpGet("leaderboard")]
     [ProducesResponseType<StatusResponseDto<List<LeaderboardEntryDto>>>(StatusCodes.Status200OK)]

@@ -26,6 +26,7 @@ namespace NomNomzBot.Api.Controllers.V1;
 public class PlatformAnalyticsController(IPlatformAnalyticsService platformAnalytics)
     : BaseController
 {
+    /// <summary>Read cross-tenant platform stats for a date range (FEATURE_DISABLED on self-host).</summary>
     [HttpGet("stats")]
     public async Task<IActionResult> GetStats(
         [FromQuery] DateOnly from,

@@ -18,6 +18,7 @@ using NomNomzBot.Application.Identity.Services;
 
 namespace NomNomzBot.Api.Controllers.V1;
 
+/// <summary>Manages user profiles, search, and GDPR data requests.</summary>
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/users")]
 [Authorize]
@@ -35,6 +36,7 @@ public class UsersController : BaseController
         _timeProvider = timeProvider;
     }
 
+    /// <summary>Search for users by name or username.</summary>
     [HttpGet]
     [ProducesResponseType<PaginatedResponse<UserDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> SearchUsers(
@@ -57,6 +59,7 @@ public class UsersController : BaseController
         return GetPaginatedResponse(result.Value, request);
     }
 
+    /// <summary>Retrieve a user by ID.</summary>
     [HttpGet("{userId}")]
     [ProducesResponseType<StatusResponseDto<UserDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetUser(string userId, CancellationToken ct)
@@ -65,6 +68,7 @@ public class UsersController : BaseController
         return ResultResponse(result);
     }
 
+    /// <summary>Retrieve a user's profile information.</summary>
     [HttpGet("{userId}/profile")]
     [ProducesResponseType<StatusResponseDto<UserProfileDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetUserProfile(string userId, CancellationToken ct)
@@ -73,6 +77,7 @@ public class UsersController : BaseController
         return ResultResponse(result);
     }
 
+    /// <summary>Update a user's profile information.</summary>
     [HttpPut("{userId}/profile")]
     [ProducesResponseType<StatusResponseDto<UserProfileDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> UpdateUserProfile(
@@ -87,6 +92,7 @@ public class UsersController : BaseController
         return Ok(new StatusResponseDto<UserProfileDto> { Data = result.Value });
     }
 
+    /// <summary>Get all channels a user appears in (as broadcaster or moderation role).</summary>
     [HttpGet("{userId}/channels")]
     [ProducesResponseType<
         StatusResponseDto<List<NomNomzBot.Application.Identity.Dtos.UserChannelAppearanceDto>>

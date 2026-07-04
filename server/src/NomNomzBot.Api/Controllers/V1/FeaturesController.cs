@@ -19,6 +19,7 @@ using NomNomzBot.Application.Platform.Services;
 
 namespace NomNomzBot.Api.Controllers.V1;
 
+/// <summary>Manages feature flags and toggles for a channel.</summary>
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/channels/{channelId}/features")]
 [Authorize]
@@ -32,6 +33,7 @@ public class FeaturesController : BaseController
         _featureService = featureService;
     }
 
+    /// <summary>List all features and their current enabled state for the channel.</summary>
     [HttpGet]
     [RequireAction("feature:read")]
     [ProducesResponseType<StatusResponseDto<List<FeatureStatusDto>>>(StatusCodes.Status200OK)]
@@ -44,6 +46,7 @@ public class FeaturesController : BaseController
         return ResultResponse(result);
     }
 
+    /// <summary>Toggle a feature on or off for the channel.</summary>
     [HttpPost("{featureKey}/toggle")]
     [RequireAction("feature:write")]
     [ProducesResponseType<StatusResponseDto<FeatureStatusDto>>(StatusCodes.Status200OK)]

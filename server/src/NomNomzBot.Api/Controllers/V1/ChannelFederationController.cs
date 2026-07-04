@@ -31,6 +31,7 @@ public class ChannelFederationController(
     ICurrentUserService currentUser
 ) : BaseController
 {
+    /// <summary>List the channel's federation opt-ins.</summary>
     [HttpGet("opt-ins")]
     [RequireAction("federation:optin:read")]
     public async Task<IActionResult> List(string channelId, CancellationToken ct)
@@ -40,6 +41,7 @@ public class ChannelFederationController(
         return ResultResponse(await optIns.ListAsync(broadcasterId, ct));
     }
 
+    /// <summary>Create or update a federation opt-in for the channel, attributed to the acting caller.</summary>
     [HttpPut("opt-ins")]
     [RequireAction("federation:optin:write")]
     public async Task<IActionResult> Upsert(
@@ -55,6 +57,7 @@ public class ChannelFederationController(
         return ResultResponse(await optIns.UpsertAsync(broadcasterId, request, caller, ct));
     }
 
+    /// <summary>Disable a federation opt-in, returning that flow to default-deny.</summary>
     [HttpDelete("opt-ins/{optInId:guid}")]
     [RequireAction("federation:optin:delete")]
     public async Task<IActionResult> Disable(string channelId, Guid optInId, CancellationToken ct)

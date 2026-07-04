@@ -43,6 +43,7 @@ public class PermitsController(IPermitService permits, ICurrentUserService curre
         string? Reason
     );
 
+    /// <summary>List the channel's active permit grants.</summary>
     [HttpGet]
     [RequireAction("roles:read")]
     public async Task<IActionResult> List(string channelId, CancellationToken ct)
@@ -52,6 +53,7 @@ public class PermitsController(IPermitService permits, ICurrentUserService curre
         return ResultResponse(await permits.ListActiveGrantsAsync(broadcasterId, ct));
     }
 
+    /// <summary>Grant a user a management role via permit, with optional expiry and reason.</summary>
     [HttpPost("role")]
     [RequireAction("permit:issue")]
     public async Task<IActionResult> GrantRole(
@@ -77,6 +79,7 @@ public class PermitsController(IPermitService permits, ICurrentUserService curre
         );
     }
 
+    /// <summary>Grant a user a single action-key capability via permit, with optional expiry and reason.</summary>
     [HttpPost("capability")]
     [RequireAction("permit:issue")]
     public async Task<IActionResult> GrantCapability(
@@ -102,6 +105,7 @@ public class PermitsController(IPermitService permits, ICurrentUserService curre
         );
     }
 
+    /// <summary>Revoke a user's permit grant, matched by action key or role.</summary>
     [HttpDelete("{userId:guid}")]
     [RequireAction("permit:issue")]
     public async Task<IActionResult> Revoke(

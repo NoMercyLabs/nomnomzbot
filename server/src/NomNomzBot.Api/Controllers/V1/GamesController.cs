@@ -38,6 +38,7 @@ public class GamesController(
     ICurrentUserService currentUser
 ) : BaseController
 {
+    /// <summary>List the channel's mini-game configurations.</summary>
     [HttpGet]
     [RequireAction("economy:games:read")]
     public async Task<IActionResult> ListGames(string channelId, CancellationToken ct)
@@ -47,6 +48,7 @@ public class GamesController(
         return ResultResponse(await games.ListGamesAsync(broadcasterId, ct));
     }
 
+    /// <summary>Create or update a mini-game configuration for the channel.</summary>
     [HttpPut]
     [RequireAction("economy:games:write")]
     public async Task<IActionResult> UpsertGame(
@@ -60,6 +62,7 @@ public class GamesController(
         return ResultResponse(await games.UpsertGameAsync(broadcasterId, request, ct));
     }
 
+    /// <summary>Play a configured game as the authenticated caller, with the player's role level resolved server-side.</summary>
     [HttpPost("{gameConfigId:guid}/play")]
     [RequireAction("economy:games:play")]
     public async Task<IActionResult> Play(
@@ -85,6 +88,7 @@ public class GamesController(
         return ResultResponse(await games.PlayAsync(broadcasterId, bound, ct));
     }
 
+    /// <summary>Page through the channel's game-play history, filtered.</summary>
     [HttpGet("history")]
     [RequireAction("economy:games:history:read")]
     [ProducesResponseType<PaginatedResponse<GamePlayDto>>(StatusCodes.Status200OK)]
@@ -109,6 +113,7 @@ public class GamesController(
         return GetPaginatedResponse(result.Value, request);
     }
 
+    /// <summary>Check whether a viewer has granted 18+ consent on this channel.</summary>
     [HttpGet("consent/{viewerUserId:guid}")]
     [RequireAction("economy:consent:read")]
     public async Task<IActionResult> GetConsent(
@@ -122,6 +127,7 @@ public class GamesController(
         return ResultResponse(await ageConsent.HasGrantedAsync(broadcasterId, viewerUserId, ct));
     }
 
+    /// <summary>Grant 18+ consent for the authenticated caller — the subject is always the caller confirming their own age.</summary>
     [HttpPost("consent")]
     [RequireAction("economy:consent:write")]
     public async Task<IActionResult> GrantConsent(
@@ -142,6 +148,7 @@ public class GamesController(
         return ResultResponse(await ageConsent.GrantAsync(broadcasterId, bound, ct));
     }
 
+    /// <summary>Revoke a viewer's 18+ consent on this channel.</summary>
     [HttpDelete("consent/{viewerUserId:guid}")]
     [RequireAction("economy:consent:revoke")]
     public async Task<IActionResult> RevokeConsent(

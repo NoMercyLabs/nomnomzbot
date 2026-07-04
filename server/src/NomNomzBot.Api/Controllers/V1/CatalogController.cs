@@ -36,6 +36,7 @@ public class CatalogController(
     ICurrentUserService currentUser
 ) : BaseController
 {
+    /// <summary>List the channel's catalog items, paginated.</summary>
     [HttpGet]
     [RequireAction("economy:catalog:read")]
     [ProducesResponseType<PaginatedResponse<CatalogItemDto>>(StatusCodes.Status200OK)]
@@ -58,6 +59,7 @@ public class CatalogController(
         return GetPaginatedResponse(result.Value, request);
     }
 
+    /// <summary>Read a single catalog item by id.</summary>
     [HttpGet("{itemId:guid}")]
     [RequireAction("economy:catalog:read")]
     public async Task<IActionResult> GetItem(string channelId, Guid itemId, CancellationToken ct)
@@ -67,6 +69,7 @@ public class CatalogController(
         return ResultResponse(await catalog.GetItemAsync(broadcasterId, itemId, ct));
     }
 
+    /// <summary>Create a new catalog item for the channel.</summary>
     [HttpPost]
     [RequireAction("economy:catalog:create")]
     public async Task<IActionResult> CreateItem(
@@ -80,6 +83,7 @@ public class CatalogController(
         return ResultResponse(await catalog.CreateItemAsync(broadcasterId, request, ct));
     }
 
+    /// <summary>Partially update an existing catalog item.</summary>
     [HttpPatch("{itemId:guid}")]
     [RequireAction("economy:catalog:update")]
     public async Task<IActionResult> UpdateItem(
@@ -94,6 +98,7 @@ public class CatalogController(
         return ResultResponse(await catalog.UpdateItemAsync(broadcasterId, itemId, request, ct));
     }
 
+    /// <summary>Delete a catalog item from the channel's store.</summary>
     [HttpDelete("{itemId:guid}")]
     [RequireAction("economy:catalog:delete")]
     public async Task<IActionResult> DeleteItem(string channelId, Guid itemId, CancellationToken ct)
@@ -103,6 +108,7 @@ public class CatalogController(
         return ResultResponse(await catalog.DeleteItemAsync(broadcasterId, itemId, ct));
     }
 
+    /// <summary>Purchase a catalog item as the authenticated caller, with the buyer's role level resolved server-side.</summary>
     [HttpPost("{itemId:guid}/purchase")]
     [RequireAction("economy:catalog:purchase")]
     public async Task<IActionResult> Purchase(
@@ -129,6 +135,7 @@ public class CatalogController(
         return ResultResponse(await catalog.PurchaseAsync(broadcasterId, bound, ct));
     }
 
+    /// <summary>List the channel's catalog purchases, filtered and paginated.</summary>
     [HttpGet("purchases")]
     [RequireAction("economy:catalog:purchases:read")]
     [ProducesResponseType<PaginatedResponse<CatalogPurchaseDto>>(StatusCodes.Status200OK)]
@@ -153,6 +160,7 @@ public class CatalogController(
         return GetPaginatedResponse(result.Value, request);
     }
 
+    /// <summary>Refund a purchase, binding the acting refunder to the authenticated caller.</summary>
     [HttpPost("purchases/{purchaseId:long}/refund")]
     [RequireAction("economy:catalog:refund")]
     public async Task<IActionResult> Refund(

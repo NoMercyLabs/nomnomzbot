@@ -19,6 +19,7 @@ using NomNomzBot.Infrastructure.Platform.Persistence;
 
 namespace NomNomzBot.Api.Controllers.V1;
 
+/// <summary>Viewer pronoun management: the pronoun catalogue and the caller's own pronoun selection.</summary>
 [ApiController]
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/pronouns")]

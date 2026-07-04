@@ -52,6 +52,7 @@ public class DiscordController : BaseController
 
     // ── Connections ─────────────────────────────────────────────────────────
 
+    /// <summary>List the channel's linked Discord guild connections.</summary>
     [RequireAction("discord:connection:read")]
     [HttpGet("connections")]
     [ProducesResponseType<StatusResponseDto<IReadOnlyList<DiscordGuildConnectionDto>>>(
@@ -60,6 +61,7 @@ public class DiscordController : BaseController
     public async Task<IActionResult> GetConnections(Guid channelId, CancellationToken ct) =>
         ResultResponse(await _guilds.GetConnectionsAsync(channelId, ct));
 
+    /// <summary>Fetch a single Discord guild connection by id.</summary>
     [RequireAction("discord:connection:read")]
     [HttpGet("connections/{connectionId:guid}")]
     [ProducesResponseType<StatusResponseDto<DiscordGuildConnectionDto>>(StatusCodes.Status200OK)]
@@ -69,6 +71,7 @@ public class DiscordController : BaseController
         CancellationToken ct
     ) => ResultResponse(await _guilds.GetConnectionAsync(channelId, connectionId, ct));
 
+    /// <summary>Record the Discord server admin's consent on a guild connection — the server half of the both-opt-in handshake.</summary>
     [RequireAction("discord:connection:write")]
     [HttpPost("connections/{connectionId:guid}/server-consent")]
     [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
@@ -87,6 +90,7 @@ public class DiscordController : BaseController
             )
         );
 
+    /// <summary>Withdraw the Discord server's consent from a guild connection, halting notifications until re-approved.</summary>
     [RequireAction("discord:connection:write")]
     [HttpDelete("connections/{connectionId:guid}/server-consent")]
     [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
@@ -96,6 +100,7 @@ public class DiscordController : BaseController
         CancellationToken ct
     ) => ResultResponse(await _guilds.RevokeServerConsentAsync(channelId, connectionId, ct));
 
+    /// <summary>Toggle the streamer's side of a guild connection on or off — the streamer half of the both-opt-in handshake.</summary>
     [RequireAction("discord:connection:write")]
     [HttpPut("connections/{connectionId:guid}/streamer-enabled")]
     [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
@@ -109,6 +114,7 @@ public class DiscordController : BaseController
             await _guilds.SetStreamerEnabledAsync(channelId, connectionId, request.Enabled, ct)
         );
 
+    /// <summary>Disconnect a Discord guild from the channel entirely.</summary>
     [RequireAction("discord:connection:write")]
     [HttpDelete("connections/{connectionId:guid}")]
     [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
@@ -120,6 +126,7 @@ public class DiscordController : BaseController
 
     // ── Notification configs ──────────────────────────────────────────────────
 
+    /// <summary>List the notification rules configured on a guild connection.</summary>
     [RequireAction("discord:config:read")]
     [HttpGet("connections/{connectionId:guid}/configs")]
     [ProducesResponseType<StatusResponseDto<IReadOnlyList<DiscordNotificationConfigDto>>>(
@@ -131,6 +138,7 @@ public class DiscordController : BaseController
         CancellationToken ct
     ) => ResultResponse(await _configs.GetConfigsAsync(channelId, connectionId, ct));
 
+    /// <summary>Create a notification rule on a guild connection.</summary>
     [RequireAction("discord:config:write")]
     [HttpPost("connections/{connectionId:guid}/configs")]
     [ProducesResponseType<StatusResponseDto<DiscordNotificationConfigDto>>(StatusCodes.Status200OK)]
@@ -141,6 +149,7 @@ public class DiscordController : BaseController
         CancellationToken ct
     ) => ResultResponse(await _configs.CreateConfigAsync(channelId, connectionId, request, ct));
 
+    /// <summary>Update an existing notification rule.</summary>
     [RequireAction("discord:config:write")]
     [HttpPut("configs/{configId:guid}")]
     [ProducesResponseType<StatusResponseDto<DiscordNotificationConfigDto>>(StatusCodes.Status200OK)]
@@ -151,6 +160,7 @@ public class DiscordController : BaseController
         CancellationToken ct
     ) => ResultResponse(await _configs.UpdateConfigAsync(channelId, configId, request, ct));
 
+    /// <summary>Delete a notification rule from the channel.</summary>
     [RequireAction("discord:config:write")]
     [HttpDelete("configs/{configId:guid}")]
     [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
@@ -160,6 +170,7 @@ public class DiscordController : BaseController
         CancellationToken ct
     ) => ResultResponse(await _configs.DeleteConfigAsync(channelId, configId, ct));
 
+    /// <summary>Render a preview of a notification rule's message without dispatching it to Discord.</summary>
     [RequireAction("discord:config:read")]
     [HttpGet("configs/{configId:guid}/preview")]
     [ProducesResponseType<StatusResponseDto<DiscordNotificationPreviewDto>>(
@@ -173,6 +184,7 @@ public class DiscordController : BaseController
 
     // ── Notify roles + opt-in ─────────────────────────────────────────────────
 
+    /// <summary>List the self-assign notify roles defined on a guild connection.</summary>
     [RequireAction("discord:role:read")]
     [HttpGet("connections/{connectionId:guid}/roles")]
     [ProducesResponseType<StatusResponseDto<IReadOnlyList<DiscordNotificationRoleDto>>>(
@@ -184,6 +196,7 @@ public class DiscordController : BaseController
         CancellationToken ct
     ) => ResultResponse(await _roles.GetRolesAsync(channelId, connectionId, ct));
 
+    /// <summary>Create a self-assign notify role on a guild connection.</summary>
     [RequireAction("discord:role:write")]
     [HttpPost("connections/{connectionId:guid}/roles")]
     [ProducesResponseType<StatusResponseDto<DiscordNotificationRoleDto>>(StatusCodes.Status200OK)]
@@ -194,6 +207,7 @@ public class DiscordController : BaseController
         CancellationToken ct
     ) => ResultResponse(await _roles.CreateRoleAsync(channelId, connectionId, request, ct));
 
+    /// <summary>Update a self-assign notify role's settings.</summary>
     [RequireAction("discord:role:write")]
     [HttpPut("roles/{roleId:guid}")]
     [ProducesResponseType<StatusResponseDto<DiscordNotificationRoleDto>>(StatusCodes.Status200OK)]
@@ -204,6 +218,7 @@ public class DiscordController : BaseController
         CancellationToken ct
     ) => ResultResponse(await _roles.UpdateRoleAsync(channelId, roleId, request, ct));
 
+    /// <summary>Delete a self-assign notify role.</summary>
     [RequireAction("discord:role:write")]
     [HttpDelete("roles/{roleId:guid}")]
     [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
@@ -213,6 +228,7 @@ public class DiscordController : BaseController
         CancellationToken ct
     ) => ResultResponse(await _roles.DeleteRoleAsync(channelId, roleId, ct));
 
+    /// <summary>Post the role's opt-in button message to a chosen Discord channel.</summary>
     [RequireAction("discord:role:write")]
     [HttpPost("roles/{roleId:guid}/button")]
     [ProducesResponseType<StatusResponseDto<DiscordNotificationRoleDto>>(StatusCodes.Status200OK)]
@@ -226,6 +242,7 @@ public class DiscordController : BaseController
             await _roles.PostOptInButtonAsync(channelId, roleId, request.ButtonChannelId, ct)
         );
 
+    /// <summary>Opt a Discord member into a notify role, recording the opt-in source.</summary>
     [RequireAction("discord:optin:write")]
     [HttpPost("roles/{roleId:guid}/opt-in")]
     [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
@@ -245,6 +262,7 @@ public class DiscordController : BaseController
             )
         );
 
+    /// <summary>Opt a Discord member out of a notify role, recording the opt-out source.</summary>
     [RequireAction("discord:optin:write")]
     [HttpPost("roles/{roleId:guid}/opt-out")]
     [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
@@ -266,6 +284,7 @@ public class DiscordController : BaseController
 
     // ── Dispatch log ──────────────────────────────────────────────────────────
 
+    /// <summary>List a guild connection's notification dispatch log, paginated.</summary>
     [RequireAction("discord:dispatch:read")]
     [HttpGet("connections/{connectionId:guid}/dispatch-log")]
     [ProducesResponseType<PaginatedResponse<DiscordDispatchLogDto>>(StatusCodes.Status200OK)]

@@ -36,6 +36,7 @@ public class RolesController(
 {
     public record SetRoleBody(Guid UserId, ManagementRole Role);
 
+    /// <summary>List the channel's management-role memberships, paginated (flat PaginatedResponse shape).</summary>
     [HttpGet]
     [RequireAction("roles:read")]
     [ProducesResponseType<PaginatedResponse<ChannelMembershipDto>>(StatusCodes.Status200OK)]
@@ -65,6 +66,7 @@ public class RolesController(
         );
     }
 
+    /// <summary>Assign or change a user's management role on the channel, recorded as a bot grant.</summary>
     [HttpPut]
     [RequireAction("roles:manage")]
     public async Task<IActionResult> SetRole(
@@ -89,6 +91,7 @@ public class RolesController(
         );
     }
 
+    /// <summary>Remove a user's management role from the channel.</summary>
     [HttpDelete("{userId:guid}")]
     [RequireAction("roles:manage")]
     public async Task<IActionResult> RemoveRole(string channelId, Guid userId, CancellationToken ct)

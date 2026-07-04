@@ -32,6 +32,7 @@ namespace NomNomzBot.Api.Controllers.V1;
 public class FederationController(IFederationPeerService peers, ICurrentUserService currentUser)
     : BaseController
 {
+    /// <summary>List registered federation peers, paginated, optionally filtered by trust state.</summary>
     [HttpGet("peers")]
     [ProducesResponseType<PaginatedResponse<FederationPeerDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> ListPeers(
@@ -51,16 +52,19 @@ public class FederationController(IFederationPeerService peers, ICurrentUserServ
         return GetPaginatedResponse(result.Value, request);
     }
 
+    /// <summary>Fetch a single federation peer by id.</summary>
     [HttpGet("peers/{peerId:guid}")]
     public async Task<IActionResult> GetPeer(Guid peerId, CancellationToken ct) =>
         ResultResponse(await peers.GetPeerAsync(peerId, ct));
 
+    /// <summary>Register a new peer instance in the federation trust directory.</summary>
     [HttpPost("peers")]
     public async Task<IActionResult> RegisterPeer(
         [FromBody] RegisterFederationPeerRequest request,
         CancellationToken ct
     ) => ResultResponse(await peers.RegisterPeerAsync(request, ct));
 
+    /// <summary>Mark a registered peer as trusted, recording the acting operator.</summary>
     [HttpPost("peers/{peerId:guid}/trust")]
     public async Task<IActionResult> TrustPeer(Guid peerId, CancellationToken ct)
     {
@@ -69,6 +73,7 @@ public class FederationController(IFederationPeerService peers, ICurrentUserServ
         return ResultResponse(await peers.TrustPeerAsync(peerId, caller, ct));
     }
 
+    /// <summary>Revoke a peer's trust with a stated reason, recording the acting operator.</summary>
     [HttpPost("peers/{peerId:guid}/revoke")]
     public async Task<IActionResult> RevokePeer(
         Guid peerId,
@@ -81,6 +86,7 @@ public class FederationController(IFederationPeerService peers, ICurrentUserServ
         return ResultResponse(await peers.RevokePeerAsync(peerId, request, caller, ct));
     }
 
+    /// <summary>Add a new signing key to a peer for key rotation.</summary>
     [HttpPost("peers/{peerId:guid}/keys")]
     public async Task<IActionResult> AddPeerKey(
         Guid peerId,
@@ -88,6 +94,7 @@ public class FederationController(IFederationPeerService peers, ICurrentUserServ
         CancellationToken ct
     ) => ResultResponse(await peers.AddPeerKeyAsync(peerId, request, ct));
 
+    /// <summary>Deactivate one of a peer's signing keys by key id.</summary>
     [HttpDelete("peers/{peerId:guid}/keys/{keyId}")]
     public async Task<IActionResult> DeactivatePeerKey(
         Guid peerId,

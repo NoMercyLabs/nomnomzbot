@@ -18,6 +18,7 @@ using NomNomzBot.Application.Sound.Services;
 
 namespace NomNomzBot.Api.Controllers.V1;
 
+/// <summary>Manages audio clips for sound effects and notifications.</summary>
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/sound-clips")]
 [Authorize]
@@ -55,6 +56,7 @@ public sealed class SoundClipsController : BaseController
 
     // ── GET /sound-clips ─────────────────────────────────────────────────────
 
+    /// <summary>List all sound clips for the channel, paginated.</summary>
     [HttpGet]
     [ProducesResponseType<PaginatedResponse<SoundClipDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> List(
@@ -87,6 +89,7 @@ public sealed class SoundClipsController : BaseController
 
     // ── GET /sound-clips/{id} ─────────────────────────────────────────────────
 
+    /// <summary>Retrieve a sound clip by ID.</summary>
     [HttpGet("{id:guid}")]
     [ProducesResponseType<StatusResponseDto<SoundClipDto>>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -103,6 +106,7 @@ public sealed class SoundClipsController : BaseController
 
     // ── POST /sound-clips (multipart upload) ─────────────────────────────────
 
+    /// <summary>Upload a new sound clip (multipart audio file, max 10 MB).</summary>
     [HttpPost]
     [RequestSizeLimit(11 * 1024 * 1024)] // 11 MB envelope (10 MB content + headers)
     [Consumes("multipart/form-data")]
@@ -147,6 +151,7 @@ public sealed class SoundClipsController : BaseController
 
     // ── PUT /sound-clips/{id} ─────────────────────────────────────────────────
 
+    /// <summary>Update sound clip metadata (name, display name, volume).</summary>
     [HttpPut("{id:guid}")]
     [ProducesResponseType<StatusResponseDto<SoundClipDto>>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -174,6 +179,7 @@ public sealed class SoundClipsController : BaseController
 
     // ── DELETE /sound-clips/{id} ─────────────────────────────────────────────
 
+    /// <summary>Delete a sound clip.</summary>
     [HttpDelete("{id:guid}")]
     [ProducesResponseType<StatusResponseDto<bool>>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -190,6 +196,7 @@ public sealed class SoundClipsController : BaseController
 
     // ── POST /sound-clips/{id}/preview ────────────────────────────────────────
 
+    /// <summary>Play preview of sound clip (for testing before use).</summary>
     [HttpPost("{id:guid}/preview")]
     [ProducesResponseType<StatusResponseDto<bool>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> Preview(Guid id, CancellationToken ct)
@@ -207,6 +214,7 @@ public sealed class SoundClipsController : BaseController
     // Serves the clip audio file for overlay playback. Anonymous — the overlay has no JWT;
     // the storage key is opaque and per-broadcaster (no cross-channel disclosure risk).
 
+    /// <summary>Stream the clip's audio file for overlay playback; anonymous, range-request enabled.</summary>
     [HttpGet("stream/{*storageKey}")]
     [AllowAnonymous]
     public async Task<IActionResult> Stream(string storageKey, CancellationToken ct)

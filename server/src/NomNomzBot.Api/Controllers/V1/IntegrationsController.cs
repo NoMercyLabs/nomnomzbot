@@ -20,6 +20,7 @@ using NomNomzBot.Domain.Platform.Entities;
 
 namespace NomNomzBot.Api.Controllers.V1;
 
+/// <summary>Lists connected external integrations (Spotify, Discord, YouTube, OBS, etc.) and handles disconnection.</summary>
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/channels/{channelId}/integrations")]
 [Authorize]
@@ -79,6 +80,7 @@ public class IntegrationsController : BaseController
 
     // ── List integrations ─────────────────────────────────────────────────────
 
+    /// <summary>List all available integrations and their connection state for the channel.</summary>
     [RequireAction("integration:read")]
     [HttpGet]
     [ProducesResponseType<StatusResponseDto<IntegrationsResponse>>(StatusCodes.Status200OK)]
@@ -179,6 +181,7 @@ public class IntegrationsController : BaseController
 
     // ── Disconnect integration ────────────────────────────────────────────────
 
+    /// <summary>Disconnect an external integration (revokes tokens, removes connection state).</summary>
     [RequireAction("integration:write")]
     [HttpDelete("{integrationId}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]

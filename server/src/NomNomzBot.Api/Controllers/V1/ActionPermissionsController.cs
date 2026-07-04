@@ -33,6 +33,7 @@ public class ActionPermissionsController(
 {
     public record SetOverrideBody(int Level);
 
+    /// <summary>Read the channel's full action-permission matrix (defaults plus overrides).</summary>
     [HttpGet]
     [RequireAction("roles:read")]
     public async Task<IActionResult> Matrix(string channelId, CancellationToken ct)
@@ -42,6 +43,7 @@ public class ActionPermissionsController(
         return ResultResponse(await authorization.GetActionMatrixAsync(broadcasterId, ct));
     }
 
+    /// <summary>Override the required level for an action key (clamped to the action's floor).</summary>
     [HttpPut("{actionKey}")]
     [RequireAction("roles:manage")]
     public async Task<IActionResult> SetOverride(
@@ -66,6 +68,7 @@ public class ActionPermissionsController(
         );
     }
 
+    /// <summary>Reset an action key's override back to its default required level.</summary>
     [HttpDelete("{actionKey}")]
     [RequireAction("roles:manage")]
     public async Task<IActionResult> ResetOverride(

@@ -15,6 +15,7 @@ using NomNomzBot.Application.Contracts.Twitch;
 
 namespace NomNomzBot.Api.Controllers;
 
+/// <summary>Shared controller base: rate limiting, JSON output, common error responses, and Result-to-HTTP helpers.</summary>
 [ApiController]
 [EnableRateLimiting("api")]
 [Produces("application/json")]

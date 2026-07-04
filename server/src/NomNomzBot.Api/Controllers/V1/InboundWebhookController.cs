@@ -43,6 +43,7 @@ public class InboundWebhookController(IInboundWebhookDispatcher dispatcher, Time
         "application/x-www-form-urlencoded",
     };
 
+    /// <summary>Ingest a token-addressed webhook delivery: guard content-type and the 256 KiB size cap, buffer the raw bytes, dispatch, and answer with a bare status code.</summary>
     [HttpPost("{token}")]
     public async Task<IActionResult> Receive(string token, CancellationToken ct)
     {

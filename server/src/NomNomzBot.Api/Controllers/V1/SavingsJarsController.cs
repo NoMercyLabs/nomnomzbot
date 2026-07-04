@@ -32,6 +32,7 @@ namespace NomNomzBot.Api.Controllers.V1;
 public class SavingsJarsController(ISavingsJarService jars, ICurrentUserService currentUser)
     : BaseController
 {
+    /// <summary>List the savings jars this channel is a member of.</summary>
     [HttpGet]
     [RequireAction("economy:jars:read")]
     public async Task<IActionResult> ListJars(string channelId, CancellationToken ct)
@@ -41,6 +42,7 @@ public class SavingsJarsController(ISavingsJarService jars, ICurrentUserService 
         return ResultResponse(await jars.ListJarsForChannelAsync(broadcasterId, ct));
     }
 
+    /// <summary>Create a new savings jar owned by this channel.</summary>
     [HttpPost]
     [RequireAction("economy:jars:create")]
     public async Task<IActionResult> CreateJar(
@@ -54,6 +56,7 @@ public class SavingsJarsController(ISavingsJarService jars, ICurrentUserService 
         return ResultResponse(await jars.CreateJarAsync(broadcasterId, request, ct));
     }
 
+    /// <summary>Read a single savings jar by id, membership permitting.</summary>
     [HttpGet("{jarId:guid}")]
     [RequireAction("economy:jars:read")]
     public async Task<IActionResult> GetJar(string channelId, Guid jarId, CancellationToken ct)
@@ -63,6 +66,7 @@ public class SavingsJarsController(ISavingsJarService jars, ICurrentUserService 
         return ResultResponse(await jars.GetJarAsync(broadcasterId, jarId, ct));
     }
 
+    /// <summary>Invite another channel into the jar, binding the jar id from the route.</summary>
     [HttpPost("{jarId:guid}/invite")]
     [RequireAction("economy:jars:invite")]
     public async Task<IActionResult> Invite(
@@ -78,6 +82,7 @@ public class SavingsJarsController(ISavingsJarService jars, ICurrentUserService 
         return ResultResponse(await jars.InviteChannelAsync(broadcasterId, bound, ct));
     }
 
+    /// <summary>Accept a pending jar membership invitation for this channel.</summary>
     [HttpPost("memberships/{membershipId:guid}/accept")]
     [RequireAction("economy:jars:membership:accept")]
     public async Task<IActionResult> AcceptMembership(
@@ -91,6 +96,7 @@ public class SavingsJarsController(ISavingsJarService jars, ICurrentUserService 
         return ResultResponse(await jars.AcceptMembershipAsync(broadcasterId, membershipId, ct));
     }
 
+    /// <summary>Revoke a jar membership, removing the channel from the jar.</summary>
     [HttpDelete("memberships/{membershipId:guid}")]
     [RequireAction("economy:jars:membership:revoke")]
     public async Task<IActionResult> RevokeMembership(
@@ -104,6 +110,7 @@ public class SavingsJarsController(ISavingsJarService jars, ICurrentUserService 
         return ResultResponse(await jars.RevokeMembershipAsync(broadcasterId, membershipId, ct));
     }
 
+    /// <summary>Contribute currency into the jar, binding the contributor to the authenticated caller.</summary>
     [HttpPost("{jarId:guid}/contribute")]
     [RequireAction("economy:jars:contribute")]
     public async Task<IActionResult> Contribute(
@@ -121,6 +128,7 @@ public class SavingsJarsController(ISavingsJarService jars, ICurrentUserService 
         return ResultResponse(await jars.ContributeAsync(broadcasterId, bound, ct));
     }
 
+    /// <summary>Withdraw currency from the jar, binding the acting withdrawer to the authenticated caller.</summary>
     [HttpPost("{jarId:guid}/withdraw")]
     [RequireAction("economy:jars:withdraw")]
     public async Task<IActionResult> Withdraw(
@@ -138,6 +146,7 @@ public class SavingsJarsController(ISavingsJarService jars, ICurrentUserService 
         return ResultResponse(await jars.WithdrawAsync(broadcasterId, bound, ct));
     }
 
+    /// <summary>Page through the jar's contribution and withdrawal movement history.</summary>
     [HttpGet("{jarId:guid}/history")]
     [RequireAction("economy:jars:history:read")]
     [ProducesResponseType<PaginatedResponse<JarMovementDto>>(StatusCodes.Status200OK)]

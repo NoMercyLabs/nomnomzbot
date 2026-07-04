@@ -36,6 +36,7 @@ public class CurrencyController(
 {
     public record FreezeBody(bool Frozen);
 
+    /// <summary>Read the channel's currency configuration.</summary>
     [HttpGet("config")]
     [RequireAction("economy:config:read")]
     public async Task<IActionResult> GetConfig(string channelId, CancellationToken ct)
@@ -45,6 +46,7 @@ public class CurrencyController(
         return ResultResponse(await config.GetConfigAsync(broadcasterId, ct));
     }
 
+    /// <summary>Create or replace the channel's currency configuration.</summary>
     [HttpPut("config")]
     [RequireAction("economy:config:write")]
     public async Task<IActionResult> UpsertConfig(
@@ -58,6 +60,7 @@ public class CurrencyController(
         return ResultResponse(await config.UpsertConfigAsync(broadcasterId, request, ct));
     }
 
+    /// <summary>List the channel's currency earning rules.</summary>
     [HttpGet("earning-rules")]
     [RequireAction("economy:earning-rules:read")]
     [ProducesResponseType<StatusResponseDto<IReadOnlyList<EarningRuleDto>>>(
@@ -70,6 +73,7 @@ public class CurrencyController(
         return ResultResponse(await config.ListEarningRulesAsync(broadcasterId, ct));
     }
 
+    /// <summary>Create or update an earning rule for the channel.</summary>
     [HttpPut("earning-rules")]
     [RequireAction("economy:earning-rules:write")]
     public async Task<IActionResult> UpsertEarningRule(
@@ -83,6 +87,7 @@ public class CurrencyController(
         return ResultResponse(await config.UpsertEarningRuleAsync(broadcasterId, request, ct));
     }
 
+    /// <summary>Delete an earning rule from the channel.</summary>
     [HttpDelete("earning-rules/{ruleId:guid}")]
     [RequireAction("economy:earning-rules:delete")]
     public async Task<IActionResult> DeleteEarningRule(
@@ -96,6 +101,7 @@ public class CurrencyController(
         return ResultResponse(await config.DeleteEarningRuleAsync(broadcasterId, ruleId, ct));
     }
 
+    /// <summary>List the channel's currency accounts (wallets), paginated.</summary>
     [HttpGet("accounts")]
     [RequireAction("economy:accounts:read")]
     [ProducesResponseType<PaginatedResponse<CurrencyAccountDto>>(StatusCodes.Status200OK)]
@@ -136,6 +142,7 @@ public class CurrencyController(
         return ResultResponse(await accounts.GetOrCreateAccountAsync(broadcasterId, caller, ct));
     }
 
+    /// <summary>Read a viewer's wallet by user id, creating the account on first access (the Gate-2 arm of self-or-Gate-2).</summary>
     [HttpGet("accounts/{viewerUserId:guid}")]
     [RequireAction("economy:account:read")]
     public async Task<IActionResult> GetAccount(
@@ -151,6 +158,7 @@ public class CurrencyController(
         );
     }
 
+    /// <summary>Page through a viewer's currency ledger entries.</summary>
     [HttpGet("accounts/{viewerUserId:guid}/ledger")]
     [RequireAction("economy:ledger:read")]
     [ProducesResponseType<PaginatedResponse<CurrencyLedgerEntryDto>>(StatusCodes.Status200OK)]
@@ -175,6 +183,7 @@ public class CurrencyController(
         return GetPaginatedResponse(result.Value, request);
     }
 
+    /// <summary>Admin-adjust a viewer's balance, binding the subject to the route and the actor to the authenticated caller.</summary>
     [HttpPost("accounts/{viewerUserId:guid}/adjust")]
     [RequireAction("economy:account:adjust")]
     public async Task<IActionResult> Adjust(
@@ -197,6 +206,7 @@ public class CurrencyController(
         return ResultResponse(await accounts.AdminAdjustAsync(broadcasterId, bound, ct));
     }
 
+    /// <summary>Freeze or unfreeze a viewer's wallet.</summary>
     [HttpPost("accounts/{viewerUserId:guid}/freeze")]
     [RequireAction("economy:account:freeze")]
     public async Task<IActionResult> Freeze(
@@ -213,6 +223,7 @@ public class CurrencyController(
         );
     }
 
+    /// <summary>Transfer currency between viewers, binding the acting sender to the authenticated caller.</summary>
     [HttpPost("transfer")]
     [RequireAction("economy:transfer:write")]
     public async Task<IActionResult> Transfer(

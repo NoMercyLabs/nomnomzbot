@@ -24,6 +24,7 @@ using NomNomzBot.Application.Integrations.Dtos;
 
 namespace NomNomzBot.Api.Controllers.V1;
 
+/// <summary>Twitch sign-in (redirect + device-code flows), JWT issue/refresh, and session logout.</summary>
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/auth")]
 [Tags("Auth")]

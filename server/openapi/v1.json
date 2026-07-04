@@ -15,6 +15,7 @@
         "tags": [
           "ActionPermissions"
         ],
+        "summary": "Read the channel's full action-permission matrix (defaults plus overrides).",
         "parameters": [
           {
             "name": "channelId",
@@ -102,6 +103,7 @@
         "tags": [
           "ActionPermissions"
         ],
+        "summary": "Override the required level for an action key (clamped to the action's floor).",
         "parameters": [
           {
             "name": "channelId",
@@ -215,6 +217,7 @@
         "tags": [
           "ActionPermissions"
         ],
+        "summary": "Reset an action key's override back to its default required level.",
         "parameters": [
           {
             "name": "channelId",
@@ -310,6 +313,7 @@
         "tags": [
           "Admin"
         ],
+        "summary": "List all invite codes platform-wide, paginated.",
         "parameters": [
           {
             "name": "Page",
@@ -442,6 +446,7 @@
         "tags": [
           "Admin"
         ],
+        "summary": "Mint an invite code with redemption cap, optional tier/founders-badge grant, and expiry.",
         "parameters": [
           {
             "name": "version",
@@ -541,6 +546,7 @@
         "tags": [
           "Admin"
         ],
+        "summary": "Revoke an invite code, blocking further redemptions.",
         "parameters": [
           {
             "name": "inviteCodeId",
@@ -629,6 +635,7 @@
         "tags": [
           "Admin"
         ],
+        "summary": "Manually grant a channel a tier without Stripe, optionally marked as an invite-only grant.",
         "parameters": [
           {
             "name": "broadcasterId",
@@ -737,6 +744,7 @@
         "tags": [
           "Admin"
         ],
+        "summary": "Grant a channel the founders badge directly.",
         "parameters": [
           {
             "name": "broadcasterId",
@@ -1455,6 +1463,7 @@
         "tags": [
           "Analytics"
         ],
+        "summary": "Read the channel's daily analytics series for a date range.",
         "parameters": [
           {
             "name": "channelId",
@@ -1559,6 +1568,7 @@
         "tags": [
           "Analytics"
         ],
+        "summary": "Read the channel's aggregated analytics summary for a date range.",
         "parameters": [
           {
             "name": "channelId",
@@ -1663,6 +1673,7 @@
         "tags": [
           "Analytics"
         ],
+        "summary": "Rank the channel's top viewers by the chosen metric over a date range.",
         "parameters": [
           {
             "name": "channelId",
@@ -1786,6 +1797,7 @@
         "tags": [
           "Analytics"
         ],
+        "summary": "List viewer analytics profiles matching the query, paginated.",
         "parameters": [
           {
             "name": "channelId",
@@ -1947,6 +1959,7 @@
         "tags": [
           "Analytics"
         ],
+        "summary": "Read a single viewer's analytics profile (self-or-Gate-2, authorized in-action).",
         "parameters": [
           {
             "name": "channelId",
@@ -2044,6 +2057,7 @@
         "tags": [
           "Analytics"
         ],
+        "summary": "Read a viewer's engagement series over a date range (self-or-Gate-2).",
         "parameters": [
           {
             "name": "channelId",
@@ -2157,6 +2171,7 @@
         "tags": [
           "Analytics"
         ],
+        "summary": "Read a viewer's current attendance streak (self-or-Gate-2).",
         "parameters": [
           {
             "name": "channelId",
@@ -2254,6 +2269,7 @@
         "tags": [
           "Analytics"
         ],
+        "summary": "Set or clear a viewer's analytics opt-out flag (self-or-Gate-2).",
         "parameters": [
           {
             "name": "channelId",
@@ -3686,6 +3702,7 @@
         "tags": [
           "Billing"
         ],
+        "summary": "Get the channel's current subscription state.",
         "parameters": [
           {
             "name": "channelId",
@@ -3783,6 +3800,7 @@
         "tags": [
           "Billing"
         ],
+        "summary": "List the publicly offered billing tiers (channel-independent catalogue).",
         "parameters": [
           {
             "name": "channelId",
@@ -3880,6 +3898,7 @@
         "tags": [
           "Billing"
         ],
+        "summary": "Get the channel's resolved entitlement — the effective features and limits of its tier.",
         "parameters": [
           {
             "name": "channelId",
@@ -3977,6 +3996,7 @@
         "tags": [
           "Billing"
         ],
+        "summary": "Get the channel's current metered usage across billed metrics.",
         "parameters": [
           {
             "name": "channelId",
@@ -4074,6 +4094,7 @@
         "tags": [
           "Billing"
         ],
+        "summary": "List the channel's invoices, paginated.",
         "parameters": [
           {
             "name": "channelId",
@@ -4216,6 +4237,7 @@
         "tags": [
           "Billing"
         ],
+        "summary": "Start a checkout session for the requested tier, returning the provider's checkout URL.",
         "parameters": [
           {
             "name": "channelId",
@@ -4333,6 +4355,7 @@
         "tags": [
           "Billing"
         ],
+        "summary": "Change the channel's subscription to another tier, immediately or at period end.",
         "parameters": [
           {
             "name": "channelId",
@@ -4440,6 +4463,7 @@
         "tags": [
           "Billing"
         ],
+        "summary": "Cancel the channel's subscription, immediately or at period end.",
         "parameters": [
           {
             "name": "channelId",
@@ -4547,6 +4571,7 @@
         "tags": [
           "Billing"
         ],
+        "summary": "Resume the channel's subscription, undoing a pending cancellation.",
         "parameters": [
           {
             "name": "channelId",
@@ -4634,6 +4659,7 @@
         "tags": [
           "Billing"
         ],
+        "summary": "Create a billing-provider portal session for self-serve payment management.",
         "parameters": [
           {
             "name": "channelId",
@@ -4731,6 +4757,7 @@
         "tags": [
           "Billing"
         ],
+        "summary": "Get the channel's founders-badge status.",
         "parameters": [
           {
             "name": "channelId",
@@ -4828,6 +4855,7 @@
         "tags": [
           "Billing"
         ],
+        "summary": "Validate an invite code without redeeming it.",
         "parameters": [
           {
             "name": "channelId",
@@ -4945,6 +4973,7 @@
         "tags": [
           "Billing"
         ],
+        "summary": "Redeem an invite code for the channel, applying its tier and/or founders-badge grant.",
         "parameters": [
           {
             "name": "channelId",
@@ -5062,6 +5091,7 @@
         "tags": [
           "Billing"
         ],
+        "summary": "Receive a Stripe webhook event, passing the raw payload and Stripe-Signature header to the handler for HMAC verification and dispatch.",
         "parameters": [
           {
             "name": "version",
@@ -5365,6 +5395,7 @@
         "tags": [
           "Economy — Catalog"
         ],
+        "summary": "List the channel's catalog items, paginated.",
         "parameters": [
           {
             "name": "channelId",
@@ -5505,6 +5536,7 @@
         "tags": [
           "Economy — Catalog"
         ],
+        "summary": "Create a new catalog item for the channel.",
         "parameters": [
           {
             "name": "channelId",
@@ -5612,6 +5644,7 @@
         "tags": [
           "Economy — Catalog"
         ],
+        "summary": "Read a single catalog item by id.",
         "parameters": [
           {
             "name": "channelId",
@@ -5706,6 +5739,7 @@
         "tags": [
           "Economy — Catalog"
         ],
+        "summary": "Partially update an existing catalog item.",
         "parameters": [
           {
             "name": "channelId",
@@ -5820,6 +5854,7 @@
         "tags": [
           "Economy — Catalog"
         ],
+        "summary": "Delete a catalog item from the channel's store.",
         "parameters": [
           {
             "name": "channelId",
@@ -5916,6 +5951,7 @@
         "tags": [
           "Economy — Catalog"
         ],
+        "summary": "Purchase a catalog item as the authenticated caller, with the buyer's role level resolved server-side.",
         "parameters": [
           {
             "name": "channelId",
@@ -6032,6 +6068,7 @@
         "tags": [
           "Economy — Catalog"
         ],
+        "summary": "List the channel's catalog purchases, filtered and paginated.",
         "parameters": [
           {
             "name": "channelId",
@@ -6197,6 +6234,7 @@
         "tags": [
           "Economy — Catalog"
         ],
+        "summary": "Refund a purchase, binding the acting refunder to the authenticated caller.",
         "parameters": [
           {
             "name": "channelId",
@@ -6676,6 +6714,7 @@
         "tags": [
           "Federation"
         ],
+        "summary": "List the channel's federation opt-ins.",
         "parameters": [
           {
             "name": "channelId",
@@ -6761,6 +6800,7 @@
         "tags": [
           "Federation"
         ],
+        "summary": "Create or update a federation opt-in for the channel, attributed to the acting caller.",
         "parameters": [
           {
             "name": "channelId",
@@ -6868,6 +6908,7 @@
         "tags": [
           "Federation"
         ],
+        "summary": "Disable a federation opt-in, returning that flow to default-deny.",
         "parameters": [
           {
             "name": "channelId",
@@ -6964,6 +7005,7 @@
         "tags": [
           "Channels"
         ],
+        "summary": "List all channels the current user owns or moderates.",
         "parameters": [
           {
             "name": "Page",
@@ -7296,6 +7338,7 @@
         "tags": [
           "Channels"
         ],
+        "summary": "Retrieve a channel by ID.",
         "parameters": [
           {
             "name": "channelId",
@@ -7391,6 +7434,7 @@
         "tags": [
           "Channels"
         ],
+        "summary": "Update channel settings (language, timezone, etc.).",
         "parameters": [
           {
             "name": "channelId",
@@ -7506,6 +7550,7 @@
         "tags": [
           "Channels"
         ],
+        "summary": "Delete a channel and all its associated data.",
         "parameters": [
           {
             "name": "channelId",
@@ -7599,6 +7644,7 @@
         "tags": [
           "Channels"
         ],
+        "summary": "Bot joins the channel (subscribes to EventSub and starts listening).",
         "parameters": [
           {
             "name": "channelId",
@@ -7696,6 +7742,7 @@
         "tags": [
           "Channels"
         ],
+        "summary": "Bot leaves the channel (unsubscribes from EventSub).",
         "parameters": [
           {
             "name": "channelId",
@@ -8668,6 +8715,7 @@
         "tags": [
           "Custom Code"
         ],
+        "summary": "List the channel's code scripts, paginated (feature-gated like all script routes).",
         "parameters": [
           {
             "name": "Page",
@@ -8790,6 +8838,7 @@
         "tags": [
           "Custom Code"
         ],
+        "summary": "Create a new code script for the channel.",
         "parameters": [
           {
             "name": "version",
@@ -8889,6 +8938,7 @@
         "tags": [
           "Custom Code"
         ],
+        "summary": "Read a single code script by id.",
         "parameters": [
           {
             "name": "id",
@@ -8975,6 +9025,7 @@
         "tags": [
           "Custom Code"
         ],
+        "summary": "Delete a code script.",
         "parameters": [
           {
             "name": "id",
@@ -9063,6 +9114,7 @@
         "tags": [
           "Custom Code"
         ],
+        "summary": "Add a new source version to a code script.",
         "parameters": [
           {
             "name": "id",
@@ -9169,6 +9221,7 @@
         "tags": [
           "Custom Code"
         ],
+        "summary": "List a code script's versions, paginated.",
         "parameters": [
           {
             "name": "id",
@@ -9302,6 +9355,7 @@
         "tags": [
           "Custom Code"
         ],
+        "summary": "Publish a specific version as the script's live version (the one run_code executes).",
         "parameters": [
           {
             "name": "id",
@@ -9399,6 +9453,7 @@
         "tags": [
           "Custom Code"
         ],
+        "summary": "Enable or disable a code script.",
         "parameters": [
           {
             "name": "id",
@@ -11248,6 +11303,7 @@
         "tags": [
           "Economy — Currency"
         ],
+        "summary": "Read the channel's currency configuration.",
         "parameters": [
           {
             "name": "channelId",
@@ -11333,6 +11389,7 @@
         "tags": [
           "Economy — Currency"
         ],
+        "summary": "Create or replace the channel's currency configuration.",
         "parameters": [
           {
             "name": "channelId",
@@ -11440,6 +11497,7 @@
         "tags": [
           "Economy — Currency"
         ],
+        "summary": "List the channel's currency earning rules.",
         "parameters": [
           {
             "name": "channelId",
@@ -11535,6 +11593,7 @@
         "tags": [
           "Economy — Currency"
         ],
+        "summary": "Create or update an earning rule for the channel.",
         "parameters": [
           {
             "name": "channelId",
@@ -11642,6 +11701,7 @@
         "tags": [
           "Economy — Currency"
         ],
+        "summary": "Delete an earning rule from the channel.",
         "parameters": [
           {
             "name": "channelId",
@@ -11738,6 +11798,7 @@
         "tags": [
           "Economy — Currency"
         ],
+        "summary": "List the channel's currency accounts (wallets), paginated.",
         "parameters": [
           {
             "name": "channelId",
@@ -11978,6 +12039,7 @@
         "tags": [
           "Economy — Currency"
         ],
+        "summary": "Read a viewer's wallet by user id, creating the account on first access (the Gate-2 arm of self-or-Gate-2).",
         "parameters": [
           {
             "name": "channelId",
@@ -12074,6 +12136,7 @@
         "tags": [
           "Economy — Currency"
         ],
+        "summary": "Page through a viewer's currency ledger entries.",
         "parameters": [
           {
             "name": "channelId",
@@ -12225,6 +12288,7 @@
         "tags": [
           "Economy — Currency"
         ],
+        "summary": "Admin-adjust a viewer's balance, binding the subject to the route and the actor to the authenticated caller.",
         "parameters": [
           {
             "name": "channelId",
@@ -12341,6 +12405,7 @@
         "tags": [
           "Economy — Currency"
         ],
+        "summary": "Freeze or unfreeze a viewer's wallet.",
         "parameters": [
           {
             "name": "channelId",
@@ -12457,6 +12522,7 @@
         "tags": [
           "Economy — Currency"
         ],
+        "summary": "Transfer currency between viewers, binding the acting sender to the authenticated caller.",
         "parameters": [
           {
             "name": "channelId",
@@ -12564,6 +12630,7 @@
         "tags": [
           "CustomEvents"
         ],
+        "summary": "List all custom data sources for the channel, paginated.",
         "parameters": [
           {
             "name": "Page",
@@ -12696,6 +12763,7 @@
         "tags": [
           "CustomEvents"
         ],
+        "summary": "Create a new custom data source.",
         "parameters": [
           {
             "name": "version",
@@ -12805,6 +12873,7 @@
         "tags": [
           "CustomEvents"
         ],
+        "summary": "List available custom data source presets.",
         "parameters": [
           {
             "name": "version",
@@ -12894,6 +12963,7 @@
         "tags": [
           "CustomEvents"
         ],
+        "summary": "Retrieve a custom data source by ID.",
         "parameters": [
           {
             "name": "id",
@@ -12990,6 +13060,7 @@
         "tags": [
           "CustomEvents"
         ],
+        "summary": "Update an existing custom data source.",
         "parameters": [
           {
             "name": "id",
@@ -13106,6 +13177,7 @@
         "tags": [
           "CustomEvents"
         ],
+        "summary": "Delete a custom data source.",
         "parameters": [
           {
             "name": "id",
@@ -13204,6 +13276,7 @@
         "tags": [
           "CustomEvents"
         ],
+        "summary": "Test a custom data source with sample payload.",
         "parameters": [
           {
             "name": "id",
@@ -13518,6 +13591,7 @@
         "tags": [
           "Discord"
         ],
+        "summary": "List the channel's linked Discord guild connections.",
         "parameters": [
           {
             "name": "channelId",
@@ -13616,6 +13690,7 @@
         "tags": [
           "Discord"
         ],
+        "summary": "Fetch a single Discord guild connection by id.",
         "parameters": [
           {
             "name": "channelId",
@@ -13721,6 +13796,7 @@
         "tags": [
           "Discord"
         ],
+        "summary": "Disconnect a Discord guild from the channel entirely.",
         "parameters": [
           {
             "name": "channelId",
@@ -13828,6 +13904,7 @@
         "tags": [
           "Discord"
         ],
+        "summary": "Record the Discord server admin's consent on a guild connection — the server half of the both-opt-in handshake.",
         "parameters": [
           {
             "name": "channelId",
@@ -13953,6 +14030,7 @@
         "tags": [
           "Discord"
         ],
+        "summary": "Withdraw the Discord server's consent from a guild connection, halting notifications until re-approved.",
         "parameters": [
           {
             "name": "channelId",
@@ -14060,6 +14138,7 @@
         "tags": [
           "Discord"
         ],
+        "summary": "Toggle the streamer's side of a guild connection on or off — the streamer half of the both-opt-in handshake.",
         "parameters": [
           {
             "name": "channelId",
@@ -14187,6 +14266,7 @@
         "tags": [
           "Discord"
         ],
+        "summary": "List the notification rules configured on a guild connection.",
         "parameters": [
           {
             "name": "channelId",
@@ -14292,6 +14372,7 @@
         "tags": [
           "Discord"
         ],
+        "summary": "Create a notification rule on a guild connection.",
         "parameters": [
           {
             "name": "channelId",
@@ -14419,6 +14500,7 @@
         "tags": [
           "Discord"
         ],
+        "summary": "Update an existing notification rule.",
         "parameters": [
           {
             "name": "channelId",
@@ -14544,6 +14626,7 @@
         "tags": [
           "Discord"
         ],
+        "summary": "Delete a notification rule from the channel.",
         "parameters": [
           {
             "name": "channelId",
@@ -14651,6 +14734,7 @@
         "tags": [
           "Discord"
         ],
+        "summary": "Render a preview of a notification rule's message without dispatching it to Discord.",
         "parameters": [
           {
             "name": "channelId",
@@ -14758,6 +14842,7 @@
         "tags": [
           "Discord"
         ],
+        "summary": "List the self-assign notify roles defined on a guild connection.",
         "parameters": [
           {
             "name": "channelId",
@@ -14863,6 +14948,7 @@
         "tags": [
           "Discord"
         ],
+        "summary": "Create a self-assign notify role on a guild connection.",
         "parameters": [
           {
             "name": "channelId",
@@ -14990,6 +15076,7 @@
         "tags": [
           "Discord"
         ],
+        "summary": "Update a self-assign notify role's settings.",
         "parameters": [
           {
             "name": "channelId",
@@ -15115,6 +15202,7 @@
         "tags": [
           "Discord"
         ],
+        "summary": "Delete a self-assign notify role.",
         "parameters": [
           {
             "name": "channelId",
@@ -15222,6 +15310,7 @@
         "tags": [
           "Discord"
         ],
+        "summary": "Post the role's opt-in button message to a chosen Discord channel.",
         "parameters": [
           {
             "name": "channelId",
@@ -15349,6 +15438,7 @@
         "tags": [
           "Discord"
         ],
+        "summary": "Opt a Discord member into a notify role, recording the opt-in source.",
         "parameters": [
           {
             "name": "channelId",
@@ -15476,6 +15566,7 @@
         "tags": [
           "Discord"
         ],
+        "summary": "Opt a Discord member out of a notify role, recording the opt-out source.",
         "parameters": [
           {
             "name": "channelId",
@@ -15603,6 +15694,7 @@
         "tags": [
           "Discord"
         ],
+        "summary": "List a guild connection's notification dispatch log, paginated.",
         "parameters": [
           {
             "name": "channelId",
@@ -15944,6 +16036,7 @@
         "tags": [
           "Economy — Leaderboards"
         ],
+        "summary": "List the channel's leaderboard configurations.",
         "parameters": [
           {
             "name": "channelId",
@@ -16029,6 +16122,7 @@
         "tags": [
           "Economy — Leaderboards"
         ],
+        "summary": "Create or update a leaderboard configuration for the channel.",
         "parameters": [
           {
             "name": "channelId",
@@ -16136,6 +16230,7 @@
         "tags": [
           "Economy — Leaderboards"
         ],
+        "summary": "Delete a leaderboard configuration by id.",
         "parameters": [
           {
             "name": "channelId",
@@ -16232,6 +16327,7 @@
         "tags": [
           "Economy — Leaderboards"
         ],
+        "summary": "Read the live ranking for a leaderboard, optionally limited to the top N entries.",
         "parameters": [
           {
             "name": "channelId",
@@ -16340,6 +16436,7 @@
         "tags": [
           "Economy — Leaderboards"
         ],
+        "summary": "Opt a viewer out of the channel's leaderboards, hiding them from rankings.",
         "parameters": [
           {
             "name": "channelId",
@@ -16436,6 +16533,7 @@
         "tags": [
           "Economy — Leaderboards"
         ],
+        "summary": "Opt a viewer back into the channel's leaderboards.",
         "parameters": [
           {
             "name": "channelId",
@@ -17872,6 +17970,7 @@
         "tags": [
           "Feature Flags"
         ],
+        "summary": "List all feature-flag definitions.",
         "parameters": [
           {
             "name": "version",
@@ -17949,6 +18048,7 @@
         "tags": [
           "Feature Flags"
         ],
+        "summary": "Create or update a feature flag's global definition and rollout ramp.",
         "parameters": [
           {
             "name": "version",
@@ -18048,6 +18148,7 @@
         "tags": [
           "Feature Flags"
         ],
+        "summary": "Set a per-channel override for a feature flag (beta opt-in or kill-switch).",
         "parameters": [
           {
             "name": "flagKey",
@@ -18162,6 +18263,7 @@
         "tags": [
           "Feature Flags"
         ],
+        "summary": "Clear a channel's feature-flag override, returning it to the global ramp.",
         "parameters": [
           {
             "name": "flagKey",
@@ -18258,6 +18360,7 @@
         "tags": [
           "Features"
         ],
+        "summary": "List all features and their current enabled state for the channel.",
         "parameters": [
           {
             "name": "channelId",
@@ -18355,6 +18458,7 @@
         "tags": [
           "Features"
         ],
+        "summary": "Toggle a feature on or off for the channel.",
         "parameters": [
           {
             "name": "channelId",
@@ -18460,6 +18564,7 @@
         "tags": [
           "Federation"
         ],
+        "summary": "List registered federation peers, paginated, optionally filtered by trust state.",
         "parameters": [
           {
             "name": "Page",
@@ -18599,6 +18704,7 @@
         "tags": [
           "Federation"
         ],
+        "summary": "Register a new peer instance in the federation trust directory.",
         "parameters": [
           {
             "name": "version",
@@ -18698,6 +18804,7 @@
         "tags": [
           "Federation"
         ],
+        "summary": "Fetch a single federation peer by id.",
         "parameters": [
           {
             "name": "peerId",
@@ -18786,6 +18893,7 @@
         "tags": [
           "Federation"
         ],
+        "summary": "Mark a registered peer as trusted, recording the acting operator.",
         "parameters": [
           {
             "name": "peerId",
@@ -18874,6 +18982,7 @@
         "tags": [
           "Federation"
         ],
+        "summary": "Revoke a peer's trust with a stated reason, recording the acting operator.",
         "parameters": [
           {
             "name": "peerId",
@@ -18982,6 +19091,7 @@
         "tags": [
           "Federation"
         ],
+        "summary": "Add a new signing key to a peer for key rotation.",
         "parameters": [
           {
             "name": "peerId",
@@ -19090,6 +19200,7 @@
         "tags": [
           "Federation"
         ],
+        "summary": "Deactivate one of a peer's signing keys by key id.",
         "parameters": [
           {
             "name": "peerId",
@@ -19186,6 +19297,7 @@
         "tags": [
           "Economy — Games"
         ],
+        "summary": "List the channel's mini-game configurations.",
         "parameters": [
           {
             "name": "channelId",
@@ -19271,6 +19383,7 @@
         "tags": [
           "Economy — Games"
         ],
+        "summary": "Create or update a mini-game configuration for the channel.",
         "parameters": [
           {
             "name": "channelId",
@@ -19378,6 +19491,7 @@
         "tags": [
           "Economy — Games"
         ],
+        "summary": "Play a configured game as the authenticated caller, with the player's role level resolved server-side.",
         "parameters": [
           {
             "name": "channelId",
@@ -19494,6 +19608,7 @@
         "tags": [
           "Economy — Games"
         ],
+        "summary": "Page through the channel's game-play history, filtered.",
         "parameters": [
           {
             "name": "channelId",
@@ -19659,6 +19774,7 @@
         "tags": [
           "Economy — Games"
         ],
+        "summary": "Check whether a viewer has granted 18+ consent on this channel.",
         "parameters": [
           {
             "name": "channelId",
@@ -19753,6 +19869,7 @@
         "tags": [
           "Economy — Games"
         ],
+        "summary": "Revoke a viewer's 18+ consent on this channel.",
         "parameters": [
           {
             "name": "channelId",
@@ -19849,6 +19966,7 @@
         "tags": [
           "Economy — Games"
         ],
+        "summary": "Grant 18+ consent for the authenticated caller — the subject is always the caller confirming their own age.",
         "parameters": [
           {
             "name": "channelId",
@@ -20402,6 +20520,7 @@
         "tags": [
           "Integrations"
         ],
+        "summary": "List all available integrations and their connection state for the channel.",
         "parameters": [
           {
             "name": "channelId",
@@ -20499,6 +20618,7 @@
         "tags": [
           "Integrations"
         ],
+        "summary": "Disconnect an external integration (revokes tokens, removes connection state).",
         "parameters": [
           {
             "name": "channelId",
@@ -20600,6 +20720,7 @@
         "tags": [
           "LiveOps"
         ],
+        "summary": "List active and ended polls for the channel.",
         "parameters": [
           {
             "name": "channelId",
@@ -20695,6 +20816,7 @@
         "tags": [
           "LiveOps"
         ],
+        "summary": "Create a new poll with optional channel point voting.",
         "parameters": [
           {
             "name": "channelId",
@@ -20812,6 +20934,7 @@
         "tags": [
           "LiveOps"
         ],
+        "summary": "End a poll with a specified outcome (ARCHIVED or TERMINATED).",
         "parameters": [
           {
             "name": "channelId",
@@ -20937,6 +21060,7 @@
         "tags": [
           "LiveOps"
         ],
+        "summary": "List active and ended predictions for the channel.",
         "parameters": [
           {
             "name": "channelId",
@@ -21032,6 +21156,7 @@
         "tags": [
           "LiveOps"
         ],
+        "summary": "Create a new channel prediction with multiple outcomes.",
         "parameters": [
           {
             "name": "channelId",
@@ -21149,6 +21274,7 @@
         "tags": [
           "LiveOps"
         ],
+        "summary": "End a prediction with RESOLVED or CANCELED status and optional winning outcome.",
         "parameters": [
           {
             "name": "channelId",
@@ -21274,6 +21400,7 @@
         "tags": [
           "LiveOps"
         ],
+        "summary": "Start a raid to another channel.",
         "parameters": [
           {
             "name": "channelId",
@@ -21389,6 +21516,7 @@
         "tags": [
           "LiveOps"
         ],
+        "summary": "Cancel a raid that has not yet begun.",
         "parameters": [
           {
             "name": "channelId",
@@ -21482,6 +21610,7 @@
         "tags": [
           "LiveOps"
         ],
+        "summary": "Get the channel's scheduled ad breaks from Twitch.",
         "parameters": [
           {
             "name": "channelId",
@@ -21579,6 +21708,7 @@
         "tags": [
           "LiveOps"
         ],
+        "summary": "Start a commercial break of specified length (30, 60, 90, 120, 150, or 180 seconds).",
         "parameters": [
           {
             "name": "channelId",
@@ -21696,6 +21826,7 @@
         "tags": [
           "LiveOps"
         ],
+        "summary": "Delay the next scheduled ad break by 8 minutes.",
         "parameters": [
           {
             "name": "channelId",
@@ -21793,6 +21924,7 @@
         "tags": [
           "LiveOps"
         ],
+        "summary": "Create a clip of the current broadcast.",
         "parameters": [
           {
             "name": "channelId",
@@ -25887,6 +26019,7 @@
         "tags": [
           "Permissions"
         ],
+        "summary": "List all permissions granted for the channel.",
         "parameters": [
           {
             "name": "channelId",
@@ -25982,6 +26115,7 @@
         "tags": [
           "Permissions"
         ],
+        "summary": "Grant a permission to a user for the channel.",
         "parameters": [
           {
             "name": "channelId",
@@ -26099,6 +26233,7 @@
         "tags": [
           "Permissions"
         ],
+        "summary": "Revoke a permission from a user for the channel.",
         "parameters": [
           {
             "name": "channelId",
@@ -26211,6 +26346,7 @@
         "tags": [
           "Permits"
         ],
+        "summary": "List the channel's active permit grants.",
         "parameters": [
           {
             "name": "channelId",
@@ -26298,6 +26434,7 @@
         "tags": [
           "Permits"
         ],
+        "summary": "Grant a user a management role via permit, with optional expiry and reason.",
         "parameters": [
           {
             "name": "channelId",
@@ -26405,6 +26542,7 @@
         "tags": [
           "Permits"
         ],
+        "summary": "Grant a user a single action-key capability via permit, with optional expiry and reason.",
         "parameters": [
           {
             "name": "channelId",
@@ -26512,6 +26650,7 @@
         "tags": [
           "Permits"
         ],
+        "summary": "Revoke a user's permit grant, matched by action key or role.",
         "parameters": [
           {
             "name": "channelId",
@@ -27325,6 +27464,7 @@
         "tags": [
           "Platform Analytics"
         ],
+        "summary": "Read cross-tenant platform stats for a date range (FEATURE_DISABLED on self-host).",
         "parameters": [
           {
             "name": "from",
@@ -27902,6 +28042,7 @@
         "tags": [
           "Quotes"
         ],
+        "summary": "List the channel's quotes with optional text search, paginated.",
         "parameters": [
           {
             "name": "Page",
@@ -28034,6 +28175,7 @@
         "tags": [
           "Quotes"
         ],
+        "summary": "Add a new quote, returning 201 with its assigned number.",
         "parameters": [
           {
             "name": "version",
@@ -28143,6 +28285,7 @@
         "tags": [
           "Quotes"
         ],
+        "summary": "Read a random quote from the channel's library.",
         "parameters": [
           {
             "name": "version",
@@ -28232,6 +28375,7 @@
         "tags": [
           "Quotes"
         ],
+        "summary": "Read a single quote by its channel-scoped number.",
         "parameters": [
           {
             "name": "number",
@@ -28329,6 +28473,7 @@
         "tags": [
           "Quotes"
         ],
+        "summary": "Edit an existing quote by its number.",
         "parameters": [
           {
             "name": "number",
@@ -28446,6 +28591,7 @@
         "tags": [
           "Quotes"
         ],
+        "summary": "Delete a quote by its number.",
         "parameters": [
           {
             "name": "number",
@@ -28545,6 +28691,7 @@
         "tags": [
           "Rewards"
         ],
+        "summary": "List all channel point rewards, paginated.",
         "parameters": [
           {
             "name": "channelId",
@@ -28685,6 +28832,7 @@
         "tags": [
           "Rewards"
         ],
+        "summary": "Create a new channel point reward.",
         "parameters": [
           {
             "name": "channelId",
@@ -29144,6 +29292,7 @@
         "tags": [
           "Rewards"
         ],
+        "summary": "Retrieve a channel point reward by ID.",
         "parameters": [
           {
             "name": "channelId",
@@ -29247,6 +29396,7 @@
         "tags": [
           "Rewards"
         ],
+        "summary": "Partially update a channel point reward.",
         "parameters": [
           {
             "name": "channelId",
@@ -29370,6 +29520,7 @@
         "tags": [
           "Rewards"
         ],
+        "summary": "Fully update a channel point reward.",
         "parameters": [
           {
             "name": "channelId",
@@ -29493,6 +29644,7 @@
         "tags": [
           "Rewards"
         ],
+        "summary": "Delete a channel point reward.",
         "parameters": [
           {
             "name": "channelId",
@@ -29594,6 +29746,7 @@
         "tags": [
           "Rewards"
         ],
+        "summary": "Sync channel point rewards from Twitch Helix.",
         "parameters": [
           {
             "name": "channelId",
@@ -29691,6 +29844,7 @@
         "tags": [
           "Rewards"
         ],
+        "summary": "Top-50 chatter leaderboard ranked by message count, with resolved display names.",
         "parameters": [
           {
             "name": "channelId",
@@ -29788,6 +29942,7 @@
         "tags": [
           "Roles"
         ],
+        "summary": "List the channel's management-role memberships, paginated (flat PaginatedResponse shape).",
         "parameters": [
           {
             "name": "channelId",
@@ -29909,6 +30064,7 @@
         "tags": [
           "Roles"
         ],
+        "summary": "Assign or change a user's management role on the channel, recorded as a bot grant.",
         "parameters": [
           {
             "name": "channelId",
@@ -30016,6 +30172,7 @@
         "tags": [
           "Roles"
         ],
+        "summary": "Remove a user's management role from the channel.",
         "parameters": [
           {
             "name": "channelId",
@@ -30297,6 +30454,7 @@
         "tags": [
           "Economy — Savings Jars"
         ],
+        "summary": "List the savings jars this channel is a member of.",
         "parameters": [
           {
             "name": "channelId",
@@ -30382,6 +30540,7 @@
         "tags": [
           "Economy — Savings Jars"
         ],
+        "summary": "Create a new savings jar owned by this channel.",
         "parameters": [
           {
             "name": "channelId",
@@ -30489,6 +30648,7 @@
         "tags": [
           "Economy — Savings Jars"
         ],
+        "summary": "Read a single savings jar by id, membership permitting.",
         "parameters": [
           {
             "name": "channelId",
@@ -30585,6 +30745,7 @@
         "tags": [
           "Economy — Savings Jars"
         ],
+        "summary": "Invite another channel into the jar, binding the jar id from the route.",
         "parameters": [
           {
             "name": "channelId",
@@ -30701,6 +30862,7 @@
         "tags": [
           "Economy — Savings Jars"
         ],
+        "summary": "Accept a pending jar membership invitation for this channel.",
         "parameters": [
           {
             "name": "channelId",
@@ -30797,6 +30959,7 @@
         "tags": [
           "Economy — Savings Jars"
         ],
+        "summary": "Revoke a jar membership, removing the channel from the jar.",
         "parameters": [
           {
             "name": "channelId",
@@ -30893,6 +31056,7 @@
         "tags": [
           "Economy — Savings Jars"
         ],
+        "summary": "Contribute currency into the jar, binding the contributor to the authenticated caller.",
         "parameters": [
           {
             "name": "channelId",
@@ -31009,6 +31173,7 @@
         "tags": [
           "Economy — Savings Jars"
         ],
+        "summary": "Withdraw currency from the jar, binding the acting withdrawer to the authenticated caller.",
         "parameters": [
           {
             "name": "channelId",
@@ -31125,6 +31290,7 @@
         "tags": [
           "Economy — Savings Jars"
         ],
+        "summary": "Page through the jar's contribution and withdrawal movement history.",
         "parameters": [
           {
             "name": "channelId",
@@ -31276,6 +31442,7 @@
         "tags": [
           "Sound"
         ],
+        "summary": "List all sound clips for the channel, paginated.",
         "parameters": [
           {
             "name": "Page",
@@ -31408,6 +31575,7 @@
         "tags": [
           "Sound"
         ],
+        "summary": "Upload a new sound clip (multipart audio file, max 10 MB).",
         "parameters": [
           {
             "name": "version",
@@ -31526,6 +31694,7 @@
         "tags": [
           "Sound"
         ],
+        "summary": "Retrieve a sound clip by ID.",
         "parameters": [
           {
             "name": "id",
@@ -31622,6 +31791,7 @@
         "tags": [
           "Sound"
         ],
+        "summary": "Update sound clip metadata (name, display name, volume).",
         "parameters": [
           {
             "name": "id",
@@ -31738,6 +31908,7 @@
         "tags": [
           "Sound"
         ],
+        "summary": "Delete a sound clip.",
         "parameters": [
           {
             "name": "id",
@@ -31836,6 +32007,7 @@
         "tags": [
           "Sound"
         ],
+        "summary": "Play preview of sound clip (for testing before use).",
         "parameters": [
           {
             "name": "id",
@@ -31934,6 +32106,7 @@
         "tags": [
           "Sound"
         ],
+        "summary": "Stream the clip's audio file for overlay playback; anonymous, range-request enabled.",
         "parameters": [
           {
             "name": "storageKey",
@@ -32021,6 +32194,7 @@
         "tags": [
           "Stream"
         ],
+        "summary": "Retrieve current stream information (title, game, tags, live status, viewers).",
         "parameters": [
           {
             "name": "channelId",
@@ -32234,6 +32408,7 @@
         "tags": [
           "Stream"
         ],
+        "summary": "Get whether the channel is currently live and current viewer count.",
         "parameters": [
           {
             "name": "channelId",
@@ -32331,6 +32506,7 @@
         "tags": [
           "Stream"
         ],
+        "summary": "Update stream title.",
         "parameters": [
           {
             "name": "channelId",
@@ -32448,6 +32624,7 @@
         "tags": [
           "Stream"
         ],
+        "summary": "Update stream game/category (with Twitch search resolution).",
         "parameters": [
           {
             "name": "channelId",
@@ -32565,6 +32742,7 @@
         "tags": [
           "Stream"
         ],
+        "summary": "Update stream tags/categories.",
         "parameters": [
           {
             "name": "channelId",
@@ -32682,6 +32860,7 @@
         "tags": [
           "Stream"
         ],
+        "summary": "Search Twitch game categories (for autocomplete).",
         "parameters": [
           {
             "name": "query",
@@ -35165,6 +35344,7 @@
         "tags": [
           "Users"
         ],
+        "summary": "Search for users by name or username.",
         "parameters": [
           {
             "name": "query",
@@ -35306,6 +35486,7 @@
         "tags": [
           "Users"
         ],
+        "summary": "Retrieve a user by ID.",
         "parameters": [
           {
             "name": "userId",
@@ -35403,6 +35584,7 @@
         "tags": [
           "Users"
         ],
+        "summary": "Retrieve a user's profile information.",
         "parameters": [
           {
             "name": "userId",
@@ -35498,6 +35680,7 @@
         "tags": [
           "Users"
         ],
+        "summary": "Update a user's profile information.",
         "parameters": [
           {
             "name": "userId",
@@ -35615,6 +35798,7 @@
         "tags": [
           "Users"
         ],
+        "summary": "Get all channels a user appears in (as broadcaster or moderation role).",
         "parameters": [
           {
             "name": "userId",
@@ -36002,6 +36186,7 @@
         "tags": [
           "Webhooks"
         ],
+        "summary": "List the channel's inbound webhook endpoints, paginated.",
         "parameters": [
           {
             "name": "channelId",
@@ -36143,6 +36328,7 @@
         "tags": [
           "Webhooks"
         ],
+        "summary": "Create an inbound webhook endpoint for the channel, recording the caller as its creator.",
         "parameters": [
           {
             "name": "channelId",
@@ -36251,6 +36437,7 @@
         "tags": [
           "Webhooks"
         ],
+        "summary": "Fetch a single inbound webhook endpoint by id.",
         "parameters": [
           {
             "name": "channelId",
@@ -36346,6 +36533,7 @@
         "tags": [
           "Webhooks"
         ],
+        "summary": "Update an inbound webhook endpoint's configuration.",
         "parameters": [
           {
             "name": "channelId",
@@ -36461,6 +36649,7 @@
         "tags": [
           "Webhooks"
         ],
+        "summary": "Delete an inbound webhook endpoint, retiring its ingest URL.",
         "parameters": [
           {
             "name": "channelId",
@@ -36558,6 +36747,7 @@
         "tags": [
           "Webhooks"
         ],
+        "summary": "Rotate the opaque URL token for an inbound webhook endpoint, invalidating the old ingest URL.",
         "parameters": [
           {
             "name": "channelId",
@@ -36655,6 +36845,7 @@
         "tags": [
           "Webhooks"
         ],
+        "summary": "List the channel's outbound webhook endpoints, paginated.",
         "parameters": [
           {
             "name": "channelId",
@@ -36796,6 +36987,7 @@
         "tags": [
           "Webhooks"
         ],
+        "summary": "Create an outbound webhook endpoint for the channel, recording the caller as its creator.",
         "parameters": [
           {
             "name": "channelId",
@@ -36904,6 +37096,7 @@
         "tags": [
           "Webhooks"
         ],
+        "summary": "Fetch a single outbound webhook endpoint by id.",
         "parameters": [
           {
             "name": "channelId",
@@ -36999,6 +37192,7 @@
         "tags": [
           "Webhooks"
         ],
+        "summary": "Update an outbound webhook endpoint's configuration.",
         "parameters": [
           {
             "name": "channelId",
@@ -37114,6 +37308,7 @@
         "tags": [
           "Webhooks"
         ],
+        "summary": "Delete an outbound webhook endpoint, stopping its deliveries.",
         "parameters": [
           {
             "name": "channelId",
@@ -37211,6 +37406,7 @@
         "tags": [
           "Webhooks"
         ],
+        "summary": "Rotate the shared secret used to sign an outbound webhook endpoint's deliveries.",
         "parameters": [
           {
             "name": "channelId",
@@ -37308,6 +37504,7 @@
         "tags": [
           "Webhooks"
         ],
+        "summary": "Re-enable an outbound webhook endpoint that was disabled after delivery failures.",
         "parameters": [
           {
             "name": "channelId",
@@ -37405,6 +37602,7 @@
         "tags": [
           "Webhooks"
         ],
+        "summary": "Send a test delivery to an outbound webhook endpoint.",
         "parameters": [
           {
             "name": "channelId",

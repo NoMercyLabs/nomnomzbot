@@ -20,6 +20,7 @@ using NomNomzBot.Application.Identity.Services;
 
 namespace NomNomzBot.Api.Controllers.V1;
 
+/// <summary>Platform-admin dashboard: aggregate stats, channels, users, system health, and events.</summary>
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/admin")]
 [Authorize(Roles = "admin")]
