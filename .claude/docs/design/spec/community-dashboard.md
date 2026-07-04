@@ -285,7 +285,7 @@ Two controllers under `NomNomzBot.Api/Controllers/V1/`, `[ApiVersion("1.0")]`, i
 `Guid broadcasterId` via tenant middleware + `IChannelAccessService` (Gate 1; caller must control the channel).
 
 **Role gate** (schema B.3 `ActionDefinitions`). Both surfaces are **management**-plane, read-only dashboard
-data. **Gate 1** = `[Authorize]` + tenant resolution (entry; any management level ≥ Moderator). **Gate 2** =
+data. **Gate 1** = `[Authorize]` + tenant resolution (pure entry — any authenticated caller, channel must exist; entry ≠ permission, floors are Gate 2's). **Gate 2** =
 `IActionAuthorizationService.AuthorizeActionAsync(userId, broadcasterId, actionKey)` enforces the per-route
 floor before the service call (403 `FORBIDDEN` below floor). Keys are seeded global `ActionDefinitions` (added to
 `roles-permissions.md` §7.1 — see §7 deltas below); a broadcaster may raise a floor via `ChannelActionOverride`

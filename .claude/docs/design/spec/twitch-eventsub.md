@@ -336,7 +336,7 @@ Two controllers, both `NomNomzBot.Api/Controllers/V1/`, `[ApiVersion("1.0")]`, r
 
 ### 5.1 `EventSubController` — tenant subscription management (management plane)
 
-`[Route("api/v{version:apiVersion}/eventsub")]`, `[Authorize]`, `[Tags("EventSub")]`. Tenant resolved from JWT `sub` → `BroadcasterId`. **Role gate.** Gate 1 = `[Authorize]` + tenant resolution (entry; any management level ≥ Moderator). Gate 2 = `IActionAuthorizationService.AuthorizeActionAsync(userId, broadcasterId, actionKey)` enforces the per-route floor named in the action-key column before the service call (403 FORBIDDEN when below). The keys are seeded global `ActionDefinitions` (§5.1.1); a broadcaster may raise a floor via `ChannelActionOverride` but not below the seeded `FloorLevel`. Self-host collapses to "owner = full".
+`[Route("api/v{version:apiVersion}/eventsub")]`, `[Authorize]`, `[Tags("EventSub")]`. Tenant resolved from JWT `sub` → `BroadcasterId`. **Role gate.** Gate 1 = `[Authorize]` + tenant resolution (pure entry — any authenticated caller, channel must exist; entry ≠ permission, floors are Gate 2's). Gate 2 = `IActionAuthorizationService.AuthorizeActionAsync(userId, broadcasterId, actionKey)` enforces the per-route floor named in the action-key column before the service call (403 FORBIDDEN when below). The keys are seeded global `ActionDefinitions` (§5.1.1); a broadcaster may raise a floor via `ChannelActionOverride` but not below the seeded `FloorLevel`. Self-host collapses to "owner = full".
 
 #### 5.1.1 Seeded `ActionDefinitions` rows (this subsystem owns these seed entries)
 

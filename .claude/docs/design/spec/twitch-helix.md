@@ -392,7 +392,7 @@ public sealed record TwitchRewardDto(
 
 This subsystem's calls are consumed by **existing** controllers (`DashboardController`, `CommunityController`, `StreamController`, `ModerationController`, `RewardsController`) — it does **not** introduce a new public controller. One **new diagnostics endpoint** is added so the dashboard can surface scope/connection health (closes the "subscriber count always 0" and "403 chat" known issues by making the missing-scope state observable).
 
-**Role gate** — the diagnostics route is **management plane**. **Gate 1** = `[Authorize]` + tenant resolution (entry; any management level ≥ Moderator). **Gate 2** = `IActionAuthorizationService.AuthorizeActionAsync(userId, broadcasterId, actionKey)` enforces the per-route floor named in the **Action key** column before the service call (403 `FORBIDDEN` when below). The key is a seeded global `ActionDefinition` (schema B.3, §5.1.1); a broadcaster may raise its floor via `ChannelActionOverride` but not below the seeded `FloorLevel`. All under `/api/v1`.
+**Role gate** — the diagnostics route is **management plane**. **Gate 1** = `[Authorize]` + tenant resolution (pure entry — any authenticated caller, channel must exist; entry ≠ permission, floors are Gate 2's). **Gate 2** = `IActionAuthorizationService.AuthorizeActionAsync(userId, broadcasterId, actionKey)` enforces the per-route floor named in the **Action key** column before the service call (403 `FORBIDDEN` when below). The key is a seeded global `ActionDefinition` (schema B.3, §5.1.1); a broadcaster may raise its floor via `ChannelActionOverride` but not below the seeded `FloorLevel`. All under `/api/v1`.
 
 | Route | Verb | Request DTO | Response DTO | Plane / floor · Gate-2 action key |
 |---|---|---|---|---|

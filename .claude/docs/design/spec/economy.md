@@ -550,7 +550,7 @@ New controllers under `NomNomzBot.Api/Controllers/V1/`, all `[ApiVersion("1.0")]
 **Role gate** (schema B.3 `ActionDefinitions`: per-action `AuthPlane` ∈ {`Community`,`Management`} + seeded
 `FloorLevel`). The keys below are seeded global `ActionDefinitions`; a broadcaster may raise a floor via
 `ChannelActionOverride` but never below the seeded `FloorLevel`. The gate runs in two stages:
-- **Gate 1** = `[Authorize]` + tenant resolution (entry; any management level ≥ `Moderator`).
+- **Gate 1** = `[Authorize]` + tenant resolution (pure entry — any authenticated caller, channel must exist; entry ≠ permission, floors are Gate 2's).
 - **Gate 2** = `IActionAuthorizationService.AuthorizeActionAsync(userId, broadcasterId, actionKey)` enforces the
   per-route floor named in the Action-key column before the service call (403 FORBIDDEN when below). The
   effective caller level is `MAX(community standing, management role, active !permit grant)` over the unified

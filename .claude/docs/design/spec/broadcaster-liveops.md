@@ -504,8 +504,7 @@ New `LiveOpsController` family under `NomNomzBot.Api/Controllers/V1/`, all `[Api
 middleware + channel-access check. The controller passes the JWT `actorUserId` and `source="dashboard"`/`"api"`
 to the services.
 
-**Role gate.** All write routes are **management plane**. **Gate 1** = `[Authorize]` + tenant resolution (entry;
-any management level ≥ Moderator). **Gate 2** = `IActionAuthorizationService.AuthorizeActionAsync(userId,
+**Role gate.** All write routes are **management plane**. **Gate 1** = `[Authorize]` + tenant resolution (pure entry — any authenticated caller, channel must exist; entry ≠ permission, floors are Gate 2's). **Gate 2** = `IActionAuthorizationService.AuthorizeActionAsync(userId,
 broadcasterId, actionKey)` enforces the per-route floor (403 `FORBIDDEN` below it) — each key seeded global in
 `ActionDefinitions` (§5.1 deltas). Effective level = `MAX(community standing, management role, active permit
 grant)`.

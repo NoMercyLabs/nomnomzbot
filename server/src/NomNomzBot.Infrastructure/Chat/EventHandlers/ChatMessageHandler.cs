@@ -16,6 +16,10 @@ using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.RateLimiting;
 using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Commands.Builtin;
+using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Authorization;
+using NomNomzBot.Application.Identity.Dtos;
+using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Identity;
@@ -127,7 +131,13 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
             if (IsBuiltinDisabled(ctx, commandName))
                 return;
 
-            if (!HasPermission(@event, builtin.DefaultMinPermissionLevel))
+            if (
+                !await HasPermissionAsync(
+                    @event,
+                    builtin.DefaultMinPermissionLevel,
+                    cancellationToken
+                )
+            )
                 return;
 
             if (_cooldowns.IsOnCooldown(cooldownChannelKey, commandName))
@@ -165,7 +175,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
         }
 
         // Permission check
-        if (!HasPermission(@event, command.MinPermissionLevel))
+        if (!await HasPermissionAsync(@event, command.MinPermissionLevel, cancellationToken))
         {
             _logger.LogDebug(
                 "Command {Command} denied for {User} in {Channel}: insufficient permission",
@@ -314,16 +324,72 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
     private static bool IsBuiltinDisabled(ChannelContext ctx, string commandName) =>
         ctx.DisabledBuiltins.ContainsKey(commandName);
 
-    private static bool HasPermission(ChatMessageReceivedEvent @event, int minPermissionLevel)
+    /// <summary>
+    /// The chat command gate on the unified ladder (roles-permissions §0): effective level =
+    /// MAX(live Twitch-badge level, <see cref="IRoleResolver"/> resolved level — community standing,
+    /// bot-granted <c>ChannelMemberships</c>, active <c>PermitGrants</c>). The live badge stays in the MAX
+    /// because it is the freshest Twitch truth (stored standing rows can lag sync). Hot-path short-circuit:
+    /// when the badge level alone meets the floor (always true for Everyone-floor commands and plain
+    /// badge-qualified callers), the DB is never touched — the resolver runs only when the badge is
+    /// insufficient, i.e. exactly the case where a badge-less Editor membership or a <c>!permit</c>
+    /// elevation must be honored instead of silently ignored.
+    /// </summary>
+    private async Task<bool> HasPermissionAsync(
+        ChatMessageReceivedEvent @event,
+        int minPermissionLevel,
+        CancellationToken ct
+    )
     {
-        PermissionLevel actual = ChatRole.Resolve(
+        PermissionLevel badge = ChatRole.Resolve(
             @event.IsBroadcaster,
             @event.IsModerator,
             @event.IsVip,
             @event.IsSubscriber,
             @event.Badges
         );
-        return actual.ToLevelValue() >= minPermissionLevel;
+        if (badge.ToLevelValue() >= minPermissionLevel)
+            return true;
+
+        try
+        {
+            using IServiceScope scope = _scopeFactory.CreateScope();
+
+            // The event carries the TWITCH user id; the resolver needs the internal User id. A chatter IS a
+            // (possibly not-set-up) User row — the same get-or-create seam every chat-ingest handler uses.
+            IUserService users = scope.ServiceProvider.GetRequiredService<IUserService>();
+            Result<UserDto> user = await users.GetOrCreateAsync(
+                @event.UserId,
+                @event.UserLogin,
+                @event.UserDisplayName,
+                ct
+            );
+            if (user.IsFailure || !Guid.TryParse(user.Value.Id, out Guid viewerUserId))
+                return false;
+
+            IRoleResolver roleResolver = scope.ServiceProvider.GetRequiredService<IRoleResolver>();
+            Result<int> resolved = await roleResolver.ResolveEffectiveLevelAsync(
+                viewerUserId,
+                @event.BroadcasterId,
+                ct
+            );
+            // badge < floor here, so MAX(badge, resolved) >= floor reduces to resolved >= floor.
+            return resolved.IsSuccess && resolved.Value >= minPermissionLevel;
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            // Fail closed: a resolver error must never elevate; the badge already said "not enough".
+            _logger.LogWarning(
+                ex,
+                "Effective-level resolution failed for {User} in {Channel}; denying on badge level alone",
+                @event.UserLogin,
+                @event.BroadcasterId
+            );
+            return false;
+        }
     }
 
     private static string PickResponse(string[] responses)
