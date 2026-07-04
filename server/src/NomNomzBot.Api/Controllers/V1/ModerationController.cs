@@ -27,6 +27,11 @@ using ConfigEntity = NomNomzBot.Domain.Platform.Entities.Configuration;
 
 namespace NomNomzBot.Api.Controllers.V1;
 
+/// <summary>
+/// Per-channel moderation endpoints for a broadcaster or their moderators — banning, timing out, and unbanning
+/// viewers via Twitch, tuning the bot's own auto-moderation rules and blocked-term list, and reviewing moderation
+/// history and stats.
+/// </summary>
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/channels/{channelId}/moderation")]
 [Authorize]
@@ -56,6 +61,7 @@ public class ModerationController : BaseController
 
     // ─── Rules ───────────────────────────────────────────────────────────────
 
+    /// <summary>List the channel's auto-moderation rules, paginated.</summary>
     [RequireAction("moderation:filter:read")]
     [HttpGet("rules")]
     [ProducesResponseType<PaginatedResponse<ModerationRuleDetail>>(StatusCodes.Status200OK)]
@@ -76,6 +82,7 @@ public class ModerationController : BaseController
         return GetPaginatedResponse(result.Value, request);
     }
 
+    /// <summary>Create a new auto-moderation rule for the channel.</summary>
     [RequireAction("moderation:filter:write")]
     [HttpPost("rules")]
     [ProducesResponseType<StatusResponseDto<ModerationRuleDetail>>(StatusCodes.Status201Created)]
@@ -104,6 +111,7 @@ public class ModerationController : BaseController
         );
     }
 
+    /// <summary>Update an existing auto-moderation rule.</summary>
     [RequireAction("moderation:filter:write")]
     [HttpPut("rules/{ruleId:int}")]
     [ProducesResponseType<StatusResponseDto<ModerationRuleDetail>>(StatusCodes.Status200OK)]
@@ -125,6 +133,7 @@ public class ModerationController : BaseController
         return Ok(new StatusResponseDto<ModerationRuleDetail> { Data = result.Value });
     }
 
+    /// <summary>Delete an auto-moderation rule.</summary>
     [RequireAction("moderation:filter:write")]
     [HttpDelete("rules/{ruleId:int}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -138,6 +147,7 @@ public class ModerationController : BaseController
 
     // ─── AutoMod Config ──────────────────────────────────────────────────────
 
+    /// <summary>Get the channel's auto-moderation config (link filter, caps filter, banned phrases, emote spam).</summary>
     [RequireAction("moderation:automod:read")]
     [HttpGet("automod")]
     [ProducesResponseType<StatusResponseDto<AutomodConfigDto>>(StatusCodes.Status200OK)]
@@ -150,6 +160,7 @@ public class ModerationController : BaseController
         return ResultResponse(result);
     }
 
+    /// <summary>Save the channel's auto-moderation config, upserting its built-in filter rules.</summary>
     [RequireAction("moderation:automod:write")]
     [HttpPost("automod")]
     [ProducesResponseType<StatusResponseDto<AutomodConfigDto>>(StatusCodes.Status200OK)]
@@ -169,6 +180,7 @@ public class ModerationController : BaseController
 
     // ─── Bans ─────────────────────────────────────────────────────────────────
 
+    /// <summary>List users currently banned in the channel, via the Twitch moderation API.</summary>
     [RequireAction("moderation:read")]
     [HttpGet("bans")]
     [ProducesResponseType<StatusResponseDto<List<BannedUserDto>>>(StatusCodes.Status200OK)]
@@ -181,6 +193,7 @@ public class ModerationController : BaseController
         return ResultResponse(result);
     }
 
+    /// <summary>Unban a user from the channel via the Twitch moderation API.</summary>
     [RequireAction("moderation:unban")]
     [HttpDelete("bans/{userId}")]
     [ProducesResponseType<StatusResponseDto<ModerationActionResult>>(StatusCodes.Status200OK)]
@@ -202,6 +215,7 @@ public class ModerationController : BaseController
 
     // ─── Mod Log ─────────────────────────────────────────────────────────────
 
+    /// <summary>Get the channel's moderation action log, paginated, with moderator and target usernames resolved.</summary>
     [RequireAction("moderation:action:read")]
     [HttpGet("log")]
     [ProducesResponseType<PaginatedResponse<ModLogEntryDto>>(StatusCodes.Status200OK)]
@@ -241,6 +255,7 @@ public class ModerationController : BaseController
 
     // ─── Shield Mode ─────────────────────────────────────────────────────────
 
+    /// <summary>Check whether the channel's Shield Mode setting is currently enabled.</summary>
     [RequireAction("moderation:shieldmode:read")]
     [HttpGet("shield")]
     [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
@@ -257,6 +272,7 @@ public class ModerationController : BaseController
         return Ok(new StatusResponseDto<object> { Data = new { enabled } });
     }
 
+    /// <summary>Turn the channel's Shield Mode setting on or off and notify open dashboards of the change.</summary>
     [RequireAction("moderation:shieldmode:write")]
     [HttpPatch("shield")]
     [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
@@ -303,6 +319,7 @@ public class ModerationController : BaseController
 
     // ─── Blocked Terms ────────────────────────────────────────────────────────
 
+    /// <summary>List the channel's blocked terms.</summary>
     [RequireAction("moderation:filter:read")]
     [HttpGet("blocked-terms")]
     [ProducesResponseType<StatusResponseDto<List<string>>>(StatusCodes.Status200OK)]
@@ -322,6 +339,7 @@ public class ModerationController : BaseController
         return Ok(new StatusResponseDto<List<string>> { Data = terms });
     }
 
+    /// <summary>Add a term to the channel's blocked-terms list.</summary>
     [RequireAction("moderation:blocklist:write")]
     [HttpPost("blocked-terms")]
     [ProducesResponseType<StatusResponseDto<List<string>>>(StatusCodes.Status200OK)]
@@ -371,6 +389,7 @@ public class ModerationController : BaseController
         return Ok(new StatusResponseDto<List<string>> { Data = terms });
     }
 
+    /// <summary>Remove a term from the channel's blocked-terms list.</summary>
     [RequireAction("moderation:blocklist:write")]
     [HttpDelete("blocked-terms/{term}")]
     [ProducesResponseType<StatusResponseDto<List<string>>>(StatusCodes.Status200OK)]
@@ -408,6 +427,10 @@ public class ModerationController : BaseController
 
     // ─── Stats ────────────────────────────────────────────────────────────────
 
+    /// <summary>
+    /// Get today's moderation counts for the channel — bans, timeouts, deleted messages, and AutoMod actions —
+    /// derived from the channel's event log.
+    /// </summary>
     [RequireAction("moderation:read")]
     [HttpGet("stats")]
     [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
@@ -448,6 +471,7 @@ public class ModerationController : BaseController
 
     // ─── Actions ─────────────────────────────────────────────────────────────
 
+    /// <summary>List moderation actions (bans, timeouts, unbans) taken in the channel, paginated.</summary>
     [RequireAction("moderation:action:read")]
     [HttpGet("actions")]
     [ProducesResponseType<PaginatedResponse<ModerationActionResult>>(StatusCodes.Status200OK)]
@@ -468,6 +492,7 @@ public class ModerationController : BaseController
         return GetPaginatedResponse(result.Value, request);
     }
 
+    /// <summary>Time out, ban, or unban a user in the channel, dispatched by the requested action type.</summary>
     [RequireAction("moderation:ban")]
     [HttpPost("actions")]
     [ProducesResponseType<StatusResponseDto<ModerationActionResult>>(StatusCodes.Status200OK)]
@@ -519,6 +544,7 @@ public class ModerationController : BaseController
 
     public record ShoutoutRequest(string TargetTwitchUserId);
 
+    /// <summary>Send a Twitch shoutout for another channel from the broadcaster's channel.</summary>
     [RequireAction("moderation:shoutout")]
     [HttpPost("shoutout")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]

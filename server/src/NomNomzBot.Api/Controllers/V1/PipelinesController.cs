@@ -20,6 +20,7 @@ using NomNomzBot.Application.Common.Models;
 
 namespace NomNomzBot.Api.Controllers.V1;
 
+/// <summary>Manages a channel's pipelines, the action-chain automations behind custom commands and event responses, for the dashboard operator building them in the visual editor.</summary>
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/channels/{channelId}/pipelines")]
 [Authorize]
@@ -35,6 +36,7 @@ public class PipelinesController : BaseController
         _validator = validator;
     }
 
+    /// <summary>List the channel's pipelines, paginated.</summary>
     [RequireAction("pipelines:read")]
     [HttpGet]
     [ProducesResponseType<PaginatedResponse<PipelineListItemDto>>(StatusCodes.Status200OK)]
@@ -55,6 +57,7 @@ public class PipelinesController : BaseController
         return GetPaginatedResponse(result.Value, request);
     }
 
+    /// <summary>Get a single pipeline by id, including its action graph.</summary>
     [RequireAction("pipelines:read")]
     [HttpGet("{id:guid}")]
     [ProducesResponseType<StatusResponseDto<PipelineDto>>(StatusCodes.Status200OK)]
@@ -64,6 +67,7 @@ public class PipelinesController : BaseController
         return ResultResponse(result);
     }
 
+    /// <summary>Create a new pipeline for the channel.</summary>
     [RequireAction("pipelines:write")]
     [HttpPost]
     [ProducesResponseType<StatusResponseDto<PipelineDto>>(StatusCodes.Status201Created)]
@@ -88,6 +92,7 @@ public class PipelinesController : BaseController
         );
     }
 
+    /// <summary>Update an existing pipeline's name, settings, or action graph.</summary>
     [RequireAction("pipelines:write")]
     [HttpPut("{id:guid}")]
     [ProducesResponseType<StatusResponseDto<PipelineDto>>(StatusCodes.Status200OK)]
@@ -104,6 +109,7 @@ public class PipelinesController : BaseController
         return Ok(new StatusResponseDto<PipelineDto> { Data = result.Value });
     }
 
+    /// <summary>Delete a pipeline.</summary>
     [RequireAction("pipelines:write")]
     [HttpDelete("{id:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]

@@ -1,6 +1,14 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <RootNamespace>NomNomzBot.Application</RootNamespace>
+    <!-- Response DTOs (StatusResponseDto<T>, PaginatedResponse<T>, and the 60+ feature DTOs under
+         Contracts/ and */Dtos/) live in this project. The OpenAPI XML-comment source generator only
+         picks up a ProjectReference's doc comments when THAT project also emits an XML doc file
+         (learn.microsoft.com/aspnet/core/fundamentals/openapi/openapi-comments#add-xml-documentation-sources) —
+         without this, DTO property summaries never reach the generated schema, only controller action
+         summaries would. NoWarn CS1591 for the same incremental-coverage reason as the Api project. -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

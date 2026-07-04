@@ -19,6 +19,7 @@ using NomNomzBot.Application.Common.Models;
 
 namespace NomNomzBot.Api.Controllers.V1;
 
+/// <summary>Manages a channel's scheduled chat message timers, for the dashboard operator running periodic announcements.</summary>
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/channels/{channelId}/timers")]
 [Authorize]
@@ -32,6 +33,7 @@ public class TimersController : BaseController
         _timerService = timerService;
     }
 
+    /// <summary>List the channel's timers, paginated.</summary>
     [RequireAction("timers:read")]
     [HttpGet]
     [ProducesResponseType<PaginatedResponse<TimerListItem>>(StatusCodes.Status200OK)]
@@ -52,6 +54,7 @@ public class TimersController : BaseController
         return GetPaginatedResponse(result.Value, request);
     }
 
+    /// <summary>Get a single timer by id.</summary>
     [RequireAction("timers:read")]
     [HttpGet("{id:guid}")]
     [ProducesResponseType<StatusResponseDto<TimerDto>>(StatusCodes.Status200OK)]
@@ -61,6 +64,7 @@ public class TimersController : BaseController
         return ResultResponse(result);
     }
 
+    /// <summary>Create a new scheduled timer for the channel.</summary>
     [RequireAction("timers:write")]
     [HttpPost]
     [ProducesResponseType<StatusResponseDto<TimerDto>>(StatusCodes.Status201Created)]
@@ -85,6 +89,7 @@ public class TimersController : BaseController
         );
     }
 
+    /// <summary>Update an existing timer's schedule, message, or enabled state.</summary>
     [RequireAction("timers:write")]
     [HttpPut("{id:guid}")]
     [ProducesResponseType<StatusResponseDto<TimerDto>>(StatusCodes.Status200OK)]
@@ -101,6 +106,7 @@ public class TimersController : BaseController
         return Ok(new StatusResponseDto<TimerDto> { Data = result.Value });
     }
 
+    /// <summary>Delete a timer.</summary>
     [RequireAction("timers:write")]
     [HttpDelete("{id:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -112,6 +118,7 @@ public class TimersController : BaseController
         return NoContent();
     }
 
+    /// <summary>Enable or disable a timer without deleting it.</summary>
     [RequireAction("timers:write")]
     [HttpPost("{id:guid}/toggle")]
     [ProducesResponseType<StatusResponseDto<TimerDto>>(StatusCodes.Status200OK)]

@@ -19,6 +19,9 @@ using NomNomzBot.Application.Common.Models;
 
 namespace NomNomzBot.Api.Controllers.V1;
 
+/// <summary>
+/// Custom command CRUD for a channel — the dashboard operator's commands page.
+/// </summary>
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/channels/{channelId}/commands")]
 [Authorize]
@@ -32,6 +35,7 @@ public class CommandsController : BaseController
         _commandService = commandService;
     }
 
+    /// <summary>List the channel's custom commands, paginated, for the dashboard's commands page.</summary>
     [RequireAction("commands:read")]
     [HttpGet]
     [ProducesResponseType<PaginatedResponse<CommandListItem>>(StatusCodes.Status200OK)]
@@ -52,6 +56,7 @@ public class CommandsController : BaseController
         return GetPaginatedResponse(result.Value, request);
     }
 
+    /// <summary>Get a single custom command by name.</summary>
     [RequireAction("commands:read")]
     [HttpGet("{commandName}")]
     [ProducesResponseType<StatusResponseDto<CommandDto>>(StatusCodes.Status200OK)]
@@ -65,6 +70,7 @@ public class CommandsController : BaseController
         return ResultResponse(result);
     }
 
+    /// <summary>Create a new custom command for the channel.</summary>
     [RequireAction("commands:write")]
     [HttpPost]
     [ProducesResponseType<StatusResponseDto<CommandDto>>(StatusCodes.Status201Created)]
@@ -89,6 +95,7 @@ public class CommandsController : BaseController
         );
     }
 
+    /// <summary>Update an existing custom command.</summary>
     [RequireAction("commands:write")]
     [HttpPut("{commandName}")]
     [ProducesResponseType<StatusResponseDto<CommandDto>>(StatusCodes.Status200OK)]
@@ -110,6 +117,7 @@ public class CommandsController : BaseController
         return Ok(new StatusResponseDto<CommandDto> { Data = result.Value });
     }
 
+    /// <summary>Delete a custom command.</summary>
     [RequireAction("commands:write")]
     [HttpDelete("{commandName}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]

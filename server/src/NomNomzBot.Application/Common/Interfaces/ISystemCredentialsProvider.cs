@@ -14,7 +14,7 @@ namespace NomNomzBot.Application.Common.Interfaces;
 /// The single resolution path for the platform's OAuth <em>app</em> credentials (the onboarding keystone):
 /// the wizard vaults them to the DB (system-scoped <c>Configuration</c> rows, <c>BroadcasterId == null</c>),
 /// so a self-host operator configures everything through the dashboard and never edits a config file. Each
-/// field resolves DB-first then <c>{Provider}:ClientId/ClientSecret</c> from <see cref="IConfiguration"/> as
+/// field resolves DB-first then <c>{Provider}:ClientId/ClientSecret</c> from <c>IConfiguration</c> as
 /// the env/appsettings fallback — so a credential-less boot drops into setup mode, and saved wizard creds
 /// actually drive the live OAuth flows. The secret is sealed under the AAD <c>("system", provider, field)</c>,
 /// so a sealed value for one provider can never be unprotected as another's, and a raw DB read yields only

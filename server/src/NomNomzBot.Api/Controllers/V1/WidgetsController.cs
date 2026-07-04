@@ -19,6 +19,10 @@ using NomNomzBot.Application.Widgets.Services;
 
 namespace NomNomzBot.Api.Controllers.V1;
 
+/// <summary>
+/// Manages a channel's OBS browser-source overlay widgets (alerts, now-playing, and other overlay instances).
+/// Routes are scoped to <c>{channelId}</c> and require authorization.
+/// </summary>
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/channels/{channelId}/widgets")]
 [Authorize]
@@ -32,6 +36,7 @@ public class WidgetsController : BaseController
         _widgetService = widgetService;
     }
 
+    /// <summary>List a channel's overlay widgets, paginated.</summary>
     [RequireAction("widget:read")]
     [HttpGet]
     [ProducesResponseType<PaginatedResponse<WidgetDetail>>(StatusCodes.Status200OK)]
@@ -52,6 +57,7 @@ public class WidgetsController : BaseController
         return GetPaginatedResponse(result.Value, request);
     }
 
+    /// <summary>Get a single overlay widget's configuration.</summary>
     [RequireAction("widget:read")]
     [HttpGet("{widgetId}")]
     [ProducesResponseType<StatusResponseDto<WidgetDetail>>(StatusCodes.Status200OK)]
@@ -65,6 +71,7 @@ public class WidgetsController : BaseController
         return ResultResponse(result);
     }
 
+    /// <summary>Create a new overlay widget for a channel.</summary>
     [RequireAction("widget:write")]
     [HttpPost]
     [ProducesResponseType<StatusResponseDto<WidgetDetail>>(StatusCodes.Status201Created)]
@@ -89,6 +96,7 @@ public class WidgetsController : BaseController
         );
     }
 
+    /// <summary>Update an existing overlay widget's configuration.</summary>
     [RequireAction("widget:write")]
     [HttpPut("{widgetId}")]
     [ProducesResponseType<StatusResponseDto<WidgetDetail>>(StatusCodes.Status200OK)]
@@ -110,6 +118,7 @@ public class WidgetsController : BaseController
         return Ok(new StatusResponseDto<WidgetDetail> { Data = result.Value });
     }
 
+    /// <summary>Delete an overlay widget from a channel.</summary>
     [RequireAction("widget:write")]
     [HttpDelete("{widgetId}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]

@@ -27,7 +27,12 @@ public sealed record ChannelDto(
     DateTime CreatedAt
 );
 
-/// <summary>Lightweight channel info for lists and dropdowns.</summary>
+/// <summary>
+/// Lightweight channel info for lists and dropdowns. <c>ChatColor</c> is the streamer's Twitch chat color
+/// (#RRGGBB), populated from <c>User.Color</c> when known — null until the first login after the color-sync
+/// feature is deployed, or when the user has no color set; the dashboard uses it as the dynamic accent token
+/// (design-system §2).
+/// </summary>
 public sealed record ChannelSummaryDto(
     string Id,
     string Login,
@@ -37,11 +42,6 @@ public sealed record ChannelSummaryDto(
     string Role,
     int? ViewerCount,
     string? OverlayToken,
-    /// <summary>
-    /// The streamer's Twitch chat color (#RRGGBB), populated from <c>User.Color</c> when known.
-    /// Null until the first login after the color-sync feature is deployed, or when the user has no color set.
-    /// The dashboard uses this as the dynamic accent token (design-system §2).
-    /// </summary>
     string? ChatColor = null
 );
 

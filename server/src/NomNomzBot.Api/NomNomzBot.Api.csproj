@@ -1,6 +1,14 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
   <PropertyGroup>
     <RootNamespace>NomNomzBot.Api</RootNamespace>
+    <!-- Feeds XML doc comments (controller /// <summary> etc.) into the built-in OpenAPI generator's
+         compile-time source generator (Microsoft.AspNetCore.OpenApi.SourceGenerators) — see
+         learn.microsoft.com/aspnet/core/fundamentals/openapi/openapi-comments. NoWarn'd for CS1591
+         ("missing XML comment") since coverage is being filled in incrementally, not all at once;
+         TreatWarningsAsErrors (Directory.Build.props) would otherwise fail the build on every
+         undocumented public member. -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
   </PropertyGroup>
 
   <!-- Self-host `lite` single-file binary (deployment-distribution §1.1). Publish per-OS with, e.g.:

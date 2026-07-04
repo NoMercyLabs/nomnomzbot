@@ -60,7 +60,7 @@ public sealed record UpdateUserProfileRequest
     public string? DisplayName { get; init; }
     public string? Email { get; init; }
 
-    /// <summary>The <see cref="Pronoun.Id"/> to assign, or <c>null</c> to leave unchanged, or <c>0</c> to clear.</summary>
+    /// <summary>The <see cref="NomNomzBot.Domain.Identity.Entities.Pronoun.Id"/> to assign, or <c>null</c> to leave unchanged, or <c>0</c> to clear.</summary>
     public int? PronounId { get; init; }
 }
 

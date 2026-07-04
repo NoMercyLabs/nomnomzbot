@@ -19,6 +19,7 @@ using NomNomzBot.Application.Tts.Services;
 
 namespace NomNomzBot.Api.Controllers.V1;
 
+/// <summary>Manages a channel's text-to-speech provider, voice, and playback settings, for the dashboard operator configuring chat-triggered TTS.</summary>
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/channels/{channelId}/tts")]
 [Authorize]
@@ -32,6 +33,7 @@ public class TtsConfigController : BaseController
         _ttsConfigService = ttsConfigService;
     }
 
+    /// <summary>Get the channel's TTS configuration.</summary>
     [HttpGet("config")]
     [RequireAction("tts:config:read")]
     [ProducesResponseType<StatusResponseDto<TtsConfigDto>>(StatusCodes.Status200OK)]
@@ -41,6 +43,7 @@ public class TtsConfigController : BaseController
         return ResultResponse(result);
     }
 
+    /// <summary>Update the channel's TTS configuration.</summary>
     [HttpPut("config")]
     [RequireAction("tts:config:write")]
     [ProducesResponseType<StatusResponseDto<TtsConfigDto>>(StatusCodes.Status200OK)]
@@ -60,6 +63,7 @@ public class TtsConfigController : BaseController
         return Ok(new StatusResponseDto<TtsConfigDto> { Data = result.Value });
     }
 
+    /// <summary>List the voices available from the configured TTS provider.</summary>
     [HttpGet("voices")]
     [RequireAction("tts:voice:read")]
     [ProducesResponseType<StatusResponseDto<IReadOnlyList<TtsVoiceDto>>>(StatusCodes.Status200OK)]
@@ -69,6 +73,7 @@ public class TtsConfigController : BaseController
         return ResultResponse(result);
     }
 
+    /// <summary>Generate a short test TTS clip to preview a voice.</summary>
     [HttpPost("test")]
     [RequireAction("tts:voice:test")]
     [ProducesResponseType<StatusResponseDto<TtsTestResultDto>>(StatusCodes.Status200OK)]

@@ -11,9 +11,14 @@
 namespace NomNomzBot.Api.Hubs.Dtos;
 
 /// <summary>
-/// Rich chat message DTO sent to dashboard/overlay clients via SignalR.
-/// Includes structured fragments for inline emote, mention, and cheermote rendering.
-/// Field names match the frontend ChatMessagePayload type exactly.
+/// Rich chat message DTO sent to dashboard/overlay clients via SignalR. Includes structured fragments for
+/// inline emote, mention, and cheermote rendering; field names match the frontend ChatMessagePayload type
+/// exactly. <c>Message</c> is the raw plain-text fallback for clients that don't render fragments;
+/// <c>Fragments</c> are the structured text/emote/cheermote/mention pieces; <c>UserType</c> is the derived
+/// role (broadcaster | moderator | vip | subscriber | viewer); <c>Color</c> is the user's chat color
+/// (#RRGGBB); <c>MessageType</c> is text | channel_points_highlighted | channel_points_sub_only | user_intro;
+/// <c>AvatarUrl</c> and <c>Pronouns</c> are additive hub-broadcast-layer enrichment (<c>IHubUserEnricher</c>),
+/// null when unavailable.
 /// </summary>
 public record DashboardChatMessageDto(
     string Id,
@@ -21,11 +26,8 @@ public record DashboardChatMessageDto(
     string UserId,
     string DisplayName,
     string Username,
-    /// <summary>Raw plain-text fallback (for clients that don't render fragments).</summary>
     string Message,
-    /// <summary>Structured fragments: text, emote, cheermote, mention.</summary>
     IReadOnlyList<ChatFragmentDto> Fragments,
-    /// <summary>Derived role: broadcaster | moderator | vip | subscriber | viewer</summary>
     string UserType,
     bool IsSubscriber,
     bool IsVip,
@@ -35,17 +37,13 @@ public record DashboardChatMessageDto(
     bool IsCommand,
     IReadOnlyList<ChatBadgeDto> Badges,
     int BitsAmount,
-    /// <summary>User's chat color #RRGGBB.</summary>
     string? Color,
-    /// <summary>Message type: text | channel_points_highlighted | channel_points_sub_only | user_intro</summary>
     string MessageType,
     string? ReplyToMessageId,
     string? ReplyParentMessageBody,
     string? ReplyParentUserName,
     string Timestamp,
-    /// <summary>Additive hub-broadcast-layer enrichment (<c>IHubUserEnricher</c>); null when unavailable.</summary>
     string? AvatarUrl = null,
-    /// <summary>Additive hub-broadcast-layer enrichment (<c>IHubUserEnricher</c>); null when unavailable.</summary>
     string? Pronouns = null
 );
 

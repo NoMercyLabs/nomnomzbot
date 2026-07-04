@@ -22,7 +22,7 @@ namespace NomNomzBot.Api.Controllers.V1;
 /// <summary>
 /// Portable export/import of the channel's append-only event journal (event-store §1.1) — the ledger the owner
 /// can carry between deployments or back up. The <c>{channelId}</c> route makes
-/// <see cref="TenantResolutionMiddleware"/> resolve and access-check the tenant, so a caller can only export/import
+/// <see cref="NomNomzBot.Api.Middleware.TenantResolutionMiddleware"/> resolve and access-check the tenant, so a caller can only export/import
 /// their own channel's journal; <see cref="ICurrentTenantService.BroadcasterId"/> is that resolved tenant. Both
 /// routes floor at <c>Broadcaster</c> via Gate 2: export reads the entire journal, and import mutates it (so it is
 /// also danger-tier Critical in the action catalogue).

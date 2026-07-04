@@ -825,6 +825,7 @@
         "tags": [
           "Admin"
         ],
+        "summary": "Returns aggregate statistics for the admin dashboard.",
         "parameters": [
           {
             "name": "version",
@@ -914,6 +915,7 @@
         "tags": [
           "Admin"
         ],
+        "summary": "Returns all channels with their current status.",
         "parameters": [
           {
             "name": "Page",
@@ -1048,6 +1050,7 @@
         "tags": [
           "Admin"
         ],
+        "summary": "Returns all registered users.",
         "parameters": [
           {
             "name": "Page",
@@ -1182,6 +1185,7 @@
         "tags": [
           "Admin"
         ],
+        "summary": "Returns system health and process metrics.",
         "parameters": [
           {
             "name": "version",
@@ -1271,6 +1275,7 @@
         "tags": [
           "Admin"
         ],
+        "summary": "Returns service health list (for dashboard health panel).",
         "parameters": [
           {
             "name": "version",
@@ -1360,6 +1365,7 @@
         "tags": [
           "Admin"
         ],
+        "summary": "Returns recent platform events for the admin dashboard.",
         "parameters": [
           {
             "name": "version",
@@ -2365,6 +2371,7 @@
         "tags": [
           "Auth"
         ],
+        "summary": "Get the currently authenticated user.",
         "parameters": [
           {
             "name": "version",
@@ -2454,6 +2461,7 @@
         "tags": [
           "Auth"
         ],
+        "summary": "Start the Twitch OAuth flow. Redirects the browser to Twitch's authorization page.\r\nPass `redirect_uri` for mobile / desktop-loopback deep-link callbacks (e.g.\r\n`nomnomzbot://callback`). Pass `client=web` for the served-web dashboard: a full-page redirect\r\ncan't receive a JSON token body, so the callback returns the tokens in the URL fragment + an HttpOnly\r\ncookie instead.",
         "parameters": [
           {
             "name": "redirect_uri",
@@ -2547,6 +2555,7 @@
         "tags": [
           "Auth"
         ],
+        "summary": "Handle the OAuth callback from Twitch. Exchanges the authorization code for\r\nplatform tokens. If a mobile `redirect_uri` was passed in the original\r\nrequest, the browser is redirected to the app's deep link with tokens in the\r\nquery string. Otherwise returns a JSON response (for web clients).",
         "parameters": [
           {
             "name": "code",
@@ -2638,6 +2647,7 @@
         "tags": [
           "Auth"
         ],
+        "summary": "Exchange an OAuth authorization code for platform tokens (mobile / SPA flow).\r\nThe client handles the Twitch redirect directly and sends the code + redirect_uri\r\nto this endpoint for server-side token exchange.",
         "parameters": [
           {
             "name": "version",
@@ -2737,6 +2747,7 @@
         "tags": [
           "Auth"
         ],
+        "summary": "Begin the no-secret streamer login (Device Code Flow). Returns a short user code + the\r\ntwitch.tv/activate URL to show the operator, plus the device code the client polls with. No Twitch app\r\nregistration and no client secret — NomNomzBot's shipped public client id drives it.",
         "parameters": [
           {
             "name": "version",
@@ -2826,6 +2837,7 @@
         "tags": [
           "Auth"
         ],
+        "summary": "Poll a streamer device login once. Until the operator approves, the status is `pending` /\r\n`slow_down`; on `authorized` the session is opened and the response carries the platform\r\ntokens + user, which the client establishes exactly as it would after the redirect callback.",
         "parameters": [
           {
             "name": "client",
@@ -2942,6 +2954,7 @@
         "tags": [
           "Auth"
         ],
+        "summary": "Refresh an expired access token.",
         "parameters": [
           {
             "name": "client",
@@ -3068,6 +3081,7 @@
         "tags": [
           "Auth"
         ],
+        "summary": "Log out the current session, revoking its refresh tokens.",
         "parameters": [
           {
             "name": "version",
@@ -3147,6 +3161,7 @@
         "tags": [
           "Auth"
         ],
+        "summary": "Log out of all the current user's sessions, revoking every refresh token they hold.",
         "parameters": [
           {
             "name": "version",
@@ -3226,6 +3241,7 @@
         "tags": [
           "Auth"
         ],
+        "summary": "Start the OAuth flow for the platform-shared bot account. This is a platform-level registration on top\r\nof the operator's account (not a login), so it is admin-gated (identity-auth §5, `platform · iam:manage`,\r\nenforced via the live `admin` role). Returns the Twitch authorize URL for the client to open —\r\nthe resulting token is stored globally (no per-channel binding). First-run setup uses the wizard's\r\n`system/setup/bot/oauth-url` instead (before an admin exists).",
         "parameters": [
           {
             "name": "redirect_uri",
@@ -3310,6 +3326,7 @@
         "tags": [
           "Auth"
         ],
+        "summary": "Disconnect the platform-shared bot account, revoking its Twitch token (admin-only).",
         "parameters": [
           {
             "name": "version",
@@ -3389,6 +3406,7 @@
         "tags": [
           "Auth"
         ],
+        "summary": "Get the current platform-shared bot account connection status (admin-only).",
         "parameters": [
           {
             "name": "version",
@@ -3468,6 +3486,7 @@
         "tags": [
           "Auth"
         ],
+        "summary": "Begin the bot-account device login (no secret). The operator approves the bot's own Twitch account at\r\ntwitch.tv/activate and the client polls until connected. Admin-gated — the streamer is already signed in\r\nwhen they add a bot account (Streamer.bot parity).",
         "parameters": [
           {
             "name": "version",
@@ -3557,6 +3576,7 @@
         "tags": [
           "Auth"
         ],
+        "summary": "Poll a bot device login once; on `authorized` the shared bot account is connected + vaulted.",
         "parameters": [
           {
             "name": "version",
@@ -5121,6 +5141,7 @@
         "tags": [
           "Commands"
         ],
+        "summary": "Lists all built-in commands for the channel, with their enabled state and defaults.",
         "parameters": [
           {
             "name": "channelId",
@@ -5218,6 +5239,7 @@
         "tags": [
           "Commands"
         ],
+        "summary": "Enables or disables a specific built-in command for the channel.",
         "parameters": [
           {
             "name": "channelId",
@@ -6292,6 +6314,7 @@
         "tags": [
           "Channel Bot"
         ],
+        "summary": "Returns OAuth scopes status for the broadcaster token on this channel.",
         "parameters": [
           {
             "name": "channelId",
@@ -6389,6 +6412,7 @@
         "tags": [
           "Channel Bot"
         ],
+        "summary": "Start Twitch OAuth for this channel's white-label bot — an additional bot-identity registration on top\r\nof the owner's account (not a login), handled like an integration connect. Gated owner-level\r\n(identity-auth §5, `management/Broadcaster · channelbot:connect`). Returns the Twitch authorize URL\r\n(force_verify) for the client to open; the callback completes via the unified, nonce-validated\r\n`/auth/twitch/callback`.",
         "parameters": [
           {
             "name": "channelId",
@@ -6476,6 +6500,7 @@
         "tags": [
           "Channel Bot"
         ],
+        "summary": "Get white-label bot status for a specific channel.",
         "parameters": [
           {
             "name": "channelId",
@@ -6563,6 +6588,7 @@
         "tags": [
           "Channel Bot"
         ],
+        "summary": "Disconnect the white-label bot for a specific channel.",
         "parameters": [
           {
             "name": "channelId",
@@ -7070,6 +7096,7 @@
         "tags": [
           "Channels"
         ],
+        "summary": "Onboards the caller's channel. Thin by design: Task&lt;Result&lt;ChannelDto&gt;&gt; IChannelService.OnboardAsync(string broadcasterId, CreateChannelRequest request, CancellationToken cancellationToken = default(CancellationToken)) owns every\r\nside effect, including publishing `ChannelOnboardedEvent` — the single onboarding path that fans\r\nout to the auto-discovered seed handlers (rewards, mods/VIPs/subs, channel info, owner profile, event\r\nresponses, banned-user import, bot mod-join, default builtin commands, EventSub subscribe). The former\r\ninline Twitch-data sync that used to live here has moved into those handlers, matching every other\r\ncontroller's validate → service → response shape.",
         "parameters": [
           {
             "name": "version",
@@ -7179,6 +7206,7 @@
         "tags": [
           "Channels"
         ],
+        "summary": "Get all Twitch channels the current user moderates (from Twitch API, not just DB).",
         "parameters": [
           {
             "name": "version",
@@ -7560,7 +7588,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           }
         }
@@ -7765,6 +7793,7 @@
         "tags": [
           "Channels"
         ],
+        "summary": "Reset all channel bot configuration to defaults (clears Configuration entries).",
         "parameters": [
           {
             "name": "channelId",
@@ -7862,6 +7891,7 @@
         "tags": [
           "Chat"
         ],
+        "summary": "Get recent chat messages for the dashboard's chat feed, returned oldest first.",
         "parameters": [
           {
             "name": "channelId",
@@ -7970,6 +8000,7 @@
         "tags": [
           "Chat"
         ],
+        "summary": "Send a chat message to the channel as the bot, for the dashboard's chat page.",
         "parameters": [
           {
             "name": "channelId",
@@ -8087,6 +8118,7 @@
         "tags": [
           "Chat"
         ],
+        "summary": "Delete a chat message — a moderator's quick-action from the dashboard's chat page.",
         "parameters": [
           {
             "name": "channelId",
@@ -8192,6 +8224,7 @@
         "tags": [
           "Chat"
         ],
+        "summary": "Get the channel's chat-mode settings (slow mode, sub-only, emote-only, followers-only).",
         "parameters": [
           {
             "name": "channelId",
@@ -8287,6 +8320,7 @@
         "tags": [
           "Chat"
         ],
+        "summary": "Replace the channel's chat-mode settings.",
         "parameters": [
           {
             "name": "channelId",
@@ -8402,6 +8436,7 @@
         "tags": [
           "Chat"
         ],
+        "summary": "Partially update the channel's chat-mode settings, merging only the supplied fields.",
         "parameters": [
           {
             "name": "channelId",
@@ -8519,6 +8554,7 @@
         "tags": [
           "Chat"
         ],
+        "summary": "Send a Twitch chat announcement message with an optional highlight color.",
         "parameters": [
           {
             "name": "channelId",
@@ -8621,7 +8657,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           }
         }
@@ -9471,6 +9507,7 @@
         "tags": [
           "Commands"
         ],
+        "summary": "List the channel's custom commands, paginated, for the dashboard's commands page.",
         "parameters": [
           {
             "name": "channelId",
@@ -9611,6 +9648,7 @@
         "tags": [
           "Commands"
         ],
+        "summary": "Create a new custom command for the channel.",
         "parameters": [
           {
             "name": "channelId",
@@ -9728,6 +9766,7 @@
         "tags": [
           "Commands"
         ],
+        "summary": "Get a single custom command by name.",
         "parameters": [
           {
             "name": "channelId",
@@ -9831,6 +9870,7 @@
         "tags": [
           "Commands"
         ],
+        "summary": "Update an existing custom command.",
         "parameters": [
           {
             "name": "channelId",
@@ -9954,6 +9994,7 @@
         "tags": [
           "Commands"
         ],
+        "summary": "Delete a custom command.",
         "parameters": [
           {
             "name": "channelId",
@@ -10044,7 +10085,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           }
         }
@@ -10055,6 +10096,7 @@
         "tags": [
           "Community"
         ],
+        "summary": "List community members for a channel, filterable by role (follower, VIP, moderator, or all chatters) and paginated.",
         "parameters": [
           {
             "name": "channelId",
@@ -10211,6 +10253,7 @@
         "tags": [
           "Community"
         ],
+        "summary": "Get follower, subscriber, VIP, and moderator counts for a channel, sourced live from Twitch where available.",
         "parameters": [
           {
             "name": "channelId",
@@ -10308,6 +10351,7 @@
         "tags": [
           "Community"
         ],
+        "summary": "List banned users for a channel, paginated, with ban reason and moderator identity.",
         "parameters": [
           {
             "name": "channelId",
@@ -10450,6 +10494,7 @@
         "tags": [
           "Community"
         ],
+        "summary": "Get a single community member's profile, trust level, ban status, and recent chat activity.",
         "parameters": [
           {
             "name": "channelId",
@@ -10555,6 +10600,7 @@
         "tags": [
           "Community"
         ],
+        "summary": "Set a community member's trust level for a channel.",
         "parameters": [
           {
             "name": "channelId",
@@ -10680,6 +10726,7 @@
         "tags": [
           "Community"
         ],
+        "summary": "Ban a user from the channel via Twitch and record the ban locally with reason and moderator identity.",
         "parameters": [
           {
             "name": "channelId",
@@ -10790,7 +10837,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           }
         }
@@ -10799,6 +10846,7 @@
         "tags": [
           "Community"
         ],
+        "summary": "Unban a user from the channel via Twitch and clear the local ban record.",
         "parameters": [
           {
             "name": "channelId",
@@ -10889,7 +10937,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           }
         }
@@ -10900,6 +10948,7 @@
         "tags": [
           "Community"
         ],
+        "summary": "Grant a user VIP status in the channel.",
         "parameters": [
           {
             "name": "channelId",
@@ -10990,7 +11039,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           }
         }
@@ -10999,6 +11048,7 @@
         "tags": [
           "Community"
         ],
+        "summary": "Revoke a user's VIP status in the channel.",
         "parameters": [
           {
             "name": "channelId",
@@ -11089,7 +11139,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           }
         }
@@ -11100,6 +11150,7 @@
         "tags": [
           "Community"
         ],
+        "summary": "Returns the calling user's community standing in the given channel.",
         "parameters": [
           {
             "name": "channelId",
@@ -11829,6 +11880,7 @@
         "tags": [
           "Economy — Currency"
         ],
+        "summary": "The caller's OWN wallet on this channel — the `self` arm of economy.md §5's\r\n`economy:account:read` \"self-or-Gate-2\". It binds the subject to the authenticated caller and can\r\nonly ever return that caller's account, so it carries no Gate-2 floor (community / Everyone): a\r\nparticipant reads their own balance here without the Moderator `economy:account:read` the keyed\r\n`accounts/{viewerUserId}` route demands. `me` is a literal, so it never shadows the guid route.",
         "parameters": [
           {
             "name": "channelId",
@@ -12507,11 +12559,770 @@
         }
       }
     },
+    "/api/v{version}/custom-data-sources": {
+      "get": {
+        "tags": [
+          "CustomEvents"
+        ],
+        "parameters": [
+          {
+            "name": "Page",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "Take",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "Sort",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Order",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Search",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedResponseOfCustomDataSourceDto"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "CustomEvents"
+        ],
+        "parameters": [
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpsertCustomDataSourceRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpsertCustomDataSourceRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpsertCustomDataSourceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfCustomDataSourceDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/custom-data-sources/presets": {
+      "get": {
+        "tags": [
+          "CustomEvents"
+        ],
+        "parameters": [
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfIReadOnlyListOfCustomDataSourcePresetDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/custom-data-sources/{id}": {
+      "get": {
+        "tags": [
+          "CustomEvents"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfCustomDataSourceDto"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "CustomEvents"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpsertCustomDataSourceRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpsertCustomDataSourceRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpsertCustomDataSourceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfCustomDataSourceDto"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "CustomEvents"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfboolean"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/custom-data-sources/{id}/test": {
+      "post": {
+        "tags": [
+          "CustomEvents"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TestCustomDataSourceRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TestCustomDataSourceRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/TestCustomDataSourceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfboolean"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v{version}/dashboard/{channelId}/stats": {
       "get": {
         "tags": [
           "Dashboard"
         ],
+        "summary": "Returns a live stats snapshot for the given channel.\r\nUses the in-memory ChannelContext when the bot is connected; falls back to DB otherwise.",
         "parameters": [
           {
             "name": "channelId",
@@ -12609,6 +13420,7 @@
         "tags": [
           "Dashboard"
         ],
+        "summary": "Returns recent channel activity events.",
         "parameters": [
           {
             "name": "channelId",
@@ -14943,6 +15755,7 @@
         "tags": [
           "Integration OAuth"
         ],
+        "summary": "Start the Discord OAuth flow — redirects to Discord's authorization page with bot + guilds scopes.\r\nPass redirect_uri for the desktop client's loopback listener (RFC-8252): the callback\r\nthen redirects there with a success/error marker so the listener completes. The web/SPA client omits it\r\nand gets the frontend redirect instead.",
         "parameters": [
           {
             "name": "channelId",
@@ -15037,6 +15850,7 @@
         "tags": [
           "Integration OAuth"
         ],
+        "summary": "Handle the Discord OAuth callback. Exchanges the authorization code for tokens, parses the response into\r\na DiscordGuildOAuthResult, and delegates persistence to IDiscordGuildService\r\n(which vaults the bot token and records the guild link). No persistence is done inline.",
         "parameters": [
           {
             "name": "code",
@@ -15718,6 +16532,7 @@
         "tags": [
           "EventResponses"
         ],
+        "summary": "List the channel's configured event responses, paginated, for the dashboard's event responses page.",
         "parameters": [
           {
             "name": "channelId",
@@ -15860,6 +16675,7 @@
         "tags": [
           "EventResponses"
         ],
+        "summary": "Get the configured response for a single event type.",
         "parameters": [
           {
             "name": "channelId",
@@ -15963,6 +16779,7 @@
         "tags": [
           "EventResponses"
         ],
+        "summary": "Create or replace the response configured for an event type.",
         "parameters": [
           {
             "name": "channelId",
@@ -16086,6 +16903,7 @@
         "tags": [
           "EventResponses"
         ],
+        "summary": "Delete the configured response for an event type.",
         "parameters": [
           {
             "name": "channelId",
@@ -16176,7 +16994,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           }
         }
@@ -16187,6 +17005,7 @@
         "tags": [
           "EventStore"
         ],
+        "summary": "Exports the channel's whole journal as a JSONL file download (one event envelope per line). Owner-only.",
         "parameters": [
           {
             "name": "channelId",
@@ -16269,7 +17088,7 @@
           "200": {
             "description": "OK",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           }
         }
@@ -16280,6 +17099,7 @@
         "tags": [
           "EventStore"
         ],
+        "summary": "Imports a JSONL journal export into the channel's stream — idempotent (duplicates by EventId are skipped),\r\nupcast on read, and atomic (all-or-nothing). Owner-only. Returns import/skip/upcast counts.",
         "parameters": [
           {
             "name": "channelId",
@@ -16392,6 +17212,7 @@
         "tags": [
           "EventStore"
         ],
+        "summary": "Backfills the channel's history from the legacy NoMercy bot database into the journal — reads the legacy file\r\nREAD-ONLY, maps each channel event to its current domain event, and appends idempotently (a re-run imports\r\nnothing). Owner-only. Returns import/skip counts and the journal head before/after.",
         "parameters": [
           {
             "name": "channelId",
@@ -16489,6 +17310,7 @@
         "tags": [
           "EventStore"
         ],
+        "summary": "Rebuilds every tenant-scoped read-model projection (channel event log, analytics dailies, viewer profiles, …)\r\nfrom the channel's journal — reset → replay from position 0. Owner-level. Run after a legacy import (or any\r\njournal backfill) so the new facts surface in the read models. Returns the per-projection applied-event counts.",
         "parameters": [
           {
             "name": "channelId",
@@ -16586,6 +17408,7 @@
         "tags": [
           "EventSub"
         ],
+        "summary": "Reads this channel's EventSub subscription registry (no Twitch call).",
         "parameters": [
           {
             "name": "channelId",
@@ -16726,6 +17549,7 @@
         "tags": [
           "EventSub"
         ],
+        "summary": "Creates one EventSub subscription for this channel.",
         "parameters": [
           {
             "name": "channelId",
@@ -16843,6 +17667,7 @@
         "tags": [
           "EventSub"
         ],
+        "summary": "Revokes one EventSub subscription by its surrogate id.",
         "parameters": [
           {
             "name": "channelId",
@@ -16949,6 +17774,7 @@
         "tags": [
           "EventSub"
         ],
+        "summary": "Reconciles this channel's registry against Twitch's actual subscription list.",
         "parameters": [
           {
             "name": "channelId",
@@ -19130,6 +19956,7 @@
         "tags": [
           "Integration OAuth"
         ],
+        "summary": "The integrations screen read model: per provider — connected?, account, granted scope-sets, capabilities.",
         "parameters": [
           {
             "name": "channelId",
@@ -19227,6 +20054,7 @@
         "tags": [
           "Integration OAuth"
         ],
+        "summary": "Starts a provider connect: returns the authorize URL the client opens (the service builds the PKCE\r\nchallenge + signed single-use state). A connect carries a progressive scope-set key (e.g.\r\n`spotify.playback`); re-connecting with a wider set is an incremental re-auth.",
         "parameters": [
           {
             "name": "channelId",
@@ -19352,6 +20180,7 @@
         "tags": [
           "Integration OAuth"
         ],
+        "summary": "The provider redirect target. Anonymous — secured by the signed single-use `state`, not the JWT.\r\nValidates+consumes state, exchanges the code (with the PKCE verifier) for tokens, vaults them, then\r\nredirects the browser back to the connect's return URL. A failure redirects to the integrations screen\r\nwith an error marker rather than surfacing a raw API error to the browser.",
         "parameters": [
           {
             "name": "provider",
@@ -19467,6 +20296,7 @@
         "tags": [
           "Integration OAuth"
         ],
+        "summary": "Severs a provider connection: revokes the token where supported, then soft-deletes + crypto-shreds the vault entry. Idempotent.",
         "parameters": [
           {
             "name": "channelId",
@@ -19759,7 +20589,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           }
         }
@@ -20641,7 +21471,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           }
         }
@@ -21060,6 +21890,7 @@
         "tags": [
           "Moderation"
         ],
+        "summary": "List the channel's auto-moderation rules, paginated.",
         "parameters": [
           {
             "name": "channelId",
@@ -21200,6 +22031,7 @@
         "tags": [
           "Moderation"
         ],
+        "summary": "Create a new auto-moderation rule for the channel.",
         "parameters": [
           {
             "name": "channelId",
@@ -21317,6 +22149,7 @@
         "tags": [
           "Moderation"
         ],
+        "summary": "Update an existing auto-moderation rule.",
         "parameters": [
           {
             "name": "channelId",
@@ -21442,6 +22275,7 @@
         "tags": [
           "Moderation"
         ],
+        "summary": "Delete an auto-moderation rule.",
         "parameters": [
           {
             "name": "channelId",
@@ -21534,7 +22368,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           }
         }
@@ -21545,6 +22379,7 @@
         "tags": [
           "Moderation"
         ],
+        "summary": "Get the channel's auto-moderation config (link filter, caps filter, banned phrases, emote spam).",
         "parameters": [
           {
             "name": "channelId",
@@ -21640,6 +22475,7 @@
         "tags": [
           "Moderation"
         ],
+        "summary": "Save the channel's auto-moderation config, upserting its built-in filter rules.",
         "parameters": [
           {
             "name": "channelId",
@@ -21757,6 +22593,7 @@
         "tags": [
           "Moderation"
         ],
+        "summary": "List users currently banned in the channel, via the Twitch moderation API.",
         "parameters": [
           {
             "name": "channelId",
@@ -21854,6 +22691,7 @@
         "tags": [
           "Moderation"
         ],
+        "summary": "Unban a user from the channel via the Twitch moderation API.",
         "parameters": [
           {
             "name": "channelId",
@@ -21959,6 +22797,7 @@
         "tags": [
           "Moderation"
         ],
+        "summary": "Get the channel's moderation action log, paginated, with moderator and target usernames resolved.",
         "parameters": [
           {
             "name": "channelId",
@@ -22101,6 +22940,7 @@
         "tags": [
           "Moderation"
         ],
+        "summary": "Check whether the channel's Shield Mode setting is currently enabled.",
         "parameters": [
           {
             "name": "channelId",
@@ -22196,6 +23036,7 @@
         "tags": [
           "Moderation"
         ],
+        "summary": "Turn the channel's Shield Mode setting on or off and notify open dashboards of the change.",
         "parameters": [
           {
             "name": "channelId",
@@ -22313,6 +23154,7 @@
         "tags": [
           "Moderation"
         ],
+        "summary": "List the channel's blocked terms.",
         "parameters": [
           {
             "name": "channelId",
@@ -22408,6 +23250,7 @@
         "tags": [
           "Moderation"
         ],
+        "summary": "Add a term to the channel's blocked-terms list.",
         "parameters": [
           {
             "name": "channelId",
@@ -22525,6 +23368,7 @@
         "tags": [
           "Moderation"
         ],
+        "summary": "Remove a term from the channel's blocked-terms list.",
         "parameters": [
           {
             "name": "channelId",
@@ -22630,6 +23474,7 @@
         "tags": [
           "Moderation"
         ],
+        "summary": "Get today's moderation counts for the channel — bans, timeouts, deleted messages, and AutoMod actions —\r\nderived from the channel's event log.",
         "parameters": [
           {
             "name": "channelId",
@@ -22727,6 +23572,7 @@
         "tags": [
           "Moderation"
         ],
+        "summary": "List moderation actions (bans, timeouts, unbans) taken in the channel, paginated.",
         "parameters": [
           {
             "name": "channelId",
@@ -22867,6 +23713,7 @@
         "tags": [
           "Moderation"
         ],
+        "summary": "Time out, ban, or unban a user in the channel, dispatched by the requested action type.",
         "parameters": [
           {
             "name": "channelId",
@@ -22984,6 +23831,7 @@
         "tags": [
           "Moderation"
         ],
+        "summary": "Send a Twitch shoutout for another channel from the broadcaster's channel.",
         "parameters": [
           {
             "name": "channelId",
@@ -23086,7 +23934,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           }
         }
@@ -23097,6 +23945,7 @@
         "tags": [
           "Music"
         ],
+        "summary": "Get the channel's music integration configuration for the dashboard operator.",
         "parameters": [
           {
             "name": "channelId",
@@ -23192,6 +24041,7 @@
         "tags": [
           "Music"
         ],
+        "summary": "Update the channel's music integration configuration.",
         "parameters": [
           {
             "name": "channelId",
@@ -23309,6 +24159,7 @@
         "tags": [
           "Music"
         ],
+        "summary": "Returns this channel's public SR-page token, minting one on first call (the shareable /sr link).",
         "parameters": [
           {
             "name": "channelId",
@@ -23406,6 +24257,7 @@
         "tags": [
           "Music"
         ],
+        "summary": "Rotates the SR-page token, revoking public access via the old /sr link.",
         "parameters": [
           {
             "name": "channelId",
@@ -23503,6 +24355,7 @@
         "tags": [
           "Music"
         ],
+        "summary": "Get the currently playing track and the upcoming song queue for the channel.",
         "parameters": [
           {
             "name": "channelId",
@@ -23598,6 +24451,7 @@
         "tags": [
           "Music"
         ],
+        "summary": "Queue a song request by search query, submitted by a viewer or the operator.",
         "parameters": [
           {
             "name": "channelId",
@@ -23715,6 +24569,7 @@
         "tags": [
           "Music"
         ],
+        "summary": "Remove a queued song at the given position, for moderators clearing bad requests.",
         "parameters": [
           {
             "name": "channelId",
@@ -23807,7 +24662,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           }
         }
@@ -23818,6 +24673,7 @@
         "tags": [
           "Music"
         ],
+        "summary": "Skip the currently playing track to the next one in the queue.",
         "parameters": [
           {
             "name": "channelId",
@@ -23915,6 +24771,7 @@
         "tags": [
           "Music"
         ],
+        "summary": "Pause playback on the channel's active music provider.",
         "parameters": [
           {
             "name": "channelId",
@@ -24012,6 +24869,7 @@
         "tags": [
           "Music"
         ],
+        "summary": "Resume playback on the channel's active music provider.",
         "parameters": [
           {
             "name": "channelId",
@@ -24109,6 +24967,7 @@
         "tags": [
           "Music"
         ],
+        "summary": "Seek the currently playing track to a specific position in milliseconds.",
         "parameters": [
           {
             "name": "channelId",
@@ -24211,13 +25070,13 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           },
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           }
         }
@@ -24228,6 +25087,7 @@
         "tags": [
           "Music"
         ],
+        "summary": "Turn shuffle mode on or off on the active music provider.",
         "parameters": [
           {
             "name": "channelId",
@@ -24330,13 +25190,13 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           },
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           }
         }
@@ -24347,6 +25207,7 @@
         "tags": [
           "Music"
         ],
+        "summary": "Set the repeat mode on the active music provider.",
         "parameters": [
           {
             "name": "channelId",
@@ -24449,13 +25310,13 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           },
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           }
         }
@@ -24466,6 +25327,7 @@
         "tags": [
           "Music"
         ],
+        "summary": "List the playback devices available on the channel's active music provider.",
         "parameters": [
           {
             "name": "channelId",
@@ -24563,6 +25425,7 @@
         "tags": [
           "Music"
         ],
+        "summary": "Transfer playback to a different device, optionally resuming playback immediately.",
         "parameters": [
           {
             "name": "channelId",
@@ -24665,13 +25528,13 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           },
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           }
         }
@@ -24682,6 +25545,7 @@
         "tags": [
           "Music"
         ],
+        "summary": "List the connected music account's playlists, paginated by offset and limit.",
         "parameters": [
           {
             "name": "channelId",
@@ -24805,6 +25669,7 @@
         "tags": [
           "Music"
         ],
+        "summary": "Start playback of a playlist, album, or other provider context by URI.",
         "parameters": [
           {
             "name": "channelId",
@@ -24907,13 +25772,13 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           },
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           }
         }
@@ -24924,6 +25789,7 @@
         "tags": [
           "Music"
         ],
+        "summary": "Get the track currently playing on the channel's active music provider, if any.",
         "parameters": [
           {
             "name": "channelId",
@@ -25749,6 +26615,7 @@
         "tags": [
           "Pipelines"
         ],
+        "summary": "List the channel's pipelines, paginated.",
         "parameters": [
           {
             "name": "channelId",
@@ -25889,6 +26756,7 @@
         "tags": [
           "Pipelines"
         ],
+        "summary": "Create a new pipeline for the channel.",
         "parameters": [
           {
             "name": "channelId",
@@ -26006,6 +26874,7 @@
         "tags": [
           "Pipelines"
         ],
+        "summary": "Get a single pipeline by id, including its action graph.",
         "parameters": [
           {
             "name": "channelId",
@@ -26110,6 +26979,7 @@
         "tags": [
           "Pipelines"
         ],
+        "summary": "Update an existing pipeline's name, settings, or action graph.",
         "parameters": [
           {
             "name": "channelId",
@@ -26234,6 +27104,7 @@
         "tags": [
           "Pipelines"
         ],
+        "summary": "Delete a pipeline.",
         "parameters": [
           {
             "name": "channelId",
@@ -26325,7 +27196,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           }
         }
@@ -26336,6 +27207,7 @@
         "tags": [
           "Pipelines"
         ],
+        "summary": "Validates a pipeline graph without persisting it. Returns a PipelineValidationResult\r\nso the editor can surface errors inline before the user hits Save.",
         "parameters": [
           {
             "name": "channelId",
@@ -26548,6 +27420,7 @@
         "tags": [
           "Pronouns"
         ],
+        "summary": "Full pronoun catalog — anonymous, same data as `GET /system/pronouns` but namespaced here.",
         "parameters": [
           {
             "name": "version",
@@ -26637,6 +27510,7 @@
         "tags": [
           "Pronouns"
         ],
+        "summary": "Return the authenticated viewer's current pronoun state.",
         "parameters": [
           {
             "name": "version",
@@ -26724,6 +27598,7 @@
         "tags": [
           "Pronouns"
         ],
+        "summary": "Update the authenticated viewer's pronouns.",
         "parameters": [
           {
             "name": "version",
@@ -26833,6 +27708,7 @@
         "tags": [
           "PublicSongRequest"
         ],
+        "summary": "Resolves a public SR-page token to its channel context; 404 on an unknown/disabled token.",
         "parameters": [
           {
             "name": "token",
@@ -26918,6 +27794,7 @@
         "tags": [
           "PublicSongRequest"
         ],
+        "summary": "Submits a viewer song request through a public SR-page token. 404 on an unknown token, 409 when the channel\r\nis not accepting requests. The requester label is untrusted display text (anonymous page) — defaults to\r\n\"Anonymous\"; richer provenance/trust scoring rides on the persisted-queue migration (music-sr.md).",
         "parameters": [
           {
             "name": "token",
@@ -27925,6 +28802,7 @@
         "tags": [
           "Rewards"
         ],
+        "summary": "The channel-points redemption queue (newest first); pass ?status=unfulfilled for the pending lane.",
         "parameters": [
           {
             "name": "channelId",
@@ -28074,6 +28952,7 @@
         "tags": [
           "Rewards"
         ],
+        "summary": "Mark a queued redemption FULFILLED (Helix), removing it from the pending queue.",
         "parameters": [
           {
             "name": "channelId",
@@ -28169,6 +29048,7 @@
         "tags": [
           "Rewards"
         ],
+        "summary": "Refund a queued redemption — CANCELED in Helix (the viewer's points are returned).",
         "parameters": [
           {
             "name": "channelId",
@@ -28703,7 +29583,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           }
         }
@@ -29232,6 +30112,7 @@
         "tags": [
           "Roles"
         ],
+        "summary": "The authenticated caller's own resolved access on this channel (roles-permissions §5.1). The shell calls\r\nthis on session establish to learn the caller's effective ManagementRole and drive the\r\nrole-correct sidebar + write affordances. Self-introspection, so it is gated by entry (Gate 1) only — a\r\npure viewer with no management role must be able to learn they have none (and so be routed to the\r\nparticipation-only surface), which a `roles:read` (Moderator) floor would forbid.",
         "parameters": [
           {
             "name": "channelId",
@@ -29319,6 +30200,7 @@
         "tags": [
           "Roles"
         ],
+        "summary": "A channel member's resolved access (roles-permissions §5.1). Floors at `roles:read` (Moderator) —\r\ninspecting another user's access is a management read; Task&lt;IActionResult&gt; RolesController.EffectiveMe(string channelId, CancellationToken ct) is the unfloored\r\nself-introspection sibling.",
         "parameters": [
           {
             "name": "channelId",
@@ -31234,6 +32116,7 @@
         "tags": [
           "Stream"
         ],
+        "summary": "Update the channel's stream metadata (title, game, tags) in a single call. Carries the same Editor\r\nfloor as the granular PATCH routes (`channel:title:write`) so a Moderator cannot use this combined\r\nroute to bypass the per-field `channel:*:write` gates (stream-admin §5; all three fields floor at\r\nEditor).",
         "parameters": [
           {
             "name": "channelId",
@@ -31903,6 +32786,7 @@
         "tags": [
           "System"
         ],
+        "summary": "Returns system readiness status. Anonymous — must be callable before any user can log in.",
         "parameters": [
           {
             "name": "version",
@@ -31992,6 +32876,7 @@
         "tags": [
           "System"
         ],
+        "summary": "The self-describing onboarding wizard: the ordered steps, each with its copy, step-by-step instructions, the\r\nexact redirect URI to register, the API call that satisfies it, the input fields, and its live completion\r\nstate. A dashboard renders the entire first-time-setup flow from this single call.",
         "parameters": [
           {
             "name": "version",
@@ -32081,6 +32966,7 @@
         "tags": [
           "System"
         ],
+        "summary": "Get the OAuth URL to authorize the platform bot account.",
         "parameters": [
           {
             "name": "version",
@@ -32170,6 +33056,7 @@
         "tags": [
           "System"
         ],
+        "summary": "Check the platform bot connection status.",
         "parameters": [
           {
             "name": "version",
@@ -32259,6 +33146,7 @@
         "tags": [
           "System"
         ],
+        "summary": "Save system-level Twitch app credentials.",
         "parameters": [
           {
             "name": "version",
@@ -32368,6 +33256,7 @@
         "tags": [
           "System"
         ],
+        "summary": "Save system-level Spotify app credentials.",
         "parameters": [
           {
             "name": "version",
@@ -32477,6 +33366,7 @@
         "tags": [
           "System"
         ],
+        "summary": "Save system-level Discord app credentials.",
         "parameters": [
           {
             "name": "version",
@@ -32586,6 +33476,7 @@
         "tags": [
           "System"
         ],
+        "summary": "Save system-level YouTube (Google) app credentials.",
         "parameters": [
           {
             "name": "version",
@@ -32695,6 +33586,7 @@
         "tags": [
           "System"
         ],
+        "summary": "Finalize first-run setup. Once called — or once the system is otherwise ready — the credential\r\nendpoints lock to platform admins, so anonymous callers can no longer repoint the platform's app\r\ncredentials. Callable anonymously only while setup is still open (the first-run window).",
         "parameters": [
           {
             "name": "version",
@@ -32784,6 +33676,7 @@
         "tags": [
           "System"
         ],
+        "summary": "Returns the full pronoun catalogue. Anonymous — the participant Me screen shows pronouns before login\r\nand allows the user to pick their preferred pronoun without requiring authentication.",
         "parameters": [
           {
             "name": "version",
@@ -32873,6 +33766,7 @@
         "tags": [
           "Timers"
         ],
+        "summary": "List the channel's timers, paginated.",
         "parameters": [
           {
             "name": "channelId",
@@ -33013,6 +33907,7 @@
         "tags": [
           "Timers"
         ],
+        "summary": "Create a new scheduled timer for the channel.",
         "parameters": [
           {
             "name": "channelId",
@@ -33130,6 +34025,7 @@
         "tags": [
           "Timers"
         ],
+        "summary": "Get a single timer by id.",
         "parameters": [
           {
             "name": "channelId",
@@ -33234,6 +34130,7 @@
         "tags": [
           "Timers"
         ],
+        "summary": "Update an existing timer's schedule, message, or enabled state.",
         "parameters": [
           {
             "name": "channelId",
@@ -33358,6 +34255,7 @@
         "tags": [
           "Timers"
         ],
+        "summary": "Delete a timer.",
         "parameters": [
           {
             "name": "channelId",
@@ -33449,7 +34347,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           }
         }
@@ -33460,6 +34358,7 @@
         "tags": [
           "Timers"
         ],
+        "summary": "Enable or disable a timer without deleting it.",
         "parameters": [
           {
             "name": "channelId",
@@ -33566,6 +34465,7 @@
         "tags": [
           "TTS"
         ],
+        "summary": "Get the channel's TTS configuration.",
         "parameters": [
           {
             "name": "channelId",
@@ -33661,6 +34561,7 @@
         "tags": [
           "TTS"
         ],
+        "summary": "Update the channel's TTS configuration.",
         "parameters": [
           {
             "name": "channelId",
@@ -33778,6 +34679,7 @@
         "tags": [
           "TTS"
         ],
+        "summary": "List the voices available from the configured TTS provider.",
         "parameters": [
           {
             "name": "channelId",
@@ -33875,6 +34777,7 @@
         "tags": [
           "TTS"
         ],
+        "summary": "Generate a short test TTS clip to preview a voice.",
         "parameters": [
           {
             "name": "channelId",
@@ -33992,6 +34895,7 @@
         "tags": [
           "Twitch Diagnostics"
         ],
+        "summary": "The current channel's Twitch scope/connection matrix: connection status, granted scopes, and the\r\nper-feature granted/missing requirement rows. `404` when this channel has no Twitch connection.",
         "parameters": [
           {
             "name": "version",
@@ -34081,6 +34985,7 @@
         "tags": [
           "Twitch Diagnostics"
         ],
+        "summary": "The channel's outstanding Twitch scope gaps — the deduplicated set of scopes the streamer token is missing\r\n(proactive feature-gated gaps ∪ reactive gaps a real Helix call surfaced), each with the feature(s) it\r\nblocks and whether the streamer was already told in chat. The dashboard renders the \"grant '&lt;scope&gt;'\"\r\nbanner from this. `404` when this channel has no Twitch connection.",
         "parameters": [
           {
             "name": "version",
@@ -34170,6 +35075,7 @@
         "tags": [
           "Twitch Diagnostics"
         ],
+        "summary": "Start the one-click additive scope re-grant: a secret-free streamer Device Code Flow requesting\r\n`granted ∪ missing`, so the operator re-consents to the full set and the existing grant is never\r\ndropped. The client shows the user code + verification URL and polls the normal streamer device poll\r\n(`POST /auth/twitch/device/poll`); on approval the widened grant reconciles onto the connection and the\r\ngaps clear. `404` when there is no Twitch connection; `409` when nothing is missing.",
         "parameters": [
           {
             "name": "version",
@@ -34806,6 +35712,7 @@
         "tags": [
           "Users"
         ],
+        "summary": "Returns a summary of the user's data (GDPR data summary).",
         "parameters": [
           {
             "name": "userId",
@@ -34903,6 +35810,7 @@
         "tags": [
           "Users"
         ],
+        "summary": "Export all personal data for the specified user (GDPR right of access).\r\nReturns a JSON file download containing all data we hold for this user.",
         "parameters": [
           {
             "name": "userId",
@@ -34985,7 +35893,7 @@
           "200": {
             "description": "OK",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           }
         }
@@ -34996,6 +35904,7 @@
         "tags": [
           "Users"
         ],
+        "summary": "Delete all personal data for the specified user (GDPR right to erasure).\r\nThis action is irreversible.",
         "parameters": [
           {
             "name": "userId",
@@ -36593,6 +37502,7 @@
         "tags": [
           "Widgets"
         ],
+        "summary": "List a channel's overlay widgets, paginated.",
         "parameters": [
           {
             "name": "channelId",
@@ -36733,6 +37643,7 @@
         "tags": [
           "Widgets"
         ],
+        "summary": "Create a new overlay widget for a channel.",
         "parameters": [
           {
             "name": "channelId",
@@ -36850,6 +37761,7 @@
         "tags": [
           "Widgets"
         ],
+        "summary": "Get a single overlay widget's configuration.",
         "parameters": [
           {
             "name": "channelId",
@@ -36953,6 +37865,7 @@
         "tags": [
           "Widgets"
         ],
+        "summary": "Update an existing overlay widget's configuration.",
         "parameters": [
           {
             "name": "channelId",
@@ -37076,6 +37989,7 @@
         "tags": [
           "Widgets"
         ],
+        "summary": "Delete an overlay widget from a channel.",
         "parameters": [
           {
             "name": "channelId",
@@ -37166,7 +38080,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": {}
+              "application/json": { }
             }
           }
         }
@@ -37307,7 +38221,8 @@
             ],
             "format": "uuid"
           }
-        }
+        },
+        "description": "Create payload for a new quote (quotes.md §3). `QuotedAt` defaults to creation when null."
       },
       "AddTermRequest": {
         "required": [
@@ -37348,7 +38263,8 @@
             "type": "string",
             "format": "uuid"
           }
-        }
+        },
+        "description": "A broadcaster/admin manual credit or debit (economy.md §4). Sign of long AdminAdjustCommand.Amount decides direction."
       },
       "AdminChannelDto": {
         "required": [
@@ -37582,7 +38498,8 @@
           "user": {
             "$ref": "#/components/schemas/UserDto"
           }
-        }
+        },
+        "description": "Authentication result containing tokens and user info."
       },
       "AutomodBannedPhrasesDto": {
         "required": [
@@ -37777,7 +38694,8 @@
           "portalUrl": {
             "type": "string"
           }
-        }
+        },
+        "description": "A Stripe billing-portal redirect."
       },
       "BotStatusDto": {
         "required": [
@@ -37809,7 +38727,8 @@
               "string"
             ]
           }
-        }
+        },
+        "description": "DTO describing the connected bot account."
       },
       "BuiltinCommandDto": {
         "required": [
@@ -37864,7 +38783,8 @@
               "string"
             ]
           }
-        }
+        },
+        "description": "Cancel the subscription (immediate or at period end)."
       },
       "CatalogItemDto": {
         "required": [
@@ -37985,7 +38905,8 @@
             "type": "string",
             "format": "date-time"
           }
-        }
+        },
+        "description": "A purchasable store item (economy.md §4)."
       },
       "CatalogPurchaseDto": {
         "required": [
@@ -38055,7 +38976,8 @@
             "type": "string",
             "format": "date-time"
           }
-        }
+        },
+        "description": "An immutable catalog redemption record (economy.md §4)."
       },
       "CategoryDto": {
         "required": [
@@ -38092,7 +39014,8 @@
           "atPeriodEnd": {
             "type": "boolean"
           }
-        }
+        },
+        "description": "Change the active tier (upgrade/downgrade)."
       },
       "ChannelDto": {
         "required": [
@@ -38174,7 +39097,8 @@
             "type": "string",
             "format": "date-time"
           }
-        }
+        },
+        "description": "Full channel detail for dashboard views."
       },
       "ChannelMembershipDto": {
         "required": [
@@ -38236,7 +39160,8 @@
             ],
             "format": "date-time"
           }
-        }
+        },
+        "description": "A channel-management membership row for the dashboard roles screen (roles-permissions §4)."
       },
       "ChatBadge": {
         "required": [
@@ -38587,7 +39512,8 @@
               "string"
             ]
           }
-        }
+        },
+        "description": "One readiness check. bool CheckItem.Ready means the area is <em>usable now</em>; bool CheckItem.Ok means the\r\n<em>full</em> credential set is present. For Twitch the two diverge: a client id alone makes the bot fully\r\nfunctional via the secret-free Device Code Flow (bool CheckItem.Ready = true), while a client secret is the\r\npure enhancement that <em>also</em> unlocks the one-tap redirect sign-in (bool CheckItem.Ok = true). For\r\nevery other area the two coincide. The frontend routes onboarding off these: bool CheckItem.Ready gates\r\nwhether the flow can start at all; bool CheckItem.Ok picks the smoother redirect login over device-code."
       },
       "CheckoutSessionDto": {
         "required": [
@@ -38602,7 +39528,8 @@
           "stripeSessionId": {
             "type": "string"
           }
-        }
+        },
+        "description": "A Stripe Checkout session redirect."
       },
       "CheermoteImage": {
         "required": [
@@ -38728,7 +39655,8 @@
             "type": "string",
             "format": "date-time"
           }
-        }
+        },
+        "description": "Full command detail for viewing/editing."
       },
       "CommandListItem": {
         "required": [
@@ -38813,7 +39741,8 @@
             ],
             "format": "uuid"
           }
-        }
+        },
+        "description": "Lightweight command info for list views — includes the response text and pipeline id so the edit\r\n            form can pre-fill without a separate detail fetch."
       },
       "CommunityStatsDto": {
         "required": [
@@ -38945,7 +39874,8 @@
               "string"
             ]
           }
-        }
+        },
+        "description": "The connect request body: the progressive scope-set to request, and where to return after connect (integrations-oauth §5)."
       },
       "CreateCatalogItemRequest": {
         "required": [
@@ -39041,7 +39971,8 @@
             ],
             "format": "int32"
           }
-        }
+        },
+        "description": "Create a catalog item (economy.md §4)."
       },
       "CreateChannelRequest": {
         "required": [
@@ -39058,7 +39989,8 @@
               "string"
             ]
           }
-        }
+        },
+        "description": "Request to create/onboard a new channel."
       },
       "CreateCodeScriptRequest": {
         "required": [
@@ -39080,7 +40012,8 @@
           "sourceCode": {
             "type": "string"
           }
-        }
+        },
+        "description": "Create a named script + its Version 1 (custom-code.md §4). No BroadcasterId (broker invariant)."
       },
       "CreateCodeScriptVersionRequest": {
         "required": [
@@ -39095,7 +40028,8 @@
           "publish": {
             "type": "boolean"
           }
-        }
+        },
+        "description": "Append a new immutable version; `Publish` = save-and-swap on valid (custom-code.md §4)."
       },
       "CreateCommandDto": {
         "required": [
@@ -39108,7 +40042,8 @@
             "type": "string"
           },
           "tier": {
-            "type": "string"
+            "type": "string",
+            "description": "template | pipeline | code"
           },
           "minPermissionLevel": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -39116,6 +40051,7 @@
               "integer",
               "string"
             ],
+            "description": "0=everyone, 1=follower, 2=sub, 3=vip, 4=moderator, 5=broadcaster",
             "format": "int32"
           },
           "templateResponse": {
@@ -39170,7 +40106,8 @@
               "type": "string"
             }
           }
-        }
+        },
+        "description": "Request to create a new command."
       },
       "CreateDiscordNotificationConfigRequest": {
         "required": [
@@ -39265,7 +40202,8 @@
           "eventType": {
             "type": "string"
           }
-        }
+        },
+        "description": "The POST body for creating one subscription (twitch-eventsub §4.4)."
       },
       "CreateInboundWebhookRequest": {
         "required": [
@@ -39282,7 +40220,8 @@
             "$ref": "#/components/schemas/WebhookAdapterKind"
           },
           "verificationSecret": {
-            "type": "string"
+            "type": "string",
+            "description": "The provider token / shared secret. AEAD-encrypted on store, never persisted in plaintext."
           },
           "targetPipelineId": {
             "type": [
@@ -39346,7 +40285,8 @@
             ],
             "format": "date-time"
           }
-        }
+        },
+        "description": "Create an invite code (admin)."
       },
       "CreateModerationRuleRequest": {
         "required": [
@@ -39409,7 +40349,8 @@
             "type": "string"
           },
           "fqdn": {
-            "type": "string"
+            "type": "string",
+            "description": "Must match an enabled HttpEgressAllowlist (H.7) row for the tenant."
           },
           "path": {
             "type": [
@@ -39467,8 +40408,9 @@
             "maxLength": 30,
             "type": "string"
           },
-          "graphJsonCache": {}
-        }
+          "graphJsonCache": { }
+        },
+        "description": "Request to create a new pipeline."
       },
       "CreatePollDto": {
         "required": [
@@ -39658,7 +40600,8 @@
             ],
             "format": "int64"
           }
-        }
+        },
+        "description": "Create a savings jar (economy.md §4)."
       },
       "CreateTimerDto": {
         "required": [
@@ -39707,7 +40650,8 @@
           "isEnabled": {
             "type": "boolean"
           }
-        }
+        },
+        "description": "Request to create a new timer."
       },
       "CreateWidgetRequest": {
         "required": [
@@ -39797,7 +40741,8 @@
             ],
             "format": "date-time"
           }
-        }
+        },
+        "description": "A viewer's wallet (economy.md §4)."
       },
       "CurrencyLedgerEntryDto": {
         "required": [
@@ -39907,7 +40852,8 @@
             "type": "string",
             "format": "date-time"
           }
-        }
+        },
+        "description": "One immutable ledger movement (economy.md §4)."
       },
       "CurrentUserDto": {
         "required": [
@@ -39953,6 +40899,98 @@
             "type": "string",
             "format": "date-time"
           }
+        },
+        "description": "The currently authenticated user, as surfaced to the dashboard."
+      },
+      "CustomDataSourceDto": {
+        "required": [
+          "id",
+          "name",
+          "displayName",
+          "sourceKind",
+          "presetKey",
+          "endpointUrl",
+          "hasAuthSecret",
+          "fieldMap",
+          "pollIntervalSeconds",
+          "isEnabled",
+          "lastReceivedAt"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "sourceKind": {
+            "type": "string"
+          },
+          "presetKey": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "endpointUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "hasAuthSecret": {
+            "type": "boolean"
+          },
+          "fieldMap": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "pollIntervalSeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "isEnabled": {
+            "type": "boolean"
+          },
+          "lastReceivedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        },
+        "description": "Safe read projection — the `AuthSecret` is never echoed; only its presence is surfaced."
+      },
+      "CustomDataSourcePresetDto": {
+        "required": [
+          "key",
+          "displayName",
+          "sourceKind"
+        ],
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "sourceKind": {
+            "type": "string"
+          }
         }
       },
       "DashboardStatsDto": {
@@ -39979,6 +41017,7 @@
               "integer",
               "string"
             ],
+            "description": "Last known viewer count (0 if offline or not yet received from Twitch).",
             "format": "int32"
           },
           "followerCount": {
@@ -39987,6 +41026,7 @@
               "integer",
               "string"
             ],
+            "description": "Follower count (not tracked server-side; always 0 in this implementation).",
             "format": "int32"
           },
           "commandsUsed": {
@@ -39995,6 +41035,7 @@
               "integer",
               "string"
             ],
+            "description": "Commands successfully executed this session.",
             "format": "int64"
           },
           "messagesCount": {
@@ -40003,6 +41044,7 @@
               "integer",
               "string"
             ],
+            "description": "Chat messages received this session.",
             "format": "int64"
           },
           "uptime": {
@@ -40012,9 +41054,11 @@
               "integer",
               "string"
             ],
+            "description": "Stream uptime in whole seconds, null if offline.",
             "format": "int64"
           }
-        }
+        },
+        "description": "Snapshot of a channel's current state, returned by GET /api/v1/dashboard/{broadcasterId}/stats.\r\nLive fields come from the in-memory ChannelContext; counts are session totals since bot join."
       },
       "DeviceBotPollDto": {
         "required": [
@@ -40035,7 +41079,8 @@
               }
             ]
           }
-        }
+        },
+        "description": "One bot device-login poll: the loop string DeviceBotPollDto.Status, plus the bot connection on \"authorized\"."
       },
       "DeviceCodeStartDto": {
         "required": [
@@ -40072,7 +41117,8 @@
             ],
             "format": "int32"
           }
-        }
+        },
+        "description": "A started Device Code Flow authorization (the no-secret login). The client shows string DeviceCodeStartDto.UserCode and\r\nsends the operator to string DeviceCodeStartDto.VerificationUri, then polls with string DeviceCodeStartDto.DeviceCode every\r\nint DeviceCodeStartDto.Interval seconds until int DeviceCodeStartDto.ExpiresIn elapses."
       },
       "DeviceLoginPollDto": {
         "required": [
@@ -40093,7 +41139,8 @@
               }
             ]
           }
-        }
+        },
+        "description": "One streamer device-login poll: the loop string DeviceLoginPollDto.Status, plus the issued auth on \"authorized\"."
       },
       "DevicePollRequest": {
         "required": [
@@ -40104,7 +41151,8 @@
           "deviceCode": {
             "type": "string"
           }
-        }
+        },
+        "description": "The body of a device-login poll request: the opaque device code from the start call."
       },
       "DiscordDispatchLogDto": {
         "required": [
@@ -40219,7 +41267,8 @@
               "$ref": "#/components/schemas/DiscordEmbedFieldDto"
             }
           }
-        }
+        },
+        "description": "The `[VC:JSON]` embed shape — mirrors the Domain `DiscordEmbedConfig` on the wire."
       },
       "DiscordEmbedFieldDto": {
         "required": [
@@ -40307,7 +41356,8 @@
             "type": "string",
             "format": "date-time"
           }
-        }
+        },
+        "description": "Read model of a Discord guild link (discord.md §4). Ids are `Guid`; Discord ids are `string`."
       },
       "DiscordMemberOptInRequest": {
         "required": [
@@ -40583,7 +41633,8 @@
               "object"
             ]
           }
-        }
+        },
+        "description": "One channel earning rule (economy.md §4). `Source` is an `EarningSource` token."
       },
       "EditQuoteRequest": {
         "required": [
@@ -40608,7 +41659,8 @@
               "string"
             ]
           }
-        }
+        },
+        "description": "Edit payload (quotes.md §3). The per-channel `Number` is immutable and not editable."
       },
       "EmoteProvider": {
         "type": "integer"
@@ -40670,7 +41722,8 @@
               "format": "int64"
             }
           }
-        }
+        },
+        "description": "A tenant's effective entitlement — the single source feature-gating + quota checks read."
       },
       "EventJournalImportSummary": {
         "required": [
@@ -40713,7 +41766,8 @@
             ],
             "format": "int64"
           }
-        }
+        },
+        "description": "The outcome of an import: how many lines the file held, how many events were newly appended, how many were\r\nskipped as already-present duplicates (idempotency), and how many were upcast from a stale shape on the way in."
       },
       "EventResponseDto": {
         "required": [
@@ -40769,7 +41823,8 @@
             "type": "string",
             "format": "date-time"
           }
-        }
+        },
+        "description": "An event response configuration."
       },
       "EventResponseListItem": {
         "required": [
@@ -40798,7 +41853,8 @@
             "type": "string",
             "format": "date-time"
           }
-        }
+        },
+        "description": "Lightweight event response summary."
       },
       "EventSubReconcileReportDto": {
         "required": [
@@ -40848,7 +41904,8 @@
               "type": "string"
             }
           }
-        }
+        },
+        "description": "The outcome of a registry reconcile pass (twitch-eventsub §4.4)."
       },
       "EventSubSubscriptionDto": {
         "required": [
@@ -40917,7 +41974,8 @@
             "type": "string",
             "format": "date-time"
           }
-        }
+        },
+        "description": "One registry row projected to the controller surface (twitch-eventsub §4.4)."
       },
       "FeatureStatusDto": {
         "required": [
@@ -40955,7 +42013,8 @@
               "type": "string"
             }
           }
-        }
+        },
+        "description": "The enablement status of a single channel feature."
       },
       "FederationPeerDto": {
         "required": [
@@ -41087,7 +42146,8 @@
               "string"
             ]
           }
-        }
+        },
+        "description": "A founders badge view."
       },
       "FreezeBody": {
         "required": [
@@ -41160,7 +42220,8 @@
             "type": "string",
             "format": "date-time"
           }
-        }
+        },
+        "description": "An immutable game play record (economy.md §4)."
       },
       "GenericInboundConfig": {
         "required": [
@@ -41210,7 +42271,8 @@
           "providerEventIdJsonPath": {
             "type": "string"
           }
-        }
+        },
+        "description": "Generic / Standard-Webhooks adapter config (Zapier/IFTTT/Make/Stream Deck/custom)."
       },
       "GrantAgeConsentRequest": {
         "required": [
@@ -41240,7 +42302,8 @@
               "string"
             ]
           }
-        }
+        },
+        "description": "Grant a viewer's explicit 18+ gambling consent (economy.md §4)."
       },
       "GrantCapabilityBody": {
         "required": [
@@ -41333,7 +42396,8 @@
           "isInviteOnlyGrant": {
             "type": "boolean"
           }
-        }
+        },
+        "description": "Admin-grant a tier to a channel without Stripe."
       },
       "IFormFile": {
         "type": "string",
@@ -41411,7 +42475,8 @@
             "type": "string",
             "format": "date-time"
           }
-        }
+        },
+        "description": "An inbound webhook endpoint view (webhooks.md §4). Never exposes the verification secret — only a set/unset flag."
       },
       "IntegrationDto": {
         "required": [
@@ -41513,7 +42578,8 @@
           "needsReauth": {
             "type": "boolean"
           }
-        }
+        },
+        "description": "Per-provider status for the integrations screen (integrations-oauth §4). No secrets."
       },
       "InviteChannelRequest": {
         "required": [
@@ -41554,7 +42620,8 @@
             ],
             "format": "int64"
           }
-        }
+        },
+        "description": "Invite a partner channel into a jar (economy.md §4). string InviteChannelRequest.Role is a JarRole token."
       },
       "InviteCodeDto": {
         "required": [
@@ -41615,7 +42682,8 @@
             ],
             "format": "date-time"
           }
-        }
+        },
+        "description": "An invite-code view (admin)."
       },
       "InviteCodeRequest": {
         "required": [
@@ -41626,7 +42694,8 @@
           "code": {
             "type": "string"
           }
-        }
+        },
+        "description": "Validate or redeem an invite code by its code string."
       },
       "InviteCodeValidationDto": {
         "required": [
@@ -41669,7 +42738,8 @@
             ],
             "format": "date-time"
           }
-        }
+        },
+        "description": "The result of validating an invite code (pre-redemption)."
       },
       "InvoiceDto": {
         "required": [
@@ -41750,7 +42820,8 @@
               "string"
             ]
           }
-        }
+        },
+        "description": "A billing invoice view."
       },
       "JarContributeRequest": {
         "required": [
@@ -41776,7 +42847,8 @@
             ],
             "format": "int64"
           }
-        }
+        },
+        "description": "Contribute a viewer's currency into a jar (economy.md §4). long JarContributeRequest.Amount &gt; 0."
       },
       "JarMovementDto": {
         "required": [
@@ -41855,7 +42927,8 @@
             "type": "string",
             "format": "date-time"
           }
-        }
+        },
+        "description": "An audited jar movement (economy.md §4)."
       },
       "JarWithdrawRequest": {
         "required": [
@@ -41886,9 +42959,10 @@
             "type": "string",
             "format": "uuid"
           }
-        }
+        },
+        "description": "Withdraw from a jar back to a viewer's account (economy.md §4). long JarWithdrawRequest.Amount &gt; 0."
       },
-      "JsonElement": {},
+      "JsonElement": { },
       "LeaderboardEntryDto": {
         "required": [
           "rank",
@@ -41993,7 +43067,8 @@
               "format": "int64"
             }
           }
-        }
+        },
+        "description": "The outcome of a legacy import, plus the journal head before/after so the caller can see the growth.\r\nIReadOnlyDictionary&lt;string, long&gt; LegacyImportResult.SkippedByLegacyType itemizes the unmapped skips by their legacy `Type` so the operator can\r\nverify every legacy row is accounted for (imported + duplicate + itemized skips = total read), with no silent drop."
       },
       "LinkPreview": {
         "required": [
@@ -42057,7 +43132,8 @@
           "chatNotified": {
             "type": "boolean"
           }
-        }
+        },
+        "description": "One missing-scope row: the absent scope, the feature(s) it blocks (human-grouped by the\r\n`FeatureScopeMap` key), whether a real Helix call already failed for it (bool MissingScopeDto.DetectedAtRuntime),\r\nand whether the streamer has already been told in chat (bool MissingScopeDto.ChatNotified). The dashboard renders\r\n\"the bot needs '&lt;scope&gt;' to &lt;features&gt;\" from this and the [Grant permission] button re-grants the union."
       },
       "MissingScopesDto": {
         "required": [
@@ -42075,7 +43151,8 @@
               "$ref": "#/components/schemas/MissingScopeDto"
             }
           }
-        }
+        },
+        "description": "The channel's outstanding Twitch scope gaps (identity-auth §3.4a) — the read model the dashboard banner\r\nrenders and the one-click re-grant acts on. IReadOnlyList&lt;MissingScopeDto&gt; MissingScopesDto.Scopes is the deduplicated set of scopes the\r\nstreamer token is missing (proactive feature-gated gaps the connection never held + reactive gaps a real\r\nHelix call surfaced); empty when the connection holds everything every offered feature needs."
       },
       "ModeratedChannelDto": {
         "required": [
@@ -42279,7 +43356,8 @@
           "minTrustLevel": {
             "type": "string"
           }
-        }
+        },
+        "description": "Music configuration for a channel."
       },
       "MusicDeviceDto": {
         "required": [
@@ -42371,7 +43449,8 @@
               "$ref": "#/components/schemas/QueueItemDto"
             }
           }
-        }
+        },
+        "description": "Full music queue including now playing and upcoming tracks."
       },
       "NowPlayingDto": {
         "required": [
@@ -42448,7 +43527,8 @@
           "provider": {
             "type": "string"
           }
-        }
+        },
+        "description": "Current now-playing state."
       },
       "OAuthCallbackDto": {
         "required": [
@@ -42469,9 +43549,11 @@
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "Custom redirect URI used by the client (e.g. `nomnomzbot://callback` for mobile).\r\nWhen provided, Twitch token exchange uses this instead of the server's configured URI."
           }
-        }
+        },
+        "description": "OAuth callback data received from the Twitch redirect."
       },
       "OAuthStartDto": {
         "required": [
@@ -42486,7 +43568,8 @@
           "state": {
             "type": "string"
           }
-        }
+        },
+        "description": "The authorize URL the client opens plus the signed single-use state (integrations-oauth §4)."
       },
       "OutboundWebhookEndpointDto": {
         "required": [
@@ -42963,6 +44046,44 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/CurrencyLedgerEntryDto"
+            }
+          },
+          "nextPage": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "hasMore": {
+            "type": "boolean"
+          },
+          "nextCursor": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "total": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "PaginatedResponseOfCustomDataSourceDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CustomDataSourceDto"
             }
           },
           "nextPage": {
@@ -43944,7 +45065,8 @@
             "type": "string",
             "format": "date-time"
           }
-        }
+        },
+        "description": "Full pipeline details including the deserialized node graph cache."
       },
       "PipelineGraphInput": {
         "required": [
@@ -44007,7 +45129,8 @@
             "type": "string",
             "format": "date-time"
           }
-        }
+        },
+        "description": "Lightweight pipeline summary for list views."
       },
       "PipelineStepInput": {
         "required": [
@@ -44123,7 +45246,8 @@
             ],
             "format": "int32"
           }
-        }
+        },
+        "description": "Play a game (economy.md §4). int PlayGameRequest.RoleLevel is the caller's resolved community level."
       },
       "PostOptInButtonRequest": {
         "required": [
@@ -44192,7 +45316,8 @@
             ],
             "format": "int64"
           }
-        }
+        },
+        "description": "How many events one named projection applied during a rebuild."
       },
       "PronounCatalogDto": {
         "required": [
@@ -44227,7 +45352,8 @@
               "string"
             ]
           }
-        }
+        },
+        "description": "Catalog entry as returned by the public catalog endpoint."
       },
       "PronounDto": {
         "required": [
@@ -44295,7 +45421,8 @@
               "string"
             ]
           }
-        }
+        },
+        "description": "Redeem a catalog item (economy.md §4)."
       },
       "QueueItemDto": {
         "required": [
@@ -44342,7 +45469,8 @@
               "string"
             ]
           }
-        }
+        },
+        "description": "A queue item with its position."
       },
       "QuoteDto": {
         "required": [
@@ -44394,7 +45522,8 @@
             "type": "string",
             "format": "date-time"
           }
-        }
+        },
+        "description": "The transport/read shape of a quote (quotes.md §3)."
       },
       "RedeemInviteCodeResultDto": {
         "required": [
@@ -44423,7 +45552,8 @@
               }
             ]
           }
-        }
+        },
+        "description": "The result of redeeming an invite code."
       },
       "RedemptionListItem": {
         "required": [
@@ -44475,7 +45605,8 @@
             "type": "string",
             "format": "date-time"
           }
-        }
+        },
+        "description": "One entry in the channel-points redemption queue (rewards.md) — a redemption with its current\r\n            status (`unfulfilled` / `fulfilled` / `canceled`), folded from the journal."
       },
       "RefreshTokenRequest": {
         "required": [
@@ -44489,7 +45620,8 @@
               "string"
             ]
           }
-        }
+        },
+        "description": "Token refresh request. The refresh token is optional in the body: the served-web dashboard sends none and\r\nrelies on the HttpOnly cookie the browser attaches automatically, while native clients send the token they\r\nhold in their own vault."
       },
       "RefundRequest": {
         "required": [
@@ -44505,7 +45637,8 @@
             "type": "string",
             "format": "uuid"
           }
-        }
+        },
+        "description": "Refund a completed purchase (economy.md §4)."
       },
       "RegisterFederationPeerRequest": {
         "required": [
@@ -44795,7 +45928,8 @@
               "type": "string"
             }
           }
-        }
+        },
+        "description": "A started re-grant device authorization (identity-auth §3.4a): the same secret-free Device Code Flow the\r\nstreamer login uses, but requesting `granted ∪ missing` so the existing grant is never dropped. The\r\nclient shows string ScopeRegrantStartDto.UserCode at string ScopeRegrantStartDto.VerificationUri and polls the normal streamer device\r\npoll with string ScopeRegrantStartDto.DeviceCode; on approval the token store reconciles the new scopes and the gap clears."
       },
       "ScopesResponseDto": {
         "required": [
@@ -44936,7 +46070,8 @@
           "optedOut": {
             "type": "boolean"
           }
-        }
+        },
+        "description": "Body for the viewer analytics opt-out toggle (analytics.md §5)."
       },
       "SetBuiltinEnabledRequest": {
         "required": [
@@ -44958,7 +46093,8 @@
           "isEnabled": {
             "type": "boolean"
           }
-        }
+        },
+        "description": "Toggle a script's enabled state (custom-code.md §5)."
       },
       "SetFeatureFlagOverrideRequest": {
         "required": [
@@ -44982,7 +46118,8 @@
             ],
             "format": "date-time"
           }
-        }
+        },
+        "description": "Set a per-tenant override (the internal/beta opt-in or per-channel kill-switch)."
       },
       "SetFeatureFlagRequest": {
         "required": [
@@ -45031,7 +46168,8 @@
               "string"
             ]
           }
-        }
+        },
+        "description": "Create-or-update a flag's global definition (rollout-updates §5 ramp controls)."
       },
       "SetOverrideBody": {
         "required": [
@@ -45059,6 +46197,7 @@
               "integer",
               "string"
             ],
+            "description": "The int Pronoun.Id to set as primary, or `null` to leave unchanged, or `0` to clear.",
             "format": "int32"
           },
           "altPronounId": {
@@ -45068,15 +46207,18 @@
               "integer",
               "string"
             ],
+            "description": "The int Pronoun.Id to set as alt, or `null` to leave unchanged, or `0` to clear.",
             "format": "int32"
           },
           "manualOverride": {
             "type": [
               "null",
               "boolean"
-            ]
+            ],
+            "description": "When `true`, pin this choice and prevent automatic provider resolution from overwriting it."
           }
-        }
+        },
+        "description": "Request to set or clear pronouns for the authenticated viewer."
       },
       "SetRoleBody": {
         "required": [
@@ -45140,7 +46282,8 @@
               "string"
             ]
           }
-        }
+        },
+        "description": "How a UI completes a step. `Type` is `save_credentials` (POST/PUT the IReadOnlyList&lt;SetupFieldDto&gt; SetupStepDto.Fields\r\nto `Endpoint`) or `oauth_redirect` (GET `Endpoint` for a URL to send the browser to, then poll\r\n`PollEndpoint` for completion)."
       },
       "SetupFieldDto": {
         "required": [
@@ -45170,7 +46313,8 @@
               "string"
             ]
           }
-        }
+        },
+        "description": "One input the user fills in for a step (key, label, control type, required flag, help text)."
       },
       "SetupStepDto": {
         "required": [
@@ -45219,7 +46363,8 @@
               "$ref": "#/components/schemas/SetupFieldDto"
             }
           }
-        }
+        },
+        "description": "One onboarding step: presentation + live state + the action and fields that complete it."
       },
       "SetupWizardDto": {
         "required": [
@@ -45237,7 +46382,8 @@
               "$ref": "#/components/schemas/SetupStepDto"
             }
           }
-        }
+        },
+        "description": "The self-describing first-time-setup contract a dashboard renders the onboarding flow from: an ordered list of\r\nsteps plus an overall bool SetupWizardDto.Complete flag. Each step carries everything the UI needs — copy, the exact\r\nredirect URI to register, the API call that satisfies it, the input fields, and its live completion state — so\r\nthe onboarding pages need no hardcoded knowledge of the steps."
       },
       "ShoutoutRequest": {
         "required": [
@@ -45278,7 +46424,8 @@
               "string"
             ]
           }
-        }
+        },
+        "description": "Request to add a song to the queue."
       },
       "SoundClipDto": {
         "required": [
@@ -45363,7 +46510,8 @@
               "string"
             ]
           }
-        }
+        },
+        "description": "Start a Stripe Checkout for a tier."
       },
       "StartCommercialDto": {
         "required": [
@@ -45758,6 +46906,36 @@
               },
               {
                 "$ref": "#/components/schemas/CurrentUserDto"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
+      "StatusResponseDtoOfCustomDataSourceDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/CustomDataSourceDto"
               }
             ]
           },
@@ -46327,6 +47505,35 @@
             ],
             "items": {
               "$ref": "#/components/schemas/BuiltinCommandDto"
+            }
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
+      "StatusResponseDtoOfIReadOnlyListOfCustomDataSourcePresetDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/CustomDataSourcePresetDto"
             }
           },
           "message": {
@@ -47285,7 +48492,7 @@
           "status": {
             "type": "string"
           },
-          "data": {},
+          "data": { },
           "message": {
             "type": [
               "null",
@@ -48417,7 +49624,8 @@
           "prioritySupport": {
             "type": "boolean"
           }
-        }
+        },
+        "description": "A channel's subscription view."
       },
       "SystemChecks": {
         "required": [
@@ -48482,6 +49690,17 @@
           }
         }
       },
+      "TestCustomDataSourceRequest": {
+        "required": [
+          "samplePayload"
+        ],
+        "type": "object",
+        "properties": {
+          "samplePayload": {
+            "type": "string"
+          }
+        }
+      },
       "TierDto": {
         "required": [
           "id",
@@ -48537,7 +49756,8 @@
               "$ref": "#/components/schemas/TierLimitDto"
             }
           }
-        }
+        },
+        "description": "A public billing plan with its limits."
       },
       "TierLimitDto": {
         "required": [
@@ -48557,7 +49777,8 @@
             ],
             "format": "int64"
           }
-        }
+        },
+        "description": "One quota lever for a tier (`-1` = unlimited)."
       },
       "TimerDto": {
         "required": [
@@ -48637,7 +49858,8 @@
             "type": "string",
             "format": "date-time"
           }
-        }
+        },
+        "description": "Full timer detail for viewing/editing."
       },
       "TimerListItem": {
         "required": [
@@ -48688,10 +49910,12 @@
             "type": "string",
             "format": "date-time"
           }
-        }
+        },
+        "description": "Lightweight timer info for list views."
       },
       "TopViewerMetric": {
-        "type": "integer"
+        "type": "integer",
+        "description": "The metric a top-viewers query ranks by (analytics.md §4)."
       },
       "TransferCommand": {
         "required": [
@@ -48732,7 +49956,8 @@
             ],
             "format": "uuid"
           }
-        }
+        },
+        "description": "A point-to-point transfer between two viewers in the same channel (economy.md §4). long TransferCommand.Amount &gt; 0."
       },
       "TransferDto": {
         "required": [
@@ -48783,7 +50008,8 @@
           "readUsernames": {
             "type": "boolean"
           }
-        }
+        },
+        "description": "TTS configuration for a channel."
       },
       "TtsTestRequestDto": {
         "required": [
@@ -48800,7 +50026,8 @@
             "maxLength": 255,
             "type": "string"
           }
-        }
+        },
+        "description": "Request to test a TTS voice."
       },
       "TtsTestResultDto": {
         "required": [
@@ -48828,7 +50055,8 @@
           "audioBase64": {
             "type": "string"
           }
-        }
+        },
+        "description": "Result of a TTS test synthesis."
       },
       "TtsVoiceDto": {
         "required": [
@@ -48863,7 +50091,8 @@
           "isDefault": {
             "type": "boolean"
           }
-        }
+        },
+        "description": "An available TTS voice."
       },
       "TwitchAdSchedule": {
         "required": [
@@ -48924,7 +50153,8 @@
             ],
             "format": "int32"
           }
-        }
+        },
+        "description": "The channel's ad schedule — next/last ad as unix seconds (0 when none), the current ad duration, the\r\nremaining pre-roll-free time, and the snooze allowance (count plus the unix refresh time)."
       },
       "TwitchAdSnooze": {
         "required": [
@@ -48958,7 +50188,8 @@
             ],
             "format": "int32"
           }
-        }
+        },
+        "description": "Result of snoozing the next ad — the updated snooze count, refresh time, and pushed-back next-ad time (unix seconds)."
       },
       "TwitchClipStub": {
         "required": [
@@ -48973,7 +50204,8 @@
           "editUrl": {
             "type": "string"
           }
-        }
+        },
+        "description": "The stub returned by a clip-create call (Create Clip, Create Clip From VOD): the new clip's id and the\r\nedit URL the broadcaster opens to trim and publish it within the 15-second editing window."
       },
       "TwitchCommercial": {
         "required": [
@@ -49002,7 +50234,8 @@
             ],
             "format": "int32"
           }
-        }
+        },
+        "description": "Result of starting a commercial — the length served, a status message, and the retry cooldown."
       },
       "TwitchPoll": {
         "required": [
@@ -49088,7 +50321,8 @@
             ],
             "format": "date-time"
           }
-        }
+        },
+        "description": "A poll the broadcaster created — its choices, voting settings, status and lifecycle timestamps."
       },
       "TwitchPollChoice": {
         "required": [
@@ -49130,7 +50364,8 @@
             ],
             "format": "int32"
           }
-        }
+        },
+        "description": "One choice in a poll, with its running vote tallies (Get/Create/End Polls)."
       },
       "TwitchPrediction": {
         "required": [
@@ -49205,7 +50440,8 @@
             ],
             "format": "date-time"
           }
-        }
+        },
+        "description": "A Channel Points Prediction. string? TwitchPrediction.WinningOutcomeId is empty until the prediction resolves;\r\nDateTimeOffset? TwitchPrediction.EndedAt and DateTimeOffset? TwitchPrediction.LockedAt are null until those transitions occur. Returned by\r\nGet / Create / End Prediction."
       },
       "TwitchPredictionOutcome": {
         "required": [
@@ -49252,7 +50488,8 @@
           "color": {
             "type": "string"
           }
-        }
+        },
+        "description": "One of the 2–10 possible outcomes of a prediction, with its running tally of predictors."
       },
       "TwitchPredictionTopPredictor": {
         "required": [
@@ -49289,7 +50526,8 @@
             ],
             "format": "int32"
           }
-        }
+        },
+        "description": "A leading predictor on an outcome — points wagered and (once resolved) points won."
       },
       "TwitchRaid": {
         "required": [
@@ -49305,7 +50543,8 @@
           "isMature": {
             "type": "boolean"
           }
-        }
+        },
+        "description": "The pending raid created by Start a Raid — when it was created and whether the target is mature."
       },
       "TwitchScopeDiagnosticsDto": {
         "required": [
@@ -49330,7 +50569,8 @@
               "$ref": "#/components/schemas/TwitchScopeRequirementDto"
             }
           }
-        }
+        },
+        "description": "The Twitch scope/connection health read model (twitch-helix.md §5): the connection status, the granted\r\nscope set, and the per-feature requirement matrix the dashboard renders so a missing scope is observable\r\n(it closes the \"subscriber count always 0\" / \"403 chat\" class of silent failures by surfacing the gap)."
       },
       "TwitchScopeRequirementDto": {
         "required": [
@@ -49360,7 +50600,8 @@
               "string"
             ]
           }
-        }
+        },
+        "description": "One row of the diagnostics matrix: a scope a feature needs, whether the connection currently holds it, and\r\n(because every entry here is a progressive, feature-gated scope) the feature that gates its request. A\r\nmissing progressive scope is \"feature-gated\", not an error — it is requested when the feature is enabled."
       },
       "UpdateCatalogItemRequest": {
         "required": [
@@ -49467,7 +50708,8 @@
             ],
             "format": "int32"
           }
-        }
+        },
+        "description": "Partial update of a catalog item (PATCH semantics — null = unchanged) (economy.md §4)."
       },
       "UpdateChannelSettingsDto": {
         "type": "object",
@@ -49502,7 +50744,8 @@
               "boolean"
             ]
           }
-        }
+        },
+        "description": "Request to update channel settings."
       },
       "UpdateCommandDto": {
         "type": "object",
@@ -49584,7 +50827,8 @@
               "boolean"
             ]
           }
-        }
+        },
+        "description": "Request to update an existing command."
       },
       "UpdateDiscordNotificationConfigRequest": {
         "required": [
@@ -49701,7 +50945,8 @@
               "type": "string"
             }
           }
-        }
+        },
+        "description": "Request to update an event response configuration."
       },
       "UpdateGameRequest": {
         "required": [
@@ -49727,7 +50972,8 @@
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "When present, rotates (re-encrypts) the verification secret."
           },
           "targetPipelineId": {
             "type": [
@@ -49870,7 +51116,8 @@
               "string"
             ]
           }
-        }
+        },
+        "description": "Request to update music configuration."
       },
       "UpdateOutboundWebhookRequest": {
         "type": "object",
@@ -49943,8 +51190,9 @@
               "string"
             ]
           },
-          "graphJsonCache": {}
-        }
+          "graphJsonCache": { }
+        },
+        "description": "Request to update an existing pipeline."
       },
       "UpdateRewardRequest": {
         "type": "object",
@@ -50158,7 +51406,8 @@
               "boolean"
             ]
           }
-        }
+        },
+        "description": "Request to update an existing timer."
       },
       "UpdateTitleRequest": {
         "required": [
@@ -50217,7 +51466,8 @@
               "boolean"
             ]
           }
-        }
+        },
+        "description": "Request to update TTS configuration."
       },
       "UpdateUserProfileRequest": {
         "type": "object",
@@ -50241,9 +51491,11 @@
               "integer",
               "string"
             ],
+            "description": "The int Pronoun.Id to assign, or `null` to leave unchanged, or `0` to clear.",
             "format": "int32"
           }
-        }
+        },
+        "description": "Request to update a user profile."
       },
       "UpdateWidgetRequest": {
         "type": "object",
@@ -50359,6 +51611,68 @@
             ],
             "format": "int32"
           }
+        },
+        "description": "Upsert a channel's currency definition (economy.md §4)."
+      },
+      "UpsertCustomDataSourceRequest": {
+        "required": [
+          "name",
+          "displayName",
+          "sourceKind",
+          "presetKey",
+          "endpointUrl",
+          "authSecret",
+          "fieldMap",
+          "pollIntervalSeconds",
+          "isEnabled"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "sourceKind": {
+            "type": "string"
+          },
+          "presetKey": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "endpointUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "authSecret": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "fieldMap": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "pollIntervalSeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "isEnabled": {
+            "type": "boolean"
+          }
         }
       },
       "UpsertEarningRuleRequest": {
@@ -50430,7 +51744,8 @@
               "object"
             ]
           }
-        }
+        },
+        "description": "Upsert one earning rule (economy.md §4). string UpsertEarningRuleRequest.Source is an `EarningSource` token."
       },
       "UpsertGameConfigRequest": {
         "required": [
@@ -50533,7 +51848,8 @@
               "object"
             ]
           }
-        }
+        },
+        "description": "Upsert a game configuration (economy.md §4). string UpsertGameConfigRequest.Category is a GameCategory token."
       },
       "UpsertLeaderboardConfigRequest": {
         "required": [
@@ -50581,7 +51897,8 @@
             ],
             "format": "uuid"
           }
-        }
+        },
+        "description": "Create or update a leaderboard config (economy.md §4). Guid? UpsertLeaderboardConfigRequest.Id null = create."
       },
       "UsageMetricDto": {
         "required": [
@@ -50629,7 +51946,8 @@
             "type": "string",
             "format": "date-time"
           }
-        }
+        },
+        "description": "Current-period usage for one metered key vs the tier limit."
       },
       "UserChannelAppearanceDto": {
         "required": [
@@ -50665,7 +51983,8 @@
           "watchTime": {
             "type": "string"
           }
-        }
+        },
+        "description": "Channel appearance record for GDPR user data view."
       },
       "UserDetailDto": {
         "required": [
@@ -50793,7 +52112,8 @@
             "type": "string",
             "format": "date-time"
           }
-        }
+        },
+        "description": "Full user information."
       },
       "UserProfileDto": {
         "required": [
@@ -50853,7 +52173,8 @@
             "type": "string",
             "format": "date-time"
           }
-        }
+        },
+        "description": "User profile information for display."
       },
       "UserPronounDto": {
         "required": [
@@ -50905,7 +52226,8 @@
           "manualOverride": {
             "type": "boolean"
           }
-        }
+        },
+        "description": "Pronoun state for the self-service API."
       },
       "UserStatsDto": {
         "required": [
@@ -50968,10 +52290,12 @@
           "exportAvailable": {
             "type": "boolean"
           }
-        }
+        },
+        "description": "GDPR data summary for a user."
       },
       "ViewerProfileSort": {
-        "type": "integer"
+        "type": "integer",
+        "description": "How the viewer list is sorted (analytics.md §4)."
       },
       "WebhookAdapterKind": {
         "type": "integer"
@@ -51071,6 +52395,9 @@
     },
     {
       "name": "Economy — Currency"
+    },
+    {
+      "name": "CustomEvents"
     },
     {
       "name": "Dashboard"

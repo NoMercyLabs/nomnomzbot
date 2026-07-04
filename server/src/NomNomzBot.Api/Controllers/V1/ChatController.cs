@@ -24,6 +24,10 @@ using ConfigEntity = NomNomzBot.Domain.Platform.Entities.Configuration;
 
 namespace NomNomzBot.Api.Controllers.V1;
 
+/// <summary>
+/// Chat message history, sending, moderation, and chat-mode settings for a channel — the
+/// dashboard operator's chat page.
+/// </summary>
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/channels/{channelId}/chat")]
 [Authorize]
@@ -89,6 +93,7 @@ public class ChatController : BaseController
 
     // ── GET messages ──────────────────────────────────────────────────────────
 
+    /// <summary>Get recent chat messages for the dashboard's chat feed, returned oldest first.</summary>
     [HttpGet("messages")]
     [ProducesResponseType<StatusResponseDto<List<ChatMessageDto>>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetMessages(
@@ -136,6 +141,7 @@ public class ChatController : BaseController
     // The dashboard's REST send path — the same Helix Send Chat Message that DashboardHub.SendChatMessage
     // performs, exposed over REST so the chat page can send without holding a hub connection.
 
+    /// <summary>Send a chat message to the channel as the bot, for the dashboard's chat page.</summary>
     [HttpPost("messages")]
     [ProducesResponseType<StatusResponseDto<bool>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> SendMessage(
@@ -159,6 +165,7 @@ public class ChatController : BaseController
 
     // ── DELETE message (moderation quick-action) ───────────────────────────────
 
+    /// <summary>Delete a chat message — a moderator's quick-action from the dashboard's chat page.</summary>
     [RequireAction("moderation:delete_message")]
     [HttpDelete("messages/{messageId}")]
     [ProducesResponseType<StatusResponseDto<bool>>(StatusCodes.Status200OK)]
@@ -180,6 +187,7 @@ public class ChatController : BaseController
 
     // ── GET settings ─────────────────────────────────────────────────────────
 
+    /// <summary>Get the channel's chat-mode settings (slow mode, sub-only, emote-only, followers-only).</summary>
     [RequireAction("moderation:chat:settings:read")]
     [HttpGet("settings")]
     [ProducesResponseType<StatusResponseDto<ChatSettingsDto>>(StatusCodes.Status200OK)]
@@ -202,6 +210,7 @@ public class ChatController : BaseController
 
     // ── PUT settings ──────────────────────────────────────────────────────────
 
+    /// <summary>Replace the channel's chat-mode settings.</summary>
     [RequireAction("moderation:chat:settings:write")]
     [HttpPut("settings")]
     [ProducesResponseType<StatusResponseDto<ChatSettingsDto>>(StatusCodes.Status200OK)]
@@ -213,6 +222,7 @@ public class ChatController : BaseController
 
     // ── PATCH settings (partial update) ───────────────────────────────────────
 
+    /// <summary>Partially update the channel's chat-mode settings, merging only the supplied fields.</summary>
     [RequireAction("moderation:chat:settings:write")]
     [HttpPatch("settings")]
     [ProducesResponseType<StatusResponseDto<ChatSettingsDto>>(StatusCodes.Status200OK)]
@@ -307,6 +317,7 @@ public class ChatController : BaseController
 
     public record AnnounceRequest(string Message, string? Color = null);
 
+    /// <summary>Send a Twitch chat announcement message with an optional highlight color.</summary>
     [RequireAction("chat:announce")]
     [HttpPost("announce")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]

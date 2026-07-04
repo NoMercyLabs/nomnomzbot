@@ -19,6 +19,10 @@ using NomNomzBot.Application.Common.Models;
 
 namespace NomNomzBot.Api.Controllers.V1;
 
+/// <summary>
+/// Per-event-type automated response configuration (follow, subscribe, raid, and more) for a
+/// channel — the dashboard operator's event responses page.
+/// </summary>
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/channels/{channelId}/event-responses")]
 [Authorize]
@@ -32,6 +36,7 @@ public class EventResponsesController : BaseController
         _eventResponseService = eventResponseService;
     }
 
+    /// <summary>List the channel's configured event responses, paginated, for the dashboard's event responses page.</summary>
     [RequireAction("eventresponses:read")]
     [HttpGet]
     [ProducesResponseType<PaginatedResponse<EventResponseListItem>>(StatusCodes.Status200OK)]
@@ -52,6 +57,7 @@ public class EventResponsesController : BaseController
         return GetPaginatedResponse(result.Value, request);
     }
 
+    /// <summary>Get the configured response for a single event type.</summary>
     [RequireAction("eventresponses:read")]
     [HttpGet("{eventType}")]
     [ProducesResponseType<StatusResponseDto<EventResponseDto>>(StatusCodes.Status200OK)]
@@ -69,6 +75,7 @@ public class EventResponsesController : BaseController
         return ResultResponse(result);
     }
 
+    /// <summary>Create or replace the response configured for an event type.</summary>
     [RequireAction("eventresponses:write")]
     [HttpPut("{eventType}")]
     [ProducesResponseType<StatusResponseDto<EventResponseDto>>(StatusCodes.Status200OK)]
@@ -90,6 +97,7 @@ public class EventResponsesController : BaseController
         return Ok(new StatusResponseDto<EventResponseDto> { Data = result.Value });
     }
 
+    /// <summary>Delete the configured response for an event type.</summary>
     [RequireAction("eventresponses:write")]
     [HttpDelete("{eventType}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]

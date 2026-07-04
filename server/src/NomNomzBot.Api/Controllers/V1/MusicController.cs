@@ -19,6 +19,10 @@ using NomNomzBot.Application.Music.Services;
 
 namespace NomNomzBot.Api.Controllers.V1;
 
+/// <summary>
+/// Manages a channel's connected music integration — configuration, queue, playback controls,
+/// and song requests — for the dashboard operator and viewers using the public song-request page.
+/// </summary>
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/channels/{channelId}/music")]
 [Authorize]
@@ -42,6 +46,7 @@ public class MusicController : BaseController
 
     // ─── Configuration ────────────────────────────────────────────────────────
 
+    /// <summary>Get the channel's music integration configuration for the dashboard operator.</summary>
     [HttpGet("config")]
     [ProducesResponseType<StatusResponseDto<MusicConfigDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetConfig(string channelId, CancellationToken ct)
@@ -50,6 +55,7 @@ public class MusicController : BaseController
         return ResultResponse(result);
     }
 
+    /// <summary>Update the channel's music integration configuration.</summary>
     [RequireAction("music:config:write")]
     [HttpPut("config")]
     [ProducesResponseType<StatusResponseDto<MusicConfigDto>>(StatusCodes.Status200OK)]
@@ -95,6 +101,7 @@ public class MusicController : BaseController
 
     // ─── Queue ───────────────────────────────────────────────────────────────
 
+    /// <summary>Get the currently playing track and the upcoming song queue for the channel.</summary>
     [HttpGet("queue")]
     [ProducesResponseType<StatusResponseDto<MusicQueueDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetQueue(string channelId, CancellationToken ct)
@@ -134,6 +141,7 @@ public class MusicController : BaseController
         return Ok(new StatusResponseDto<MusicQueueDto> { Data = dto });
     }
 
+    /// <summary>Queue a song request by search query, submitted by a viewer or the operator.</summary>
     [HttpPost("queue")]
     [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> AddToQueue(
@@ -156,6 +164,7 @@ public class MusicController : BaseController
         return Ok(new StatusResponseDto<object> { Message = "Song added to queue." });
     }
 
+    /// <summary>Remove a queued song at the given position, for moderators clearing bad requests.</summary>
     [RequireAction("music:queue:moderate")]
     [HttpDelete("queue/{position:int}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -174,6 +183,7 @@ public class MusicController : BaseController
 
     // ─── Playback controls ────────────────────────────────────────────────────
 
+    /// <summary>Skip the currently playing track to the next one in the queue.</summary>
     [RequireAction("music:queue:moderate")]
     [HttpPost("skip")]
     [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
@@ -185,6 +195,7 @@ public class MusicController : BaseController
         return Ok(new StatusResponseDto<object> { Message = "Skipped to next track." });
     }
 
+    /// <summary>Pause playback on the channel's active music provider.</summary>
     [RequireAction("music:queue:moderate")]
     [HttpPost("pause")]
     [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
@@ -196,6 +207,7 @@ public class MusicController : BaseController
         return Ok(new StatusResponseDto<object> { Message = "Playback paused." });
     }
 
+    /// <summary>Resume playback on the channel's active music provider.</summary>
     [RequireAction("music:queue:moderate")]
     [HttpPost("resume")]
     [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
@@ -209,6 +221,7 @@ public class MusicController : BaseController
 
     // ─── Remote controls (seek / shuffle / repeat / transfer / playlists) ───────
 
+    /// <summary>Seek the currently playing track to a specific position in milliseconds.</summary>
     [HttpPost("seek")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
@@ -224,6 +237,7 @@ public class MusicController : BaseController
             : ServiceUnavailableResponse("Seek not supported by active provider.");
     }
 
+    /// <summary>Turn shuffle mode on or off on the active music provider.</summary>
     [HttpPatch("shuffle")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
@@ -239,6 +253,7 @@ public class MusicController : BaseController
             : ServiceUnavailableResponse("Shuffle not supported by active provider.");
     }
 
+    /// <summary>Set the repeat mode on the active music provider.</summary>
     [HttpPatch("repeat")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
@@ -254,6 +269,7 @@ public class MusicController : BaseController
             : ServiceUnavailableResponse("Repeat not supported by active provider.");
     }
 
+    /// <summary>List the playback devices available on the channel's active music provider.</summary>
     [HttpGet("devices")]
     [ProducesResponseType<StatusResponseDto<IReadOnlyList<MusicDeviceDto>>>(
         StatusCodes.Status200OK
@@ -264,6 +280,7 @@ public class MusicController : BaseController
         return Ok(new StatusResponseDto<IReadOnlyList<MusicDeviceDto>> { Data = devices });
     }
 
+    /// <summary>Transfer playback to a different device, optionally resuming playback immediately.</summary>
     [HttpPost("transfer")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
@@ -279,6 +296,7 @@ public class MusicController : BaseController
             : ServiceUnavailableResponse("Transfer not supported by active provider.");
     }
 
+    /// <summary>List the connected music account's playlists, paginated by offset and limit.</summary>
     [HttpGet("playlists")]
     [ProducesResponseType<StatusResponseDto<IReadOnlyList<MusicPlaylistDto>>>(
         StatusCodes.Status200OK
@@ -299,6 +317,7 @@ public class MusicController : BaseController
         return Ok(new StatusResponseDto<IReadOnlyList<MusicPlaylistDto>> { Data = playlists });
     }
 
+    /// <summary>Start playback of a playlist, album, or other provider context by URI.</summary>
     [HttpPost("play-context")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
@@ -316,6 +335,7 @@ public class MusicController : BaseController
 
     // ─── Now playing ──────────────────────────────────────────────────────────
 
+    /// <summary>Get the track currently playing on the channel's active music provider, if any.</summary>
     [HttpGet("now-playing")]
     [ProducesResponseType<StatusResponseDto<NowPlayingDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetNowPlaying(string channelId, CancellationToken ct)

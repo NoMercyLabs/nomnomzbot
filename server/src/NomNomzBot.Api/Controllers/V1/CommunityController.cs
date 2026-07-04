@@ -26,6 +26,10 @@ using ConfigEntity = NomNomzBot.Domain.Platform.Entities.Configuration;
 
 namespace NomNomzBot.Api.Controllers.V1;
 
+/// <summary>
+/// Community management for a channel — viewer lists, follower/subscriber/VIP stats, trust levels, and bans.
+/// Data comes live from the Twitch API (no seed/fake data); routes are scoped to <c>{channelId}</c> and require authorization.
+/// </summary>
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/channels/{channelId}/community")]
 [Authorize]
@@ -137,6 +141,7 @@ public class CommunityController : BaseController
 
     // ── Paginated user list ──────────────────────────────────────────────────
 
+    /// <summary>List community members for a channel, filterable by role (follower, VIP, moderator, or all chatters) and paginated.</summary>
     [RequireAction("community:read")]
     [HttpGet]
     [ProducesResponseType<PaginatedResponse<CommunityUserDto>>(StatusCodes.Status200OK)]
@@ -413,6 +418,7 @@ public class CommunityController : BaseController
 
     // ── Community stats ──────────────────────────────────────────────────────
 
+    /// <summary>Get follower, subscriber, VIP, and moderator counts for a channel, sourced live from Twitch where available.</summary>
     [RequireAction("community:read")]
     [HttpGet("stats")]
     [ProducesResponseType<StatusResponseDto<CommunityStatsDto>>(StatusCodes.Status200OK)]
@@ -460,6 +466,7 @@ public class CommunityController : BaseController
 
     // ── Banned users list ────────────────────────────────────────────────────
 
+    /// <summary>List banned users for a channel, paginated, with ban reason and moderator identity.</summary>
     [RequireAction("community:read")]
     [HttpGet("bans")]
     [ProducesResponseType<PaginatedResponse<BannedUserDto>>(StatusCodes.Status200OK)]
@@ -541,6 +548,7 @@ public class CommunityController : BaseController
 
     // ── User detail ──────────────────────────────────────────────────────────
 
+    /// <summary>Get a single community member's profile, trust level, ban status, and recent chat activity.</summary>
     [RequireAction("community:read")]
     [HttpGet("{userId}")]
     [ProducesResponseType<StatusResponseDto<UserDetailDto>>(StatusCodes.Status200OK)]
@@ -638,6 +646,7 @@ public class CommunityController : BaseController
 
     // ── Set trust level ───────────────────────────────────────────────────────
 
+    /// <summary>Set a community member's trust level for a channel.</summary>
     [RequireAction("community:trust:write")]
     [HttpPut("{userId}/trust")]
     [ProducesResponseType<StatusResponseDto<UserDetailDto>>(StatusCodes.Status200OK)]
@@ -678,6 +687,7 @@ public class CommunityController : BaseController
 
     // ── Ban user ──────────────────────────────────────────────────────────────
 
+    /// <summary>Ban a user from the channel via Twitch and record the ban locally with reason and moderator identity.</summary>
     [RequireAction("moderation:ban")]
     [HttpPost("{userId}/ban")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -745,6 +755,7 @@ public class CommunityController : BaseController
 
     // ── Unban user ────────────────────────────────────────────────────────────
 
+    /// <summary>Unban a user from the channel via Twitch and clear the local ban record.</summary>
     [RequireAction("moderation:unban")]
     [HttpDelete("{userId}/ban")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -775,6 +786,7 @@ public class CommunityController : BaseController
 
     // ── Add VIP ───────────────────────────────────────────────────────────────
 
+    /// <summary>Grant a user VIP status in the channel.</summary>
     [RequireAction("moderation:vip")]
     [HttpPost("{userId}/vip")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -789,6 +801,7 @@ public class CommunityController : BaseController
 
     // ── Remove VIP ────────────────────────────────────────────────────────────
 
+    /// <summary>Revoke a user's VIP status in the channel.</summary>
     [RequireAction("moderation:vip")]
     [HttpDelete("{userId}/vip")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
