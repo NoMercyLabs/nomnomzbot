@@ -159,14 +159,19 @@ scenario_desktop() {
   echo "Publishing the single-file bot (self_host_lite) for ${rid} — the web dashboard is bundled in..."
   dotnet publish server/src/NomNomzBot.Api -c Release -r "$rid" --self-contained true
 
+  local data_dir
+  case "$os" in
+    linux) data_dir="~/.local/share/NomNomzBot" ;;
+    osx)   data_dir="~/Library/Application Support/NomNomzBot" ;;
+  esac
+
   out="server/src/NomNomzBot.Api/bin/Release/net10.0/${rid}/publish/nomnomz"
   echo
   echo "Done. Your single-file bot is at:"
   echo "  ${out}"
   echo "Run it from any folder:"
   echo "  cp \"${out}\" ./nomnomz && ./nomnomz"
-  echo "Its data (SQLite DB, keys, logs) lives in ~/.local/share/NomNomzBot (Linux) or"
-  echo "~/Library/Application Support/NomNomzBot (macOS) — override with NOMNOMZ_DATA_DIR."
+  echo "Its data (SQLite DB, keys, logs) lives in ${data_dir} — override with NOMNOMZ_DATA_DIR."
   echo "Then open the web dashboard at http://localhost:5080 — or use the desktop app (--app)."
 }
 

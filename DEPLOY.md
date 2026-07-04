@@ -8,8 +8,12 @@ NomNomzBot is two pieces:
 - A **standalone desktop app** with the exact
   same UI is optional on top.
 
-One script drives every scenario — `./deploy.sh` on Linux/macOS, `.\deploy.ps1` on Windows.
-Run it with no arguments any time to see this guide's short form.
+One script per operating system drives every scenario:
+
+- **Linux / macOS:** `./deploy.sh`
+- **Windows (PowerShell):** `.\deploy.ps1`
+
+Run yours with no arguments any time to see this guide's short form.
 
 ## Which scenario am I?
 
@@ -32,7 +36,7 @@ or the bot lives on a server. **saas** is only for operators running a public se
 
 | | Web dashboard | Desktop app |
 |---|---|---|
-| Build step | **none — always bundled** | `--app` / `-App` |
+| Build step | **none — always bundled** | `--app` (Linux/macOS) · `-App` (Windows) |
 | Get it | open the bot's URL in a browser | installer in `app/composeApp/build/compose/binaries/main/` |
 | Connects to | the bot that served it | any bot — saved connections + automatic LAN discovery (mDNS) |
 | Best for | quick access, other devices, no install | daily driving, multiple bots |
@@ -51,11 +55,16 @@ macOS. Back up that folder and you've backed up the bot; set `NOMNOMZ_DATA_DIR` 
 
 **Requirements:** the [.NET 10 SDK](https://dot.net) (build only — the produced binary needs nothing).
 
+**Linux / macOS**
+
 ```bash
-./deploy.sh desktop            # Linux / macOS
+./deploy.sh desktop
 ```
+
+**Windows (PowerShell)**
+
 ```powershell
-.\deploy.ps1 desktop           # Windows
+.\deploy.ps1 desktop
 ```
 
 The script prints where the binary landed. Copy it anywhere and run it:
@@ -87,11 +96,16 @@ loopback-only), with healthchecks and auto-migration on boot.
 
 **Requirements:** [Docker](https://docs.docker.com/get-docker/) (with Compose v2).
 
+**Linux / macOS**
+
 ```bash
-./deploy.sh docker             # Linux / macOS
+./deploy.sh docker
 ```
+
+**Windows (PowerShell)**
+
 ```powershell
-.\deploy.ps1 docker            # Windows
+.\deploy.ps1 docker
 ```
 
 On the first run the script creates `.env` from the template, **generates strong secrets for you**
@@ -115,11 +129,16 @@ needs it.
 **Requirements:** Docker, a public domain, and a reverse proxy terminating TLS (Caddy, nginx, or a
 Cloudflare Tunnel — see the [README's production deployment section](README.md#production-deployment)).
 
+**Linux / macOS**
+
 ```bash
-./deploy.sh saas               # Linux / macOS
+./deploy.sh saas
 ```
+
+**Windows (PowerShell)**
+
 ```powershell
-.\deploy.ps1 saas              # Windows
+.\deploy.ps1 saas
 ```
 
 The script refuses to start until `.env` is production-shaped, and tells you exactly what to fix:
