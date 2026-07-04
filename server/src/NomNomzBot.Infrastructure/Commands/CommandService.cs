@@ -15,6 +15,7 @@ using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Domain.Commands.Entities;
+using NomNomzBot.Domain.Platform.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
 
 namespace NomNomzBot.Infrastructure.Commands;
@@ -24,16 +25,19 @@ public class CommandService : ICommandService
     private readonly IApplicationDbContext _db;
     private readonly IPipelineEngine _pipelineEngine;
     private readonly IChannelRegistry _registry;
+    private readonly IEventBus _eventBus;
 
     public CommandService(
         IApplicationDbContext db,
         IPipelineEngine pipelineEngine,
-        IChannelRegistry registry
+        IChannelRegistry registry,
+        IEventBus eventBus
     )
     {
         _db = db;
         _pipelineEngine = pipelineEngine;
         _registry = registry;
+        _eventBus = eventBus;
     }
 
     public async Task<Result<CommandDto>> CreateAsync(
@@ -78,6 +82,7 @@ public class CommandService : ICommandService
         _db.Commands.Add(command);
         await _db.SaveChangesAsync(cancellationToken);
         await _registry.InvalidateCommandsAsync(broadcaster, cancellationToken);
+        await PublishConfigChangedAsync(broadcaster, command.Id, "created", cancellationToken);
 
         return Result.Success(ToDto(command));
     }
@@ -128,6 +133,7 @@ public class CommandService : ICommandService
 
         await _db.SaveChangesAsync(cancellationToken);
         await _registry.InvalidateCommandsAsync(broadcaster, cancellationToken);
+        await PublishConfigChangedAsync(broadcaster, command.Id, "updated", cancellationToken);
 
         return Result.Success(ToDto(command));
     }
@@ -151,9 +157,11 @@ public class CommandService : ICommandService
         if (command is null)
             return Result.Failure($"Command '{commandName}' was not found.", "NOT_FOUND");
 
+        Guid commandId = command.Id;
         _db.Commands.Remove(command);
         await _db.SaveChangesAsync(cancellationToken);
         await _registry.InvalidateCommandsAsync(broadcaster, cancellationToken);
+        await PublishConfigChangedAsync(broadcaster, commandId, "deleted", cancellationToken);
 
         return Result.Success();
     }
@@ -283,6 +291,24 @@ public class CommandService : ICommandService
 
         return Result.Success(response ?? string.Empty);
     }
+
+    /// <summary>E5 dashboard live-sync: fired after every successful write so other open dashboards refetch.</summary>
+    private Task PublishConfigChangedAsync(
+        Guid broadcasterId,
+        Guid commandId,
+        string action,
+        CancellationToken cancellationToken
+    ) =>
+        _eventBus.PublishAsync(
+            new ChannelConfigChangedEvent
+            {
+                BroadcasterId = broadcasterId,
+                Domain = "commands",
+                EntityId = commandId.ToString(),
+                Action = action,
+            },
+            cancellationToken
+        );
 
     private static CommandDto ToDto(Command c) =>
         new(

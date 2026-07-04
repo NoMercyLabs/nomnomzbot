@@ -14,6 +14,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.EventStore;
 using NomNomzBot.Application.Quotes.Dtos;
 using NomNomzBot.Application.Quotes.Services;
+using NomNomzBot.Domain.Platform.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Quotes.Entities;
 using NomNomzBot.Domain.Quotes.Events;
@@ -108,6 +109,16 @@ public sealed class QuoteService : IQuoteService
                     QuoteId = quote.Id,
                     Number = quote.Number,
                     CreatedByUserId = quote.CreatedByUserId,
+                },
+                ct
+            );
+            await _eventBus.PublishAsync(
+                new ChannelConfigChangedEvent
+                {
+                    BroadcasterId = broadcasterId,
+                    Domain = "quotes",
+                    EntityId = quote.Id.ToString(),
+                    Action = "created",
                 },
                 ct
             );
@@ -232,6 +243,16 @@ public sealed class QuoteService : IQuoteService
         quote.ContextGame = request.ContextGame?.Trim();
 
         await _db.SaveChangesAsync(ct);
+        await _eventBus.PublishAsync(
+            new ChannelConfigChangedEvent
+            {
+                BroadcasterId = broadcasterId,
+                Domain = "quotes",
+                EntityId = quote.Id.ToString(),
+                Action = "updated",
+            },
+            ct
+        );
 
         return Result.Success(ToDto(quote));
     }
@@ -254,6 +275,16 @@ public sealed class QuoteService : IQuoteService
         // never reused (D1).
         _db.Quotes.Remove(quote);
         await _db.SaveChangesAsync(ct);
+        await _eventBus.PublishAsync(
+            new ChannelConfigChangedEvent
+            {
+                BroadcasterId = broadcasterId,
+                Domain = "quotes",
+                EntityId = quote.Id.ToString(),
+                Action = "deleted",
+            },
+            ct
+        );
 
         return Result.Success();
     }

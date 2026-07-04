@@ -16,14 +16,19 @@ using NomNomzBot.Application.DTOs.Economy;
 using NomNomzBot.Application.Economy.Services;
 using NomNomzBot.Domain.Economy.Entities;
 using NomNomzBot.Domain.Economy.Enums;
+using NomNomzBot.Domain.Platform.Events;
+using NomNomzBot.Domain.Platform.Interfaces;
 
 namespace NomNomzBot.Infrastructure.Economy;
 
 /// <summary>
 /// Currency definition + earning rules (economy.md §3.1). Pure CRUD with validation — no ledger effect.
 /// </summary>
-public sealed class CurrencyConfigService(IApplicationDbContext db, TimeProvider clock)
-    : ICurrencyConfigService
+public sealed class CurrencyConfigService(
+    IApplicationDbContext db,
+    TimeProvider clock,
+    IEventBus eventBus
+) : ICurrencyConfigService
 {
     public async Task<Result<CurrencyConfigDto?>> GetConfigAsync(
         Guid broadcasterId,
@@ -63,6 +68,7 @@ public sealed class CurrencyConfigService(IApplicationDbContext db, TimeProvider
             c => c.BroadcasterId == broadcasterId,
             ct
         );
+        bool isNew = config is null;
         if (config is null)
         {
             config = new CurrencyConfig { BroadcasterId = broadcasterId };
@@ -76,6 +82,16 @@ public sealed class CurrencyConfigService(IApplicationDbContext db, TimeProvider
         config.MaxBalance = request.MaxBalance;
         config.DecimalPlaces = request.DecimalPlaces;
         await db.SaveChangesAsync(ct);
+        await eventBus.PublishAsync(
+            new ChannelConfigChangedEvent
+            {
+                BroadcasterId = broadcasterId,
+                Domain = "economy-config",
+                EntityId = config.Id.ToString(),
+                Action = isNew ? "created" : "updated",
+            },
+            ct
+        );
 
         return Result.Success(ToDto(config));
     }
@@ -113,6 +129,7 @@ public sealed class CurrencyConfigService(IApplicationDbContext db, TimeProvider
             r => r.BroadcasterId == broadcasterId && r.Source == source && r.DeletedAt == null,
             ct
         );
+        bool isNew = rule is null;
         if (rule is null)
         {
             rule = new EarningRule
@@ -133,6 +150,16 @@ public sealed class CurrencyConfigService(IApplicationDbContext db, TimeProvider
             ? null
             : JsonConvert.SerializeObject(request.BonusConfig);
         await db.SaveChangesAsync(ct);
+        await eventBus.PublishAsync(
+            new ChannelConfigChangedEvent
+            {
+                BroadcasterId = broadcasterId,
+                Domain = "earning-rules",
+                EntityId = rule.Id.ToString(),
+                Action = isNew ? "created" : "updated",
+            },
+            ct
+        );
 
         return Result.Success(ToDto(rule));
     }
@@ -152,6 +179,16 @@ public sealed class CurrencyConfigService(IApplicationDbContext db, TimeProvider
 
         rule.DeletedAt = clock.GetUtcNow().UtcDateTime;
         await db.SaveChangesAsync(ct);
+        await eventBus.PublishAsync(
+            new ChannelConfigChangedEvent
+            {
+                BroadcasterId = broadcasterId,
+                Domain = "earning-rules",
+                EntityId = rule.Id.ToString(),
+                Action = "deleted",
+            },
+            ct
+        );
         return Result.Success();
     }
 

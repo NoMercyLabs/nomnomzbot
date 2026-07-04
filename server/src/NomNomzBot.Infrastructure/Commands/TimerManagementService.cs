@@ -13,6 +13,8 @@ using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Domain.Platform.Events;
+using NomNomzBot.Domain.Platform.Interfaces;
 using DomainTimer = NomNomzBot.Domain.Commands.Entities.Timer;
 
 namespace NomNomzBot.Infrastructure.Commands;
@@ -20,10 +22,12 @@ namespace NomNomzBot.Infrastructure.Commands;
 public class TimerManagementService : ITimerManagementService
 {
     private readonly IApplicationDbContext _db;
+    private readonly IEventBus _eventBus;
 
-    public TimerManagementService(IApplicationDbContext db)
+    public TimerManagementService(IApplicationDbContext db, IEventBus eventBus)
     {
         _db = db;
+        _eventBus = eventBus;
     }
 
     public async Task<Result<PagedList<TimerListItem>>> ListAsync(
@@ -117,6 +121,7 @@ public class TimerManagementService : ITimerManagementService
 
         _db.Timers.Add(timer);
         await _db.SaveChangesAsync(cancellationToken);
+        await PublishConfigChangedAsync(broadcaster, timer.Id, "created", cancellationToken);
 
         return Result.Success(ToDto(timer));
     }
@@ -156,6 +161,7 @@ public class TimerManagementService : ITimerManagementService
             timer.IsEnabled = request.IsEnabled.Value;
 
         await _db.SaveChangesAsync(cancellationToken);
+        await PublishConfigChangedAsync(broadcaster, timer.Id, "updated", cancellationToken);
 
         return Result.Success(ToDto(timer));
     }
@@ -177,8 +183,10 @@ public class TimerManagementService : ITimerManagementService
         if (timer is null)
             return Result.Failure($"Timer '{id}' was not found.", "NOT_FOUND");
 
+        Guid timerId = timer.Id;
         _db.Timers.Remove(timer);
         await _db.SaveChangesAsync(cancellationToken);
+        await PublishConfigChangedAsync(broadcaster, timerId, "deleted", cancellationToken);
 
         return Result.Success();
     }
@@ -205,9 +213,28 @@ public class TimerManagementService : ITimerManagementService
 
         timer.IsEnabled = !timer.IsEnabled;
         await _db.SaveChangesAsync(cancellationToken);
+        await PublishConfigChangedAsync(broadcaster, timer.Id, "toggled", cancellationToken);
 
         return Result.Success(ToDto(timer));
     }
+
+    /// <summary>E5 dashboard live-sync: fired after every successful write so other open dashboards refetch.</summary>
+    private Task PublishConfigChangedAsync(
+        Guid broadcasterId,
+        Guid timerId,
+        string action,
+        CancellationToken cancellationToken
+    ) =>
+        _eventBus.PublishAsync(
+            new ChannelConfigChangedEvent
+            {
+                BroadcasterId = broadcasterId,
+                Domain = "timers",
+                EntityId = timerId.ToString(),
+                Action = action,
+            },
+            cancellationToken
+        );
 
     private static TimerDto ToDto(DomainTimer t) =>
         new(

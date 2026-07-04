@@ -15,6 +15,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.DTOs.Webhooks;
 using NomNomzBot.Application.Services;
 using NomNomzBot.Domain.Platform.Entities;
+using NomNomzBot.Domain.Platform.Events;
 using NomNomzBot.Domain.Webhooks.Entities;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NomNomzBot.Infrastructure.Webhooks;
@@ -34,7 +35,11 @@ public sealed class OutboundWebhookEndpointServiceTests
     private static readonly Guid Actor = Guid.Parse("0192a000-0000-7000-8000-000000000c02");
     private static readonly DateTimeOffset Now = new(2026, 6, 22, 12, 0, 0, TimeSpan.Zero);
 
-    private static (OutboundWebhookEndpointService Sut, AuthDbContext Db) Build()
+    private static (
+        OutboundWebhookEndpointService Sut,
+        AuthDbContext Db,
+        RecordingEventBus Bus
+    ) Build()
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
         ITokenProtector protector = Substitute.For<ITokenProtector>();
@@ -52,9 +57,11 @@ public sealed class OutboundWebhookEndpointServiceTests
                 Arg.Any<CancellationToken>()
             )
             .Returns(Result.Success(Guid.Parse("0192a000-0000-7000-8000-0000000000cc")));
+        RecordingEventBus bus = new();
         return (
-            new OutboundWebhookEndpointService(db, protector, keys, new FakeTimeProvider(Now)),
-            db
+            new OutboundWebhookEndpointService(db, protector, keys, new FakeTimeProvider(Now), bus),
+            db,
+            bus
         );
     }
 
@@ -85,7 +92,7 @@ public sealed class OutboundWebhookEndpointServiceTests
     [Fact]
     public async Task Create_fails_closed_without_an_egress_allowlist_row()
     {
-        (OutboundWebhookEndpointService sut, _) = Build();
+        (OutboundWebhookEndpointService sut, _, RecordingEventBus bus) = Build();
 
         Result<OutboundWebhookEndpointCreatedDto> result = await sut.CreateAsync(
             Channel,
@@ -94,12 +101,13 @@ public sealed class OutboundWebhookEndpointServiceTests
         );
 
         result.ErrorCode.Should().Be("EGRESS_NOT_ALLOWED");
+        bus.Published.Should().BeEmpty(); // a failed mutation publishes nothing
     }
 
     [Fact]
     public async Task Create_seals_the_secret_pins_the_allowlist_and_reveals_plaintext_once()
     {
-        (OutboundWebhookEndpointService sut, AuthDbContext db) = Build();
+        (OutboundWebhookEndpointService sut, AuthDbContext db, RecordingEventBus bus) = Build();
         await SeedAllowlistAsync(db);
 
         OutboundWebhookEndpointCreatedDto created = (
@@ -111,12 +119,20 @@ public sealed class OutboundWebhookEndpointServiceTests
         OutboundWebhookEndpoint stored = db.OutboundWebhookEndpoints.Single();
         stored.SigningSecretEnvelope.Should().StartWith("sealed:whsec_"); // sealed, not plaintext
         stored.HttpEgressAllowlistId.Should().NotBeNull();
+        bus.Published.OfType<ChannelConfigChangedEvent>()
+            .Should()
+            .ContainSingle(e =>
+                e.BroadcasterId == Channel
+                && e.Domain == "webhooks"
+                && e.EntityId == created.Endpoint.Id.ToString()
+                && e.Action == "created"
+            );
     }
 
     [Fact]
     public async Task RotateSecret_promotes_the_primary_to_secondary_and_mints_a_new_primary()
     {
-        (OutboundWebhookEndpointService sut, AuthDbContext db) = Build();
+        (OutboundWebhookEndpointService sut, AuthDbContext db, _) = Build();
         await SeedAllowlistAsync(db);
         OutboundWebhookEndpointCreatedDto created = (
             await sut.CreateAsync(Channel, Actor, Req())
@@ -136,7 +152,7 @@ public sealed class OutboundWebhookEndpointServiceTests
     [Fact]
     public async Task Reenable_clears_the_failure_counters()
     {
-        (OutboundWebhookEndpointService sut, AuthDbContext db) = Build();
+        (OutboundWebhookEndpointService sut, AuthDbContext db, _) = Build();
         await SeedAllowlistAsync(db);
         OutboundWebhookEndpointCreatedDto created = (
             await sut.CreateAsync(Channel, Actor, Req())
@@ -158,7 +174,7 @@ public sealed class OutboundWebhookEndpointServiceTests
     [Fact]
     public async Task SendTest_is_unavailable_pending_the_egress_client()
     {
-        (OutboundWebhookEndpointService sut, AuthDbContext db) = Build();
+        (OutboundWebhookEndpointService sut, AuthDbContext db, _) = Build();
         await SeedAllowlistAsync(db);
         OutboundWebhookEndpointCreatedDto created = (
             await sut.CreateAsync(Channel, Actor, Req())

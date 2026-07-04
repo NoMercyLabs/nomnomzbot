@@ -31,6 +31,15 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
   ignored so nothing breaks until you wire each one.
 - **Done when:** each listed event updates its owning page/panel live (stream info, rewards queue/
   list, polls, predictions, hype train, moderation roster, activity feed + ad-break countdown).
+- **Update (same day) — `ConfigChanged` hub event:** every config CRUD now broadcasts
+  `ConfigChanged { broadcasterId, domain, entityId?, action: created|updated|deleted|toggled }` to the
+  channel group. Wire the SignalR client to **invalidate/refetch that domain's query** so a second
+  open dashboard never goes stale. Domain strings (closed set): `commands`, `timers`, `pipelines`,
+  `event-responses`, `rewards`, `economy-config`, `earning-rules`, `catalog`, `moderation-rules`,
+  `blocked-terms`, `automod`, `tts-config`, `music-config`, `sr-config`, `webhooks`, `widgets`,
+  `features`, `quotes`, `builtins`, `channel-settings`, `roles-permits`. Also: `MusicStateChanged`
+  now actually fires (poller + instant on skip/pause/resume), and now-playing finally reports real
+  play/pause + progress.
 - **Update (same day):** hub payloads now also carry hydrated user info — additive nullable fields,
   omitted from JSON when null: `avatarUrl`, `pronouns` (display string like `"they/them"`),
   `communityStanding` (`Everyone|Subscriber|Vip|Artist|Moderator`) on `FollowAlertDto`,

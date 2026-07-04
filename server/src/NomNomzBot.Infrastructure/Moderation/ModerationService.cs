@@ -18,6 +18,8 @@ using NomNomzBot.Application.Moderation.Dtos;
 using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Platform.Entities;
+using NomNomzBot.Domain.Platform.Events;
+using NomNomzBot.Domain.Platform.Interfaces;
 
 namespace NomNomzBot.Infrastructure.Moderation;
 
@@ -29,16 +31,19 @@ public class ModerationService : IModerationService
     private readonly IApplicationDbContext _db;
     private readonly ITwitchModerationApi _moderation;
     private readonly ILogger<ModerationService> _logger;
+    private readonly IEventBus _eventBus;
 
     public ModerationService(
         IApplicationDbContext db,
         ITwitchModerationApi moderation,
-        ILogger<ModerationService> logger
+        ILogger<ModerationService> logger,
+        IEventBus eventBus
     )
     {
         _db = db;
         _moderation = moderation;
         _logger = logger;
+        _eventBus = eventBus;
     }
 
     public async Task<Result<ModerationActionResult>> TimeoutAsync(
@@ -199,6 +204,7 @@ public class ModerationService : IModerationService
 
         _db.Records.Add(record);
         await _db.SaveChangesAsync(cancellationToken);
+        await PublishConfigChangedAsync(tenantId, record.Id, "created", cancellationToken);
 
         return Result.Success(
             new ModerationRuleDetail(
@@ -236,6 +242,7 @@ public class ModerationService : IModerationService
 
         _db.Records.Remove(record);
         await _db.SaveChangesAsync(cancellationToken);
+        await PublishConfigChangedAsync(tenantId, record.Id, "deleted", cancellationToken);
 
         return Result.Success();
     }
@@ -280,6 +287,7 @@ public class ModerationService : IModerationService
         // UpdatedAt stamped by AuditableEntityInterceptor on save.
 
         await _db.SaveChangesAsync(cancellationToken);
+        await PublishConfigChangedAsync(tenantId, record.Id, "updated", cancellationToken);
 
         return Result.Success(
             new ModerationRuleDetail(
@@ -608,6 +616,13 @@ public class ModerationService : IModerationService
         }
 
         await _db.SaveChangesAsync(cancellationToken);
+        await PublishConfigChangedAsync(
+            tenantId,
+            "automod",
+            entityId: null,
+            "updated",
+            cancellationToken
+        );
 
         return await GetAutomodConfigAsync(broadcasterId, cancellationToken);
     }
@@ -714,6 +729,34 @@ public class ModerationService : IModerationService
 
         return result;
     }
+
+    /// <summary>E5 dashboard live-sync: fired after every successful write so other open dashboards refetch.</summary>
+    private Task PublishConfigChangedAsync(
+        Guid broadcasterId,
+        int ruleId,
+        string action,
+        CancellationToken ct
+    ) =>
+        PublishConfigChangedAsync(broadcasterId, "moderation-rules", ruleId.ToString(), action, ct);
+
+    /// <summary>E5 dashboard live-sync: fired after every successful write so other open dashboards refetch.</summary>
+    private Task PublishConfigChangedAsync(
+        Guid broadcasterId,
+        string domain,
+        string? entityId,
+        string action,
+        CancellationToken ct
+    ) =>
+        _eventBus.PublishAsync(
+            new ChannelConfigChangedEvent
+            {
+                BroadcasterId = broadcasterId,
+                Domain = domain,
+                EntityId = entityId,
+                Action = action,
+            },
+            ct
+        );
 
     // ─── Private data shapes stored in Record.Data ───────────────────────────
 

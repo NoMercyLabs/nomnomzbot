@@ -15,6 +15,8 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Identity.Entities;
+using NomNomzBot.Domain.Platform.Events;
+using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Widgets.Entities;
 
 namespace NomNomzBot.Infrastructure.Widgets;
@@ -23,11 +25,13 @@ public class WidgetService : IWidgetService
 {
     private readonly IApplicationDbContext _db;
     private readonly string _overlayBaseUrl;
+    private readonly IEventBus _eventBus;
 
-    public WidgetService(IApplicationDbContext db, IConfiguration configuration)
+    public WidgetService(IApplicationDbContext db, IConfiguration configuration, IEventBus eventBus)
     {
         _db = db;
         _overlayBaseUrl = configuration["OverlayBaseUrl"] ?? "http://localhost:8080";
+        _eventBus = eventBus;
     }
 
     public async Task<Result<WidgetDetail>> CreateAsync(
@@ -62,6 +66,7 @@ public class WidgetService : IWidgetService
 
         _db.Widgets.Add(widget);
         await _db.SaveChangesAsync(cancellationToken);
+        await PublishConfigChangedAsync(broadcasterGuid, widget.Id, "created", cancellationToken);
 
         return Result.Success(ToDetail(widget, channel.OverlayToken, _overlayBaseUrl));
     }
@@ -96,6 +101,7 @@ public class WidgetService : IWidgetService
             widget.Settings = request.Settings.ToDictionary(k => k.Key, v => v.Value ?? (object)"");
 
         await _db.SaveChangesAsync(cancellationToken);
+        await PublishConfigChangedAsync(broadcasterGuid, widget.Id, "updated", cancellationToken);
 
         return Result.Success(ToDetail(widget, widget.Channel.OverlayToken, _overlayBaseUrl));
     }
@@ -119,6 +125,7 @@ public class WidgetService : IWidgetService
 
         _db.Widgets.Remove(widget);
         await _db.SaveChangesAsync(cancellationToken);
+        await PublishConfigChangedAsync(broadcasterGuid, widgetId, "deleted", cancellationToken);
 
         return Result.Success();
     }
@@ -206,6 +213,24 @@ public class WidgetService : IWidgetService
 
         return Result.Success(ToDetail(widget, channel.OverlayToken, _overlayBaseUrl));
     }
+
+    /// <summary>E5 dashboard live-sync: fired after every successful write so other open dashboards refetch.</summary>
+    private Task PublishConfigChangedAsync(
+        Guid broadcasterId,
+        string widgetId,
+        string action,
+        CancellationToken ct
+    ) =>
+        _eventBus.PublishAsync(
+            new ChannelConfigChangedEvent
+            {
+                BroadcasterId = broadcasterId,
+                Domain = "widgets",
+                EntityId = widgetId,
+                Action = action,
+            },
+            ct
+        );
 
     private static WidgetDetail ToDetail(Widget w, string overlayToken, string overlayBaseUrl) =>
         new(

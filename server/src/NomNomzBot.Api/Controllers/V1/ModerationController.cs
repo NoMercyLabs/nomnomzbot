@@ -21,6 +21,8 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Moderation.Dtos;
 using NomNomzBot.Application.Moderation.Services;
+using NomNomzBot.Domain.Platform.Events;
+using NomNomzBot.Domain.Platform.Interfaces;
 using ConfigEntity = NomNomzBot.Domain.Platform.Entities.Configuration;
 
 namespace NomNomzBot.Api.Controllers.V1;
@@ -35,18 +37,21 @@ public class ModerationController : BaseController
     private readonly IApplicationDbContext _db;
     private readonly TimeProvider _timeProvider;
     private readonly ITwitchChatApi _chatApi;
+    private readonly IEventBus _eventBus;
 
     public ModerationController(
         IModerationService moderationService,
         IApplicationDbContext db,
         TimeProvider timeProvider,
-        ITwitchChatApi chatApi
+        ITwitchChatApi chatApi,
+        IEventBus eventBus
     )
     {
         _moderationService = moderationService;
         _db = db;
         _timeProvider = timeProvider;
         _chatApi = chatApi;
+        _eventBus = eventBus;
     }
 
     // ─── Rules ───────────────────────────────────────────────────────────────
@@ -284,6 +289,13 @@ public class ModerationController : BaseController
         }
 
         await _db.SaveChangesAsync(ct);
+        await PublishConfigChangedAsync(
+            broadcasterId ?? Guid.Empty,
+            "moderation-rules",
+            "shield-mode",
+            "updated",
+            ct
+        );
         return Ok(new StatusResponseDto<object> { Data = new { enabled = request.Enabled } });
     }
 
@@ -349,6 +361,13 @@ public class ModerationController : BaseController
         }
 
         await _db.SaveChangesAsync(ct);
+        await PublishConfigChangedAsync(
+            broadcasterId ?? Guid.Empty,
+            "blocked-terms",
+            request.Term,
+            "created",
+            ct
+        );
         return Ok(new StatusResponseDto<List<string>> { Data = terms });
     }
 
@@ -375,6 +394,13 @@ public class ModerationController : BaseController
         terms.RemoveAll(t => string.Equals(t, term, StringComparison.OrdinalIgnoreCase));
         cfg.Value = JsonSerializer.Serialize(terms);
         await _db.SaveChangesAsync(ct);
+        await PublishConfigChangedAsync(
+            broadcasterId ?? Guid.Empty,
+            "blocked-terms",
+            term,
+            "deleted",
+            ct
+        );
         return Ok(new StatusResponseDto<List<string>> { Data = terms });
     }
 
@@ -512,4 +538,27 @@ public class ModerationController : BaseController
         );
         return result.IsFailure ? TwitchResultResponse(result) : NoContent();
     }
+
+    /// <summary>
+    /// E5 dashboard live-sync: shield mode and blocked terms have no dedicated service (their CRUD lives here),
+    /// so this is the one place in the controller layer that publishes — everywhere else the publish happens in
+    /// the service layer. Fired after every successful write so other open dashboards refetch.
+    /// </summary>
+    private Task PublishConfigChangedAsync(
+        Guid broadcasterId,
+        string domain,
+        string? entityId,
+        string action,
+        CancellationToken ct
+    ) =>
+        _eventBus.PublishAsync(
+            new ChannelConfigChangedEvent
+            {
+                BroadcasterId = broadcasterId,
+                Domain = domain,
+                EntityId = entityId,
+                Action = action,
+            },
+            ct
+        );
 }

@@ -109,6 +109,19 @@ public record RewardChangedDto(
     string Timestamp
 );
 
+/// <summary>
+/// Generic dashboard-refresh signal (E5) for ANY config CRUD mutation (commands, timers, pipelines, TTS config,
+/// webhooks, ...). <paramref name="Domain"/> matches the dashboard's config page/query key for that mutation; the
+/// receiving client just refetches it. <paramref name="EntityId"/> is the affected row's id, or <c>null</c> for a
+/// domain-wide change. <paramref name="Action"/> is <c>created</c> / <c>updated</c> / <c>deleted</c> / <c>toggled</c>.
+/// </summary>
+public record ConfigChangedDto(
+    string BroadcasterId,
+    string Domain,
+    string? EntityId,
+    string Action
+);
+
 // ─── Overlay / widget / OBS ──────────────────────────────────────────────────
 
 public record WidgetEventDto(string WidgetId, string EventType, object? Data);

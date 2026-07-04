@@ -13,6 +13,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.DTOs.Economy;
+using NomNomzBot.Domain.Platform.Events;
 using NomNomzBot.Infrastructure.Economy;
 using NomNomzBot.Infrastructure.Tests.Identity;
 
@@ -20,18 +21,20 @@ namespace NomNomzBot.Infrastructure.Tests.Economy;
 
 /// <summary>
 /// Proves currency + earning-rule configuration (economy.md §3.1): the upserts are one-per-key (channel /
-/// source), validate their inputs, earning rules are opt-in (default disabled), reads round-trip, and a delete
-/// soft-removes a rule (a second delete is NOT_FOUND).
+/// source), validate their inputs, earning rules are opt-in (default disabled), reads round-trip, a delete
+/// soft-removes a rule (a second delete is NOT_FOUND), and every successful write publishes the E5 dashboard
+/// live-sync event (a rejected write publishes nothing).
 /// </summary>
 public sealed class CurrencyConfigServiceTests
 {
     private static readonly Guid Channel = Guid.Parse("0192a000-0000-7000-8000-0000000000b1");
     private static readonly DateTimeOffset Now = new(2026, 6, 21, 12, 0, 0, TimeSpan.Zero);
 
-    private static (CurrencyConfigService Sut, AuthDbContext Db) Build()
+    private static (CurrencyConfigService Sut, AuthDbContext Db, RecordingEventBus Bus) Build()
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
-        return (new CurrencyConfigService(db, new FakeTimeProvider(Now)), db);
+        RecordingEventBus bus = new();
+        return (new CurrencyConfigService(db, new FakeTimeProvider(Now), bus), db, bus);
     }
 
     private static UpsertCurrencyConfigRequest Config(
@@ -43,7 +46,7 @@ public sealed class CurrencyConfigServiceTests
     [Fact]
     public async Task GetConfig_is_null_data_when_unconfigured()
     {
-        (CurrencyConfigService sut, _) = Build();
+        (CurrencyConfigService sut, _, _) = Build();
 
         Result<CurrencyConfigDto?> result = await sut.GetConfigAsync(Channel);
 
@@ -52,9 +55,9 @@ public sealed class CurrencyConfigServiceTests
     }
 
     [Fact]
-    public async Task UpsertConfig_creates_then_updates_the_single_row()
+    public async Task UpsertConfig_creates_then_updates_the_single_row_and_publishes_each_time()
     {
-        (CurrencyConfigService sut, AuthDbContext db) = Build();
+        (CurrencyConfigService sut, AuthDbContext db, RecordingEventBus bus) = Build();
 
         await sut.UpsertConfigAsync(Channel, Config(name: "points", starting: 50));
         await sut.UpsertConfigAsync(Channel, Config(name: "gold", starting: 75));
@@ -63,6 +66,16 @@ public sealed class CurrencyConfigServiceTests
         Result<CurrencyConfigDto?> read = await sut.GetConfigAsync(Channel);
         read.Value!.CurrencyName.Should().Be("gold");
         read.Value!.StartingBalance.Should().Be(75);
+        List<ChannelConfigChangedEvent> published =
+        [
+            .. bus.Published.OfType<ChannelConfigChangedEvent>(),
+        ];
+        published.Should().HaveCount(2);
+        published[0].Action.Should().Be("created");
+        published[1].Action.Should().Be("updated");
+        published
+            .Should()
+            .OnlyContain(e => e.Domain == "economy-config" && e.BroadcasterId == Channel);
     }
 
     [Theory]
@@ -71,7 +84,7 @@ public sealed class CurrencyConfigServiceTests
     [InlineData("points", 100, 50L)] // max < starting
     public async Task UpsertConfig_rejects_invalid_input(string name, long starting, long? max)
     {
-        (CurrencyConfigService sut, _) = Build();
+        (CurrencyConfigService sut, _, RecordingEventBus bus) = Build();
 
         Result<CurrencyConfigDto> result = await sut.UpsertConfigAsync(
             Channel,
@@ -79,12 +92,13 @@ public sealed class CurrencyConfigServiceTests
         );
 
         result.ErrorCode.Should().Be("VALIDATION_FAILED");
+        bus.Published.Should().BeEmpty();
     }
 
     [Fact]
     public async Task UpsertEarningRule_is_opt_in_and_keyed_by_source()
     {
-        (CurrencyConfigService sut, _) = Build();
+        (CurrencyConfigService sut, _, RecordingEventBus bus) = Build();
 
         Result<EarningRuleDto> created = await sut.UpsertEarningRuleAsync(
             Channel,
@@ -100,12 +114,18 @@ public sealed class CurrencyConfigServiceTests
         rules.Value.Should().ContainSingle(); // one per (channel, source)
         rules.Value[0].IsEnabled.Should().BeTrue();
         rules.Value[0].Rate.Should().Be(10);
+        bus.Published.OfType<ChannelConfigChangedEvent>()
+            .Should()
+            .SatisfyRespectively(
+                e => e.Action.Should().Be("created"),
+                e => e.Action.Should().Be("updated")
+            );
     }
 
     [Fact]
     public async Task UpsertEarningRule_rejects_an_unknown_source()
     {
-        (CurrencyConfigService sut, _) = Build();
+        (CurrencyConfigService sut, _, RecordingEventBus bus) = Build();
 
         Result<EarningRuleDto> result = await sut.UpsertEarningRuleAsync(
             Channel,
@@ -113,21 +133,29 @@ public sealed class CurrencyConfigServiceTests
         );
 
         result.ErrorCode.Should().Be("VALIDATION_FAILED");
+        bus.Published.Should().BeEmpty();
     }
 
     [Fact]
     public async Task DeleteEarningRule_soft_removes_then_is_not_found()
     {
-        (CurrencyConfigService sut, _) = Build();
+        (CurrencyConfigService sut, _, RecordingEventBus bus) = Build();
         Result<EarningRuleDto> rule = await sut.UpsertEarningRuleAsync(
             Channel,
             new UpsertEarningRuleRequest("Cheer", true, 5, null, null, null, null, null)
         );
+        bus.Published.Clear();
 
         (await sut.DeleteEarningRuleAsync(Channel, rule.Value.Id)).IsSuccess.Should().BeTrue();
         (await sut.ListEarningRulesAsync(Channel)).Value.Should().BeEmpty();
+        bus.Published.OfType<ChannelConfigChangedEvent>()
+            .Should()
+            .ContainSingle(e => e.Domain == "earning-rules" && e.Action == "deleted");
+
+        bus.Published.Clear();
         (await sut.DeleteEarningRuleAsync(Channel, rule.Value.Id))
             .ErrorCode.Should()
             .Be("NOT_FOUND");
+        bus.Published.Should().BeEmpty();
     }
 }

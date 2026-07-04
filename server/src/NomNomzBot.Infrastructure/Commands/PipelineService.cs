@@ -14,6 +14,8 @@ using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Domain.Platform.Events;
+using NomNomzBot.Domain.Platform.Interfaces;
 using PipelineEntity = NomNomzBot.Domain.Commands.Entities.Pipeline;
 
 namespace NomNomzBot.Infrastructure.Commands;
@@ -21,10 +23,12 @@ namespace NomNomzBot.Infrastructure.Commands;
 public class PipelineService : IPipelineService
 {
     private readonly IApplicationDbContext _db;
+    private readonly IEventBus _eventBus;
 
-    public PipelineService(IApplicationDbContext db)
+    public PipelineService(IApplicationDbContext db, IEventBus eventBus)
     {
         _db = db;
+        _eventBus = eventBus;
     }
 
     public async Task<Result<PagedList<PipelineListItemDto>>> ListAsync(
@@ -111,6 +115,7 @@ public class PipelineService : IPipelineService
 
         _db.Pipelines.Add(entity);
         await _db.SaveChangesAsync(ct);
+        await PublishConfigChangedAsync(broadcaster, entity.Id, "created", ct);
 
         return Result.Success(ToDto(entity));
     }
@@ -148,6 +153,7 @@ public class PipelineService : IPipelineService
             entity.GraphJsonCache = JsonSerializer.Serialize(request.GraphJsonCache);
 
         await _db.SaveChangesAsync(ct);
+        await PublishConfigChangedAsync(broadcaster, entity.Id, "updated", ct);
 
         return Result.Success(ToDto(entity));
     }
@@ -169,11 +175,31 @@ public class PipelineService : IPipelineService
         if (entity is null)
             return Result.Failure($"Pipeline '{id}' was not found.", "NOT_FOUND");
 
+        Guid pipelineId = entity.Id;
         _db.Pipelines.Remove(entity);
         await _db.SaveChangesAsync(ct);
+        await PublishConfigChangedAsync(broadcaster, pipelineId, "deleted", ct);
 
         return Result.Success();
     }
+
+    /// <summary>E5 dashboard live-sync: fired after every successful write so other open dashboards refetch.</summary>
+    private Task PublishConfigChangedAsync(
+        Guid broadcasterId,
+        Guid pipelineId,
+        string action,
+        CancellationToken ct
+    ) =>
+        _eventBus.PublishAsync(
+            new ChannelConfigChangedEvent
+            {
+                BroadcasterId = broadcasterId,
+                Domain = "pipelines",
+                EntityId = pipelineId.ToString(),
+                Action = action,
+            },
+            ct
+        );
 
     private static PipelineDto ToDto(PipelineEntity p)
     {

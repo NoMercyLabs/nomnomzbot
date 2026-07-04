@@ -14,6 +14,8 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Platform.Dtos;
 using NomNomzBot.Application.Platform.Services;
 using NomNomzBot.Domain.Platform.Entities;
+using NomNomzBot.Domain.Platform.Events;
+using NomNomzBot.Domain.Platform.Interfaces;
 
 namespace NomNomzBot.Infrastructure.Platform;
 
@@ -21,11 +23,13 @@ public class FeatureService : IFeatureService
 {
     private readonly IApplicationDbContext _db;
     private readonly TimeProvider _timeProvider;
+    private readonly IEventBus _eventBus;
 
-    public FeatureService(IApplicationDbContext db, TimeProvider timeProvider)
+    public FeatureService(IApplicationDbContext db, TimeProvider timeProvider, IEventBus eventBus)
     {
         _db = db;
         _timeProvider = timeProvider;
+        _eventBus = eventBus;
     }
 
     // The static catalogue of all opt-in channel features.
@@ -128,6 +132,16 @@ public class FeatureService : IFeatureService
         }
 
         await _db.SaveChangesAsync(cancellationToken);
+        await _eventBus.PublishAsync(
+            new ChannelConfigChangedEvent
+            {
+                BroadcasterId = broadcasterId,
+                Domain = "features",
+                EntityId = feature.FeatureKey,
+                Action = "toggled",
+            },
+            cancellationToken
+        );
 
         Catalogue.TryGetValue(
             feature.FeatureKey,

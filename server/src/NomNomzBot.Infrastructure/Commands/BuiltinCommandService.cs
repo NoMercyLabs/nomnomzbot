@@ -14,6 +14,8 @@ using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Domain.Commands.Entities;
+using NomNomzBot.Domain.Platform.Events;
+using NomNomzBot.Domain.Platform.Interfaces;
 
 namespace NomNomzBot.Infrastructure.Commands;
 
@@ -21,11 +23,17 @@ public sealed class BuiltinCommandService : IBuiltinCommandService
 {
     private readonly IBuiltinCommandCatalog _catalog;
     private readonly IApplicationDbContext _db;
+    private readonly IEventBus _eventBus;
 
-    public BuiltinCommandService(IBuiltinCommandCatalog catalog, IApplicationDbContext db)
+    public BuiltinCommandService(
+        IBuiltinCommandCatalog catalog,
+        IApplicationDbContext db,
+        IEventBus eventBus
+    )
     {
         _catalog = catalog;
         _db = db;
+        _eventBus = eventBus;
     }
 
     public async Task<Result<IReadOnlyList<BuiltinCommandDto>>> ListAsync(
@@ -100,6 +108,16 @@ public sealed class BuiltinCommandService : IBuiltinCommandService
         }
 
         await _db.SaveChangesAsync(ct);
+        await _eventBus.PublishAsync(
+            new ChannelConfigChangedEvent
+            {
+                BroadcasterId = broadcaster,
+                Domain = "builtins",
+                EntityId = builtinKey,
+                Action = "toggled",
+            },
+            ct
+        );
         return Result.Success();
     }
 }

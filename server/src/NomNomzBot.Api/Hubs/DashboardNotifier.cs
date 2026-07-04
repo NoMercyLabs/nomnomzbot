@@ -64,6 +64,11 @@ public interface IDashboardNotifier
         RewardChangedDto dto,
         CancellationToken ct = default
     );
+    Task SendConfigChangedAsync(
+        string broadcasterId,
+        ConfigChangedDto dto,
+        CancellationToken ct = default
+    );
 }
 
 public class DashboardNotifier : IDashboardNotifier
@@ -158,4 +163,10 @@ public class DashboardNotifier : IDashboardNotifier
         RewardChangedDto dto,
         CancellationToken ct = default
     ) => _hub.Clients.Group($"channel-{broadcasterId}").RewardChanged(dto);
+
+    public Task SendConfigChangedAsync(
+        string broadcasterId,
+        ConfigChangedDto dto,
+        CancellationToken ct = default
+    ) => _hub.Clients.Group($"channel-{broadcasterId}").ConfigChanged(dto);
 }

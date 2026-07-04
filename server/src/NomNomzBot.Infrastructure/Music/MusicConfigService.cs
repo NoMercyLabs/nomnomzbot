@@ -14,6 +14,8 @@ using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Music.Dtos;
 using NomNomzBot.Application.Music.Services;
+using NomNomzBot.Domain.Platform.Events;
+using NomNomzBot.Domain.Platform.Interfaces;
 using ChannelConfiguration = NomNomzBot.Domain.Platform.Entities.Configuration;
 
 namespace NomNomzBot.Infrastructure.Music;
@@ -23,10 +25,12 @@ public class MusicConfigService : IMusicConfigService
     private const string ConfigKey = "music:config";
 
     private readonly IApplicationDbContext _db;
+    private readonly IEventBus _eventBus;
 
-    public MusicConfigService(IApplicationDbContext db)
+    public MusicConfigService(IApplicationDbContext db, IEventBus eventBus)
     {
         _db = db;
+        _eventBus = eventBus;
     }
 
     public async Task<Result<MusicConfigDto>> GetConfigAsync(
@@ -89,6 +93,28 @@ public class MusicConfigService : IMusicConfigService
         }
 
         await _db.SaveChangesAsync(cancellationToken);
+
+        // One config blob backs two dashboard pages (Music playback prefs + Song Request queue rules) — publish
+        // both domains so whichever page is open refetches.
+        Guid publishedBroadcasterId = tenantId ?? Guid.Empty;
+        await _eventBus.PublishAsync(
+            new ChannelConfigChangedEvent
+            {
+                BroadcasterId = publishedBroadcasterId,
+                Domain = "music-config",
+                Action = "updated",
+            },
+            cancellationToken
+        );
+        await _eventBus.PublishAsync(
+            new ChannelConfigChangedEvent
+            {
+                BroadcasterId = publishedBroadcasterId,
+                Domain = "sr-config",
+                Action = "updated",
+            },
+            cancellationToken
+        );
 
         return Result.Success(ToDto(current));
     }

@@ -14,16 +14,20 @@ using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Domain.Commands.Entities;
+using NomNomzBot.Domain.Platform.Events;
+using NomNomzBot.Domain.Platform.Interfaces;
 
 namespace NomNomzBot.Infrastructure.Commands;
 
 public class EventResponseService : IEventResponseService
 {
     private readonly IApplicationDbContext _db;
+    private readonly IEventBus _eventBus;
 
-    public EventResponseService(IApplicationDbContext db)
+    public EventResponseService(IApplicationDbContext db, IEventBus eventBus)
     {
         _db = db;
+        _eventBus = eventBus;
     }
 
     // The canonical set of Twitch events a streamer can configure responses for.
@@ -137,6 +141,7 @@ public class EventResponseService : IEventResponseService
             cancellationToken
         );
 
+        bool isNew = entity is null;
         if (entity is null)
         {
             entity = new()
@@ -166,6 +171,16 @@ public class EventResponseService : IEventResponseService
         }
 
         await _db.SaveChangesAsync(cancellationToken);
+        await _eventBus.PublishAsync(
+            new ChannelConfigChangedEvent
+            {
+                BroadcasterId = broadcaster,
+                Domain = "event-responses",
+                EntityId = entity.Id.ToString(),
+                Action = isNew ? "created" : "updated",
+            },
+            cancellationToken
+        );
 
         return Result.Success(ToDto(entity));
     }
@@ -189,6 +204,16 @@ public class EventResponseService : IEventResponseService
 
         _db.EventResponses.Remove(entity);
         await _db.SaveChangesAsync(cancellationToken);
+        await _eventBus.PublishAsync(
+            new ChannelConfigChangedEvent
+            {
+                BroadcasterId = broadcaster,
+                Domain = "event-responses",
+                EntityId = entity.Id.ToString(),
+                Action = "deleted",
+            },
+            cancellationToken
+        );
 
         return Result.Success();
     }

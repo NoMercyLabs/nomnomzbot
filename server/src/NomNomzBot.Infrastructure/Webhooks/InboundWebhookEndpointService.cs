@@ -19,6 +19,8 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Webhooks;
 using NomNomzBot.Application.DTOs.Webhooks;
 using NomNomzBot.Application.Services;
+using NomNomzBot.Domain.Platform.Events;
+using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Webhooks.Entities;
 using NomNomzBot.Domain.Webhooks.Enums;
 
@@ -35,7 +37,8 @@ public sealed class InboundWebhookEndpointService(
     ITokenProtector tokenProtector,
     ISubjectKeyService subjectKeys,
     IConfiguration configuration,
-    TimeProvider clock
+    TimeProvider clock,
+    IEventBus eventBus
 ) : IInboundWebhookEndpointService
 {
     private const string Provider = "webhook:in";
@@ -110,6 +113,7 @@ public sealed class InboundWebhookEndpointService(
         await SealSecretAsync(endpoint, request.VerificationSecret, broadcasterId, ct);
         db.InboundWebhookEndpoints.Add(endpoint);
         await db.SaveChangesAsync(ct);
+        await PublishConfigChangedAsync(broadcasterId, endpoint.Id, "created", ct);
         return Result.Success(ToDto(endpoint));
     }
 
@@ -139,6 +143,7 @@ public sealed class InboundWebhookEndpointService(
 
         endpoint.UpdatedAt = clock.GetUtcNow().UtcDateTime;
         await db.SaveChangesAsync(ct);
+        await PublishConfigChangedAsync(broadcasterId, endpoint.Id, "updated", ct);
         return Result.Success(ToDto(endpoint));
     }
 
@@ -155,6 +160,7 @@ public sealed class InboundWebhookEndpointService(
         endpoint.Token = MintToken();
         endpoint.UpdatedAt = clock.GetUtcNow().UtcDateTime;
         await db.SaveChangesAsync(ct);
+        await PublishConfigChangedAsync(broadcasterId, endpoint.Id, "updated", ct);
         return Result.Success(ToDto(endpoint));
     }
 
@@ -169,8 +175,27 @@ public sealed class InboundWebhookEndpointService(
             return Result.Failure("Endpoint not found.", "NOT_FOUND");
         endpoint.DeletedAt = clock.GetUtcNow().UtcDateTime;
         await db.SaveChangesAsync(ct);
+        await PublishConfigChangedAsync(broadcasterId, endpoint.Id, "deleted", ct);
         return Result.Success();
     }
+
+    /// <summary>E5 dashboard live-sync: fired after every successful write so other open dashboards refetch.</summary>
+    private Task PublishConfigChangedAsync(
+        Guid broadcasterId,
+        Guid endpointId,
+        string action,
+        CancellationToken ct
+    ) =>
+        eventBus.PublishAsync(
+            new ChannelConfigChangedEvent
+            {
+                BroadcasterId = broadcasterId,
+                Domain = "webhooks",
+                EntityId = endpointId.ToString(),
+                Action = action,
+            },
+            ct
+        );
 
     private Task<InboundWebhookEndpoint?> FindAsync(
         Guid broadcasterId,

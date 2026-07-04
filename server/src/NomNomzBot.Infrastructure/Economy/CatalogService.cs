@@ -17,6 +17,7 @@ using NomNomzBot.Domain.Economy.Entities;
 using NomNomzBot.Domain.Economy.Enums;
 using NomNomzBot.Domain.Economy.Events;
 using NomNomzBot.Domain.Identity.Enums;
+using NomNomzBot.Domain.Platform.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
 
 namespace NomNomzBot.Infrastructure.Economy;
@@ -125,6 +126,7 @@ public sealed class CatalogService(
         };
         db.CatalogItems.Add(item);
         await db.SaveChangesAsync(ct);
+        await PublishConfigChangedAsync(broadcasterId, item.Id, "created", ct);
         return Result.Success(ToDto(item));
     }
 
@@ -186,6 +188,7 @@ public sealed class CatalogService(
             item.SortOrder = sort;
 
         await db.SaveChangesAsync(ct);
+        await PublishConfigChangedAsync(broadcasterId, item.Id, "updated", ct);
         return Result.Success(ToDto(item));
     }
 
@@ -200,8 +203,28 @@ public sealed class CatalogService(
             return Result.Failure("Item not found.", "NOT_FOUND");
         item.DeletedAt = clock.GetUtcNow().UtcDateTime;
         await db.SaveChangesAsync(ct);
+        await PublishConfigChangedAsync(broadcasterId, item.Id, "deleted", ct);
         return Result.Success();
     }
+
+    /// <summary>E5 dashboard live-sync: fired after every successful catalog-item write (not purchases/refunds,
+    /// which are runtime ledger activity already covered by their own events).</summary>
+    private Task PublishConfigChangedAsync(
+        Guid broadcasterId,
+        Guid itemId,
+        string action,
+        CancellationToken ct
+    ) =>
+        eventBus.PublishAsync(
+            new ChannelConfigChangedEvent
+            {
+                BroadcasterId = broadcasterId,
+                Domain = "catalog",
+                EntityId = itemId.ToString(),
+                Action = action,
+            },
+            ct
+        );
 
     public async Task<Result<CatalogPurchaseDto>> PurchaseAsync(
         Guid broadcasterId,

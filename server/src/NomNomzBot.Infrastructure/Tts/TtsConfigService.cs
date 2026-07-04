@@ -14,6 +14,8 @@ using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Tts.Dtos;
 using NomNomzBot.Application.Tts.Services;
+using NomNomzBot.Domain.Platform.Events;
+using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Tts.Entities;
 using NomNomzBot.Domain.Tts.Interfaces;
 using ChannelConfiguration = NomNomzBot.Domain.Platform.Entities.Configuration;
@@ -26,11 +28,13 @@ public class TtsConfigService : ITtsConfigService
 
     private readonly IApplicationDbContext _db;
     private readonly ITtsService _ttsService;
+    private readonly IEventBus _eventBus;
 
-    public TtsConfigService(IApplicationDbContext db, ITtsService ttsService)
+    public TtsConfigService(IApplicationDbContext db, ITtsService ttsService, IEventBus eventBus)
     {
         _db = db;
         _ttsService = ttsService;
+        _eventBus = eventBus;
     }
 
     public async Task<Result<TtsConfigDto>> GetConfigAsync(
@@ -91,6 +95,15 @@ public class TtsConfigService : ITtsConfigService
         }
 
         await _db.SaveChangesAsync(cancellationToken);
+        await _eventBus.PublishAsync(
+            new ChannelConfigChangedEvent
+            {
+                BroadcasterId = tenantId ?? Guid.Empty,
+                Domain = "tts-config",
+                Action = "updated",
+            },
+            cancellationToken
+        );
 
         return Result.Success(ToDto(current));
     }

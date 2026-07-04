@@ -15,6 +15,7 @@ using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.DTOs.Webhooks;
 using NomNomzBot.Application.Services;
+using NomNomzBot.Domain.Platform.Events;
 using NomNomzBot.Domain.Webhooks.Entities;
 using NomNomzBot.Domain.Webhooks.Enums;
 using NomNomzBot.Infrastructure.Tests.Identity;
@@ -37,7 +38,8 @@ public sealed class InboundWebhookEndpointServiceTests
     private static (
         InboundWebhookEndpointService Sut,
         AuthDbContext Db,
-        ITokenProtector Protector
+        ITokenProtector Protector,
+        RecordingEventBus Bus
     ) Build()
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
@@ -61,14 +63,16 @@ public sealed class InboundWebhookEndpointServiceTests
                 new Dictionary<string, string?> { ["App:BaseUrl"] = "https://bot.example" }
             )
             .Build();
+        RecordingEventBus bus = new();
         InboundWebhookEndpointService sut = new(
             db,
             protector,
             keys,
             config,
-            new FakeTimeProvider(Now)
+            new FakeTimeProvider(Now),
+            bus
         );
-        return (sut, db, protector);
+        return (sut, db, protector, bus);
     }
 
     private static CreateInboundWebhookRequest Req(
@@ -85,7 +89,8 @@ public sealed class InboundWebhookEndpointServiceTests
     [Fact]
     public async Task Create_mints_a_token_seals_the_secret_and_never_returns_plaintext()
     {
-        (InboundWebhookEndpointService sut, AuthDbContext db, ITokenProtector protector) = Build();
+        (InboundWebhookEndpointService sut, AuthDbContext db, ITokenProtector protector, _) =
+            Build();
 
         InboundWebhookEndpointDto dto = (await sut.CreateAsync(Channel, Actor, Req())).Value;
 
@@ -106,7 +111,7 @@ public sealed class InboundWebhookEndpointServiceTests
     [Fact]
     public async Task Create_rejects_a_generic_adapter_without_a_config()
     {
-        (InboundWebhookEndpointService sut, _, _) = Build();
+        (InboundWebhookEndpointService sut, _, _, RecordingEventBus bus) = Build();
 
         Result<InboundWebhookEndpointDto> result = await sut.CreateAsync(
             Channel,
@@ -115,12 +120,30 @@ public sealed class InboundWebhookEndpointServiceTests
         );
 
         result.ErrorCode.Should().Be("VALIDATION_FAILED");
+        bus.Published.Should().BeEmpty(); // a failed mutation publishes nothing
+    }
+
+    [Fact]
+    public async Task Create_publishes_ChannelConfigChangedEvent_for_the_webhooks_domain()
+    {
+        (InboundWebhookEndpointService sut, _, _, RecordingEventBus bus) = Build();
+
+        InboundWebhookEndpointDto created = (await sut.CreateAsync(Channel, Actor, Req())).Value;
+
+        bus.Published.OfType<ChannelConfigChangedEvent>()
+            .Should()
+            .ContainSingle(e =>
+                e.BroadcasterId == Channel
+                && e.Domain == "webhooks"
+                && e.EntityId == created.Id.ToString()
+                && e.Action == "created"
+            );
     }
 
     [Fact]
     public async Task RotateToken_changes_the_ingest_url()
     {
-        (InboundWebhookEndpointService sut, _, _) = Build();
+        (InboundWebhookEndpointService sut, _, _, _) = Build();
         InboundWebhookEndpointDto created = (await sut.CreateAsync(Channel, Actor, Req())).Value;
 
         InboundWebhookEndpointDto rotated = (await sut.RotateTokenAsync(Channel, created.Id)).Value;
@@ -131,7 +154,7 @@ public sealed class InboundWebhookEndpointServiceTests
     [Fact]
     public async Task Update_reseals_only_when_a_new_secret_is_supplied()
     {
-        (InboundWebhookEndpointService sut, AuthDbContext db, _) = Build();
+        (InboundWebhookEndpointService sut, AuthDbContext db, _, _) = Build();
         InboundWebhookEndpointDto created = (await sut.CreateAsync(Channel, Actor, Req())).Value;
 
         await sut.UpdateAsync(
@@ -157,13 +180,28 @@ public sealed class InboundWebhookEndpointServiceTests
     [Fact]
     public async Task Delete_soft_deletes_the_endpoint()
     {
-        (InboundWebhookEndpointService sut, _, _) = Build();
+        (InboundWebhookEndpointService sut, _, _, RecordingEventBus bus) = Build();
         InboundWebhookEndpointDto created = (await sut.CreateAsync(Channel, Actor, Req())).Value;
+        bus.Published.Clear();
 
         (await sut.DeleteAsync(Channel, created.Id)).IsSuccess.Should().BeTrue();
 
         (await sut.ListAsync(Channel, new PaginationParams(1, 25, null, null)))
             .Value.Items.Should()
             .BeEmpty();
+        bus.Published.OfType<ChannelConfigChangedEvent>()
+            .Should()
+            .ContainSingle(e => e.Domain == "webhooks" && e.Action == "deleted");
+    }
+
+    [Fact]
+    public async Task Delete_of_an_unknown_endpoint_publishes_nothing()
+    {
+        (InboundWebhookEndpointService sut, _, _, RecordingEventBus bus) = Build();
+
+        Result result = await sut.DeleteAsync(Channel, Guid.CreateVersion7());
+
+        result.IsSuccess.Should().BeFalse();
+        bus.Published.Should().BeEmpty();
     }
 }

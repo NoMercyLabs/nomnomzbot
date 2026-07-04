@@ -25,4 +25,5 @@ public interface IDashboardClient
     Task AlertTriggered(AlertDto alert);
     Task StreamInfoChanged(StreamInfoChangedDto evt);
     Task RewardChanged(RewardChangedDto evt);
+    Task ConfigChanged(ConfigChangedDto evt);
 }

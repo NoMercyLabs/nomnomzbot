@@ -18,6 +18,8 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Webhooks;
 using NomNomzBot.Application.DTOs.Webhooks;
 using NomNomzBot.Application.Services;
+using NomNomzBot.Domain.Platform.Events;
+using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Webhooks.Entities;
 
 namespace NomNomzBot.Infrastructure.Webhooks;
@@ -33,7 +35,8 @@ public sealed class OutboundWebhookEndpointService(
     IApplicationDbContext db,
     ITokenProtector tokenProtector,
     ISubjectKeyService subjectKeys,
-    TimeProvider clock
+    TimeProvider clock,
+    IEventBus eventBus
 ) : IOutboundWebhookEndpointService
 {
     private const string Provider = "webhook:out";
@@ -126,6 +129,7 @@ public sealed class OutboundWebhookEndpointService(
         await SealPrimaryAsync(endpoint, secret, broadcasterId, ct);
         db.OutboundWebhookEndpoints.Add(endpoint);
         await db.SaveChangesAsync(ct);
+        await PublishConfigChangedAsync(broadcasterId, endpoint.Id, "created", ct);
         return Result.Success(new OutboundWebhookEndpointCreatedDto(ToDto(endpoint), secret));
     }
 
@@ -155,6 +159,7 @@ public sealed class OutboundWebhookEndpointService(
 
         endpoint.UpdatedAt = clock.GetUtcNow().UtcDateTime;
         await db.SaveChangesAsync(ct);
+        await PublishConfigChangedAsync(broadcasterId, endpoint.Id, "updated", ct);
         return Result.Success(ToDto(endpoint));
     }
 
@@ -177,6 +182,7 @@ public sealed class OutboundWebhookEndpointService(
         await SealPrimaryAsync(endpoint, secret, broadcasterId, ct);
         endpoint.UpdatedAt = clock.GetUtcNow().UtcDateTime;
         await db.SaveChangesAsync(ct);
+        await PublishConfigChangedAsync(broadcasterId, endpoint.Id, "updated", ct);
         return Result.Success(new OutboundWebhookEndpointCreatedDto(ToDto(endpoint), secret));
     }
 
@@ -196,6 +202,7 @@ public sealed class OutboundWebhookEndpointService(
         endpoint.DisabledReason = null;
         endpoint.UpdatedAt = clock.GetUtcNow().UtcDateTime;
         await db.SaveChangesAsync(ct);
+        await PublishConfigChangedAsync(broadcasterId, endpoint.Id, "updated", ct);
         return Result.Success(ToDto(endpoint));
     }
 
@@ -210,6 +217,7 @@ public sealed class OutboundWebhookEndpointService(
             return Result.Failure("Endpoint not found.", "NOT_FOUND");
         endpoint.DeletedAt = clock.GetUtcNow().UtcDateTime;
         await db.SaveChangesAsync(ct);
+        await PublishConfigChangedAsync(broadcasterId, endpoint.Id, "deleted", ct);
         return Result.Success();
     }
 
@@ -224,6 +232,24 @@ public sealed class OutboundWebhookEndpointService(
                 "Test delivery is not available yet.",
                 "SERVICE_UNAVAILABLE"
             )
+        );
+
+    /// <summary>E5 dashboard live-sync: fired after every successful write so other open dashboards refetch.</summary>
+    private Task PublishConfigChangedAsync(
+        Guid broadcasterId,
+        Guid endpointId,
+        string action,
+        CancellationToken ct
+    ) =>
+        eventBus.PublishAsync(
+            new ChannelConfigChangedEvent
+            {
+                BroadcasterId = broadcasterId,
+                Domain = "webhooks",
+                EntityId = endpointId.ToString(),
+                Action = action,
+            },
+            ct
         );
 
     private Task<OutboundWebhookEndpoint?> FindAsync(

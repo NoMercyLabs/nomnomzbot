@@ -14,6 +14,8 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Identity.Entities;
+using NomNomzBot.Domain.Platform.Events;
+using NomNomzBot.Domain.Platform.Interfaces;
 
 namespace NomNomzBot.Infrastructure.Identity;
 
@@ -21,11 +23,13 @@ public class ChannelService : IChannelService
 {
     private readonly IApplicationDbContext _db;
     private readonly TimeProvider _timeProvider;
+    private readonly IEventBus _eventBus;
 
-    public ChannelService(IApplicationDbContext db, TimeProvider timeProvider)
+    public ChannelService(IApplicationDbContext db, TimeProvider timeProvider, IEventBus eventBus)
     {
         _db = db;
         _timeProvider = timeProvider;
+        _eventBus = eventBus;
     }
 
     public async Task<Result> JoinAsync(
@@ -186,6 +190,15 @@ public class ChannelService : IChannelService
             channel.Enabled = request.AutoJoin.Value;
 
         await _db.SaveChangesAsync(cancellationToken);
+        await _eventBus.PublishAsync(
+            new ChannelConfigChangedEvent
+            {
+                BroadcasterId = broadcasterGuid,
+                Domain = "channel-settings",
+                Action = "updated",
+            },
+            cancellationToken
+        );
         return Result.Success(ToDto(channel));
     }
 
