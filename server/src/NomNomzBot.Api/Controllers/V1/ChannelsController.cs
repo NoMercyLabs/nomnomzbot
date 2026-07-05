@@ -33,16 +33,19 @@ public class ChannelsController : BaseController
     private readonly IChannelService _channelService;
     private readonly IApplicationDbContext _db;
     private readonly ITwitchModeratorsApi _moderators;
+    private readonly IChannelAccessService _channelAccess;
 
     public ChannelsController(
         IChannelService channelService,
         IApplicationDbContext db,
-        ITwitchModeratorsApi moderators
+        ITwitchModeratorsApi moderators,
+        IChannelAccessService channelAccess
     )
     {
         _channelService = channelService;
         _db = db;
         _moderators = moderators;
+        _channelAccess = channelAccess;
     }
 
     /// <summary>List all channels the current user owns or moderates.</summary>
@@ -62,17 +65,18 @@ public class ChannelsController : BaseController
 
         PaginationParams pagination = new(request.Page, request.Take, request.Sort, request.Order);
 
-        // Fetch channels the user moderates on Twitch so they appear even if not yet synced to the
-        // ChannelModerators table. The broadcaster_id claim is the Channel.Id (Guid) — the key the
-        // sub-client uses for both scope lookup (IntegrationConnections.BroadcasterId) and user-id
-        // resolution (falls back to Channel.User.TwitchUserId in TwitchIdentityResolver).
+        // Fetch channels the caller moderates on Twitch so they appear even if not yet synced to the
+        // ChannelModerators table. Resolve the caller's OWN channel from their identity — the key the
+        // moderators sub-client turns into the caller's Twitch user id (via Channel.User.TwitchUserId) and
+        // its integration token. (The old read of a `broadcaster_id` claim always returned null — the JWT
+        // carries a `tenant` claim, never `broadcaster_id` — so this enrichment silently never ran.)
         IReadOnlyList<string> moderatedIds = [];
-        string? broadcasterIdStr = User.GetBroadcasterId();
-        if (Guid.TryParse(broadcasterIdStr, out Guid broadcasterGuid))
+        Guid ownChannel = await _channelAccess.ResolveOwnChannelAsync(userId, ct);
+        if (ownChannel != Guid.Empty)
         {
             Result<TwitchPage<TwitchModeratedChannel>> moderated =
                 await _moderators.GetModeratedChannelsAsync(
-                    broadcasterGuid,
+                    ownChannel,
                     new TwitchPageRequest(),
                     ct
                 );
@@ -96,16 +100,23 @@ public class ChannelsController : BaseController
     [ProducesResponseType<StatusResponseDto<List<ModeratedChannelDto>>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetModeratedChannels(CancellationToken ct)
     {
-        string? broadcasterIdStr = User.GetBroadcasterId();
-        if (
-            string.IsNullOrEmpty(broadcasterIdStr)
-            || !Guid.TryParse(broadcasterIdStr, out Guid moderatorUserId)
-        )
+        string? userId =
+            User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+            ?? User.FindFirst("sub")?.Value;
+        if (string.IsNullOrEmpty(userId))
             return UnauthenticatedResponse();
+
+        // "Channels I moderate" is a property of the caller. Resolve the caller's OWN channel (the key the
+        // moderators sub-client turns into the caller's Twitch user id) from their identity — the old code read
+        // a `broadcaster_id` claim that is never minted (the JWT carries `tenant`), so this always 401'd. A
+        // caller with no owned channel yet simply moderates nothing here.
+        Guid moderatorChannelId = await _channelAccess.ResolveOwnChannelAsync(userId, ct);
+        if (moderatorChannelId == Guid.Empty)
+            return Ok(new StatusResponseDto<List<ModeratedChannelDto>> { Data = [] });
 
         Result<TwitchPage<TwitchModeratedChannel>> moderatedResult =
             await _moderators.GetModeratedChannelsAsync(
-                moderatorUserId,
+                moderatorChannelId,
                 new TwitchPageRequest(),
                 ct
             );
