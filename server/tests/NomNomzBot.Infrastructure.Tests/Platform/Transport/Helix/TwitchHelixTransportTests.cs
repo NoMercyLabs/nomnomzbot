@@ -524,15 +524,47 @@ public class TwitchHelixTransportTests
     }
 
     [Fact]
-    public async Task SendAsync_AppToken401_DoesNotRefresh()
+    public async Task SendAsync_BotToken401_RefreshesOnceAndRetries()
     {
-        // App/bot-token calls have no broadcaster to refresh — a 401 fails without a refresh attempt.
+        // The bot/platform token (BroadcasterId == null) is a real user token that carries a refresh token, so
+        // a 401 must trigger exactly one refresh-and-retry — the same recovery a broadcaster call gets. This is
+        // the fix for the silent dead-bot-token storm: the old gate skipped refresh whenever there was no
+        // broadcaster, so the bot account could never recover and never surfaced needs_reauth.
         (
             TwitchHelixTransport transport,
             RecordingHelixHandler wire,
             FakeTwitchTokenResolver resolver,
             _
-        ) = Build([() => new HttpResponseMessage(HttpStatusCode.Unauthorized)]);
+        ) = Build([
+            () => new HttpResponseMessage(HttpStatusCode.Unauthorized),
+            () => RecordingHelixHandler.Json(HttpStatusCode.OK, """{ "data": [] }"""),
+        ]);
+
+        Result result = await transport.SendAsync(
+            new TwitchHelixRequest(HttpMethod.Get, "users", TwitchHelixAuth.App)
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        resolver.RefreshCallCount.Should().Be(1); // exactly one refresh, then retry
+        wire.CallCount.Should().Be(2); // original + one retry
+        wire.Requests[0].AuthorizationParameter.Should().Be("initial-token");
+        wire.Requests[1].AuthorizationParameter.Should().Be("refreshed-token");
+    }
+
+    [Fact]
+    public async Task SendAsync_BotTokenPersistently401_FailsAndEmitsReauthEvent()
+    {
+        // Bot token still 401 after the single refresh-and-retry (a dead refresh token): fail closed and emit
+        // the re-auth signal, exactly like the broadcaster path — no BroadcasterId required.
+        (
+            TwitchHelixTransport transport,
+            RecordingHelixHandler wire,
+            FakeTwitchTokenResolver resolver,
+            CapturingEventBus bus
+        ) = Build([
+            () => new HttpResponseMessage(HttpStatusCode.Unauthorized),
+            () => new HttpResponseMessage(HttpStatusCode.Unauthorized),
+        ]);
 
         Result result = await transport.SendAsync(
             new TwitchHelixRequest(HttpMethod.Get, "users", TwitchHelixAuth.App)
@@ -540,8 +572,9 @@ public class TwitchHelixTransportTests
 
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be(TwitchErrorCodes.Unauthorized);
-        resolver.RefreshCallCount.Should().Be(0);
-        wire.CallCount.Should().Be(1);
+        resolver.RefreshCallCount.Should().Be(1);
+        wire.CallCount.Should().Be(2);
+        bus.EventsOf<TwitchHelixReauthRequiredEvent>().Should().ContainSingle();
     }
 
     private sealed class SingleClientFactory(HttpClient client) : IHttpClientFactory

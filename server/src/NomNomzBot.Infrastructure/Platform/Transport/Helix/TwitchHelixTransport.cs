@@ -233,12 +233,12 @@ public sealed class TwitchHelixTransport(
                 );
             }
 
-            // 401 on the first attempt of a user-token call ⇒ refresh once and retry.
-            if (
-                response.StatusCode == HttpStatusCode.Unauthorized
-                && attempt == 0
-                && context.BroadcasterId is not null
-            )
+            // 401 on the first attempt ⇒ refresh once and retry. This includes the bot/platform token
+            // (BroadcasterId == null): it is a real user token (the bot account, or the owner's account
+            // standing in as the bot) that carries a refresh token, so a stale bot access token must recover
+            // the same way a broadcaster's does. RefreshAsync resolves the right connection from the context;
+            // if no refresh token exists it fails cleanly and we fall through to the reauth signal below.
+            if (response.StatusCode == HttpStatusCode.Unauthorized && attempt == 0)
             {
                 response.Dispose();
                 Result<TwitchAccessContext> refreshed = await tokenResolver.RefreshAsync(

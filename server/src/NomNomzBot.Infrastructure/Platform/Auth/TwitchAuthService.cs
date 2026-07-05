@@ -127,14 +127,23 @@ public sealed class TwitchAuthService : ITwitchAuthService
         if (connection is null)
             return null;
 
+        // Already flagged for re-login: don't hammer Twitch's token endpoint on every subsequent 401 while the
+        // operator re-auths. StoreTokensAsync resets this to connected the moment a fresh grant is vaulted.
+        if (connection.Status == AuthEnums.IntegrationStatus.NeedsReauth)
+            return null;
+
         Result<DecryptedTokenDto> refresh = await _vault.GetRefreshTokenAsync(connection.Id, ct);
         if (refresh.IsFailure)
         {
+            // No decryptable refresh token (missing or crypto-shredded). Count it as a refresh failure so the
+            // connection still crosses into needs_reauth and the operator is prompted — instead of silently
+            // never recovering (the counter otherwise never moves and Status stays connected forever).
             _logger.LogWarning(
                 "No usable refresh token for {BroadcasterId}/{Provider}",
                 broadcasterId,
                 provider
             );
+            await _vault.MarkRefreshFailureAsync(connection.Id, "twitch_refresh_no_token", ct);
             return null;
         }
 
