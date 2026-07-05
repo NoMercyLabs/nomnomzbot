@@ -73,9 +73,10 @@ class HomeController(
         onChatColorResolved?.invoke(channel.chatColor)
 
         val url: String? = baseUrl()
-        val token: String? = accessToken()
-        if (hubClient != null && url != null && token != null) {
-            hubClient.connect(url, token, channel.id)
+        if (hubClient != null && url != null) {
+            // Pass the live token getter (not a snapshot) so the hub reads the current JWT on each reconnect;
+            // a REST-driven refresh then can't strand the socket on a stale token (a dead chat feed).
+            hubClient.connect(url, accessToken, channel.id)
         }
 
         when (val statsResult: ApiResult<DashboardStats> = dashboardApi.stats(channel.id)) {

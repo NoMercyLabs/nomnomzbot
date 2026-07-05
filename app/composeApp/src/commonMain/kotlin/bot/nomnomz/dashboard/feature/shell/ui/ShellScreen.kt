@@ -274,9 +274,10 @@ fun ShellScreen(
     LaunchedEffect(Unit) {
         graph.channelSwitcherController.activeChannelId.filterNotNull().collect { channelId ->
             val url: String? = graph.sessionStore.baseUrl()
-            val token: String? = graph.sessionStore.accessToken()
-            if (url != null && token != null) {
-                graph.dashboardHubClient.connect(url, token, channelId)
+            if (url != null) {
+                // Pass the live token GETTER, not a snapshot: the hub reads the current JWT on every reconnect,
+                // so a REST-driven token refresh doesn't strand the socket on a stale token (a dead chat feed).
+                graph.dashboardHubClient.connect(url, graph.sessionStore::accessToken, channelId)
             }
         }
     }

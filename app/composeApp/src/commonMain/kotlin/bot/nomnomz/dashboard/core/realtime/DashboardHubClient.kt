@@ -79,8 +79,11 @@ class DashboardHubClient {
      * Re-entrant per channel: a repeat call for the SAME channel while connected is a no-op; a call for a
      * DIFFERENT channel tears down the current connection and rejoins the new channel's group (so the feed
      * follows the operator's active channel instead of staying stuck on the first one it ever joined).
+     *
+     * [tokenProvider] is read on EVERY (re)connect, never captured once: the REST layer rotates the JWT on a
+     * 401, so a reconnect must send the CURRENT token or the socket strands on a stale one and every retry 401s.
      */
-    fun connect(baseUrl: String, accessToken: String, channelId: String) {
+    fun connect(baseUrl: String, tokenProvider: () -> String?, channelId: String) {
         if (connectJob?.isActive == true && currentChannelId == channelId) return
         connectJob?.cancel()
         currentChannelId = channelId
@@ -88,7 +91,7 @@ class DashboardHubClient {
             scope.launch {
                 var backoffMs: Long = 1_000
                 while (true) {
-                    runCatching { openSession(baseUrl, accessToken, channelId) }
+                    runCatching { openSession(baseUrl, tokenProvider, channelId) }
                         .onFailure { /* log if needed */ }
                     isConnected = false
                     // Reconnect loop — honour back-off so we don't spam the server on flaky networks.
@@ -117,7 +120,11 @@ class DashboardHubClient {
 
     // ─── Internals ───────────────────────────────────────────────────────────
 
-    private suspend fun openSession(baseUrl: String, accessToken: String, channelId: String) {
+    private suspend fun openSession(baseUrl: String, tokenProvider: () -> String?, channelId: String) {
+        // Read the CURRENT token for this attempt (see [connect]); bail and let the caller's back-off retry
+        // when none is available yet, instead of opening the socket with an empty token (a guaranteed 401).
+        val accessToken: String = tokenProvider() ?: return
+
         // Strip trailing slash and derive ws:// from http:// (or wss:// from https://).
         val base: String = baseUrl.trimEnd('/')
         val wsBase: String =
