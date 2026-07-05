@@ -547,18 +547,18 @@ private fun SidebarHeader(switcher: ChannelSwitcherController) {
     val unregisteredModerated: List<ModeratedChannel> =
         ready?.moderatedChannels?.filter { !it.isOnboarded } ?: emptyList()
     val active: ChannelSummary? = channels.firstOrNull { it.id == activeId } ?: channels.firstOrNull()
-    val otherRegistered: List<ChannelSummary> = channels.filter { it.id != activeId }
-    val hasOtherChannels: Boolean = otherRegistered.isNotEmpty() || unregisteredModerated.isNotEmpty()
     var expanded: Boolean by remember { mutableStateOf(false) }
     val label: String = stringResource(Res.string.shell_channel_pick)
     val name: String = active?.displayName?.takeIf { it.isNotBlank() } ?: active?.login ?: ""
 
     Box {
+        // The channel chip is ALWAYS an interactive switcher — even with a single channel it stays a
+        // discoverable control, and moderated / newly-connected channels surface in its menu as they load.
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(tokens.radius.md))
-                .then(if (hasOtherChannels) Modifier.clickable { expanded = !expanded } else Modifier)
+                .clickable { expanded = !expanded }
                 .semantics { contentDescription = label }
                 .padding(horizontal = spacing.s2, vertical = spacing.s2),
             verticalAlignment = Alignment.CenterVertically,
@@ -584,58 +584,60 @@ private fun SidebarHeader(switcher: ChannelSwitcherController) {
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f),
             )
-            if (hasOtherChannels) {
-                Icon(
-                    imageVector = if (expanded) ChevronUpGlyph else ChevronDownGlyph,
-                    contentDescription = null,
-                    tint = tokens.mutedForeground,
-                    modifier = Modifier.size(spacing.s4),
+            Icon(
+                imageVector = if (expanded) ChevronUpGlyph else ChevronDownGlyph,
+                contentDescription = null,
+                tint = tokens.mutedForeground,
+                modifier = Modifier.size(spacing.s4),
+            )
+        }
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            modifier = Modifier.background(tokens.popover),
+        ) {
+            // Every bot-registered channel is selectable; the active one is marked (bold). Re-selecting the
+            // active channel is a harmless no-op — the id doesn't change, so nothing reconnects.
+            channels.forEach { channel ->
+                val isActive: Boolean = channel.id == active?.id
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            text = channel.displayName.takeIf { it.isNotBlank() } ?: channel.login,
+                            style = typography.sm,
+                            fontWeight = if (isActive) FontWeight.SemiBold else FontWeight.Normal,
+                            color = tokens.popoverForeground,
+                        )
+                    },
+                    onClick = {
+                        expanded = false
+                        switcher.select(channel.id)
+                    },
                 )
             }
-        }
-        if (hasOtherChannels) {
-            DropdownMenu(
-                expanded = expanded,
-                onDismissRequest = { expanded = false },
-                modifier = Modifier.background(tokens.popover),
-            ) {
-                otherRegistered.forEach { channel ->
+            // Twitch channels the caller moderates but where the bot is not installed — shown for context,
+            // not selectable (onboarding them is a separate flow).
+            if (unregisteredModerated.isNotEmpty()) {
+                Separator()
+                unregisteredModerated.forEach { channel ->
                     DropdownMenuItem(
+                        enabled = false,
                         text = {
-                            Text(
-                                text = channel.displayName.takeIf { it.isNotBlank() } ?: channel.login,
-                                style = typography.sm,
-                                color = tokens.popoverForeground,
-                            )
+                            Column {
+                                Text(
+                                    text = channel.displayName.takeIf { it.isNotBlank() } ?: channel.login,
+                                    style = typography.sm,
+                                    color = tokens.mutedForeground,
+                                )
+                                Text(
+                                    text = stringResource(Res.string.shell_channel_bot_not_installed),
+                                    style = typography.xs,
+                                    color = tokens.mutedForeground,
+                                )
+                            }
                         },
-                        onClick = {
-                            expanded = false
-                            switcher.select(channel.id)
-                        },
+                        onClick = {},
                     )
-                }
-                if (unregisteredModerated.isNotEmpty()) {
-                    Separator()
-                    unregisteredModerated.forEach { channel ->
-                        DropdownMenuItem(
-                            enabled = false,
-                            text = {
-                                Column {
-                                    Text(
-                                        text = channel.displayName.takeIf { it.isNotBlank() } ?: channel.login,
-                                        style = typography.sm,
-                                        color = tokens.mutedForeground,
-                                    )
-                                    Text(
-                                        text = stringResource(Res.string.shell_channel_bot_not_installed),
-                                        style = typography.xs,
-                                        color = tokens.mutedForeground,
-                                    )
-                                }
-                            },
-                            onClick = {},
-                        )
-                    }
                 }
             }
         }
