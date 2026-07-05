@@ -48,7 +48,12 @@ class ChannelSwitcherController(
             is ApiResult.Ok -> {
                 val channels: List<ChannelSummary> = result.value
                 if (channels.isNotEmpty()) {
-                    sessionStore.setDefaultChannel(channels.first().id)
+                    // Restore the operator's last explicitly-chosen channel across a reload/relaunch. Fall back to
+                    // the first (owned-first) channel when nothing is remembered OR the remembered channel is no
+                    // longer in the list (access revoked / bot removed) — so a stale pin can never strand the user.
+                    val remembered: String? = sessionStore.persistedActiveChannel()
+                    val restore: String = channels.firstOrNull { it.id == remembered }?.id ?: channels.first().id
+                    sessionStore.setDefaultChannel(restore)
                 }
 
                 // Load the full Twitch moderation roster concurrently — failures are non-fatal; an

@@ -10,6 +10,9 @@
 
 package bot.nomnomz.dashboard.core.connection
 
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -22,6 +25,7 @@ import kotlin.test.assertNull
 // vault key + base URL), (4) expose the base URL + bearer the shared ApiClient reads. A disconnect undoes
 // all of that. And the remembered session must read back exactly through [loadPersisted] / [arm] so the
 // boot restore path can validate it before committing the gate.
+@OptIn(ExperimentalCoroutinesApi::class)
 class SessionStoreTest {
 
     private val profile =
@@ -41,7 +45,7 @@ class SessionStoreTest {
 
     @Test
     fun starts_not_connected_with_no_profile_or_token() {
-        val store: SessionStore = SessionStore(FakeTokenVault(), FakeProfileStore())
+        val store: SessionStore = SessionStore(FakeTokenVault(), FakeProfileStore(), FakeChannelStore())
         assertEquals(SessionPhase.NotConnected, store.phase.value)
         assertNull(store.activeProfile.value)
         assertNull(store.baseUrl())
@@ -52,7 +56,7 @@ class SessionStoreTest {
     fun connect_flips_to_connected_and_persists_profile_and_tokens() = runTest {
         val vault = FakeTokenVault()
         val profiles = FakeProfileStore()
-        val store: SessionStore = SessionStore(vault, profiles)
+        val store: SessionStore = SessionStore(vault, profiles, FakeChannelStore())
 
         store.connect(profile, tokens)
 
@@ -68,7 +72,7 @@ class SessionStoreTest {
 
     @Test
     fun set_user_surfaces_the_signed_in_streamer_to_the_shell() = runTest {
-        val store: SessionStore = SessionStore(FakeTokenVault(), FakeProfileStore())
+        val store: SessionStore = SessionStore(FakeTokenVault(), FakeProfileStore(), FakeChannelStore())
         store.connect(profile, tokens)
 
         store.setUser(
@@ -89,7 +93,7 @@ class SessionStoreTest {
     fun disconnect_clears_user_profile_and_vault_then_returns_to_connect() = runTest {
         val vault = FakeTokenVault()
         val profiles = FakeProfileStore()
-        val store: SessionStore = SessionStore(vault, profiles)
+        val store: SessionStore = SessionStore(vault, profiles, FakeChannelStore())
         store.connect(profile, tokens)
         store.setUser(SessionUser("1", "u", "U", null))
 
@@ -109,7 +113,7 @@ class SessionStoreTest {
     fun arm_exposes_profile_and_bearer_without_committing_the_gate_or_persisting() = runTest {
         val vault = FakeTokenVault()
         val profiles = FakeProfileStore()
-        val store: SessionStore = SessionStore(vault, profiles)
+        val store: SessionStore = SessionStore(vault, profiles, FakeChannelStore())
 
         store.arm(profile, tokens)
 
@@ -126,10 +130,10 @@ class SessionStoreTest {
     fun load_persisted_returns_the_remembered_profile_and_tokens_after_connect() = runTest {
         val vault = FakeTokenVault()
         val profiles = FakeProfileStore()
-        SessionStore(vault, profiles).connect(profile, tokens)
+        SessionStore(vault, profiles, FakeChannelStore()).connect(profile, tokens)
 
         // A FRESH store over the same custody (i.e. a relaunch) reads back exactly what connect persisted.
-        val remembered: RestorableSession? = SessionStore(vault, profiles).loadPersisted()
+        val remembered: RestorableSession? = SessionStore(vault, profiles, FakeChannelStore()).loadPersisted()
 
         assertEquals(profile, remembered?.profile)
         assertEquals(tokens, remembered?.tokens)
@@ -137,7 +141,7 @@ class SessionStoreTest {
 
     @Test
     fun load_persisted_is_null_when_nothing_was_remembered() = runTest {
-        val store: SessionStore = SessionStore(FakeTokenVault(), FakeProfileStore())
+        val store: SessionStore = SessionStore(FakeTokenVault(), FakeProfileStore(), FakeChannelStore())
         assertNull(store.loadPersisted())
     }
 
@@ -149,11 +153,52 @@ class SessionStoreTest {
         val profiles = FakeProfileStore()
         profiles.stored = profile
 
-        val store: SessionStore = SessionStore(FakeTokenVault(), profiles)
+        val store: SessionStore = SessionStore(FakeTokenVault(), profiles, FakeChannelStore())
         val remembered: RestorableSession? = store.loadPersisted()
 
         assertEquals(profile, remembered?.profile)
         assertNull(remembered?.tokens)
+    }
+
+    @Test
+    fun switching_channel_persists_the_choice_so_a_reload_restores_it() = runTest {
+        val channels = FakeChannelStore()
+        // An unconfined test dispatcher runs the fire-and-forget persistence write EAGERLY, so the assertion
+        // observes it deterministically without advancing the scheduler by hand.
+        val store: SessionStore =
+            SessionStore(
+                FakeTokenVault(),
+                FakeProfileStore(),
+                channels,
+                CoroutineScope(UnconfinedTestDispatcher(testScheduler)),
+            )
+
+        store.setDefaultChannel("owned-channel") // the owned default seeded on first channel-list load
+        store.switchChannel("moderated-channel") // the operator then switches to one they moderate
+
+        // The EXPLICIT switch — not the owned default — is what's remembered (the default must never clobber it).
+        assertEquals("moderated-channel", channels.stored)
+        assertEquals("moderated-channel", store.activeChannelId.value)
+        // A FRESH store over the same custody (i.e. a web reload) reads that channel back to restore it.
+        assertEquals(
+            "moderated-channel",
+            SessionStore(FakeTokenVault(), FakeProfileStore(), channels).persistedActiveChannel(),
+        )
+    }
+
+    @Test
+    fun disconnect_forgets_the_remembered_channel() = runTest {
+        val channels = FakeChannelStore()
+        channels.stored = "some-channel"
+        val store: SessionStore =
+            SessionStore(FakeTokenVault(), FakeProfileStore(), channels, backgroundScope)
+        store.connect(profile, tokens)
+
+        store.disconnect()
+
+        // A real logout wipes ALL custody — including the remembered channel — so a relaunch starts clean.
+        assertNull(channels.stored)
+        assertNull(store.persistedActiveChannel())
     }
 }
 
@@ -180,6 +225,21 @@ private class FakeProfileStore : ActiveProfileStore {
 
     override suspend fun write(profile: ConnectionProfile) {
         stored = profile
+    }
+
+    override suspend fun clear() {
+        stored = null
+    }
+}
+
+/** An in-memory [ActiveChannelStore] so the session tests run without touching the OS file/localStorage. */
+private class FakeChannelStore : ActiveChannelStore {
+    var stored: String? = null
+
+    override suspend fun read(): String? = stored
+
+    override suspend fun write(channelId: String) {
+        stored = channelId
     }
 
     override suspend fun clear() {

@@ -84,13 +84,12 @@ object ShellNav {
         listOf(
             // Top-level single-entry groups render as plain items (no header) — see SidebarSection.
             NavPage(ShellRoute.Dashboard, NavGroup.Home, ManagementRole.Moderator, null),
-            NavPage(ShellRoute.Moderation, NavGroup.Moderation, ManagementRole.Moderator, ManagementRole.Moderator),
-            NavPage(ShellRoute.Community, NavGroup.Community, ManagementRole.Moderator, ManagementRole.Moderator),
             NavPage(ShellRoute.Chat, NavGroup.Chat, ManagementRole.Moderator, ManagementRole.Moderator),
             NavPage(ShellRoute.Commands, NavGroup.Chat, ManagementRole.Moderator, ManagementRole.Editor),
             NavPage(ShellRoute.EventResponses, NavGroup.Chat, ManagementRole.Moderator, ManagementRole.Editor),
             NavPage(ShellRoute.Timers, NavGroup.Chat, ManagementRole.Moderator, ManagementRole.Editor),
             NavPage(ShellRoute.Quotes, NavGroup.Chat, ManagementRole.Moderator, ManagementRole.Editor),
+            NavPage(ShellRoute.Moderation, NavGroup.Moderation, ManagementRole.Moderator, ManagementRole.Moderator),
             NavPage(ShellRoute.Rewards, NavGroup.Loyalty, ManagementRole.Moderator, ManagementRole.Editor),
             NavPage(ShellRoute.Economy, NavGroup.Loyalty, ManagementRole.Moderator, ManagementRole.Editor),
             NavPage(ShellRoute.Games, NavGroup.Loyalty, ManagementRole.Moderator, ManagementRole.Editor),
@@ -103,6 +102,7 @@ object ShellNav {
             NavPage(ShellRoute.Pipelines, NavGroup.Stream, ManagementRole.Moderator, ManagementRole.Editor),
             NavPage(ShellRoute.CodeScripts, NavGroup.Stream, ManagementRole.Broadcaster, ManagementRole.Broadcaster),
             NavPage(ShellRoute.Analytics, NavGroup.Stream, ManagementRole.Moderator, null),
+            NavPage(ShellRoute.Community, NavGroup.Community, ManagementRole.Moderator, ManagementRole.Moderator),
             NavPage(ShellRoute.Discord, NavGroup.Connect, ManagementRole.Moderator, ManagementRole.SuperMod),
             NavPage(ShellRoute.Webhooks, NavGroup.Connect, ManagementRole.Broadcaster, ManagementRole.Broadcaster),
             NavPage(ShellRoute.Federation, NavGroup.Connect, ManagementRole.Broadcaster, ManagementRole.Broadcaster),

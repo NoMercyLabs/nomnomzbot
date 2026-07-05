@@ -10,9 +10,13 @@
 
 package bot.nomnomz.dashboard.core.connection
 
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 
 // The active-connection + session Store (frontend.md §4/§6). Global, long-lived, injected; exposes
 // StateFlow the App gate observes. This is the real direct-connect store — it holds the active
@@ -24,6 +28,12 @@ import kotlinx.coroutines.flow.asStateFlow
 class SessionStore(
     private val tokenVault: SessionTokenStore = TokenVault(),
     private val profileStore: ActiveProfileStore = ActiveProfileVault(),
+    private val activeChannelStore: ActiveChannelStore = ActiveChannelVault(),
+    // Fire-and-forget scope for best-effort durable writes (the remembered active channel). Persistence must
+    // never block the caller — a channel switch is a UI click — nor take down the store if a write fails, so it
+    // runs detached on a background dispatcher under a SupervisorJob. Injectable so a test can drive it on the
+    // test scheduler and assert the write deterministically.
+    private val persistenceScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
 ) {
 
     private val _phase: MutableStateFlow<SessionPhase> = MutableStateFlow(SessionPhase.NotConnected)
@@ -52,12 +62,19 @@ class SessionStore(
     /** Switch the active managed channel. Each page controller picks this up on its next load. */
     fun switchChannel(channelId: String) {
         _activeChannelId.value = channelId
+        // Remember the explicit choice so a web reload / desktop relaunch restores THIS channel rather than
+        // snapping back to the owned-first default. Only an explicit switch persists — [setDefaultChannel]
+        // (the boot seed) must not overwrite a remembered choice before restore reads it.
+        persistenceScope.launch { activeChannelStore.write(channelId) }
     }
 
-    /** Set the active channel on first login (the user's own channel). */
+    /** Set the active channel on first login / restore (the owned default or the remembered channel). */
     fun setDefaultChannel(channelId: String) {
         if (_activeChannelId.value == null) _activeChannelId.value = channelId
     }
+
+    /** The channel the operator last explicitly switched to, if any — read on boot to restore that context. */
+    suspend fun persistedActiveChannel(): String? = activeChannelStore.read()
 
     /** The active backend base URL the [ApiClient] targets; null when not connected. */
     fun baseUrl(): String? = _activeProfile.value?.baseUrl
@@ -152,10 +169,11 @@ class SessionStore(
         _phase.value = SessionPhase.NotConnected
     }
 
-    /** Drop the session — clear the vault entry, forget the profile, return the gate to Connect. */
+    /** Drop the session — clear the vault entry, forget the profile + channel, return the gate to Connect. */
     suspend fun disconnect() {
         _activeProfile.value?.let { tokenVault.clear(it.id) }
         profileStore.clear()
+        activeChannelStore.clear()
         tokens = null
         _user.value = null
         _activeProfile.value = null

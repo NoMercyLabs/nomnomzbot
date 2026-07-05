@@ -12,7 +12,6 @@ package bot.nomnomz.dashboard.core.designsystem.component
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -46,10 +45,17 @@ class ManageDecisionTest {
     }
 
     @Test
-    fun a_denied_decision_cannot_be_constructed_without_a_reason() {
-        // A silent disable is the failure §7 forbids — a blank reason is rejected at construction, so no screen
-        // can disable a control without saying why.
-        assertFailsWith<IllegalArgumentException> { ManageDecision.Denied(reason = "") }
-        assertFailsWith<IllegalArgumentException> { ManageDecision.Denied(reason = "   ") }
+    fun a_denied_decision_tolerates_a_transient_blank_reason_instead_of_freezing_the_page() {
+        // On Wasm, Compose string resources resolve asynchronously — the localized reason reads back as "" for the
+        // first frame(s) of a screen before the bundle loads, then recomposes to the real text. This gate sits on
+        // every screen's render hot path, so a hard "reason must be non-blank" invariant would turn that millisecond
+        // of un-loaded i18n into a full page freeze (exactly the crash we are eliminating). Constructing a Denied
+        // with a blank reason must therefore NOT throw: it still disables the control, and the gate announces the
+        // reason once it recomposes in. If this regressed to throwing, the whole page would white-screen mid-load.
+        val blank: ManageDecision = ManageDecision.Denied(reason = "")
+        val whitespace: ManageDecision = ManageDecision.Denied(reason = "   ")
+
+        assertFalse(blank.isAllowed, "a Denied decision still disables its control while i18n is mid-load")
+        assertFalse(whitespace.isAllowed, "a Denied decision still disables its control while i18n is mid-load")
     }
 }

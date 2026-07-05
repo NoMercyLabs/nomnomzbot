@@ -39,7 +39,16 @@ class ShellAccessController(
     /** The shell's role state: loading until the first resolve, then the caller's effective management role. */
     val state: StateFlow<ShellAccess> = _state.asStateFlow()
 
-    /** Resolve the active channel, then the caller's own effective access. Fails closed to a participant. */
+    /**
+     * Resolve the active channel, then the caller's own effective access. Fails closed to a participant.
+     *
+     * Runs on session establish AND on every active-channel change (the App keys a LaunchedEffect on it) AND on a
+     * live permission change pushed over SignalR. It does NOT blank to [ShellAccess.Loading] first: the shell holds
+     * the PREVIOUS channel's resolved access until the new probe lands, and [bot.nomnomz.dashboard.feature.shell.ui.ShellScreen]
+     * renders a neutral "switching" state whenever the resolved [ShellAccess.Resolved.channelId] doesn't match the
+     * active channel — so a switch never flashes the old channel's (possibly higher) role, while a same-channel
+     * re-resolve (a live grant/revoke) swaps in place with no splash flash and no channel-roster refetch.
+     */
     suspend fun load() {
         val channel: ChannelSummary =
             when (val result: ApiResult<ChannelSummary> = channelsApi.primaryChannel()) {

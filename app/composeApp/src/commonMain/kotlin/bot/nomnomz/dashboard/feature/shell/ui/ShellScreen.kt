@@ -75,7 +75,6 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.realtime.HubEvent
-import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filterNotNull
 import bot.nomnomz.dashboard.core.connection.SessionUser
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
@@ -106,6 +105,7 @@ import bot.nomnomz.dashboard.feature.sound.ui.SoundScreen
 import bot.nomnomz.dashboard.feature.rewards.ui.RewardsScreen
 import bot.nomnomz.dashboard.feature.roles.ui.RolesScreen
 import bot.nomnomz.dashboard.feature.settings.ui.SettingsScreen
+import bot.nomnomz.dashboard.feature.splash.ui.SplashScreen
 import bot.nomnomz.dashboard.feature.songrequests.ui.SongRequestsScreen
 import bot.nomnomz.dashboard.feature.timers.ui.TimersScreen
 import bot.nomnomz.dashboard.feature.tts.ui.TtsScreen
@@ -212,6 +212,21 @@ fun ShellScreen(
     // participant early-return so it runs regardless of role; App re-resolves access on every activeChannelId change.
     LaunchedEffect(Unit) { graph.channelSwitcherController.load() }
 
+    // Mid-switch guard (frontend-ia.md §7 — never over-grant). On a channel switch the resolved [access] still
+    // describes the PREVIOUS channel until the new /effective/me probe lands; render a neutral splash for that
+    // brief window rather than the old channel's (possibly higher) role. Kept ABOVE the role fork so switching
+    // from a channel the caller broadcasts to one they only moderate — or can't manage at all — never flashes the
+    // full sidebar. A failed/empty resolve (channelId "") or the first boot (activeChannelId null) falls through
+    // to render the fail-closed surface instead of spinning forever.
+    val activeChannelId: String? by
+        graph.channelSwitcherController.activeChannelId.collectAsStateWithLifecycle()
+    val switchingChannel: Boolean =
+        activeChannelId != null && access.channelId.isNotEmpty() && access.channelId != activeChannelId
+    if (switchingChannel) {
+        SplashScreen()
+        return
+    }
+
     // One shell, three rungs (participant → mod → broadcaster), never forked. A caller with no Plane-B management
     // role is a PARTICIPANT (Rung 0): the same shell renders the participant surface — their own profile/standing,
     // the channel they're watching, and the read-mostly + self-service slices they're permitted — gated by their
@@ -229,19 +244,26 @@ fun ShellScreen(
     }
 
     val tokens = LocalTokens.current
-    var selected: ShellRoute by remember { mutableStateOf(routeStore.initialRoute()) }
+
+    // The routes this caller may actually OPEN on the active channel: the role's visible pages (frontend-ia.md §7)
+    // plus the admin console when they're a platform admin. Drives both the initial page seed and the gate below.
+    val allowedRoutes: Set<ShellRoute> =
+        remember(role, user?.isAdmin) {
+            val visible: Set<ShellRoute> = ShellNav.visiblePagesFor(role).map { it.route }.toSet()
+            if (user?.isAdmin == true) visible + ShellRoute.Admin else visible
+        }
+
+    // [requestedRoute] is the raw navigation intent (URL-seeded, sidebar taps, browser Back/Forward); [selected] is
+    // what actually renders — coerced down to Home (floors at Moderator, always reachable) whenever the intent sits
+    // on a page the caller can't read. This one derivation re-gates the content on EVERY path that could move the
+    // selection below the floor, including a LIVE role drop (a permission revoked over SignalR, or a switch to a
+    // channel the caller manages less), so the content host can never render — or crash on — a page the sidebar is
+    // hiding. Routing responds to permission changes with no reload. The route persisted to the URL is the coerced
+    // one, so a reload never restores a page the caller has since lost.
+    var requestedRoute: ShellRoute by remember { mutableStateOf(routeStore.initialRoute()) }
+    val selected: ShellRoute = if (requestedRoute in allowedRoutes) requestedRoute else ShellRoute.Dashboard
     LaunchedEffect(selected) { routeStore.save(selected) }
-    LaunchedEffect(routeStore) { routeStore.externalChanges.collect { selected = it } }
-    // When the operator switches channels, navigate to Dashboard so each page controller re-initialises
-    // for the new channel. The active channel starts null and is populated once on load; filterNotNull()
-    // then drop(1) skips that first REAL population (which on a page reload would otherwise clobber the
-    // route restored from the URL and bounce the user home) so only a genuine later switch triggers the reset.
-    LaunchedEffect(graph.channelSwitcherController.activeChannelId) {
-        graph.channelSwitcherController.activeChannelId
-            .filterNotNull()
-            .drop(1)
-            .collect { selected = ShellRoute.Dashboard }
-    }
+    LaunchedEffect(routeStore) { routeStore.externalChanges.collect { requestedRoute = it } }
     // Keep the dashboard hub connected to the ACTIVE channel for the whole session — not as a side effect of the
     // Home page loading. It (re)connects and rejoins the channel group whenever the active channel resolves or
     // changes, so every page (the chat feed, alerts, live stats) receives realtime events on a direct load or
@@ -307,7 +329,7 @@ fun ShellScreen(
                     selected = selected,
                     isAdmin = user?.isAdmin == true,
                     onSelect = {
-                        selected = it
+                        requestedRoute = it
                         drawerOpen = false
                     },
                     user = user,
@@ -326,7 +348,7 @@ fun ShellScreen(
                     role = role,
                     selected = selected,
                     isAdmin = user?.isAdmin == true,
-                    onSelect = { selected = it },
+                    onSelect = { requestedRoute = it },
                     user = user,
                     channelSwitcher = graph.channelSwitcherController,
                     languageController = languageController,
@@ -606,14 +628,7 @@ internal fun SidebarHeader(switcher: ChannelSwitcherController) {
             channels.forEach { channel ->
                 val isActive: Boolean = channel.id == active?.id
                 DropdownMenuItem(
-                    text = {
-                        Text(
-                            text = channel.displayName.takeIf { it.isNotBlank() } ?: channel.login,
-                            style = typography.sm,
-                            fontWeight = if (isActive) FontWeight.SemiBold else FontWeight.Normal,
-                            color = tokens.popoverForeground,
-                        )
-                    },
+                    text = { ChannelSwitchRow(channel = channel, isActive = isActive) },
                     onClick = {
                         expanded = false
                         switcher.select(channel.id)
@@ -913,6 +928,84 @@ private fun Avatar(name: String, size: Dp, imageUrl: String? = null) {
         }
     }
 }
+
+// One row in the channel-switcher menu: the channel's avatar (with a live dot when it is streaming), its display
+// name, and — the point of the switcher — the caller's OWN role on that channel as a small badge, so the operator
+// sees at a glance where they broadcast vs. only moderate. The active channel is bolded and carries an accent dot.
+@Composable
+private fun ChannelSwitchRow(channel: ChannelSummary, isActive: Boolean) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+    val name: String = channel.displayName.takeIf { it.isNotBlank() } ?: channel.login
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(spacing.s3),
+    ) {
+        Box(contentAlignment = Alignment.BottomEnd) {
+            Avatar(name = name, size = spacing.s8, imageUrl = channel.profileImageUrl)
+            if (channel.isLive) {
+                Box(
+                    modifier = Modifier
+                        .size(spacing.s1_5)
+                        .clip(CircleShape)
+                        .background(tokens.success)
+                        .border(width = spacing.s0_5, color = tokens.popover, shape = CircleShape),
+                )
+            }
+        }
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = name,
+                style = typography.sm,
+                fontWeight = if (isActive) FontWeight.SemiBold else FontWeight.Normal,
+                color = tokens.popoverForeground,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            ChannelRoleBadge(role = channel.role)
+        }
+        if (isActive) {
+            Box(
+                modifier = Modifier.size(spacing.s2).clip(CircleShape).background(tokens.primary),
+            )
+        }
+    }
+}
+
+// A small pill naming the caller's role on a channel (their Plane-B power there, from the channel list). Renders
+// nothing when the role is unknown/blank rather than an empty chip. Role NAMES only — the operator never sees an
+// internal numeric level (users-never-see-numbered-permission-levels).
+@Composable
+private fun ChannelRoleBadge(role: String) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+    val label: String = channelRoleLabel(role) ?: return
+
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(tokens.radius.sm))
+            .background(tokens.muted)
+            .padding(horizontal = spacing.s1_5, vertical = spacing.s0_5),
+    ) {
+        Text(text = label, style = typography.xs, color = tokens.mutedForeground, maxLines = 1)
+    }
+}
+
+// Map the channel-list role string (backend sends "broadcaster" / "moderator") to its localized display name;
+// null when blank so the badge is omitted. Unknown values are title-cased as a graceful fallback.
+@Composable
+private fun channelRoleLabel(role: String): String? =
+    when (role.lowercase()) {
+        "broadcaster" -> stringResource(Res.string.shell_role_broadcaster)
+        "moderator" -> stringResource(Res.string.shell_role_moderator)
+        "editor" -> stringResource(Res.string.shell_role_editor)
+        "supermod" -> stringResource(Res.string.shell_role_supermod)
+        else -> role.takeIf { it.isNotBlank() }?.replaceFirstChar { it.uppercase() }
+    }
 
 @Composable
 private fun TopBar(channelName: String?, onMenu: (() -> Unit)?) {

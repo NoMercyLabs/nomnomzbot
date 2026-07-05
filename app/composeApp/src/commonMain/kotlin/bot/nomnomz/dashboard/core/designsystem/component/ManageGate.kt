@@ -37,12 +37,18 @@ sealed interface ManageDecision {
     /** The caller clears the action's manage floor — the control is enabled. */
     data object Allowed : ManageDecision
 
-    /** The caller is below the floor — the control is disabled and [reason] explains why (already localized). */
-    data class Denied(val reason: String) : ManageDecision {
-        init {
-            require(reason.isNotBlank()) { "a denied manage decision must carry a non-blank reason" }
-        }
-    }
+    /**
+     * The caller is below the floor — the control is disabled and [reason] explains why (already localized).
+     *
+     * [reason] MAY be transiently blank and this type tolerates it — it must never throw. On Wasm, Compose
+     * string resources resolve asynchronously: a `stringResource(...)` read returns `""` for the first frame(s)
+     * of a screen before the resource bundle finishes loading, then recomposes to the real text. That empty
+     * window is a normal render-time state, not a programmer error. This gate is on the render hot path of every
+     * screen, so a hard invariant here would turn a millisecond of un-loaded i18n into a full page freeze. The
+     * gate ([ManageGate]) treats a blank reason as "nothing to announce yet" and shows the real reason once it
+     * recomposes in.
+     */
+    data class Denied(val reason: String) : ManageDecision
 
     /** True when the gated control may act. The single place the rest of the app reads "can I write?". */
     val isAllowed: Boolean
@@ -71,7 +77,9 @@ fun ManageGate(
     modifier: Modifier = Modifier,
     content: @Composable (enabled: Boolean) -> Unit,
 ) {
-    val reason: String? = decision.deniedReason
+    // A denied reason that is still blank (async i18n not loaded yet) announces nothing this frame — the real
+    // reason recomposes in once the resource bundle resolves. Never let a transient blank drive an empty a11y label.
+    val reason: String? = decision.deniedReason?.takeIf { it.isNotBlank() }
     val gateModifier: Modifier =
         if (reason != null) {
             modifier.semantics {

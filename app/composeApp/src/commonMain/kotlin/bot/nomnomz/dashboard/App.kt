@@ -146,6 +146,10 @@ fun App(graph: AppGraph = remember { AppGraph() }) {
                                 graph.channelSwitcherController.activeChannelId.collectAsStateWithLifecycle()
                             val access: ShellAccess by
                                 graph.shellAccessController.state.collectAsStateWithLifecycle()
+                            // Re-resolve the caller's role whenever the active channel changes. The resolve keeps
+                            // the previous channel's access until the new probe lands; ShellScreen renders a
+                            // neutral "switching" state on the channelId mismatch so the old (possibly higher)
+                            // role never renders against the newly-selected channel.
                             LaunchedEffect(activeChannelId) { graph.shellAccessController.load() }
                             when (val resolved: ShellAccess = access) {
                                 // Hold the splash under the one-shot role probe so the shell never flashes the
