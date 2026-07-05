@@ -48,13 +48,20 @@ of (their standing, their management role, any active `!permit` grant).
 3. **Admin area** (Plane C, SaaS staff only): reached via "Switch to Admin" in the profile menu — the
    item only renders if the account holds an IAM role. Never appears on self-host.
 
-### 1.3 The two golden UI rules
+### 1.3 The three golden UI rules
 
 - **Pages: hide below the read floor.** A sidebar item renders only if the user's role ≥ the page's
   read floor (most pages: `Moderator`).
 - **Actions: disable, don't hide, below the manage floor** — with a reason tooltip. Example: a
   Moderator on Commands sees the list (read floor Moderator) but "New command" is disabled with
   *"Requires Editor"* (manage floor Editor).
+- **Never show the ladder numbers.** The values in §1.1 (`0/2/4/6/10/20/30/40`) are an **internal**
+  comparison mechanism only — users think in role **names**. Every user-facing surface (copy, tooltips,
+  dropdowns, badges, role pickers, action-permission rows) shows the **name** only — `Moderator`,
+  `Editor`, `Broadcaster`, `VIP`, `Subscriber`, `Everyone` — never the number, never `Moderator (10)`
+  or `Editor30`. The role/effective-role DTOs carry **both** the level (for the client's `≥` gating) and
+  a name; render the name, use the level only for comparisons. (Enforced today on the Roles & Permits
+  action-permission screen — mirror it on any new role surface.)
 
 So **every management page needs at least two designed states**: read-only (viewer role ≥ read floor
 but < manage floor) and write-enabled. Add the usual empty/loading/error states on top.
@@ -80,8 +87,10 @@ locked-to-Broadcaster with per-user grants listed separately — a floor that ca
 - **Team list:** who has which `ManagementRole`, where it came from (Twitch mod badge, Twitch editor,
   granted in the bot, owner), grant/remove. The owner row is not removable.
 - **Action-permission matrix:** every action key (~150 management + ~26 community) with its default
-  level and the channel's override. Overrides can only **raise** a requirement, never drop below the
-  floor; Critical rows can't be changed at all.
+  **required role** and the channel's **override** — both shown and picked by role **name**, never a
+  number (§1.3). The override is a role picker offering the named rungs at or above the action's floor:
+  overrides can only **raise** a requirement, never drop below the floor; Critical rows can't be changed
+  at all.
 - **Permits:** active per-user grants (role or single capability) with optional expiry; revoke;
   everything mirrors the `!permit` / `!unpermit` chat commands.
 

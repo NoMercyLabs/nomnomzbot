@@ -16,6 +16,45 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
 
 ## Open
 
+### 2026-07-05 — Standing rule: users never see numeric permission levels (names only)
+- **From:** Stoney_Eagle (via Claude, backend track)
+- **What:** owner rule — **no user-facing surface ever renders the numeric ladder value** of a role.
+  Users see the role **name** only (`Moderator`, `Editor`, `Broadcaster`, `VIP`, `Subscriber`,
+  `Artist`, `Everyone`), never the number, never `Moderator (10)` / `Editor30`. The unified ladder
+  (`Everyone 0 · Subscriber 2 · Vip 4 · Artist 6 · Moderator 10 · SuperMod/LeadModerator 20 ·
+  Editor 30 · Broadcaster 40`, roles-permissions §0) is an **internal** `≥`-comparison mechanism only.
+- **Already applied (this commit, backend track made the code-only frontend edit with owner's OK):**
+  `feature/roles/ui/RolesScreen.kt` — the action-permission **row** now shows the role name
+  ("Default: Moderator"), and the override **dialog** is a role **picker** (reuses `DropdownMenu`,
+  offers named rungs ≥ the action's floor) instead of a free-form numeric field. New en+nl rung
+  strings added; numeric-entry strings retired. API contract unchanged (`setOverride` still sends the
+  rung's `Int` level).
+- **What you own going forward:** apply the same on **any** role/permission surface you build or
+  touch. The effective-role DTO (`ResolvedAccess` / backend `ResolvedAccessDto`, `GET
+  /roles/effective/me`) already carries **both**: names (`communityStanding`/`managementRole` — render
+  these) AND `*Level` ints (`effectiveLevel`/`communityLevel`/`managementLevel` — internal `≥` gating
+  only, never render). `ActionPermission` currently exposes only ints; map a level→name with the same
+  ladder table `RolesScreen` uses (§0) — or ask backend to add a name field to `ActionPermissionDto`
+  if you'd rather not mirror the table.
+- **Where:** `docs/bot-capabilities.md` §1.3 (new third golden rule) + §1.5; `RolesScreen.kt`.
+- **Done when:** no dashboard surface renders a permission number; role pickers/badges/gates read by name.
+
+### 2026-07-05 — `ShellNavTest` is red on master after the sidebar reorder (18159a7) — please reconcile
+- **From:** Stoney_Eagle (via Claude, backend track — flagging, not fixing: this is your IA design)
+- **What:** `jvmTest` fails on `ShellNavTest.pages_are_grouped_in_the_binding_ia_order_with_setup_pinned_last`
+  (`feature/shell/nav/ShellNavTest.kt:65`). Commit **18159a7 "reorder sidebar IA and rename Music group
+  to Audio"** reordered `ShellNav.pages` so the group order is now
+  `Home, Moderation, Community, Chat, Loyalty, Music, Stream, Connect, Setup`, but the test still asserts
+  the **old** order `Home, Chat, Moderation, Loyalty, Music, Stream, Community, Connect, Setup`, and the
+  `NavGroup` enum declaration order (ShellNav.kt:56) also still reflects the old order. Three things now
+  disagree (pages list vs enum order vs test).
+- **Why it matters:** there is **no frontend CI job** (only the Docker/wasm build runs in CI), so this
+  red is **local-only** and silently sitting on master — a `jvmTest` gate would be flagging it.
+- **Where:** `feature/shell/nav/ShellNav.kt` (`pages`, `NavGroup`), `feature/shell/nav/ShellNavTest.kt`.
+- **Done when:** the intended canonical IA order (per `frontend-ia.md` §3) is the single truth across
+  the `pages` list, the `NavGroup` enum order, and the test — and `jvmTest` is green. (Consider wiring
+  `jvmTest` into CI so this can't recur.)
+
 ### 2026-07-05 — Features endpoint now reports ENTITLEMENT, not just opt-in (gate the Features UI on it)
 - **From:** Stoney_Eagle (via Claude, backend track)
 - **What:** `FeatureStatusDto` (returned by `GET /api/v1/channels/{channelId}/features` and
