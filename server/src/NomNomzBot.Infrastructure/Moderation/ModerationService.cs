@@ -480,52 +480,32 @@ public class ModerationService : IModerationService
 
         foreach (Record rule in rules)
         {
-            ModerationRuleData data =
-                JsonSerializer.Deserialize<ModerationRuleData>(rule.Data)
-                ?? new ModerationRuleData();
+            // A single corrupt/legacy row (unparseable JSON, or a setting stored in an unexpected shape) must
+            // degrade to that filter's default — never bubble an exception up as an unhandled 500 for the whole
+            // config read. This endpoint reads only persisted rows (no Helix), so the sole failure mode is bad
+            // stored data; the safe accessors below fold every such case back to the default.
+            ModerationRuleData? data = TryDeserializeRule(rule, tenantId);
+            if (data is null)
+                continue;
+
+            Dictionary<string, object?> settings = data.Settings ?? new();
 
             switch (data.Type)
             {
                 case "link_filter":
-                    List<string> whitelist =
-                        data.Settings.TryGetValue("whitelist", out object? wl)
-                        && wl is JsonElement wlEl
-                            ? wlEl.EnumerateArray()
-                                .Select(e => e.GetString() ?? "")
-                                .Where(s => s != "")
-                                .ToList()
-                            : [];
-                    linkFilter = new(data.IsEnabled, whitelist);
+                    linkFilter = new(data.IsEnabled, ReadStringList(settings, "whitelist"));
                     break;
 
                 case "caps_filter":
-                    int threshold =
-                        data.Settings.TryGetValue("threshold", out object? thr)
-                        && thr is JsonElement thrEl
-                            ? thrEl.GetInt32()
-                            : 70;
-                    capsFilter = new(data.IsEnabled, threshold);
+                    capsFilter = new(data.IsEnabled, ReadInt(settings, "threshold", 70));
                     break;
 
                 case "banned_phrases":
-                    List<string> phrases =
-                        data.Settings.TryGetValue("phrases", out object? ph)
-                        && ph is JsonElement phEl
-                            ? phEl.EnumerateArray()
-                                .Select(e => e.GetString() ?? "")
-                                .Where(s => s != "")
-                                .ToList()
-                            : [];
-                    bannedPhrases = new(data.IsEnabled, phrases);
+                    bannedPhrases = new(data.IsEnabled, ReadStringList(settings, "phrases"));
                     break;
 
                 case "emote_spam":
-                    int maxEmotes =
-                        data.Settings.TryGetValue("maxEmotes", out object? me)
-                        && me is JsonElement meEl
-                            ? meEl.GetInt32()
-                            : 10;
-                    emoteSpam = new(data.IsEnabled, maxEmotes);
+                    emoteSpam = new(data.IsEnabled, ReadInt(settings, "maxEmotes", 10));
                     break;
             }
         }
@@ -534,6 +514,57 @@ public class ModerationService : IModerationService
             new AutomodConfigDto(linkFilter, capsFilter, bannedPhrases, emoteSpam)
         );
     }
+
+    /// <summary>
+    /// Deserializes one persisted automod rule, returning <c>null</c> (and logging a warning) instead of throwing
+    /// when the stored data is not valid JSON. Keeps <see cref="GetAutomodConfigAsync"/> resilient to a single
+    /// corrupt row rather than failing the whole read.
+    /// </summary>
+    private ModerationRuleData? TryDeserializeRule(Record rule, Guid tenantId)
+    {
+        try
+        {
+            return JsonSerializer.Deserialize<ModerationRuleData>(rule.Data)
+                ?? new ModerationRuleData();
+        }
+        catch (JsonException ex)
+        {
+            _logger.LogWarning(
+                ex,
+                "Skipping automod rule {RecordId} for channel {Channel}: stored data is not valid JSON.",
+                rule.Id,
+                tenantId
+            );
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Reads an <see cref="int"/> setting, falling back to <paramref name="fallback"/> when the key is missing or
+    /// the stored value is not a JSON number that fits an <see cref="int"/> (e.g. a string, a decimal, or overflow).
+    /// </summary>
+    private static int ReadInt(Dictionary<string, object?> settings, string key, int fallback) =>
+        settings.TryGetValue(key, out object? value)
+        && value is JsonElement el
+        && el.ValueKind == JsonValueKind.Number
+        && el.TryGetInt32(out int parsed)
+            ? parsed
+            : fallback;
+
+    /// <summary>
+    /// Reads a list-of-strings setting, falling back to an empty list when the key is missing or the stored value
+    /// is not a JSON array; non-string array elements are skipped.
+    /// </summary>
+    private static List<string> ReadStringList(Dictionary<string, object?> settings, string key) =>
+        settings.TryGetValue(key, out object? value)
+        && value is JsonElement el
+        && el.ValueKind == JsonValueKind.Array
+            ? el.EnumerateArray()
+                .Where(e => e.ValueKind == JsonValueKind.String)
+                .Select(e => e.GetString() ?? "")
+                .Where(s => s != "")
+                .ToList()
+            : [];
 
     public async Task<Result<AutomodConfigDto>> SaveAutomodConfigAsync(
         string broadcasterId,
