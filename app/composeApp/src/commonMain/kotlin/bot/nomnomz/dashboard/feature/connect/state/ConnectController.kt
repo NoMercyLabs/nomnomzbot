@@ -172,19 +172,34 @@ class ConnectController(
     }
 
     /**
-     * Re-authorize Twitch for the ALREADY-signed-in operator WITHOUT a logout — the dead-token recovery (a
-     * reconnect prompt, not a re-onboard). Runs the same device-code flow against the current backend and, on
-     * approval, re-vaults a fresh token + refreshes the session in place ([establishSession]). A failed or
-     * declined attempt KEEPS the existing session intact (unlike onboarding, which rolls back). Reuses [status]
-     * so a reconnect dialog renders the user code + poll state exactly like the Connect screen. On self-host the
-     * bot falls back to the streamer token, so this restores chat send + read once the fresh token is vaulted.
+     * Re-authorize Twitch for the ALREADY-signed-in operator WITHOUT a logout — the dead-token recovery, not a
+     * re-onboard. The broadcaster's re-auth is the REDIRECT (Authorization Code) flow, exactly like login: a
+     * tap → Twitch → redirect-back that re-vaults a fresh token carrying the full streamer scope set in place,
+     * with no code to type. On web the page navigates to Twitch and the session re-establishes on return
+     * (readReturnedSession → [completeWithSession] on boot); on desktop the loopback resolves with the fresh
+     * tokens and [runStreamerOAuth] re-establishes in place. The redirect needs a client secret to exchange the
+     * code, so ONLY the secret-less shared public client (which can't mint a refresh token any other way) falls
+     * back to the Device Code Flow. A failed or declined attempt KEEPS the existing session intact (unlike
+     * onboarding, which rolls back). On self-host the bot falls back to the streamer token, so this restores
+     * chat send + read once the fresh token is vaulted.
      */
     suspend fun reconnect() {
         if (loginInProgress()) return
         val profile: ConnectionProfile =
             sessionStore.activeProfile.value ?: servedOriginProfile() ?: return
         _status.value = ConnectStatus.Connecting
-        runDeviceLogin(profile, keepSession = true)
+
+        // Broadcaster re-auth = the redirect flow (never a device-code banner) whenever a client secret is
+        // configured; only the secret-less public client falls back to device. A failed probe surfaces an
+        // error but KEEPS the session — this is a reconnect, not an onboard.
+        when (val statusResult: ApiResult<SystemStatus> = systemApi.status()) {
+            is ApiResult.Failure ->
+                _status.value = ConnectStatus.Error(ConnectError.Auth(statusResult.error.message))
+
+            is ApiResult.Ok ->
+                if (statusResult.value.checks.twitchApp.ok) runStreamerOAuth(profile)
+                else runDeviceLogin(profile, keepSession = true)
+        }
     }
 
     /** Return the status to Idle so the reconnect bar hides when the operator dismisses it (cancel the job separately). */

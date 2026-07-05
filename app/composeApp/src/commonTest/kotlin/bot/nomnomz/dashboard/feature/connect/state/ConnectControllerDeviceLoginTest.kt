@@ -258,6 +258,67 @@ class ConnectControllerDeviceLoginTest {
         assertEquals("acc", session.accessToken())
     }
 
+    // ── Reconnect: broadcaster re-auth uses the redirect flow, never a device banner ──
+
+    @Test
+    fun reconnect_uses_the_redirect_flow_for_the_broadcaster_when_a_secret_is_configured() = runTest {
+        // The dead-token recovery for a signed-in operator: with a client secret present it MUST re-auth via the
+        // redirect (Authorization Code) flow — a tap → Twitch → redirect-back — not a device-code banner.
+        val launcher =
+            FakeConnectLauncher(
+                streamerResult =
+                    ApiResult.Ok(SessionTokens(accessToken = "fresh-acc", refreshToken = "fresh-ref")),
+            )
+        val controller =
+            controller(
+                FakeSystemApi(ready = true, twitchConfigured = true),
+                FakeAuthApi(meResults = listOf(ApiResult.Ok(CurrentUser("u1", "eagle", "Eagle")))),
+                connectLauncher = launcher,
+            )
+        // Seed an already-signed-in session — reconnect re-auths in place, it does not onboard.
+        val session: SessionStore = sessionOf(controller)
+        session.connect(rememberedProfile, SessionTokens(accessToken = "dead-acc", refreshToken = "dead-ref"))
+
+        controller.reconnect()
+
+        // The redirect launcher ran (no device-code banner) and re-vaulted the fresh token in place.
+        assertEquals(true, launcher.authorizeStreamerCalled)
+        assertEquals(SessionPhase.Connected, session.phase.value)
+        assertEquals("fresh-acc", session.accessToken())
+    }
+
+    @Test
+    fun reconnect_falls_back_to_device_flow_only_when_no_secret_is_configured() = runTest {
+        // The secret-less shared public client can't exchange a redirect code, so its ONLY way to mint a fresh
+        // refresh token is the Device Code Flow — the one place a broadcaster re-auth still shows a user code.
+        val launcher = FakeConnectLauncher()
+        val authApi =
+            FakeAuthApi(
+                poll =
+                    ApiResult.Ok(
+                        DeviceLoginPoll(
+                            "authorized",
+                            AuthPayload(accessToken = "dev-acc", refreshToken = "dev-ref"),
+                        )
+                    ),
+                meResults = listOf(ApiResult.Ok(CurrentUser("u1", "eagle", "Eagle"))),
+            )
+        val controller =
+            controller(
+                FakeSystemApi(ready = true, twitchConfigured = false),
+                authApi,
+                connectLauncher = launcher,
+            )
+        val session: SessionStore = sessionOf(controller)
+        session.connect(rememberedProfile, SessionTokens(accessToken = "dead-acc", refreshToken = "dead-ref"))
+
+        controller.reconnect()
+
+        assertEquals(false, launcher.authorizeStreamerCalled) // redirect NOT used — no secret
+        assertEquals(SessionPhase.Connected, session.phase.value)
+        assertEquals("dev-acc", session.accessToken())
+    }
+
     // ── Remembered tier (restore-on-boot) ─────────────────────────────────────
 
     private val rememberedProfile =
