@@ -680,13 +680,14 @@ public interface IMusicProviderManageApi
 
     Task<Result<IReadOnlyList<bool>>> AreTracksSavedAsync(
         Guid broadcasterId, string provider, IReadOnlyList<string> trackUris, CancellationToken cancellationToken = default);
-    // Positional contains-check. Spotify: the live saved/library contains endpoint (live-verify at build time — the old
-    // /me/tracks/contains vs the new library form); YouTube: videos.getRating per id.
+    // Positional contains-check. Spotify: GET /me/tracks/contains (live-verified 2026-07-05, user-library-read);
+    // YouTube: videos.getRating per id.
 
     Task<Result<IReadOnlyList<MusicFollowDto>>> GetFollowedAsync(
         Guid broadcasterId, string provider, MusicFollowTarget target, int limit = 50, CancellationToken cancellationToken = default);
-    // Spotify: GET /me/following?type=artist (artists; playlist follows are library items → GET /me/library filtered);
-    // YouTube: subscriptions.list (channel → Subscriptions capability). MusicFollowDto = (TargetId, Name, ImageUrl?).
+    // Spotify: artists → GET /me/following?type=artist; playlists → GET /me/playlists (owned+followed — Spotify has
+    // NO dedicated followed-playlists read, live-verified 2026-07-05). YouTube: subscriptions.list (channel →
+    // Subscriptions capability). MusicFollowDto = (TargetId, Name, ImageUrl?).
 }
 ```
 

@@ -291,6 +291,88 @@ public sealed class MusicProviderManageApi : IMusicProviderManageApi
         );
     }
 
+    public async Task<Result<IReadOnlyList<TrackInfo>>> GetSavedTracksAsync(
+        Guid broadcasterId,
+        string provider,
+        int limit = 50,
+        int offset = 0,
+        CancellationToken cancellationToken = default
+    )
+    {
+        Result<IMusicProviderManageApi> manage = ResolveManageSurface(
+            provider,
+            MusicProviderCapabilities.Library
+        );
+        if (manage.IsFailure)
+            return Result.Failure<IReadOnlyList<TrackInfo>>(
+                manage.ErrorMessage,
+                manage.ErrorCode,
+                manage.ErrorDetail
+            );
+
+        return await manage.Value.GetSavedTracksAsync(
+            broadcasterId,
+            provider,
+            limit,
+            offset,
+            cancellationToken
+        );
+    }
+
+    public async Task<Result<IReadOnlyList<bool>>> AreTracksSavedAsync(
+        Guid broadcasterId,
+        string provider,
+        IReadOnlyList<string> trackUris,
+        CancellationToken cancellationToken = default
+    )
+    {
+        Result<IMusicProviderManageApi> manage = ResolveManageSurface(
+            provider,
+            MusicProviderCapabilities.Library
+        );
+        if (manage.IsFailure)
+            return Result.Failure<IReadOnlyList<bool>>(
+                manage.ErrorMessage,
+                manage.ErrorCode,
+                manage.ErrorDetail
+            );
+
+        return await manage.Value.AreTracksSavedAsync(
+            broadcasterId,
+            provider,
+            trackUris,
+            cancellationToken
+        );
+    }
+
+    public async Task<Result<IReadOnlyList<MusicFollowDto>>> GetFollowedAsync(
+        Guid broadcasterId,
+        string provider,
+        MusicFollowTarget target,
+        int limit = 50,
+        CancellationToken cancellationToken = default
+    )
+    {
+        Result<IMusicProviderManageApi> manage = ResolveManageSurface(
+            provider,
+            FollowCapability(target)
+        );
+        if (manage.IsFailure)
+            return Result.Failure<IReadOnlyList<MusicFollowDto>>(
+                manage.ErrorMessage,
+                manage.ErrorCode,
+                manage.ErrorDetail
+            );
+
+        return await manage.Value.GetFollowedAsync(
+            broadcasterId,
+            provider,
+            target,
+            limit,
+            cancellationToken
+        );
+    }
+
     // ─── Gating ──────────────────────────────────────────────────────────────
 
     /// <summary>Channel follows are provider subscriptions; artist/playlist follows are library writes (§3.10).</summary>

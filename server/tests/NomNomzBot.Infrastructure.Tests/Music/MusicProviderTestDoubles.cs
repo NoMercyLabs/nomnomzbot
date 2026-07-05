@@ -10,8 +10,10 @@
 
 using System.Net;
 using System.Text;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
+using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Infrastructure.Music;
 
@@ -94,15 +96,19 @@ internal sealed class RecordingHttpHandler : HttpMessageHandler
 }
 
 /// <summary>
-/// Builds a real <see cref="YouTubeMusicProvider"/> over the shared test HTTP handler and an in-memory
-/// <c>YouTube:ApiKey</c> — mirrors the runtime DI shape (named HttpClient + IConfiguration). A null
-/// <paramref name="apiKey"/> leaves the provider unconfigured (search/resolve degrade to empty/null).
+/// Builds a real <see cref="YouTubeMusicProvider"/> over the shared test HTTP handler, an in-memory
+/// <c>YouTube:ApiKey</c>, and a vault-backing <see cref="IApplicationDbContext"/> — mirrors the runtime
+/// DI shape (named HttpClient + IConfiguration + db + token protector). A null <paramref name="apiKey"/>
+/// leaves the provider unconfigured (search/resolve degrade to empty/null); pass a <paramref name="db"/>
+/// holding a connected "youtube" <c>Service</c> to exercise the §3.10 manage surface (else an empty db =
+/// the unconnected/<c>MISSING_SCOPE</c> path).
 /// </summary>
 internal static class YouTubeProviderFactory
 {
     public static YouTubeMusicProvider Create(
         string? apiKey = null,
-        HttpMessageHandler? handler = null
+        HttpMessageHandler? handler = null,
+        IApplicationDbContext? db = null
     )
     {
         IConfiguration configuration = new ConfigurationBuilder()
@@ -111,9 +117,20 @@ internal static class YouTubeProviderFactory
 
         SingleHandlerClientFactory factory = new(handler ?? new RecordingHttpHandler());
 
+        IApplicationDbContext database =
+            db
+            ?? new MusicTestDbContext(
+                new DbContextOptionsBuilder<MusicTestDbContext>()
+                    .UseInMemoryDatabase(Guid.NewGuid().ToString())
+                    .Options
+            );
+
         return new YouTubeMusicProvider(
             factory,
             configuration,
+            database,
+            new PassthroughProtector(),
+            TimeProvider.System,
             NullLogger<YouTubeMusicProvider>.Instance
         );
     }

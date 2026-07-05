@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Domain.Music.Interfaces;
 
 namespace NomNomzBot.Application.Contracts.Music;
 
@@ -122,6 +123,46 @@ public interface IMusicProviderManageApi
         string provider,
         MusicFollowTarget target,
         string targetId,
+        CancellationToken cancellationToken = default
+    );
+
+    // ── Library reads (capability: Library; channel-follow list: Subscriptions) ─
+    // Added 2026-07-05 — the write surface needs its reads to reflect current state.
+
+    /// <summary>
+    /// Lists the user's saved tracks. Spotify: GET /me/tracks (the read stays live even though its
+    /// writes are deprecated); YouTube: the liked-videos list (videos.list?myRating=like). Paged.
+    /// </summary>
+    Task<Result<IReadOnlyList<TrackInfo>>> GetSavedTracksAsync(
+        Guid broadcasterId,
+        string provider,
+        int limit = 50,
+        int offset = 0,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>
+    /// Positional "is each track saved?" check — the result is index-aligned with
+    /// <paramref name="trackUris"/>. Spotify: GET /me/tracks/contains?ids=; YouTube: videos.getRating
+    /// per id (saved ≙ rating "like").
+    /// </summary>
+    Task<Result<IReadOnlyList<bool>>> AreTracksSavedAsync(
+        Guid broadcasterId,
+        string provider,
+        IReadOnlyList<string> trackUris,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>
+    /// Lists what the user follows for the given <paramref name="target"/> kind. Spotify:
+    /// GET /me/following?type=artist (artists) / GET /me/playlists (followed playlists); YouTube:
+    /// subscriptions.list (channels → <c>Subscriptions</c> capability). Maps to <see cref="MusicFollowDto"/>.
+    /// </summary>
+    Task<Result<IReadOnlyList<MusicFollowDto>>> GetFollowedAsync(
+        Guid broadcasterId,
+        string provider,
+        MusicFollowTarget target,
+        int limit = 50,
         CancellationToken cancellationToken = default
     );
 }

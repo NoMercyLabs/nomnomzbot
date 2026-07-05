@@ -39,6 +39,11 @@ namespace NomNomzBot.Infrastructure.Music;
 /// - Library writes ride PUT/DELETE /me/library?uris= (replaces /me/tracks writes,
 ///   follow/unfollow-playlist, and follow/unfollow-user); artist follows still ride the
 ///   deprecated-but-documented /me/following?type=artist (its replacement takes no artist URIs)
+/// - Library READS stay on the original endpoints (only the writes moved): GET /me/tracks
+///   (saved tracks, scope user-library-read), GET /me/tracks/contains?ids= (positional saved-check,
+///   max 50 ids), GET /me/following?type=artist (followed artists, scope user-follow-read). Spotify
+///   has NO dedicated followed-playlists endpoint — GET /me/playlists returns owned + followed, so a
+///   playlist-target follow list reads from there.
 /// </summary>
 public sealed class SpotifyMusicProvider
     : IMusicProvider,
@@ -50,6 +55,8 @@ public sealed class SpotifyMusicProvider
     private const string ProviderName = "spotify";
     private const string PremiumCapabilityKey = "spotify.premium";
     private const int LibraryUrisPerRequest = 40; // /me/library hard cap per live reference
+    private const int ContainsIdsPerRequest = 50; // GET /me/tracks/contains hard cap per live reference
+    private const int SavedTracksPerPage = 50; // GET /me/tracks limit hard cap per live reference
 
     private readonly IApplicationDbContext _db;
     private readonly ITokenProtector _tokenProtector;
@@ -868,6 +875,181 @@ public sealed class SpotifyMusicProvider
         return Result.Success();
     }
 
+    // ─── IMusicProviderManageApi reads (§3.10 — added 2026-07-05) ────────────
+
+    public async Task<Result<IReadOnlyList<TrackInfo>>> GetSavedTracksAsync(
+        Guid broadcasterId,
+        string provider,
+        int limit = 50,
+        int offset = 0,
+        CancellationToken cancellationToken = default
+    )
+    {
+        string? token = await GetTokenAsync(broadcasterId, cancellationToken);
+        if (token is null)
+            return NotConnected<IReadOnlyList<TrackInfo>>();
+
+        int cappedLimit = Math.Clamp(limit, 1, SavedTracksPerPage);
+        int safeOffset = Math.Max(offset, 0);
+        string url = $"{SpotifyApiBase}/me/tracks?limit={cappedLimit}&offset={safeOffset}";
+
+        HttpResponseMessage? response = await SendAsync(
+            HttpMethod.Get,
+            url,
+            token,
+            cancellationToken
+        );
+        if (response is null)
+            return Unavailable<IReadOnlyList<TrackInfo>>();
+        if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
+            return MissingScope<IReadOnlyList<TrackInfo>>();
+        if (!response.IsSuccessStatusCode)
+            return Unavailable<IReadOnlyList<TrackInfo>>();
+
+        SpotifyPaging<SpotifySavedTrack>? page = await response.Content.ReadFromJsonAsync<
+            SpotifyPaging<SpotifySavedTrack>
+        >(cancellationToken: cancellationToken);
+        if (page?.Items is null)
+            return Unavailable<IReadOnlyList<TrackInfo>>();
+
+        IReadOnlyList<TrackInfo> tracks = page
+            .Items.Where(item => item.Track is not null)
+            .Select(item => MapToTrackInfo(item.Track!))
+            .ToList()
+            .AsReadOnly();
+
+        return Result.Success(tracks);
+    }
+
+    public async Task<Result<IReadOnlyList<bool>>> AreTracksSavedAsync(
+        Guid broadcasterId,
+        string provider,
+        IReadOnlyList<string> trackUris,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (trackUris.Count == 0)
+            return Result.Success<IReadOnlyList<bool>>([]);
+
+        string? token = await GetTokenAsync(broadcasterId, cancellationToken);
+        if (token is null)
+            return NotConnected<IReadOnlyList<bool>>();
+
+        // The contains endpoint takes BARE ids (not URIs), positional, max 50 per call.
+        List<bool> flags = [];
+        for (int offset = 0; offset < trackUris.Count; offset += ContainsIdsPerRequest)
+        {
+            List<string> chunk = trackUris
+                .Skip(offset)
+                .Take(ContainsIdsPerRequest)
+                .Select(uri => ExtractId(uri, "track") ?? uri)
+                .ToList();
+            string url =
+                $"{SpotifyApiBase}/me/tracks/contains?ids={Uri.EscapeDataString(string.Join(",", chunk))}";
+
+            HttpResponseMessage? response = await SendAsync(
+                HttpMethod.Get,
+                url,
+                token,
+                cancellationToken
+            );
+            if (response is null)
+                return Unavailable<IReadOnlyList<bool>>();
+            if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
+                return MissingScope<IReadOnlyList<bool>>();
+            if (!response.IsSuccessStatusCode)
+                return Unavailable<IReadOnlyList<bool>>();
+
+            List<bool>? chunkFlags = await response.Content.ReadFromJsonAsync<List<bool>>(
+                cancellationToken: cancellationToken
+            );
+            if (chunkFlags is null)
+                return Unavailable<IReadOnlyList<bool>>();
+
+            flags.AddRange(chunkFlags);
+        }
+
+        return Result.Success<IReadOnlyList<bool>>(flags.AsReadOnly());
+    }
+
+    public async Task<Result<IReadOnlyList<MusicFollowDto>>> GetFollowedAsync(
+        Guid broadcasterId,
+        string provider,
+        MusicFollowTarget target,
+        int limit = 50,
+        CancellationToken cancellationToken = default
+    )
+    {
+        // Channel-follow lists gate on Subscriptions (absent for Spotify) at the front and never
+        // reach here; a Channel target arriving here fails closed defensively.
+        if (target == MusicFollowTarget.Channel)
+            return Result.Failure<IReadOnlyList<MusicFollowDto>>(
+                "Spotify has no channel subscriptions.",
+                "CAPABILITY_UNSUPPORTED"
+            );
+
+        string? token = await GetTokenAsync(broadcasterId, cancellationToken);
+        if (token is null)
+            return NotConnected<IReadOnlyList<MusicFollowDto>>();
+
+        int cappedLimit = Math.Clamp(limit, 1, 50);
+
+        // Spotify has no dedicated followed-playlists endpoint; GET /me/playlists returns owned +
+        // followed, so a playlist-target follow list reads from there.
+        if (target == MusicFollowTarget.Playlist)
+        {
+            (HttpStatusCode? status, SpotifyPaging<SpotifyPlaylist>? page) =
+                await FetchPlaylistsPageAsync(token, 0, cappedLimit, cancellationToken);
+            if (status is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
+                return MissingScope<IReadOnlyList<MusicFollowDto>>();
+            if (page?.Items is null)
+                return Unavailable<IReadOnlyList<MusicFollowDto>>();
+
+            IReadOnlyList<MusicFollowDto> playlists = page
+                .Items.Select(p => new MusicFollowDto(
+                    p.Id,
+                    p.Name,
+                    p.Images?.FirstOrDefault()?.Url
+                ))
+                .ToList()
+                .AsReadOnly();
+            return Result.Success(playlists);
+        }
+
+        // Artist: the followed-artists read stays on /me/following?type=artist (scope user-follow-read).
+        string url = $"{SpotifyApiBase}/me/following?type=artist&limit={cappedLimit}";
+        HttpResponseMessage? artistResponse = await SendAsync(
+            HttpMethod.Get,
+            url,
+            token,
+            cancellationToken
+        );
+        if (artistResponse is null)
+            return Unavailable<IReadOnlyList<MusicFollowDto>>();
+        if (artistResponse.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
+            return MissingScope<IReadOnlyList<MusicFollowDto>>();
+        if (!artistResponse.IsSuccessStatusCode)
+            return Unavailable<IReadOnlyList<MusicFollowDto>>();
+
+        SpotifyFollowingResponse? json =
+            await artistResponse.Content.ReadFromJsonAsync<SpotifyFollowingResponse>(
+                cancellationToken: cancellationToken
+            );
+        if (json?.Artists?.Items is null)
+            return Unavailable<IReadOnlyList<MusicFollowDto>>();
+
+        IReadOnlyList<MusicFollowDto> artists = json
+            .Artists.Items.Select(a => new MusicFollowDto(
+                a.Id,
+                a.Name,
+                a.Images?.FirstOrDefault()?.Url
+            ))
+            .ToList()
+            .AsReadOnly();
+
+        return Result.Success(artists);
+    }
+
     // ─── Manage failure mapping ──────────────────────────────────────────────
 
     private static Result<T> NotConnected<T>() =>
@@ -1475,5 +1657,36 @@ public sealed class SpotifyMusicProvider
     {
         [JsonPropertyName("total")]
         public int Total { get; set; }
+    }
+
+    private sealed class SpotifySavedTrack
+    {
+        // GET /me/tracks wraps each item as { added_at, track: {…} } — only the track is mapped.
+        [JsonPropertyName("track")]
+        public SpotifyTrack? Track { get; set; }
+    }
+
+    private sealed class SpotifyFollowingResponse
+    {
+        [JsonPropertyName("artists")]
+        public SpotifyFollowingArtists? Artists { get; set; }
+    }
+
+    private sealed class SpotifyFollowingArtists
+    {
+        [JsonPropertyName("items")]
+        public List<SpotifyArtistSummary>? Items { get; set; }
+    }
+
+    private sealed class SpotifyArtistSummary
+    {
+        [JsonPropertyName("id")]
+        public string Id { get; set; } = null!;
+
+        [JsonPropertyName("name")]
+        public string Name { get; set; } = null!;
+
+        [JsonPropertyName("images")]
+        public List<SpotifyImage>? Images { get; set; }
     }
 }

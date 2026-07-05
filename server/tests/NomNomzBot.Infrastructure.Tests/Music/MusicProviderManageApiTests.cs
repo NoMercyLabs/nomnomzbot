@@ -36,19 +36,28 @@ public sealed class MusicProviderManageApiTests
     [Fact]
     public async Task Unsupported_member_fails_with_CAPABILITY_UNSUPPORTED_and_never_throws()
     {
-        (MusicProviderManageApi api, _, _) = Build(connectSpotify: true);
+        // YouTube has no artist-follow analogue (channels only). A Channel-target follow gates on
+        // Subscriptions and an artist-target follow gates on Library (both declared) so the FRONT
+        // passes — the provider itself then fails closed with CAPABILITY_UNSUPPORTED, never a throw.
+        (MusicProviderManageApi api, _, RecordingHttpHandler handler) = Build(connectSpotify: true);
 
         Func<Task<Result>> act = () =>
-            api.RateTrackAsync(ChannelId, "youtube", "youtube:video:dQw4w9WgXcQ", MusicRating.Like);
+            api.FollowAsync(ChannelId, "youtube", MusicFollowTarget.Artist, "some-artist");
 
         Result result = (await act.Should().NotThrowAsync()).Subject;
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be("CAPABILITY_UNSUPPORTED");
+        handler
+            .RequestUrls.Should()
+            .BeEmpty("an unsupported target must never reach a provider API");
     }
 
     [Fact]
-    public async Task YouTube_playlist_listing_is_gated_until_its_manage_slice_lands()
+    public async Task YouTube_playlist_listing_now_flips_past_the_front_and_needs_a_connection()
     {
+        // The YouTube manage slice landed: Playlists is now declared, so the front no longer returns
+        // CAPABILITY_UNSUPPORTED — the call reaches the provider, which (with no youtube connection)
+        // fails MISSING_SCOPE. This proves the capability flip THROUGH the real gating front.
         (MusicProviderManageApi api, _, _) = Build(connectSpotify: true);
 
         Result<IReadOnlyList<MusicPlaylistDto>> result = await api.ListPlaylistsAsync(
@@ -57,7 +66,7 @@ public sealed class MusicProviderManageApiTests
         );
 
         result.IsFailure.Should().BeTrue();
-        result.ErrorCode.Should().Be("CAPABILITY_UNSUPPORTED");
+        result.ErrorCode.Should().Be("MISSING_SCOPE");
     }
 
     [Fact]

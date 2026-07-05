@@ -59,3 +59,10 @@ public enum MusicFollowTarget
     Artist,
     Playlist,
 }
+
+/// <summary>
+/// A follow relationship on the broadcaster's own provider account (music-sr.md §3.10): a followed
+/// artist or playlist (Spotify) or a subscribed channel (YouTube). <paramref name="TargetId"/> is the
+/// provider-native id (Spotify artist/playlist id, YouTube channel id).
+/// </summary>
+public sealed record MusicFollowDto(string TargetId, string Name, string? ImageUrl);
