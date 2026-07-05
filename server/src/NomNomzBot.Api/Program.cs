@@ -688,18 +688,22 @@ try
             // the public dashboard bundle.
             ServeUnknownFileTypes = true,
             DefaultContentType = "application/octet-stream",
-            // Prevent browsers from caching the Wasm entry point. The Kotlin/Wasm production build emits
-            // content-hashed filenames for large assets (.wasm) but the JS entry point (composeApp.js) keeps
-            // its name unchanged across builds, so without this header Chrome serves a stale cached copy even
-            // after the file has been updated — resulting in the old Wasm bundle loading instead of the new one.
+            // Make a plain reload ALWAYS serve the current build — no manual hard-refresh, ever. The Kotlin/Wasm
+            // entry point (composeApp.js) and index.html keep stable names across builds, so they are `no-store`
+            // (never cached, always re-fetched). Every OTHER asset — the large content-named `.wasm` modules, the
+            // `.cvr` i18n string tables, source maps — is `no-cache, must-revalidate`: the browser may store it but
+            // MUST revalidate against the ETag (which ASP.NET sets from mtime+length) before use. So a normal reload
+            // revalidates each asset → a 304 (tiny) when unchanged, fresh bytes when the deploy changed it. This
+            // closes the stale-Wasm hole: previously non-entry assets had no Cache-Control, so the browser
+            // heuristic-cached them and could run an old `.wasm` even after `composeApp.js` had refreshed.
             OnPrepareResponse = ctx =>
             {
                 bool isEntryPoint =
                     ctx.File.Name.Equals("composeApp.js", StringComparison.OrdinalIgnoreCase)
                     || ctx.File.Name.Equals("index.html", StringComparison.OrdinalIgnoreCase);
-                if (isEntryPoint)
-                    ctx.Context.Response.Headers.CacheControl =
-                        "no-store, no-cache, must-revalidate";
+                ctx.Context.Response.Headers.CacheControl = isEntryPoint
+                    ? "no-store, no-cache, must-revalidate"
+                    : "no-cache, must-revalidate";
             },
         }
     );
