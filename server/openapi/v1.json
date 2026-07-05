@@ -42863,9 +42863,25 @@
             "items": {
               "type": "string"
             }
+          },
+          "entitled": {
+            "type": "boolean",
+            "default": true
+          },
+          "entitlementReason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "requiredTier": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         },
-        "description": "The enablement status of a single channel feature."
+        "description": "The enablement status of a single channel feature. Two independent axes the client must not conflate:\r\nbool FeatureStatusDto.IsEnabled is the channel's OWN opt-in choice (row on, or the catalogue default), while\r\nbool FeatureStatusDto.Entitled is whether the channel's tier / deployment / platform flag even ALLOWS the feature. A\r\nfeature is actually usable iff `Entitled &amp;&amp; IsEnabled`; a not-entitled feature can still read\r\nopt-in ON (legacy state), so the dashboard shows \"Upgrade to unlock\" (see string? FeatureStatusDto.RequiredTier) rather\r\nthan a toggle. An ungated feature is always bool FeatureStatusDto.Entitled."
       },
       "FederationPeerDto": {
         "required": [

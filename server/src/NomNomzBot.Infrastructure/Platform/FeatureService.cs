@@ -10,6 +10,7 @@
 
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Abstractions.Platform;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Platform.Dtos;
 using NomNomzBot.Application.Platform.Services;
@@ -24,12 +25,19 @@ public class FeatureService : IFeatureService
     private readonly IApplicationDbContext _db;
     private readonly TimeProvider _timeProvider;
     private readonly IEventBus _eventBus;
+    private readonly IFeatureFlagService _featureFlags;
 
-    public FeatureService(IApplicationDbContext db, TimeProvider timeProvider, IEventBus eventBus)
+    public FeatureService(
+        IApplicationDbContext db,
+        TimeProvider timeProvider,
+        IEventBus eventBus,
+        IFeatureFlagService featureFlags
+    )
     {
         _db = db;
         _timeProvider = timeProvider;
         _eventBus = eventBus;
+        _featureFlags = featureFlags;
     }
 
     // The static catalogue of all opt-in channel features.
@@ -82,6 +90,16 @@ public class FeatureService : IFeatureService
             out (string Label, string Description, string[] Scopes, bool DefaultOn) meta
         ) && meta.DefaultOn;
 
+    /// <summary>
+    /// Maps a flag evaluation to the feature's entitlement axis. An ungated key (no <c>FeatureFlag</c> defined) is
+    /// always entitled — the catalogue's default is "allowed unless a platform flag restricts it", the opposite of
+    /// the flag system's fail-closed default for an unknown rollout key.
+    /// </summary>
+    private static (bool Entitled, string? Reason, string? RequiredTier) ToEntitlement(
+        FeatureFlagEvaluation eval
+    ) =>
+        !eval.Exists || eval.Enabled ? (true, null, null) : (false, eval.Reason, eval.RequiredTier);
+
     public async Task<Result<List<FeatureStatusDto>>> GetFeaturesAsync(
         string channelId,
         CancellationToken cancellationToken = default
@@ -97,24 +115,37 @@ public class FeatureService : IFeatureService
                 .ToListAsync(cancellationToken)
         ).ToDictionary(f => f.FeatureKey, StringComparer.Ordinal);
 
-        // Return every catalogue entry; fall back to the KEY'S OWN default (not blanket-disabled) when no row
-        // exists yet — a channel that has never touched "use_7tv" still reports it enabled, matching the
-        // decorator's own default-on behavior for third-party emotes.
-        List<FeatureStatusDto> features =
-        [
-            .. Catalogue.Select(entry =>
-            {
-                existing.TryGetValue(entry.Key, out ChannelFeature? row);
-                return new FeatureStatusDto(
+        // Compose the two axes for every catalogue entry: the channel's OWN opt-in state (its row, else the key's
+        // own default) AND the platform entitlement gate (tier / deployment / staged-rollout flag). "Visible" is
+        // never "entitled" — a not-entitled key still reports its opt-in state so the client can show "Upgrade to
+        // unlock" instead of a live toggle. Evaluated sequentially: the shared DbContext forbids concurrent EF
+        // queries, and the catalogue is tiny.
+        List<FeatureStatusDto> features = new(Catalogue.Count);
+        foreach (
+            KeyValuePair<
+                string,
+                (string Label, string Description, string[] Scopes, bool DefaultOn)
+            > entry in Catalogue
+        )
+        {
+            existing.TryGetValue(entry.Key, out ChannelFeature? row);
+            (bool entitled, string? reason, string? requiredTier) = ToEntitlement(
+                await _featureFlags.EvaluateAsync(entry.Key, broadcasterId, cancellationToken)
+            );
+            features.Add(
+                new FeatureStatusDto(
                     entry.Key,
                     entry.Value.Label,
                     entry.Value.Description,
                     row?.IsEnabled ?? entry.Value.DefaultOn,
                     row?.EnabledAt,
-                    row?.RequiredScopes ?? entry.Value.Scopes
-                );
-            }),
-        ];
+                    row?.RequiredScopes ?? entry.Value.Scopes,
+                    entitled,
+                    reason,
+                    requiredTier
+                )
+            );
+        }
 
         return Result.Success(features);
     }
@@ -152,6 +183,21 @@ public class FeatureService : IFeatureService
             cancellationToken
         );
 
+        // The flip's target state, computed from the row (or the key's own default when no row exists yet).
+        bool targetEnabled = !(feature?.IsEnabled ?? DefaultOnFor(featureKey));
+
+        // The entitlement gate is authoritative over opt-in: you cannot turn ON a feature the channel's tier /
+        // deployment / platform flag does not include. Turning OFF is always allowed (an over-privileged row can
+        // always be revoked — e.g. after a downgrade).
+        (bool entitled, string? reason, string? requiredTier) = ToEntitlement(
+            await _featureFlags.EvaluateAsync(featureKey, broadcasterId, cancellationToken)
+        );
+        if (targetEnabled && !entitled)
+            return Result.Failure<FeatureStatusDto>(
+                $"Feature '{featureKey}' is not available on the channel's current plan.",
+                "NOT_ENTITLED"
+            );
+
         if (feature is null)
         {
             // Seed a missing row at the key's own default (true for the emote-provider keys, false otherwise) —
@@ -167,7 +213,7 @@ public class FeatureService : IFeatureService
             _db.ChannelFeatures.Add(feature);
         }
 
-        feature.IsEnabled = !feature.IsEnabled;
+        feature.IsEnabled = targetEnabled;
         feature.EnabledAt = feature.IsEnabled ? _timeProvider.GetUtcNow().UtcDateTime : null;
 
         await _db.SaveChangesAsync(cancellationToken);
@@ -193,7 +239,10 @@ public class FeatureService : IFeatureService
                 meta.Description ?? string.Empty,
                 feature.IsEnabled,
                 feature.EnabledAt,
-                feature.RequiredScopes
+                feature.RequiredScopes,
+                entitled,
+                reason,
+                requiredTier
             )
         );
     }

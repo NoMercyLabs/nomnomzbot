@@ -16,6 +16,39 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
 
 ## Open
 
+### 2026-07-05 — Features endpoint now reports ENTITLEMENT, not just opt-in (gate the Features UI on it)
+- **From:** Stoney_Eagle (via Claude, backend track)
+- **What:** `FeatureStatusDto` (returned by `GET /api/v1/channels/{channelId}/features` and
+  `POST .../features/{featureKey}/toggle`) gained **three additive, nullable-safe** fields, appended after
+  `requiredScopes` (none added to the schema `required` array — all optional):
+  - `entitled: Boolean` (default `true`) — whether the channel's **tier / deployment / platform flag** actually
+    ALLOWS the feature. This is a **separate axis** from `isEnabled` (the channel's own opt-in choice). A feature
+    is only usable when `entitled && isEnabled`. Treat `isEnabled` alone as "the toggle position", never as "the
+    feature is available".
+  - `entitlementReason: String?` — set only when `entitled == false`; closed vocabulary:
+    `"REQUIRES_TIER"` (upgradable — pair with `requiredTier`), `"DEPLOYMENT"` (excluded on this deployment, e.g.
+    self-host vs saas — not upgradable), `"UNAVAILABLE"` (global off / not yet in rollout / admin override).
+  - `requiredTier: String?` — the minimum tier key to unlock, present only for `"REQUIRES_TIER"` (e.g. `"pro"`).
+- **How to gate the UI (mirror the role-gating pattern in `frontend-ia.md` §7):** when `entitled == false`,
+  **disable** the feature's toggle/entry with a reason tooltip rather than showing a live switch — for
+  `"REQUIRES_TIER"` show "Upgrade to {requiredTier} to unlock", for `"DEPLOYMENT"`/`"UNAVAILABLE"` show a generic
+  "Not available" tooltip. A page/button whose backing feature is not entitled should be hidden/disabled the same
+  way an out-of-role one is. `isEnabled` still reflects the stored opt-in (can read ON even when not entitled —
+  legacy state), so do **not** render it as an active switch when `entitled == false`.
+- **Toggle refusal:** `POST .../toggle` now **refuses to turn a non-entitled feature ON** — it returns
+  `403 Forbidden` with error code `NOT_ENTITLED`. Turning a feature **OFF is always allowed** (revoking after a
+  downgrade). Handle the 403 by keeping the toggle in its prior state and surfacing the upgrade/where-to path.
+- **Why:** the endpoint previously reported a feature as "enabled" purely from the opt-in row, so the dashboard
+  could show a working button for a feature the tier/deployment doesn't include (it would 403 on use, or the page
+  couldn't function). The gate (`IFeatureFlagService`: tier floor + deployment mode + staged rollout + tenant
+  override) is now composed into the DTO so the client can hide/disable those surfaces up front. Self-host
+  resolves every tier to unlimited, so `entitled` is always `true` there — no self-host UX change.
+- **Where:** re-sync the `FeatureStatusDto` mirror in KMP `core/network` from the refreshed
+  `server/openapi/v1.json` (schema `FeatureStatusDto`) and confirm `ApiContractTest` (`jvmTest`) passes. Kotlin
+  DTO adds `val entitled: Boolean = true, val entitlementReason: String? = null, val requiredTier: String? = null`.
+- **Done when:** the Features screen disables (not silently shows) non-entitled features with the correct
+  reason/upgrade tooltip, the toggle handles a `NOT_ENTITLED` 403 gracefully, and `ApiContractTest` is green.
+
 ### 2026-07-05 — Owned ids are now ULID strings on the wire (refresh openapi + confirm ApiContractTest)
 - **From:** Stoney_Eagle (via Claude, backend track)
 - **What:** every **owned** identifier is now encoded as a 26-char Crockford base32 **ULID string** at the API

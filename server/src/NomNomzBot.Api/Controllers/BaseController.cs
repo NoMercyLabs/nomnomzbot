@@ -111,6 +111,7 @@ public abstract class BaseController : ControllerBase
             ),
             "FORBIDDEN"
             or "FEATURE_DISABLED"
+            or "NOT_ENTITLED"
             or "SCOPE_MISSING"
             or "BILLING_LIMIT"
             or "JAR_MEMBERSHIP_REQUIRED"
@@ -154,6 +155,7 @@ public abstract class BaseController : ControllerBase
             ),
             "FORBIDDEN"
             or "FEATURE_DISABLED"
+            or "NOT_ENTITLED"
             or "SCOPE_MISSING"
             or "BILLING_LIMIT"
             or "JAR_MEMBERSHIP_REQUIRED"

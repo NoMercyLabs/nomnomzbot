@@ -55,16 +55,25 @@ public sealed class FeatureFlagService(
         if (cached is bool hit)
             return hit;
 
-        bool enabled = await EvaluateAsync(flagKey, broadcasterId, ct);
-        await cache.SetAsync(cacheKey, enabled, CacheTtl, ct);
-        return enabled;
+        FeatureFlagEvaluation eval = await EvaluateAsync(flagKey, broadcasterId, ct);
+        await cache.SetAsync(cacheKey, eval.Enabled, CacheTtl, ct);
+        return eval.Enabled;
     }
 
-    private async Task<bool> EvaluateAsync(string flagKey, Guid broadcasterId, CancellationToken ct)
+    public async Task<FeatureFlagEvaluation> EvaluateAsync(
+        string flagKey,
+        Guid broadcasterId,
+        CancellationToken ct = default
+    )
     {
         FeatureFlag? flag = await db.FeatureFlags.FirstOrDefaultAsync(f => f.Key == flagKey, ct);
         if (flag is null)
-            return false; // unknown flag — fail closed
+            return new FeatureFlagEvaluation(
+                Exists: false,
+                Enabled: false,
+                Reason: null,
+                RequiredTier: null
+            ); // no gate defined
 
         // 1. An unexpired per-tenant override is the highest-precedence input.
         DateTime now = clock.GetUtcNow().UtcDateTime;
@@ -73,25 +82,47 @@ public sealed class FeatureFlagService(
             ct
         );
         if (over is not null && (over.ExpiresAt is null || over.ExpiresAt > now))
-            return over.IsEnabled;
+            return over.IsEnabled
+                ? new FeatureFlagEvaluation(true, true, null, null)
+                : new FeatureFlagEvaluation(
+                    true,
+                    false,
+                    FeatureEntitlementReason.Unavailable,
+                    null
+                );
 
         // 2. Global toggle.
         if (!flag.IsEnabledGlobally)
-            return false;
+            return new FeatureFlagEvaluation(
+                true,
+                false,
+                FeatureEntitlementReason.Unavailable,
+                null
+            );
 
         // 3. Deterministic rollout-% bucket.
         if (
             flag.RolloutPercentage < 100
             && Bucket(broadcasterId, flagKey) >= flag.RolloutPercentage
         )
-            return false;
+            return new FeatureFlagEvaluation(
+                true,
+                false,
+                FeatureEntitlementReason.Unavailable,
+                null
+            );
 
         // 4. Deployment-mode gate.
         if (
             flag.DeploymentMode is not null
             && !await DeploymentModeMatchesAsync(flag, broadcasterId, ct)
         )
-            return false;
+            return new FeatureFlagEvaluation(
+                true,
+                false,
+                FeatureEntitlementReason.Deployment,
+                null
+            );
 
         // 5. Tier floor — the tenant's active tier must rank at or above the flag's minimum (fail closed).
         if (flag.MinTierKey is not null)
@@ -102,10 +133,15 @@ public sealed class FeatureFlagService(
                 ct
             );
             if (atLeast.IsFailure || !atLeast.Value)
-                return false;
+                return new FeatureFlagEvaluation(
+                    true,
+                    false,
+                    FeatureEntitlementReason.RequiresTier,
+                    flag.MinTierKey
+                );
         }
 
-        return true;
+        return new FeatureFlagEvaluation(true, true, null, null);
     }
 
     private async Task<bool> EvaluateGlobalOnlyAsync(string flagKey, CancellationToken ct)

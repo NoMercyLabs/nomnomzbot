@@ -27,4 +27,16 @@ public interface IFeatureFlagService
         Guid broadcasterId,
         CancellationToken ct = default
     );
+
+    /// <summary>
+    /// Full evaluation for gating UIs: whether a flag is even DEFINED for the key, its effective enabled state,
+    /// and — when a defined flag is disabled — the blocking reason and the tier floor (for an upgrade prompt).
+    /// Callers that only need the boolean use <see cref="IsEnabledForAsync"/>; this is for surfaces that must
+    /// tell "no gate governs this" apart from "a gate blocks it", and explain WHY.
+    /// </summary>
+    Task<FeatureFlagEvaluation> EvaluateAsync(
+        string flagKey,
+        Guid broadcasterId,
+        CancellationToken ct = default
+    );
 }

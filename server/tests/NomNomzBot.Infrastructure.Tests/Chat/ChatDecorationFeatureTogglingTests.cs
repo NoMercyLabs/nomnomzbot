@@ -12,6 +12,7 @@ using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Caching;
+using NomNomzBot.Application.Abstractions.Platform;
 using NomNomzBot.Application.Chat.Decoration;
 using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Common.Models;
@@ -66,7 +67,7 @@ public sealed class ChatDecorationFeatureTogglingTests
 
         FeatureServiceTestDbContext db = FeatureServiceTestDbContext.New();
         EventBus eventBus = BuildEventBus(cache);
-        FeatureService features = new(db, TimeProvider.System, eventBus);
+        FeatureService features = new(db, TimeProvider.System, eventBus, UngatedFlags());
         ChatMessageDecorator decorator = new(
             EmoteChain(cache),
             features,
@@ -112,7 +113,12 @@ public sealed class ChatDecorationFeatureTogglingTests
         Guid channel = Guid.CreateVersion7();
         FakeCache cache = new();
         FeatureServiceTestDbContext db = FeatureServiceTestDbContext.New();
-        FeatureService features = new(db, TimeProvider.System, BuildEventBus(cache));
+        FeatureService features = new(
+            db,
+            TimeProvider.System,
+            BuildEventBus(cache),
+            UngatedFlags()
+        );
         ILinkPreviewService previews = Substitute.For<ILinkPreviewService>();
         ChatMessageDecorator decorator = new(
             [new ExplodeTextAdapter(), new LinkPreviewAdapter(previews), new ImplodeTextAdapter()],
@@ -150,7 +156,12 @@ public sealed class ChatDecorationFeatureTogglingTests
             }
         );
         await db.SaveChangesAsync();
-        FeatureService features = new(db, TimeProvider.System, BuildEventBus(cache));
+        FeatureService features = new(
+            db,
+            TimeProvider.System,
+            BuildEventBus(cache),
+            UngatedFlags()
+        );
 
         ILinkPreviewService previews = Substitute.For<ILinkPreviewService>();
         previews
@@ -175,6 +186,17 @@ public sealed class ChatDecorationFeatureTogglingTests
             .Which;
         link.LinkUrl.Should().Be("https://example.com");
         link.LinkPreview!.Title.Should().Be("Example");
+    }
+
+    // A feature-flag service under which NO catalogue key is gated — every EvaluateAsync reports "no flag defined",
+    // so the entitlement axis is always satisfied and these decoration tests exercise the opt-in path in isolation.
+    private static IFeatureFlagService UngatedFlags()
+    {
+        IFeatureFlagService flags = Substitute.For<IFeatureFlagService>();
+        flags
+            .EvaluateAsync(Arg.Any<string>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .Returns(new FeatureFlagEvaluation(false, false, null, null));
+        return flags;
     }
 
     // The real EventBus (Infrastructure.Platform.Eventing), wired with ONLY ChatDecorationRulesCacheInvalidator as
