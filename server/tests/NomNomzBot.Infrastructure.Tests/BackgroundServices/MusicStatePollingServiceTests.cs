@@ -14,6 +14,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Domain.Music.Events;
 using NomNomzBot.Domain.Music.Interfaces;
@@ -285,6 +286,12 @@ public sealed class MusicStatePollingServiceTests
             CancellationToken cancellationToken = default
         ) => throw new NotSupportedException();
 
+        public Task SetVolumeAsync(
+            Guid broadcasterId,
+            int volumePercent,
+            CancellationToken cancellationToken = default
+        ) => throw new NotSupportedException();
+
         public Task SeekAsync(
             Guid broadcasterId,
             int positionSeconds,
@@ -377,17 +384,22 @@ public sealed class MusicStatePollingServiceTests
             CancellationToken cancellationToken = default
         ) => throw new NotSupportedException();
 
-        public Task<bool> PlayAsync(
+        public Task<Result> PlayAsync(
             string broadcasterId,
             CancellationToken cancellationToken = default
         ) => throw new NotSupportedException();
 
-        public Task<bool> PauseAsync(
+        public Task<Result> PauseAsync(
             string broadcasterId,
             CancellationToken cancellationToken = default
         ) => throw new NotSupportedException();
 
-        public Task<bool> SkipAsync(
+        public Task<Result> SkipAsync(
+            string broadcasterId,
+            CancellationToken cancellationToken = default
+        ) => throw new NotSupportedException();
+
+        public Task<Result> PreviousAsync(
             string broadcasterId,
             CancellationToken cancellationToken = default
         ) => throw new NotSupportedException();
@@ -404,7 +416,7 @@ public sealed class MusicStatePollingServiceTests
             CancellationToken cancellationToken = default
         ) => throw new NotSupportedException();
 
-        public Task<bool> SetVolumeAsync(
+        public Task<Result> SetVolumeAsync(
             string broadcasterId,
             int volume,
             CancellationToken cancellationToken = default
@@ -416,25 +428,25 @@ public sealed class MusicStatePollingServiceTests
             CancellationToken cancellationToken = default
         ) => throw new NotSupportedException();
 
-        public Task<bool> SeekAsync(
+        public Task<Result> SeekAsync(
             string broadcasterId,
             int positionMs,
             CancellationToken cancellationToken = default
         ) => throw new NotSupportedException();
 
-        public Task<bool> SetShuffleAsync(
+        public Task<Result> SetShuffleAsync(
             string broadcasterId,
             bool enabled,
             CancellationToken cancellationToken = default
         ) => throw new NotSupportedException();
 
-        public Task<bool> SetRepeatAsync(
+        public Task<Result> SetRepeatAsync(
             string broadcasterId,
             string mode,
             CancellationToken cancellationToken = default
         ) => throw new NotSupportedException();
 
-        public Task<bool> TransferPlaybackAsync(
+        public Task<Result> TransferPlaybackAsync(
             string broadcasterId,
             string deviceId,
             bool play = false,

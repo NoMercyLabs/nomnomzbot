@@ -191,9 +191,9 @@ public class MusicController : BaseController
     [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> Skip(string channelId, CancellationToken ct)
     {
-        bool ok = await _musicService.SkipAsync(channelId, ct);
-        if (!ok)
-            return ServiceUnavailableResponse("No active music provider.");
+        Result result = await _musicService.SkipAsync(channelId, ct);
+        if (result.IsFailure)
+            return ResultResponse(result);
         return Ok(new StatusResponseDto<object> { Message = "Skipped to next track." });
     }
 
@@ -203,9 +203,9 @@ public class MusicController : BaseController
     [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> Pause(string channelId, CancellationToken ct)
     {
-        bool ok = await _musicService.PauseAsync(channelId, ct);
-        if (!ok)
-            return ServiceUnavailableResponse("No active music provider.");
+        Result result = await _musicService.PauseAsync(channelId, ct);
+        if (result.IsFailure)
+            return ResultResponse(result);
         return Ok(new StatusResponseDto<object> { Message = "Playback paused." });
     }
 
@@ -215,9 +215,9 @@ public class MusicController : BaseController
     [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> Resume(string channelId, CancellationToken ct)
     {
-        bool ok = await _musicService.PlayAsync(channelId, ct);
-        if (!ok)
-            return ServiceUnavailableResponse("No active music provider.");
+        Result result = await _musicService.PlayAsync(channelId, ct);
+        if (result.IsFailure)
+            return ResultResponse(result);
         return Ok(new StatusResponseDto<object> { Message = "Playback resumed." });
     }
 
@@ -234,10 +234,8 @@ public class MusicController : BaseController
         CancellationToken ct
     )
     {
-        bool ok = await _musicService.SeekAsync(channelId, dto.PositionMs, ct);
-        return ok
-            ? NoContent()
-            : ServiceUnavailableResponse("Seek not supported by active provider.");
+        Result result = await _musicService.SeekAsync(channelId, dto.PositionMs, ct);
+        return result.IsSuccess ? NoContent() : ResultResponse(result);
     }
 
     /// <summary>Turn shuffle mode on or off on the active music provider.</summary>
@@ -251,10 +249,8 @@ public class MusicController : BaseController
         CancellationToken ct
     )
     {
-        bool ok = await _musicService.SetShuffleAsync(channelId, dto.Enabled, ct);
-        return ok
-            ? NoContent()
-            : ServiceUnavailableResponse("Shuffle not supported by active provider.");
+        Result result = await _musicService.SetShuffleAsync(channelId, dto.Enabled, ct);
+        return result.IsSuccess ? NoContent() : ResultResponse(result);
     }
 
     /// <summary>Set the repeat mode on the active music provider.</summary>
@@ -268,10 +264,8 @@ public class MusicController : BaseController
         CancellationToken ct
     )
     {
-        bool ok = await _musicService.SetRepeatAsync(channelId, dto.Mode, ct);
-        return ok
-            ? NoContent()
-            : ServiceUnavailableResponse("Repeat not supported by active provider.");
+        Result result = await _musicService.SetRepeatAsync(channelId, dto.Mode, ct);
+        return result.IsSuccess ? NoContent() : ResultResponse(result);
     }
 
     /// <summary>List the playback devices available on the channel's active music provider.</summary>
@@ -297,10 +291,13 @@ public class MusicController : BaseController
         CancellationToken ct
     )
     {
-        bool ok = await _musicService.TransferPlaybackAsync(channelId, dto.DeviceId, dto.Play, ct);
-        return ok
-            ? NoContent()
-            : ServiceUnavailableResponse("Transfer not supported by active provider.");
+        Result result = await _musicService.TransferPlaybackAsync(
+            channelId,
+            dto.DeviceId,
+            dto.Play,
+            ct
+        );
+        return result.IsSuccess ? NoContent() : ResultResponse(result);
     }
 
     /// <summary>List the connected music account's playlists, paginated by offset and limit.</summary>

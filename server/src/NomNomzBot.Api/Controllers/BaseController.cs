@@ -118,7 +118,9 @@ public abstract class BaseController : ControllerBase
             or "GAMBLING_DISABLED"
             or "QUOTA_EXCEEDED"
             or "tier_limit_reached"
-            or "EGRESS_NOT_ALLOWED" => UnauthorizedResponse(result.ErrorMessage),
+            or "EGRESS_NOT_ALLOWED"
+            or "MISSING_SCOPE"
+            or "PREMIUM_REQUIRED" => UnauthorizedResponse(result.ErrorMessage),
             "NOT_FOUND" or "CHANNEL_NOT_FOUND" or "CHANNEL_NOT_ONBOARDED" or "QUOTES_EMPTY" =>
                 NotFoundResponse(result.ErrorMessage),
             "VALIDATION_FAILED" or "BET_OUT_OF_RANGE" or "TWITCH_NOT_CONFIGURED" =>
@@ -132,7 +134,8 @@ public abstract class BaseController : ControllerBase
             or "ON_COOLDOWN"
             or "PER_STREAM_LIMIT"
             or "JAR_NOT_OPEN"
-            or "JAR_CAP_EXCEEDED" => ConflictResponse(result.ErrorMessage),
+            or "JAR_CAP_EXCEEDED"
+            or "CAPABILITY_UNSUPPORTED" => ConflictResponse(result.ErrorMessage),
             "RATE_LIMITED" => TooManyRequestsResponse(result.ErrorMessage),
             "SERVICE_UNAVAILABLE" => ServiceUnavailableResponse(result.ErrorMessage),
             _ => InternalServerErrorResponse(result.ErrorMessage),
@@ -158,7 +161,9 @@ public abstract class BaseController : ControllerBase
             or "GAMBLING_DISABLED"
             or "QUOTA_EXCEEDED"
             or "tier_limit_reached"
-            or "EGRESS_NOT_ALLOWED" => UnauthorizedResponse(result.ErrorMessage),
+            or "EGRESS_NOT_ALLOWED"
+            or "MISSING_SCOPE"
+            or "PREMIUM_REQUIRED" => UnauthorizedResponse(result.ErrorMessage),
             "NOT_FOUND" or "CHANNEL_NOT_FOUND" or "CHANNEL_NOT_ONBOARDED" or "QUOTES_EMPTY" =>
                 NotFoundResponse(result.ErrorMessage),
             "VALIDATION_FAILED" or "BET_OUT_OF_RANGE" or "TWITCH_NOT_CONFIGURED" =>
@@ -172,7 +177,8 @@ public abstract class BaseController : ControllerBase
             or "ON_COOLDOWN"
             or "PER_STREAM_LIMIT"
             or "JAR_NOT_OPEN"
-            or "JAR_CAP_EXCEEDED" => ConflictResponse(result.ErrorMessage),
+            or "JAR_CAP_EXCEEDED"
+            or "CAPABILITY_UNSUPPORTED" => ConflictResponse(result.ErrorMessage),
             "RATE_LIMITED" => TooManyRequestsResponse(result.ErrorMessage),
             "SERVICE_UNAVAILABLE" => ServiceUnavailableResponse(result.ErrorMessage),
             _ => InternalServerErrorResponse(result.ErrorMessage),

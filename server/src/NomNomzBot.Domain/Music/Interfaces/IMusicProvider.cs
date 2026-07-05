@@ -105,6 +105,13 @@ public interface IMusicProvider
     /// <summary>Provider previous-track. Requires <see cref="MusicProviderCapabilities.Previous"/>.</summary>
     Task PreviousAsync(Guid broadcasterId, CancellationToken cancellationToken = default);
 
+    /// <summary>Sets the provider player volume (0–100). Requires <see cref="MusicProviderCapabilities.Volume"/>.</summary>
+    Task SetVolumeAsync(
+        Guid broadcasterId,
+        int volumePercent,
+        CancellationToken cancellationToken = default
+    );
+
     /// <summary>Seeks within the current track. Requires <see cref="MusicProviderCapabilities.Seek"/>.</summary>
     Task SeekAsync(
         Guid broadcasterId,

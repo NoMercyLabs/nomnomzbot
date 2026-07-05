@@ -10,6 +10,7 @@
 
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Pipeline;
+using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Domain.Chat.Interfaces;
 
@@ -41,9 +42,12 @@ public sealed class SongSkipAction : ICommandAction
         ActionDefinition action
     )
     {
-        bool skipped = await _music.SkipAsync(ctx.BroadcasterId.ToString(), ctx.CancellationToken);
-        if (!skipped)
-            return ActionResult.Failure("skip failed");
+        Result skipped = await _music.SkipAsync(
+            ctx.BroadcasterId.ToString(),
+            ctx.CancellationToken
+        );
+        if (skipped.IsFailure)
+            return ActionResult.Failure(skipped.ErrorMessage ?? "skip failed");
 
         await _chat.SendMessageAsync(
             ctx.BroadcasterId,

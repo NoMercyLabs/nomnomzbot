@@ -38,9 +38,9 @@ internal sealed class SingleHandlerClientFactory(HttpMessageHandler handler) : I
 }
 
 /// <summary>
-/// Records every request the Spotify provider sends (method + absolute URL) and answers from
-/// registered routes; anything unrouted gets a 404 so a test can prove an endpoint was NOT called
-/// with real consequences instead of silence.
+/// Records every request the Spotify provider sends (method + absolute URL, plus the JSON body when
+/// present) and answers from registered routes; anything unrouted gets a 404 so a test can prove an
+/// endpoint was NOT called with real consequences instead of silence.
 /// </summary>
 internal sealed class RecordingSpotifyHandler : HttpMessageHandler
 {
@@ -52,18 +52,26 @@ internal sealed class RecordingSpotifyHandler : HttpMessageHandler
 
     public List<string> RequestUrls { get; } = [];
 
+    /// <summary>Body per recorded request, index-aligned with <see cref="RequestUrls"/> ("" when none).</summary>
+    public List<string> RequestBodies { get; } = [];
+
     public void RespondWhen(
         Func<HttpRequestMessage, bool> matches,
         HttpStatusCode status,
         string? json = null
     ) => _routes.Add((matches, status, json));
 
-    protected override Task<HttpResponseMessage> SendAsync(
+    protected override async Task<HttpResponseMessage> SendAsync(
         HttpRequestMessage request,
         CancellationToken cancellationToken
     )
     {
         RequestUrls.Add($"{request.Method} {request.RequestUri}");
+        RequestBodies.Add(
+            request.Content is null
+                ? string.Empty
+                : await request.Content.ReadAsStringAsync(cancellationToken)
+        );
 
         foreach (
             (Func<HttpRequestMessage, bool> matches, HttpStatusCode status, string? json) in _routes
@@ -75,9 +83,9 @@ internal sealed class RecordingSpotifyHandler : HttpMessageHandler
             HttpResponseMessage response = new(status);
             if (json is not null)
                 response.Content = new StringContent(json, Encoding.UTF8, "application/json");
-            return Task.FromResult(response);
+            return response;
         }
 
-        return Task.FromResult(new HttpResponseMessage(HttpStatusCode.NotFound));
+        return new HttpResponseMessage(HttpStatusCode.NotFound);
     }
 }

@@ -357,6 +357,7 @@ public sealed class IntegrationOAuthServiceTests
             registry,
             vault,
             discord,
+            new InMemoryIntegrationCapabilityStore(),
             credentials,
             cache,
             new SingleClientFactory(handler),

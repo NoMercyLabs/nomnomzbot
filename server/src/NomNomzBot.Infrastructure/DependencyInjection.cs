@@ -217,6 +217,14 @@ public static class DependencyInjection
             Music.MusicProviderManageApi
         >();
 
+        // Runtime-observed integration capabilities (e.g. spotify.premium from a player-403) —
+        // singleton observation cache feeding IntegrationStatusDto.Capabilities. Explicit: the
+        // interface does not match the I<X>Service convention scan.
+        services.AddSingleton<
+            Application.Integrations.Services.IIntegrationCapabilityStore,
+            Integrations.InMemoryIntegrationCapabilityStore
+        >();
+
         // Third-party emote providers (singleton — stateless HTTP-fetch adapters, multi-bound + registry-indexed).
         services.AddImplementationsOf<Application.Chat.Services.IThirdPartyEmoteProvider>(
             infrastructure,

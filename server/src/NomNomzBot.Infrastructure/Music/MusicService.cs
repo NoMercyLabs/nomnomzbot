@@ -11,8 +11,10 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Domain.Music.Events;
+using NomNomzBot.Domain.Music.Exceptions;
 using NomNomzBot.Domain.Music.Interfaces;
 using NomNomzBot.Domain.Platform.Interfaces;
 
@@ -84,62 +86,119 @@ public sealed class MusicService : IMusicService
             .ToList();
     }
 
-    public async Task<bool> PlayAsync(
+    public async Task<Result> PlayAsync(
         string broadcasterId,
         CancellationToken cancellationToken = default
     )
     {
         if (!Guid.TryParse(broadcasterId, out Guid tenantId))
-            return false;
+            return InvalidChannelId();
 
         IMusicProvider? provider = await GetActiveProviderAsync(tenantId, cancellationToken);
-        if (provider is null || !HasCapability(provider, MusicProviderCapabilities.PlaybackControl))
-            return false;
+        if (provider is null)
+            return NoProvider();
+        if (!HasCapability(provider, MusicProviderCapabilities.PlaybackControl))
+            return Unsupported("playback control");
 
-        await provider.PlayAsync(tenantId, cancellationToken);
-        await PublishPlaybackStateChangedAsync(tenantId, provider, cancellationToken);
-        return true;
-    }
-
-    public async Task<bool> PauseAsync(
-        string broadcasterId,
-        CancellationToken cancellationToken = default
-    )
-    {
-        if (!Guid.TryParse(broadcasterId, out Guid tenantId))
-            return false;
-
-        IMusicProvider? provider = await GetActiveProviderAsync(tenantId, cancellationToken);
-        if (provider is null || !HasCapability(provider, MusicProviderCapabilities.PlaybackControl))
-            return false;
-
-        await provider.PauseAsync(tenantId, cancellationToken);
-        await PublishPlaybackStateChangedAsync(tenantId, provider, cancellationToken);
-        return true;
-    }
-
-    public async Task<bool> SkipAsync(
-        string broadcasterId,
-        CancellationToken cancellationToken = default
-    )
-    {
-        if (!Guid.TryParse(broadcasterId, out Guid tenantId))
-            return false;
-
-        IMusicProvider? provider = await GetActiveProviderAsync(tenantId, cancellationToken);
-        if (provider is null || !HasCapability(provider, MusicProviderCapabilities.Skip))
-            return false;
-
-        // Dequeue next from fair queue and add to provider queue
-        SongRequestEntry? next = DequeueNext(broadcasterId);
-        if (next is not null)
+        try
         {
-            await provider.AddToQueueAsync(tenantId, next.TrackUri, cancellationToken);
+            await provider.PlayAsync(tenantId, cancellationToken);
+        }
+        catch (PremiumRequiredException ex)
+        {
+            return PremiumRequired(ex);
         }
 
-        await provider.SkipAsync(tenantId, cancellationToken);
         await PublishPlaybackStateChangedAsync(tenantId, provider, cancellationToken);
-        return true;
+        return Result.Success();
+    }
+
+    public async Task<Result> PauseAsync(
+        string broadcasterId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (!Guid.TryParse(broadcasterId, out Guid tenantId))
+            return InvalidChannelId();
+
+        IMusicProvider? provider = await GetActiveProviderAsync(tenantId, cancellationToken);
+        if (provider is null)
+            return NoProvider();
+        if (!HasCapability(provider, MusicProviderCapabilities.PlaybackControl))
+            return Unsupported("playback control");
+
+        try
+        {
+            await provider.PauseAsync(tenantId, cancellationToken);
+        }
+        catch (PremiumRequiredException ex)
+        {
+            return PremiumRequired(ex);
+        }
+
+        await PublishPlaybackStateChangedAsync(tenantId, provider, cancellationToken);
+        return Result.Success();
+    }
+
+    public async Task<Result> SkipAsync(
+        string broadcasterId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (!Guid.TryParse(broadcasterId, out Guid tenantId))
+            return InvalidChannelId();
+
+        IMusicProvider? provider = await GetActiveProviderAsync(tenantId, cancellationToken);
+        if (provider is null)
+            return NoProvider();
+        if (!HasCapability(provider, MusicProviderCapabilities.Skip))
+            return Unsupported("skipping");
+
+        try
+        {
+            // Dequeue next from fair queue and add to provider queue
+            SongRequestEntry? next = DequeueNext(broadcasterId);
+            if (next is not null)
+            {
+                await provider.AddToQueueAsync(tenantId, next.TrackUri, cancellationToken);
+            }
+
+            await provider.SkipAsync(tenantId, cancellationToken);
+        }
+        catch (PremiumRequiredException ex)
+        {
+            return PremiumRequired(ex);
+        }
+
+        await PublishPlaybackStateChangedAsync(tenantId, provider, cancellationToken);
+        return Result.Success();
+    }
+
+    public async Task<Result> PreviousAsync(
+        string broadcasterId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (!Guid.TryParse(broadcasterId, out Guid tenantId))
+            return InvalidChannelId();
+
+        IMusicProvider? provider = await GetActiveProviderAsync(tenantId, cancellationToken);
+        if (provider is null)
+            return NoProvider();
+        if (!HasCapability(provider, MusicProviderCapabilities.Previous))
+            return Unsupported("previous-track");
+
+        try
+        {
+            await provider.PreviousAsync(tenantId, cancellationToken);
+        }
+        catch (PremiumRequiredException ex)
+        {
+            return PremiumRequired(ex);
+        }
+
+        await PublishPlaybackStateChangedAsync(tenantId, provider, cancellationToken);
+        return Result.Success();
     }
 
     public async Task<MusicQueue> GetQueueAsync(
@@ -229,7 +288,18 @@ public sealed class MusicService : IMusicService
         int queueSize = queue.Count;
         if (queueSize <= 1)
         {
-            await provider.AddToQueueAsync(tenantId, trackUri, cancellationToken);
+            try
+            {
+                await provider.AddToQueueAsync(tenantId, trackUri, cancellationToken);
+            }
+            catch (PremiumRequiredException)
+            {
+                // The request stays in OUR fair queue; only the provider-side push needs Premium.
+                _logger.LogDebug(
+                    "Provider-side queue push skipped for {BroadcasterId}: Premium required",
+                    broadcasterId
+                );
+            }
         }
 
         _logger.LogInformation(
@@ -242,28 +312,34 @@ public sealed class MusicService : IMusicService
         return true;
     }
 
-    public async Task<bool> SetVolumeAsync(
+    public async Task<Result> SetVolumeAsync(
         string broadcasterId,
         int volume,
         CancellationToken cancellationToken = default
     )
     {
         if (!Guid.TryParse(broadcasterId, out Guid tenantId))
-            return false;
+            return InvalidChannelId();
+
+        if (volume is < 0 or > 100)
+            return Result.Failure("Volume must be between 0 and 100.", "VALIDATION_FAILED");
 
         IMusicProvider? provider = await GetActiveProviderAsync(tenantId, cancellationToken);
-        if (provider is null || !HasCapability(provider, MusicProviderCapabilities.Volume))
-            return false;
+        if (provider is null)
+            return NoProvider();
+        if (!HasCapability(provider, MusicProviderCapabilities.Volume))
+            return Unsupported("volume control");
 
-        // §3.5 defines the Volume capability but no provider declares it yet — the
-        // Spotify-completeness slice wires PUT /me/player/volume and adds the SetVolume member
-        // alongside the flag. Until then this gate fails closed above; reaching here means a
-        // provider declared Volume without the seam having a member to call.
-        _logger.LogWarning(
-            "Provider '{Provider}' declares Volume but the provider seam has no SetVolume member yet",
-            provider.Provider
-        );
-        return false;
+        try
+        {
+            await provider.SetVolumeAsync(tenantId, volume, cancellationToken);
+        }
+        catch (PremiumRequiredException ex)
+        {
+            return PremiumRequired(ex);
+        }
+
+        return Result.Success();
     }
 
     public async Task<NowPlaying?> GetNowPlayingAsync(
@@ -352,6 +428,21 @@ public sealed class MusicService : IMusicService
         MusicProviderCapabilities capability
     ) => (provider.Capabilities & capability) == capability;
 
+    private static Result InvalidChannelId() =>
+        Result.Failure("Invalid channel id.", "VALIDATION_FAILED");
+
+    private static Result NoProvider() =>
+        Result.Failure("No active music provider.", "SERVICE_UNAVAILABLE");
+
+    private static Result Unsupported(string operation) =>
+        Result.Failure(
+            $"The active music provider does not support {operation}.",
+            "CAPABILITY_UNSUPPORTED"
+        );
+
+    private static Result PremiumRequired(PremiumRequiredException ex) =>
+        Result.Failure(ex.Message, "PREMIUM_REQUIRED");
+
     public Task<bool> RemoveFromQueueAsync(
         string broadcasterId,
         int position,
@@ -369,62 +460,98 @@ public sealed class MusicService : IMusicService
 
     // ── Remote controls (capability-gated §3.5 members) ─────────────────────────
 
-    public async Task<bool> SeekAsync(
+    public async Task<Result> SeekAsync(
         string broadcasterId,
         int positionMs,
         CancellationToken cancellationToken = default
     )
     {
-        if (positionMs < 0 || !Guid.TryParse(broadcasterId, out Guid tenantId))
-            return false;
+        if (!Guid.TryParse(broadcasterId, out Guid tenantId))
+            return InvalidChannelId();
+
+        if (positionMs < 0)
+            return Result.Failure("Seek position cannot be negative.", "VALIDATION_FAILED");
 
         IMusicProvider? provider = await GetActiveProviderAsync(tenantId, cancellationToken);
-        if (provider is null || !HasCapability(provider, MusicProviderCapabilities.Seek))
-            return false;
+        if (provider is null)
+            return NoProvider();
+        if (!HasCapability(provider, MusicProviderCapabilities.Seek))
+            return Unsupported("seeking");
 
-        // The §3.5 seam speaks whole seconds; the legacy wire contract still carries milliseconds.
-        await provider.SeekAsync(tenantId, positionMs / 1000, cancellationToken);
-        return true;
+        try
+        {
+            // The §3.5 seam speaks whole seconds; the legacy wire contract still carries milliseconds.
+            await provider.SeekAsync(tenantId, positionMs / 1000, cancellationToken);
+        }
+        catch (PremiumRequiredException ex)
+        {
+            return PremiumRequired(ex);
+        }
+
+        return Result.Success();
     }
 
-    public async Task<bool> SetShuffleAsync(
+    public async Task<Result> SetShuffleAsync(
         string broadcasterId,
         bool enabled,
         CancellationToken cancellationToken = default
     )
     {
         if (!Guid.TryParse(broadcasterId, out Guid tenantId))
-            return false;
+            return InvalidChannelId();
 
         IMusicProvider? provider = await GetActiveProviderAsync(tenantId, cancellationToken);
-        if (provider is null || !HasCapability(provider, MusicProviderCapabilities.Shuffle))
-            return false;
+        if (provider is null)
+            return NoProvider();
+        if (!HasCapability(provider, MusicProviderCapabilities.Shuffle))
+            return Unsupported("shuffle");
 
-        await provider.SetShuffleAsync(tenantId, enabled, cancellationToken);
-        return true;
+        try
+        {
+            await provider.SetShuffleAsync(tenantId, enabled, cancellationToken);
+        }
+        catch (PremiumRequiredException ex)
+        {
+            return PremiumRequired(ex);
+        }
+
+        return Result.Success();
     }
 
-    public async Task<bool> SetRepeatAsync(
+    public async Task<Result> SetRepeatAsync(
         string broadcasterId,
         string mode,
         CancellationToken cancellationToken = default
     )
     {
         if (!Guid.TryParse(broadcasterId, out Guid tenantId))
-            return false;
+            return InvalidChannelId();
 
         if (!Enum.TryParse(mode, ignoreCase: true, out MusicRepeatMode repeatMode))
-            return false;
+            return Result.Failure(
+                "Repeat mode must be 'off', 'track', or 'context'.",
+                "VALIDATION_FAILED"
+            );
 
         IMusicProvider? provider = await GetActiveProviderAsync(tenantId, cancellationToken);
-        if (provider is null || !HasCapability(provider, MusicProviderCapabilities.Repeat))
-            return false;
+        if (provider is null)
+            return NoProvider();
+        if (!HasCapability(provider, MusicProviderCapabilities.Repeat))
+            return Unsupported("repeat mode");
 
-        await provider.SetRepeatAsync(tenantId, repeatMode, cancellationToken);
-        return true;
+        try
+        {
+            await provider.SetRepeatAsync(tenantId, repeatMode, cancellationToken);
+        }
+        catch (PremiumRequiredException ex)
+        {
+            return PremiumRequired(ex);
+        }
+
+        return Result.Success();
     }
 
-    public async Task<bool> TransferPlaybackAsync(
+    public async Task<Result> TransferPlaybackAsync(
         string broadcasterId,
         string deviceId,
         bool play = false,
@@ -432,14 +559,24 @@ public sealed class MusicService : IMusicService
     )
     {
         if (!Guid.TryParse(broadcasterId, out Guid tenantId))
-            return false;
+            return InvalidChannelId();
 
         IMusicProvider? provider = await GetActiveProviderAsync(tenantId, cancellationToken);
-        if (provider is null || !HasCapability(provider, MusicProviderCapabilities.TransferDevice))
-            return false;
+        if (provider is null)
+            return NoProvider();
+        if (!HasCapability(provider, MusicProviderCapabilities.TransferDevice))
+            return Unsupported("device transfer");
 
-        await provider.TransferPlaybackAsync(tenantId, deviceId, play, cancellationToken);
-        return true;
+        try
+        {
+            await provider.TransferPlaybackAsync(tenantId, deviceId, play, cancellationToken);
+        }
+        catch (PremiumRequiredException ex)
+        {
+            return PremiumRequired(ex);
+        }
+
+        return Result.Success();
     }
 
     public async Task<IReadOnlyList<MusicDeviceDto>> GetDevicesAsync(
@@ -511,7 +648,15 @@ public sealed class MusicService : IMusicService
         )
             return false;
 
-        await remote.PlayContextAsync(tenantId, contextUri, cancellationToken);
+        try
+        {
+            await remote.PlayContextAsync(tenantId, contextUri, cancellationToken);
+        }
+        catch (PremiumRequiredException)
+        {
+            return false;
+        }
+
         await PublishPlaybackStateChangedAsync(tenantId, provider, cancellationToken);
         return true;
     }

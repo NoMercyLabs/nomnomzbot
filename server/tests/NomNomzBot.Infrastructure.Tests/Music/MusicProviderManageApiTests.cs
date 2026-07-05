@@ -15,6 +15,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Music;
 using NomNomzBot.Domain.Platform.Entities;
+using NomNomzBot.Infrastructure.Integrations;
 using NomNomzBot.Infrastructure.Music;
 
 namespace NomNomzBot.Infrastructure.Tests.Music;
@@ -22,10 +23,11 @@ namespace NomNomzBot.Infrastructure.Tests.Music;
 /// <summary>
 /// Proves the §3.10 manage surface's capability gating (music-sr.md): an unsupported member fails
 /// with <c>CAPABILITY_UNSUPPORTED</c> — never a throw — an unregistered provider key fails
-/// <c>NOT_FOUND</c>, an unconnected provider fails <c>MISSING_SCOPE</c>, and the one wired member
-/// (Spotify playlist listing) maps the provider payload field-by-field. Uses the REAL providers
-/// (Spotify over a stubbed HTTP transport, the real YouTube stub) through the real gating front,
-/// so the tests prove production wiring, not substitutes.
+/// <c>NOT_FOUND</c>, an unconnected provider fails <c>MISSING_SCOPE</c>, and Spotify playlist
+/// listing maps the provider payload field-by-field. Uses the REAL providers (Spotify over a
+/// stubbed HTTP transport, the real YouTube stub) through the real gating front, so the tests
+/// prove production wiring, not substitutes. The wired Spotify manage WRITES are covered in
+/// <see cref="SpotifyMusicProviderManageWriteTests"/>.
 /// </summary>
 public sealed class MusicProviderManageApiTests
 {
@@ -73,28 +75,13 @@ public sealed class MusicProviderManageApiTests
     }
 
     [Fact]
-    public async Task Spotify_library_write_is_gated_because_Library_is_not_declared_yet()
-    {
-        (MusicProviderManageApi api, _, RecordingSpotifyHandler handler) = Build(
-            connectSpotify: true
-        );
-
-        Result result = await api.SaveTracksAsync(
-            ChannelId,
-            "spotify",
-            ["spotify:track:4uLU6hMCjMI75M1A2tKUQC"]
-        );
-
-        result.ErrorCode.Should().Be("CAPABILITY_UNSUPPORTED");
-        handler.RequestUrls.Should().BeEmpty("a gated member must never reach the provider's API");
-    }
-
-    [Fact]
     public async Task Channel_follow_resolves_to_the_Subscriptions_capability_and_gates_on_it()
     {
         // Spotify has no channel-subscription analogue (§3.5) — a Channel-target follow must gate on
-        // Subscriptions (absent) even though Spotify does declare Playlists.
-        (MusicProviderManageApi api, _, _) = Build(connectSpotify: true);
+        // Subscriptions (absent) even though Spotify declares Library and Playlists.
+        (MusicProviderManageApi api, _, RecordingSpotifyHandler handler) = Build(
+            connectSpotify: true
+        );
 
         Result result = await api.FollowAsync(
             ChannelId,
@@ -104,24 +91,7 @@ public sealed class MusicProviderManageApiTests
         );
 
         result.ErrorCode.Should().Be("CAPABILITY_UNSUPPORTED");
-    }
-
-    [Fact]
-    public async Task Spotify_playlist_write_fails_closed_until_the_next_slice_wires_it()
-    {
-        (MusicProviderManageApi api, _, RecordingSpotifyHandler handler) = Build(
-            connectSpotify: true
-        );
-
-        Result<MusicPlaylistDto> result = await api.CreatePlaylistAsync(
-            ChannelId,
-            "spotify",
-            new CreateMusicPlaylistDto { Name = "Stream Bangers" }
-        );
-
-        result.IsFailure.Should().BeTrue();
-        result.ErrorCode.Should().Be("CAPABILITY_UNSUPPORTED");
-        handler.RequestUrls.Should().BeEmpty("an unwired write must not hit the Spotify API");
+        handler.RequestUrls.Should().BeEmpty("a gated member must never reach the provider's API");
     }
 
     [Fact]
@@ -213,6 +183,7 @@ public sealed class MusicProviderManageApiTests
         SpotifyMusicProvider spotify = new(
             db,
             new PassthroughProtector(),
+            new InMemoryIntegrationCapabilityStore(),
             new SingleHandlerClientFactory(handler),
             TimeProvider.System,
             NullLogger<SpotifyMusicProvider>.Instance

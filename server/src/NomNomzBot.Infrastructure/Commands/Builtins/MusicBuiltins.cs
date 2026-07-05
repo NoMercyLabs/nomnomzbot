@@ -26,8 +26,12 @@ public sealed class SkipBuiltin(IMusicService music) : IBuiltinCommand
         CancellationToken ct = default
     )
     {
-        bool ok = await music.SkipAsync(context.BroadcasterId.ToString(), ct);
-        return Result.Success(ok ? "Skipped!" : "Nothing to skip or skip failed.");
+        Result skipped = await music.SkipAsync(context.BroadcasterId.ToString(), ct);
+        return Result.Success(
+            skipped.IsSuccess
+                ? "Skipped!"
+                : skipped.ErrorMessage ?? "Nothing to skip or skip failed."
+        );
     }
 }
 
@@ -74,8 +78,12 @@ public sealed class VolumeBuiltin(IMusicService music) : IBuiltinCommand
             return Result.Success("Usage: !volume <0-100>");
 
         level = Math.Clamp(level, 0, 100);
-        bool ok = await music.SetVolumeAsync(context.BroadcasterId.ToString(), level, ct);
-        return Result.Success(ok ? $"Volume set to {level}%." : "Failed to set volume.");
+        Result volume = await music.SetVolumeAsync(context.BroadcasterId.ToString(), level, ct);
+        return Result.Success(
+            volume.IsSuccess
+                ? $"Volume set to {level}%."
+                : volume.ErrorMessage ?? "Failed to set volume."
+        );
     }
 }
 

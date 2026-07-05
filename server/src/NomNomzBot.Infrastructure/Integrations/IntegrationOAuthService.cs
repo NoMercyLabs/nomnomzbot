@@ -40,6 +40,7 @@ public sealed class IntegrationOAuthService : IIntegrationOAuthService
     private readonly IOAuthProviderRegistry _registry;
     private readonly IIntegrationTokenVault _vault;
     private readonly IDiscordGuildService _discord;
+    private readonly IIntegrationCapabilityStore _capabilities;
     private readonly ISystemCredentialsProvider _credentials;
     private readonly ICacheService _cache;
     private readonly HttpClient _http;
@@ -51,6 +52,7 @@ public sealed class IntegrationOAuthService : IIntegrationOAuthService
         IOAuthProviderRegistry registry,
         IIntegrationTokenVault vault,
         IDiscordGuildService discord,
+        IIntegrationCapabilityStore capabilities,
         ISystemCredentialsProvider credentials,
         ICacheService cache,
         IHttpClientFactory httpClientFactory,
@@ -62,6 +64,7 @@ public sealed class IntegrationOAuthService : IIntegrationOAuthService
         _registry = registry;
         _vault = vault;
         _discord = discord;
+        _capabilities = capabilities;
         _credentials = credentials;
         _cache = cache;
         _http = httpClientFactory.CreateClient("integration-oauth");
@@ -309,7 +312,9 @@ public sealed class IntegrationOAuthService : IIntegrationOAuthService
                     Connected: c is not null && c.Status == AuthEnums.IntegrationStatus.Connected,
                     AccountName: c?.ProviderAccountName,
                     GrantedScopeSets: grantedSets,
-                    Capabilities: new Dictionary<string, bool>(),
+                    // Runtime-observed capabilities (e.g. spotify.premium flipped by the music
+                    // provider's player-403 detection) — absent until observed, never guessed.
+                    Capabilities: _capabilities.GetObserved(broadcasterId, provider),
                     NeedsReauth: c?.Status == AuthEnums.IntegrationStatus.NeedsReauth
                 )
             );
@@ -331,7 +336,10 @@ public sealed class IntegrationOAuthService : IIntegrationOAuthService
                 Connected: discord is not null,
                 AccountName: discord?.GuildName,
                 GrantedScopeSets: [],
-                Capabilities: new Dictionary<string, bool>(),
+                Capabilities: _capabilities.GetObserved(
+                    broadcasterId,
+                    AuthEnums.IntegrationProvider.Discord
+                ),
                 NeedsReauth: false
             )
         );

@@ -8,6 +8,8 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Application.Common.Models;
+
 namespace NomNomzBot.Application.Music.Services;
 
 /// <summary>
@@ -24,14 +26,17 @@ public interface IMusicService
         CancellationToken cancellationToken = default
     );
 
-    /// <summary>Start or resume playback.</summary>
-    Task<bool> PlayAsync(string broadcasterId, CancellationToken cancellationToken = default);
+    /// <summary>Start or resume playback. Fails <c>CAPABILITY_UNSUPPORTED</c> / <c>PREMIUM_REQUIRED</c> (music-sr.md §3.1).</summary>
+    Task<Result> PlayAsync(string broadcasterId, CancellationToken cancellationToken = default);
 
-    /// <summary>Pause playback.</summary>
-    Task<bool> PauseAsync(string broadcasterId, CancellationToken cancellationToken = default);
+    /// <summary>Pause playback. Fails <c>CAPABILITY_UNSUPPORTED</c> / <c>PREMIUM_REQUIRED</c>.</summary>
+    Task<Result> PauseAsync(string broadcasterId, CancellationToken cancellationToken = default);
 
-    /// <summary>Skip to the next track in the queue.</summary>
-    Task<bool> SkipAsync(string broadcasterId, CancellationToken cancellationToken = default);
+    /// <summary>Skip to the next track in the queue. Fails <c>CAPABILITY_UNSUPPORTED</c> / <c>PREMIUM_REQUIRED</c>.</summary>
+    Task<Result> SkipAsync(string broadcasterId, CancellationToken cancellationToken = default);
+
+    /// <summary>Provider previous-track. Gated on <c>Previous</c>; fails <c>CAPABILITY_UNSUPPORTED</c> / <c>PREMIUM_REQUIRED</c>.</summary>
+    Task<Result> PreviousAsync(string broadcasterId, CancellationToken cancellationToken = default);
 
     /// <summary>Get the current playback queue for a channel.</summary>
     Task<MusicQueue> GetQueueAsync(
@@ -47,8 +52,9 @@ public interface IMusicService
         CancellationToken cancellationToken = default
     );
 
-    /// <summary>Set the playback volume (0-100).</summary>
-    Task<bool> SetVolumeAsync(
+    /// <summary>Set the playback volume (0-100). Gated on <c>Volume</c>; fails <c>VALIDATION_FAILED</c> out of range,
+    /// <c>CAPABILITY_UNSUPPORTED</c> / <c>PREMIUM_REQUIRED</c> per music-sr.md §3.1.</summary>
+    Task<Result> SetVolumeAsync(
         string broadcasterId,
         int volume,
         CancellationToken cancellationToken = default
@@ -69,29 +75,31 @@ public interface IMusicService
 
     // ── Extended remote controls (provider-dependent) ──────────────────────────
 
-    /// <summary>Seek to <paramref name="positionMs"/> in the current track. Returns false when unsupported.</summary>
-    Task<bool> SeekAsync(
+    /// <summary>Seek to <paramref name="positionMs"/> in the current track. Fails <c>VALIDATION_FAILED</c> when negative,
+    /// <c>CAPABILITY_UNSUPPORTED</c> / <c>PREMIUM_REQUIRED</c> otherwise (music-sr.md §3.1).</summary>
+    Task<Result> SeekAsync(
         string broadcasterId,
         int positionMs,
         CancellationToken cancellationToken = default
     );
 
-    /// <summary>Enable or disable shuffle. Returns false when unsupported.</summary>
-    Task<bool> SetShuffleAsync(
+    /// <summary>Enable or disable shuffle. Fails <c>CAPABILITY_UNSUPPORTED</c> / <c>PREMIUM_REQUIRED</c>.</summary>
+    Task<Result> SetShuffleAsync(
         string broadcasterId,
         bool enabled,
         CancellationToken cancellationToken = default
     );
 
-    /// <summary>Set repeat mode: <c>off</c>, <c>track</c>, or <c>context</c>. Returns false when unsupported.</summary>
-    Task<bool> SetRepeatAsync(
+    /// <summary>Set repeat mode: <c>off</c>, <c>track</c>, or <c>context</c>. Fails <c>VALIDATION_FAILED</c> on an
+    /// unknown mode, <c>CAPABILITY_UNSUPPORTED</c> / <c>PREMIUM_REQUIRED</c> otherwise.</summary>
+    Task<Result> SetRepeatAsync(
         string broadcasterId,
         string mode,
         CancellationToken cancellationToken = default
     );
 
-    /// <summary>Transfer playback to another device. Returns false when unsupported.</summary>
-    Task<bool> TransferPlaybackAsync(
+    /// <summary>Transfer playback to another device. Fails <c>CAPABILITY_UNSUPPORTED</c> / <c>PREMIUM_REQUIRED</c>.</summary>
+    Task<Result> TransferPlaybackAsync(
         string broadcasterId,
         string deviceId,
         bool play = false,

@@ -69,6 +69,16 @@ public sealed class YouTubeMusicProvider : IMusicProvider
         return Task.CompletedTask;
     }
 
+    public Task SetVolumeAsync(
+        Guid broadcasterId,
+        int volumePercent,
+        CancellationToken cancellationToken = default
+    )
+    {
+        _logger.LogDebug("YouTubeMusicProvider.SetVolumeAsync has no API-side transport");
+        return Task.CompletedTask;
+    }
+
     public Task SeekAsync(
         Guid broadcasterId,
         int positionSeconds,

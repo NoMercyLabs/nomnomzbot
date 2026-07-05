@@ -10,6 +10,7 @@
 
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Pipeline;
+using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Domain.Chat.Interfaces;
 
@@ -65,13 +66,13 @@ public sealed class SongVolumeAction : ICommandAction
         if (volume is < 0 or > 100)
             return ActionResult.Failure("song_volume: 'volume' must be between 0 and 100");
 
-        bool set = await _music.SetVolumeAsync(
+        Result set = await _music.SetVolumeAsync(
             ctx.BroadcasterId.ToString(),
             volume,
             ctx.CancellationToken
         );
-        if (!set)
-            return ActionResult.Failure("song_volume: failed to set volume");
+        if (set.IsFailure)
+            return ActionResult.Failure(set.ErrorMessage ?? "song_volume: failed to set volume");
 
         await _chat.SendMessageAsync(
             ctx.BroadcasterId,

@@ -14,9 +14,11 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
+using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Domain.Music.Events;
 using NomNomzBot.Domain.Music.Interfaces;
 using NomNomzBot.Domain.Platform.Entities;
+using NomNomzBot.Infrastructure.Integrations;
 using NomNomzBot.Infrastructure.Music;
 using NomNomzBot.Infrastructure.Tests.Identity;
 
@@ -39,9 +41,9 @@ public sealed class MusicServicePlaybackPublishTests
     {
         (MusicService sut, RecordingEventBus bus, _) = Build(TrackJson("Song A", isPlaying: true));
 
-        bool ok = await sut.PlayAsync(ChannelId.ToString());
+        Result ok = await sut.PlayAsync(ChannelId.ToString());
 
-        ok.Should().BeTrue();
+        ok.IsSuccess.Should().BeTrue();
         PlaybackStateChangedEvent published = bus
             .Published.OfType<PlaybackStateChangedEvent>()
             .Single();
@@ -55,9 +57,9 @@ public sealed class MusicServicePlaybackPublishTests
     {
         (MusicService sut, RecordingEventBus bus, _) = Build(TrackJson("Song A", isPlaying: false));
 
-        bool ok = await sut.PauseAsync(ChannelId.ToString());
+        Result ok = await sut.PauseAsync(ChannelId.ToString());
 
-        ok.Should().BeTrue();
+        ok.IsSuccess.Should().BeTrue();
         PlaybackStateChangedEvent published = bus
             .Published.OfType<PlaybackStateChangedEvent>()
             .Single();
@@ -70,9 +72,9 @@ public sealed class MusicServicePlaybackPublishTests
     {
         (MusicService sut, RecordingEventBus bus, _) = Build(TrackJson("Song B", isPlaying: true));
 
-        bool ok = await sut.SkipAsync(ChannelId.ToString());
+        Result ok = await sut.SkipAsync(ChannelId.ToString());
 
-        ok.Should().BeTrue();
+        ok.IsSuccess.Should().BeTrue();
         PlaybackStateChangedEvent published = bus
             .Published.OfType<PlaybackStateChangedEvent>()
             .Single();
@@ -107,9 +109,9 @@ public sealed class MusicServicePlaybackPublishTests
         RecordingEventBus bus = new();
         MusicService sut = new([], db, bus, NullLogger<MusicService>.Instance);
 
-        bool ok = await sut.PlayAsync(ChannelId.ToString());
+        Result ok = await sut.PlayAsync(ChannelId.ToString());
 
-        ok.Should().BeFalse();
+        ok.IsFailure.Should().BeTrue();
         bus.Published.Should().BeEmpty();
     }
 
@@ -138,6 +140,7 @@ public sealed class MusicServicePlaybackPublishTests
         SpotifyMusicProvider spotify = new(
             db,
             new PassthroughTokenProtector(),
+            new InMemoryIntegrationCapabilityStore(),
             new SingleClientFactory(handler),
             TimeProvider.System,
             NullLogger<SpotifyMusicProvider>.Instance

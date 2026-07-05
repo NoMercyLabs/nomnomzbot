@@ -306,6 +306,7 @@ public interface IMusicProvider
     Task PauseAsync(Guid broadcasterId, CancellationToken cancellationToken = default);
     Task SkipAsync(Guid broadcasterId, CancellationToken cancellationToken = default);
     Task PreviousAsync(Guid broadcasterId, CancellationToken cancellationToken = default);                          // requires Previous
+    Task SetVolumeAsync(Guid broadcasterId, int volumePercent, CancellationToken cancellationToken = default);      // requires Volume (0–100)
     Task SeekAsync(Guid broadcasterId, int positionSeconds, CancellationToken cancellationToken = default);        // requires Seek
     Task SetShuffleAsync(Guid broadcasterId, bool enabled, CancellationToken cancellationToken = default);         // requires Shuffle
     Task SetRepeatAsync(Guid broadcasterId, MusicRepeatMode mode, CancellationToken cancellationToken = default);  // requires Repeat
@@ -628,7 +629,7 @@ public interface IMusicProviderManageApi
 
     Task<Result<MusicPlaylistDto>> CreatePlaylistAsync(
         Guid broadcasterId, string provider, CreateMusicPlaylistDto request, CancellationToken cancellationToken = default);
-    // Creates a playlist (Spotify: POST /users/{id}/playlists; YouTube: playlists.insert). Capability: Playlists.
+    // Creates a playlist (Spotify: POST /me/playlists — the /users/{id}/playlists form is retired, live-verified 2026-07-05; YouTube: playlists.insert). Capability: Playlists.
 
     Task<Result<MusicPlaylistDto>> UpdatePlaylistAsync(
         Guid broadcasterId, string provider, string playlistId, UpdateMusicPlaylistDto request, CancellationToken cancellationToken = default);
@@ -649,11 +650,11 @@ public interface IMusicProviderManageApi
     // ── Library / saved tracks + ratings (capability: Library) ─────────────────
     Task<Result> SaveTracksAsync(
         Guid broadcasterId, string provider, IReadOnlyList<string> trackUris, CancellationToken cancellationToken = default);
-    // Spotify: PUT /me/tracks (save to Liked Songs); YouTube: videos.rate(rating="like"). Capability: Library.
+    // Spotify: PUT /me/library?uris= (Save Items to Library; /me/tracks WRITE is deprecated — live-verified 2026-07-05; max 40 URIs per call, chunk). YouTube: videos.rate(rating="like"). Capability: Library.
 
     Task<Result> RemoveSavedTracksAsync(
         Guid broadcasterId, string provider, IReadOnlyList<string> trackUris, CancellationToken cancellationToken = default);
-    // Spotify: DELETE /me/tracks; YouTube: videos.rate(rating="none"). Capability: Library.
+    // Spotify: DELETE /me/library?uris= (/me/tracks WRITE is deprecated); YouTube: videos.rate(rating="none"). Capability: Library.
 
     Task<Result> RateTrackAsync(
         Guid broadcasterId, string provider, string trackUri, MusicRating rating, CancellationToken cancellationToken = default);
@@ -662,12 +663,30 @@ public interface IMusicProviderManageApi
     // ── Follow / unfollow (capability: Library for artists/playlists; Subscriptions for channels) ─────────
     Task<Result> FollowAsync(
         Guid broadcasterId, string provider, MusicFollowTarget target, string targetId, CancellationToken cancellationToken = default);
-    // Spotify: PUT /me/following (artist) or follow-playlist (Library); YouTube: subscriptions.insert (channel → Subscriptions). 
+    // Spotify: playlist follows ride PUT /me/library (the /playlists/{id}/followers endpoints are deprecated); artist
+    // follows stay on PUT /me/following?type=artist — deprecated in docs but the ONLY artist wire (/me/library accepts
+    // no artist URIs; docs contradiction, live-verified 2026-07-05 — graceful degradation). YouTube: subscriptions.insert.
     // Capability resolved by target kind: channel→Subscriptions, artist/playlist→Library.
 
     Task<Result> UnfollowAsync(
         Guid broadcasterId, string provider, MusicFollowTarget target, string targetId, CancellationToken cancellationToken = default);
-    // Inverse of FollowAsync (Spotify DELETE /me/following / unfollow-playlist; YouTube subscriptions.delete). Same capability resolution.
+    // Inverse of FollowAsync (Spotify: DELETE /me/library for playlists, DELETE /me/following?type=artist for artists;
+    // YouTube: subscriptions.delete). Same capability resolution.
+
+    // ── Library reads (capability: Library; channel-follow list: Subscriptions) — added 2026-07-05, the write surface needs its reads ──
+    Task<Result<IReadOnlyList<TrackInfo>>> GetSavedTracksAsync(
+        Guid broadcasterId, string provider, int limit = 50, int offset = 0, CancellationToken cancellationToken = default);
+    // Spotify: GET /me/tracks (read remains live even though its writes are deprecated); YouTube: the liked-videos list. Paged.
+
+    Task<Result<IReadOnlyList<bool>>> AreTracksSavedAsync(
+        Guid broadcasterId, string provider, IReadOnlyList<string> trackUris, CancellationToken cancellationToken = default);
+    // Positional contains-check. Spotify: the live saved/library contains endpoint (live-verify at build time — the old
+    // /me/tracks/contains vs the new library form); YouTube: videos.getRating per id.
+
+    Task<Result<IReadOnlyList<MusicFollowDto>>> GetFollowedAsync(
+        Guid broadcasterId, string provider, MusicFollowTarget target, int limit = 50, CancellationToken cancellationToken = default);
+    // Spotify: GET /me/following?type=artist (artists; playlist follows are library items → GET /me/library filtered);
+    // YouTube: subscriptions.list (channel → Subscriptions capability). MusicFollowDto = (TargetId, Name, ImageUrl?).
 }
 ```
 
