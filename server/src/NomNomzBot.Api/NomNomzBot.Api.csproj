@@ -62,6 +62,9 @@
     </PackageReference>
     <PackageReference Include="FluentValidation" />
     <PackageReference Include="FluentValidation.DependencyInjectionExtensions" />
+    <!-- Owned ids are UUIDv7 Guids in storage but ULID strings on the wire (Identifiers/) — encode/decode via the
+         Cysharp Ulid type at the API boundary. -->
+    <PackageReference Include="Ulid" />
   </ItemGroup>
 
   <!-- Bundle the compiled Wasm dashboard into the published web root so the bot serves the SAME app the desktop

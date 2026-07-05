@@ -29,7 +29,6 @@ except where a dependency is named ([[no-fake-priority]]).
 
 ## Small decided items
 
-- **ULID at the API boundary (decided 2026-07-04)** — keep UUIDv7 `Guid` storage (zero migration); encode every owned id as a ULID string at the boundary: JSON converter + route/query binder (accept both ULID and raw-Guid inbound), `Ulid` package already pinned in `Directory.Packages.props`, Kotlin DTO ids already `String`. Refresh `server/openapi/v1.json` + `ApiContractTest` when it lands.
 - **Builtin key-format mismatch** — `DefaultCommandsSeeder` writes bang-prefixed `ChannelBuiltinCommand` keys (`"!sr"`) while `BuiltinCommandService`/the dashboard write bare keys (`"sr"`): seeded rows are orphaned from the toggle UI (runtime path already tolerates both via TrimStart). Normalize the seeder to bare keys + a repair migration for existing rows + test.
 - **Credential component DRY unification** — the client-setup credential components are still duplicated.
 - **Multi-channel residuals** — `Provider` discriminator on `Channel`; individual page controllers still call `primaryChannel()` independently instead of per-channel `/effective/me` re-resolution.

@@ -14,6 +14,8 @@
     <PackageReference Include="NSubstitute" />
     <!-- Ed25519 signing of test interaction deliveries (real keypairs against the real verifier). -->
     <PackageReference Include="NSec.Cryptography" />
+    <!-- ULID at the API boundary: tests construct expected ULID vectors from known Guids. -->
+    <PackageReference Include="Ulid" />
     <PackageReference Include="xunit" />
     <PackageReference Include="xunit.runner.visualstudio" />
   </ItemGroup>

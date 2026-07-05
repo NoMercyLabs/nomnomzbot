@@ -16,6 +16,26 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
 
 ## Open
 
+### 2026-07-05 — Owned ids are now ULID strings on the wire (refresh openapi + confirm ApiContractTest)
+- **From:** Stoney_Eagle (via Claude, backend track)
+- **What:** every **owned** identifier is now encoded as a 26-char Crockford base32 **ULID string** at the API
+  boundary (was a raw GUID string). Storage is unchanged (UUIDv7 `Guid`) — this is purely the wire form. It is
+  fully round-trip tolerant: the backend **accepts BOTH** a ULID and a raw GUID string inbound (route, query,
+  JSON body, and the `channelId` path segment / `X-Channel-Id` header), so nothing breaks during the transition.
+  The refreshed `server/openapi/v1.json` snapshot now renders every id field as `"type":"string","format":"ulid"`
+  (was `"format":"uuid"`) — 242 fields, format-only change, no paths/operations/schemas added or removed.
+- **Why:** shorter, URL-safe, sortable public ids that never expose the raw UUIDv7. External ids (Twitch/Spotify/
+  Discord/YouTube ids, `{userId}` = Twitch user id, `{rewardId}`/`{redemptionId}`/`{pollId}`/`{messageId}`) are
+  **unchanged** — they were always `string`-typed and are not owned ids.
+- **Where:** re-sync KMP `core/network` DTOs from the refreshed `server/openapi/v1.json` and run `ApiContractTest`
+  (`jvmTest`). Kotlin ids are already `String`, so the `uuid→ulid` format change should map to `String`
+  identically and require no DTO type changes — but **confirm** `ApiContractTest` still passes and update its
+  expectations if it asserts on the `uuid` format string specifically. Treat all ids as **opaque strings**: do not
+  parse, validate as UUID, or lower/upper-case them; string-compare as received. Ids read from one response can be
+  sent back verbatim in any path/query/body.
+- **Done when:** `ApiContractTest` (`jvmTest`) is green against the refreshed snapshot and no client code assumes
+  a UUID shape for an id (no `UUID.fromString`, no uuid regex) — ids flow through as opaque strings.
+
 ### 2026-07-05 — Discord guild pickers: 3 new endpoints + DTOs for role/channel selection
 - **From:** Stoney_Eagle (via Claude, backend track)
 - **What:** the Discord config screens can now populate real role/channel pickers instead of asking the

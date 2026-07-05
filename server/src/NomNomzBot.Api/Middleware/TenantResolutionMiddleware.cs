@@ -10,6 +10,7 @@
 
 using System.Security.Claims;
 using Microsoft.Extensions.Primitives;
+using NomNomzBot.Api.Identifiers;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Identity.Services;
 
@@ -48,12 +49,21 @@ public class TenantResolutionMiddleware
 
         if (!string.IsNullOrEmpty(requestedChannelId))
         {
-            // The requested channel id is the tenant Guid (route/header/query).
-            if (!Guid.TryParse(requestedChannelId, out Guid requestedChannelGuid))
+            // The requested channel id is the tenant Guid (route/header/query), accepted as either a ULID string
+            // (the wire form owned ids are encoded in) or a raw Guid string (inbound tolerance).
+            if (!GuidUlidCodec.TryDecode(requestedChannelId, out Guid requestedChannelGuid))
             {
                 context.Response.StatusCode = StatusCodes.Status400BadRequest;
                 return;
             }
+
+            // Canonicalize the route value to the raw-Guid form so MVC model binding of the `string channelId`
+            // action parameter — and the many channel-scoped services that Guid.Parse it — see the id they already
+            // expect, never a ULID. Only the route carries channelId into a string action parameter; the
+            // header/query selectors feed tenant resolution alone.
+            string canonicalChannelId = requestedChannelGuid.ToString();
+            if (context.Request.RouteValues.ContainsKey("channelId"))
+                context.Request.RouteValues["channelId"] = canonicalChannelId;
 
             if (string.IsNullOrEmpty(userId))
             {
@@ -63,7 +73,7 @@ public class TenantResolutionMiddleware
             else if (
                 await channelAccess.CanResolveTenantAsync(
                     userId,
-                    requestedChannelId,
+                    canonicalChannelId,
                     context.RequestAborted
                 )
             )

@@ -19,6 +19,7 @@ using Microsoft.Extensions.Primitives;
 using Microsoft.IdentityModel.Tokens;
 using NomNomzBot.Api.Configuration;
 using NomNomzBot.Api.Hubs;
+using NomNomzBot.Api.Identifiers;
 using NomNomzBot.Api.Middleware;
 using NomNomzBot.Application;
 using NomNomzBot.Application.Common.Interfaces;
@@ -104,9 +105,16 @@ try
     builder.Services.AddApplication();
     builder.Services.AddInfrastructure(builder.Configuration);
 
-    // Controllers
+    // Controllers.
+    //
+    // Owned identifiers are UUIDv7 Guids in storage but are ULID strings on the wire (Identifiers/): the
+    // UlidGuidJsonConverter encodes/decodes every Guid in request + response bodies, and the model-binder provider
+    // (inserted ahead of the built-in simple-type binder) decodes a ULID-or-Guid route/query Guid. The guid route
+    // constraint is swapped below so {id:guid} also matches a 26-char ULID. Nothing internal changes.
     builder
-        .Services.AddControllers()
+        .Services.AddControllers(options =>
+            options.ModelBinderProviders.Insert(0, new UlidGuidModelBinderProvider())
+        )
         .AddJsonOptions(o =>
         {
             o.JsonSerializerOptions.PropertyNamingPolicy = System
@@ -120,7 +128,14 @@ try
                 .Serialization
                 .JsonIgnoreCondition
                 .WhenWritingNull;
+            o.JsonSerializerOptions.Converters.Add(new UlidGuidJsonConverter());
         });
+
+    // Swap the built-in {x:guid} inline route constraint for one that accepts a ULID string too, so an owned-id
+    // route matches its ULID wire form (the built-in constraint would 404 a 26-char ULID before model binding).
+    builder.Services.Configure<RouteOptions>(options =>
+        options.ConstraintMap["guid"] = typeof(UlidOrGuidRouteConstraint)
+    );
 
     // API Versioning
     builder
@@ -133,15 +148,22 @@ try
         .AddMvc();
 
     // SignalR
-    builder.Services.AddSignalR(options =>
-    {
-        options.EnableDetailedErrors = builder.Environment.IsDevelopment();
-        options.MaximumReceiveMessageSize = 128 * 1024;
-        options.KeepAliveInterval = TimeSpan.FromSeconds(15);
-        options.ClientTimeoutInterval = TimeSpan.FromSeconds(60);
-        options.HandshakeTimeout = TimeSpan.FromSeconds(15);
-        options.StatefulReconnectBufferSize = 100_000;
-    });
+    builder
+        .Services.AddSignalR(options =>
+        {
+            options.EnableDetailedErrors = builder.Environment.IsDevelopment();
+            options.MaximumReceiveMessageSize = 128 * 1024;
+            options.KeepAliveInterval = TimeSpan.FromSeconds(15);
+            options.ClientTimeoutInterval = TimeSpan.FromSeconds(60);
+            options.HandshakeTimeout = TimeSpan.FromSeconds(15);
+            options.StatefulReconnectBufferSize = 100_000;
+        })
+        .AddJsonProtocol(options =>
+            // Hub JSON must speak the same owned-id form as REST: encode/decode every Guid as a ULID string. Today's
+            // hub DTOs carry ids as strings, so this is a no-op guard — but it keeps any future Guid-typed hub field
+            // consistent with the REST contract instead of silently diverging.
+            options.PayloadSerializerOptions.Converters.Add(new UlidGuidJsonConverter())
+        );
 
     // Hub notifiers
     builder.Services.AddScoped<IDashboardNotifier, DashboardNotifier>();
@@ -374,8 +396,10 @@ try
         options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
     });
 
-    // OpenAPI
-    builder.Services.AddOpenApi();
+    // OpenAPI. Owned-id schemas render as ULID strings (not uuid) so the committed contract matches the wire.
+    builder.Services.AddOpenApi(options =>
+        options.AddSchemaTransformer(new UlidGuidSchemaTransformer())
+    );
 
     // CORS
     builder.Services.AddCors(options =>

@@ -109,6 +109,55 @@ public class TenantResolutionMiddlewareTests
         tenantService.Received(1).SetTenant(ChannelGuid);
     }
 
+    // ── ULID channel id (the API-boundary wire form) ───────────────────────────────────
+
+    [Fact]
+    public async Task InvokeAsync_UlidRouteValue_DecodesToGuidAndCanonicalizesRouteValue()
+    {
+        // The dashboard reaches channel-scoped routes with the channel id in its ULID wire form. The middleware
+        // decodes it to the tenant Guid AND rewrites the route value to the raw-Guid form, so the `string channelId`
+        // action parameter and the services that Guid.Parse it never see a ULID.
+        TenantResolutionMiddleware middleware = CreateMiddleware();
+        ICurrentTenantService tenantService = Substitute.For<ICurrentTenantService>();
+        DefaultHttpContext context = new();
+        context.Request.RouteValues["channelId"] = new Ulid(ChannelGuid).ToString();
+
+        await middleware.InvokeAsync(context, tenantService, AccessStub());
+
+        tenantService.Received(1).SetTenant(ChannelGuid);
+        context.Request.RouteValues["channelId"].Should().Be(ChannelGuid.ToString());
+    }
+
+    [Fact]
+    public async Task InvokeAsync_AuthenticatedUlidChannel_PassesCanonicalGuidToAccessCheck()
+    {
+        TenantResolutionMiddleware middleware = CreateMiddleware();
+        ICurrentTenantService tenantService = Substitute.For<ICurrentTenantService>();
+        IChannelAccessService access = Substitute.For<IChannelAccessService>();
+        access
+            .CanResolveTenantAsync(
+                OwnerUser.ToString(),
+                ChannelGuid.ToString(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(true);
+
+        DefaultHttpContext context = new();
+        context.Request.RouteValues["channelId"] = new Ulid(ChannelGuid).ToString();
+        Authenticate(context, OwnerUser);
+
+        await middleware.InvokeAsync(context, tenantService, access);
+
+        tenantService.Received(1).SetTenant(ChannelGuid);
+        await access
+            .Received(1)
+            .CanResolveTenantAsync(
+                OwnerUser.ToString(),
+                ChannelGuid.ToString(),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
     [Fact]
     public async Task InvokeAsync_MalformedChannelId_Returns400AndStops()
     {

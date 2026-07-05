@@ -554,7 +554,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -643,7 +644,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -752,7 +754,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -1471,7 +1474,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -1576,7 +1580,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -1681,7 +1686,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -1805,7 +1811,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -1967,7 +1974,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -1976,7 +1984,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -2065,7 +2074,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -2074,7 +2084,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -2179,7 +2190,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -2188,7 +2200,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -2277,7 +2290,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -2286,7 +2300,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -5660,7 +5675,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -5755,7 +5771,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -5870,7 +5887,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -5967,7 +5985,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -6083,7 +6102,8 @@
             "in": "query",
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -6091,7 +6111,8 @@
             "in": "query",
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -6924,7 +6945,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -8946,7 +8968,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -9033,7 +9056,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -9122,7 +9146,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -9229,7 +9254,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -9363,7 +9389,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -9372,7 +9399,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -9461,7 +9489,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -11717,7 +11746,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -12055,7 +12085,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -12152,7 +12183,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -12304,7 +12336,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -12421,7 +12454,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -12971,7 +13005,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -13068,7 +13103,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -13185,7 +13221,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -13284,7 +13321,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -13599,7 +13637,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -13698,7 +13737,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -13707,7 +13747,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -13804,7 +13845,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -13813,7 +13855,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -13912,7 +13955,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -13921,7 +13965,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -14038,7 +14083,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -14047,7 +14093,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -14146,7 +14193,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -14155,7 +14203,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -14274,7 +14323,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -14283,7 +14333,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -14382,7 +14433,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -14391,7 +14443,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -14490,7 +14543,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -14499,7 +14553,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -14598,7 +14653,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -14607,7 +14663,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -14704,7 +14761,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -14713,7 +14771,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -14832,7 +14891,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -14841,7 +14901,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -14958,7 +15019,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -14967,7 +15029,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -15066,7 +15129,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -15075,7 +15139,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -15174,7 +15239,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -15183,7 +15249,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -15280,7 +15347,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -15289,7 +15357,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -15408,7 +15477,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -15417,7 +15487,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -15534,7 +15605,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -15543,7 +15615,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -15642,7 +15715,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -15651,7 +15725,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -15770,7 +15845,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -15779,7 +15855,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -15898,7 +15975,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -15907,7 +15985,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -16026,7 +16105,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -16035,7 +16115,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -16570,7 +16651,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -16667,7 +16749,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -16776,7 +16859,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -16873,7 +16957,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -18105,7 +18190,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -18488,7 +18574,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -18603,7 +18690,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -19136,7 +19224,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -19225,7 +19314,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -19314,7 +19404,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -19423,7 +19514,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -19532,7 +19624,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -19831,7 +19924,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -19947,7 +20041,8 @@
             "in": "query",
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -19955,7 +20050,8 @@
             "in": "query",
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -20114,7 +20210,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -20209,7 +20306,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -26990,7 +27088,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -27353,7 +27452,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -27458,7 +27558,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -27583,7 +27684,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -30512,7 +30614,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -30697,7 +30800,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -30988,7 +31092,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -31085,7 +31190,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -31202,7 +31308,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -31299,7 +31406,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -31396,7 +31504,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -31513,7 +31622,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -31630,7 +31740,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -32026,7 +32137,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -32123,7 +32235,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -32240,7 +32353,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -32339,7 +32453,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -34544,7 +34659,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -34649,7 +34765,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -34774,7 +34891,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -34877,7 +34995,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -36518,7 +36637,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -36660,7 +36780,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -36769,7 +36890,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -36778,7 +36900,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -36865,7 +36988,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -36874,7 +36998,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -36981,7 +37106,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -36990,7 +37116,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -37079,7 +37206,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -37088,7 +37216,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -37177,7 +37306,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -37319,7 +37449,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -37428,7 +37559,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -37437,7 +37569,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -37524,7 +37657,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -37533,7 +37667,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -37640,7 +37775,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -37649,7 +37785,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -37738,7 +37875,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -37747,7 +37885,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -37836,7 +37975,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -37845,7 +37985,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -37934,7 +38075,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -37943,7 +38085,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
             }
           },
           {
@@ -38741,7 +38884,8 @@
               "null",
               "string"
             ],
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           }
         },
         "description": "Create payload for a new quote (quotes.md §3). `QuotedAt` defaults to creation when null."
@@ -38768,7 +38912,8 @@
         "properties": {
           "viewerUserId": {
             "type": "string",
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "amount": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -38783,7 +38928,8 @@
           },
           "actorUserId": {
             "type": "string",
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           }
         },
         "description": "A broadcaster/admin manual credit or debit (economy.md §4). Sign of long AdminAdjustCommand.Amount decides direction."
@@ -39332,7 +39478,8 @@
         "properties": {
           "id": {
             "type": "string",
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "name": {
             "type": "string"
@@ -39371,7 +39518,8 @@
               "null",
               "string"
             ],
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "cooldownSeconds": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -39455,15 +39603,18 @@
           },
           "catalogItemId": {
             "type": "string",
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "buyerUserId": {
             "type": "string",
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "buyerAccountId": {
             "type": "string",
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "costPaid": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -39638,11 +39789,13 @@
         "properties": {
           "id": {
             "type": "string",
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "userId": {
             "type": "string",
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "username": {
             "type": [
@@ -39669,7 +39822,8 @@
               "null",
               "string"
             ],
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "grantedAt": {
             "type": "string",
@@ -40130,7 +40284,8 @@
         "properties": {
           "id": {
             "type": "string",
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "name": {
             "type": "string"
@@ -40169,7 +40324,8 @@
               "null",
               "string"
             ],
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "cooldownSeconds": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -40232,7 +40388,8 @@
         "properties": {
           "id": {
             "type": "string",
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "name": {
             "type": "string"
@@ -40294,7 +40451,8 @@
               "null",
               "string"
             ],
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           }
         },
         "description": "Lightweight command info for list views — includes the response text and pipeline id so the edit\r\n            form can pre-fill without a separate detail fetch."
@@ -40487,7 +40645,8 @@
               "null",
               "string"
             ],
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "cooldownSeconds": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -40630,7 +40789,8 @@
               "null",
               "string"
             ],
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "cooldownSeconds": {
             "maximum": 86400,
@@ -40691,7 +40851,8 @@
               "null",
               "string"
             ],
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "messageTemplate": {
             "type": [
@@ -40783,7 +40944,8 @@
               "null",
               "string"
             ],
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "targetEventType": {
             "type": [
@@ -40831,7 +40993,8 @@
               "null",
               "string"
             ],
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "expiresAt": {
             "type": [
@@ -41180,7 +41343,8 @@
               "null",
               "string"
             ],
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "intervalMinutes": {
             "maximum": 1440,
@@ -41253,11 +41417,13 @@
         "properties": {
           "id": {
             "type": "string",
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "viewerUserId": {
             "type": "string",
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "viewerTwitchUserId": {
             "type": "string"
@@ -41336,11 +41502,13 @@
           },
           "accountId": {
             "type": "string",
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "viewerUserId": {
             "type": "string",
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "amount": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -41372,7 +41540,8 @@
               "null",
               "string"
             ],
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "relatedEntryId": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -41388,7 +41557,8 @@
               "null",
               "string"
             ],
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "reason": {
             "type": [
@@ -41401,7 +41571,8 @@
               "null",
               "string"
             ],
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "createdAt": {
             "type": "string",
@@ -41475,7 +41646,8 @@
         "properties": {
           "id": {
             "type": "string",
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "name": {
             "type": "string"
@@ -41725,11 +41897,13 @@
         "properties": {
           "id": {
             "type": "string",
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "notificationConfigId": {
             "type": "string",
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "triggerType": {
             "type": "string"
@@ -41742,7 +41916,8 @@
               "null",
               "string"
             ],
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "postedMessageId": {
             "type": [
@@ -41907,11 +42082,13 @@
         "properties": {
           "id": {
             "type": "string",
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "broadcasterId": {
             "type": "string",
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "guildId": {
             "type": "string"
@@ -42060,11 +42237,13 @@
         "properties": {
           "id": {
             "type": "string",
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "guildConnectionId": {
             "type": "string",
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "triggerType": {
             "type": "string"
@@ -42080,7 +42259,8 @@
               "null",
               "string"
             ],
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "messageTemplate": {
             "type": [
@@ -42169,11 +42349,13 @@
         "properties": {
           "id": {
             "type": "string",
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "guildConnectionId": {
             "type": "string",
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "discordRoleId": {
             "type": "string"
@@ -42234,7 +42416,8 @@
         "properties": {
           "id": {
             "type": "string",
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "source": {
             "type": "string"
@@ -42449,7 +42632,8 @@
         "properties": {
           "id": {
             "type": "string",
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "eventType": {
             "type": "string"
@@ -42471,7 +42655,8 @@
               "null",
               "string"
             ],
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "metadata": {
             "type": "object",
@@ -42502,7 +42687,8 @@
         "properties": {
           "id": {
             "type": "string",
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "eventType": {
             "type": "string"
@@ -42589,7 +42775,8 @@
         "properties": {
           "id": {
             "type": "string",
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "eventType": {
             "type": "string"
@@ -42696,7 +42883,8 @@
         "properties": {
           "id": {
             "type": "string",
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "instanceId": {
             "type": "string"
@@ -42753,11 +42941,13 @@
         "properties": {
           "id": {
             "type": "string",
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "peerId": {
             "type": "string",
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "keyId": {
             "type": "string"
@@ -42795,7 +42985,8 @@
         "properties": {
           "id": {
             "type": "string",
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "grantedAt": {
             "type": "string",
@@ -42847,11 +43038,13 @@
           },
           "gameConfigId": {
             "type": "string",
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "playerUserId": {
             "type": "string",
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "betAmount": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -42949,7 +43142,8 @@
         "properties": {
           "viewerUserId": {
             "type": "string",
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "confirmationMethod": {
             "type": "string"
@@ -42980,7 +43174,8 @@
         "properties": {
           "userId": {
             "type": "string",
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "actionKey": {
             "type": "string"
@@ -43026,7 +43221,8 @@
         "properties": {
           "userId": {
             "type": "string",
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "role": {
             "$ref": "#/components/schemas/ManagementRole"
@@ -43055,7 +43251,8 @@
         "properties": {
           "tierId": {
             "type": "string",
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "isInviteOnlyGrant": {
             "type": "boolean"
@@ -43086,7 +43283,8 @@
         "properties": {
           "id": {
             "type": "string",
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "name": {
             "type": "string"
@@ -43105,7 +43303,8 @@
               "null",
               "string"
             ],
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "targetEventType": {
             "type": [
@@ -43257,11 +43456,13 @@
         "properties": {
           "jarId": {
             "type": "string",
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "invitedBroadcasterId": {
             "type": "string",
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "role": {
             "type": "string"
@@ -43302,7 +43503,8 @@
         "properties": {
           "id": {
             "type": "string",
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "code": {
             "type": "string"
@@ -43331,7 +43533,8 @@
               "null",
               "string"
             ],
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "grantsTierKey": {
             "type": [
@@ -43423,7 +43626,8 @@
         "properties": {
           "id": {
             "type": "string",
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "number": {
             "type": [
@@ -43497,11 +43701,13 @@
         "properties": {
           "jarId": {
             "type": "string",
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "contributorUserId": {
             "type": "string",
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "amount": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -43539,18 +43745,21 @@
           },
           "jarId": {
             "type": "string",
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "sourceBroadcasterId": {
             "type": "string",
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "contributorUserId": {
             "type": [
               "null",
               "string"
             ],
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "amount": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -43585,7 +43794,8 @@
               "null",
               "string"
             ],
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "createdAt": {
             "type": "string",
@@ -43605,11 +43815,13 @@
         "properties": {
           "jarId": {
             "type": "string",
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "targetViewerUserId": {
             "type": "string",
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "amount": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -43621,7 +43833,8 @@
           },
           "actorUserId": {
             "type": "string",
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           }
         },
         "description": "Withdraw from a jar back to a viewer's account (economy.md §4). long JarWithdrawRequest.Amount &gt; 0."
@@ -44223,7 +44436,8 @@
         "properties": {
           "id": {
             "type": "string",
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "name": {
             "type": "string"
@@ -45644,7 +45858,8 @@
         "properties": {
           "id": {
             "type": "string",
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "channelId": {
             "type": "string"
@@ -45728,7 +45943,8 @@
         "properties": {
           "id": {
             "type": "string",
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "name": {
             "type": "string"
@@ -45856,11 +46072,13 @@
         "properties": {
           "gameConfigId": {
             "type": "string",
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "playerUserId": {
             "type": "string",
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "betAmount": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -46027,11 +46245,13 @@
         "properties": {
           "itemId": {
             "type": "string",
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "buyerUserId": {
             "type": "string",
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "inputArgs": {
             "type": [
@@ -46118,7 +46338,8 @@
         "properties": {
           "id": {
             "type": "string",
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "number": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -46267,7 +46488,8 @@
           },
           "actorUserId": {
             "type": "string",
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           }
         },
         "description": "Refund a completed purchase (economy.md §4)."
@@ -46861,7 +47083,8 @@
         "properties": {
           "userId": {
             "type": "string",
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "role": {
             "$ref": "#/components/schemas/ManagementRole"
@@ -47075,7 +47298,8 @@
         "properties": {
           "id": {
             "type": "string",
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "name": {
             "type": "string"
@@ -50296,11 +50520,13 @@
         "properties": {
           "id": {
             "type": "string",
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "broadcasterId": {
             "type": "string",
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "tierKey": {
             "type": "string"
@@ -50437,7 +50663,8 @@
         "properties": {
           "id": {
             "type": "string",
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "key": {
             "type": "string"
@@ -50518,7 +50745,8 @@
         "properties": {
           "id": {
             "type": "string",
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "name": {
             "type": "string"
@@ -50553,7 +50781,8 @@
               "null",
               "string"
             ],
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "lastFiredAt": {
             "type": [
@@ -50595,7 +50824,8 @@
         "properties": {
           "id": {
             "type": "string",
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "name": {
             "type": "string"
@@ -50649,11 +50879,13 @@
         "properties": {
           "fromViewerUserId": {
             "type": "string",
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "toViewerUserId": {
             "type": "string",
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "amount": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -50674,7 +50906,8 @@
               "null",
               "string"
             ],
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           }
         },
         "description": "A point-to-point transfer between two viewers in the same channel (economy.md §4). long TransferCommand.Amount &gt; 0."
@@ -51384,7 +51617,8 @@
               "null",
               "string"
             ],
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "cooldownSeconds": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -51506,7 +51740,8 @@
               "null",
               "string"
             ],
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "cooldownSeconds": {
             "maximum": 86400,
@@ -51573,7 +51808,8 @@
               "null",
               "string"
             ],
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "messageTemplate": {
             "type": [
@@ -51654,7 +51890,8 @@
               "null",
               "string"
             ],
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "metadata": {
             "type": [
@@ -51700,7 +51937,8 @@
               "null",
               "string"
             ],
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "targetEventType": {
             "type": [
@@ -52096,7 +52334,8 @@
               "null",
               "string"
             ],
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "intervalMinutes": {
             "maximum": 1440,
@@ -52263,7 +52502,8 @@
               "null",
               "string"
             ],
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "optInType": {
             "type": "string"
@@ -52588,7 +52828,8 @@
               "null",
               "string"
             ],
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "metric": {
             "type": "string"
@@ -52615,7 +52856,8 @@
               "null",
               "string"
             ],
-            "format": "uuid"
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           }
         },
         "description": "Create or update a leaderboard config (economy.md §4). Guid? UpsertLeaderboardConfigRequest.Id null = create."
