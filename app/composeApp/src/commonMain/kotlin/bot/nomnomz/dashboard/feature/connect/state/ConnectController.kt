@@ -219,16 +219,17 @@ class ConnectController(
     }
 
     /**
-     * Probe the backend for the operator's Twitch connection health on shell load and raise the proactive
-     * reconnect prompt when the token is dead (`needs_reauth`) — so a dead token PROMPTS on page load instead of
-     * silently breaking chat. Fail-open: a 404 (no Twitch connection yet) or any transient failure leaves the
-     * prompt DOWN — a health blip must never nag a healthy operator to reconnect, and it must never throw (the
-     * page can never freeze on a boot probe).
+     * Probe the backend for the operator's Twitch connection health and set the reconnect prompt AUTHORITATIVELY
+     * from the answer: raise it when the token is dead (`needs_reauth`), and CLEAR it on any healthy status. The
+     * clear-on-healthy half is what dismisses the prompt once a reconnect restores the token — the shell re-polls
+     * this while the prompt is up, so it self-heals without a manual reload. Fail-open: a 404 (no Twitch connection
+     * yet) or any transient network failure leaves the current state untouched — a blip must neither nag a healthy
+     * operator nor wrongly clear a real prompt — and it never throws (the page can never freeze on a probe).
      */
     suspend fun checkTwitchHealth() {
         when (val health: ApiResult<MissingScopes> = diagnosticsApi.missingScopes()) {
             is ApiResult.Ok ->
-                if (health.value.connectionStatus == TWITCH_NEEDS_REAUTH) _reauthRequired.value = true
+                _reauthRequired.value = health.value.connectionStatus == TWITCH_NEEDS_REAUTH
 
             is ApiResult.Failure -> Unit
         }

@@ -370,6 +370,28 @@ class ConnectControllerDeviceLoginTest {
         assertEquals(false, controller.reauthRequired.value)
     }
 
+    @Test
+    fun check_twitch_health_clears_a_stale_prompt_once_the_connection_is_healthy_again() = runTest {
+        // The reconnect-recovery fix: the prompt is raised while the token is dead, then MUST clear itself on the
+        // next probe once the operator reconnects — never linger. This is why the check is authoritative, not raise-only.
+        val diagnostics = FakeTwitchDiagnosticsApi(connectionStatus = "needs_reauth")
+        val controller =
+            controller(
+                FakeSystemApi(ready = true, twitchConfigured = true),
+                diagnostics = diagnostics,
+            )
+
+        controller.checkTwitchHealth()
+        assertEquals(true, controller.reauthRequired.value) // dead token → prompt raised
+
+        // The operator reconnected — the backend now reports the connection healthy.
+        diagnostics.connectionStatus = "connected"
+        controller.checkTwitchHealth()
+
+        // The healthy probe auto-clears the prompt — no stale warning left hanging after a successful reconnect.
+        assertEquals(false, controller.reauthRequired.value)
+    }
+
     // ── Remembered tier (restore-on-boot) ─────────────────────────────────────
 
     private val rememberedProfile =
@@ -645,9 +667,9 @@ private class FakeConnectLauncher(
     ): ApiResult<Unit> = ApiResult.Ok(Unit)
 }
 
-/** A fake [TwitchDiagnosticsApi] — drives the proactive dead-token probe with a canned Twitch connection status. */
+/** A fake [TwitchDiagnosticsApi] — drives the proactive dead-token probe with a (mutable) Twitch connection status. */
 private class FakeTwitchDiagnosticsApi(
-    private val connectionStatus: String = "connected",
+    var connectionStatus: String = "connected",
     private val fail: Boolean = false,
 ) : TwitchDiagnosticsApi {
     override suspend fun missingScopes(): ApiResult<MissingScopes> =

@@ -392,11 +392,15 @@ fun ShellScreen(
             onDismiss = {
                 reconnectJob?.cancel()
                 graph.connectController.clearReconnectStatus()
-                graph.connectController.dismissReauthPrompt()
             },
             onRetry = triggerReconnect,
             modifier = Modifier.align(Alignment.TopCenter).fillMaxWidth(),
         )
+
+        // The professional dead-token WARNING (proactive re-auth) — a modal, not a bar. It self-dismisses once a
+        // reconnect restores the token (it re-polls health while up), and its Reconnect action runs the same
+        // redirect re-auth as the profile menu.
+        ReauthDialog(controller = graph.connectController, onReconnect = triggerReconnect)
     }
 }
 

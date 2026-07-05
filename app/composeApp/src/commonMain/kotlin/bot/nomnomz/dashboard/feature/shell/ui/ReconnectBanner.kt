@@ -33,11 +33,9 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.feature.connect.state.ConnectController
 import bot.nomnomz.dashboard.feature.connect.state.ConnectStatus
 import nomnomzbot.composeapp.generated.resources.Res
-import nomnomzbot.composeapp.generated.resources.shell_reconnect_action
 import nomnomzbot.composeapp.generated.resources.shell_reconnect_awaiting
 import nomnomzbot.composeapp.generated.resources.shell_reconnect_close
 import nomnomzbot.composeapp.generated.resources.shell_reconnect_failed
-import nomnomzbot.composeapp.generated.resources.shell_reconnect_needed
 import nomnomzbot.composeapp.generated.resources.shell_reconnect_retry
 import nomnomzbot.composeapp.generated.resources.shell_reconnect_starting
 import org.jetbrains.compose.resources.stringResource
@@ -55,17 +53,13 @@ fun ReconnectBanner(
     modifier: Modifier = Modifier,
 ) {
     val status: ConnectStatus by controller.status.collectAsStateWithLifecycle()
-    val reauthRequired: Boolean by controller.reauthRequired.collectAsStateWithLifecycle()
 
-    // The PROACTIVE prompt: the boot probe found the operator's Twitch token dead (needs_reauth) and nothing is
-    // in flight yet — surface "reconnect" on load so recovery is one tap, no menu hunt, no logout.
-    val proactive: Boolean = reauthRequired && status is ConnectStatus.Idle
-
-    // Render while a reconnect is happening/failed OR the proactive prompt is up. A successful reconnect returns
-    // the status to Idle AND clears reauthRequired, which auto-hides the bar (its purpose is done, chat restored).
+    // Render only while a reconnect is actually in flight or has failed. The PROACTIVE "your Twitch token is dead"
+    // warning is a modal now ([ReauthDialog]); this bar is just the transient device-code state (the secret-less
+    // fallback's user code) + a failure message. A successful reconnect returns the status to Idle, which auto-hides
+    // the bar (on web the redirect navigates away, so the bar barely flashes; the device path shows the code here).
     val active: Boolean =
-        proactive ||
-            status is ConnectStatus.Connecting ||
+        status is ConnectStatus.Connecting ||
             status is ConnectStatus.AwaitingApproval ||
             status is ConnectStatus.Error
 
@@ -74,8 +68,6 @@ fun ReconnectBanner(
         val spacing = LocalSpacing.current
         val typography = LocalTypography.current
         val isError: Boolean = status is ConnectStatus.Error
-        // The primary call-to-action — Reconnect on the proactive prompt, Retry after a failure — both run onRetry.
-        val showAction: Boolean = proactive || isError
 
         Row(
             modifier = Modifier
@@ -86,18 +78,16 @@ fun ReconnectBanner(
             horizontalArrangement = Arrangement.spacedBy(spacing.s3),
         ) {
             Text(
-                text = bannerText(status, proactive),
+                text = bannerText(status),
                 style = typography.sm,
                 fontWeight = FontWeight.Medium,
                 color = if (isError) tokens.destructiveForeground else tokens.primaryForeground,
                 modifier = Modifier.weight(1f),
             )
-            if (showAction) {
+            if (isError) {
                 BannerAction(
-                    label = stringResource(
-                        if (proactive) Res.string.shell_reconnect_action else Res.string.shell_reconnect_retry
-                    ),
-                    color = if (isError) tokens.destructiveForeground else tokens.primaryForeground,
+                    label = stringResource(Res.string.shell_reconnect_retry),
+                    color = tokens.destructiveForeground,
                     onClick = onRetry,
                 )
             }
@@ -111,12 +101,11 @@ fun ReconnectBanner(
 }
 
 @Composable
-private fun bannerText(status: ConnectStatus, proactive: Boolean): String =
-    when {
-        proactive -> stringResource(Res.string.shell_reconnect_needed)
-        status is ConnectStatus.AwaitingApproval ->
+private fun bannerText(status: ConnectStatus): String =
+    when (status) {
+        is ConnectStatus.AwaitingApproval ->
             stringResource(Res.string.shell_reconnect_awaiting, status.verificationUri, status.userCode)
-        status is ConnectStatus.Error -> stringResource(Res.string.shell_reconnect_failed)
+        is ConnectStatus.Error -> stringResource(Res.string.shell_reconnect_failed)
         else -> stringResource(Res.string.shell_reconnect_starting)
     }
 

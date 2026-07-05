@@ -153,9 +153,11 @@
     <string name="shell_profile_open">Accountmenu openen</string>
     <string name="shell_profile_logout">Afmelden</string>
     <string name="shell_reconnect_menu">Twitch opnieuw verbinden</string>
-    <string name="shell_reconnect_needed">Je Twitch-verbinding is verlopen — verbind opnieuw om chat en meldingen te herstellen.</string>
-    <string name="shell_reconnect_action">Opnieuw verbinden</string>
     <string name="shell_reconnect_starting">Twitch opnieuw verbinden…</string>
+    <string name="reauth_dialog_title">Verbind je Twitch-account opnieuw</string>
+    <string name="reauth_dialog_message">Je Twitch-verbinding is verlopen, dus de bot kan nu geen chat lezen of versturen. Verbind opnieuw om chat, meldingen en opdrachten te herstellen — het duurt maar even en je blijft ingelogd.</string>
+    <string name="reauth_dialog_confirm">Opnieuw verbinden</string>
+    <string name="reauth_dialog_dismiss">Later</string>
     <string name="shell_reconnect_awaiting">Twitch opnieuw verbinden: ga naar %1$s en voer code %2$s in</string>
     <string name="shell_reconnect_failed">Twitch opnieuw verbinden mislukt. Probeer opnieuw.</string>
     <string name="shell_reconnect_retry">Opnieuw</string>
