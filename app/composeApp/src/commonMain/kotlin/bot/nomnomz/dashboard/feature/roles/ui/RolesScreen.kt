@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -34,13 +33,11 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
-import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenu
@@ -87,8 +84,7 @@ import nomnomzbot.composeapp.generated.resources.roles_override_confirm
 import nomnomzbot.composeapp.generated.resources.roles_override_default
 import nomnomzbot.composeapp.generated.resources.roles_override_dialog_desc
 import nomnomzbot.composeapp.generated.resources.roles_override_dialog_title
-import nomnomzbot.composeapp.generated.resources.roles_override_level_invalid
-import nomnomzbot.composeapp.generated.resources.roles_override_level_label
+import nomnomzbot.composeapp.generated.resources.roles_override_pick
 import nomnomzbot.composeapp.generated.resources.roles_override_reset
 import nomnomzbot.composeapp.generated.resources.roles_override_set
 import nomnomzbot.composeapp.generated.resources.roles_permit_capability
@@ -108,10 +104,14 @@ import nomnomzbot.composeapp.generated.resources.roles_revoke_confirm
 import nomnomzbot.composeapp.generated.resources.roles_revoke_dismiss
 import nomnomzbot.composeapp.generated.resources.roles_revoke_message
 import nomnomzbot.composeapp.generated.resources.roles_revoke_title
+import nomnomzbot.composeapp.generated.resources.roles_role_artist
 import nomnomzbot.composeapp.generated.resources.roles_role_broadcaster
 import nomnomzbot.composeapp.generated.resources.roles_role_editor
+import nomnomzbot.composeapp.generated.resources.roles_role_everyone
 import nomnomzbot.composeapp.generated.resources.roles_role_lead_moderator
 import nomnomzbot.composeapp.generated.resources.roles_role_moderator
+import nomnomzbot.composeapp.generated.resources.roles_role_subscriber
+import nomnomzbot.composeapp.generated.resources.roles_role_vip
 import nomnomzbot.composeapp.generated.resources.shell_nav_roles
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
@@ -683,6 +683,35 @@ private fun roleLabel(role: ManagementRole): StringResource =
         ManagementRole.Broadcaster -> Res.string.roles_role_broadcaster
     }
 
+/**
+ * One named rung of the unified authorization ladder (roles-permissions §0). [level] is the internal comparison
+ * value the backend gates on; [label] is the only thing users ever see — the numbers stay internal.
+ */
+private data class LadderRung(val level: Int, val label: StringResource)
+
+/**
+ * The unified ladder low→high (0/2/4/6/10/20/30/40): Plane-A community rungs then Plane-B management rungs,
+ * aligned on their shared Moderator rung. The action-floor picker offers these by name; the row label maps a
+ * level onto one. This is the single source for the ladder→name mapping the screen renders.
+ */
+private val LadderRungs: List<LadderRung> = listOf(
+    LadderRung(0, Res.string.roles_role_everyone),
+    LadderRung(2, Res.string.roles_role_subscriber),
+    LadderRung(4, Res.string.roles_role_vip),
+    LadderRung(6, Res.string.roles_role_artist),
+    LadderRung(10, Res.string.roles_role_moderator),
+    LadderRung(20, Res.string.roles_role_lead_moderator),
+    LadderRung(30, Res.string.roles_role_editor),
+    LadderRung(40, Res.string.roles_role_broadcaster),
+)
+
+/**
+ * The localized NAME of the ladder rung a [level] satisfies — the highest rung whose threshold it meets. Enforces
+ * the "users never see numeric permission levels" rule: every effective/override level renders as a role name.
+ */
+private fun ladderRoleLabel(level: Int): StringResource =
+    LadderRungs.lastOrNull { level >= it.level }?.label ?: Res.string.roles_role_everyone
+
 // One row in the action-permission matrix: shows the action key, its effective level, whether an override is
 // active, and two write controls (Override + Reset). The Reset button is only shown when overrideLevel != null.
 @Composable
@@ -696,11 +725,13 @@ private fun ActionPermissionRow(
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
 
+    // Users see the role NAME, never the numeric level (the numbers are internal gating only).
+    val roleName: String = stringResource(ladderRoleLabel(action.overrideLevel ?: action.effectiveLevel))
     val levelLabel: String =
         if (action.overrideLevel != null) {
-            stringResource(Res.string.roles_override_active, action.overrideLevel)
+            stringResource(Res.string.roles_override_active, roleName)
         } else {
-            stringResource(Res.string.roles_override_default, action.effectiveLevel)
+            stringResource(Res.string.roles_override_default, roleName)
         }
 
     Row(
@@ -746,7 +777,9 @@ private fun ActionPermissionRow(
     }
 }
 
-// Dialog for setting a numeric level override on an action. Pre-fills with the current overrideLevel if set.
+// Dialog for setting the minimum role that can use an action. The user picks a role NAME (never a numeric level —
+// those are internal); the picker offers the named ladder rungs at or above the action's safety floor, pre-selected
+// to the current override (or the effective floor when none is set). Confirm sends the picked rung's ladder level.
 @Composable
 private fun SetOverrideDialog(
     action: ActionPermission,
@@ -757,12 +790,17 @@ private fun SetOverrideDialog(
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
 
-    var raw: String by remember { mutableStateOf(action.overrideLevel?.toString() ?: action.effectiveLevel.toString()) }
-    val parsed: Int? = raw.toIntOrNull()?.takeIf { it >= 0 }
-    val isValid: Boolean = parsed != null
+    // The selectable rungs: named ladder positions at or above the action's safety floor — a lower floor may not
+    // be set (DangerTier guards that server-side; the picker mirrors the guard). Highest first, like the role picker.
+    val choices: List<LadderRung> =
+        LadderRungs.filter { it.level >= action.floorLevel }.sortedByDescending { it.level }
+    var selected: Int by remember { mutableStateOf(action.overrideLevel ?: action.effectiveLevel) }
+    var expanded: Boolean by remember { mutableStateOf(false) }
 
     val title: String = stringResource(Res.string.roles_override_dialog_title, action.actionKey)
     val desc: String = stringResource(Res.string.roles_override_dialog_desc)
+    val activeLabel: String = stringResource(ladderRoleLabel(selected))
+    val pickLabel: String = stringResource(Res.string.roles_override_pick)
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -770,21 +808,44 @@ private fun SetOverrideDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
                 Text(text = desc, style = typography.sm, color = tokens.mutedForeground)
-                AppTextField(
-                    value = raw,
-                    onValueChange = { raw = it },
-                    label = stringResource(Res.string.roles_override_level_label),
-                    isError = !isValid && raw.isNotEmpty(),
-                    errorText = stringResource(Res.string.roles_override_level_invalid),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                )
+                Box {
+                    TextButton(
+                        onClick = { expanded = true },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .semantics { contentDescription = pickLabel },
+                    ) {
+                        Text(
+                            text = activeLabel,
+                            style = typography.sm,
+                            color = tokens.primary,
+                            maxLines = 1,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                    DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                        choices.forEach { rung ->
+                            val label: String = stringResource(rung.label)
+                            DropdownMenuItem(
+                                text = {
+                                    Text(text = label, style = typography.sm, color = tokens.popoverForeground)
+                                },
+                                modifier = Modifier.semantics { role = Role.Button },
+                                onClick = {
+                                    selected = rung.level
+                                    expanded = false
+                                },
+                            )
+                        }
+                    }
+                }
             }
         },
         confirmButton = {
-            TextButton(onClick = { parsed?.let(onConfirm) }, enabled = isValid) {
+            TextButton(onClick = { onConfirm(selected) }) {
                 Text(
                     text = stringResource(Res.string.roles_override_confirm),
-                    color = if (isValid) tokens.primary else tokens.mutedForeground,
+                    color = tokens.primary,
                 )
             }
         },
