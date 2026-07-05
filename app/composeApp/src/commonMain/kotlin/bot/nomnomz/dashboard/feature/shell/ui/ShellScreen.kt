@@ -206,6 +206,12 @@ fun ShellScreen(
     access: ShellAccess.Resolved,
     onLogout: () -> Unit,
 ) {
+    // Load the channel roster once, for BOTH rungs, so the channel switcher is populated whether the caller lands
+    // on the management OR the participant surface — a participant must always be able to switch channels (e.g. a
+    // moderator viewing a channel they mod, or switching back to a channel they broadcast). Kept ABOVE the
+    // participant early-return so it runs regardless of role; App re-resolves access on every activeChannelId change.
+    LaunchedEffect(Unit) { graph.channelSwitcherController.load() }
+
     // One shell, three rungs (participant → mod → broadcaster), never forked. A caller with no Plane-B management
     // role is a PARTICIPANT (Rung 0): the same shell renders the participant surface — their own profile/standing,
     // the channel they're watching, and the read-mostly + self-service slices they're permitted — gated by their
@@ -226,7 +232,6 @@ fun ShellScreen(
     var selected: ShellRoute by remember { mutableStateOf(routeStore.initialRoute()) }
     LaunchedEffect(selected) { routeStore.save(selected) }
     LaunchedEffect(routeStore) { routeStore.externalChanges.collect { selected = it } }
-    LaunchedEffect(Unit) { graph.channelSwitcherController.load() }
     // When the operator switches channels, navigate to Dashboard so each page controller re-initialises
     // for the new channel. The active channel starts null and is populated once on load; filterNotNull()
     // then drop(1) skips that first REAL population (which on a page reload would otherwise clobber the
@@ -533,7 +538,7 @@ private fun Sidebar(
 // Tapping opens a channel-switcher dropdown when the operator has more than one channel.
 // CMP 1.9.0 fixed the Wasm Popup deadlock, so DropdownMenu works correctly in the browser build.
 @Composable
-private fun SidebarHeader(switcher: ChannelSwitcherController) {
+internal fun SidebarHeader(switcher: ChannelSwitcherController) {
     val state: SwitcherState by switcher.state.collectAsStateWithLifecycle()
     val activeId: String? by switcher.activeChannelId.collectAsStateWithLifecycle()
     val ready: SwitcherState.Ready? = state as? SwitcherState.Ready

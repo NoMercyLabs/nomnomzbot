@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -61,7 +62,9 @@ import bot.nomnomz.dashboard.feature.participant.state.ParticipantController
 import bot.nomnomz.dashboard.feature.shell.nav.ParticipantPage
 import bot.nomnomz.dashboard.feature.shell.nav.ParticipantStanding
 import bot.nomnomz.dashboard.feature.shell.nav.ShellNav
+import bot.nomnomz.dashboard.feature.shell.state.ChannelSwitcherController
 import bot.nomnomz.dashboard.feature.shell.state.ShellAccess
+import bot.nomnomz.dashboard.feature.shell.ui.SidebarHeader
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.app_name
 import nomnomzbot.composeapp.generated.resources.language_label
@@ -143,6 +146,7 @@ fun ParticipantShell(
                     pages = visible,
                     selected = selected,
                     standing = access.standing,
+                    switcher = graph.channelSwitcherController,
                     onSelect = {
                         selected = it
                         drawerOpen = false
@@ -158,6 +162,7 @@ fun ParticipantShell(
                     pages = visible,
                     selected = selected,
                     standing = access.standing,
+                    switcher = graph.channelSwitcherController,
                     onSelect = { selected = it },
                     user = user,
                     languageController = languageController,
@@ -201,6 +206,7 @@ private fun Sidebar(
     pages: List<ParticipantPage>,
     selected: ParticipantPage,
     standing: ParticipantStanding,
+    switcher: ChannelSwitcherController,
     onSelect: (ParticipantPage) -> Unit,
     user: SessionUser?,
     languageController: LanguageController,
@@ -223,6 +229,12 @@ private fun Sidebar(
             color = tokens.sidebarForeground,
             modifier = Modifier.padding(start = spacing.s2, top = spacing.s2, bottom = spacing.s3),
         )
+
+        // Always-present channel switcher — the SAME chip as the management shell. A participant here is a
+        // viewer, or a moderator currently viewing a channel they mod; either way they must be able to switch
+        // back to a channel they broadcast/moderate instead of being stuck on this surface.
+        SidebarHeader(switcher = switcher)
+        Spacer(modifier = Modifier.height(spacing.s2))
 
         Column(
             modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()),
