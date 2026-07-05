@@ -126,6 +126,7 @@ import bot.nomnomz.dashboard.feature.shell.nav.ShellNav
 import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
 import bot.nomnomz.dashboard.feature.shell.state.ShellAccess
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.app_name
@@ -172,6 +173,7 @@ import nomnomzbot.composeapp.generated.resources.shell_nav_timers
 import nomnomzbot.composeapp.generated.resources.shell_nav_tts
 import nomnomzbot.composeapp.generated.resources.shell_profile_logout
 import nomnomzbot.composeapp.generated.resources.shell_profile_open
+import nomnomzbot.composeapp.generated.resources.shell_reconnect_menu
 import nomnomzbot.composeapp.generated.resources.shell_role_broadcaster
 import nomnomzbot.composeapp.generated.resources.shell_role_editor
 import nomnomzbot.composeapp.generated.resources.shell_role_moderator
@@ -296,6 +298,16 @@ fun ShellScreen(
         }
     }
 
+    // A dead Twitch token is recovered IN PLACE — never a logout (never-logout-for-scope-or-schema-changes).
+    // The profile menu's "Reconnect Twitch" runs [ConnectController.reconnect] (the device-code re-auth); the
+    // [ReconnectBanner] below surfaces its user code + poll state at the top of the shell and hides on success.
+    val reconnectScope: CoroutineScope = rememberCoroutineScope()
+    var reconnectJob: Job? by remember { mutableStateOf(null) }
+    val triggerReconnect: () -> Unit = {
+        reconnectJob?.cancel()
+        reconnectJob = reconnectScope.launch { graph.connectController.reconnect() }
+    }
+
     BoxWithConstraints(modifier = Modifier.fillMaxSize().background(tokens.background)) {
         val compact: Boolean = maxWidth < CompactBreakpoint
 
@@ -336,6 +348,7 @@ fun ShellScreen(
                     channelSwitcher = graph.channelSwitcherController,
                     languageController = languageController,
                     onLogout = onLogout,
+                    onReconnect = triggerReconnect,
                 )
             }
         } else {
@@ -353,6 +366,7 @@ fun ShellScreen(
                     channelSwitcher = graph.channelSwitcherController,
                     languageController = languageController,
                     onLogout = onLogout,
+                    onReconnect = triggerReconnect,
                 )
                 Column(modifier = Modifier.weight(1f).fillMaxHeight()) {
                     // No top bar on desktop: each screen renders its own PageHeader, so a shell-level
@@ -368,6 +382,18 @@ fun ShellScreen(
                 }
             }
         }
+
+        // Dead-token recovery bar — overlays the top of the shell during a reconnect (the device-code user code +
+        // poll state), hidden otherwise. Re-vaults a fresh token in place; the session is kept (no logout).
+        ReconnectBanner(
+            controller = graph.connectController,
+            onDismiss = {
+                reconnectJob?.cancel()
+                graph.connectController.clearReconnectStatus()
+            },
+            onRetry = triggerReconnect,
+            modifier = Modifier.align(Alignment.TopCenter).fillMaxWidth(),
+        )
     }
 }
 
@@ -479,6 +505,7 @@ private fun Sidebar(
     channelSwitcher: ChannelSwitcherController,
     languageController: LanguageController,
     onLogout: () -> Unit,
+    onReconnect: () -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -552,6 +579,7 @@ private fun Sidebar(
             role = role,
             languageController = languageController,
             onLogout = onLogout,
+            onReconnect = onReconnect,
         )
     }
 }
@@ -819,6 +847,7 @@ private fun ProfileBlock(
     role: ManagementRole?,
     languageController: LanguageController,
     onLogout: () -> Unit,
+    onReconnect: () -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -886,6 +915,21 @@ private fun ProfileBlock(
                 )
             }
             Separator()
+            // Reconnect Twitch — the no-logout dead-token recovery. Opens the device-code re-auth (the shell's
+            // ReconnectBanner renders the code + poll state); re-vaults a fresh token in place, session kept.
+            DropdownMenuItem(
+                text = {
+                    Text(
+                        text = stringResource(Res.string.shell_reconnect_menu),
+                        style = typography.sm,
+                        color = tokens.popoverForeground,
+                    )
+                },
+                onClick = {
+                    open = false
+                    onReconnect()
+                },
+            )
             DropdownMenuItem(
                 text = {
                     Text(

@@ -171,12 +171,37 @@ class ConnectController(
         }
     }
 
+    /**
+     * Re-authorize Twitch for the ALREADY-signed-in operator WITHOUT a logout — the dead-token recovery (a
+     * reconnect prompt, not a re-onboard). Runs the same device-code flow against the current backend and, on
+     * approval, re-vaults a fresh token + refreshes the session in place ([establishSession]). A failed or
+     * declined attempt KEEPS the existing session intact (unlike onboarding, which rolls back). Reuses [status]
+     * so a reconnect dialog renders the user code + poll state exactly like the Connect screen. On self-host the
+     * bot falls back to the streamer token, so this restores chat send + read once the fresh token is vaulted.
+     */
+    suspend fun reconnect() {
+        if (loginInProgress()) return
+        val profile: ConnectionProfile =
+            sessionStore.activeProfile.value ?: servedOriginProfile() ?: return
+        _status.value = ConnectStatus.Connecting
+        runDeviceLogin(profile, keepSession = true)
+    }
+
+    /** Return the status to Idle so the reconnect bar hides when the operator dismisses it (cancel the job separately). */
+    fun clearReconnectStatus() {
+        _status.value = ConnectStatus.Idle
+    }
+
     /** Start the device authorization, then poll it to completion (or surface the failure). */
-    private suspend fun runDeviceLogin(profile: ConnectionProfile) {
+    private suspend fun runDeviceLogin(profile: ConnectionProfile, keepSession: Boolean = false) {
         when (val start: ApiResult<DeviceCodeStart> = authApi.startDeviceLogin()) {
             is ApiResult.Failure -> {
-                sessionStore.disconnect()
-                pendingProfile = null
+                // A RECONNECT (keepSession) must NOT drop the operator's still-valid app session on a failed
+                // start — only onboarding rolls back. The error surfaces on [status]; the session stays put.
+                if (!keepSession) {
+                    sessionStore.disconnect()
+                    pendingProfile = null
+                }
                 _status.value = ConnectStatus.Error(ConnectError.Auth(start.error.message))
             }
 

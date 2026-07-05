@@ -155,6 +155,12 @@
     <string name="shell_role_broadcaster">Broadcaster</string>
     <string name="shell_profile_open">Open account menu</string>
     <string name="shell_profile_logout">Log out</string>
+    <string name="shell_reconnect_menu">Reconnect Twitch</string>
+    <string name="shell_reconnect_starting">Starting Twitch reconnect…</string>
+    <string name="shell_reconnect_awaiting">Reconnect Twitch: go to %1$s and enter code %2$s</string>
+    <string name="shell_reconnect_failed">Twitch reconnect failed. Try again.</string>
+    <string name="shell_reconnect_retry">Try again</string>
+    <string name="shell_reconnect_close">Dismiss</string>
     <string name="shell_role_viewer">Viewer</string>
     <string name="viewer_surface_title">You're signed in as a viewer</string>
     <string name="viewer_surface_body">This account has no management role on this channel, so there's no dashboard to show. You can still take part from chat and the channel's public pages. If you should have access, ask the streamer to add you.</string>
