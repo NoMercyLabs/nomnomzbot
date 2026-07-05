@@ -656,6 +656,14 @@ public static class DependencyInjection
             Application.Contracts.Discord.IDiscordBotGateway,
             Discord.Gateway.DiscordRestBotGateway
         >();
+        // Interactions webhook — Ed25519 signature verifier over Discord:PublicKey (stateless → singleton;
+        // reads config per call so a key change applies without restart). The interaction router
+        // (IDiscordInteractionService) and the guild directory (IDiscordGuildDirectoryService) follow the
+        // I<X>Service convention and are bound scoped by AddServicesByConvention above.
+        services.AddSingleton<
+            Application.Contracts.Discord.IDiscordInteractionVerifier,
+            Discord.Interactions.DiscordInteractionVerifier
+        >();
 
         // ChannelRegistry (singleton + hosted service — one instance serves IChannelRegistry
         // AND the hosted lifecycle, so it is wired explicitly and excluded from the worker scan).

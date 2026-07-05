@@ -59,6 +59,7 @@ services:
       - Spotify__ClientSecret=${SPOTIFY_CLIENT_SECRET:-}
       - Discord__ClientId=${DISCORD_CLIENT_ID:-}
       - Discord__ClientSecret=${DISCORD_CLIENT_SECRET:-}
+      - Discord__PublicKey=${DISCORD_PUBLIC_KEY:-}
       - YouTube__ClientId=${YOUTUBE_CLIENT_ID:-}
       - YouTube__ClientSecret=${YOUTUBE_CLIENT_SECRET:-}
       - Azure__Tts__ApiKey=${AZURE_TTS_API_KEY:-}

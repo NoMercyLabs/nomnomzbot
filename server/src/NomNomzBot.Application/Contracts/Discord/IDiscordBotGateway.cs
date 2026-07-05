@@ -56,4 +56,25 @@ public interface IDiscordBotGateway
         string discordRoleId,
         CancellationToken ct = default
     );
+
+    /// <summary>Reads the guild's live profile (<c>GET /guilds/{id}</c>) for the dashboard pickers.</summary>
+    Task<Result<DiscordGuildInfoDto>> GetGuildAsync(
+        Guid broadcasterId,
+        string guildId,
+        CancellationToken ct = default
+    );
+
+    /// <summary>Reads the guild's live role list (<c>GET /guilds/{id}/roles</c>).</summary>
+    Task<Result<IReadOnlyList<DiscordGuildRoleDto>>> GetGuildRolesAsync(
+        Guid broadcasterId,
+        string guildId,
+        CancellationToken ct = default
+    );
+
+    /// <summary>Reads the guild's live channel list (<c>GET /guilds/{id}/channels</c>).</summary>
+    Task<Result<IReadOnlyList<DiscordGuildChannelDto>>> GetGuildChannelsAsync(
+        Guid broadcasterId,
+        string guildId,
+        CancellationToken ct = default
+    );
 }

@@ -164,6 +164,29 @@ public sealed record DiscordOptInButton(
     string ButtonLabel
 );
 
+// ── Guild directory (live pickers — ROADMAP guild read endpoints) ────────────
+
+/// <summary>The linked guild's live profile, proxied from Discord for the dashboard.</summary>
+public sealed record DiscordGuildInfoDto(string Id, string Name, string? Icon, string? Description);
+
+/// <summary>A live guild role, for the notify-role picker. <c>Managed</c> roles cannot be self-assigned.</summary>
+public sealed record DiscordGuildRoleDto(
+    string Id,
+    string Name,
+    int Color,
+    int Position,
+    bool Managed
+);
+
+/// <summary>A live guild channel, for the target/button channel pickers. <c>Type</c> is Discord's channel type (0 = text).</summary>
+public sealed record DiscordGuildChannelDto(
+    string Id,
+    string? Name,
+    int Type,
+    string? ParentId,
+    int Position
+);
+
 // ── Controller request DTOs (discord.md §5) ──────────────────────────────────
 
 public sealed record ServerConsentRequest(string ApprovedByDiscordUserId);

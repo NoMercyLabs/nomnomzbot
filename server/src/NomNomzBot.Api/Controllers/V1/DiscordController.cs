@@ -36,18 +36,21 @@ public class DiscordController : BaseController
     private readonly IDiscordNotificationConfigService _configs;
     private readonly IDiscordNotificationRoleService _roles;
     private readonly IDiscordNotificationDispatcher _dispatcher;
+    private readonly IDiscordGuildDirectoryService _directory;
 
     public DiscordController(
         IDiscordGuildService guilds,
         IDiscordNotificationConfigService configs,
         IDiscordNotificationRoleService roles,
-        IDiscordNotificationDispatcher dispatcher
+        IDiscordNotificationDispatcher dispatcher,
+        IDiscordGuildDirectoryService directory
     )
     {
         _guilds = guilds;
         _configs = configs;
         _roles = roles;
         _dispatcher = dispatcher;
+        _directory = directory;
     }
 
     // ── Connections ─────────────────────────────────────────────────────────
@@ -123,6 +126,42 @@ public class DiscordController : BaseController
         Guid connectionId,
         CancellationToken ct
     ) => ResultResponse(await _guilds.DisconnectAsync(channelId, connectionId, ct));
+
+    // ── Guild directory (live pickers — proxied reads, nothing persisted) ────
+
+    /// <summary>Read the linked guild's live profile from Discord.</summary>
+    [RequireAction("discord:connection:read")]
+    [HttpGet("connections/{connectionId:guid}/guild")]
+    [ProducesResponseType<StatusResponseDto<DiscordGuildInfoDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetGuild(
+        Guid channelId,
+        Guid connectionId,
+        CancellationToken ct
+    ) => ResultResponse(await _directory.GetGuildAsync(channelId, connectionId, ct));
+
+    /// <summary>List the linked guild's live roles, for the notify-role picker.</summary>
+    [RequireAction("discord:role:read")]
+    [HttpGet("connections/{connectionId:guid}/guild/roles")]
+    [ProducesResponseType<StatusResponseDto<IReadOnlyList<DiscordGuildRoleDto>>>(
+        StatusCodes.Status200OK
+    )]
+    public async Task<IActionResult> GetGuildRoles(
+        Guid channelId,
+        Guid connectionId,
+        CancellationToken ct
+    ) => ResultResponse(await _directory.GetGuildRolesAsync(channelId, connectionId, ct));
+
+    /// <summary>List the linked guild's live channels, for the target/button channel pickers.</summary>
+    [RequireAction("discord:connection:read")]
+    [HttpGet("connections/{connectionId:guid}/guild/channels")]
+    [ProducesResponseType<StatusResponseDto<IReadOnlyList<DiscordGuildChannelDto>>>(
+        StatusCodes.Status200OK
+    )]
+    public async Task<IActionResult> GetGuildChannels(
+        Guid channelId,
+        Guid connectionId,
+        CancellationToken ct
+    ) => ResultResponse(await _directory.GetGuildChannelsAsync(channelId, connectionId, ct));
 
     // ── Notification configs ──────────────────────────────────────────────────
 

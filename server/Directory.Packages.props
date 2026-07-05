@@ -56,6 +56,13 @@
   <ItemGroup Label="mDNS / DNS-SD">
     <PackageVersion Include="Makaretu.Dns.Multicast" Version="0.27.0" />
   </ItemGroup>
+  <!-- Ed25519 for the Discord interactions webhook signature (X-Signature-Ed25519). .NET 10's
+       System.Security.Cryptography has no Ed25519 signature primitive (only X25519 key agreement +
+       ML-DSA/SLH-DSA), so the libsodium-backed NSec is the best-in-class pick per the dependency
+       philosophy. CVE-clean under the NU1903 audit. -->
+  <ItemGroup Label="Ed25519 (Discord interactions signature)">
+    <PackageVersion Include="NSec.Cryptography" Version="26.4.0" />
+  </ItemGroup>
   <ItemGroup Label="Resilience">
     <PackageVersion Include="Microsoft.Extensions.Http.Resilience" Version="10.6.0" />
     <PackageVersion Include="Polly.Core" Version="8.6.6" />

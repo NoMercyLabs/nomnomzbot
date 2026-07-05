@@ -208,6 +208,157 @@ public sealed class DiscordRestBotGatewayTests
             .Be($"Bot {DecryptedToken}");
     }
 
+    [Fact]
+    public async Task GetGuildAsync_IssuesGetToGuildEndpoint_AndMapsEveryField()
+    {
+        using DiscordSqliteTestDatabase database = DiscordSqliteTestDatabase.Open();
+        Guid connectionId = await SeedDiscordConnectionAsync(database);
+        IIntegrationTokenVault vault = VaultReturning(connectionId, DecryptedToken);
+
+        CapturingHandler handler = new(
+            new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(
+                    """{"id":"guild1","name":"The Guild","icon":"a1b2c3","description":"About us","owner_id":"555"}""",
+                    Encoding.UTF8,
+                    "application/json"
+                ),
+            }
+        );
+
+        await using DiscordTestDbContext db = database.NewContext();
+        DiscordRestBotGateway gateway = NewGateway(handler, db, vault);
+
+        Result<DiscordGuildInfoDto> result = await gateway.GetGuildAsync(Channel, "guild1");
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        result
+            .Value.Should()
+            .Be(new DiscordGuildInfoDto("guild1", "The Guild", "a1b2c3", "About us"));
+
+        handler.Request!.Method.Should().Be(HttpMethod.Get);
+        handler
+            .Request!.RequestUri!.ToString()
+            .Should()
+            .Be("https://discord.com/api/v10/guilds/guild1");
+        handler
+            .Request!.Headers.GetValues("Authorization")
+            .Single()
+            .Should()
+            .Be($"Bot {DecryptedToken}");
+    }
+
+    [Fact]
+    public async Task GetGuildRolesAsync_IssuesGetToRolesEndpoint_AndMapsEveryField()
+    {
+        using DiscordSqliteTestDatabase database = DiscordSqliteTestDatabase.Open();
+        Guid connectionId = await SeedDiscordConnectionAsync(database);
+        IIntegrationTokenVault vault = VaultReturning(connectionId, DecryptedToken);
+
+        CapturingHandler handler = new(
+            new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(
+                    """[{"id":"role-1","name":"Notify Squad","color":16711935,"position":3,"managed":false,"hoist":true},{"id":"role-2","name":"Bot Role","color":0,"position":1,"managed":true}]""",
+                    Encoding.UTF8,
+                    "application/json"
+                ),
+            }
+        );
+
+        await using DiscordTestDbContext db = database.NewContext();
+        DiscordRestBotGateway gateway = NewGateway(handler, db, vault);
+
+        Result<IReadOnlyList<DiscordGuildRoleDto>> result = await gateway.GetGuildRolesAsync(
+            Channel,
+            "guild1"
+        );
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        result.Value.Should().HaveCount(2);
+        result
+            .Value[0]
+            .Should()
+            .Be(new DiscordGuildRoleDto("role-1", "Notify Squad", 16711935, 3, false));
+        result.Value[1].Should().Be(new DiscordGuildRoleDto("role-2", "Bot Role", 0, 1, true));
+
+        handler.Request!.Method.Should().Be(HttpMethod.Get);
+        handler
+            .Request!.RequestUri!.ToString()
+            .Should()
+            .Be("https://discord.com/api/v10/guilds/guild1/roles");
+        handler
+            .Request!.Headers.GetValues("Authorization")
+            .Single()
+            .Should()
+            .Be($"Bot {DecryptedToken}");
+    }
+
+    [Fact]
+    public async Task GetGuildChannelsAsync_IssuesGetToChannelsEndpoint_AndMapsEveryField()
+    {
+        using DiscordSqliteTestDatabase database = DiscordSqliteTestDatabase.Open();
+        Guid connectionId = await SeedDiscordConnectionAsync(database);
+        IIntegrationTokenVault vault = VaultReturning(connectionId, DecryptedToken);
+
+        CapturingHandler handler = new(
+            new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(
+                    """[{"id":"chan-1","name":"general","type":0,"parent_id":"cat-9","position":2},{"id":"cat-9","name":"Text","type":4,"parent_id":null,"position":0}]""",
+                    Encoding.UTF8,
+                    "application/json"
+                ),
+            }
+        );
+
+        await using DiscordTestDbContext db = database.NewContext();
+        DiscordRestBotGateway gateway = NewGateway(handler, db, vault);
+
+        Result<IReadOnlyList<DiscordGuildChannelDto>> result = await gateway.GetGuildChannelsAsync(
+            Channel,
+            "guild1"
+        );
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        result.Value.Should().HaveCount(2);
+        result.Value[0].Should().Be(new DiscordGuildChannelDto("chan-1", "general", 0, "cat-9", 2));
+        result.Value[1].Should().Be(new DiscordGuildChannelDto("cat-9", "Text", 4, null, 0));
+
+        handler.Request!.Method.Should().Be(HttpMethod.Get);
+        handler
+            .Request!.RequestUri!.ToString()
+            .Should()
+            .Be("https://discord.com/api/v10/guilds/guild1/channels");
+    }
+
+    [Fact]
+    public async Task GetGuildAsync_NonSuccess_MapsToFailure_NotThrow()
+    {
+        using DiscordSqliteTestDatabase database = DiscordSqliteTestDatabase.Open();
+        Guid connectionId = await SeedDiscordConnectionAsync(database);
+        IIntegrationTokenVault vault = VaultReturning(connectionId, DecryptedToken);
+
+        CapturingHandler handler = new(
+            new HttpResponseMessage(HttpStatusCode.NotFound)
+            {
+                Content = new StringContent(
+                    """{"message":"Unknown Guild","code":10004}""",
+                    Encoding.UTF8,
+                    "application/json"
+                ),
+            }
+        );
+
+        await using DiscordTestDbContext db = database.NewContext();
+        DiscordRestBotGateway gateway = NewGateway(handler, db, vault);
+
+        Result<DiscordGuildInfoDto> result = await gateway.GetGuildAsync(Channel, "gone");
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("DISCORD_NOT_FOUND");
+    }
+
     // ─── Helpers ─────────────────────────────────────────────────────────────
 
     private static DiscordRestBotGateway NewGateway(

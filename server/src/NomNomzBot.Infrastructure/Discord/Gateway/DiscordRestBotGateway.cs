@@ -153,7 +153,136 @@ public sealed class DiscordRestBotGateway : IDiscordBotGateway
             ct
         );
 
+    public async Task<Result<DiscordGuildInfoDto>> GetGuildAsync(
+        Guid broadcasterId,
+        string guildId,
+        CancellationToken ct = default
+    )
+    {
+        Result<DiscordGuildWire> guild = await GetAsync<DiscordGuildWire>(
+            broadcasterId,
+            $"guilds/{Uri.EscapeDataString(guildId)}",
+            ct
+        );
+        if (guild.IsFailure)
+            return Result.Failure<DiscordGuildInfoDto>(
+                guild.ErrorMessage,
+                guild.ErrorCode,
+                guild.ErrorDetail
+            );
+        return Result.Success(
+            new DiscordGuildInfoDto(
+                guild.Value.Id,
+                guild.Value.Name,
+                guild.Value.Icon,
+                guild.Value.Description
+            )
+        );
+    }
+
+    public async Task<Result<IReadOnlyList<DiscordGuildRoleDto>>> GetGuildRolesAsync(
+        Guid broadcasterId,
+        string guildId,
+        CancellationToken ct = default
+    )
+    {
+        Result<List<DiscordGuildRoleWire>> roles = await GetAsync<List<DiscordGuildRoleWire>>(
+            broadcasterId,
+            $"guilds/{Uri.EscapeDataString(guildId)}/roles",
+            ct
+        );
+        if (roles.IsFailure)
+            return Result.Failure<IReadOnlyList<DiscordGuildRoleDto>>(
+                roles.ErrorMessage,
+                roles.ErrorCode,
+                roles.ErrorDetail
+            );
+        IReadOnlyList<DiscordGuildRoleDto> dtos =
+        [
+            .. roles.Value.Select(r => new DiscordGuildRoleDto(
+                r.Id,
+                r.Name,
+                r.Color,
+                r.Position,
+                r.Managed
+            )),
+        ];
+        return Result.Success(dtos);
+    }
+
+    public async Task<Result<IReadOnlyList<DiscordGuildChannelDto>>> GetGuildChannelsAsync(
+        Guid broadcasterId,
+        string guildId,
+        CancellationToken ct = default
+    )
+    {
+        Result<List<DiscordGuildChannelWire>> channels = await GetAsync<
+            List<DiscordGuildChannelWire>
+        >(broadcasterId, $"guilds/{Uri.EscapeDataString(guildId)}/channels", ct);
+        if (channels.IsFailure)
+            return Result.Failure<IReadOnlyList<DiscordGuildChannelDto>>(
+                channels.ErrorMessage,
+                channels.ErrorCode,
+                channels.ErrorDetail
+            );
+        IReadOnlyList<DiscordGuildChannelDto> dtos =
+        [
+            .. channels.Value.Select(c => new DiscordGuildChannelDto(
+                c.Id,
+                c.Name,
+                c.Type,
+                c.ParentId,
+                c.Position
+            )),
+        ];
+        return Result.Success(dtos);
+    }
+
     // ─── Core HTTP ───────────────────────────────────────────────────────────
+
+    /// <summary>Authenticated GET against the Discord REST API, deserialized to the wire shape.</summary>
+    private async Task<Result<T>> GetAsync<T>(Guid broadcasterId, string path, CancellationToken ct)
+    {
+        Result<string> token = await ResolveBotTokenAsync(broadcasterId, ct);
+        if (token.IsFailure)
+            return Result.Failure<T>(token.ErrorMessage, token.ErrorCode);
+
+        using HttpRequestMessage request = new(HttpMethod.Get, $"{DiscordApiBase}/{path}");
+        request.Headers.TryAddWithoutValidation("Authorization", $"Bot {token.Value}");
+
+        HttpResponseMessage response;
+        try
+        {
+            response = await _http.SendAsync(request, ct);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogError(ex, "Discord read failed (transport).");
+            return Result.Failure<T>("Discord request failed.", "DISCORD_TRANSPORT");
+        }
+
+        using (response)
+        {
+            if (!response.IsSuccessStatusCode)
+            {
+                Result<string> error = await MapPostErrorAsync(response, ct);
+                return Result.Failure<T>(error.ErrorMessage, error.ErrorCode, error.ErrorDetail);
+            }
+
+            try
+            {
+                T? body = await response.Content.ReadFromJsonAsync<T>(WireJson, ct);
+                return body is null
+                    ? Result.Failure<T>("Discord returned an empty body.", "DISCORD_ERROR")
+                    : Result.Success(body);
+            }
+            catch (JsonException ex)
+            {
+                _logger.LogError(ex, "Malformed Discord read response.");
+                return Result.Failure<T>("Malformed Discord response.", "DISCORD_TRANSPORT");
+            }
+        }
+    }
 
     private async Task<Result<string>> PostMessagePayloadAsync(
         string botToken,
@@ -410,4 +539,27 @@ public sealed class DiscordRestBotGateway : IDiscordBotGateway
     );
 
     private sealed record DiscordMessageResponse([property: JsonPropertyName("id")] string Id);
+
+    private sealed record DiscordGuildWire(
+        [property: JsonPropertyName("id")] string Id,
+        [property: JsonPropertyName("name")] string Name,
+        [property: JsonPropertyName("icon")] string? Icon = null,
+        [property: JsonPropertyName("description")] string? Description = null
+    );
+
+    private sealed record DiscordGuildRoleWire(
+        [property: JsonPropertyName("id")] string Id,
+        [property: JsonPropertyName("name")] string Name,
+        [property: JsonPropertyName("color")] int Color,
+        [property: JsonPropertyName("position")] int Position,
+        [property: JsonPropertyName("managed")] bool Managed
+    );
+
+    private sealed record DiscordGuildChannelWire(
+        [property: JsonPropertyName("id")] string Id,
+        [property: JsonPropertyName("name")] string? Name,
+        [property: JsonPropertyName("type")] int Type,
+        [property: JsonPropertyName("parent_id")] string? ParentId = null,
+        [property: JsonPropertyName("position")] int Position = 0
+    );
 }

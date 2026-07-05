@@ -3257,7 +3257,7 @@
         "tags": [
           "Auth"
         ],
-        "summary": "Start the OAuth flow for the platform-shared bot account. This is a platform-level registration on top\r\nof the operator's account (not a login), so it is admin-gated (identity-auth §5, `platform · iam:manage`,\r\nenforced via the live `admin` role). Returns the Twitch authorize URL for the client to open —\r\nthe resulting token is stored globally (no per-channel binding). First-run setup uses the wizard's\r\n`system/setup/bot/oauth-url` instead (before an admin exists).",
+        "summary": "Start the OAuth flow for the platform-shared bot account. This is a platform-level registration on top\r\nof the operator's account (not a login), so it is Plane-C gated (identity-auth §5,\r\n`platform · iam:manage` — the policy name is the IAM permission key verbatim, audited on SaaS).\r\nReturns the Twitch authorize URL for the client to open — the resulting token is stored globally (no\r\nper-channel binding). First-run setup uses the wizard's `system/setup/bot/oauth-url` instead\r\n(before an admin exists).",
         "parameters": [
           {
             "name": "redirect_uri",
@@ -3342,7 +3342,7 @@
         "tags": [
           "Auth"
         ],
-        "summary": "Disconnect the platform-shared bot account, revoking its Twitch token (admin-only).",
+        "summary": "Disconnect the platform-shared bot account, revoking its Twitch token (platform-operator only).",
         "parameters": [
           {
             "name": "version",
@@ -3422,7 +3422,7 @@
         "tags": [
           "Auth"
         ],
-        "summary": "Get the current platform-shared bot account connection status (admin-only).",
+        "summary": "Get the current platform-shared bot account connection status (platform-operator only).",
         "parameters": [
           {
             "name": "version",
@@ -7338,7 +7338,7 @@
         "tags": [
           "Channels"
         ],
-        "summary": "Retrieve a channel by ID.",
+        "summary": "Retrieve a channel by ID — dashboard channel info, Moderator-floored like every dashboard read.",
         "parameters": [
           {
             "name": "channelId",
@@ -14254,6 +14254,330 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/channels/{channelId}/discord/connections/{connectionId}/guild": {
+      "get": {
+        "tags": [
+          "Discord"
+        ],
+        "summary": "Read the linked guild's live profile from Discord.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfDiscordGuildInfoDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/channels/{channelId}/discord/connections/{connectionId}/guild/roles": {
+      "get": {
+        "tags": [
+          "Discord"
+        ],
+        "summary": "List the linked guild's live roles, for the notify-role picker.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfIReadOnlyListOfDiscordGuildRoleDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/channels/{channelId}/discord/connections/{connectionId}/guild/channels": {
+      "get": {
+        "tags": [
+          "Discord"
+        ],
+        "summary": "List the linked guild's live channels, for the target/button channel pickers.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfIReadOnlyListOfDiscordGuildChannelDto"
                 }
               }
             }
@@ -35486,7 +35810,7 @@
         "tags": [
           "Users"
         ],
-        "summary": "Retrieve a user by ID.",
+        "summary": "Retrieve a user by ID (self-or-Gate-2, authorized in-action).",
         "parameters": [
           {
             "name": "userId",
@@ -35584,7 +35908,7 @@
         "tags": [
           "Users"
         ],
-        "summary": "Retrieve a user's profile information.",
+        "summary": "Retrieve a user's profile information (self-or-Gate-2, authorized in-action).",
         "parameters": [
           {
             "name": "userId",
@@ -35680,7 +36004,7 @@
         "tags": [
           "Users"
         ],
-        "summary": "Update a user's profile information.",
+        "summary": "Update a user's profile information — strictly the user themselves (or a platform admin).",
         "parameters": [
           {
             "name": "userId",
@@ -39361,10 +39685,12 @@
         },
         "description": "A channel-management membership row for the dashboard roles screen (roles-permissions §4)."
       },
-      "ChatBadge": {
+      "ChatBadgeDto": {
         "required": [
           "setId",
-          "id"
+          "id",
+          "info",
+          "urls"
         ],
         "type": "object",
         "properties": {
@@ -39379,27 +39705,92 @@
               "null",
               "string"
             ]
+          },
+          "urls": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
           }
-        }
+        },
+        "description": "A chat badge (subscriber, moderator, etc.) resolved to its scale-keyed image urls (\"1\"/\"2\"/\"4\") from the cached\r\nHelix badge sets (chat-decoration spec §3.3). `Urls` is empty when the badge set is not yet warmed in cache."
       },
-      "ChatEmote": {
+      "ChatCheermoteDto": {
         "required": [
-          "provider",
+          "prefix",
+          "bits",
+          "tier",
+          "urls",
+          "animated",
+          "colorHex"
+        ],
+        "type": "object",
+        "properties": {
+          "prefix": {
+            "type": "string"
+          },
+          "bits": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "tier": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "urls": {
+            "type": [
+              "null",
+              "object"
+            ],
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "animated": {
+            "type": "boolean"
+          },
+          "colorHex": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "description": "Cheermote fragment data — the raw prefix/bits/tier plus the resolved tier image (chat-decoration spec §3.4):\r\nscale-keyed `Urls`, whether animated, and the tier `ColorHex`. The image fields are null/empty until the\r\nchannel's cheermotes are warmed in cache."
+      },
+      "ChatEmoteDto": {
+        "required": [
           "id",
-          "code",
+          "setId",
+          "format",
+          "provider",
           "urls",
           "animated",
           "zeroWidth"
         ],
         "type": "object",
         "properties": {
-          "provider": {
-            "$ref": "#/components/schemas/EmoteProvider"
-          },
           "id": {
             "type": "string"
           },
-          "code": {
+          "setId": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "format": {
+            "type": "string"
+          },
+          "provider": {
             "type": "string"
           },
           "urls": {
@@ -39413,29 +39804,136 @@
           },
           "zeroWidth": {
             "type": "boolean"
-          },
-          "setId": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "ownerId": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "formats": {
-            "type": [
-              "null",
-              "array"
-            ],
-            "items": {
-              "type": "string"
-            }
           }
-        }
+        },
+        "description": "Emote fragment data — the unified, render-ready shape covering Twitch and third-party (BTTV/FFZ/7TV) emotes\r\n(chat-decoration spec §4). `Urls` is scale-keyed (\"1\"/\"2\"/\"3\"); `Provider` is the source network."
+      },
+      "ChatFragmentDto": {
+        "required": [
+          "type",
+          "text",
+          "emote",
+          "cheermote",
+          "mention",
+          "linkUrl",
+          "linkPreview"
+        ],
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          },
+          "emote": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ChatEmoteDto"
+              }
+            ]
+          },
+          "cheermote": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ChatCheermoteDto"
+              }
+            ]
+          },
+          "mention": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ChatMentionDto"
+              }
+            ]
+          },
+          "linkUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "linkPreview": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ChatLinkPreviewDto"
+              }
+            ]
+          }
+        },
+        "description": "A single fragment of a chat message: text | emote | cheermote | mention | link."
+      },
+      "ChatLinkPreviewDto": {
+        "required": [
+          "host",
+          "title",
+          "description",
+          "imageUrl"
+        ],
+        "type": "object",
+        "properties": {
+          "host": {
+            "type": "string"
+          },
+          "title": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "imageUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "description": "OpenGraph link-preview data (chat-decoration spec §3.5); fields are null when the page exposes no tags."
+      },
+      "ChatMentionDto": {
+        "required": [
+          "userId",
+          "username",
+          "displayName",
+          "color"
+        ],
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "color": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "description": "Mention fragment data (@user) plus the mentioned user's last-seen chat colour as #RRGGBB (chat-decoration spec §3.1),\r\nor null when that user has not been seen recently."
       },
       "ChatMessageDto": {
         "required": [
@@ -39488,13 +39986,13 @@
           "badges": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/ChatBadge"
+              "$ref": "#/components/schemas/ChatBadgeDto"
             }
           },
           "fragments": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/ChatMessageFragment"
+              "$ref": "#/components/schemas/ChatFragmentDto"
             }
           },
           "messageType": {
@@ -39523,125 +40021,6 @@
           },
           "timestamp": {
             "type": "string"
-          }
-        }
-      },
-      "ChatMessageFragment": {
-        "type": "object",
-        "properties": {
-          "type": {
-            "type": "string"
-          },
-          "text": {
-            "type": "string"
-          },
-          "emoteId": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "emoteSetId": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "emoteOwnerId": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "emoteFormats": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "emote": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/ChatEmote"
-              }
-            ]
-          },
-          "cheermotePrefix": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "cheermoteBits": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "cheermoteTier": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "cheermoteImage": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/CheermoteImage"
-              }
-            ]
-          },
-          "mentionUserId": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "mentionUserLogin": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "mentionUserName": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "mentionColorHex": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "linkUrl": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "linkPreview": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/LinkPreview"
-              }
-            ]
           }
         }
       },
@@ -39728,28 +40107,6 @@
           }
         },
         "description": "A Stripe Checkout session redirect."
-      },
-      "CheermoteImage": {
-        "required": [
-          "urls",
-          "animated",
-          "colorHex"
-        ],
-        "type": "object",
-        "properties": {
-          "urls": {
-            "type": "object",
-            "additionalProperties": {
-              "type": "string"
-            }
-          },
-          "animated": {
-            "type": "boolean"
-          },
-          "colorHex": {
-            "type": "string"
-          }
-        }
       },
       "CommandDto": {
         "required": [
@@ -41487,6 +41844,50 @@
           }
         }
       },
+      "DiscordGuildChannelDto": {
+        "required": [
+          "id",
+          "name",
+          "type",
+          "parentId",
+          "position"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "type": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "parentId": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "position": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        },
+        "description": "A live guild channel, for the target/button channel pickers. `Type` is Discord's channel type (0 = text)."
+      },
       "DiscordGuildConnectionDto": {
         "required": [
           "id",
@@ -41556,6 +41957,74 @@
           }
         },
         "description": "Read model of a Discord guild link (discord.md §4). Ids are `Guid`; Discord ids are `string`."
+      },
+      "DiscordGuildInfoDto": {
+        "required": [
+          "id",
+          "name",
+          "icon",
+          "description"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "icon": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "description": "The linked guild's live profile, proxied from Discord for the dashboard."
+      },
+      "DiscordGuildRoleDto": {
+        "required": [
+          "id",
+          "name",
+          "color",
+          "position",
+          "managed"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "color": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "position": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "managed": {
+            "type": "boolean"
+          }
+        },
+        "description": "A live guild role, for the notify-role picker. `Managed` roles cannot be self-assigned."
       },
       "DiscordMemberOptInRequest": {
         "required": [
@@ -41859,9 +42328,6 @@
           }
         },
         "description": "Edit payload (quotes.md §3). The per-channel `Number` is immutable and not editable."
-      },
-      "EmoteProvider": {
-        "type": "integer"
       },
       "EndPollDto": {
         "required": [
@@ -43267,38 +43733,6 @@
           }
         },
         "description": "The outcome of a legacy import, plus the journal head before/after so the caller can see the growth.\r\nIReadOnlyDictionary&lt;string, long&gt; LegacyImportResult.SkippedByLegacyType itemizes the unmapped skips by their legacy `Type` so the operator can\r\nverify every legacy row is accounted for (imported + duplicate + itemized skips = total read), with no silent drop."
-      },
-      "LinkPreview": {
-        "required": [
-          "host",
-          "title",
-          "description",
-          "imageUrl"
-        ],
-        "type": "object",
-        "properties": {
-          "host": {
-            "type": "string"
-          },
-          "title": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "description": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "imageUrl": {
-            "type": [
-              "null",
-              "string"
-            ]
-          }
-        }
       },
       "ManagementRole": {
         "type": "integer"
@@ -47301,6 +47735,36 @@
           }
         }
       },
+      "StatusResponseDtoOfDiscordGuildInfoDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DiscordGuildInfoDto"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
       "StatusResponseDtoOfDiscordNotificationConfigDto": {
         "type": "object",
         "properties": {
@@ -47748,6 +48212,35 @@
           }
         }
       },
+      "StatusResponseDtoOfIReadOnlyListOfDiscordGuildChannelDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/DiscordGuildChannelDto"
+            }
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
       "StatusResponseDtoOfIReadOnlyListOfDiscordGuildConnectionDto": {
         "type": "object",
         "properties": {
@@ -47761,6 +48254,35 @@
             ],
             "items": {
               "$ref": "#/components/schemas/DiscordGuildConnectionDto"
+            }
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
+      "StatusResponseDtoOfIReadOnlyListOfDiscordGuildRoleDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/DiscordGuildRoleDto"
             }
           },
           "message": {

@@ -33,6 +33,8 @@
     <PackageReference Include="System.Security.Cryptography.ProtectedData" />
     <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" />
     <PackageReference Include="Newtonsoft.Json" />
+    <!-- Ed25519 verify for the Discord interactions webhook (no in-box Ed25519 in .NET 10). -->
+    <PackageReference Include="NSec.Cryptography" />
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" />
     <PackageReference Include="Microsoft.IdentityModel.Tokens" />
     <PackageReference Include="Serilog.AspNetCore" />

@@ -154,4 +154,44 @@ internal sealed class RecordingGateway : IDiscordBotGateway
         RoleRemoves.Add((guildId, discordMemberId, discordRoleId));
         return Task.FromResult(Result.Success());
     }
+
+    // ── Guild directory reads (scripted replay + recorded guild ids) ────────
+
+    public List<string> GuildReads { get; } = [];
+    public Result<DiscordGuildInfoDto> NextGuildResult { get; set; } =
+        Result.Success(new DiscordGuildInfoDto("guild1", "Guild One", null, null));
+    public Result<IReadOnlyList<DiscordGuildRoleDto>> NextGuildRolesResult { get; set; } =
+        Result.Success<IReadOnlyList<DiscordGuildRoleDto>>([]);
+    public Result<IReadOnlyList<DiscordGuildChannelDto>> NextGuildChannelsResult { get; set; } =
+        Result.Success<IReadOnlyList<DiscordGuildChannelDto>>([]);
+
+    public Task<Result<DiscordGuildInfoDto>> GetGuildAsync(
+        Guid broadcasterId,
+        string guildId,
+        CancellationToken ct = default
+    )
+    {
+        GuildReads.Add($"guild:{guildId}");
+        return Task.FromResult(NextGuildResult);
+    }
+
+    public Task<Result<IReadOnlyList<DiscordGuildRoleDto>>> GetGuildRolesAsync(
+        Guid broadcasterId,
+        string guildId,
+        CancellationToken ct = default
+    )
+    {
+        GuildReads.Add($"roles:{guildId}");
+        return Task.FromResult(NextGuildRolesResult);
+    }
+
+    public Task<Result<IReadOnlyList<DiscordGuildChannelDto>>> GetGuildChannelsAsync(
+        Guid broadcasterId,
+        string guildId,
+        CancellationToken ct = default
+    )
+    {
+        GuildReads.Add($"channels:{guildId}");
+        return Task.FromResult(NextGuildChannelsResult);
+    }
 }
