@@ -10,6 +10,7 @@
 
 package bot.nomnomz.dashboard
 
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.window.ComposeViewport
 import bot.nomnomz.dashboard.core.connection.ConnectReturn
@@ -64,5 +65,13 @@ fun main() {
 
     ComposeViewport(document.body!!) {
         App(graph = graph)
+        // Tear down the HTML boot overlay once Compose has rendered a frame. Placed AFTER App so that if App
+        // throws during composition (e.g. a string-resource bundle that 502'd mid-load), this effect never
+        // commits — the overlay stays up and offers a reload instead of leaving a frozen page (see index.html).
+        LaunchedEffect(Unit) { markAppReady() }
     }
 }
+
+// Signals the index.html boot/recovery overlay that the app is alive and rendering, so it tears down. Guarded
+// on the JS side in case the overlay was already removed.
+private fun markAppReady(): Unit = js("{ if (window.__nnzAppReady) window.__nnzAppReady(); }")

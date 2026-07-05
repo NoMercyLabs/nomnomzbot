@@ -18,6 +18,72 @@
             overflow: hidden;
             background: #0a0a0a;
         }
+
+        /*
+          Boot + recovery overlay. Shown immediately (before the wasm module loads) so the operator never sees a
+          blank page, and torn down the moment Compose renders its first frame (window.__nnzAppReady). If the app
+          never becomes ready (wasm or its resource bundle unreachable — e.g. the API is mid-restart / 502) or an
+          uncaught crash occurs, it offers a Reload instead of freezing. This is the "never a frozen page" guard.
+        */
+        #nnz-boot {
+            position: fixed;
+            inset: 0;
+            z-index: 2147483647;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #0a0a0a;
+            color: #e5e5e5;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        #nnz-boot .nnz-card {
+            text-align: center;
+            max-width: 340px;
+            padding: 24px;
+        }
+
+        #nnz-boot .nnz-spinner {
+            width: 34px;
+            height: 34px;
+            margin: 0 auto 18px;
+            border: 3px solid rgba(255, 255, 255, 0.15);
+            border-top-color: #a970ff;
+            border-radius: 50%;
+            animation: nnz-spin 0.8s linear infinite;
+        }
+
+        @keyframes nnz-spin {
+            to { transform: rotate(360deg); }
+        }
+
+        #nnz-boot .nnz-title {
+            font-size: 15px;
+            font-weight: 600;
+        }
+
+        #nnz-boot .nnz-sub {
+            font-size: 13px;
+            color: #a3a3a3;
+            margin-top: 8px;
+            line-height: 1.45;
+        }
+
+        #nnz-boot button {
+            margin-top: 18px;
+            padding: 9px 18px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #ffffff;
+            background: #772ce8;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        #nnz-boot button:hover {
+            background: #6420d6;
+        }
     </style>
     <!--
       Display-language override hook. The Compose/Wasm app publishes the operator's forced UI language
@@ -35,8 +101,70 @@
             }
         }));
     </script>
+    <!--
+      Boot + recovery guard. Defined BEFORE composeApp.js so window.__nnzAppReady exists when the app first
+      renders, and so uncaught crashes during load are caught. The page must never sit frozen: either the app
+      renders (overlay hidden), or the operator is offered a reload.
+    -->
+    <script>
+        (function () {
+            var ready = false;
+
+            function el(id) { return document.getElementById(id); }
+
+            // The Compose app calls this once it has rendered a frame — tear the overlay down.
+            window.__nnzAppReady = function () {
+                ready = true;
+                var boot = el("nnz-boot");
+                if (boot) boot.style.display = "none";
+            };
+
+            function showRecovery(title, sub) {
+                var boot = el("nnz-boot");
+                if (!boot) return;
+                boot.style.display = "flex";
+                var spinner = el("nnz-boot-spinner");
+                if (spinner) spinner.style.display = "none";
+                el("nnz-boot-title").textContent = title;
+                el("nnz-boot-sub").textContent = sub;
+                el("nnz-boot-reload").style.display = "";
+            }
+
+            // Load stalled — the app never signaled ready. Almost always the API is briefly unreachable
+            // (restart / 502); it clears on its own, and a reload retries. Never leave a blank screen.
+            setTimeout(function () {
+                if (ready) return;
+                showRecovery(
+                    "Still loading…",
+                    "The server may be restarting. This clears on its own — or reload to retry."
+                );
+                var spinner = el("nnz-boot-spinner");
+                if (spinner) spinner.style.display = "";
+                el("nnz-boot-title").textContent = "Still loading…";
+            }, 12000);
+
+            // Any uncaught crash (e.g. a resource bundle that 502'd mid-load) shows a recovery screen with a
+            // reload rather than a frozen page. Only genuine uncaught errors reach window 'error'; benign
+            // console warnings (WebGL info, rAF timing) do not. Unhandled rejections only count during boot,
+            // to avoid covering a working dashboard over a stray late rejection.
+            window.addEventListener("error", function () {
+                showRecovery("The dashboard hit a snag", "A reload usually fixes it.");
+            });
+            window.addEventListener("unhandledrejection", function () {
+                if (!ready) showRecovery("The dashboard hit a snag", "A reload usually fixes it.");
+            });
+        })();
+    </script>
 </head>
 <body>
+<div id="nnz-boot" role="status" aria-live="polite">
+    <div class="nnz-card">
+        <div class="nnz-spinner" id="nnz-boot-spinner"></div>
+        <div class="nnz-title" id="nnz-boot-title">Loading NomNomzBot&hellip;</div>
+        <div class="nnz-sub" id="nnz-boot-sub"></div>
+        <button type="button" id="nnz-boot-reload" style="display:none" onclick="location.reload()">Reload</button>
+    </div>
+</div>
 <script src="composeApp.js"></script>
 </body>
 </html>
