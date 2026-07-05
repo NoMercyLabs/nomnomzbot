@@ -25,8 +25,10 @@ import bot.nomnomz.dashboard.core.network.AuthPayload
 import bot.nomnomz.dashboard.core.network.CurrentUser
 import bot.nomnomz.dashboard.core.network.DeviceCodeStart
 import bot.nomnomz.dashboard.core.network.DeviceLoginPoll
+import bot.nomnomz.dashboard.core.network.MissingScopes
 import bot.nomnomz.dashboard.core.network.SystemApi
 import bot.nomnomz.dashboard.core.network.SystemStatus
+import bot.nomnomz.dashboard.core.network.TwitchDiagnosticsApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -57,6 +59,7 @@ class ConnectController(
     private val systemApi: SystemApi,
     private val connectLauncher: ConnectLauncher,
     private val lanDiscovery: LanDiscovery,
+    private val diagnosticsApi: TwitchDiagnosticsApi,
     private val profileIdFactory: () -> String = ::randomProfileId,
 ) {
     // The web build is single-origin: default the backend URL to the SERVED ORIGIN so it matches wherever the
@@ -65,6 +68,11 @@ class ConnectController(
     private val _baseUrl: MutableStateFlow<String> =
         MutableStateFlow(servedOriginProfile()?.baseUrl ?: DEFAULT_BASE_URL)
     private val _status: MutableStateFlow<ConnectStatus> = MutableStateFlow(ConnectStatus.Idle)
+
+    // Proactive dead-token recovery: the shell probes Twitch health on load and raises this when the backend
+    // reports the operator's token needs re-auth (needs_reauth), so the reconnect prompt surfaces WITHOUT the
+    // operator hunting a menu — one tap, no logout. Cleared once a reconnect re-establishes the session.
+    private val _reauthRequired: MutableStateFlow<Boolean> = MutableStateFlow(false)
 
     // The profile the user is onboarding against, pinned when the flow routes to setup so [signInStreamer]
     // can run the streamer OAuth against the same backend once the wizard finishes.
@@ -75,6 +83,9 @@ class ConnectController(
 
     /** The current connect state the screen renders (idle / connecting / error). */
     val status: StateFlow<ConnectStatus> = _status.asStateFlow()
+
+    /** True when the operator's Twitch token needs re-auth (dead/expired) — the shell auto-shows the reconnect prompt on load. */
+    val reauthRequired: StateFlow<Boolean> = _reauthRequired.asStateFlow()
 
     /** The live set of bots mDNS-discovered on the LAN, surfaced as click-to-connect rows (empty on web). */
     val discovered: StateFlow<List<ConnectionProfile>> = lanDiscovery.discovered
@@ -205,6 +216,27 @@ class ConnectController(
     /** Return the status to Idle so the reconnect bar hides when the operator dismisses it (cancel the job separately). */
     fun clearReconnectStatus() {
         _status.value = ConnectStatus.Idle
+    }
+
+    /**
+     * Probe the backend for the operator's Twitch connection health on shell load and raise the proactive
+     * reconnect prompt when the token is dead (`needs_reauth`) — so a dead token PROMPTS on page load instead of
+     * silently breaking chat. Fail-open: a 404 (no Twitch connection yet) or any transient failure leaves the
+     * prompt DOWN — a health blip must never nag a healthy operator to reconnect, and it must never throw (the
+     * page can never freeze on a boot probe).
+     */
+    suspend fun checkTwitchHealth() {
+        when (val health: ApiResult<MissingScopes> = diagnosticsApi.missingScopes()) {
+            is ApiResult.Ok ->
+                if (health.value.connectionStatus == TWITCH_NEEDS_REAUTH) _reauthRequired.value = true
+
+            is ApiResult.Failure -> Unit
+        }
+    }
+
+    /** Dismiss the proactive reconnect prompt (the operator closed it); it re-raises on the next load if still dead. */
+    fun dismissReauthPrompt() {
+        _reauthRequired.value = false
     }
 
     /** Start the device authorization, then poll it to completion (or surface the failure). */
@@ -395,6 +427,8 @@ class ConnectController(
             is ApiResult.Ok -> {
                 sessionStore.setUser(me.value.toSessionUser())
                 _status.value = ConnectStatus.Idle
+                // A fresh OAuth re-vaulted the token — clear any proactive "needs re-auth" prompt.
+                _reauthRequired.value = false
                 pendingProfile = null
                 true
             }
@@ -417,6 +451,10 @@ class ConnectController(
         const val STATUS_SLOW_DOWN: String = "slow_down"
         const val STATUS_EXPIRED: String = "expired"
         const val STATUS_DENIED: String = "denied"
+
+        // The backend's IntegrationConnection.Status string when the Twitch token is dead/expired
+        // (server-side AuthEnums.NeedsReauth) — the proactive reconnect prompt's trigger.
+        const val TWITCH_NEEDS_REAUTH: String = "needs_reauth"
     }
 }
 

@@ -151,6 +151,10 @@ fun App(graph: AppGraph = remember { AppGraph() }) {
                             // neutral "switching" state on the channelId mismatch so the old (possibly higher)
                             // role never renders against the newly-selected channel.
                             LaunchedEffect(activeChannelId) { graph.shellAccessController.load() }
+                            // Proactive dead-token recovery (never-logout-for-scope-or-schema-changes): probe Twitch
+                            // health once the operator resolves so a dead/expired token raises the reconnect prompt
+                            // ON LOAD — one tap to redirect-reconnect, no menu hunt, no logout. Fail-open by design.
+                            LaunchedEffect(user?.id) { graph.connectController.checkTwitchHealth() }
                             when (val resolved: ShellAccess = access) {
                                 // Hold the splash under the one-shot role probe so the shell never flashes the
                                 // wrong (over-granted) surface before the real role lands.

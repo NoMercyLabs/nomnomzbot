@@ -266,6 +266,7 @@ class AppGraph {
             systemApi = systemApi,
             connectLauncher = connectLauncher,
             lanDiscovery = lanDiscovery,
+            diagnosticsApi = twitchDiagnosticsApi,
         )
 
     // The first-run setup wizard's holder. On "continue to sign-in" it hands back to the connect

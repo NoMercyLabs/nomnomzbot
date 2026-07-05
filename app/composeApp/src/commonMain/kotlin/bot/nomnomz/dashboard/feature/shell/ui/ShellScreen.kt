@@ -299,8 +299,9 @@ fun ShellScreen(
     }
 
     // A dead Twitch token is recovered IN PLACE — never a logout (never-logout-for-scope-or-schema-changes).
-    // The profile menu's "Reconnect Twitch" runs [ConnectController.reconnect] (the device-code re-auth); the
-    // [ReconnectBanner] below surfaces its user code + poll state at the top of the shell and hides on success.
+    // The profile menu's "Reconnect Twitch" AND the auto-prompt on load both run [ConnectController.reconnect] —
+    // the REDIRECT re-auth for the broadcaster (device-code only on the secret-less fallback); the [ReconnectBanner]
+    // below surfaces it at the top of the shell and hides on success.
     val reconnectScope: CoroutineScope = rememberCoroutineScope()
     var reconnectJob: Job? by remember { mutableStateOf(null) }
     val triggerReconnect: () -> Unit = {
@@ -383,13 +384,15 @@ fun ShellScreen(
             }
         }
 
-        // Dead-token recovery bar — overlays the top of the shell during a reconnect (the device-code user code +
-        // poll state), hidden otherwise. Re-vaults a fresh token in place; the session is kept (no logout).
+        // Dead-token recovery bar — overlays the top of the shell. It AUTO-SHOWS on load when the operator's Twitch
+        // token is dead (the proactive "reconnect" prompt) and stays up through an in-flight reconnect; hidden
+        // otherwise. Its action runs the redirect re-auth — re-vaults a fresh token in place, no logout.
         ReconnectBanner(
             controller = graph.connectController,
             onDismiss = {
                 reconnectJob?.cancel()
                 graph.connectController.clearReconnectStatus()
+                graph.connectController.dismissReauthPrompt()
             },
             onRetry = triggerReconnect,
             modifier = Modifier.align(Alignment.TopCenter).fillMaxWidth(),
@@ -915,8 +918,8 @@ private fun ProfileBlock(
                 )
             }
             Separator()
-            // Reconnect Twitch — the no-logout dead-token recovery. Opens the device-code re-auth (the shell's
-            // ReconnectBanner renders the code + poll state); re-vaults a fresh token in place, session kept.
+            // Reconnect Twitch — the no-logout dead-token recovery. Runs the redirect re-auth for the broadcaster
+            // (device-code only on the secret-less fallback); re-vaults a fresh token in place, session kept.
             DropdownMenuItem(
                 text = {
                     Text(

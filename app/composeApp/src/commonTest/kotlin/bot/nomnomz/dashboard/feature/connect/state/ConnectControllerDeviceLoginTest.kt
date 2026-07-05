@@ -28,11 +28,16 @@ import bot.nomnomz.dashboard.core.network.BotStatus
 import bot.nomnomz.dashboard.core.network.CurrentUser
 import bot.nomnomz.dashboard.core.network.DeviceCodeStart
 import bot.nomnomz.dashboard.core.network.DeviceLoginPoll
+import bot.nomnomz.dashboard.core.network.EventSubReconcileReport
+import bot.nomnomz.dashboard.core.network.EventSubSubscription
+import bot.nomnomz.dashboard.core.network.MissingScopes
+import bot.nomnomz.dashboard.core.network.ScopeRegrantStart
 import bot.nomnomz.dashboard.core.network.SetupWizard
 import bot.nomnomz.dashboard.core.network.SystemApi
 import bot.nomnomz.dashboard.core.network.SystemCheck
 import bot.nomnomz.dashboard.core.network.SystemChecks
 import bot.nomnomz.dashboard.core.network.SystemStatus
+import bot.nomnomz.dashboard.core.network.TwitchDiagnosticsApi
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -57,6 +62,7 @@ class ConnectControllerDeviceLoginTest {
         vault: SessionTokenStore = InMemoryVault(),
         profiles: ActiveProfileStore = InMemoryProfileStore(),
         connectLauncher: ConnectLauncher = FakeConnectLauncher(),
+        diagnostics: TwitchDiagnosticsApi = FakeTwitchDiagnosticsApi(),
     ): ConnectController {
         val session: SessionStore = SessionStore(vault, profiles)
         return ConnectController(
@@ -65,6 +71,7 @@ class ConnectControllerDeviceLoginTest {
                 systemApi = systemApi,
                 connectLauncher = connectLauncher,
                 lanDiscovery = lanDiscovery,
+                diagnosticsApi = diagnostics,
                 profileIdFactory = { "test-profile" },
             )
             .also { sessionByController[it] = session }
@@ -317,6 +324,50 @@ class ConnectControllerDeviceLoginTest {
         assertEquals(false, launcher.authorizeStreamerCalled) // redirect NOT used — no secret
         assertEquals(SessionPhase.Connected, session.phase.value)
         assertEquals("dev-acc", session.accessToken())
+    }
+
+    // ── Proactive dead-token detection (prompt on load, no menu hunt) ─────────
+
+    @Test
+    fun check_twitch_health_raises_the_reconnect_prompt_when_the_backend_reports_needs_reauth() = runTest {
+        val controller =
+            controller(
+                FakeSystemApi(ready = true, twitchConfigured = true),
+                diagnostics = FakeTwitchDiagnosticsApi(connectionStatus = "needs_reauth"),
+            )
+        assertEquals(false, controller.reauthRequired.value)
+
+        controller.checkTwitchHealth()
+
+        // A dead token proactively raises the prompt so the shell shows "reconnect" on load — no menu hunt.
+        assertEquals(true, controller.reauthRequired.value)
+    }
+
+    @Test
+    fun check_twitch_health_stays_quiet_for_a_healthy_connection() = runTest {
+        val controller =
+            controller(
+                FakeSystemApi(ready = true, twitchConfigured = true),
+                diagnostics = FakeTwitchDiagnosticsApi(connectionStatus = "connected"),
+            )
+
+        controller.checkTwitchHealth()
+
+        assertEquals(false, controller.reauthRequired.value) // a healthy token never nags for a reconnect
+    }
+
+    @Test
+    fun check_twitch_health_fails_open_when_the_probe_errors() = runTest {
+        val controller =
+            controller(
+                FakeSystemApi(ready = true, twitchConfigured = true),
+                diagnostics = FakeTwitchDiagnosticsApi(fail = true),
+            )
+
+        controller.checkTwitchHealth()
+
+        // A 404 / transient probe failure must NOT raise a false prompt (fail-open, never freeze).
+        assertEquals(false, controller.reauthRequired.value)
     }
 
     // ── Remembered tier (restore-on-boot) ─────────────────────────────────────
@@ -592,6 +643,25 @@ private class FakeConnectLauncher(
     override suspend fun awaitConnect(
         authorizeUrlFor: suspend (redirect: String) -> ApiResult<String>
     ): ApiResult<Unit> = ApiResult.Ok(Unit)
+}
+
+/** A fake [TwitchDiagnosticsApi] — drives the proactive dead-token probe with a canned Twitch connection status. */
+private class FakeTwitchDiagnosticsApi(
+    private val connectionStatus: String = "connected",
+    private val fail: Boolean = false,
+) : TwitchDiagnosticsApi {
+    override suspend fun missingScopes(): ApiResult<MissingScopes> =
+        if (fail) ApiResult.Failure(ApiError(404, "NOT_FOUND", "no twitch connection"))
+        else ApiResult.Ok(MissingScopes(connectionStatus = connectionStatus))
+
+    override suspend fun startRegrant(): ApiResult<ScopeRegrantStart> =
+        ApiResult.Failure(ApiError(0, "UNUSED", "re-grant not exercised in these tests"))
+
+    override suspend fun subscriptions(channelId: String): ApiResult<List<EventSubSubscription>> =
+        ApiResult.Ok(emptyList())
+
+    override suspend fun reconcile(channelId: String): ApiResult<EventSubReconcileReport> =
+        ApiResult.Ok(EventSubReconcileReport())
 }
 
 /** An in-memory [SessionTokenStore] the restore tests seed + assert against, without any OS vault. */
