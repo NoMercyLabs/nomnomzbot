@@ -76,6 +76,7 @@ import coil3.compose.AsyncImage
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.realtime.HubEvent
 import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.filterNotNull
 import bot.nomnomz.dashboard.core.connection.SessionUser
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.network.ChannelSummary
@@ -227,10 +228,28 @@ fun ShellScreen(
     LaunchedEffect(routeStore) { routeStore.externalChanges.collect { selected = it } }
     LaunchedEffect(Unit) { graph.channelSwitcherController.load() }
     // When the operator switches channels, navigate to Dashboard so each page controller re-initialises
-    // for the new channel. drop(1) skips the initial StateFlow emission (the already-pinned channel) so
-    // only a genuine switch — not the first load — triggers the reset.
+    // for the new channel. The active channel starts null and is populated once on load; filterNotNull()
+    // then drop(1) skips that first REAL population (which on a page reload would otherwise clobber the
+    // route restored from the URL and bounce the user home) so only a genuine later switch triggers the reset.
     LaunchedEffect(graph.channelSwitcherController.activeChannelId) {
-        graph.channelSwitcherController.activeChannelId.drop(1).collect { selected = ShellRoute.Dashboard }
+        graph.channelSwitcherController.activeChannelId
+            .filterNotNull()
+            .drop(1)
+            .collect { selected = ShellRoute.Dashboard }
+    }
+    // Keep the dashboard hub connected to the ACTIVE channel for the whole session — not as a side effect of the
+    // Home page loading. It (re)connects and rejoins the channel group whenever the active channel resolves or
+    // changes, so every page (the chat feed, alerts, live stats) receives realtime events on a direct load or
+    // after a channel switch — previously the socket was opened only when Home loaded, so chat never updated
+    // when the user landed elsewhere.
+    LaunchedEffect(Unit) {
+        graph.channelSwitcherController.activeChannelId.filterNotNull().collect { channelId ->
+            val url: String? = graph.sessionStore.baseUrl()
+            val token: String? = graph.sessionStore.accessToken()
+            if (url != null && token != null) {
+                graph.dashboardHubClient.connect(url, token, channelId)
+            }
+        }
     }
     // Surface hub signals that affect the whole shell frame regardless of the active page.
     val hubEvents = graph.dashboardHubClient.events

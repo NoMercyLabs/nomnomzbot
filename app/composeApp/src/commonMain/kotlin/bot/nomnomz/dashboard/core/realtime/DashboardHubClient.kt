@@ -60,6 +60,7 @@ class DashboardHubClient {
 
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private var connectJob: Job? = null
+    private var currentChannelId: String? = null
     private var session: io.ktor.client.plugins.websocket.DefaultClientWebSocketSession? = null
 
     private val _events: MutableSharedFlow<HubEvent> = MutableSharedFlow(extraBufferCapacity = 64)
@@ -75,10 +76,14 @@ class DashboardHubClient {
      * Open the WebSocket to `{baseUrl}/hubs/dashboard`, complete the SignalR handshake, invoke
      * `JoinChannel({channelId})`, then stream incoming hub invocations into [events].
      *
-     * Re-entrant: a second call while already connected is a no-op.
+     * Re-entrant per channel: a repeat call for the SAME channel while connected is a no-op; a call for a
+     * DIFFERENT channel tears down the current connection and rejoins the new channel's group (so the feed
+     * follows the operator's active channel instead of staying stuck on the first one it ever joined).
      */
     fun connect(baseUrl: String, accessToken: String, channelId: String) {
-        if (connectJob?.isActive == true) return
+        if (connectJob?.isActive == true && currentChannelId == channelId) return
+        connectJob?.cancel()
+        currentChannelId = channelId
         connectJob =
             scope.launch {
                 var backoffMs: Long = 1_000
@@ -97,6 +102,7 @@ class DashboardHubClient {
     fun disconnect() {
         connectJob?.cancel()
         connectJob = null
+        currentChannelId = null
         scope.launch {
             session?.close()
             session = null
