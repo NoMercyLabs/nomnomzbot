@@ -151,7 +151,13 @@ public sealed class ChannelsControllerModeratedTests
         IChannelAccessService access = Substitute.For<IChannelAccessService>();
         ApiTestDbContext db = ApiTestDbContext.New();
 
-        ChannelsController controller = new(service, db, moderators, access)
+        ChannelsController controller = new(
+            service,
+            db,
+            moderators,
+            access,
+            Substitute.For<NomNomzBot.Application.Contracts.Authorization.IMembershipService>()
+        )
         {
             ControllerContext = new ControllerContext
             {

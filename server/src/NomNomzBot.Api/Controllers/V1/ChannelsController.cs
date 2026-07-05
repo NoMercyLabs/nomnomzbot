@@ -17,9 +17,11 @@ using NomNomzBot.Api.Extensions;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
+using NomNomzBot.Domain.Identity.Enums;
 
 namespace NomNomzBot.Api.Controllers.V1;
 
@@ -34,18 +36,21 @@ public class ChannelsController : BaseController
     private readonly IApplicationDbContext _db;
     private readonly ITwitchModeratorsApi _moderators;
     private readonly IChannelAccessService _channelAccess;
+    private readonly IMembershipService _memberships;
 
     public ChannelsController(
         IChannelService channelService,
         IApplicationDbContext db,
         ITwitchModeratorsApi moderators,
-        IChannelAccessService channelAccess
+        IChannelAccessService channelAccess,
+        IMembershipService memberships
     )
     {
         _channelService = channelService;
         _db = db;
         _moderators = moderators;
         _channelAccess = channelAccess;
+        _memberships = memberships;
     }
 
     /// <summary>List all channels the current user owns or moderates.</summary>
@@ -84,6 +89,14 @@ public class ChannelsController : BaseController
                 moderatedIds = [.. moderated.Value.Items.Select(m => m.BroadcasterId)];
         }
 
+        // Twitch's own role rules are the out-of-box baseline (roles-permissions §0): a caller who moderates an
+        // onboarded channel gets the Moderator management role there. The per-channel onboarding sync can't grant
+        // this when the CHANNEL's own token is dead, so grant it lazily here from the caller's WORKING token — the
+        // moderated list above was resolved with it. Without this, a Twitch mod resolves as a role-less viewer on
+        // channels they moderate and is dropped onto the participant surface with no mod tools.
+        if (Guid.TryParse(userId, out Guid callerGuid))
+            await EnsureModeratorMembershipsAsync(callerGuid, moderatedIds, ct);
+
         Result<PagedList<ChannelSummaryDto>> result = await _channelService.GetChannelsAsync(
             userId,
             pagination,
@@ -93,6 +106,52 @@ public class ChannelsController : BaseController
         if (result.IsFailure)
             return ResultResponse(result);
         return GetPaginatedResponse(result.Value, request);
+    }
+
+    // A caller who moderates an onboarded channel on Twitch should hold the Moderator management role there
+    // (roles-permissions §0 — Twitch's own role rules are the baseline). Idempotently grants a TwitchBadge
+    // Moderator membership only where the caller has NONE, so an existing / higher role is never downgraded.
+    private async Task EnsureModeratorMembershipsAsync(
+        Guid userGuid,
+        IReadOnlyList<string> moderatedTwitchChannelIds,
+        CancellationToken ct
+    )
+    {
+        if (moderatedTwitchChannelIds.Count == 0)
+            return;
+
+        List<Guid> onboardedModerated = await _db
+            .Channels.Where(c =>
+                moderatedTwitchChannelIds.Contains(c.TwitchChannelId) && c.IsOnboarded
+            )
+            .Select(c => c.Id)
+            .ToListAsync(ct);
+        if (onboardedModerated.Count == 0)
+            return;
+
+        HashSet<Guid> alreadyMember = await _db
+            .ChannelMemberships.Where(m =>
+                m.UserId == userGuid
+                && onboardedModerated.Contains(m.BroadcasterId)
+                && m.DeletedAt == null
+            )
+            .Select(m => m.BroadcasterId)
+            .ToHashSetAsync(ct);
+
+        foreach (Guid channelId in onboardedModerated)
+        {
+            if (alreadyMember.Contains(channelId))
+                continue;
+            // grantedByUserId null → a system sync (not a delegated grant), so the no-escalation guard is skipped.
+            await _memberships.SetManagementRoleAsync(
+                channelId,
+                userGuid,
+                ManagementRole.Moderator,
+                MembershipSource.TwitchBadge,
+                grantedByUserId: null,
+                ct
+            );
+        }
     }
 
     /// <summary>Get all Twitch channels the current user moderates (from Twitch API, not just DB).</summary>
