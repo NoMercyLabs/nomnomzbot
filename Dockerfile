@@ -43,9 +43,14 @@ COPY app/ .
 RUN chmod +x gradlew
 
 # wasmJsBrowserDistribution = webpack + resource copy + index.html → dist/wasmJs/productionExecutable/
+# --rerun-tasks is REQUIRED: the persistent /root/.gradle build-cache mount makes Kotlin/Wasm incremental
+# up-to-date checks unreliable across CI builds — without it, a source change (e.g. only ShellScreen.kt)
+# is silently skipped and the bundle ships stale. Forcing a full task re-run guarantees the wasm reflects
+# the checked-out source; the dependency/konan caches still avoid re-downloading, so the cost is one clean
+# compile + webpack pass.
 RUN --mount=type=cache,target=/root/.gradle,sharing=locked \
     --mount=type=cache,target=/root/.konan \
-    ./gradlew :composeApp:wasmJsBrowserDistribution --no-daemon
+    ./gradlew :composeApp:wasmJsBrowserDistribution --no-daemon --rerun-tasks
 
 # ---------------------------------------------------------------------------
 # Stage 1 — .NET NuGet restore (cached layer; re-runs only on .csproj changes)
