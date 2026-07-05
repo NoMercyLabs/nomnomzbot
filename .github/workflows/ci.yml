@@ -11,8 +11,37 @@ env:
   IMAGE_NAME: nomercylabs/nomnomzbot
 
 jobs:
+  test:
+    name: Test (backend)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: server/global.json
+
+      - name: Restore .NET tools (CSharpier)
+        working-directory: server
+        run: dotnet tool restore
+
+      - name: Verify formatting (CSharpier)
+        working-directory: server
+        run: dotnet csharpier check .
+
+      - name: Build
+        working-directory: server
+        run: dotnet build NomNomzBot.slnx -c Debug
+
+      - name: Test
+        working-directory: server
+        run: dotnet test NomNomzBot.slnx -c Debug --no-build
+
   build:
     name: Build & push image
+    needs: test
     runs-on: ubuntu-latest
     permissions:
       contents: read
