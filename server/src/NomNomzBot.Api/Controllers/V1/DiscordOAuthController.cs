@@ -284,12 +284,12 @@ public class DiscordOAuthController : BaseController
         if (!string.IsNullOrWhiteSpace(loopbackRedirect))
             return Redirect(AppendQuery(loopbackRedirect, "discord_connected=true"));
 
-        // Web/SPA client: no loopback listener — land on the integrations screen.
-        string frontendUrl =
-            _config["App:FrontendUrl"]
-            ?? _config["App:BaseUrl"]
-            ?? $"{Request.Scheme}://{Request.Host}";
-        return Redirect($"{frontendUrl}/(dashboard)/integrations?discord_connected=true");
+        // Web/SPA client: bounce through /oauth-relay (same seam as the generic integration + bot-connect
+        // callbacks, resolved from the public/forwarded origin like the rest of this flow). As a popup it
+        // postMessages the opener and closes; full-page it falls back to the app root, where the Integrations
+        // screen re-reads connection status. The previous "/(dashboard)/..." target embedded a frontend
+        // route-GROUP folder literal that the hash-routed Wasm app cannot match, so it rendered a black screen.
+        return Redirect($"{baseUrl}/oauth-relay?discord_connected=true");
     }
 
     /// <summary>

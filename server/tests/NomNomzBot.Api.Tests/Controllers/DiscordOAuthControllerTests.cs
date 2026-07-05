@@ -117,7 +117,7 @@ public sealed class DiscordOAuthControllerTests
     }
 
     [Fact]
-    public async Task Callback_NoLoopback_Success_RedirectsToFrontend()
+    public async Task Callback_NoLoopback_Success_RedirectsToOAuthRelay()
     {
         (DiscordOAuthController controller, _, _) = Build(
             new StubHandler
@@ -130,9 +130,15 @@ public sealed class DiscordOAuthControllerTests
 
         IActionResult result = await controller.HandleDiscordCallback("the-code", "nonce", default);
 
+        // The web fallback must land on the /oauth-relay seam (popup postMessage + close, or full-page
+        // fallback to the app root) — NOT a hand-rolled frontend deep link. The old target embedded the
+        // "(dashboard)" route-GROUP folder literal, which the hash-routed Wasm app cannot match → black screen.
+        // The relay is a BACKEND-served page (/oauth-relay), so it lands on the public API/access origin
+        // (App:BaseUrl here), NOT the separate App:FrontendUrl — which doesn't serve /oauth-relay at all.
         RedirectResult redirect = result.Should().BeOfType<RedirectResult>().Subject;
-        redirect.Url.Should().StartWith("https://web.example/");
+        redirect.Url.Should().StartWith("https://api.example.test/oauth-relay");
         redirect.Url.Should().Contain("discord_connected=true");
+        redirect.Url.Should().NotContain("(dashboard)");
         redirect.Url.Should().NotContain("127.0.0.1");
     }
 
