@@ -459,6 +459,7 @@ A shared dev tunnel at `bot-dev-api.nomercy.tv` is pre-configured in `appsetting
 | `DISCORD_CLIENT_SECRET` | no | — | Enables Discord integration |
 | `YOUTUBE_CLIENT_ID` | no | — | Enables YouTube music provider |
 | `YOUTUBE_CLIENT_SECRET` | no | — | Enables YouTube music provider |
+| `YOUTUBE_API_KEY` | no | — | Enables YouTube search for song requests (app-level, separate from OAuth) |
 | `AZURE_TTS_API_KEY` | no | — | Azure Cognitive Services key for TTS |
 | `AZURE_TTS_REGION` | no | `westeurope` | Azure region for TTS service |
 | `ELEVENLABS_API_KEY` | no | — | ElevenLabs key for TTS |
@@ -487,7 +488,7 @@ OS keychain, switchable from the profile menu.
   "Twitch": { "ClientId": "", "ClientSecret": "", "BotUsername": "" },
   "Spotify": { "ClientId": "", "ClientSecret": "" },
   "Discord": { "ClientId": "", "ClientSecret": "" },
-  "YouTube": { "ClientId": "", "ClientSecret": "" },
+  "YouTube": { "ClientId": "", "ClientSecret": "", "ApiKey": "" },
   "Azure": { "Tts": { "ApiKey": "", "Region": "westeurope" } },
   "ElevenLabs": { "ApiKey": "" },
   "Cors": { "Origins": ["https://bot-dev.nomercy.tv"] }

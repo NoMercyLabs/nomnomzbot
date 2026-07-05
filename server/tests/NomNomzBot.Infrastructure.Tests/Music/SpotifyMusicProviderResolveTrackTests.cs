@@ -45,9 +45,7 @@ public sealed class SpotifyMusicProviderResolveTrackTests
     [InlineData("4uLU6hMCjMI75M1A2tKUQC")]
     public async Task Resolves_every_accepted_input_form_through_the_tracks_endpoint(string input)
     {
-        (SpotifyMusicProvider provider, RecordingSpotifyHandler handler) = Build(
-            connectSpotify: true
-        );
+        (SpotifyMusicProvider provider, RecordingHttpHandler handler) = Build(connectSpotify: true);
         handler.RespondWhen(
             r =>
                 r.RequestUri!.AbsolutePath.EndsWith($"/tracks/{TrackId}", StringComparison.Ordinal),
@@ -66,9 +64,7 @@ public sealed class SpotifyMusicProviderResolveTrackTests
     [Fact]
     public async Task Maps_the_track_payload_field_by_field_into_the_normalized_TrackInfo()
     {
-        (SpotifyMusicProvider provider, RecordingSpotifyHandler handler) = Build(
-            connectSpotify: true
-        );
+        (SpotifyMusicProvider provider, RecordingHttpHandler handler) = Build(connectSpotify: true);
         handler.RespondWhen(
             r =>
                 r.RequestUri!.AbsolutePath.EndsWith($"/tracks/{TrackId}", StringComparison.Ordinal),
@@ -111,7 +107,7 @@ public sealed class SpotifyMusicProviderResolveTrackTests
     [Fact]
     public async Task Unconnected_broadcaster_fails_closed_without_touching_the_API()
     {
-        (SpotifyMusicProvider provider, RecordingSpotifyHandler handler) = Build(
+        (SpotifyMusicProvider provider, RecordingHttpHandler handler) = Build(
             connectSpotify: false
         );
 
@@ -129,9 +125,7 @@ public sealed class SpotifyMusicProviderResolveTrackTests
     [InlineData("spotify:track:")]
     public async Task Unparseable_input_fails_closed_without_touching_the_API(string input)
     {
-        (SpotifyMusicProvider provider, RecordingSpotifyHandler handler) = Build(
-            connectSpotify: true
-        );
+        (SpotifyMusicProvider provider, RecordingHttpHandler handler) = Build(connectSpotify: true);
 
         TrackInfo? track = await provider.ResolveTrackAsync(ChannelId, input);
 
@@ -139,19 +133,9 @@ public sealed class SpotifyMusicProviderResolveTrackTests
         handler.RequestUrls.Should().BeEmpty("garbage input must not become an API request");
     }
 
-    [Fact]
-    public async Task YouTube_stub_resolves_to_null_until_its_provider_slice_lands()
-    {
-        YouTubeMusicProvider youtube = new(NullLogger<YouTubeMusicProvider>.Instance);
-
-        TrackInfo? track = await youtube.ResolveTrackAsync(ChannelId, "dQw4w9WgXcQ");
-
-        track.Should().BeNull("§3.5: null = not found/unavailable");
-    }
-
     // ─── Harness ──────────────────────────────────────────────────────────────
 
-    private static (SpotifyMusicProvider Provider, RecordingSpotifyHandler Handler) Build(
+    private static (SpotifyMusicProvider Provider, RecordingHttpHandler Handler) Build(
         bool connectSpotify
     )
     {
@@ -175,7 +159,7 @@ public sealed class SpotifyMusicProviderResolveTrackTests
             db.SaveChanges();
         }
 
-        RecordingSpotifyHandler handler = new();
+        RecordingHttpHandler handler = new();
         SpotifyMusicProvider provider = new(
             db,
             new PassthroughProtector(),

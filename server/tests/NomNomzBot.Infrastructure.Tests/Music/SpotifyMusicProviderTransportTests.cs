@@ -41,7 +41,7 @@ public sealed class SpotifyMusicProviderTransportTests
     [Fact]
     public async Task Premium_403_on_volume_maps_to_PREMIUM_REQUIRED_not_a_throw()
     {
-        (MusicService sut, _, RecordingSpotifyHandler handler, _) = Build();
+        (MusicService sut, _, RecordingHttpHandler handler, _) = Build();
         handler.RespondWhen(
             r => r.RequestUri!.AbsolutePath.EndsWith("/me/player/volume", StringComparison.Ordinal),
             HttpStatusCode.Forbidden,
@@ -58,7 +58,7 @@ public sealed class SpotifyMusicProviderTransportTests
     [Fact]
     public async Task Premium_403_on_pause_maps_to_PREMIUM_REQUIRED_and_publishes_nothing()
     {
-        (MusicService sut, RecordingEventBus bus, RecordingSpotifyHandler handler, _) = Build();
+        (MusicService sut, RecordingEventBus bus, RecordingHttpHandler handler, _) = Build();
         handler.RespondWhen(
             r => r.RequestUri!.AbsolutePath.EndsWith("/me/player/pause", StringComparison.Ordinal),
             HttpStatusCode.Forbidden,
@@ -76,7 +76,7 @@ public sealed class SpotifyMusicProviderTransportTests
     [Fact]
     public async Task Premium_403_on_previous_maps_to_PREMIUM_REQUIRED()
     {
-        (MusicService sut, _, RecordingSpotifyHandler handler, _) = Build();
+        (MusicService sut, _, RecordingHttpHandler handler, _) = Build();
         handler.RespondWhen(
             r =>
                 r.RequestUri!.AbsolutePath.EndsWith(
@@ -98,7 +98,7 @@ public sealed class SpotifyMusicProviderTransportTests
         (
             MusicService sut,
             _,
-            RecordingSpotifyHandler handler,
+            RecordingHttpHandler handler,
             InMemoryIntegrationCapabilityStore store
         ) = Build();
         handler.RespondWhen(
@@ -121,7 +121,7 @@ public sealed class SpotifyMusicProviderTransportTests
         (
             MusicService sut,
             _,
-            RecordingSpotifyHandler handler,
+            RecordingHttpHandler handler,
             InMemoryIntegrationCapabilityStore store
         ) = Build();
         handler.RespondWhen(
@@ -144,7 +144,7 @@ public sealed class SpotifyMusicProviderTransportTests
         (
             MusicService sut,
             _,
-            RecordingSpotifyHandler handler,
+            RecordingHttpHandler handler,
             InMemoryIntegrationCapabilityStore store
         ) = Build();
         handler.RespondWhen(
@@ -167,7 +167,7 @@ public sealed class SpotifyMusicProviderTransportTests
     private static (
         MusicService Sut,
         RecordingEventBus Bus,
-        RecordingSpotifyHandler Handler,
+        RecordingHttpHandler Handler,
         InMemoryIntegrationCapabilityStore Store
     ) Build()
     {
@@ -188,7 +188,7 @@ public sealed class SpotifyMusicProviderTransportTests
         );
         db.SaveChanges();
 
-        RecordingSpotifyHandler handler = new();
+        RecordingHttpHandler handler = new();
         InMemoryIntegrationCapabilityStore store = new();
         SpotifyMusicProvider spotify = new(
             db,

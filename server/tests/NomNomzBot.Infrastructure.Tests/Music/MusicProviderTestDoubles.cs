@@ -10,7 +10,10 @@
 
 using System.Net;
 using System.Text;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
+using NomNomzBot.Infrastructure.Music;
 
 namespace NomNomzBot.Infrastructure.Tests.Music;
 
@@ -38,11 +41,11 @@ internal sealed class SingleHandlerClientFactory(HttpMessageHandler handler) : I
 }
 
 /// <summary>
-/// Records every request the Spotify provider sends (method + absolute URL, plus the JSON body when
+/// Records every request a music provider sends (method + absolute URL, plus the JSON body when
 /// present) and answers from registered routes; anything unrouted gets a 404 so a test can prove an
 /// endpoint was NOT called with real consequences instead of silence.
 /// </summary>
-internal sealed class RecordingSpotifyHandler : HttpMessageHandler
+internal sealed class RecordingHttpHandler : HttpMessageHandler
 {
     private readonly List<(
         Func<HttpRequestMessage, bool> Matches,
@@ -87,5 +90,31 @@ internal sealed class RecordingSpotifyHandler : HttpMessageHandler
         }
 
         return new HttpResponseMessage(HttpStatusCode.NotFound);
+    }
+}
+
+/// <summary>
+/// Builds a real <see cref="YouTubeMusicProvider"/> over the shared test HTTP handler and an in-memory
+/// <c>YouTube:ApiKey</c> — mirrors the runtime DI shape (named HttpClient + IConfiguration). A null
+/// <paramref name="apiKey"/> leaves the provider unconfigured (search/resolve degrade to empty/null).
+/// </summary>
+internal static class YouTubeProviderFactory
+{
+    public static YouTubeMusicProvider Create(
+        string? apiKey = null,
+        HttpMessageHandler? handler = null
+    )
+    {
+        IConfiguration configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?> { ["YouTube:ApiKey"] = apiKey })
+            .Build();
+
+        SingleHandlerClientFactory factory = new(handler ?? new RecordingHttpHandler());
+
+        return new YouTubeMusicProvider(
+            factory,
+            configuration,
+            NullLogger<YouTubeMusicProvider>.Instance
+        );
     }
 }

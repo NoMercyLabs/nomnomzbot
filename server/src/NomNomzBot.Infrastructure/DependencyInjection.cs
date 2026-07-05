@@ -638,6 +638,10 @@ public static class DependencyInjection
         services.AddHttpClient("spotify").AddSpotifyResilienceHandler();
         services.AddHttpClient("spotify-auth");
 
+        // YouTube Data API v3 client backing the browser-source song-request provider's search/resolve
+        // (music-sr.md §3.5.2). App-level YouTube:ApiKey — no per-user OAuth (music-sr.md decision #8).
+        services.AddHttpClient("youtube");
+
         // ── Discord (discord.md §7) — guild link, notification rules, dispatch + dedupe ──
         // IDiscordGuildService / IDiscordNotificationConfigService / IDiscordNotificationRoleService follow the
         // I<X>Service convention and are bound scoped by AddServicesByConvention above. The dispatcher + gateway

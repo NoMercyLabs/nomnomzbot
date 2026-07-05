@@ -37,7 +37,7 @@ public sealed class SpotifyMusicProviderManageWriteTests
     [Fact]
     public async Task Save_tracks_now_reaches_the_unified_library_endpoint()
     {
-        (MusicProviderManageApi api, RecordingSpotifyHandler handler) = Build();
+        (MusicProviderManageApi api, RecordingHttpHandler handler) = Build();
         handler.RespondWhen(IsLibrary, HttpStatusCode.OK);
 
         Result result = await api.SaveTracksAsync(
@@ -60,7 +60,7 @@ public sealed class SpotifyMusicProviderManageWriteTests
     [Fact]
     public async Task Remove_saved_tracks_uses_DELETE_on_the_library_endpoint()
     {
-        (MusicProviderManageApi api, RecordingSpotifyHandler handler) = Build();
+        (MusicProviderManageApi api, RecordingHttpHandler handler) = Build();
         handler.RespondWhen(IsLibrary, HttpStatusCode.OK);
 
         Result result = await api.RemoveSavedTracksAsync(
@@ -81,7 +81,7 @@ public sealed class SpotifyMusicProviderManageWriteTests
     [Fact]
     public async Task Library_writes_chunk_at_the_40_uri_cap()
     {
-        (MusicProviderManageApi api, RecordingSpotifyHandler handler) = Build();
+        (MusicProviderManageApi api, RecordingHttpHandler handler) = Build();
         handler.RespondWhen(IsLibrary, HttpStatusCode.OK);
         List<string> uris = Enumerable.Range(0, 85).Select(i => $"spotify:track:t{i}").ToList();
 
@@ -101,7 +101,7 @@ public sealed class SpotifyMusicProviderManageWriteTests
         string expectedVerbPrefix
     )
     {
-        (MusicProviderManageApi api, RecordingSpotifyHandler handler) = Build();
+        (MusicProviderManageApi api, RecordingHttpHandler handler) = Build();
         handler.RespondWhen(IsLibrary, HttpStatusCode.OK);
 
         Result result = await api.RateTrackAsync(
@@ -122,7 +122,7 @@ public sealed class SpotifyMusicProviderManageWriteTests
     [Fact]
     public async Task Dislike_stays_CAPABILITY_UNSUPPORTED_on_Spotify_without_an_API_call()
     {
-        (MusicProviderManageApi api, RecordingSpotifyHandler handler) = Build();
+        (MusicProviderManageApi api, RecordingHttpHandler handler) = Build();
 
         Result result = await api.RateTrackAsync(
             ChannelId,
@@ -140,7 +140,7 @@ public sealed class SpotifyMusicProviderManageWriteTests
     [Fact]
     public async Task Create_playlist_posts_to_me_playlists_and_maps_the_created_object()
     {
-        (MusicProviderManageApi api, RecordingSpotifyHandler handler) = Build();
+        (MusicProviderManageApi api, RecordingHttpHandler handler) = Build();
         handler.RespondWhen(
             r =>
                 r.Method == HttpMethod.Post
@@ -188,7 +188,7 @@ public sealed class SpotifyMusicProviderManageWriteTests
     [Fact]
     public async Task Update_playlist_puts_only_provided_fields_then_rereads_the_playlist()
     {
-        (MusicProviderManageApi api, RecordingSpotifyHandler handler) = Build();
+        (MusicProviderManageApi api, RecordingHttpHandler handler) = Build();
         handler.RespondWhen(
             r =>
                 r.Method == HttpMethod.Put
@@ -226,7 +226,7 @@ public sealed class SpotifyMusicProviderManageWriteTests
     [Fact]
     public async Task Update_playlist_with_an_empty_patch_fails_validation_without_an_API_call()
     {
-        (MusicProviderManageApi api, RecordingSpotifyHandler handler) = Build();
+        (MusicProviderManageApi api, RecordingHttpHandler handler) = Build();
 
         Result<MusicPlaylistDto> result = await api.UpdatePlaylistAsync(
             ChannelId,
@@ -244,7 +244,7 @@ public sealed class SpotifyMusicProviderManageWriteTests
     {
         // Spotify has no hard delete — §3.10 semantics = unfollow own playlist, whose live
         // replacement is a library removal of the playlist URI.
-        (MusicProviderManageApi api, RecordingSpotifyHandler handler) = Build();
+        (MusicProviderManageApi api, RecordingHttpHandler handler) = Build();
         handler.RespondWhen(IsLibrary, HttpStatusCode.OK);
 
         Result result = await api.DeletePlaylistAsync(ChannelId, "spotify", "pl1");
@@ -261,7 +261,7 @@ public sealed class SpotifyMusicProviderManageWriteTests
     [Fact]
     public async Task Add_playlist_tracks_posts_uris_to_the_items_endpoint()
     {
-        (MusicProviderManageApi api, RecordingSpotifyHandler handler) = Build();
+        (MusicProviderManageApi api, RecordingHttpHandler handler) = Build();
         handler.RespondWhen(
             r =>
                 r.Method == HttpMethod.Post
@@ -288,7 +288,7 @@ public sealed class SpotifyMusicProviderManageWriteTests
     [Fact]
     public async Task Remove_playlist_tracks_deletes_uri_objects_from_the_items_endpoint()
     {
-        (MusicProviderManageApi api, RecordingSpotifyHandler handler) = Build();
+        (MusicProviderManageApi api, RecordingHttpHandler handler) = Build();
         handler.RespondWhen(
             r =>
                 r.Method == HttpMethod.Delete
@@ -317,7 +317,7 @@ public sealed class SpotifyMusicProviderManageWriteTests
     [Fact]
     public async Task Artist_follow_rides_the_documented_me_following_form()
     {
-        (MusicProviderManageApi api, RecordingSpotifyHandler handler) = Build();
+        (MusicProviderManageApi api, RecordingHttpHandler handler) = Build();
         handler.RespondWhen(
             r => r.RequestUri!.AbsolutePath.EndsWith("/me/following", StringComparison.Ordinal),
             HttpStatusCode.NoContent
@@ -353,7 +353,7 @@ public sealed class SpotifyMusicProviderManageWriteTests
     [Fact]
     public async Task Playlist_follow_rides_the_library_replacement_endpoint()
     {
-        (MusicProviderManageApi api, RecordingSpotifyHandler handler) = Build();
+        (MusicProviderManageApi api, RecordingHttpHandler handler) = Build();
         handler.RespondWhen(IsLibrary, HttpStatusCode.OK);
 
         Result result = await api.FollowAsync(
@@ -376,7 +376,7 @@ public sealed class SpotifyMusicProviderManageWriteTests
     [Fact]
     public async Task A_403_on_a_manage_write_maps_to_MISSING_SCOPE()
     {
-        (MusicProviderManageApi api, RecordingSpotifyHandler handler) = Build();
+        (MusicProviderManageApi api, RecordingHttpHandler handler) = Build();
         handler.RespondWhen(IsLibrary, HttpStatusCode.Forbidden);
 
         Result result = await api.SaveTracksAsync(ChannelId, "spotify", ["spotify:track:aaa111"]);
@@ -387,7 +387,7 @@ public sealed class SpotifyMusicProviderManageWriteTests
     [Fact]
     public async Task A_404_on_a_playlist_write_maps_to_NOT_FOUND()
     {
-        (MusicProviderManageApi api, RecordingSpotifyHandler handler) = Build();
+        (MusicProviderManageApi api, RecordingHttpHandler handler) = Build();
         // No route registered — the handler answers 404, Spotify's real "no such playlist".
 
         Result result = await api.AddPlaylistTracksAsync(
@@ -405,7 +405,7 @@ public sealed class SpotifyMusicProviderManageWriteTests
     private static bool IsLibrary(HttpRequestMessage request) =>
         request.RequestUri!.AbsolutePath.EndsWith("/me/library", StringComparison.Ordinal);
 
-    private static (MusicProviderManageApi Api, RecordingSpotifyHandler Handler) Build()
+    private static (MusicProviderManageApi Api, RecordingHttpHandler Handler) Build()
     {
         MusicTestDbContext db = new(
             new DbContextOptionsBuilder<MusicTestDbContext>()
@@ -424,7 +424,7 @@ public sealed class SpotifyMusicProviderManageWriteTests
         );
         db.SaveChanges();
 
-        RecordingSpotifyHandler handler = new();
+        RecordingHttpHandler handler = new();
         SpotifyMusicProvider spotify = new(
             db,
             new PassthroughProtector(),
@@ -433,7 +433,7 @@ public sealed class SpotifyMusicProviderManageWriteTests
             TimeProvider.System,
             NullLogger<SpotifyMusicProvider>.Instance
         );
-        YouTubeMusicProvider youtube = new(NullLogger<YouTubeMusicProvider>.Instance);
+        YouTubeMusicProvider youtube = YouTubeProviderFactory.Create();
 
         MusicProviderManageApi api = new([spotify, youtube]);
         return (api, handler);

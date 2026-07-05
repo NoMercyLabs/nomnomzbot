@@ -62,6 +62,7 @@ services:
       - Discord__PublicKey=${DISCORD_PUBLIC_KEY:-}
       - YouTube__ClientId=${YOUTUBE_CLIENT_ID:-}
       - YouTube__ClientSecret=${YOUTUBE_CLIENT_SECRET:-}
+      - YouTube__ApiKey=${YOUTUBE_API_KEY:-}
       - Azure__Tts__ApiKey=${AZURE_TTS_API_KEY:-}
       - Azure__Tts__Region=${AZURE_TTS_REGION:-westeurope}
       - ElevenLabs__ApiKey=${ELEVENLABS_API_KEY:-}

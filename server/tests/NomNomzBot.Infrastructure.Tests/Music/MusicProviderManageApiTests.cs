@@ -25,7 +25,7 @@ namespace NomNomzBot.Infrastructure.Tests.Music;
 /// with <c>CAPABILITY_UNSUPPORTED</c> — never a throw — an unregistered provider key fails
 /// <c>NOT_FOUND</c>, an unconnected provider fails <c>MISSING_SCOPE</c>, and Spotify playlist
 /// listing maps the provider payload field-by-field. Uses the REAL providers (Spotify over a
-/// stubbed HTTP transport, the real YouTube stub) through the real gating front, so the tests
+/// stubbed HTTP transport, the real unconfigured YouTube provider) through the real gating front, so the tests
 /// prove production wiring, not substitutes. The wired Spotify manage WRITES are covered in
 /// <see cref="SpotifyMusicProviderManageWriteTests"/>.
 /// </summary>
@@ -79,9 +79,7 @@ public sealed class MusicProviderManageApiTests
     {
         // Spotify has no channel-subscription analogue (§3.5) — a Channel-target follow must gate on
         // Subscriptions (absent) even though Spotify declares Library and Playlists.
-        (MusicProviderManageApi api, _, RecordingSpotifyHandler handler) = Build(
-            connectSpotify: true
-        );
+        (MusicProviderManageApi api, _, RecordingHttpHandler handler) = Build(connectSpotify: true);
 
         Result result = await api.FollowAsync(
             ChannelId,
@@ -97,9 +95,7 @@ public sealed class MusicProviderManageApiTests
     [Fact]
     public async Task Spotify_playlist_listing_maps_the_provider_payload_field_by_field()
     {
-        (MusicProviderManageApi api, _, RecordingSpotifyHandler handler) = Build(
-            connectSpotify: true
-        );
+        (MusicProviderManageApi api, _, RecordingHttpHandler handler) = Build(connectSpotify: true);
         handler.RespondWhen(
             r => r.RequestUri!.AbsolutePath.EndsWith("/me/playlists", StringComparison.Ordinal),
             HttpStatusCode.OK,
@@ -156,7 +152,7 @@ public sealed class MusicProviderManageApiTests
     private static (
         MusicProviderManageApi Api,
         MusicTestDbContext Db,
-        RecordingSpotifyHandler Handler
+        RecordingHttpHandler Handler
     ) Build(bool connectSpotify)
     {
         MusicTestDbContext db = new(
@@ -179,7 +175,7 @@ public sealed class MusicProviderManageApiTests
             db.SaveChanges();
         }
 
-        RecordingSpotifyHandler handler = new();
+        RecordingHttpHandler handler = new();
         SpotifyMusicProvider spotify = new(
             db,
             new PassthroughProtector(),
@@ -188,7 +184,7 @@ public sealed class MusicProviderManageApiTests
             TimeProvider.System,
             NullLogger<SpotifyMusicProvider>.Instance
         );
-        YouTubeMusicProvider youtube = new(NullLogger<YouTubeMusicProvider>.Instance);
+        YouTubeMusicProvider youtube = YouTubeProviderFactory.Create();
 
         MusicProviderManageApi api = new([spotify, youtube]);
         return (api, db, handler);

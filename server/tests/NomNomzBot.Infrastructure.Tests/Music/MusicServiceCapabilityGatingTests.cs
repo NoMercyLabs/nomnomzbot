@@ -27,7 +27,7 @@ namespace NomNomzBot.Infrastructure.Tests.Music;
 /// <c>CAPABILITY_UNSUPPORTED</c> (never a throw, never a provider API call), while Spotify
 /// transport rides the widened Guid-keyed members — including the seam's whole-seconds seek
 /// contract and the volume/previous wires observed on the actual HTTP. Uses the real providers
-/// (YouTube stub, Spotify over stubbed HTTP), not substitutes.
+/// (YouTube over its Data API, Spotify over stubbed HTTP), not substitutes.
 /// </summary>
 public sealed class MusicServiceCapabilityGatingTests
 {
@@ -38,7 +38,7 @@ public sealed class MusicServiceCapabilityGatingTests
     {
         // YouTube-only channel: the YouTube Data API has no playback transport, so every
         // transport member gates off (§3.5) with CAPABILITY_UNSUPPORTED — no exception.
-        (MusicService sut, RecordingSpotifyHandler handler) = Build(connectedService: "youtube");
+        (MusicService sut, RecordingHttpHandler handler) = Build(connectedService: "youtube");
         string channel = ChannelId.ToString();
 
         (await sut.PlayAsync(channel)).ErrorCode.Should().Be("CAPABILITY_UNSUPPORTED");
@@ -64,7 +64,7 @@ public sealed class MusicServiceCapabilityGatingTests
     [Fact]
     public async Task Seek_crosses_the_seam_in_whole_seconds_and_reaches_Spotify_in_milliseconds()
     {
-        (MusicService sut, RecordingSpotifyHandler handler) = Build(connectedService: "spotify");
+        (MusicService sut, RecordingHttpHandler handler) = Build(connectedService: "spotify");
 
         Result ok = await sut.SeekAsync(ChannelId.ToString(), 93_500);
 
@@ -77,7 +77,7 @@ public sealed class MusicServiceCapabilityGatingTests
     [Fact]
     public async Task Volume_reaches_Spotify_with_the_exact_volume_percent_query()
     {
-        (MusicService sut, RecordingSpotifyHandler handler) = Build(connectedService: "spotify");
+        (MusicService sut, RecordingHttpHandler handler) = Build(connectedService: "spotify");
 
         Result ok = await sut.SetVolumeAsync(ChannelId.ToString(), 63);
 
@@ -94,7 +94,7 @@ public sealed class MusicServiceCapabilityGatingTests
     [InlineData(101)]
     public async Task Out_of_range_volume_fails_validation_without_an_API_call(int volume)
     {
-        (MusicService sut, RecordingSpotifyHandler handler) = Build(connectedService: "spotify");
+        (MusicService sut, RecordingHttpHandler handler) = Build(connectedService: "spotify");
 
         Result result = await sut.SetVolumeAsync(ChannelId.ToString(), volume);
 
@@ -105,7 +105,7 @@ public sealed class MusicServiceCapabilityGatingTests
     [Fact]
     public async Task Previous_reaches_Spotify_on_the_previous_endpoint()
     {
-        (MusicService sut, RecordingSpotifyHandler handler) = Build(connectedService: "spotify");
+        (MusicService sut, RecordingHttpHandler handler) = Build(connectedService: "spotify");
 
         Result ok = await sut.PreviousAsync(ChannelId.ToString());
 
@@ -118,7 +118,7 @@ public sealed class MusicServiceCapabilityGatingTests
     [Fact]
     public async Task Negative_seek_fails_validation_without_an_API_call()
     {
-        (MusicService sut, RecordingSpotifyHandler handler) = Build(connectedService: "spotify");
+        (MusicService sut, RecordingHttpHandler handler) = Build(connectedService: "spotify");
 
         Result result = await sut.SeekAsync(ChannelId.ToString(), -1);
 
@@ -132,7 +132,7 @@ public sealed class MusicServiceCapabilityGatingTests
     [InlineData("Context")]
     public async Task Repeat_mode_strings_map_onto_the_seam_enum_and_reach_Spotify(string mode)
     {
-        (MusicService sut, RecordingSpotifyHandler handler) = Build(connectedService: "spotify");
+        (MusicService sut, RecordingHttpHandler handler) = Build(connectedService: "spotify");
 
         Result ok = await sut.SetRepeatAsync(ChannelId.ToString(), mode);
 
@@ -147,7 +147,7 @@ public sealed class MusicServiceCapabilityGatingTests
     [Fact]
     public async Task Invalid_repeat_mode_fails_validation_without_an_API_call()
     {
-        (MusicService sut, RecordingSpotifyHandler handler) = Build(connectedService: "spotify");
+        (MusicService sut, RecordingHttpHandler handler) = Build(connectedService: "spotify");
 
         Result result = await sut.SetRepeatAsync(ChannelId.ToString(), "banana");
 
@@ -158,7 +158,7 @@ public sealed class MusicServiceCapabilityGatingTests
     [Fact]
     public async Task Devices_map_field_by_field_from_the_provider_payload()
     {
-        (MusicService sut, RecordingSpotifyHandler handler) = Build(connectedService: "spotify");
+        (MusicService sut, RecordingHttpHandler handler) = Build(connectedService: "spotify");
         handler.RespondWhen(
             r =>
                 r.RequestUri!.AbsolutePath.EndsWith("/me/player/devices", StringComparison.Ordinal),
@@ -188,7 +188,7 @@ public sealed class MusicServiceCapabilityGatingTests
     [InlineData("")]
     public async Task An_unparseable_tenant_key_fails_closed_everywhere(string badKey)
     {
-        (MusicService sut, RecordingSpotifyHandler handler) = Build(connectedService: "spotify");
+        (MusicService sut, RecordingHttpHandler handler) = Build(connectedService: "spotify");
 
         (await sut.PlayAsync(badKey)).ErrorCode.Should().Be("VALIDATION_FAILED");
         (await sut.SearchAsync(badKey, "query")).Should().BeEmpty();
@@ -203,7 +203,7 @@ public sealed class MusicServiceCapabilityGatingTests
     {
         // Spotify + YouTube are registered, but this channel connected neither → every call fails
         // closed with SERVICE_UNAVAILABLE (no active provider).
-        (MusicService sut, RecordingSpotifyHandler handler) = Build(connectedService: null);
+        (MusicService sut, RecordingHttpHandler handler) = Build(connectedService: null);
 
         (await sut.PlayAsync(ChannelId.ToString())).ErrorCode.Should().Be("SERVICE_UNAVAILABLE");
         (await sut.SearchAsync(ChannelId.ToString(), "query")).Should().BeEmpty();
@@ -213,9 +213,7 @@ public sealed class MusicServiceCapabilityGatingTests
 
     // ─── Harness ──────────────────────────────────────────────────────────────
 
-    private static (MusicService Sut, RecordingSpotifyHandler Handler) Build(
-        string? connectedService
-    )
+    private static (MusicService Sut, RecordingHttpHandler Handler) Build(string? connectedService)
     {
         MusicTestDbContext db = new(
             new DbContextOptionsBuilder<MusicTestDbContext>()
@@ -237,7 +235,7 @@ public sealed class MusicServiceCapabilityGatingTests
             db.SaveChanges();
         }
 
-        RecordingSpotifyHandler handler = new();
+        RecordingHttpHandler handler = new();
         SpotifyMusicProvider spotify = new(
             db,
             new PassthroughProtector(),
@@ -246,7 +244,7 @@ public sealed class MusicServiceCapabilityGatingTests
             TimeProvider.System,
             NullLogger<SpotifyMusicProvider>.Instance
         );
-        YouTubeMusicProvider youtube = new(NullLogger<YouTubeMusicProvider>.Instance);
+        YouTubeMusicProvider youtube = YouTubeProviderFactory.Create();
 
         MusicService sut = new(
             [spotify, youtube],
