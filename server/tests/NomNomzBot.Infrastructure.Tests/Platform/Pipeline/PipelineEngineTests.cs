@@ -27,7 +27,7 @@ public class InfraPipelineEngineTests
     {
         chat ??= Substitute.For<IChatProvider>();
         chat.SendMessageAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(Task.CompletedTask);
+            .Returns(true);
 
         IChannelRegistry? registry = Substitute.For<IChannelRegistry>();
         registry.Get(Arg.Any<Guid>()).Returns((ChannelContext?)null);

@@ -43,6 +43,8 @@ public sealed class DashboardHubAuthorizationTests
     private static Fixture Build(bool entryAllowed, bool gate2Allows, bool authenticated = true)
     {
         IChatProvider chat = Substitute.For<IChatProvider>();
+        chat.SendMessageAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(true);
         IChannelAccessService access = Substitute.For<IChannelAccessService>();
         access
             .CanResolveTenantAsync(
