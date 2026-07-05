@@ -21,7 +21,9 @@ jobs:
       - name: Set up .NET
         uses: actions/setup-dotnet@v4
         with:
-          global-json-file: server/global.json
+          # global.json pins 10.0.0 with rollForward=latestMajor; install the latest 10.0 patch by channel
+          # (an exact "10.0.0" lookup 404s on the install feed) and let global.json roll forward to it.
+          dotnet-version: '10.0.x'
 
       - name: Restore .NET tools (CSharpier)
         working-directory: server
