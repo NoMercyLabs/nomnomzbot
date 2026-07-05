@@ -145,8 +145,15 @@ public class ChannelService : IChannelService
 
         int total = await query.CountAsync(cancellationToken);
 
+        // The caller's OWN channel(s) sort first, then alphabetical. This is load-bearing: the dashboard defaults
+        // its active channel to the first item, and resolves the caller's role against it. An owner who also
+        // moderates a channel whose name sorts earlier (e.g. owns "stoney_eagle" but moderates "aaoa_") would
+        // otherwise default to that moderated channel and be resolved as a mere viewer there — landing on the
+        // participant surface instead of their own management dashboard. Owning a channel is the strongest claim,
+        // so it wins the default.
         List<ChannelSummaryDto> items = await query
-            .OrderBy(c => c.Name)
+            .OrderByDescending(c => c.OwnerUserId == userGuid)
+            .ThenBy(c => c.Name)
             .Skip((pagination.Page - 1) * pagination.PageSize)
             .Take(pagination.PageSize)
             .Select(c => new ChannelSummaryDto(
