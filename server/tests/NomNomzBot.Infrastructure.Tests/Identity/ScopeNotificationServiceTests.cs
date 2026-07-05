@@ -330,14 +330,14 @@ internal sealed class SpyChatProvider : IChatProvider
 {
     public List<(Guid BroadcasterId, string Message)> Sent { get; } = [];
 
-    public Task SendMessageAsync(
+    public Task<bool> SendMessageAsync(
         Guid broadcasterId,
         string message,
         CancellationToken cancellationToken = default
     )
     {
         Sent.Add((broadcasterId, message));
-        return Task.CompletedTask;
+        return Task.FromResult(true);
     }
 
     public Task SendReplyAsync(

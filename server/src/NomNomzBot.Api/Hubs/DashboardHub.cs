@@ -126,8 +126,12 @@ public class DashboardHub : Hub<IDashboardClient>
 
         try
         {
-            await _chat.SendMessageAsync(tenantId, message);
-            return new(true, null, null);
+            // Honour the provider's real outcome — a swallowed Helix failure (dead token, no connection) returns
+            // false, and reporting success here would LIE to the dashboard exactly like the old {data:true} path.
+            bool sent = await _chat.SendMessageAsync(tenantId, message);
+            return sent
+                ? new SendMessageResponse(true, null, null)
+                : new SendMessageResponse(false, "The message could not be sent to Twitch.", null);
         }
         catch (Exception ex)
         {

@@ -11,6 +11,7 @@
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Integrations.Entities;
@@ -142,6 +143,69 @@ public sealed class HelixChatProviderTests
         body.SenderId.Should()
             .Be(BotTwitchUserId, "a registered bot account is the chat sender when present");
         body.BroadcasterId.Should().Be(OwnerTwitchChannelId);
+    }
+
+    /// <summary>The send reports its REAL outcome: when Helix accepts the message, it returns <c>true</c>.</summary>
+    [Fact]
+    public async Task SendMessage_WhenHelixAcceptsTheMessage_ReturnsTrue()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        await AddConnectionAsync(
+            db,
+            Owner,
+            AuthEnums.IntegrationProvider.Twitch,
+            OwnerTwitchUserId,
+            DateTime.UtcNow
+        );
+        (HelixChatProvider provider, CapturingHelixTransport transport) = Build(db);
+        transport.SendResult = Result.Success();
+
+        bool sent = await provider.SendMessageAsync(Owner, "hello chat");
+
+        sent.Should().BeTrue("Helix accepted the send");
+    }
+
+    /// <summary>
+    /// The honesty guarantee: a swallowed Helix rejection (e.g. a dead/expired token) makes the send return
+    /// <c>false</c>, not a silent success — so the dashboard send path reports the failure instead of lying.
+    /// </summary>
+    [Fact]
+    public async Task SendMessage_WhenHelixRejectsTheSend_ReturnsFalse()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        await AddConnectionAsync(
+            db,
+            Owner,
+            AuthEnums.IntegrationProvider.Twitch,
+            OwnerTwitchUserId,
+            DateTime.UtcNow
+        );
+        (HelixChatProvider provider, CapturingHelixTransport transport) = Build(db);
+        transport.SendResult = Result.Failure("Invalid OAuth token", "TWITCH_ERROR");
+
+        bool sent = await provider.SendMessageAsync(Owner, "hello chat");
+
+        sent.Should().BeFalse("a rejected Helix send must not masquerade as success");
+        transport.LastRequest.Should().NotBeNull("the send was attempted before it failed");
+    }
+
+    /// <summary>
+    /// No Twitch connection for the channel: the send can't resolve a channel id, so it returns <c>false</c>
+    /// WITHOUT ever hitting the transport — the caller learns the send didn't happen.
+    /// </summary>
+    [Fact]
+    public async Task SendMessage_WithNoTwitchConnection_ReturnsFalseWithoutCallingHelix()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        (HelixChatProvider provider, CapturingHelixTransport transport) = Build(db);
+
+        bool sent = await provider.SendMessageAsync(
+            Guid.Parse("0192a000-0000-7000-8000-0000000000ff"),
+            "hello chat"
+        );
+
+        sent.Should().BeFalse("there is no Twitch connection to send through");
+        transport.CallCount.Should().Be(0, "the send short-circuits before the Helix call");
     }
 
     /// <summary>Reads the anonymous chat-send body (PascalCase) the provider hands the transport.</summary>

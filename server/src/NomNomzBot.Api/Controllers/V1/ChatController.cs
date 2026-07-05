@@ -256,7 +256,14 @@ public class ChatController : BaseController
         if (message.Length > 500)
             return BadRequestResponse("Message exceeds the 500-character limit.");
 
-        await _chat.SendMessageAsync(broadcasterId, message, ct);
+        bool sent = await _chat.SendMessageAsync(broadcasterId, message, ct);
+        if (!sent)
+            // The bot couldn't deliver the message to Twitch (no/unhealthy connection, dead token). Report it
+            // honestly — a 503 the chat page surfaces — instead of a {data:true} that lies the send succeeded.
+            return ServiceUnavailableResponse(
+                "The message could not be sent to Twitch. Your Twitch connection may need to be reconnected."
+            );
+
         return Ok(new StatusResponseDto<bool> { Data = true });
     }
 

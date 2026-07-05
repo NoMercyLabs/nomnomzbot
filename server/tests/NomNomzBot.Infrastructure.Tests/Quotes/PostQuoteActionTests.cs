@@ -40,14 +40,14 @@ public sealed class PostQuoteActionTests
     {
         public List<(Guid Broadcaster, string Message)> Sent { get; } = [];
 
-        public Task SendMessageAsync(
+        public Task<bool> SendMessageAsync(
             Guid broadcasterId,
             string message,
             CancellationToken ct = default
         )
         {
             Sent.Add((broadcasterId, message));
-            return Task.CompletedTask;
+            return Task.FromResult(true);
         }
 
         public Task SendReplyAsync(

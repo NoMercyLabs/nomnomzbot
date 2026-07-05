@@ -260,6 +260,55 @@ public sealed class ChatControllerTests
             .DecorateAsync(Arg.Any<ChatMessageReceivedEvent>(), Arg.Any<CancellationToken>());
     }
 
+    [Fact]
+    public async Task SendMessage_returns_ok_when_the_bot_delivers_the_message_to_twitch()
+    {
+        ChatControllerTestDbContext db = ChatControllerTestDbContext.New();
+        IChatProvider chat = Substitute.For<IChatProvider>();
+        chat.SendMessageAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(true));
+        ChatController controller = new(
+            db,
+            chat,
+            Substitute.For<ITwitchChatApi>(),
+            Substitute.For<IChatMessageDecorator>()
+        );
+
+        IActionResult result = await controller.SendMessage(
+            Broadcaster.ToString(),
+            new ChatController.SendChatMessageRequest("hello chat")
+        );
+
+        result.Should().BeOfType<OkObjectResult>();
+        await chat.Received(1)
+            .SendMessageAsync(Broadcaster, "hello chat", Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task SendMessage_returns_503_when_the_send_fails_instead_of_reporting_a_false_success()
+    {
+        ChatControllerTestDbContext db = ChatControllerTestDbContext.New();
+        IChatProvider chat = Substitute.For<IChatProvider>();
+        // The provider swallowed a Helix rejection (e.g. a dead token) and returned false — the controller must
+        // NOT pretend the send worked (the old {data:true} lie); it reports 503 so the chat page shows the failure.
+        chat.SendMessageAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(false));
+        ChatController controller = new(
+            db,
+            chat,
+            Substitute.For<ITwitchChatApi>(),
+            Substitute.For<IChatMessageDecorator>()
+        );
+
+        IActionResult result = await controller.SendMessage(
+            Broadcaster.ToString(),
+            new ChatController.SendChatMessageRequest("hello chat")
+        );
+
+        ObjectResult response = result.Should().BeOfType<ObjectResult>().Subject;
+        response.StatusCode.Should().Be(503);
+    }
+
     private static List<ChatController.ChatMessageDto> Data(IActionResult result)
     {
         result.Should().BeOfType<OkObjectResult>();

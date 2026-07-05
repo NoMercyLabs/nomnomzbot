@@ -59,7 +59,7 @@ public sealed class HelixChatProvider : IChatProvider
         _logger = logger;
     }
 
-    public Task SendMessageAsync(
+    public Task<bool> SendMessageAsync(
         Guid broadcasterId,
         string message,
         CancellationToken cancellationToken = default
@@ -114,7 +114,7 @@ public sealed class HelixChatProvider : IChatProvider
     /// sender id travel in the body. The transport serialises this PascalCase body to snake_case and omits
     /// the null reply id for a plain message.
     /// </summary>
-    private async Task PostChatMessageAsync(
+    private async Task<bool> PostChatMessageAsync(
         Guid broadcasterId,
         string message,
         string? replyToMessageId,
@@ -123,7 +123,7 @@ public sealed class HelixChatProvider : IChatProvider
     {
         string? twitchBroadcasterId = await ResolveTwitchChannelIdAsync(broadcasterId, ct);
         if (twitchBroadcasterId is null)
-            return;
+            return false;
 
         string? botUserId = await GetBotUserIdAsync(ct);
         if (botUserId is null)
@@ -132,7 +132,7 @@ public sealed class HelixChatProvider : IChatProvider
                 "HelixChatProvider: no bot user ID, cannot send message to {BroadcasterId}",
                 broadcasterId
             );
-            return;
+            return false;
         }
 
         TwitchHelixRequest request = new(
@@ -151,11 +151,16 @@ public sealed class HelixChatProvider : IChatProvider
 
         Result result = await _transport.SendAsync(request, ct);
         if (result.IsFailure)
+        {
             _logger.LogWarning(
                 "HelixChatProvider: send to {BroadcasterId} failed: {Error}",
                 broadcasterId,
                 result.ErrorMessage
             );
+            return false;
+        }
+
+        return true;
     }
 
     /// <summary>

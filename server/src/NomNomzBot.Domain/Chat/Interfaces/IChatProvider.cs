@@ -18,7 +18,14 @@ namespace NomNomzBot.Domain.Chat.Interfaces;
 /// </summary>
 public interface IChatProvider
 {
-    Task SendMessageAsync(
+    /// <summary>
+    /// Sends a chat message as the bot. Returns <c>true</c> when Twitch accepted the message; <c>false</c> when it
+    /// could NOT be sent — no Twitch connection for the channel, the bot identity is unavailable, or Helix rejected
+    /// the call (e.g. a dead/expired token). Callers that report an outcome to the operator (the dashboard send
+    /// path) MUST honour <c>false</c> instead of assuming success. It never throws for an expected send failure, so
+    /// a swallowed failure can never masquerade as a successful send.
+    /// </summary>
+    Task<bool> SendMessageAsync(
         Guid broadcasterId,
         string message,
         CancellationToken cancellationToken = default
