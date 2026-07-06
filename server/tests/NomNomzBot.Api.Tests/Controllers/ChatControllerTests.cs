@@ -11,6 +11,7 @@
 using FluentAssertions;
 using Microsoft.AspNetCore.Mvc;
 using NomNomzBot.Api.Controllers.V1;
+using NomNomzBot.Api.Hubs;
 using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Auth;
@@ -52,7 +53,8 @@ public sealed class ChatControllerTests
         IChatProvider? chat = null,
         IOperatorChatSender? operatorSender = null,
         ICurrentUserService? currentUser = null,
-        IChatEmoteCatalogue? emoteCatalogue = null
+        IChatEmoteCatalogue? emoteCatalogue = null,
+        IHubUserEnricher? enricher = null
     ) =>
         new(
             db,
@@ -61,7 +63,8 @@ public sealed class ChatControllerTests
             decorator,
             currentUser ?? StubCurrentUser(OperatorUserId),
             operatorSender ?? Substitute.For<IOperatorChatSender>(),
-            emoteCatalogue ?? Substitute.For<IChatEmoteCatalogue>()
+            emoteCatalogue ?? Substitute.For<IChatEmoteCatalogue>(),
+            enricher ?? Substitute.For<IHubUserEnricher>()
         );
 
     [Fact]
@@ -131,9 +134,9 @@ public sealed class ChatControllerTests
 
         IActionResult result = await controller.GetMessages(Broadcaster.ToString());
 
-        List<ChatController.ChatMessageDto> messages = Data(result);
+        List<DashboardChatMessageDto> messages = Data(result);
         messages.Should().ContainSingle();
-        ChatController.ChatMessageDto message = messages[0];
+        DashboardChatMessageDto message = messages[0];
 
         // Identical shape to what the hub would produce for the SAME decorated fragment/badge — both paths
         // call the exact same ChatFragmentMapper functions.
@@ -198,7 +201,7 @@ public sealed class ChatControllerTests
 
         IActionResult result = await controller.GetMessages(Broadcaster.ToString());
 
-        List<ChatController.ChatMessageDto> messages = Data(result);
+        List<DashboardChatMessageDto> messages = Data(result);
         messages.Select(m => m.Id).Should().Equal("msg-older", "msg-newer");
 
         await decorator
@@ -281,6 +284,62 @@ public sealed class ChatControllerTests
         await decorator
             .DidNotReceive()
             .DecorateAsync(Arg.Any<ChatMessageReceivedEvent>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task GetMessages_enriches_history_with_pronouns_avatar_role_and_the_rows_real_timestamp()
+    {
+        ChatControllerTestDbContext db = ChatControllerTestDbContext.New();
+        db.Channels.Add(
+            new Channel
+            {
+                Id = Broadcaster,
+                OwnerUserId = Guid.CreateVersion7(),
+                TwitchChannelId = "998877",
+                Name = "stoney_eagle",
+                NameNormalized = "stoney_eagle",
+            }
+        );
+        DateTime created = new(2026, 7, 2, 9, 30, 15, DateTimeKind.Utc);
+        db.ChatMessages.Add(
+            new ChatMessage
+            {
+                Id = "msg-1",
+                BroadcasterId = Broadcaster,
+                UserId = "twitch-42",
+                Username = "viewer1",
+                DisplayName = "Viewer1",
+                UserType = "vip",
+                Message = "hi",
+                Fragments = [new ChatMessageFragment { Type = "text", Text = "hi" }],
+                Badges = [],
+                CreatedAt = created,
+            }
+        );
+        await db.SaveChangesAsync();
+
+        IChatMessageDecorator decorator = Substitute.For<IChatMessageDecorator>();
+        decorator
+            .DecorateAsync(Arg.Any<ChatMessageReceivedEvent>(), Arg.Any<CancellationToken>())
+            .Returns(new DecoratedChatMessage { Fragments = [], Badges = [] });
+
+        IHubUserEnricher enricher = Substitute.For<IHubUserEnricher>();
+        enricher
+            .EnrichAsync(Broadcaster, "twitch-42", Arg.Any<CancellationToken>())
+            .Returns(new HubUserEnrichment("Viewer1", "https://cdn/avatar.png", "She/Her", "Vip"));
+
+        ChatController controller = Build(db, decorator, enricher: enricher);
+
+        DashboardChatMessageDto message = Data(await controller.GetMessages(Broadcaster.ToString()))
+            .Should()
+            .ContainSingle()
+            .Subject;
+
+        // History carries the SAME enriched shape as the live hub: pronouns + avatar + role flags + real ts.
+        message.Pronouns.Should().Be("She/Her");
+        message.AvatarUrl.Should().Be("https://cdn/avatar.png");
+        message.IsVip.Should().BeTrue();
+        message.Timestamp.Should().Be(created.ToString("O"));
     }
 
     [Fact]
@@ -480,12 +539,12 @@ public sealed class ChatControllerTests
         result.Should().BeOfType<BadRequestObjectResult>();
     }
 
-    private static List<ChatController.ChatMessageDto> Data(IActionResult result)
+    private static List<DashboardChatMessageDto> Data(IActionResult result)
     {
         result.Should().BeOfType<OkObjectResult>();
         OkObjectResult ok = (OkObjectResult)result;
-        StatusResponseDto<List<ChatController.ChatMessageDto>> body =
-            (StatusResponseDto<List<ChatController.ChatMessageDto>>)ok.Value!;
+        StatusResponseDto<List<DashboardChatMessageDto>> body =
+            (StatusResponseDto<List<DashboardChatMessageDto>>)ok.Value!;
         return body.Data!;
     }
 }

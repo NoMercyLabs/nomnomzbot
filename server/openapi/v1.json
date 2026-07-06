@@ -8058,7 +8058,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/StatusResponseDtoOfListOfChatMessageDto"
+                  "$ref": "#/components/schemas/StatusResponseDtoOfListOfDashboardChatMessageDto"
                 }
               }
             }
@@ -8069,7 +8069,7 @@
         "tags": [
           "Chat"
         ],
-        "summary": "Send a chat message to the channel as the bot, for the dashboard's chat page.",
+        "summary": "Send a chat message to the channel — as the logged-in operator by default, or as the bot.",
         "parameters": [
           {
             "name": "channelId",
@@ -8175,6 +8175,104 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/StatusResponseDtoOfboolean"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/channels/{channelId}/chat/emotes": {
+      "get": {
+        "tags": [
+          "Chat"
+        ],
+        "summary": "Get the emotes usable in this channel — Twitch global+channel and BTTV/FFZ/7TV — for the composer.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfIReadOnlyListOfChatEmoteCatalogueDto"
                 }
               }
             }
@@ -39920,6 +40018,43 @@
         },
         "description": "Cheermote fragment data — the raw prefix/bits/tier plus the resolved tier image (chat-decoration spec §3.4):\r\nscale-keyed `Urls`, whether animated, and the tier `ColorHex`. The image fields are null/empty until the\r\nchannel's cheermotes are warmed in cache."
       },
+      "ChatEmoteCatalogueDto": {
+        "required": [
+          "code",
+          "provider",
+          "urls",
+          "animated",
+          "zeroWidth",
+          "setId"
+        ],
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "urls": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "animated": {
+            "type": "boolean"
+          },
+          "zeroWidth": {
+            "type": "boolean"
+          },
+          "setId": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
       "ChatEmoteDto": {
         "required": [
           "id",
@@ -40088,95 +40223,6 @@
           }
         },
         "description": "Mention fragment data (@user) plus the mentioned user's last-seen chat colour as #RRGGBB (chat-decoration spec §3.1),\r\nor null when that user has not been seen recently."
-      },
-      "ChatMessageDto": {
-        "required": [
-          "id",
-          "channelId",
-          "userId",
-          "username",
-          "displayName",
-          "userType",
-          "color",
-          "message",
-          "badges",
-          "fragments",
-          "messageType",
-          "isCommand",
-          "isCheer",
-          "bitsAmount",
-          "replyToMessageId",
-          "timestamp"
-        ],
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "channelId": {
-            "type": "string"
-          },
-          "userId": {
-            "type": "string"
-          },
-          "username": {
-            "type": "string"
-          },
-          "displayName": {
-            "type": "string"
-          },
-          "userType": {
-            "type": "string"
-          },
-          "color": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "message": {
-            "type": "string"
-          },
-          "badges": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ChatBadgeDto"
-            }
-          },
-          "fragments": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ChatFragmentDto"
-            }
-          },
-          "messageType": {
-            "type": "string"
-          },
-          "isCommand": {
-            "type": "boolean"
-          },
-          "isCheer": {
-            "type": "boolean"
-          },
-          "bitsAmount": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "replyToMessageId": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "timestamp": {
-            "type": "string"
-          }
-        }
       },
       "ChatSettingsDto": {
         "required": [
@@ -41719,6 +41765,137 @@
             "type": "string"
           }
         }
+      },
+      "DashboardChatMessageDto": {
+        "required": [
+          "id",
+          "channelId",
+          "userId",
+          "displayName",
+          "username",
+          "message",
+          "fragments",
+          "userType",
+          "isSubscriber",
+          "isVip",
+          "isModerator",
+          "isBroadcaster",
+          "isCheer",
+          "isCommand",
+          "badges",
+          "bitsAmount",
+          "color",
+          "messageType",
+          "replyToMessageId",
+          "replyParentMessageBody",
+          "replyParentUserName",
+          "timestamp"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "channelId": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "fragments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChatFragmentDto"
+            }
+          },
+          "userType": {
+            "type": "string"
+          },
+          "isSubscriber": {
+            "type": "boolean"
+          },
+          "isVip": {
+            "type": "boolean"
+          },
+          "isModerator": {
+            "type": "boolean"
+          },
+          "isBroadcaster": {
+            "type": "boolean"
+          },
+          "isCheer": {
+            "type": "boolean"
+          },
+          "isCommand": {
+            "type": "boolean"
+          },
+          "badges": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChatBadgeDto"
+            }
+          },
+          "bitsAmount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "color": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "messageType": {
+            "type": "string"
+          },
+          "replyToMessageId": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "replyParentMessageBody": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "replyParentUserName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "timestamp": {
+            "type": "string"
+          },
+          "avatarUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "pronouns": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "description": "Rich chat message DTO sent to dashboard/overlay clients via SignalR. Includes structured fragments for\r\ninline emote, mention, and cheermote rendering; field names match the frontend ChatMessagePayload type\r\nexactly. `Message` is the raw plain-text fallback for clients that don't render fragments;\r\n`Fragments` are the structured text/emote/cheermote/mention pieces; `UserType` is the derived\r\nrole (broadcaster | moderator | vip | subscriber | viewer); `Color` is the user's chat color\r\n(#RRGGBB); `MessageType` is text | channel_points_highlighted | channel_points_sub_only | user_intro;\r\n`AvatarUrl` and `Pronouns` are additive hub-broadcast-layer enrichment (`IHubUserEnricher`),\r\nnull when unavailable."
       },
       "DashboardStatsDto": {
         "type": "object",
@@ -46877,6 +47054,16 @@
         "properties": {
           "message": {
             "type": "string"
+          },
+          "senderIdentity": {
+            "type": "string",
+            "default": "you"
+          },
+          "replyToMessageId": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -48423,6 +48610,35 @@
           }
         }
       },
+      "StatusResponseDtoOfIReadOnlyListOfChatEmoteCatalogueDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/ChatEmoteCatalogueDto"
+            }
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
       "StatusResponseDtoOfIReadOnlyListOfCustomDataSourcePresetDto": {
         "type": "object",
         "properties": {
@@ -48946,7 +49162,7 @@
           }
         }
       },
-      "StatusResponseDtoOfListOfChatMessageDto": {
+      "StatusResponseDtoOfListOfDashboardChatMessageDto": {
         "type": "object",
         "properties": {
           "status": {
@@ -48958,7 +49174,7 @@
               "array"
             ],
             "items": {
-              "$ref": "#/components/schemas/ChatMessageDto"
+              "$ref": "#/components/schemas/DashboardChatMessageDto"
             }
           },
           "message": {

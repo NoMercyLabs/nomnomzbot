@@ -14,6 +14,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Api.Authorization;
+using NomNomzBot.Api.Hubs;
 using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Auth;
@@ -47,6 +48,7 @@ public class ChatController : BaseController
     private readonly ICurrentUserService _currentUser;
     private readonly IOperatorChatSender _operatorSender;
     private readonly IChatEmoteCatalogue _emoteCatalogue;
+    private readonly IHubUserEnricher _enricher;
 
     public ChatController(
         IApplicationDbContext db,
@@ -55,7 +57,8 @@ public class ChatController : BaseController
         IChatMessageDecorator decorator,
         ICurrentUserService currentUser,
         IOperatorChatSender operatorSender,
-        IChatEmoteCatalogue emoteCatalogue
+        IChatEmoteCatalogue emoteCatalogue,
+        IHubUserEnricher enricher
     )
     {
         _db = db;
@@ -65,31 +68,14 @@ public class ChatController : BaseController
         _currentUser = currentUser;
         _operatorSender = operatorSender;
         _emoteCatalogue = emoteCatalogue;
+        _enricher = enricher;
     }
 
     // ── DTOs ──────────────────────────────────────────────────────────────────
 
-    // Badges/Fragments carry the SAME decorated shape the DashboardHub live broadcast sends (chat-decoration
-    // spec §4) — third-party emote urls, resolved badge images, cheermote images, mention colors, link previews —
-    // never the raw persisted fragments, so chat history renders identically to the live feed.
-    public record ChatMessageDto(
-        string Id,
-        string ChannelId,
-        string UserId,
-        string Username,
-        string DisplayName,
-        string UserType,
-        string? Color,
-        string Message,
-        IReadOnlyList<ChatBadgeDto> Badges,
-        IReadOnlyList<ChatFragmentDto> Fragments,
-        string MessageType,
-        bool IsCommand,
-        bool IsCheer,
-        int? BitsAmount,
-        string? ReplyToMessageId,
-        string Timestamp
-    );
+    // Chat history (GET messages) returns the SAME DashboardChatMessageDto the live DashboardHub broadcast emits
+    // (chat-client.md §3.6 / §9·9) — one decorated + enriched shape (fragments, badges, pronouns, avatar, real
+    // timestamp), so scrollback and the live feed render identically with no drift.
 
     // SenderIdentity ∈ "you" (default — the logged-in operator's own Twitch account) | "bot" (the bot account).
     public record SendChatMessageRequest(
@@ -137,7 +123,9 @@ public class ChatController : BaseController
     /// <summary>Get recent chat messages for the dashboard's chat feed, returned oldest first.</summary>
     [RequireAction("chat:read")]
     [HttpGet("messages")]
-    [ProducesResponseType<StatusResponseDto<List<ChatMessageDto>>>(StatusCodes.Status200OK)]
+    [ProducesResponseType<StatusResponseDto<List<DashboardChatMessageDto>>>(
+        StatusCodes.Status200OK
+    )]
     public async Task<IActionResult> GetMessages(
         string channelId,
         [FromQuery] int limit = 50,
@@ -169,43 +157,58 @@ public class ChatController : BaseController
                 .FirstOrDefaultAsync(ct)
             ?? string.Empty;
 
-        // Decorate sequentially — the decorator reads only ICacheService on this path (never an external
-        // provider HTTP call; chat-decoration spec §0), and its own resolved-feature-set cache means every
-        // message after the first is a cache hit, so a page of 25-50 messages is cheap without concurrency.
-        // Sequential also keeps every message going through the SAME request-scoped decorator/DbContext
-        // instance one at a time, avoiding the "second operation started on this context" hazard a
-        // concurrent fan-out would risk.
-        List<ChatMessageDto> messages = new(rows.Count);
+        // Decorate + enrich sequentially into the SAME DashboardChatMessageDto the live hub emits, so scrollback
+        // and the live feed are one shape (chat-client.md §3.6). The decorator reads only ICacheService and the
+        // enricher is cache-gated (30s), so a page of 25-50 rows stays cheap; sequential also keeps each message
+        // on the SAME request-scoped DbContext one at a time, avoiding the "second operation on this context"
+        // hazard a concurrent fan-out would risk.
+        List<DashboardChatMessageDto> messages = new(rows.Count);
         foreach (ChatMessage row in rows)
         {
             DecoratedChatMessage decorated = await _decorator.DecorateAsync(
                 ToDecorationEvent(row, twitchBroadcasterId),
                 ct
             );
+            HubUserEnrichment? enrichment = await _enricher.EnrichAsync(
+                broadcasterId,
+                row.UserId,
+                ct
+            );
+            (bool isBroadcaster, bool isModerator, bool isVip, bool isSubscriber) = ParseUserType(
+                row.UserType
+            );
 
             messages.Add(
-                new ChatMessageDto(
-                    row.Id,
-                    channelId,
-                    row.UserId,
-                    row.Username,
-                    row.DisplayName,
-                    row.UserType,
-                    row.ColorHex,
-                    row.Message,
-                    decorated.Badges.Select(ChatFragmentMapper.MapBadge).ToList(),
-                    decorated.Fragments.Select(ChatFragmentMapper.MapFragment).ToList(),
-                    row.MessageType,
-                    row.IsCommand,
-                    row.IsCheer,
-                    row.BitsAmount,
-                    row.ReplyToMessageId,
-                    row.CreatedAt.ToString("o")
+                new DashboardChatMessageDto(
+                    Id: row.Id,
+                    ChannelId: channelId,
+                    UserId: row.UserId,
+                    DisplayName: row.DisplayName,
+                    Username: row.Username,
+                    Message: row.Message,
+                    Fragments: decorated.Fragments.Select(ChatFragmentMapper.MapFragment).ToList(),
+                    UserType: row.UserType,
+                    IsSubscriber: isSubscriber,
+                    IsVip: isVip,
+                    IsModerator: isModerator,
+                    IsBroadcaster: isBroadcaster,
+                    IsCheer: row.IsCheer,
+                    IsCommand: row.IsCommand,
+                    Badges: decorated.Badges.Select(ChatFragmentMapper.MapBadge).ToList(),
+                    BitsAmount: row.BitsAmount ?? 0,
+                    Color: row.ColorHex,
+                    MessageType: row.MessageType,
+                    ReplyToMessageId: row.ReplyToMessageId,
+                    ReplyParentMessageBody: null,
+                    ReplyParentUserName: null,
+                    Timestamp: row.CreatedAt.ToString("O"),
+                    AvatarUrl: enrichment?.AvatarUrl,
+                    Pronouns: enrichment?.Pronouns
                 )
             );
         }
 
-        return Ok(new StatusResponseDto<List<ChatMessageDto>> { Data = messages });
+        return Ok(new StatusResponseDto<List<DashboardChatMessageDto>> { Data = messages });
     }
 
     // Rebuilds the minimal ChatMessageReceivedEvent the decorator needs from a persisted (raw, un-enriched)
