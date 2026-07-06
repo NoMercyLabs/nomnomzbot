@@ -261,6 +261,8 @@ public static class DependencyInjection
         services.AddScoped<Application.Chat.Services.IChatMessageDecorator, ChatMessageDecorator>();
         // Operator chat sender (scoped — resolves the operator identity via ITwitchIdentityResolver; chat-client.md §3.3).
         services.AddScoped<Application.Chat.Services.IOperatorChatSender, OperatorChatSender>();
+        // Composer emote catalogue (scoped — reads the warm decoration cache + fetches Twitch emotes; chat-client.md §3.2).
+        services.AddScoped<Application.Chat.Services.IChatEmoteCatalogue, ChatEmoteCatalogue>();
         // Every outbound HttpClient the factory builds (provider fetches, OAuth, Twitch, TTS, webhooks…) sends
         // the product User-Agent by default, stamped with the running build version. A client may still override.
         services.ConfigureHttpClientDefaults(builder =>

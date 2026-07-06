@@ -51,7 +51,8 @@ public sealed class ChatControllerTests
         IChatMessageDecorator decorator,
         IChatProvider? chat = null,
         IOperatorChatSender? operatorSender = null,
-        ICurrentUserService? currentUser = null
+        ICurrentUserService? currentUser = null,
+        IChatEmoteCatalogue? emoteCatalogue = null
     ) =>
         new(
             db,
@@ -59,7 +60,8 @@ public sealed class ChatControllerTests
             Substitute.For<ITwitchChatApi>(),
             decorator,
             currentUser ?? StubCurrentUser(OperatorUserId),
-            operatorSender ?? Substitute.For<IOperatorChatSender>()
+            operatorSender ?? Substitute.For<IOperatorChatSender>(),
+            emoteCatalogue ?? Substitute.For<IChatEmoteCatalogue>()
         );
 
     [Fact]
@@ -428,6 +430,54 @@ public sealed class ChatControllerTests
                 Arg.Any<string?>(),
                 Arg.Any<CancellationToken>()
             );
+    }
+
+    [Fact]
+    public async Task GetEmotes_returns_the_channel_catalogue_flattened_for_the_composer()
+    {
+        ChatControllerTestDbContext db = ChatControllerTestDbContext.New();
+        IChatEmoteCatalogue catalogue = Substitute.For<IChatEmoteCatalogue>();
+        catalogue
+            .GetForChannelAsync(Broadcaster, Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Success<IReadOnlyList<ChatEmote>>([
+                    new ChatEmote(
+                        EmoteProvider.SevenTv,
+                        "7tv-1",
+                        "catJAM",
+                        new Dictionary<string, string> { ["1"] = "https://7tv/catJAM" },
+                        Animated: true,
+                        ZeroWidth: false
+                    ),
+                ])
+            );
+        ChatController controller = Build(
+            db,
+            Substitute.For<IChatMessageDecorator>(),
+            emoteCatalogue: catalogue
+        );
+
+        IActionResult result = await controller.GetEmotes(Broadcaster.ToString());
+
+        OkObjectResult ok = result.Should().BeOfType<OkObjectResult>().Subject;
+        StatusResponseDto<IReadOnlyList<ChatController.ChatEmoteCatalogueDto>> body =
+            (StatusResponseDto<IReadOnlyList<ChatController.ChatEmoteCatalogueDto>>)ok.Value!;
+        ChatController.ChatEmoteCatalogueDto emote = body.Data!.Should().ContainSingle().Subject;
+        emote.Code.Should().Be("catJAM");
+        emote.Provider.Should().Be("SevenTv");
+        emote.Animated.Should().BeTrue();
+        emote.Urls["1"].Should().Be("https://7tv/catJAM");
+    }
+
+    [Fact]
+    public async Task GetEmotes_rejects_an_invalid_channel_id()
+    {
+        ChatControllerTestDbContext db = ChatControllerTestDbContext.New();
+        ChatController controller = Build(db, Substitute.For<IChatMessageDecorator>());
+
+        IActionResult result = await controller.GetEmotes("not-a-guid");
+
+        result.Should().BeOfType<BadRequestObjectResult>();
     }
 
     private static List<ChatController.ChatMessageDto> Data(IActionResult result)

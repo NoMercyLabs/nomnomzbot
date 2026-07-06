@@ -25,6 +25,7 @@ using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Domain.Chat.Entities;
 using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Chat.Interfaces;
+using NomNomzBot.Domain.Chat.ValueObjects;
 using ConfigEntity = NomNomzBot.Domain.Platform.Entities.Configuration;
 
 namespace NomNomzBot.Api.Controllers.V1;
@@ -45,6 +46,7 @@ public class ChatController : BaseController
     private readonly IChatMessageDecorator _decorator;
     private readonly ICurrentUserService _currentUser;
     private readonly IOperatorChatSender _operatorSender;
+    private readonly IChatEmoteCatalogue _emoteCatalogue;
 
     public ChatController(
         IApplicationDbContext db,
@@ -52,7 +54,8 @@ public class ChatController : BaseController
         ITwitchChatApi chatApi,
         IChatMessageDecorator decorator,
         ICurrentUserService currentUser,
-        IOperatorChatSender operatorSender
+        IOperatorChatSender operatorSender,
+        IChatEmoteCatalogue emoteCatalogue
     )
     {
         _db = db;
@@ -61,6 +64,7 @@ public class ChatController : BaseController
         _decorator = decorator;
         _currentUser = currentUser;
         _operatorSender = operatorSender;
+        _emoteCatalogue = emoteCatalogue;
     }
 
     // ── DTOs ──────────────────────────────────────────────────────────────────
@@ -92,6 +96,17 @@ public class ChatController : BaseController
         string Message,
         string SenderIdentity = "you",
         string? ReplyToMessageId = null
+    );
+
+    // One composer-catalogue emote — the ChatEmote shape flattened for the wire (camelCase via the API's JSON
+    // options). Provider ∈ Twitch|Bttv|Ffz|SevenTv; Urls keyed by scale "1".."4"; ZeroWidth stacks 7TV overlays.
+    public record ChatEmoteCatalogueDto(
+        string Code,
+        string Provider,
+        IReadOnlyDictionary<string, string> Urls,
+        bool Animated,
+        bool ZeroWidth,
+        string? SetId
     );
 
     public record ChatSettingsDto(
@@ -300,6 +315,39 @@ public class ChatController : BaseController
             return TwitchResultResponse(operatorResult);
 
         return Ok(new StatusResponseDto<bool> { Data = true });
+    }
+
+    // ── GET emote catalogue (composer autocomplete + inline rendering) ─────────
+
+    /// <summary>Get the emotes usable in this channel — Twitch global+channel and BTTV/FFZ/7TV — for the composer.</summary>
+    [RequireAction("chat:read")]
+    [HttpGet("emotes")]
+    [ProducesResponseType<StatusResponseDto<IReadOnlyList<ChatEmoteCatalogueDto>>>(
+        StatusCodes.Status200OK
+    )]
+    public async Task<IActionResult> GetEmotes(string channelId, CancellationToken ct = default)
+    {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
+
+        Result<IReadOnlyList<ChatEmote>> catalogue = await _emoteCatalogue.GetForChannelAsync(
+            broadcasterId,
+            ct
+        );
+        if (catalogue.IsFailure)
+            return TwitchResultResponse(catalogue);
+
+        List<ChatEmoteCatalogueDto> emotes = catalogue
+            .Value.Select(e => new ChatEmoteCatalogueDto(
+                e.Code,
+                e.Provider.ToString(),
+                e.Urls,
+                e.Animated,
+                e.ZeroWidth,
+                e.SetId
+            ))
+            .ToList();
+        return Ok(new StatusResponseDto<IReadOnlyList<ChatEmoteCatalogueDto>> { Data = emotes });
     }
 
     // ── DELETE message (moderation quick-action) ───────────────────────────────
