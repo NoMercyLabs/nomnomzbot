@@ -65,6 +65,10 @@ public class ChannelContext
     public string? CurrentGame { get; set; }
     public DateTimeOffset? WentLiveAt { get; set; }
 
+    // Live concurrent viewer count from Helix Get Streams, kept fresh by StreamStatusPollingService (0 when offline).
+    // The dashboard reads this so a live channel's viewer count is present from startup, without a per-request Helix call.
+    public int ViewerCount { get; set; }
+
     // Per-channel in-memory command cache: key = command name (lowercase)
     public ConcurrentDictionary<string, CachedCommand> Commands { get; } =
         new(StringComparer.OrdinalIgnoreCase);

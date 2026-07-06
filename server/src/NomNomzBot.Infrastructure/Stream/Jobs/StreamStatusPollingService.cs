@@ -165,6 +165,12 @@ public sealed class StreamStatusPollingService : BackgroundService
         ctx.IsLive = isLive;
         dbChannel.IsLive = isLive;
 
+        // Concurrent viewer count is transient live state — kept only in the in-memory ctx the dashboard reads, not
+        // persisted (the Channel row has no viewer-count column, and a per-poll DB write of a constantly-moving value
+        // would be needless churn). The dashboard reads ctx.ViewerCount, so setting it here is what makes the count
+        // show at startup and stay fresh without a per-request Helix call. 0 once offline.
+        ctx.ViewerCount = isLive ? result.Value.ViewerCount : 0;
+
         if (isLive)
         {
             TwitchStream stream = result.Value;

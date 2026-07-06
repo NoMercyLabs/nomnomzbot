@@ -36,7 +36,6 @@ public class DashboardController : BaseController
     private readonly IChannelService _channelService;
     private readonly IApplicationDbContext _db;
     private readonly ITwitchChannelsApi _channels;
-    private readonly ITwitchStreamsApi _streams;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<DashboardController> _logger;
 
@@ -45,7 +44,6 @@ public class DashboardController : BaseController
         IChannelService channelService,
         IApplicationDbContext db,
         ITwitchChannelsApi channels,
-        ITwitchStreamsApi streams,
         TimeProvider timeProvider,
         ILogger<DashboardController> logger
     )
@@ -54,7 +52,6 @@ public class DashboardController : BaseController
         _channelService = channelService;
         _db = db;
         _channels = channels;
-        _streams = streams;
         _timeProvider = timeProvider;
         _logger = logger;
     }
@@ -126,14 +123,9 @@ public class DashboardController : BaseController
                     ? (long)(_timeProvider.GetUtcNow() - ctx.WentLiveAt.Value).TotalSeconds
                     : null;
 
-            // Get live viewer count from Twitch stream info (offline ⇒ not_found ⇒ 0).
-            int viewerCount = 0;
-            if (ctx.IsLive)
-            {
-                Result<TwitchStream> streamResult = await _streams.GetStreamAsync(tenantId, ct);
-                if (streamResult.IsSuccess)
-                    viewerCount = streamResult.Value.ViewerCount;
-            }
+            // Live viewer count is kept fresh in the registry by StreamStatusPollingService — populated at startup
+            // and refreshed every couple of minutes — so no per-request Helix call is needed here (0 when offline).
+            int viewerCount = ctx.ViewerCount;
 
             DashboardStatsDto stats = new()
             {
