@@ -17,6 +17,7 @@ import bot.nomnomz.dashboard.core.network.ChatApi
 import bot.nomnomz.dashboard.core.network.ChatBadge
 import bot.nomnomz.dashboard.core.network.ChatCheermote
 import bot.nomnomz.dashboard.core.network.ChatEmote
+import bot.nomnomz.dashboard.core.network.ChatEmoteCatalogue
 import bot.nomnomz.dashboard.core.network.ChatFragment
 import bot.nomnomz.dashboard.core.network.ChatMention
 import bot.nomnomz.dashboard.core.network.ChatMessage
@@ -85,10 +86,23 @@ class ChatController(
                     else ChatState.Ready(result.value, settings = existingSettings)
             }
         }
-        // Load settings on first load (when no settings are cached yet).
+        // Load settings + the composer emote catalogue on first load (once each).
         val fresh: ChatState = _state.value
-        if (fresh is ChatState.Ready && fresh.settings == null) {
-            loadSettings()
+        if (fresh is ChatState.Ready) {
+            if (fresh.settings == null) loadSettings()
+            if (fresh.emotes.isEmpty()) loadEmotes()
+        }
+    }
+
+    /** Load the channel's usable emotes for the composer autocomplete (best-effort, once). */
+    suspend fun loadEmotes() {
+        val channel: String = channelId ?: return
+        when (val result: ApiResult<List<ChatEmoteCatalogue>> = chatApi.emotes(channel)) {
+            is ApiResult.Failure -> Unit
+            is ApiResult.Ok -> {
+                val current: ChatState = _state.value
+                if (current is ChatState.Ready) _state.value = current.copy(emotes = result.value)
+            }
         }
     }
 
@@ -277,6 +291,7 @@ sealed interface ChatState {
         val messages: List<ChatMessage>,
         val settings: ChatSettings? = null,
         val actionError: String? = null,
+        val emotes: List<ChatEmoteCatalogue> = emptyList(),
     ) : ChatState
 
     data object Empty : ChatState

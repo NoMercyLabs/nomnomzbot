@@ -74,6 +74,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.Textarea
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
+import bot.nomnomz.dashboard.core.network.ChatEmoteCatalogue
 import bot.nomnomz.dashboard.core.network.ChatMessage
 import bot.nomnomz.dashboard.core.network.ChatSettings
 import bot.nomnomz.dashboard.core.realtime.HubEvent
@@ -209,7 +210,13 @@ fun ChatScreen(
                     )
             }
         }
-        SendBox(manage = manage, onSend = { text -> scope.launch { controller.send(text) } })
+        val composerEmotes: List<ChatEmoteCatalogue> =
+            (state as? ChatState.Ready)?.emotes ?: emptyList()
+        SendBox(
+            manage = manage,
+            emotes = composerEmotes,
+            onSend = { text -> scope.launch { controller.send(text) } },
+        )
     }
 
     if (showAnnounce) {
@@ -487,15 +494,37 @@ private fun MessageActions(
     }
 }
 
-// The send composer: a single-line input that posts the typed line as the bot and clears on send. Empty / blank
-// input is ignored (the send affordance does nothing), matching the backend's empty-message rejection.
+// The send composer: an input that sends as the operator (chat-client.md §3.1) and clears on send, with emote
+// autocomplete — typing a trailing ":prefix" surfaces matching emotes from the channel catalogue, and picking
+// one inserts its code. Empty / blank input is ignored, matching the backend's empty-message rejection.
 @Composable
-private fun SendBox(manage: ManageDecision, onSend: (message: String) -> Unit) {
+private fun SendBox(
+    manage: ManageDecision,
+    emotes: List<ChatEmoteCatalogue>,
+    onSend: (message: String) -> Unit,
+) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
 
     var draft: String by remember { mutableStateOf("") }
     val canSend: Boolean = draft.isNotBlank()
+
+    // Emote autocomplete: a trailing ":token" (2+ word chars) filters the catalogue by code prefix.
+    val query: String? =
+        remember(draft) { Regex(":([A-Za-z0-9_]{2,})$").find(draft)?.groupValues?.get(1) }
+    val suggestions: List<ChatEmoteCatalogue> =
+        remember(query, emotes) {
+            if (query == null) {
+                emptyList()
+            } else {
+                emotes
+                    .asSequence()
+                    .filter { it.code.startsWith(query, ignoreCase = true) }
+                    .sortedBy { it.code.length }
+                    .take(8)
+                    .toList()
+            }
+        }
 
     fun submit() {
         if (canSend) {
@@ -504,36 +533,90 @@ private fun SendBox(manage: ManageDecision, onSend: (message: String) -> Unit) {
         }
     }
 
+    fun insertEmote(emote: ChatEmoteCatalogue) {
+        draft = draft.replace(Regex(":[A-Za-z0-9_]{2,}$"), "${emote.code} ")
+    }
+
     val sendLabel: String = stringResource(Res.string.chat_send_action)
 
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(top = spacing.s3),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+    Column(modifier = Modifier.fillMaxWidth()) {
+        // Autocomplete suggestions float above the input, like the Twitch composer.
+        if (suggestions.isNotEmpty()) {
+            EmoteSuggestions(suggestions = suggestions, onPick = { insertEmote(it) })
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(top = spacing.s3),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+        ) {
+            AppTextField(
+                value = draft,
+                onValueChange = { draft = it },
+                label = "",
+                modifier = Modifier.weight(1f),
+                placeholder = stringResource(Res.string.chat_send_placeholder),
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                keyboardActions = KeyboardActions(onSend = { submit() }),
+            )
+            ManageGate(decision = manage) { gateEnabled ->
+                // Send is offered only when the gate allows it AND the draft is non-blank; the keyboard Send
+                // action above goes through the same `submit()` guard but the visible affordance reflects the floor.
+                val sendEnabled: Boolean = gateEnabled && canSend
+                TextButton(
+                    onClick = { submit() },
+                    enabled = sendEnabled,
+                    modifier = Modifier.semantics { contentDescription = sendLabel },
+                ) {
+                    Text(
+                        text = stringResource(Res.string.chat_send_action),
+                        color = if (sendEnabled) tokens.primary else tokens.mutedForeground,
+                        maxLines = 1,
+                    )
+                }
+            }
+        }
+    }
+}
+
+// The emote autocomplete list — matching catalogue emotes (image + code) shown above the composer input; a tap
+// inserts the emote code into the draft.
+@Composable
+private fun EmoteSuggestions(
+    suggestions: List<ChatEmoteCatalogue>,
+    onPick: (ChatEmoteCatalogue) -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .background(tokens.card)
+            .padding(spacing.s1),
+        verticalArrangement = Arrangement.spacedBy(spacing.s1),
     ) {
-        AppTextField(
-            value = draft,
-            onValueChange = { draft = it },
-            label = "",
-            modifier = Modifier.weight(1f),
-            placeholder = stringResource(Res.string.chat_send_placeholder),
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
-            keyboardActions = KeyboardActions(onSend = { submit() }),
-        )
-        ManageGate(decision = manage) { gateEnabled ->
-            // Send is offered only when the gate allows it AND the draft is non-blank; the keyboard Send action
-            // above goes through the same `submit()` guard but the visible affordance reflects the floor.
-            val sendEnabled: Boolean = gateEnabled && canSend
-            TextButton(
-                onClick = { submit() },
-                enabled = sendEnabled,
-                modifier = Modifier.semantics { contentDescription = sendLabel },
+        suggestions.forEach { emote ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(4.dp))
+                    .clickable { onPick(emote) }
+                    .padding(horizontal = spacing.s2, vertical = spacing.s1),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(spacing.s2),
             ) {
-                Text(
-                    text = stringResource(Res.string.chat_send_action),
-                    color = if (sendEnabled) tokens.primary else tokens.mutedForeground,
-                    maxLines = 1,
-                )
+                val url: String? =
+                    emote.urls["2"] ?: emote.urls["1"] ?: emote.urls.values.firstOrNull()
+                if (url != null) {
+                    AsyncImage(
+                        model = url,
+                        contentDescription = null,
+                        modifier = Modifier.size(24.dp),
+                    )
+                }
+                Text(text = emote.code, style = typography.sm, color = tokens.cardForeground)
             }
         }
     }

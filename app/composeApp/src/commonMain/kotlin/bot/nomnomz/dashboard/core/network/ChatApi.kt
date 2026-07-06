@@ -30,6 +30,9 @@ interface ChatApi {
     /** The channel's most recent chat, oldest-first (backend already orders chronologically). */
     suspend fun messages(channelId: String, limit: Int = DEFAULT_LIMIT): ApiResult<List<ChatMessage>>
 
+    /** The emotes usable in this channel (Twitch global+channel + BTTV/FFZ/7TV) — the composer autocomplete source. */
+    suspend fun emotes(channelId: String): ApiResult<List<ChatEmoteCatalogue>>
+
     /** Send [message] to the channel's chat as the bot. */
     suspend fun send(channelId: String, message: String): ApiResult<Unit>
 
@@ -63,6 +66,9 @@ interface ChatApi {
 class RestChatApi(private val client: ApiClient) : ChatApi {
     override suspend fun messages(channelId: String, limit: Int): ApiResult<List<ChatMessage>> =
         client.getEnvelope("api/v1/channels/$channelId/chat/messages?limit=$limit")
+
+    override suspend fun emotes(channelId: String): ApiResult<List<ChatEmoteCatalogue>> =
+        client.getEnvelope("api/v1/channels/$channelId/chat/emotes")
 
     override suspend fun send(channelId: String, message: String): ApiResult<Unit> =
         client.postUnit("api/v1/channels/$channelId/chat/messages", SendChatMessageBody(message))
@@ -222,4 +228,18 @@ data class ChatBadge(
     val id: String = "",
     val info: String? = null,
     val urls: Map<String, String> = emptyMap(),
+)
+
+/**
+ * One composer-catalogue emote (backend `ChatEmoteCatalogueDto`) — the autocomplete source. [urls] keyed by
+ * scale "1".."4"; [provider] is Twitch | Bttv | Ffz | SevenTv.
+ */
+@Serializable
+data class ChatEmoteCatalogue(
+    val code: String = "",
+    val provider: String = "",
+    val urls: Map<String, String> = emptyMap(),
+    val animated: Boolean = false,
+    val zeroWidth: Boolean = false,
+    val setId: String? = null,
 )

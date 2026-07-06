@@ -16,6 +16,7 @@ import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.ModeratedChannel
 import bot.nomnomz.dashboard.core.network.ChatApi
+import bot.nomnomz.dashboard.core.network.ChatEmoteCatalogue
 import bot.nomnomz.dashboard.core.network.ChatMessage
 import bot.nomnomz.dashboard.core.network.ChatSettings
 import kotlin.test.Test
@@ -299,6 +300,9 @@ private class FakeChatApi(
         messagesCalls += 1
         return messagesResults[index]
     }
+
+    override suspend fun emotes(channelId: String): ApiResult<List<ChatEmoteCatalogue>> =
+        ApiResult.Ok(emptyList())
 
     override suspend fun send(channelId: String, message: String): ApiResult<Unit> {
         sendCalls.add(channelId to message)

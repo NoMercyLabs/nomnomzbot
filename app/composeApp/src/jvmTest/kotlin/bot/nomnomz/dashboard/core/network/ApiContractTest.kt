@@ -90,6 +90,7 @@ class ApiContractTest {
             InviteCodeValidation.serializer() to "InviteCodeValidationDto",
             InviteRedeemResult.serializer() to "RedeemInviteCodeResultDto",
             ChatMessage.serializer() to "DashboardChatMessageDto",
+            ChatEmoteCatalogue.serializer() to "ChatEmoteCatalogueDto",
         )
 
     @Test
