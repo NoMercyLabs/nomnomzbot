@@ -124,6 +124,9 @@ import nomnomzbot.composeapp.generated.resources.chat_message_description
 import nomnomzbot.composeapp.generated.resources.chat_retry
 import nomnomzbot.composeapp.generated.resources.chat_row_actions
 import nomnomzbot.composeapp.generated.resources.chat_send_action
+import nomnomzbot.composeapp.generated.resources.chat_send_as_bot
+import nomnomzbot.composeapp.generated.resources.chat_send_as_you
+import nomnomzbot.composeapp.generated.resources.chat_send_identity_label
 import nomnomzbot.composeapp.generated.resources.chat_send_placeholder
 import nomnomzbot.composeapp.generated.resources.chat_timeout_action
 import nomnomzbot.composeapp.generated.resources.chat_timeout_action_short
@@ -215,7 +218,7 @@ fun ChatScreen(
         SendBox(
             manage = manage,
             emotes = composerEmotes,
-            onSend = { text -> scope.launch { controller.send(text) } },
+            onSend = { text, identity -> scope.launch { controller.send(text, identity) } },
         )
     }
 
@@ -494,19 +497,22 @@ private fun MessageActions(
     }
 }
 
-// The send composer: an input that sends as the operator (chat-client.md §3.1) and clears on send, with emote
-// autocomplete — typing a trailing ":prefix" surfaces matching emotes from the channel catalogue, and picking
-// one inserts its code. Empty / blank input is ignored, matching the backend's empty-message rejection.
+// The send composer: an input that sends as the operator's own account by default or, via the identity selector,
+// as the bot (chat-client.md §3.1) — clearing on send, with emote autocomplete: typing a trailing ":prefix"
+// surfaces matching emotes from the channel catalogue, and picking one inserts its code. Empty / blank input is
+// ignored, matching the backend's empty-message rejection.
 @Composable
 private fun SendBox(
     manage: ManageDecision,
     emotes: List<ChatEmoteCatalogue>,
-    onSend: (message: String) -> Unit,
+    onSend: (message: String, senderIdentity: String) -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
 
     var draft: String by remember { mutableStateOf("") }
+    // Who the line is sent as: "you" = the operator's own account (default), "bot" = the channel bot identity.
+    var identity: String by remember { mutableStateOf("you") }
     val canSend: Boolean = draft.isNotBlank()
 
     // Emote autocomplete: a trailing ":token" (2+ word chars) filters the catalogue by code prefix.
@@ -528,7 +534,7 @@ private fun SendBox(
 
     fun submit() {
         if (canSend) {
-            onSend(draft)
+            onSend(draft, identity)
             draft = ""
         }
     }
@@ -549,6 +555,8 @@ private fun SendBox(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(spacing.s2),
         ) {
+            // Identity selector: send as the operator's own account ("You") or the channel bot ("Bot").
+            SendIdentitySelector(identity = identity, onSelect = { identity = it })
             AppTextField(
                 value = draft,
                 onValueChange = { draft = it },
@@ -574,6 +582,29 @@ private fun SendBox(
                     )
                 }
             }
+        }
+    }
+}
+
+// The send-identity selector (chat-client.md §3.1): two compact chips choosing who the composed line is sent as
+// — "You" (the operator's own account, default) or "Bot" (the channel bot). Selecting one only sets local state;
+// the send itself is gated separately, so a caller below the send floor sees the disabled Send button, not this.
+@Composable
+private fun SendIdentitySelector(identity: String, onSelect: (String) -> Unit) {
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+    val selectorLabel: String = stringResource(Res.string.chat_send_identity_label)
+
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(spacing.s1),
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.semantics { contentDescription = selectorLabel },
+    ) {
+        Badge(selected = identity == "you", onClick = { onSelect("you") }) {
+            Text(text = stringResource(Res.string.chat_send_as_you), style = typography.sm)
+        }
+        Badge(selected = identity == "bot", onClick = { onSelect("bot") }) {
+            Text(text = stringResource(Res.string.chat_send_as_bot), style = typography.sm)
         }
     }
 }

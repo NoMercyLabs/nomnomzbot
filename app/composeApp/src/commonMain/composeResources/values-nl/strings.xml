@@ -1030,7 +1030,10 @@
     <string name="chat_timeout_action">%1$s een time-out geven</string>
     <string name="chat_timeout_action_short">Time-out</string>
     <string name="chat_send_action">Versturen</string>
-    <string name="chat_send_placeholder">Stuur een bericht als de bot…</string>
+    <string name="chat_send_placeholder">Stuur een bericht…</string>
+    <string name="chat_send_identity_label">Verstuur als</string>
+    <string name="chat_send_as_you">Jij</string>
+    <string name="chat_send_as_bot">Bot</string>
     <string name="chat_delete_title">Bericht verwijderen?</string>
     <string name="chat_delete_message">Dit bericht van %1$s verwijderen? Dit kan niet ongedaan worden gemaakt.</string>
     <string name="chat_delete_confirm">Verwijderen</string>

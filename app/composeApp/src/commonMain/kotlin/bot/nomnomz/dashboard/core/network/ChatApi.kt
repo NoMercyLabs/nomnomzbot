@@ -33,8 +33,12 @@ interface ChatApi {
     /** The emotes usable in this channel (Twitch global+channel + BTTV/FFZ/7TV) — the composer autocomplete source. */
     suspend fun emotes(channelId: String): ApiResult<List<ChatEmoteCatalogue>>
 
-    /** Send [message] to the channel's chat as the bot. */
-    suspend fun send(channelId: String, message: String): ApiResult<Unit>
+    /** Send [message] to the channel's chat as [senderIdentity] ("you" = the operator's own account | "bot"). */
+    suspend fun send(
+        channelId: String,
+        message: String,
+        senderIdentity: String = "you",
+    ): ApiResult<Unit>
 
     /** Delete the single chat message [messageId] (moderation quick-action). */
     suspend fun deleteMessage(channelId: String, messageId: String): ApiResult<Unit>
@@ -70,8 +74,15 @@ class RestChatApi(private val client: ApiClient) : ChatApi {
     override suspend fun emotes(channelId: String): ApiResult<List<ChatEmoteCatalogue>> =
         client.getEnvelope("api/v1/channels/$channelId/chat/emotes")
 
-    override suspend fun send(channelId: String, message: String): ApiResult<Unit> =
-        client.postUnit("api/v1/channels/$channelId/chat/messages", SendChatMessageBody(message))
+    override suspend fun send(
+        channelId: String,
+        message: String,
+        senderIdentity: String,
+    ): ApiResult<Unit> =
+        client.postUnit(
+            "api/v1/channels/$channelId/chat/messages",
+            SendChatMessageBody(message, senderIdentity),
+        )
 
     override suspend fun deleteMessage(channelId: String, messageId: String): ApiResult<Unit> =
         client.deleteUnit("api/v1/channels/$channelId/chat/messages/$messageId")
@@ -115,7 +126,7 @@ class RestChatApi(private val client: ApiClient) : ChatApi {
  * post as the bot (the backend trims it and rejects empty / >500-char messages).
  */
 @Serializable
-data class SendChatMessageBody(val message: String)
+data class SendChatMessageBody(val message: String, val senderIdentity: String = "you")
 
 /**
  * The moderation-action request body (backend `PerformModerationActionRequest`). camelCase JSON. The chat page

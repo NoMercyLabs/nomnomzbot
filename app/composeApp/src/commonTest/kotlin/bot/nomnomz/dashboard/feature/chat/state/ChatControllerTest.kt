@@ -111,8 +111,8 @@ class ChatControllerTest {
         controller.load()
         controller.send("  welcome!  ")
 
-        // The send hit the send route with the resolved channel and the TRIMMED message.
-        assertEquals(listOf("ch1" to "welcome!"), chatApi.sendCalls)
+        // The send hit the send route with the resolved channel, the TRIMMED message, and the default "you" identity.
+        assertEquals(listOf(Triple("ch1", "welcome!", "you")), chatApi.sendCalls)
         // No reload after the send: the sent line comes back over the live hub (EventSub echoes it), so reloading
         // here would race persistence and clobber the hub-appended line — the "one message late" bug. Only the
         // initial load fetched the feed.
@@ -121,6 +121,18 @@ class ChatControllerTest {
         assertTrue(state is ChatState.Ready)
         assertEquals(listOf("m1"), (state as ChatState.Ready).messages.map { it.id })
         assertNull(state.actionError)
+    }
+
+    @Test
+    fun send_as_bot_passes_the_bot_identity_through_to_the_send_route() = runTest {
+        val chatApi = FakeChatApi(ApiResult.Ok(listOf(ChatMessage(id = "m1", message = "hi"))))
+        val controller = ChatController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), chatApi)
+
+        controller.load()
+        controller.send("posted by the bot", senderIdentity = "bot")
+
+        // The chosen identity reaches the backend verbatim so it routes to the bot send path, not the operator one.
+        assertEquals(listOf(Triple("ch1", "posted by the bot", "bot")), chatApi.sendCalls)
     }
 
     @Test
@@ -149,7 +161,7 @@ class ChatControllerTest {
         controller.load()
         controller.send("hello")
 
-        assertEquals(listOf("ch1" to "hello"), chatApi.sendCalls)
+        assertEquals(listOf(Triple("ch1", "hello", "you")), chatApi.sendCalls)
         val state: ChatState = controller.state.value
         assertTrue(state is ChatState.Ready)
         // The feed is intact (still the one line) and the failure is surfaced on the Ready state.
@@ -289,7 +301,8 @@ private class FakeChatApi(
     var messagesCalls: Int = 0
         private set
 
-    val sendCalls: MutableList<Pair<String, String>> = mutableListOf()
+    // Each send call recorded as (channel, message, senderIdentity) so tests prove the identity is passed through.
+    val sendCalls: MutableList<Triple<String, String, String>> = mutableListOf()
     val deleteCalls: MutableList<Pair<String, String>> = mutableListOf()
     val timeoutCalls: MutableList<Triple<String, String, Int>> = mutableListOf()
     val announceCalls: MutableList<Triple<String, String, String>> = mutableListOf()
@@ -304,8 +317,12 @@ private class FakeChatApi(
     override suspend fun emotes(channelId: String): ApiResult<List<ChatEmoteCatalogue>> =
         ApiResult.Ok(emptyList())
 
-    override suspend fun send(channelId: String, message: String): ApiResult<Unit> {
-        sendCalls.add(channelId to message)
+    override suspend fun send(
+        channelId: String,
+        message: String,
+        senderIdentity: String,
+    ): ApiResult<Unit> {
+        sendCalls.add(Triple(channelId, message, senderIdentity))
         return sendResult
     }
 

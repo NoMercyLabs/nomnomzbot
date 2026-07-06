@@ -130,16 +130,17 @@ class ChatController(
     }
 
     /**
-     * Send [message] to chat as the logged-in operator (the backend's default identity). Does NOT reload the
-     * feed: the sent line comes straight back over the live hub (EventSub echoes it), so reloading here would
-     * race persistence and clobber the hub-appended line — the "one message late" bug. On failure, surface the
-     * error over the current feed without disturbing it.
+     * Send [message] to chat as [senderIdentity] — "you" (the logged-in operator's own account, the default) or
+     * "bot" (the channel's bot identity), per chat-client.md §3.1. Does NOT reload the feed: the sent line comes
+     * straight back over the live hub (EventSub echoes it), so reloading here would race persistence and clobber
+     * the hub-appended line — the "one message late" bug. On failure, surface the error over the current feed
+     * without disturbing it.
      */
-    suspend fun send(message: String) {
+    suspend fun send(message: String, senderIdentity: String = "you") {
         val trimmed: String = message.trim()
         if (trimmed.isEmpty()) return
         val channel: String = channelId ?: return failAction(NoChannelError)
-        when (val result: ApiResult<Unit> = chatApi.send(channel, trimmed)) {
+        when (val result: ApiResult<Unit> = chatApi.send(channel, trimmed, senderIdentity)) {
             is ApiResult.Ok -> Unit
             is ApiResult.Failure -> failAction(result.error.message)
         }

@@ -1033,7 +1033,10 @@
     <string name="chat_timeout_action">Time out %1$s</string>
     <string name="chat_timeout_action_short">Time out</string>
     <string name="chat_send_action">Send</string>
-    <string name="chat_send_placeholder">Send a message as the bot…</string>
+    <string name="chat_send_placeholder">Send a message…</string>
+    <string name="chat_send_identity_label">Send as</string>
+    <string name="chat_send_as_you">You</string>
+    <string name="chat_send_as_bot">Bot</string>
     <string name="chat_delete_title">Delete message?</string>
     <string name="chat_delete_message">Delete this message from %1$s? This can't be undone.</string>
     <string name="chat_delete_confirm">Delete</string>
