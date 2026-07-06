@@ -89,6 +89,7 @@ class ApiContractTest {
             FoundersBadge.serializer() to "FoundersBadgeDto",
             InviteCodeValidation.serializer() to "InviteCodeValidationDto",
             InviteRedeemResult.serializer() to "RedeemInviteCodeResultDto",
+            ChatMessage.serializer() to "DashboardChatMessageDto",
         )
 
     @Test

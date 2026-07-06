@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -283,6 +284,14 @@ private fun MessageRow(
             horizontalArrangement = Arrangement.spacedBy(spacing.s1),
             verticalArrangement = Arrangement.Center,
         ) {
+            // Chatter avatar (resolved by the backend enricher) — a small circle before the badges.
+            message.avatarUrl?.takeIf { it.isNotBlank() }?.let { avatar ->
+                AsyncImage(
+                    model = avatar,
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp).clip(CircleShape).align(Alignment.CenterVertically),
+                )
+            }
             // Badge strip — 18 dp per badge.
             message.badges.forEach { badge ->
                 val url: String? = badge.urls["2"] ?: badge.urls["1"] ?: badge.urls.values.firstOrNull()
@@ -294,6 +303,8 @@ private fun MessageRow(
                     )
                 }
             }
+            // Pronoun chip (resolved by the backend enricher) — a small muted badge next to the name.
+            message.pronouns?.takeIf { it.isNotBlank() }?.let { pronouns -> PronounChip(pronouns) }
             // Colored, semi-bold name.
             Text(
                 text = "$name:",
@@ -571,6 +582,25 @@ private fun String.toComposeColor(): Color? = runCatching {
         blue = hex.substring(4, 6).toInt(16) / 255f,
     )
 }.getOrNull()
+
+// A small muted chip showing the chatter's resolved pronouns beside their name (chat-client.md §0 render
+// contract). The pronoun text is data (already localized by the source), so it carries no i18n key.
+@Composable
+private fun PronounChip(pronouns: String) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+    Text(
+        text = pronouns,
+        style = typography.sm,
+        color = tokens.mutedForeground,
+        maxLines = 1,
+        modifier = Modifier
+            .clip(RoundedCornerShape(4.dp))
+            .background(tokens.muted)
+            .padding(horizontal = spacing.s1),
+    )
+}
 
 // ─── Chat mode toggles ───────────────────────────────────────────────────────
 

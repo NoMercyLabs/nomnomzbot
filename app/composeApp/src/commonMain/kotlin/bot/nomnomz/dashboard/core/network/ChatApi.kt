@@ -166,6 +166,10 @@ data class ChatMessage(
     val timestamp: String = "",
     val fragments: List<ChatFragment> = emptyList(),
     val badges: List<ChatBadge> = emptyList(),
+    // Hub-enrichment fields (also on REST history since chat-client.md §3.6 unified the shape): the chatter's
+    // avatar and resolved pronouns, null when unavailable.
+    val avatarUrl: String? = null,
+    val pronouns: String? = null,
 )
 
 /** One decorated fragment — type "text" | "emote" | "cheermote" | "mention" | "link". */

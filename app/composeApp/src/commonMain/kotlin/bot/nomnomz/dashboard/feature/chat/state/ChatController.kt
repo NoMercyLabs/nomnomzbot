@@ -115,12 +115,20 @@ class ChatController(
         }
     }
 
-    /** Send [message] to chat as the bot, then reload so the sent line appears. Surfaces the error on failure. */
+    /**
+     * Send [message] to chat as the logged-in operator (the backend's default identity). Does NOT reload the
+     * feed: the sent line comes straight back over the live hub (EventSub echoes it), so reloading here would
+     * race persistence and clobber the hub-appended line — the "one message late" bug. On failure, surface the
+     * error over the current feed without disturbing it.
+     */
     suspend fun send(message: String) {
         val trimmed: String = message.trim()
         if (trimmed.isEmpty()) return
         val channel: String = channelId ?: return failAction(NoChannelError)
-        afterAction(chatApi.send(channel, trimmed))
+        when (val result: ApiResult<Unit> = chatApi.send(channel, trimmed)) {
+            is ApiResult.Ok -> Unit
+            is ApiResult.Failure -> failAction(result.error.message)
+        }
     }
 
     /** Delete the single message [messageId], then reload so it drops from the feed. The screen confirms first. */
@@ -252,6 +260,8 @@ private fun HubChatMessage.toLocalMessage(): ChatMessage =
                 urls = b.urls,
             )
         },
+        avatarUrl = avatarUrl,
+        pronouns = pronouns,
     )
 
 /** The Chat page render state. */

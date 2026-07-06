@@ -102,18 +102,9 @@ class ChatControllerTest {
     }
 
     @Test
-    fun send_posts_the_message_then_reloads_with_it_appended() = runTest {
+    fun send_posts_the_trimmed_message_without_reloading_the_feed() = runTest {
         val first = ChatMessage(id = "m1", userId = "u1", displayName = "Viewer", message = "hi")
-        val sent = ChatMessage(id = "m2", userId = "bot", displayName = "NomNomzBot", message = "welcome!")
-        val chatApi =
-            FakeChatApi(
-                // The reload after the send returns the feed with the new bot line appended.
-                messagesResults =
-                    listOf(
-                        ApiResult.Ok(listOf(first)),
-                        ApiResult.Ok(listOf(first, sent)),
-                    )
-            )
+        val chatApi = FakeChatApi(ApiResult.Ok(listOf(first)))
         val controller = ChatController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), chatApi)
 
         controller.load()
@@ -121,14 +112,14 @@ class ChatControllerTest {
 
         // The send hit the send route with the resolved channel and the TRIMMED message.
         assertEquals(listOf("ch1" to "welcome!"), chatApi.sendCalls)
-        // The feed reloaded and now carries the sent line.
+        // No reload after the send: the sent line comes back over the live hub (EventSub echoes it), so reloading
+        // here would race persistence and clobber the hub-appended line — the "one message late" bug. Only the
+        // initial load fetched the feed.
+        assertEquals(1, chatApi.messagesCalls)
         val state: ChatState = controller.state.value
         assertTrue(state is ChatState.Ready)
-        assertEquals(listOf("m1", "m2"), (state as ChatState.Ready).messages.map { it.id })
-        assertEquals("welcome!", state.messages.last().message)
+        assertEquals(listOf("m1"), (state as ChatState.Ready).messages.map { it.id })
         assertNull(state.actionError)
-        // Two fetches: the initial load and the post-send reload.
-        assertEquals(2, chatApi.messagesCalls)
     }
 
     @Test

@@ -95,6 +95,9 @@ data class HubChatMessage(
     val fragments: List<HubChatFragment> = emptyList(),
     /** Resolved badge images keyed by scale ("1"/"2"/"4"). */
     val badges: List<HubChatBadge> = emptyList(),
+    /** Chatter avatar + resolved pronouns (hub enrichment via IHubUserEnricher); null when unavailable. */
+    val avatarUrl: String? = null,
+    val pronouns: String? = null,
 )
 
 /** One fragment of a hub chat message — type is "text" | "emote" | "cheermote" | "mention" | "link". */
