@@ -8,11 +8,16 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Text.Json.Serialization;
+
 namespace NomNomzBot.Application.Contracts.Twitch;
 
 // Helix "Chat assets" category wire models (GET /chat/chatters, /chat/emotes[/global|/set|/user],
 // /chat/badges[/global], /chat/shared_chat_session). These records deserialize straight from Twitch's
-// snake_case JSON via the transport's naming policy — no per-property annotations. Twitch ids stay
+// snake_case JSON via the transport's naming policy. Exception: the scale-suffixed image-url fields
+// (image_url_1x/2x/4x, url_1x/2x/4x) carry an explicit [JsonPropertyName] — SnakeCaseLower renders
+// "ImageUrl1x" as "image_url1x" (no underscore before the scale suffix), which misses Twitch's
+// "image_url_1x" and deserializes the urls to null (badges/emotes would render without images). Twitch ids stay
 // strings (they are other users' / channels' / emote-set / badge ids); timestamps are DateTimeOffset;
 // the owning tenant is always passed in as a Guid method argument, never modelled here.
 //
@@ -25,7 +30,11 @@ namespace NomNomzBot.Application.Contracts.Twitch;
 public sealed record TwitchChatter(string UserId, string UserLogin, string UserName);
 
 /// <summary>The three CDN sizes of an emote image (Get Channel/Global Emotes).</summary>
-public sealed record TwitchEmoteImages(string Url1x, string Url2x, string Url4x);
+public sealed record TwitchEmoteImages(
+    [property: JsonPropertyName("url_1x")] string Url1x,
+    [property: JsonPropertyName("url_2x")] string Url2x,
+    [property: JsonPropertyName("url_4x")] string Url4x
+);
 
 /// <summary>
 /// One of the broadcaster's custom emotes (Get Channel Emotes) — its identity, rendered image sizes,
@@ -95,9 +104,9 @@ public sealed record TwitchUserEmote(
 /// </summary>
 public sealed record TwitchChatBadgeVersion(
     string Id,
-    string ImageUrl1x,
-    string ImageUrl2x,
-    string ImageUrl4x,
+    [property: JsonPropertyName("image_url_1x")] string ImageUrl1x,
+    [property: JsonPropertyName("image_url_2x")] string ImageUrl2x,
+    [property: JsonPropertyName("image_url_4x")] string ImageUrl4x,
     string Title,
     string Description,
     string ClickAction,

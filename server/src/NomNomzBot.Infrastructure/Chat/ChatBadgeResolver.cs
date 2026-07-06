@@ -76,11 +76,19 @@ public sealed class ChatBadgeResolver : IChatBadgeResolver
 
         foreach (TwitchChatBadgeSet set in sets)
         foreach (TwitchChatBadgeVersion version in set.Versions)
-            index[(set.SetId, version.Id)] = new Dictionary<string, string>
-            {
-                ["1"] = version.ImageUrl1x,
-                ["2"] = version.ImageUrl2x,
-                ["4"] = version.ImageUrl4x,
-            };
+        {
+            // Only keep sizes that actually resolved to a url. A cached version can carry null/empty image
+            // urls (a partially-populated Helix payload deserialized into the non-null string fields); emitting
+            // {"1":null,...} would serialize null values into a Dictionary<string,string> and break the client's
+            // JSON parse of the WHOLE feed. Missing sizes are simply absent — the client falls back per key.
+            Dictionary<string, string> urls = new(3);
+            if (!string.IsNullOrEmpty(version.ImageUrl1x))
+                urls["1"] = version.ImageUrl1x;
+            if (!string.IsNullOrEmpty(version.ImageUrl2x))
+                urls["2"] = version.ImageUrl2x;
+            if (!string.IsNullOrEmpty(version.ImageUrl4x))
+                urls["4"] = version.ImageUrl4x;
+            index[(set.SetId, version.Id)] = urls;
+        }
     }
 }

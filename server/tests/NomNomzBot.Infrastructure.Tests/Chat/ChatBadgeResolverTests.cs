@@ -103,6 +103,69 @@ public sealed class ChatBadgeResolverTests
         badge.Urls.Should().BeEmpty();
     }
 
+    [Fact]
+    public async Task Null_image_urls_are_omitted_never_emitted_as_null_values()
+    {
+        // A cached version can carry null image urls (a partially-populated Helix payload deserialized into the
+        // non-null string fields). The resolver must NOT put null VALUES into the url map — {"1":null,...} would
+        // serialize null into a Dictionary<string,string> and break the client's JSON parse of the WHOLE feed.
+        FakeCache cache = new();
+        await cache.SetAsync<IReadOnlyList<TwitchChatBadgeSet>>(
+            ChatBadgeCacheKeys.Global,
+            [
+                new TwitchChatBadgeSet(
+                    "moderator",
+                    [new TwitchChatBadgeVersion("1", null!, null!, null!, "Title", "Desc", "", "")]
+                ),
+            ]
+        );
+
+        IReadOnlyList<ResolvedChatBadge> resolved = await new ChatBadgeResolver(cache).ResolveAsync(
+            Broadcaster,
+            [new ChatBadge("moderator", "1")]
+        );
+
+        ResolvedChatBadge badge = resolved.Should().ContainSingle().Subject;
+        badge.Urls.Should().BeEmpty();
+        badge.Urls.Values.Should().NotContainNulls();
+    }
+
+    [Fact]
+    public async Task Partial_null_image_urls_keep_only_the_resolved_sizes()
+    {
+        FakeCache cache = new();
+        await cache.SetAsync<IReadOnlyList<TwitchChatBadgeSet>>(
+            ChatBadgeCacheKeys.Global,
+            [
+                new TwitchChatBadgeSet(
+                    "subscriber",
+                    [
+                        new TwitchChatBadgeVersion(
+                            "0",
+                            "https://badge/sub/1",
+                            null!,
+                            "",
+                            "T",
+                            "D",
+                            "",
+                            ""
+                        ),
+                    ]
+                ),
+            ]
+        );
+
+        IReadOnlyList<ResolvedChatBadge> resolved = await new ChatBadgeResolver(cache).ResolveAsync(
+            Broadcaster,
+            [new ChatBadge("subscriber", "0")]
+        );
+
+        IReadOnlyDictionary<string, string> urls = resolved.Should().ContainSingle().Subject.Urls;
+        urls.Should().ContainKey("1").WhoseValue.Should().Be("https://badge/sub/1");
+        urls.Should().NotContainKey("2"); // null → omitted
+        urls.Should().NotContainKey("4"); // empty → omitted
+    }
+
     private sealed class FakeCache : ICacheService
     {
         private readonly Dictionary<string, object?> _store = new();
