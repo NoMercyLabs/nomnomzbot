@@ -98,7 +98,7 @@ source is `ShellNav.pages`; this table is its ratified mirror.
 #### Chat
 | Page | Route | Read | Manage | Backend spec |
 |---|---|---|---|---|
-| **Chat** | `Chat` | Moderator | Moderator | `chat.md` — live chat console, send-as-bot |
+| **Chat** | `Chat` | Moderator | Moderator | `chat-client.md` — live chat console; send as **you** (the operator), bot optional; emote composer + autocomplete; cross-channel moderation |
 | **Commands** | `Commands` (+ `PipelineEditor`) | Moderator | Editor | `commands-pipelines.md` — list + T1/T2/T3 editor; built-in toggle list; T2 opens the pipeline editor, T3 the widget/code editor |
 | **Pipelines** | `Pipelines` | Moderator | Editor | `commands-pipelines.md` — the visual pipeline builder (folded in from the dropped single-item Automation group) |
 | **Timers** | `Timers` | Moderator | Editor | `commands-pipelines.md` §3.7 |
