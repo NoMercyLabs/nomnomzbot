@@ -27,6 +27,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.verticalScroll
 import bot.nomnomz.dashboard.core.designsystem.component.Badge as DsBadge
+import bot.nomnomz.dashboard.core.designsystem.component.TabsList
+import bot.nomnomz.dashboard.core.designsystem.component.TabsTrigger
 import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import bot.nomnomz.dashboard.core.designsystem.component.Switch
@@ -750,20 +752,19 @@ private fun MusicConfigSection(config: MusicConfig, manage: ManageDecision, onSa
             }
         }
 
-        // Provider selector (text buttons)
+        // Provider selector
         Column(verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
             Text(text = stringResource(Res.string.music_config_provider), style = typography.sm, color = tokens.mutedForeground)
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(spacing.s2),
-                verticalArrangement = Arrangement.spacedBy(spacing.s2),
-            ) {
+            TabsList {
                 providerOptions.forEach { (key, label) ->
                     ManageGate(decision = manage) { gateEnabled ->
-                        DsBadge(
+                        TabsTrigger(
                             selected = preferredProvider == key,
                             onClick = { preferredProvider = key },
                             enabled = gateEnabled,
-                        ) { Text(label, maxLines = 1) }
+                        ) {
+                            Text(label, maxLines = 1)
+                        }
                     }
                 }
             }
@@ -820,16 +821,23 @@ private fun MusicConfigSection(config: MusicConfig, manage: ManageDecision, onSa
         Column(verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
             Text(text = stringResource(Res.string.music_config_trust), style = typography.sm, color = tokens.mutedForeground)
             FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(spacing.s2),
-                verticalArrangement = Arrangement.spacedBy(spacing.s2),
+                modifier =
+                    Modifier
+                        .clip(RoundedCornerShape(tokens.radius.md))
+                        .background(tokens.muted)
+                        .padding(spacing.s1),
+                horizontalArrangement = Arrangement.spacedBy(spacing.s1),
+                verticalArrangement = Arrangement.spacedBy(spacing.s1),
             ) {
                 trustLevels.forEach { level ->
                     ManageGate(decision = manage) { gateEnabled ->
-                        DsBadge(
+                        TabsTrigger(
                             selected = minTrustLevel == level,
                             onClick = { minTrustLevel = level },
                             enabled = gateEnabled,
-                        ) { Text(level, maxLines = 1) }
+                        ) {
+                            Text(level, maxLines = 1)
+                        }
                     }
                 }
             }

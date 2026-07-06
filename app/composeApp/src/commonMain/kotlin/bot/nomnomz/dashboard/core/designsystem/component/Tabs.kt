@@ -11,18 +11,23 @@
 package bot.nomnomz.dashboard.core.designsystem.component
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -31,12 +36,17 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.PointerIcon
 import androidx.compose.ui.input.pointer.pointerHoverIcon
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.designsystem.theme.Spacing
 import bot.nomnomz.dashboard.core.designsystem.theme.Tokens
 import bot.nomnomz.dashboard.core.designsystem.theme.Typography
+
+// 1dp border stroke — not a layout spacing value.
+private val TabBorderWidth: Dp = 1.dp
 
 /**
  * shadcn/ui Tabs list ported to Compose (frontend-design-system.md §4, catalogue row — `Tabs`
@@ -64,7 +74,7 @@ fun TabsList(modifier: Modifier = Modifier, content: @Composable RowScope.() -> 
 /**
  * shadcn `TabsTrigger` — one selectable tab inside a [TabsList]. Selected renders the raised
  * [Tokens.background] pill with [Tokens.foreground] text; unselected is transparent with
- * [Tokens.mutedForeground] text.
+ * [Tokens.mutedForeground] text and an accent hover, matching Button ghost/outline affordance.
  */
 @Composable
 fun TabsTrigger(
@@ -78,10 +88,29 @@ fun TabsTrigger(
     val spacing: Spacing = LocalSpacing.current
     val typography: Typography = LocalTypography.current
 
-    val container: Color = if (selected) tokens.background else Color.Transparent
-    val contentColor: Color = if (selected) tokens.foreground else tokens.mutedForeground
-    val shape: RoundedCornerShape = RoundedCornerShape(tokens.radius.sm)
     val interactionSource: MutableInteractionSource = remember { MutableInteractionSource() }
+    val hovered: Boolean by interactionSource.collectIsHoveredAsState()
+
+    val container: Color =
+        when {
+            !enabled -> tokens.muted
+            selected -> tokens.background
+            hovered -> tokens.accent
+            else -> Color.Transparent
+        }
+    val contentColor: Color =
+        when {
+            !enabled -> tokens.mutedForeground
+            selected -> tokens.foreground
+            hovered -> tokens.accentForeground
+            else -> tokens.mutedForeground
+        }
+    val borderColor: Color =
+        when {
+            !enabled || selected || hovered -> Color.Transparent
+            else -> tokens.border
+        }
+    val shape: RoundedCornerShape = RoundedCornerShape(tokens.radius.sm)
 
     CompositionLocalProvider(
         LocalTextStyle provides typography.sm.copy(fontWeight = FontWeight.Medium, color = contentColor),
@@ -90,8 +119,17 @@ fun TabsTrigger(
         Box(
             modifier =
                 modifier
+                    .defaultMinSize(minHeight = spacing.s8)
                     .clip(shape)
+                    .then(
+                        if (borderColor != Color.Transparent) {
+                            Modifier.border(TabBorderWidth, borderColor, shape)
+                        } else {
+                            Modifier
+                        }
+                    )
                     .background(container)
+                    .hoverable(interactionSource)
                     .clickable(
                         interactionSource = interactionSource,
                         indication = null,

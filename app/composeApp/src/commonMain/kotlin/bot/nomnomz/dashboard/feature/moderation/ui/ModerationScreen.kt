@@ -45,6 +45,8 @@ import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Badge
+import bot.nomnomz.dashboard.core.designsystem.component.TabsList
+import bot.nomnomz.dashboard.core.designsystem.component.TabsTrigger
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
@@ -587,15 +589,19 @@ private fun ModerateViewerDialog(
                         },
                     modifier = Modifier.fillMaxWidth(),
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
-                    Badge(
+                TabsList {
+                    TabsTrigger(
                         selected = isBan,
                         onClick = { isBan = true },
-                    ) { Text(stringResource(Res.string.moderation_action_type_ban)) }
-                    Badge(
+                    ) {
+                        Text(stringResource(Res.string.moderation_action_type_ban))
+                    }
+                    TabsTrigger(
                         selected = !isBan,
                         onClick = { isBan = false },
-                    ) { Text(stringResource(Res.string.moderation_action_type_timeout)) }
+                    ) {
+                        Text(stringResource(Res.string.moderation_action_type_timeout))
+                    }
                 }
                 if (!isBan) {
                     AppTextField(

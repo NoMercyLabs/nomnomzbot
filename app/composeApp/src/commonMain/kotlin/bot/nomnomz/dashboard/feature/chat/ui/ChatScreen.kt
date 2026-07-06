@@ -63,6 +63,8 @@ import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Badge
+import bot.nomnomz.dashboard.core.designsystem.component.TabsList
+import bot.nomnomz.dashboard.core.designsystem.component.TabsTrigger
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenu
 import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenuItem
@@ -722,7 +724,6 @@ private fun SendBox(
 @Composable
 private fun SendIdentitySelector(identity: String, onSelect: (String) -> Unit) {
     val spacing = LocalSpacing.current
-    val typography = LocalTypography.current
     val selectorLabel: String = stringResource(Res.string.chat_send_identity_label)
 
     Row(
@@ -730,11 +731,19 @@ private fun SendIdentitySelector(identity: String, onSelect: (String) -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.semantics { contentDescription = selectorLabel },
     ) {
-        Badge(selected = identity == "you", onClick = { onSelect("you") }) {
-            Text(text = stringResource(Res.string.chat_send_as_you), style = typography.sm)
-        }
-        Badge(selected = identity == "bot", onClick = { onSelect("bot") }) {
-            Text(text = stringResource(Res.string.chat_send_as_bot), style = typography.sm)
+        TabsList {
+            TabsTrigger(
+                selected = identity == "you",
+                onClick = { onSelect("you") },
+            ) {
+                Text(text = stringResource(Res.string.chat_send_as_you))
+            }
+            TabsTrigger(
+                selected = identity == "bot",
+                onClick = { onSelect("bot") },
+            ) {
+                Text(text = stringResource(Res.string.chat_send_as_bot))
+            }
         }
     }
 }
@@ -966,18 +975,11 @@ private fun ChatModesBar(
     enabled: Boolean,
     onToggle: (ChatSettings) -> Unit,
 ) {
-    val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
+    val tokens = LocalTokens.current
 
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp))
-            .background(tokens.muted)
-            .padding(horizontal = spacing.s4, vertical = spacing.s3),
-        verticalArrangement = Arrangement.spacedBy(spacing.s3),
-    ) {
+    Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
         Text(
             text = stringResource(Res.string.chat_settings_panel_title),
             style = typography.sm,
