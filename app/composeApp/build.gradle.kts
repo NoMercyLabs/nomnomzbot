@@ -62,6 +62,8 @@ kotlin {
             implementation(libs.androidx.lifecycle.viewmodel.compose)
             implementation(libs.kotlinx.coroutines.core)
             implementation(libs.kotlinx.serialization.json)
+            // Local-time formatting of chat message timestamps (chat-client.md §0 render contract).
+            implementation(libs.kotlinx.datetime)
             // Typed shared REST client (frontend.md §3) — one HttpClient configured in
             // commonMain; the engine is the only per-target piece (jvmMain/wasmJsMain).
             implementation(libs.ktor.client.core)

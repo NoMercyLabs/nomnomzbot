@@ -85,6 +85,9 @@ import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecision
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.launch
+import kotlinx.datetime.Instant
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.chat_action_error
 import nomnomzbot.composeapp.generated.resources.chat_announce_action
@@ -278,6 +281,10 @@ private fun MessageRow(
         verticalAlignment = Alignment.Top,
         horizontalArrangement = Arrangement.spacedBy(spacing.s2),
     ) {
+        // Per-line timestamp in the viewer's LOCAL time (muted), like the Twitch client's message times.
+        formatClockTime(message.timestamp)?.let { time ->
+            Text(text = time, style = typography.sm, color = tokens.mutedForeground, maxLines = 1)
+        }
         // Badges + name + message fragments all flow inline — semantics collapses to a single read.
         FlowRow(
             modifier = Modifier.weight(1f).clearAndSetSemantics { contentDescription = rowDescription },
@@ -581,6 +588,13 @@ private fun String.toComposeColor(): Color? = runCatching {
         green = hex.substring(2, 4).toInt(16) / 255f,
         blue = hex.substring(4, 6).toInt(16) / 255f,
     )
+}.getOrNull()
+
+// Format an ISO-8601 UTC timestamp to the viewer's local wall-clock time (HH:mm) — the per-line time the feed
+// shows (chat-client.md §0 render contract). Returns null on a malformed timestamp so the row still renders.
+private fun formatClockTime(isoUtc: String): String? = runCatching {
+    val local = Instant.parse(isoUtc).toLocalDateTime(TimeZone.currentSystemDefault())
+    "${local.hour.toString().padStart(2, '0')}:${local.minute.toString().padStart(2, '0')}"
 }.getOrNull()
 
 // A small muted chip showing the chatter's resolved pronouns beside their name (chat-client.md §0 render
