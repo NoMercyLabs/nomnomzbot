@@ -820,7 +820,19 @@ try
     // SPA fallback: any route not matched by an API / hub / health endpoint or a static file serves the dashboard's
     // entry document, so a browser hitting / (or a client-side deep link) loads the Compose/Wasm app shell. Returns
     // 404 when no dashboard is bundled (empty web root), preserving the API-only behavior.
-    app.MapFallbackToFile("index.html");
+    app.MapFallbackToFile(
+        "index.html",
+        new StaticFileOptions
+        {
+            // index.html is served HERE (the SPA fallback), not by UseStaticFiles above, so it needs its OWN
+            // Cache-Control. Without it the shell goes out with no cache header, the browser heuristic-caches it,
+            // and a normal reload keeps loading the OLD app after a deploy — the "force refresh" trap. no-store +
+            // must-revalidate makes every load re-fetch index.html, which then pulls the current (also no-cache)
+            // composeApp.js and the content-hashed .wasm. A plain reload now always lands the latest deploy.
+            OnPrepareResponse = ctx =>
+                ctx.Context.Response.Headers.CacheControl = "no-store, no-cache, must-revalidate",
+        }
+    );
 
     app.Run();
 }
