@@ -196,13 +196,20 @@ public sealed class BotLifecycleService : BackgroundService
             toUnsubscribe = _joinedChannels.Except(activeIds).ToHashSet();
         }
 
-        // Subscribe newly-active channels to their EventSub topics (chat is read via channel.chat.message).
-        foreach (var channel in activeChannels.Where(c => toSubscribe.Contains(c.Id)))
+        // Reconcile EventSub subscriptions for EVERY active channel each tick (chat is read via
+        // channel.chat.message). EnsureSubscribedAsync is idempotent — for an already-joined channel it adopts
+        // the live subs and only re-creates ones not yet `enabled`, so a channel stranded by a reconnect
+        // self-heals within one tick without waiting for the next reconnect. Join-bookkeeping (mark joined +
+        // bootstrap live status) still runs only for newly-active channels.
+        foreach (var channel in activeChannels)
         {
             try
             {
                 // Declaratively reconcile this channel's EventSub subscription set to the desired topics.
                 await eventSub.EnsureSubscribedAsync(channel.Id, ChannelEventTypes, ct);
+
+                if (!toSubscribe.Contains(channel.Id))
+                    continue;
 
                 lock (_channelLock)
                     _joinedChannels.Add(channel.Id);

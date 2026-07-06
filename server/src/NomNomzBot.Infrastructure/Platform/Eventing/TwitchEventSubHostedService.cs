@@ -193,8 +193,12 @@ public sealed class TwitchEventSubHostedService
             sessionId
         );
 
-        // A fresh welcome means every WS subscription is gone (sessions are not portable). Re-register the
-        // whole enabled registry against the new session id, then announce the steady state.
+        // A fresh welcome means the previous WebSocket session is dead. Twitch keeps that session's
+        // subscriptions in a `websocket_disconnected` state for ~1 minute, and a re-create's 409-conflict key
+        // is (type + condition) — session-independent — so those lingering subs would 409 every re-create and
+        // strand chat. Clear the dead-session orphans first, then re-register the enabled registry against the
+        // new session id and announce the steady state.
+        await CleanupStaleSessionSubsAsync(sessionId, ct);
         int active = await ReRegisterAllAsync(ct);
         _activeSubscriptionCount = active;
 
@@ -320,8 +324,13 @@ public sealed class TwitchEventSubHostedService
         CancellationToken ct = default
     )
     {
+        // Subscribe cost-0 topics (chat + the chat-read set) first — they never hit the WebSocket cost cap,
+        // so chat lands even when the cost-1 topics have exhausted it, and ahead of the general Helix rate burn.
+        IEnumerable<string> ordered = eventTypes.OrderByDescending(
+            EventSubConditionBuilder.IsCost0Topic
+        );
         List<string> failures = [];
-        foreach (string eventType in eventTypes)
+        foreach (string eventType in ordered)
         {
             Result<EventSubSubscriptionDto> result = await SubscribeAsync(
                 broadcasterId,
@@ -465,6 +474,24 @@ public sealed class TwitchEventSubHostedService
         await db.SaveChangesAsync(ct);
         string oldStatus = isNew ? "none" : row.Status;
 
+        // Idempotent adopt / park (skip the Twitch POST):
+        //  - an already-`enabled` row on the CURRENT session is live at Twitch — re-POSTing it would only 409.
+        //  - a `deferred` row was parked by a prior 429 (WebSocket cost cap full); leave it for the conduit
+        //    transport instead of re-hammering the cost budget on every reconnect / reconcile.
+        string? currentSession = _handle?.SessionId;
+        if (!isNew)
+        {
+            if (
+                row.Status == "enabled"
+                && row.TwitchSubscriptionId is not null
+                && currentSession is not null
+                && row.SessionId == currentSession
+            )
+                return Result.Success(ToDto(row));
+            if (row.Status == "deferred")
+                return Result.Success(ToDto(row));
+        }
+
         // Create at Twitch via the transport (idempotent at our layer; Twitch 409 on an exact duplicate).
         EventSubSubscriptionRequest request = new()
         {
@@ -488,13 +515,28 @@ public sealed class TwitchEventSubHostedService
 
         if (created.IsFailure)
         {
-            row.Status = "failed";
+            // Map the failure to a retryable / parked / terminal status instead of a permanent "failed":
+            //  - Conflict (409): an identical sub still lingers from a dead session inside Twitch's ~1-min GC
+            //    window → "pending" so the next reconcile retries once it clears (expected, transient).
+            //  - RateLimited (429): the WebSocket cost cap is full (the cost-1 topics) → "deferred", parked for
+            //    the conduit transport and not re-hammered.
+            //  - otherwise → "failed" (keeps the 403 missing-scope path below intact).
+            row.Status = created.ErrorCode switch
+            {
+                TwitchErrorCodes.Conflict => "pending",
+                TwitchErrorCodes.RateLimited => "deferred",
+                _ => "failed",
+            };
             row.LastError = created.ErrorMessage;
             await db.SaveChangesAsync(ct);
-            await PublishStatusChangedAsync(row, oldStatus, "failed", created.ErrorMessage, ct);
+            await PublishStatusChangedAsync(row, oldStatus, row.Status, created.ErrorMessage, ct);
 
-            // Log the full Twitch error body to diagnose subscription failures (400/403/etc.).
-            if (!string.IsNullOrEmpty(created.ErrorDetail))
+            // Log the full Twitch error body to diagnose real failures (400/403/etc.). A 409 conflict is the
+            // expected transient during the stale-session GC window — don't spam the log with it.
+            if (
+                !string.IsNullOrEmpty(created.ErrorDetail)
+                && created.ErrorCode != TwitchErrorCodes.Conflict
+            )
                 _logger.LogWarning(
                     "EventSub subscription {EventType} for {BroadcasterId} error detail: {Detail}",
                     eventType,
@@ -634,7 +676,47 @@ public sealed class TwitchEventSubHostedService
 
         int repaired = 0;
         int unchanged = 0;
+        int deleted = 0;
         List<string> errors = [];
+
+        // Delete stale / orphan subscriptions this tenant owns at Twitch (attributed by TwitchSubscriptionId —
+        // LIST doesn't return the condition, so we only ever delete ids in our own registry, never another
+        // tenant's). "Stale" = a live sub on a dead session (SessionId set and != the current one); "orphan" =
+        // a live sub whose registry row is no longer desired (disabled / soft-deleted). Removing it from the
+        // live set lets the re-create pass below re-home a still-desired stale row on the current session.
+        string? currentSession = _handle?.SessionId;
+        Dictionary<string, EventSubSubscription> registryById = registry
+            .Where(r => r.TwitchSubscriptionId is not null)
+            .ToDictionary(r => r.TwitchSubscriptionId!, r => r);
+        foreach (TwitchSubscriptionResult live in listed.Value)
+        {
+            if (
+                string.IsNullOrEmpty(live.TwitchSubscriptionId)
+                || !registryById.TryGetValue(
+                    live.TwitchSubscriptionId,
+                    out EventSubSubscription? owned
+                )
+            )
+                continue;
+
+            bool staleSession =
+                !string.IsNullOrEmpty(live.SessionId)
+                && currentSession is not null
+                && live.SessionId != currentSession;
+            bool notDesired = !owned.Enabled || owned.DeletedAt.HasValue;
+            if (!staleSession && !notDesired)
+                continue;
+
+            Result del = await _transport.DeleteSubscriptionAsync(live.TwitchSubscriptionId, ct);
+            if (del.IsFailure)
+            {
+                errors.Add($"delete {live.TwitchSubscriptionId}: {del.ErrorMessage}");
+                continue;
+            }
+
+            deleted++;
+            liveById.Remove(live.TwitchSubscriptionId);
+        }
 
         // Repair status drift for rows Twitch still knows about.
         foreach (EventSubSubscription row in registry)
@@ -682,7 +764,7 @@ public sealed class TwitchEventSubHostedService
 
         await db.SaveChangesAsync(ct);
         return Result.Success(
-            new EventSubReconcileReportDto(created, 0, repaired, unchanged, errors)
+            new EventSubReconcileReportDto(created, deleted, repaired, unchanged, errors)
         );
     }
 
@@ -698,6 +780,51 @@ public sealed class TwitchEventSubHostedService
     }
 
     // ── Internals ───────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Deletes subscriptions still registered at Twitch under a DEAD WebSocket session before re-registering.
+    /// After a restart Twitch holds the old session's subs in a <c>websocket_disconnected</c> state for ~1
+    /// minute; since a create's 409-conflict key is (type + condition) — session-independent — those lingering
+    /// subs would 409 every re-create on the new session and strand chat. We LIST the app's subs and DELETE any
+    /// whose <c>SessionId</c> is set and differs from the current one (dead-session orphans). WebSocket subs are
+    /// the only ones carrying a <c>SessionId</c>, so conduit/webhook subs (null) are never touched. A genuine
+    /// Twitch <c>session_reconnect</c> keeps the same session id, so nothing is stale and nothing is deleted.
+    /// Best-effort: a failed LIST just logs and lets re-register proceed.
+    /// </summary>
+    private async Task CleanupStaleSessionSubsAsync(string currentSessionId, CancellationToken ct)
+    {
+        Result<IReadOnlyList<TwitchSubscriptionResult>> listed =
+            await _transport.ListSubscriptionsAsync(Guid.Empty, ct);
+        if (listed.IsFailure)
+        {
+            _logger.LogWarning(
+                "EventSub stale-session cleanup skipped — listing subscriptions failed: {Error}",
+                listed.ErrorMessage
+            );
+            return;
+        }
+
+        int deleted = 0;
+        foreach (TwitchSubscriptionResult sub in listed.Value)
+        {
+            if (
+                string.IsNullOrEmpty(sub.TwitchSubscriptionId)
+                || string.IsNullOrEmpty(sub.SessionId)
+                || sub.SessionId == currentSessionId
+            )
+                continue;
+
+            await _transport.DeleteSubscriptionAsync(sub.TwitchSubscriptionId, ct);
+            deleted++;
+        }
+
+        if (deleted > 0)
+            _logger.LogInformation(
+                "EventSub: deleted {Count} stale-session subscription(s) before re-registering on {SessionId}",
+                deleted,
+                currentSessionId
+            );
+    }
 
     /// <summary>
     /// Re-registers every enabled registry subscription against the current session/handle (post-welcome,
@@ -724,6 +851,11 @@ public sealed class TwitchEventSubHostedService
                 )
                 .Select(s => s.EventType)
                 .ToListAsync(ct);
+
+            // Subscribe cost-0 topics (chat + the chat-read set) FIRST: they never touch the WebSocket cost
+            // cap, so chat lands even when the cost-1 topics have exhausted it — and ahead of the general
+            // Helix rate burn.
+            eventTypes = [.. eventTypes.OrderByDescending(EventSubConditionBuilder.IsCost0Topic)];
 
             foreach (string eventType in eventTypes)
             {

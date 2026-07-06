@@ -322,6 +322,7 @@ public sealed class TwitchHelixTransport(
             HttpStatusCode.Unauthorized => TwitchErrorCodes.Unauthorized,
             HttpStatusCode.NotFound => TwitchErrorCodes.NotFound,
             HttpStatusCode.TooManyRequests => TwitchErrorCodes.RateLimited,
+            HttpStatusCode.Conflict => TwitchErrorCodes.Conflict,
             _ => TwitchErrorCodes.TwitchError,
         };
 

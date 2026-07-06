@@ -104,6 +104,14 @@ public sealed class EventSubConditionBuilder : IEventSubConditionBuilder
     // Twitch rejects "subscriptions created by different users" on the same session.
     public bool RequiresBroadcasterToken(string eventType) => false;
 
+    /// <summary>
+    /// True for cost-0 EventSub topics — the chat-read set the bot subscribes with its own authorized
+    /// <c>user:read:chat</c> identity. Twitch charges 0 for a subscription the target user authorized, so these
+    /// never count against the WebSocket <c>max_total_cost</c> cap (10); they must be subscribed FIRST so chat
+    /// lands even when the cost-1 topics have exhausted the budget. Drives re-register / sync ordering.
+    /// </summary>
+    internal static bool IsCost0Topic(string eventType) => ChatReadEvents.Contains(eventType);
+
     private static ConditionShape ShapeOf(string eventType) =>
         eventType switch
         {

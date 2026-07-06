@@ -524,6 +524,23 @@ public class TwitchHelixTransportTests
     }
 
     [Fact]
+    public async Task SendAsync_Conflict_MapsToConflictErrorCode()
+    {
+        // A 409 (e.g. an identical EventSub subscription still lingering in Twitch's stale-session GC window)
+        // maps to the typed Conflict code so the caller can park the row "pending" instead of "failed".
+        (TwitchHelixTransport transport, _, _, _) = Build([
+            () => new HttpResponseMessage(HttpStatusCode.Conflict),
+        ]);
+
+        Result result = await transport.SendAsync(
+            new TwitchHelixRequest(HttpMethod.Post, "eventsub/subscriptions", TwitchHelixAuth.App)
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be(TwitchErrorCodes.Conflict);
+    }
+
+    [Fact]
     public async Task SendAsync_BotToken401_RefreshesOnceAndRetries()
     {
         // The bot/platform token (BroadcasterId == null) is a real user token that carries a refresh token, so

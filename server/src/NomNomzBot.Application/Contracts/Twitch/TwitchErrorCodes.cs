@@ -22,6 +22,7 @@ public static class TwitchErrorCodes
     public const string Unauthorized = "unauthorized";
     public const string RateLimited = "rate_limited";
     public const string NotFound = "not_found";
+    public const string Conflict = "conflict";
     public const string TwitchError = "twitch_error";
     public const string Transport = "transport";
 }

@@ -270,4 +270,36 @@ public sealed class EventSubConditionBuilderTests
         // broadcaster's, regardless of topic.
         Builder.RequiresBroadcasterToken(eventType).Should().BeFalse();
     }
+
+    // ── Cost-0 classification (drives cost-0-first subscribe ordering) ─────────────────────────────────
+
+    [Theory]
+    [InlineData("channel.chat.message")]
+    [InlineData("channel.chat.notification")]
+    [InlineData("channel.chat.message_delete")]
+    [InlineData("channel.chat.clear")]
+    [InlineData("channel.chat.clear_user_messages")]
+    [InlineData("channel.chat_settings.update")]
+    [InlineData("channel.chat.user_message_hold")]
+    [InlineData("channel.chat.user_message_update")]
+    public void IsCost0Topic_IsTrue_ForTheChatReadSet(string eventType)
+    {
+        // The chat-read topics the bot subscribes under its own authorized user:read:chat identity are charged
+        // 0 by Twitch, so they never count against the WebSocket max_total_cost cap and must be subscribed first.
+        EventSubConditionBuilder.IsCost0Topic(eventType).Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData("channel.follow")]
+    [InlineData("channel.subscribe")]
+    [InlineData("channel.update")]
+    [InlineData("channel.moderate")]
+    [InlineData("channel.raid")]
+    [InlineData("channel.cheer")]
+    [InlineData("user.update")]
+    public void IsCost0Topic_IsFalse_ForEveryOtherTopic(string eventType)
+    {
+        // Cost-1 topics (everything outside the chat-read set) do count against the cap and subscribe after.
+        EventSubConditionBuilder.IsCost0Topic(eventType).Should().BeFalse();
+    }
 }
