@@ -1037,6 +1037,7 @@
     <string name="chat_send_identity_label">Send as</string>
     <string name="chat_send_as_you">You</string>
     <string name="chat_send_as_bot">Bot</string>
+    <string name="chat_composer_preview_label">Preview</string>
     <string name="chat_ban_action">Ban %1$s</string>
     <string name="chat_ban_action_short">Ban user</string>
     <string name="chat_ban_title">Ban %1$s?</string>

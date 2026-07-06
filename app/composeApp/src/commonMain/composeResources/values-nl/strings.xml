@@ -1034,6 +1034,7 @@
     <string name="chat_send_identity_label">Verstuur als</string>
     <string name="chat_send_as_you">Jij</string>
     <string name="chat_send_as_bot">Bot</string>
+    <string name="chat_composer_preview_label">Voorbeeld</string>
     <string name="chat_ban_action">%1$s verbannen</string>
     <string name="chat_ban_action_short">Gebruiker verbannen</string>
     <string name="chat_ban_title">%1$s verbannen?</string>
