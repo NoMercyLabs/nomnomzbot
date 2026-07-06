@@ -23,15 +23,18 @@ namespace NomNomzBot.Infrastructure.Chat;
 
 /// <summary>
 /// Primary <see cref="IChatProvider"/> implementation over the Twitch Helix API. Sending posts
-/// <c>/helix/chat/messages</c> on the bot token through <see cref="ITwitchHelixTransport"/> (this provider is
-/// the chat-send owner the moderation sub-client deliberately leaves the plain send to); chat enforcement
-/// delegates to <see cref="ITwitchModerationApi"/>, which resolves the tenant Guid → Twitch id internally.
+/// <c>/helix/chat/messages</c> as the bot identity resolved PER BROADCASTER through <see cref="ITwitchHelixTransport"/>
+/// (this provider is the chat-send owner the moderation sub-client deliberately leaves the plain send to); chat
+/// enforcement delegates to <see cref="ITwitchModerationApi"/>, which resolves the tenant Guid → Twitch id internally.
 ///
 /// This is the sole chat path: chat is read via EventSub (<c>channel.chat.message</c>) and sent via Helix here
 /// — there is no IRC connection.
 /// </summary>
 public sealed class HelixChatProvider : IChatProvider
 {
+    private const string BotProvider = AuthEnums.IntegrationProvider.Twitch + "_bot";
+    private const string UserProvider = AuthEnums.IntegrationProvider.Twitch;
+
     private readonly ITwitchHelixTransport _transport;
     private readonly ITwitchModerationApi _moderation;
     private readonly ITwitchIdentityResolver _identityResolver;
@@ -39,8 +42,11 @@ public sealed class HelixChatProvider : IChatProvider
     private readonly TwitchOptions _options;
     private readonly ILogger<HelixChatProvider> _logger;
 
-    // Cached bot user ID — resolved once from DB
-    private string? _cachedBotUserId;
+    // Bot sender identity resolved PER BROADCASTER — never one process-wide account. On a multi-tenant
+    // deployment each channel's send must ride the identity whose token signs THAT channel's send, so the
+    // cache is keyed by broadcaster. Scoped lifetime, so it lives for one request/pipeline run and spares
+    // repeat sends to the same channel a DB round-trip.
+    private readonly Dictionary<Guid, BotSenderIdentity> _senderByBroadcaster = new();
 
     public HelixChatProvider(
         ITwitchHelixTransport transport,
@@ -109,10 +115,13 @@ public sealed class HelixChatProvider : IChatProvider
     // ─── Helpers ─────────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Posts a chat message (or reply) as the bot. The bot sends as itself, so the call rides the bot token
-    /// (<see cref="TwitchHelixAuth.App"/>) rather than the tenant's user token — the target channel and
-    /// sender id travel in the body. The transport serialises this PascalCase body to snake_case and omits
-    /// the null reply id for a plain message.
+    /// Posts a chat message (or reply) as the bot for one tenant. The sender identity is resolved PER
+    /// BROADCASTER (never one process-wide account): a shared platform bot rides the app/bot token
+    /// (<see cref="TwitchHelixAuth.App"/>); otherwise the channel's OWN owner account is the bot and rides
+    /// that channel's broadcaster user token (<see cref="TwitchHelixAuth.User"/>). Either way the body's
+    /// <c>sender_id</c> is the SAME account the resolved token belongs to, so Twitch never rejects a send
+    /// whose sender doesn't match the signing token. The transport serialises this PascalCase body to
+    /// snake_case and omits the null reply id for a plain message.
     /// </summary>
     private async Task<bool> PostChatMessageAsync(
         Guid broadcasterId,
@@ -125,11 +134,11 @@ public sealed class HelixChatProvider : IChatProvider
         if (twitchBroadcasterId is null)
             return false;
 
-        string? botUserId = await GetBotUserIdAsync(ct);
-        if (botUserId is null)
+        BotSenderIdentity? sender = await ResolveBotSenderAsync(broadcasterId, ct);
+        if (sender is null)
         {
             _logger.LogWarning(
-                "HelixChatProvider: no bot user ID, cannot send message to {BroadcasterId}",
+                "HelixChatProvider: no bot sender identity for {BroadcasterId}, cannot send message",
                 broadcasterId
             );
             return false;
@@ -138,11 +147,14 @@ public sealed class HelixChatProvider : IChatProvider
         TwitchHelixRequest request = new(
             HttpMethod.Post,
             "chat/messages",
-            TwitchHelixAuth.App,
+            sender.Auth,
+            // The owner-as-bot path rides THIS channel's broadcaster token, so the transport needs the tenant
+            // to resolve it; the shared-bot path rides the subject-agnostic app/bot token (no tenant).
+            BroadcasterId: sender.Auth == TwitchHelixAuth.User ? broadcasterId : null,
             Body: new
             {
                 BroadcasterId = twitchBroadcasterId,
-                SenderId = botUserId,
+                SenderId = sender.TwitchUserId,
                 Message = message,
                 ReplyParentMessageId = replyToMessageId,
             },
@@ -184,35 +196,73 @@ public sealed class HelixChatProvider : IChatProvider
         return twitchChannelId;
     }
 
-    private async Task<string?> GetBotUserIdAsync(CancellationToken ct)
+    /// <summary>
+    /// Resolves the bot SENDER identity for one broadcaster — the account whose <c>sender_id</c> travels on
+    /// the send and whose token signs it. The order mirrors the token resolution
+    /// (<see cref="ITwitchTokenResolver.GetBotTokenAsync"/> → <c>GetBroadcasterTokenAsync</c>):
+    /// <list type="number">
+    ///   <item>a shared platform bot (<c>twitch_bot</c>, no broadcaster) → rides the app/bot token;</item>
+    ///   <item>else THIS channel's OWN owner (<c>twitch</c>, this broadcaster) → the main-account-is-the-bot
+    ///   model (onboarding.md), riding that channel's own broadcaster token.</item>
+    /// </list>
+    /// Keyed by broadcaster (never a single process-wide field), so a multi-tenant deployment never sends
+    /// channel B's message as channel A's account. Returns null only on a channel with no usable identity.
+    /// </summary>
+    private async Task<BotSenderIdentity?> ResolveBotSenderAsync(
+        Guid broadcasterId,
+        CancellationToken ct
+    )
     {
-        if (_cachedBotUserId is not null)
-            return _cachedBotUserId;
+        if (_senderByBroadcaster.TryGetValue(broadcasterId, out BotSenderIdentity? cached))
+            return cached;
 
-        // The sender_id must be the same account whose token signs the send. That identity follows the bot
-        // resolution order (ITwitchTokenResolver.GetBotTokenAsync): a registered bot account if present, else
-        // the streamer's own main account (onboarding.md two-account model — the main account IS the bot until
-        // a custom bot is registered; deployment-profile.md "self-host always custom"). So pick the bot account's
-        // Twitch user id when a "twitch_bot" connection exists; otherwise the owner's "twitch" connection id.
-        string botProvider = AuthEnums.IntegrationProvider.Twitch + "_bot";
-        string userProvider = AuthEnums.IntegrationProvider.Twitch;
-        _cachedBotUserId =
-            await _db
-                .IntegrationConnections.IgnoreQueryFilters()
-                .Where(c =>
-                    c.Provider == botProvider && c.BroadcasterId == null && c.DeletedAt == null
-                )
-                .Select(c => c.ProviderAccountId)
-                .FirstOrDefaultAsync(ct)
-            ?? await _db
-                .IntegrationConnections.IgnoreQueryFilters()
-                .Where(c =>
-                    c.Provider == userProvider && c.BroadcasterId != null && c.DeletedAt == null
-                )
-                .OrderBy(c => c.CreatedAt)
-                .Select(c => c.ProviderAccountId)
-                .FirstOrDefaultAsync(ct);
+        string? sharedBotUserId = await SharedBotUserIdAsync(ct);
+        BotSenderIdentity? sender = sharedBotUserId is not null
+            ? new BotSenderIdentity(TwitchHelixAuth.App, sharedBotUserId)
+            : await OwnerSenderAsync(broadcasterId, ct);
 
-        return _cachedBotUserId;
+        if (sender is not null)
+            _senderByBroadcaster[broadcasterId] = sender;
+
+        return sender;
     }
+
+    /// <summary>The shared platform bot account's Twitch user id (<c>twitch_bot</c>, no broadcaster), or null.</summary>
+    private Task<string?> SharedBotUserIdAsync(CancellationToken ct) =>
+        _db
+            .IntegrationConnections.IgnoreQueryFilters()
+            .Where(c => c.Provider == BotProvider && c.BroadcasterId == null && c.DeletedAt == null)
+            .OrderBy(c => c.CreatedAt)
+            .Select(c => c.ProviderAccountId)
+            .FirstOrDefaultAsync(ct);
+
+    /// <summary>
+    /// The channel's OWN owner account as the bot sender (<c>twitch</c>, this broadcaster) — the send rides
+    /// the same channel's broadcaster user token, so <c>sender_id</c> and the token always belong to one
+    /// account. Scoped strictly to <paramref name="broadcasterId"/>, never the oldest connection across all
+    /// tenants. Null when this channel has no owner connection.
+    /// </summary>
+    private async Task<BotSenderIdentity?> OwnerSenderAsync(
+        Guid broadcasterId,
+        CancellationToken ct
+    )
+    {
+        string? ownerUserId = await _db
+            .IntegrationConnections.IgnoreQueryFilters()
+            .Where(c =>
+                c.Provider == UserProvider
+                && c.BroadcasterId == broadcasterId
+                && c.DeletedAt == null
+            )
+            .OrderBy(c => c.CreatedAt)
+            .Select(c => c.ProviderAccountId)
+            .FirstOrDefaultAsync(ct);
+
+        return ownerUserId is null
+            ? null
+            : new BotSenderIdentity(TwitchHelixAuth.User, ownerUserId);
+    }
+
+    /// <summary>The resolved bot sender for one channel: which token the send rides and the account id on it.</summary>
+    private sealed record BotSenderIdentity(TwitchHelixAuth Auth, string TwitchUserId);
 }

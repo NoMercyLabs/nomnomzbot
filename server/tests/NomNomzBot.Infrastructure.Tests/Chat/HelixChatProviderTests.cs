@@ -11,6 +11,7 @@
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using NomNomzBot.Application.Abstractions.Transport;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Domain.Identity.Enums;
@@ -38,14 +39,15 @@ public sealed class HelixChatProviderTests
     private const string BotTwitchUserId = "bot-user-99";
 
     private static (HelixChatProvider Provider, CapturingHelixTransport Transport) Build(
-        AuthDbContext db
+        AuthDbContext db,
+        ITwitchIdentityResolver? identityResolver = null
     )
     {
         CapturingHelixTransport transport = new();
         HelixChatProvider provider = new(
             transport,
             Substitute.For<ITwitchModerationApi>(),
-            new StubIdentityResolver(Owner, OwnerTwitchChannelId),
+            identityResolver ?? new StubIdentityResolver(Owner, OwnerTwitchChannelId),
             db,
             Options.Create(
                 new TwitchOptions
@@ -83,7 +85,9 @@ public sealed class HelixChatProviderTests
 
     /// <summary>
     /// Self-host with no bot account: the send is authored by the owner's own account, so the body's
-    /// <c>sender_id</c> is the owner's Twitch user id (not null — null is what dropped the send before).
+    /// <c>sender_id</c> is the owner's Twitch user id (not null — null is what dropped the send before). The
+    /// owner-as-bot rides that channel's OWN broadcaster token (<see cref="TwitchHelixAuth.User"/> for this
+    /// tenant), so the sender and the signing token belong to the same account.
     /// </summary>
     [Fact]
     public async Task SendMessage_WithNoBotAccount_SendsAsTheOwnersOwnAccount()
@@ -103,7 +107,13 @@ public sealed class HelixChatProviderTests
         transport.LastRequest.Should().NotBeNull();
         TwitchHelixRequest sent = transport.LastRequest!;
         sent.Path.Should().Be("chat/messages");
-        sent.Auth.Should().Be(TwitchHelixAuth.App);
+        sent.Auth.Should()
+            .Be(
+                TwitchHelixAuth.User,
+                "the owner-as-bot rides its own channel's broadcaster token, not a global app token"
+            );
+        sent.BroadcasterId.Should()
+            .Be(Owner, "the transport must resolve THIS tenant's token to sign the send");
 
         (string SenderId, string BroadcasterId, string Message) body = ReadBody(sent.Body!);
         body.SenderId.Should()
@@ -139,10 +149,87 @@ public sealed class HelixChatProviderTests
         await provider.SendMessageAsync(Owner, "hi from the bot");
 
         TwitchHelixRequest sent = (TwitchHelixRequest)transport.LastRequest!;
+        sent.Auth.Should()
+            .Be(
+                TwitchHelixAuth.App,
+                "the shared platform bot rides the app/bot token, not a tenant token"
+            );
+        sent.BroadcasterId.Should()
+            .BeNull("the shared bot is subject-agnostic — its token is not scoped to a tenant");
         (string SenderId, string BroadcasterId, string Message) body = ReadBody(sent.Body!);
         body.SenderId.Should()
             .Be(BotTwitchUserId, "a registered bot account is the chat sender when present");
         body.BroadcasterId.Should().Be(OwnerTwitchChannelId);
+    }
+
+    /// <summary>
+    /// Multi-tenant correctness: on a deployment with several channels and NO shared bot, each channel's send
+    /// is authored by THAT channel's own owner account — never one global (oldest) account for everyone. The
+    /// sender_id differs per broadcaster AND each send rides its own channel's broadcaster token
+    /// (<see cref="TwitchHelixAuth.User"/> for that tenant), so sender and token always match at Twitch.
+    /// </summary>
+    [Fact]
+    public async Task SendMessage_AcrossChannels_SendsAsEachChannelsOwnAccount()
+    {
+        Guid channelA = Guid.Parse("0192a000-0000-7000-8000-00000000aaa1");
+        Guid channelB = Guid.Parse("0192a000-0000-7000-8000-00000000bbb2");
+        const string channelATwitchId = "channel-a-11";
+        const string channelBTwitchId = "channel-b-22";
+        const string ownerAUserId = "owner-a-user";
+        const string ownerBUserId = "owner-b-user";
+
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        // Channel A is created FIRST: the old global "oldest twitch connection" fallback would make BOTH
+        // channels send as A's account. The fix must instead pick each channel's OWN owner.
+        await AddConnectionAsync(
+            db,
+            channelA,
+            AuthEnums.IntegrationProvider.Twitch,
+            ownerAUserId,
+            new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc)
+        );
+        await AddConnectionAsync(
+            db,
+            channelB,
+            AuthEnums.IntegrationProvider.Twitch,
+            ownerBUserId,
+            new DateTime(2026, 2, 1, 0, 0, 0, DateTimeKind.Utc)
+        );
+
+        MultiChannelIdentityResolver resolver = new(
+            new Dictionary<Guid, string>
+            {
+                [channelA] = channelATwitchId,
+                [channelB] = channelBTwitchId,
+            }
+        );
+        (HelixChatProvider provider, CapturingHelixTransport transport) = Build(db, resolver);
+
+        await provider.SendMessageAsync(channelA, "from A");
+        TwitchHelixRequest sentA = transport.LastRequest!;
+        (string SenderId, string BroadcasterId, string Message) bodyA = ReadBody(sentA.Body!);
+
+        await provider.SendMessageAsync(channelB, "from B");
+        TwitchHelixRequest sentB = transport.LastRequest!;
+        (string SenderId, string BroadcasterId, string Message) bodyB = ReadBody(sentB.Body!);
+
+        // Each channel sends as its OWN owner — two DIFFERENT sender ids, not one global account.
+        bodyA.SenderId.Should().Be(ownerAUserId);
+        bodyB.SenderId.Should().Be(ownerBUserId);
+        bodyA
+            .SenderId.Should()
+            .NotBe(
+                bodyB.SenderId,
+                "the bot sender must resolve per broadcaster, not one global id"
+            );
+
+        // Each send targets and is signed for its own channel — sender_id matches the resolved token.
+        bodyA.BroadcasterId.Should().Be(channelATwitchId);
+        bodyB.BroadcasterId.Should().Be(channelBTwitchId);
+        sentA.Auth.Should().Be(TwitchHelixAuth.User);
+        sentB.Auth.Should().Be(TwitchHelixAuth.User);
+        sentA.BroadcasterId.Should().Be(channelA, "A's send resolves A's broadcaster token");
+        sentB.BroadcasterId.Should().Be(channelB, "B's send resolves B's broadcaster token");
     }
 
     /// <summary>The send reports its REAL outcome: when Helix accepts the message, it returns <c>true</c>.</summary>
@@ -216,5 +303,28 @@ public sealed class HelixChatProviderTests
         string broadcasterId = (string)t.GetProperty("BroadcasterId")!.GetValue(body)!;
         string message = (string)t.GetProperty("Message")!.GetValue(body)!;
         return (senderId, broadcasterId, message);
+    }
+
+    /// <summary>An <see cref="ITwitchIdentityResolver"/> over a fixed tenant Guid → Twitch channel id map.</summary>
+    private sealed class MultiChannelIdentityResolver(IReadOnlyDictionary<Guid, string> channels)
+        : ITwitchIdentityResolver
+    {
+        public Task<string?> GetTwitchChannelIdAsync(
+            Guid broadcasterId,
+            CancellationToken ct = default
+        ) => Task.FromResult(channels.TryGetValue(broadcasterId, out string? id) ? id : null);
+
+        public Task<Guid?> GetBroadcasterIdAsync(
+            string twitchChannelId,
+            CancellationToken ct = default
+        ) => Task.FromResult<Guid?>(null);
+
+        public Task<Guid?> GetBroadcasterIdByNameAsync(
+            string channelName,
+            CancellationToken ct = default
+        ) => Task.FromResult<Guid?>(null);
+
+        public Task<string?> GetTwitchUserIdAsync(Guid userId, CancellationToken ct = default) =>
+            Task.FromResult<string?>(null);
     }
 }
