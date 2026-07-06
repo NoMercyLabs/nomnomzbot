@@ -40,7 +40,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
-import bot.nomnomz.dashboard.core.designsystem.component.Badge
+import bot.nomnomz.dashboard.core.designsystem.component.TabsList
+import bot.nomnomz.dashboard.core.designsystem.component.TabsTrigger
 import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
@@ -263,13 +264,13 @@ private fun ManagedContent(
 
         // Tab strip — only shown when there are built-in commands to distinguish.
         if (builtins.isNotEmpty()) {
-            Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
+            TabsList {
                 CommandTab.entries.forEach { tab ->
-                    Badge(
+                    TabsTrigger(
                         selected = activeTab == tab,
                         onClick = { activeTab = tab },
                     ) {
-                        Text(text = tab.label(), style = typography.sm)
+                        Text(text = tab.label())
                     }
                 }
             }

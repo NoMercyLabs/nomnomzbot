@@ -69,10 +69,9 @@ private fun resolveBadgeColors(variant: BadgeVariant, tokens: Tokens): BadgeColo
  * shadcn/ui Badge ported to Compose (frontend-design-system.md §4, catalogue row).
  *
  * Foundation-based, token-driven. By default a static display chip. When [selected] is non-null
- * the badge becomes a **selectable toggle** (the catalogue's selectable state): `selected = true`
- * renders the requested [variant]; `selected = false` renders the muted `Outline` look. Combined
- * with [onClick], this replaces Material3's `FilterChip` for single-select chip rows — call sites
- * swap the import and pass `selected` / `onClick`.
+ * the badge becomes a **selectable picker/toggle** and mirrors [TabsTrigger] styling (raised
+ * background when on, bordered ghost when off) instead of the loud Default primary fill.
+ * For page-level tab rows prefer [TabsList] + [TabsTrigger] directly.
  */
 @Composable
 fun Badge(
@@ -87,14 +86,33 @@ fun Badge(
     val spacing: Spacing = LocalSpacing.current
     val typography: Typography = LocalTypography.current
 
-    // Selectable badges show the requested variant when on, and fall back to Outline when off.
-    val effectiveVariant: BadgeVariant =
-        when (selected) {
-            null, true -> variant
-            false -> BadgeVariant.Outline
+    // Selectable badges are picker/toggle chips — mirror [TabsTrigger] (not the loud Default variant).
+    val isSelectable: Boolean = selected != null
+    val colors: BadgeColors
+    val shape: RoundedCornerShape
+    val horizontalPadding = if (isSelectable) spacing.s3 else spacing.s2
+    val verticalPadding = if (isSelectable) spacing.s1_5 else spacing.s0_5
+    val textStyle =
+        if (isSelectable) {
+            typography.sm.copy(fontWeight = FontWeight.Medium)
+        } else {
+            typography.xs.copy(fontWeight = FontWeight.Medium)
         }
-    val colors: BadgeColors = resolveBadgeColors(effectiveVariant, tokens)
-    val shape: RoundedCornerShape = RoundedCornerShape(tokens.radius.md)
+
+    when (selected) {
+        null -> {
+            colors = resolveBadgeColors(variant, tokens)
+            shape = RoundedCornerShape(tokens.radius.md)
+        }
+        true -> {
+            colors = BadgeColors(tokens.background, tokens.foreground, Color.Transparent)
+            shape = RoundedCornerShape(tokens.radius.sm)
+        }
+        false -> {
+            colors = BadgeColors(Color.Transparent, tokens.mutedForeground, tokens.border)
+            shape = RoundedCornerShape(tokens.radius.sm)
+        }
+    }
 
     val interactionSource: MutableInteractionSource = remember { MutableInteractionSource() }
 
@@ -110,10 +128,8 @@ fun Badge(
                 .pointerHoverIcon(if (enabled) PointerIcon.Hand else PointerIcon.Default)
         else Modifier
 
-    val textStyle = typography.xs.copy(fontWeight = FontWeight.Medium, color = colors.content)
-
     CompositionLocalProvider(
-        LocalTextStyle provides textStyle,
+        LocalTextStyle provides textStyle.copy(color = colors.content),
         LocalContentColor provides colors.content,
     ) {
         Row(
@@ -127,7 +143,7 @@ fun Badge(
                     .clip(shape)
                     .background(colors.container)
                     .then(clickModifier)
-                    .padding(horizontal = spacing.s2, vertical = spacing.s0_5),
+                    .padding(horizontal = horizontalPadding, vertical = verticalPadding),
             horizontalArrangement = Arrangement.spacedBy(spacing.s1, Alignment.CenterHorizontally),
             verticalAlignment = Alignment.CenterVertically,
             content = content,
