@@ -74,6 +74,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.Textarea
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
+import bot.nomnomz.dashboard.core.media.AnimatedNetworkImage
 import bot.nomnomz.dashboard.core.network.ChatEmoteCatalogue
 import bot.nomnomz.dashboard.core.network.ChatMessage
 import bot.nomnomz.dashboard.core.network.ChatSettings
@@ -333,8 +334,8 @@ private fun MessageRow(
             message.badges.forEach { badge ->
                 val url: String? = badge.urls["2"] ?: badge.urls["1"] ?: badge.urls.values.firstOrNull()
                 if (url != null) {
-                    AsyncImage(
-                        model = url,
+                    AnimatedNetworkImage(
+                        url = url,
                         contentDescription = badge.setId,
                         modifier = Modifier.size(18.dp).align(Alignment.CenterVertically),
                     )
@@ -359,8 +360,8 @@ private fun MessageRow(
                                 it["2"] ?: it["1"] ?: it.values.firstOrNull()
                             }
                             if (url != null) {
-                                AsyncImage(
-                                    model = url,
+                                AnimatedNetworkImage(
+                                    url = url,
                                     contentDescription = fragment.text,
                                     modifier = Modifier.size(24.dp).align(Alignment.CenterVertically),
                                 )
@@ -373,8 +374,8 @@ private fun MessageRow(
                                 it["2"] ?: it["1"] ?: it.values.firstOrNull()
                             }
                             if (url != null) {
-                                AsyncImage(
-                                    model = url,
+                                AnimatedNetworkImage(
+                                    url = url,
                                     contentDescription = fragment.text,
                                     modifier = Modifier.size(24.dp).align(Alignment.CenterVertically),
                                 )
@@ -759,8 +760,8 @@ private fun EmoteSuggestions(
                 val url: String? =
                     emote.urls["2"] ?: emote.urls["1"] ?: emote.urls.values.firstOrNull()
                 if (url != null) {
-                    AsyncImage(
-                        model = url,
+                    AnimatedNetworkImage(
+                        url = url,
                         contentDescription = null,
                         modifier = Modifier.size(24.dp),
                     )
