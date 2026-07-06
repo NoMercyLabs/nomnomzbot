@@ -49,27 +49,35 @@ class ChatController(
     /** The page render state: loading / ready (with the messages) / empty / error. */
     val state: StateFlow<ChatState> = _state.asStateFlow()
 
-    // The channel the reads/writes target — resolved by [load] and reused by every action so a send / mod
-    // action never has to re-resolve the channel. Null until the first successful resolve.
+    // The channel the reads/writes target — [load] re-resolves it on every call and stores it here so every
+    // action (send / delete / timeout / ban / announce) reuses the CURRENTLY-selected channel. Null until the
+    // first successful resolve; updated whenever the operator switches channels via the switcher.
     private var channelId: String? = null
 
     /**
-     * Resolve the active channel (once), then load its recent chat. Subsequent calls keep the resolved channel
-     * and only re-fetch the feed — so a poll tick (or a post-action reload) re-reads chat without flashing the
-     * Loading state or re-resolving the channel. The first resolve failure surfaces as Error.
+     * Re-resolve the active channel, then load its recent chat. The channel is resolved on EVERY call so a
+     * switcher change re-targets the feed — and every subsequent moderation action, which all reuse [channelId].
+     * When the resolved channel differs from the one currently loaded, the previous channel's feed is dropped to
+     * Loading so its messages / settings / emotes never bleed into the newly-selected channel; a same-channel
+     * reload (poll tick or post-action reload) keeps the feed on screen without flashing Loading. A resolve
+     * failure surfaces as Error.
      */
     suspend fun load() {
-        val channel: String =
-            channelId
-                ?: when (val result: ApiResult<ChannelSummary> = channelsApi.primaryChannel()) {
-                    is ApiResult.Failure -> {
-                        _state.value = ChatState.Error(result.error.message)
-                        return
-                    }
-                    is ApiResult.Ok -> result.value.id.also { channelId = it }
+        val resolved: String =
+            when (val result: ApiResult<ChannelSummary> = channelsApi.primaryChannel()) {
+                is ApiResult.Failure -> {
+                    _state.value = ChatState.Error(result.error.message)
+                    return
                 }
+                is ApiResult.Ok -> result.value.id
+            }
+        // A switch to a different channel clears the prior feed so nothing bleeds across tenants.
+        if (resolved != channelId) {
+            channelId = resolved
+            _state.value = ChatState.Loading
+        }
 
-        when (val result: ApiResult<List<ChatMessage>> = chatApi.messages(channel)) {
+        when (val result: ApiResult<List<ChatMessage>> = chatApi.messages(resolved)) {
             is ApiResult.Failure -> {
                 val current: ChatState = _state.value
                 // A refresh failure over an existing feed surfaces the error without dropping the messages;
@@ -124,6 +132,10 @@ class ChatController(
                     // No history yet — bootstrap a fresh feed; the first message makes the page live.
                     else -> ChatState.Ready(messages = emptyList())
                 }
+            // Skip a message id already in the feed. EventSub delivery is at-least-once — it redelivers
+            // channel.chat.message after a WebSocket reconnect, and the operator's own sent line echoes back —
+            // and the feed's LazyColumn is keyed by id, so a duplicate key would crash the page. De-dup here.
+            if (ready.messages.any { it.id == newLine.id }) return@collect
             // Append (newest at bottom) and cap at 200 so the list stays bounded.
             val capped: List<ChatMessage> = (ready.messages + newLine).takeLast(200)
             _state.value = ready.copy(messages = capped)
