@@ -22537,6 +22537,124 @@
         }
       }
     },
+    "/api/v{version}/channels/{channelId}/moderation/actions/ban": {
+      "post": {
+        "tags": [
+          "Moderation"
+        ],
+        "summary": "Ban a viewer — in THIS channel (a permanent ban, or a timeout when `DurationSeconds` is set) or across\r\nEVERY channel the operator moderates (chat-client.md §3.5, `Scope = \"all_moderated\"`). Both scopes return\r\na NetworkBanResultDto; `this_channel` is a one-row result. The `all_moderated` sweep is\r\nbest-effort per channel and issues each ban AS THE OPERATOR (their own token), so Twitch — not us — decides\r\nwhere the ban is permitted.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BanUserRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BanUserRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/BanUserRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfNetworkBanResultDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v{version}/channels/{channelId}/moderation/rules": {
       "get": {
         "tags": [
@@ -39451,6 +39569,37 @@
           }
         }
       },
+      "BanUserRequest": {
+        "required": [
+          "targetTwitchUserId"
+        ],
+        "type": "object",
+        "properties": {
+          "targetTwitchUserId": {
+            "type": "string"
+          },
+          "reason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "durationSeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "scope": {
+            "type": "string",
+            "default": "this_channel"
+          }
+        },
+        "description": "A dashboard ban request (chat-client.md §3.5). string BanUserRequest.Scope is `\"this_channel\"` (default) or\r\n`\"all_moderated\"`. A int? BanUserRequest.DurationSeconds turns a `this_channel` action into a timeout;\r\n`all_moderated` is always a permanent ban across every channel Twitch says the operator moderates."
+      },
       "BillingPortalDto": {
         "required": [
           "portalUrl"
@@ -39787,6 +39936,29 @@
           }
         },
         "description": "Change the active tier (upgrade/downgrade)."
+      },
+      "ChannelBanOutcomeDto": {
+        "required": [
+          "broadcasterLogin",
+          "succeeded",
+          "error"
+        ],
+        "type": "object",
+        "properties": {
+          "broadcasterLogin": {
+            "type": "string"
+          },
+          "succeeded": {
+            "type": "boolean"
+          },
+          "error": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "description": "One channel's ban outcome — its login, whether the ban landed, and the error when it did not."
       },
       "ChannelDto": {
         "required": [
@@ -44489,6 +44661,39 @@
           }
         },
         "description": "Full music queue including now playing and upcoming tracks."
+      },
+      "NetworkBanResultDto": {
+        "required": [
+          "attempted",
+          "succeeded",
+          "channels"
+        ],
+        "type": "object",
+        "properties": {
+          "attempted": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "succeeded": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "channels": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChannelBanOutcomeDto"
+            }
+          }
+        },
+        "description": "The outcome of a ban for either scope. `this_channel` collapses to a one-row result; `all_moderated`\r\ncarries one ChannelBanOutcomeDto per channel the fan-out touched."
       },
       "NowPlayingDto": {
         "required": [
@@ -49585,6 +49790,36 @@
               },
               {
                 "$ref": "#/components/schemas/MusicQueueDto"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
+      "StatusResponseDtoOfNetworkBanResultDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/NetworkBanResultDto"
               }
             ]
           },
