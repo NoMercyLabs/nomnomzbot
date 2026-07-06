@@ -92,6 +92,15 @@ import kotlinx.datetime.toLocalDateTime
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.chat_action_error
 import nomnomzbot.composeapp.generated.resources.chat_announce_action
+import nomnomzbot.composeapp.generated.resources.chat_ban_action
+import nomnomzbot.composeapp.generated.resources.chat_ban_action_short
+import nomnomzbot.composeapp.generated.resources.chat_ban_confirm
+import nomnomzbot.composeapp.generated.resources.chat_ban_dismiss
+import nomnomzbot.composeapp.generated.resources.chat_ban_reason_label
+import nomnomzbot.composeapp.generated.resources.chat_ban_scope_all_moderated
+import nomnomzbot.composeapp.generated.resources.chat_ban_scope_label
+import nomnomzbot.composeapp.generated.resources.chat_ban_scope_this_channel
+import nomnomzbot.composeapp.generated.resources.chat_ban_title
 import nomnomzbot.composeapp.generated.resources.chat_delete_action
 import nomnomzbot.composeapp.generated.resources.chat_delete_action_short
 import nomnomzbot.composeapp.generated.resources.chat_delete_confirm
@@ -210,6 +219,9 @@ fun ChatScreen(
                         manage = manage,
                         onDelete = { id -> scope.launch { controller.deleteMessage(id) } },
                         onTimeout = { userId -> scope.launch { controller.timeout(userId) } },
+                        onBan = { userId, banScope, reason ->
+                            scope.launch { controller.ban(userId, banScope, reason) }
+                        },
                     )
             }
         }
@@ -240,6 +252,7 @@ private fun MessageFeed(
     manage: ManageDecision,
     onDelete: (messageId: String) -> Unit,
     onTimeout: (userId: String) -> Unit,
+    onBan: (userId: String, scope: String, reason: String?) -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -261,7 +274,13 @@ private fun MessageFeed(
             verticalArrangement = Arrangement.spacedBy(spacing.s2),
         ) {
             items(items = messages, key = { message -> message.id }) { message ->
-                MessageRow(message = message, manage = manage, onDelete = onDelete, onTimeout = onTimeout)
+                MessageRow(
+                    message = message,
+                    manage = manage,
+                    onDelete = onDelete,
+                    onTimeout = onTimeout,
+                    onBan = onBan,
+                )
             }
         }
     }
@@ -274,6 +293,7 @@ private fun MessageRow(
     manage: ManageDecision,
     onDelete: (messageId: String) -> Unit,
     onTimeout: (userId: String) -> Unit,
+    onBan: (userId: String, scope: String, reason: String?) -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -389,7 +409,14 @@ private fun MessageRow(
                 Text(text = message.message, style = typography.sm, color = tokens.cardForeground)
             }
         }
-        MessageActions(message = message, name = name, manage = manage, onDelete = onDelete, onTimeout = onTimeout)
+        MessageActions(
+            message = message,
+            name = name,
+            manage = manage,
+            onDelete = onDelete,
+            onTimeout = onTimeout,
+            onBan = onBan,
+        )
     }
 }
 
@@ -403,6 +430,7 @@ private fun MessageActions(
     manage: ManageDecision,
     onDelete: (messageId: String) -> Unit,
     onTimeout: (userId: String) -> Unit,
+    onBan: (userId: String, scope: String, reason: String?) -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -411,10 +439,12 @@ private fun MessageActions(
     var expanded: Boolean by remember { mutableStateOf(false) }
     var confirmDelete: Boolean by remember { mutableStateOf(false) }
     var confirmTimeout: Boolean by remember { mutableStateOf(false) }
+    var showBan: Boolean by remember { mutableStateOf(false) }
 
     val menuLabel: String = stringResource(Res.string.chat_row_actions, name)
     val deleteItemLabel: String = stringResource(Res.string.chat_delete_action)
     val timeoutItemLabel: String = stringResource(Res.string.chat_timeout_action, name)
+    val banItemLabel: String = stringResource(Res.string.chat_ban_action, name)
 
     Box {
         // The moderation menu trigger is the write affordance: gate it so a caller below the floor sees the
@@ -463,6 +493,23 @@ private fun MessageActions(
                     confirmTimeout = true
                 },
             )
+            DropdownMenuItem(
+                text = {
+                    Text(
+                        text = stringResource(Res.string.chat_ban_action_short),
+                        style = typography.sm,
+                        color = tokens.destructive,
+                    )
+                },
+                modifier = Modifier.semantics {
+                    role = Role.Button
+                    contentDescription = banItemLabel
+                },
+                onClick = {
+                    expanded = false
+                    showBan = true
+                },
+            )
         }
     }
 
@@ -495,6 +542,77 @@ private fun MessageActions(
             onDismiss = { confirmTimeout = false },
         )
     }
+
+    if (showBan) {
+        BanDialog(
+            name = name,
+            onDismiss = { showBan = false },
+            onConfirm = { banScope, reason ->
+                onBan(message.userId, banScope, reason)
+                showBan = false
+            },
+        )
+    }
+}
+
+// The ban dialog (chat-client.md §3.5): choose the scope — this channel only, or every channel the operator
+// moderates — plus an optional reason, then confirm. The backend issues the ban(s) as the operator's own token.
+@Composable
+private fun BanDialog(
+    name: String,
+    onDismiss: () -> Unit,
+    onConfirm: (scope: String, reason: String?) -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    var scope: String by remember { mutableStateOf("this_channel") }
+    var reason: String by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(Res.string.chat_ban_title, name)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(spacing.s4)) {
+                Text(
+                    text = stringResource(Res.string.chat_ban_scope_label),
+                    style = typography.sm,
+                    color = tokens.mutedForeground,
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
+                    Badge(
+                        selected = scope == "this_channel",
+                        onClick = { scope = "this_channel" },
+                    ) {
+                        Text(stringResource(Res.string.chat_ban_scope_this_channel), style = typography.sm)
+                    }
+                    Badge(
+                        selected = scope == "all_moderated",
+                        onClick = { scope = "all_moderated" },
+                    ) {
+                        Text(stringResource(Res.string.chat_ban_scope_all_moderated), style = typography.sm)
+                    }
+                }
+                Textarea(
+                    value = reason,
+                    onValueChange = { reason = it },
+                    label = stringResource(Res.string.chat_ban_reason_label),
+                    minLines = 2,
+                    maxLines = 4,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onConfirm(scope, reason.trim().ifBlank { null }) }) {
+                Text(stringResource(Res.string.chat_ban_confirm), color = tokens.destructive)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(Res.string.chat_ban_dismiss)) }
+        },
+    )
 }
 
 // The send composer: an input that sends as the operator's own account by default or, via the identity selector,

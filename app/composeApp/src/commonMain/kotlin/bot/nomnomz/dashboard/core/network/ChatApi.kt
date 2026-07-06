@@ -46,6 +46,19 @@ interface ChatApi {
     /** Timeout [userId] for [durationSeconds] (moderation quick-action). */
     suspend fun timeout(channelId: String, userId: String, durationSeconds: Int): ApiResult<Unit>
 
+    /**
+     * Ban [targetTwitchUserId] — in THIS channel ([scope] = "this_channel"; a permanent ban, or a timeout when
+     * [durationSeconds] is set) or across EVERY channel the operator moderates ([scope] = "all_moderated"; always a
+     * permanent ban, issued as the operator's own token). Returns the per-channel outcome; "this_channel" is one row.
+     */
+    suspend fun banUser(
+        channelId: String,
+        targetTwitchUserId: String,
+        scope: String,
+        reason: String? = null,
+        durationSeconds: Int? = null,
+    ): ApiResult<NetworkBanResult>
+
     /** Load the channel's current chat mode settings (slow, sub-only, emote-only, followers-only). */
     suspend fun settings(channelId: String): ApiResult<ChatSettings>
 
@@ -99,6 +112,20 @@ class RestChatApi(private val client: ApiClient) : ChatApi {
                 targetUserId = userId,
                 durationSeconds = durationSeconds,
             ),
+        )
+
+    // POST body is the backend BanUserRequest; the response is a StatusResponseDto<NetworkBanResultDto>, so
+    // postEnvelope unwraps `data` into NetworkBanResult (a one-row result for "this_channel").
+    override suspend fun banUser(
+        channelId: String,
+        targetTwitchUserId: String,
+        scope: String,
+        reason: String?,
+        durationSeconds: Int?,
+    ): ApiResult<NetworkBanResult> =
+        client.postEnvelope(
+            "api/v1/channels/$channelId/moderation/actions/ban",
+            BanUserBody(targetTwitchUserId, reason, durationSeconds, scope),
         )
 
     override suspend fun settings(channelId: String): ApiResult<ChatSettings> =
@@ -253,4 +280,35 @@ data class ChatEmoteCatalogue(
     val animated: Boolean = false,
     val zeroWidth: Boolean = false,
     val setId: String? = null,
+)
+
+/**
+ * The ban-request body (backend `BanUserRequest`). camelCase mirror. [scope] is "this_channel" (default) or
+ * "all_moderated"; a [durationSeconds] turns a "this_channel" ban into a timeout.
+ */
+@Serializable
+data class BanUserBody(
+    val targetTwitchUserId: String,
+    val reason: String? = null,
+    val durationSeconds: Int? = null,
+    val scope: String = "this_channel",
+)
+
+/**
+ * The outcome of a ban (backend `NetworkBanResultDto`). [attempted] / [succeeded] tally the channels; [channels]
+ * carries one [ChannelBanOutcome] per channel touched. A "this_channel" ban collapses to a one-row result.
+ */
+@Serializable
+data class NetworkBanResult(
+    val attempted: Int = 0,
+    val succeeded: Int = 0,
+    val channels: List<ChannelBanOutcome> = emptyList(),
+)
+
+/** One channel's ban outcome (backend `ChannelBanOutcomeDto`) — its login, whether the ban landed, and any error. */
+@Serializable
+data class ChannelBanOutcome(
+    val broadcasterLogin: String = "",
+    val succeeded: Boolean = false,
+    val error: String? = null,
 )

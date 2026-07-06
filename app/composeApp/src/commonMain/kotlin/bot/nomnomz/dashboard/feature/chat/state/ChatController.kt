@@ -22,6 +22,7 @@ import bot.nomnomz.dashboard.core.network.ChatFragment
 import bot.nomnomz.dashboard.core.network.ChatMention
 import bot.nomnomz.dashboard.core.network.ChatMessage
 import bot.nomnomz.dashboard.core.network.ChatSettings
+import bot.nomnomz.dashboard.core.network.NetworkBanResult
 import bot.nomnomz.dashboard.core.realtime.HubChatMessage
 import bot.nomnomz.dashboard.core.realtime.HubEvent
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -156,6 +157,19 @@ class ChatController(
     suspend fun timeout(userId: String, durationSeconds: Int = ChatApi.DEFAULT_TIMEOUT_SECONDS) {
         val channel: String = channelId ?: return failAction(NoChannelError)
         afterAction(chatApi.timeout(channel, userId, durationSeconds))
+    }
+
+    /**
+     * Ban [userId] — in this channel only ([scope] = "this_channel") or across every channel the operator moderates
+     * ([scope] = "all_moderated"). The screen confirms first (destructive). On success the ban lands via Twitch (no
+     * feed reload — a banned chatter simply stops appearing); a network failure surfaces over the intact feed.
+     */
+    suspend fun ban(userId: String, scope: String, reason: String? = null) {
+        val channel: String = channelId ?: return failAction(NoChannelError)
+        when (val result: ApiResult<NetworkBanResult> = chatApi.banUser(channel, userId, scope, reason)) {
+            is ApiResult.Ok -> Unit
+            is ApiResult.Failure -> failAction(result.error.message)
+        }
     }
 
     /** Load the channel's current chat settings and merge them into the Ready state. */

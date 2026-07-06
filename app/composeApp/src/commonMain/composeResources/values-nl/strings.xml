@@ -1034,6 +1034,15 @@
     <string name="chat_send_identity_label">Verstuur als</string>
     <string name="chat_send_as_you">Jij</string>
     <string name="chat_send_as_bot">Bot</string>
+    <string name="chat_ban_action">%1$s verbannen</string>
+    <string name="chat_ban_action_short">Gebruiker verbannen</string>
+    <string name="chat_ban_title">%1$s verbannen?</string>
+    <string name="chat_ban_scope_label">Waar moet deze verbanning gelden?</string>
+    <string name="chat_ban_scope_this_channel">Alleen dit kanaal</string>
+    <string name="chat_ban_scope_all_moderated">Elk kanaal dat ik modereer</string>
+    <string name="chat_ban_reason_label">Reden (optioneel)</string>
+    <string name="chat_ban_confirm">Verbannen</string>
+    <string name="chat_ban_dismiss">Annuleren</string>
     <string name="chat_delete_title">Bericht verwijderen?</string>
     <string name="chat_delete_message">Dit bericht van %1$s verwijderen? Dit kan niet ongedaan worden gemaakt.</string>
     <string name="chat_delete_confirm">Verwijderen</string>

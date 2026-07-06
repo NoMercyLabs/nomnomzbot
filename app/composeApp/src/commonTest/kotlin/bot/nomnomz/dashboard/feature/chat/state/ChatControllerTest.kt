@@ -19,6 +19,7 @@ import bot.nomnomz.dashboard.core.network.ChatApi
 import bot.nomnomz.dashboard.core.network.ChatEmoteCatalogue
 import bot.nomnomz.dashboard.core.network.ChatMessage
 import bot.nomnomz.dashboard.core.network.ChatSettings
+import bot.nomnomz.dashboard.core.network.NetworkBanResult
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -265,6 +266,43 @@ class ChatControllerTest {
         assertEquals("Missing scope.", state.actionError)
         assertEquals(1, chatApi.messagesCalls)
     }
+
+    @Test
+    fun ban_posts_to_the_ban_route_with_the_chosen_scope() = runTest {
+        val troll = ChatMessage(id = "m1", userId = "u9", message = "rude")
+        val chatApi = FakeChatApi(ApiResult.Ok(listOf(troll)))
+        val controller =
+            ChatController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), chatApi)
+
+        controller.load()
+        controller.ban("u9", scope = "all_moderated", reason = "spam")
+
+        // The ban hit the ban route with the resolved channel, the target, and the chosen scope.
+        assertEquals(listOf(Triple("ch1", "u9", "all_moderated")), chatApi.banCalls)
+        assertTrue(controller.state.value is ChatState.Ready)
+    }
+
+    @Test
+    fun ban_surfaces_the_error_and_keeps_the_feed_when_it_fails() = runTest {
+        val line = ChatMessage(id = "m1", userId = "u9", message = "rude")
+        val chatApi =
+            FakeChatApi(
+                messagesResults = listOf(ApiResult.Ok(listOf(line))),
+                banResult = ApiResult.Failure(ApiError(403, "FORBIDDEN", "Missing scope.")),
+            )
+        val controller =
+            ChatController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), chatApi)
+
+        controller.load()
+        controller.ban("u9", scope = "this_channel")
+
+        assertEquals(listOf(Triple("ch1", "u9", "this_channel")), chatApi.banCalls)
+        val state: ChatState = controller.state.value
+        assertTrue(state is ChatState.Ready)
+        // The feed is intact and the failure is surfaced.
+        assertEquals(listOf("m1"), (state as ChatState.Ready).messages.map { it.id })
+        assertEquals("Missing scope.", state.actionError)
+    }
 }
 
 private class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : ChannelsApi {
@@ -291,6 +329,8 @@ private class FakeChatApi(
     private val sendResult: ApiResult<Unit> = ApiResult.Ok(Unit),
     private val deleteResult: ApiResult<Unit> = ApiResult.Ok(Unit),
     private val timeoutResult: ApiResult<Unit> = ApiResult.Ok(Unit),
+    private val banResult: ApiResult<NetworkBanResult> =
+        ApiResult.Ok(NetworkBanResult(1, 1, emptyList())),
     private val settingsResult: ApiResult<ChatSettings> = ApiResult.Ok(ChatSettings()),
     private val updateSettingsResult: ApiResult<ChatSettings> = ApiResult.Ok(ChatSettings()),
     private val announceResult: ApiResult<Unit> = ApiResult.Ok(Unit),
@@ -305,6 +345,7 @@ private class FakeChatApi(
     val sendCalls: MutableList<Triple<String, String, String>> = mutableListOf()
     val deleteCalls: MutableList<Pair<String, String>> = mutableListOf()
     val timeoutCalls: MutableList<Triple<String, String, Int>> = mutableListOf()
+    val banCalls: MutableList<Triple<String, String, String>> = mutableListOf()
     val announceCalls: MutableList<Triple<String, String, String>> = mutableListOf()
 
     override suspend fun messages(channelId: String, limit: Int): ApiResult<List<ChatMessage>> {
@@ -338,6 +379,17 @@ private class FakeChatApi(
     ): ApiResult<Unit> {
         timeoutCalls.add(Triple(channelId, userId, durationSeconds))
         return timeoutResult
+    }
+
+    override suspend fun banUser(
+        channelId: String,
+        targetTwitchUserId: String,
+        scope: String,
+        reason: String?,
+        durationSeconds: Int?,
+    ): ApiResult<NetworkBanResult> {
+        banCalls.add(Triple(channelId, targetTwitchUserId, scope))
+        return banResult
     }
 
     override suspend fun settings(channelId: String): ApiResult<ChatSettings> = settingsResult
