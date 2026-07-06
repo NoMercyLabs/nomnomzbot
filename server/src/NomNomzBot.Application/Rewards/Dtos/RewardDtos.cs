@@ -15,6 +15,9 @@ public sealed record RewardListItem(
     string Title,
     int Cost,
     bool IsEnabled,
+    // True when the bot created this reward under its own Twitch client and may edit/delete it; false for
+    // externally-created rewards (Twitch UI / other apps) the dashboard must show as read-only.
+    bool IsManageable,
     string? BackgroundColor,
     string? ImageUrl,
     DateTime CreatedAt
@@ -40,6 +43,9 @@ public sealed record RewardDetail(
     string? Prompt,
     int Cost,
     bool IsEnabled,
+    // True when the bot created this reward under its own Twitch client and may edit/delete it; false for
+    // externally-created rewards (Twitch UI / other apps) the dashboard must show as read-only.
+    bool IsManageable,
     bool IsUserInputRequired,
     bool IsPaused,
     string? BackgroundColor,

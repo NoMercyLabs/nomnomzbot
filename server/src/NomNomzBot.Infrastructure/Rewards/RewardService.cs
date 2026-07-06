@@ -154,6 +154,7 @@ public class RewardService : IRewardService
                 r.Title,
                 r.Cost ?? 0,
                 r.IsEnabled,
+                r.IsManageable,
                 null,
                 null,
                 r.CreatedAt
@@ -330,6 +331,173 @@ public class RewardService : IRewardService
             return Result.Success();
         }
 
+        int syncedCount = await UpsertTwitchRewardsAsync(
+            broadcaster,
+            twitchRewards,
+            cancellationToken
+        );
+
+        _logger.LogInformation(
+            "Synced {Count} rewards for broadcaster {BroadcasterId}",
+            syncedCount,
+            broadcasterId
+        );
+        return Result.Success();
+    }
+
+    public async Task<Result> ImportFromTwitchAsync(
+        string broadcasterId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (!Guid.TryParse(broadcasterId, out Guid broadcaster))
+            return Result.Failure($"Invalid channel ID '{broadcasterId}'.", "VALIDATION_FAILED");
+
+        bool channelExists = await _db.Channels.AnyAsync(
+            c => c.Id == broadcaster,
+            cancellationToken
+        );
+        if (!channelExists)
+            return Errors.ChannelNotFound(broadcasterId);
+
+        // Import pulls the FULL reward set (rewards.md §3.1) — `only_manageable_rewards=false` — so
+        // externally-created rewards (Twitch UI / other apps) come across too, each carrying Twitch's
+        // `is_manageable` flag. A failed read is surfaced with its real Helix code (never masqueraded as
+        // "no rewards"); a genuine empty set is a success with nothing imported.
+        Result<IReadOnlyList<TwitchCustomReward>> rewardsResult =
+            await _channelPoints.GetCustomRewardsAsync(
+                broadcaster,
+                onlyManageableRewards: false,
+                ct: cancellationToken
+            );
+        if (rewardsResult.IsFailure)
+        {
+            _logger.LogWarning(
+                "Reward import: reading channel-point rewards from Twitch failed for {BroadcasterId}: {Error} ({Code}){Detail}",
+                broadcasterId,
+                rewardsResult.ErrorMessage,
+                rewardsResult.ErrorCode,
+                rewardsResult.ErrorDetail is null ? "" : $" — {rewardsResult.ErrorDetail}"
+            );
+            return rewardsResult;
+        }
+
+        IReadOnlyList<TwitchCustomReward> twitchRewards = rewardsResult.Value;
+        if (twitchRewards.Count == 0)
+        {
+            _logger.LogInformation(
+                "Reward import: Twitch returned no channel-point rewards for broadcaster {BroadcasterId}",
+                broadcasterId
+            );
+            return Result.Success();
+        }
+
+        int importedCount = await UpsertTwitchRewardsAsync(
+            broadcaster,
+            twitchRewards,
+            cancellationToken
+        );
+
+        _logger.LogInformation(
+            "Imported {Count} rewards (managed + external) for broadcaster {BroadcasterId}",
+            importedCount,
+            broadcasterId
+        );
+        return Result.Success();
+    }
+
+    public async Task<Result<RewardDetail>> RecreateUnderBotAsync(
+        string broadcasterId,
+        string rewardId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (!Guid.TryParse(broadcasterId, out Guid broadcaster))
+            return Result.Failure<RewardDetail>(
+                $"Invalid channel ID '{broadcasterId}'.",
+                "VALIDATION_FAILED"
+            );
+
+        if (!Guid.TryParse(rewardId, out Guid guid))
+            return Result.Failure<RewardDetail>(
+                $"Invalid reward ID '{rewardId}'.",
+                "VALIDATION_FAILED"
+            );
+
+        Reward? external = await _db.Rewards.FirstOrDefaultAsync(
+            r => r.Id == guid && r.BroadcasterId == broadcaster,
+            cancellationToken
+        );
+
+        if (external is null)
+            return Errors.NotFound<RewardDetail>("Reward", rewardId);
+
+        // Twitch only lets a client manage rewards ITS OWN client_id created. A reward we already manage has
+        // nothing to convert — recreating it would just duplicate it under the same client. ALREADY_EXISTS maps
+        // to 409 Conflict (BaseController.ResultResponse), the correct signal for "already in the target state".
+        if (external.IsManageable)
+            return Result.Failure<RewardDetail>(
+                "This reward is already managed by the bot; there is nothing to convert.",
+                "ALREADY_EXISTS"
+            );
+
+        // We cannot take over the original (another client_id owns it), so we recreate an equivalent reward
+        // under the bot's client. The new reward gets its own Twitch id and IS manageable.
+        Result<TwitchCustomReward> created = await _channelPoints.CreateCustomRewardAsync(
+            broadcaster,
+            new CreateCustomRewardRequest(
+                Title: external.Title,
+                Cost: external.Cost ?? 0,
+                Prompt: external.Description,
+                IsEnabled: external.IsEnabled
+            ),
+            cancellationToken
+        );
+        if (created.IsFailure)
+            return created.WithValue<RewardDetail>(default!);
+
+        TwitchCustomReward tr = created.Value;
+        Reward botReward = new()
+        {
+            Id = Guid.NewGuid(),
+            BroadcasterId = broadcaster,
+            Title = tr.Title,
+            Description = tr.Prompt,
+            Cost = tr.Cost,
+            IsEnabled = tr.IsEnabled,
+            TwitchRewardId = tr.Id,
+            IsPlatform = true,
+            IsManageable = true,
+        };
+
+        // A single insert (the original external row is left exactly as-is) — one SaveChanges is atomic,
+        // matching how the rest of this service persists.
+        _db.Rewards.Add(botReward);
+        await _db.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation(
+            "Recreated external reward '{Title}' ({ExternalId}) under the bot as {TwitchRewardId} for {BroadcasterId}",
+            external.Title,
+            external.TwitchRewardId,
+            tr.Id,
+            broadcasterId
+        );
+        return Result.Success(ToDetail(botReward));
+    }
+
+    /// <summary>
+    /// Upserts a set of Twitch rewards into the local table, matching first by Twitch id, then by title
+    /// (linking a locally-created reward), else creating a new row. The persisted
+    /// <see cref="Reward.IsManageable"/> mirrors Twitch's <c>is_manageable</c> so external rewards are recorded
+    /// as read-only; the platform flag tracks it (a new bot-managed row is a platform reward). Shared by sync
+    /// (managed set only) and import (full set). Returns the number of rewards upserted.
+    /// </summary>
+    private async Task<int> UpsertTwitchRewardsAsync(
+        Guid broadcaster,
+        IReadOnlyList<TwitchCustomReward> twitchRewards,
+        CancellationToken cancellationToken
+    )
+    {
         List<Reward> existing = await _db
             .Rewards.Where(r => r.BroadcasterId == broadcaster)
             .ToListAsync(cancellationToken);
@@ -338,12 +506,15 @@ public class RewardService : IRewardService
             .Where(r => r.TwitchRewardId != null)
             .ToDictionary(r => r.TwitchRewardId!);
 
-        Dictionary<string, Reward> existingByTitle = existing.ToDictionary(
-            r => r.Title,
-            StringComparer.OrdinalIgnoreCase
-        );
+        // Title-match is a fallback for linking a locally-created reward (no Twitch id yet). Titles are NOT
+        // unique — once a reward is recreated under the bot, its original external row and the new bot row share
+        // a title — so group and keep the first candidate rather than letting ToDictionary throw on a duplicate.
+        Dictionary<string, Reward> existingByTitle = existing
+            .Where(r => r.TwitchRewardId is null)
+            .GroupBy(r => r.Title, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
 
-        int syncedCount = 0;
+        int upsertedCount = 0;
         foreach (TwitchCustomReward tr in twitchRewards)
         {
             if (existingByTwitchId.TryGetValue(tr.Id, out Reward? reward))
@@ -353,7 +524,8 @@ public class RewardService : IRewardService
                 reward.Cost = tr.Cost;
                 reward.IsEnabled = tr.IsEnabled;
                 reward.Description = tr.Prompt;
-                syncedCount++;
+                reward.IsManageable = tr.IsManageable;
+                upsertedCount++;
             }
             else if (existingByTitle.TryGetValue(tr.Title, out Reward? rewardByTitle))
             {
@@ -362,7 +534,8 @@ public class RewardService : IRewardService
                 rewardByTitle.Cost = tr.Cost;
                 rewardByTitle.IsEnabled = tr.IsEnabled;
                 rewardByTitle.Description = tr.Prompt;
-                syncedCount++;
+                rewardByTitle.IsManageable = tr.IsManageable;
+                upsertedCount++;
             }
             else
             {
@@ -377,21 +550,16 @@ public class RewardService : IRewardService
                         Cost = tr.Cost,
                         IsEnabled = tr.IsEnabled,
                         Description = tr.Prompt,
-                        IsPlatform = true,
+                        IsPlatform = tr.IsManageable,
+                        IsManageable = tr.IsManageable,
                     }
                 );
-                syncedCount++;
+                upsertedCount++;
             }
         }
 
         await _db.SaveChangesAsync(cancellationToken);
-
-        _logger.LogInformation(
-            "Synced {Count} rewards for broadcaster {BroadcasterId}",
-            syncedCount,
-            broadcasterId
-        );
-        return Result.Success();
+        return upsertedCount;
     }
 
     private static RewardDetail ToDetail(Reward r) =>
@@ -401,6 +569,7 @@ public class RewardService : IRewardService
             r.Description,
             r.Cost ?? 0,
             r.IsEnabled,
+            r.IsManageable,
             false,
             false,
             null,

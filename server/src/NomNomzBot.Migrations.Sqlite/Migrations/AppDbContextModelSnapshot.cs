@@ -5375,6 +5375,9 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                         .HasColumnType("INTEGER")
                         .HasDefaultValue(true);
 
+                    b.Property<bool>("IsManageable")
+                        .HasColumnType("INTEGER");
+
                     b.Property<bool>("IsPlatform")
                         .HasColumnType("INTEGER");
 

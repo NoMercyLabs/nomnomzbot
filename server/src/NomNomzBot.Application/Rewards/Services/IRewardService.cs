@@ -77,9 +77,37 @@ public interface IRewardService
         CancellationToken cancellationToken = default
     );
 
-    /// <summary>Sync local rewards with Twitch channel point rewards.</summary>
+    /// <summary>
+    /// Sync local rewards with the bot's MANAGED Twitch channel point rewards (only the rewards this
+    /// client_id created). Reconciliation only — does not pull externally-created rewards.
+    /// </summary>
     Task<Result> SyncWithTwitchAsync(
         string broadcasterId,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>
+    /// Import ALL of the channel's Twitch channel-point rewards into the local table — including externally
+    /// created ones (Twitch UI / other apps) that this client_id cannot manage. Each imported reward records
+    /// whether the bot can manage it (<see cref="Domain.Rewards.Entities.Reward.IsManageable"/>), so the
+    /// dashboard can offer edit/delete only where Twitch actually permits it. Upserts by Twitch id, then by
+    /// title, else creates — the same reconciliation as sync, widened to the unmanaged set.
+    /// </summary>
+    Task<Result> ImportFromTwitchAsync(
+        string broadcasterId,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>
+    /// Convert an external (non-manageable) reward to bot-controlled by RECREATING an equivalent reward under
+    /// the bot's own Twitch client — Twitch does not allow taking over a reward another client_id created.
+    /// Copies title/cost/prompt/enabled to a new Helix reward, persists it as a second, bot-managed row (new
+    /// Twitch id, <c>IsManageable = true</c>), and leaves the original external row untouched. Fails when the
+    /// target reward is already bot-manageable (nothing to convert).
+    /// </summary>
+    Task<Result<RewardDetail>> RecreateUnderBotAsync(
+        string broadcasterId,
+        string rewardId,
         CancellationToken cancellationToken = default
     );
 }

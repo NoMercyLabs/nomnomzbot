@@ -220,6 +220,36 @@ public class RewardsController : BaseController
         return Ok(new StatusResponseDto<object> { Message = "Rewards synced with Twitch." });
     }
 
+    /// <summary>Import ALL of the channel's Twitch rewards — including external (non-bot) ones — into the local table.</summary>
+    [RequireAction("reward:sync")]
+    [HttpPost("import")]
+    [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> ImportRewards(string channelId, CancellationToken ct)
+    {
+        Result result = await _rewardService.ImportFromTwitchAsync(channelId, ct);
+        if (result.IsFailure)
+            return ResultResponse(result);
+        return Ok(new StatusResponseDto<object> { Message = "Rewards imported from Twitch." });
+    }
+
+    /// <summary>Convert an external reward to bot-controlled by recreating an equivalent reward under the bot's client.</summary>
+    [RequireAction("reward:sync")]
+    [HttpPost("{rewardId}/recreate")]
+    [ProducesResponseType<StatusResponseDto<RewardDetail>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> RecreateReward(
+        string channelId,
+        string rewardId,
+        CancellationToken ct
+    )
+    {
+        Result<RewardDetail> result = await _rewardService.RecreateUnderBotAsync(
+            channelId,
+            rewardId,
+            ct
+        );
+        return ResultResponse(result);
+    }
+
     /// <summary>Top-50 chatter leaderboard ranked by message count, with resolved display names.</summary>
     [RequireAction("reward:read")]
     [HttpGet("leaderboard")]
