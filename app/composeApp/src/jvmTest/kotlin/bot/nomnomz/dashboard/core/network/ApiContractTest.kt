@@ -64,6 +64,7 @@ class ApiContractTest {
             AlertSummary.serializer() to "EventResponseListItem",
             AlertDetail.serializer() to "EventResponseDto",
             WidgetSummary.serializer() to "WidgetDetail",
+            RewardSummary.serializer() to "RewardDetail",
             RedemptionSummary.serializer() to "RedemptionListItem",
             CurrencyAccountSummary.serializer() to "CurrencyAccountDto",
             EarningRule.serializer() to "EarningRuleDto",

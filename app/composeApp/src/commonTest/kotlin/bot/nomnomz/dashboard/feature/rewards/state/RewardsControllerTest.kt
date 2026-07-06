@@ -307,6 +307,72 @@ class RewardsControllerTest {
         assertEquals(1, (state as RewardsState.Ready).rewards.size)
         assertEquals("no permission", state.actionError)
     }
+
+    @Test
+    fun import_pulls_external_rewards_into_the_list_then_reloads() = runTest {
+        // The store starts with only the bot's own reward; import brings an EXTERNAL one (isManageable = false)
+        // into it, so the post-import reload must surface that read-only reward — proving import calls the api
+        // AND re-lists the newly-visible external reward.
+        val rewardsApi =
+            RecordingRewardsApi(
+                initial =
+                    ApiResult.Ok(
+                        listOf(
+                            RewardSummary(id = "r1", title = "Hydrate!", isManageable = true)
+                        )
+                    ),
+                importedRewards =
+                    listOf(
+                        RewardSummary(id = "ext1", title = "StreamElements Reward", isManageable = false)
+                    ),
+            )
+        val controller =
+            RewardsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), rewardsApi)
+        controller.load()
+
+        controller.import()
+
+        // The api was hit for the resolved channel.
+        assertEquals(listOf("ch1"), rewardsApi.imported)
+
+        // The reload now surfaces the external reward alongside the bot's own — and it is read-only (not manageable).
+        val state: RewardsState = controller.state.value
+        assertTrue(state is RewardsState.Ready)
+        val rewards: List<RewardSummary> = (state as RewardsState.Ready).rewards
+        assertEquals(2, rewards.size)
+        val external: RewardSummary = rewards.first { it.id == "ext1" }
+        assertEquals("StreamElements Reward", external.title)
+        assertTrue(!external.isManageable)
+        assertNull(state.actionError)
+    }
+
+    @Test
+    fun recreate_takes_control_of_an_external_reward_then_reloads_it_as_manageable() = runTest {
+        // The store holds one EXTERNAL reward (isManageable = false). Take control recreates it under the bot's
+        // client; the fake flips it to manageable, so the post-recreate reload must show it now manageable —
+        // proving recreate targets the right reward AND re-lists the flipped state.
+        val rewardsApi =
+            RecordingRewardsApi(
+                ApiResult.Ok(
+                    listOf(RewardSummary(id = "ext1", title = "External Reward", isManageable = false))
+                )
+            )
+        val controller =
+            RewardsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), rewardsApi)
+        controller.load()
+
+        controller.recreate(rewardId = "ext1")
+
+        // The api recorded exactly the reward we took control of.
+        assertEquals(listOf("ext1"), rewardsApi.recreated)
+
+        // The reload reflects the consequence: the same reward row is now manageable.
+        val state: RewardsState = controller.state.value
+        assertTrue(state is RewardsState.Ready)
+        val reward: RewardSummary = (state as RewardsState.Ready).rewards.first { it.id == "ext1" }
+        assertTrue(reward.isManageable)
+        assertNull(state.actionError)
+    }
 }
 
 private class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : ChannelsApi {
@@ -337,6 +403,9 @@ private class RecordingRewardsApi(
     initial: ApiResult<List<RewardSummary>>,
     private val writeResult: ApiResult<Unit> = ApiResult.Ok(Unit),
     private val redemptionQueue: List<RedemptionSummary> = emptyList(),
+    // The EXTERNAL rewards a successful import() pulls into the store (isManageable = false), modelling the
+    // backend bringing rewards created outside the bot into the read model.
+    private val importedRewards: List<RewardSummary> = emptyList(),
 ) : RewardsApi {
     private val listFailure: ApiError? = (initial as? ApiResult.Failure)?.error
     private val store: MutableList<RewardSummary> =
@@ -401,6 +470,8 @@ private class RecordingRewardsApi(
 
     val fulfilled: MutableList<String> = mutableListOf()
     val refunded: MutableList<String> = mutableListOf()
+    val imported: MutableList<String> = mutableListOf()
+    val recreated: MutableList<String> = mutableListOf()
 
     override suspend fun fulfillRedemption(channelId: String, redemptionId: String): ApiResult<Unit> {
         fulfilled += redemptionId
@@ -413,4 +484,23 @@ private class RecordingRewardsApi(
     }
 
     override suspend fun sync(channelId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+
+    override suspend fun import(channelId: String): ApiResult<Unit> {
+        imported += channelId
+        if (writeResult is ApiResult.Ok) {
+            importedRewards.forEach { external ->
+                if (store.none { it.id == external.id }) store += external
+            }
+        }
+        return writeResult
+    }
+
+    override suspend fun recreate(channelId: String, rewardId: String): ApiResult<Unit> {
+        recreated += rewardId
+        if (writeResult is ApiResult.Ok) {
+            val index: Int = store.indexOfFirst { it.id == rewardId }
+            if (index >= 0) store[index] = store[index].copy(isManageable = true)
+        }
+        return writeResult
+    }
 }

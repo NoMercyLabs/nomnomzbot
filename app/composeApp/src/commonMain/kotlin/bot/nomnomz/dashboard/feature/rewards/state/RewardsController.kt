@@ -147,6 +147,25 @@ class RewardsController(
     }
 
     /**
+     * Import ALL of the channel's Twitch rewards — including EXTERNAL rewards created outside the bot — into the
+     * read model so they become visible (read-only until taken control of). Reloads on success; surfaces the
+     * error on failure. Distinct from [sync], which only refreshes the bot's own rewards.
+     */
+    suspend fun import() {
+        val channel: String = channelId ?: return failWrite(NoChannelError)
+        afterWrite(rewardsApi.import(channel))
+    }
+
+    /**
+     * Take control of an external reward by recreating it under the bot's own Twitch client, so the bot can then
+     * manage it. Reloads on success (the row flips to manageable); surfaces the error on failure.
+     */
+    suspend fun recreate(rewardId: String) {
+        val channel: String = channelId ?: return failWrite(NoChannelError)
+        afterWrite(rewardsApi.recreate(channel, rewardId))
+    }
+
+    /**
      * Subscribe to [hubEvents] so new redemptions appear instantly without a poll:
      * - [HubEvent.RewardRedeemed]: prepends a new [RedemptionSummary] to the pending queue (cap 50).
      */

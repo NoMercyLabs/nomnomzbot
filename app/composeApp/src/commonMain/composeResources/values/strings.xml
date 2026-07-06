@@ -492,6 +492,9 @@
     <string name="rewards_title">Rewards</string>
     <string name="rewards_new_action">+ New reward</string>
     <string name="rewards_sync_action">Sync from Twitch</string>
+    <string name="rewards_import_action">Import from Twitch</string>
+    <string name="rewards_recreate_action">Take control</string>
+    <string name="rewards_external_readonly_reason">Created outside the bot — use Take control to manage it.</string>
     <string name="rewards_toggle_action">Toggle %1$s</string>
     <string name="rewards_edit_action">Edit %1$s</string>
     <string name="rewards_edit_action_short">Edit</string>

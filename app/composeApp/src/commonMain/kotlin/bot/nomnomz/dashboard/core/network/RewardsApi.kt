@@ -20,10 +20,12 @@ import kotlinx.serialization.Serializable
 // tests without HTTP.
 //
 // Backend routes (RewardsController):
-//   GET    /api/v1/channels/{channelId}/rewards            →  PaginatedResponse<RewardListItem>
-//   POST   /api/v1/channels/{channelId}/rewards            →  StatusResponseDto<RewardDetail> (201)
-//   PUT    /api/v1/channels/{channelId}/rewards/{rewardId} →  StatusResponseDto<RewardDetail>
-//   DELETE /api/v1/channels/{channelId}/rewards/{rewardId} →  204 No Content
+//   GET    /api/v1/channels/{channelId}/rewards                     →  PaginatedResponse<RewardDetail>
+//   POST   /api/v1/channels/{channelId}/rewards                     →  StatusResponseDto<RewardDetail> (201)
+//   PUT    /api/v1/channels/{channelId}/rewards/{rewardId}          →  StatusResponseDto<RewardDetail>
+//   DELETE /api/v1/channels/{channelId}/rewards/{rewardId}          →  204 No Content
+//   POST   /api/v1/channels/{channelId}/rewards/import              →  StatusResponseDto<object> (summary)
+//   POST   /api/v1/channels/{channelId}/rewards/{rewardId}/recreate →  StatusResponseDto<RewardDetail>
 interface RewardsApi {
     /** The channel's channel-point rewards — the first page the backend resolves. */
     suspend fun list(channelId: String): ApiResult<List<RewardSummary>>
@@ -62,6 +64,23 @@ interface RewardsApi {
      * The backend echoes a plain 200 with a status message; no body needed here.
      */
     suspend fun sync(channelId: String): ApiResult<Unit>
+
+    /**
+     * Import ALL of the channel's Twitch rewards — including EXTERNAL ones created outside the bot (in the Twitch
+     * dashboard or by another app such as StreamElements) — into the read model (backend `POST /rewards/import`).
+     * Distinct from [sync], which only refreshes the rewards the bot itself created: import brings the read-only
+     * external rewards into view so they can be seen and, one by one, taken control of via [recreate]. Bodyless
+     * POST; the backend echoes a status summary, so any 2xx is success and the page re-lists.
+     */
+    suspend fun import(channelId: String): ApiResult<Unit>
+
+    /**
+     * Take control of an EXTERNAL reward by recreating an equivalent reward under the bot's own Twitch client
+     * (backend `POST /rewards/{rewardId}/recreate`), so the bot can subsequently manage (edit / toggle / delete)
+     * it. Addressed by the external reward's [rewardId]. The backend returns the recreated `RewardDetail`, but the
+     * page re-lists after the write, so any 2xx is success here.
+     */
+    suspend fun recreate(channelId: String, rewardId: String): ApiResult<Unit>
 }
 
 class RestRewardsApi(private val client: ApiClient) : RewardsApi {
@@ -122,6 +141,16 @@ class RestRewardsApi(private val client: ApiClient) : RewardsApi {
     // Bodyless POST — the backend re-pulls from Twitch and returns a plain status message; no body needed.
     override suspend fun sync(channelId: String): ApiResult<Unit> =
         client.postUnit("api/v1/channels/$channelId/rewards/sync")
+
+    // Bodyless POST — the backend pulls every Twitch reward (incl. external ones) into the read model and returns
+    // a status summary; the page re-lists, so any 2xx is success.
+    override suspend fun import(channelId: String): ApiResult<Unit> =
+        client.postUnit("api/v1/channels/$channelId/rewards/import")
+
+    // Bodyless POST — the backend recreates the external reward under the bot's own client and returns the new
+    // RewardDetail; the page re-lists, so any 2xx is success.
+    override suspend fun recreate(channelId: String, rewardId: String): ApiResult<Unit> =
+        client.postUnit("api/v1/channels/$channelId/rewards/$rewardId/recreate")
 }
 
 /**
@@ -152,9 +181,12 @@ data class UpdateRewardBody(
 )
 
 /**
- * A channel-point reward (backend `RewardListItem` — the list-row projection of a reward). The field names are
- * the serialized (camelCase) names of `RewardListItem`; the client reads the subset the row renders (ApiClient's
- * Json ignores unknown keys), so the heavier detail-only fields (prompt, cooldowns, paused) are omitted here.
+ * A channel-point reward (backend `RewardDetail` — the list endpoint returns the same schema as get/create). The
+ * field names are the serialized (camelCase) names of `RewardDetail`; the client reads the subset the row renders
+ * (ApiClient's Json ignores unknown keys), so the heavier detail-only fields (prompt, cooldowns, paused) are
+ * omitted here. [isManageable] is the one that drives the page's read-only gating: `true` when the bot's own
+ * Twitch client created the reward (full CRUD), `false` for EXTERNAL rewards made in the Twitch dashboard or by
+ * another app — those are read-only to us until recreated under the bot ("Take control").
  */
 @Serializable
 data class RewardSummary(
@@ -162,6 +194,7 @@ data class RewardSummary(
     val title: String = "",
     val cost: Int = 0,
     val isEnabled: Boolean = false,
+    val isManageable: Boolean = false,
     val backgroundColor: String? = null,
     val imageUrl: String? = null,
 )

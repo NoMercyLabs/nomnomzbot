@@ -23,6 +23,8 @@ import androidx.compose.foundation.text.KeyboardOptions
 import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Button
+import bot.nomnomz.dashboard.core.designsystem.component.ButtonSize
+import bot.nomnomz.dashboard.core.designsystem.component.ButtonVariant
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import bot.nomnomz.dashboard.core.designsystem.component.Switch
 import androidx.compose.material3.Text
@@ -91,7 +93,10 @@ import nomnomzbot.composeapp.generated.resources.rewards_empty
 import nomnomzbot.composeapp.generated.resources.rewards_enabled
 import nomnomzbot.composeapp.generated.resources.rewards_error
 import nomnomzbot.composeapp.generated.resources.rewards_loading
+import nomnomzbot.composeapp.generated.resources.rewards_external_readonly_reason
+import nomnomzbot.composeapp.generated.resources.rewards_import_action
 import nomnomzbot.composeapp.generated.resources.rewards_new_action
+import nomnomzbot.composeapp.generated.resources.rewards_recreate_action
 import nomnomzbot.composeapp.generated.resources.rewards_sync_action
 import nomnomzbot.composeapp.generated.resources.rewards_queue_by
 import nomnomzbot.composeapp.generated.resources.rewards_queue_fulfill
@@ -155,11 +160,13 @@ fun RewardsScreen(
                     lifecycle = lifecycle,
                     onNew = { editor = RewardEditor.create() },
                     onSync = { scope.launch { controller.sync() } },
+                    onImport = { scope.launch { controller.import() } },
                     onEdit = { reward -> editor = RewardEditor.edit(reward) },
                     onToggle = { reward, enabled ->
                         scope.launch { controller.toggleReward(reward.id, enabled) }
                     },
                     onDelete = { reward -> pendingDelete = reward },
+                    onRecreate = { reward -> scope.launch { controller.recreate(reward.id) } },
                     onFulfill = { redemption ->
                         scope.launch { controller.fulfillRedemption(redemption.redemptionId) }
                     },
@@ -176,11 +183,13 @@ fun RewardsScreen(
                     lifecycle = lifecycle,
                     onNew = { editor = RewardEditor.create() },
                     onSync = { scope.launch { controller.sync() } },
+                    onImport = { scope.launch { controller.import() } },
                     onEdit = { reward -> editor = RewardEditor.edit(reward) },
                     onToggle = { reward, enabled ->
                         scope.launch { controller.toggleReward(reward.id, enabled) }
                     },
                     onDelete = { reward -> pendingDelete = reward },
+                    onRecreate = { reward -> scope.launch { controller.recreate(reward.id) } },
                     onFulfill = { redemption ->
                         scope.launch { controller.fulfillRedemption(redemption.redemptionId) }
                     },
@@ -233,9 +242,11 @@ private fun ManagedContent(
     lifecycle: ManageDecision,
     onNew: () -> Unit,
     onSync: () -> Unit,
+    onImport: () -> Unit,
     onEdit: (RewardSummary) -> Unit,
     onToggle: (RewardSummary, Boolean) -> Unit,
     onDelete: (RewardSummary) -> Unit,
+    onRecreate: (RewardSummary) -> Unit,
     onFulfill: (RedemptionSummary) -> Unit,
     onRefund: (RedemptionSummary) -> Unit,
 ) {
@@ -245,8 +256,8 @@ private fun ManagedContent(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(spacing.s4),
     ) {
-        // Creating/syncing rewards are Broadcaster-only lifecycle actions — the New + Sync buttons gate on [lifecycle].
-        Header(lifecycle = lifecycle, onNew = onNew, onSync = onSync)
+        // Creating/syncing/importing rewards are Broadcaster-only lifecycle actions — New + Sync + Import gate on [lifecycle].
+        Header(lifecycle = lifecycle, onNew = onNew, onSync = onSync, onImport = onImport)
         actionError?.let { ActionErrorBanner(message = stringResource(Res.string.rewards_action_error, it)) }
 
         if (rewards.isEmpty() && redemptions.isEmpty()) {
@@ -260,6 +271,7 @@ private fun ManagedContent(
                 onEdit = onEdit,
                 onToggle = onToggle,
                 onDelete = onDelete,
+                onRecreate = onRecreate,
                 onFulfill = onFulfill,
                 onRefund = onRefund,
             )
@@ -268,13 +280,21 @@ private fun ManagedContent(
 }
 
 @Composable
-private fun Header(lifecycle: ManageDecision, onNew: () -> Unit, onSync: () -> Unit) {
+private fun Header(
+    lifecycle: ManageDecision,
+    onNew: () -> Unit,
+    onSync: () -> Unit,
+    onImport: () -> Unit,
+) {
     val tokens = LocalTokens.current
     val newLabel: String = stringResource(Res.string.rewards_new_action)
     val syncLabel: String = stringResource(Res.string.rewards_sync_action)
+    val importLabel: String = stringResource(Res.string.rewards_import_action)
 
     PageHeader(title = stringResource(Res.string.rewards_title)) {
         ManageGate(decision = lifecycle) { enabled ->
+            // Sync refreshes only the bot's own rewards; Import pulls EVERYTHING incl. external ones. Both are
+            // Twitch-pull text actions; New creates a fresh reward. All three gate on the same lifecycle floor.
             TextButton(
                 onClick = onSync,
                 enabled = enabled,
@@ -286,10 +306,20 @@ private fun Header(lifecycle: ManageDecision, onNew: () -> Unit, onSync: () -> U
                     maxLines = 1,
                 )
             }
+            TextButton(
+                onClick = onImport,
+                enabled = enabled,
+                modifier = Modifier.semantics { contentDescription = importLabel },
+            ) {
+                Text(
+                    text = importLabel,
+                    color = if (enabled) tokens.primary else tokens.mutedForeground,
+                    maxLines = 1,
+                )
+            }
             Button(
                 onClick = onNew,
                 enabled = enabled,
-
                 modifier = Modifier.semantics { contentDescription = newLabel },
             ) {
                 Text(text = newLabel)
@@ -307,6 +337,7 @@ private fun RewardList(
     onEdit: (RewardSummary) -> Unit,
     onToggle: (RewardSummary, Boolean) -> Unit,
     onDelete: (RewardSummary) -> Unit,
+    onRecreate: (RewardSummary) -> Unit,
     onFulfill: (RedemptionSummary) -> Unit,
     onRefund: (RedemptionSummary) -> Unit,
 ) {
@@ -325,6 +356,7 @@ private fun RewardList(
                     onEdit = { onEdit(reward) },
                     onToggle = { enabled -> onToggle(reward, enabled) },
                     onDelete = { onDelete(reward) },
+                    onRecreate = { onRecreate(reward) },
                 )
             }
 
@@ -458,6 +490,7 @@ private fun RewardRow(
     onEdit: () -> Unit,
     onToggle: (Boolean) -> Unit,
     onDelete: () -> Unit,
+    onRecreate: () -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -471,6 +504,16 @@ private fun RewardRow(
     val toggleLabel: String = stringResource(Res.string.rewards_toggle_action, reward.title)
     val editLabel: String = stringResource(Res.string.rewards_edit_action, reward.title)
     val deleteLabel: String = stringResource(Res.string.rewards_delete_action, reward.title)
+    val recreateLabel: String = stringResource(Res.string.rewards_recreate_action)
+
+    // Twitch reality: the bot can only edit/toggle/delete rewards ITS OWN client created. An EXTERNAL reward
+    // (isManageable == false — made in the Twitch UI or by another app) is read-only to us until recreated under
+    // the bot. So for an external reward the write controls are DISABLED (not hidden) with an actionable reason,
+    // and a "Take control" action appears instead. A manageable reward keeps its full role-gated CRUD.
+    val externalReason: String = stringResource(Res.string.rewards_external_readonly_reason)
+    val rowEdit: ManageDecision = if (reward.isManageable) edit else ManageDecision.Denied(externalReason)
+    val rowLifecycle: ManageDecision =
+        if (reward.isManageable) lifecycle else ManageDecision.Denied(externalReason)
 
     Row(
         modifier = Modifier
@@ -502,8 +545,24 @@ private fun RewardRow(
             )
         }
 
-        // Toggle + edit gate at the page's Editor floor; delete is the Broadcaster-only lifecycle action.
-        ManageGate(decision = edit) { enabled ->
+        // Take control: only on EXTERNAL rewards. Recreating an equivalent under the bot's client is a
+        // Broadcaster-only lifecycle action, so it gates on the real [lifecycle] floor (a Broadcaster CAN do it).
+        if (!reward.isManageable) {
+            ManageGate(decision = lifecycle) { enabled ->
+                Button(
+                    onClick = onRecreate,
+                    enabled = enabled,
+                    variant = ButtonVariant.Outline,
+                    size = ButtonSize.Sm,
+                ) {
+                    Text(text = recreateLabel, maxLines = 1)
+                }
+            }
+        }
+
+        // Toggle + edit gate at the page's Editor floor; delete is the Broadcaster-only lifecycle action. On an
+        // external reward all three collapse to Denied(externalReason) so they render disabled with the reason.
+        ManageGate(decision = rowEdit) { enabled ->
             Switch(
                 checked = reward.isEnabled,
                 onCheckedChange = onToggle,
@@ -511,10 +570,10 @@ private fun RewardRow(
                 modifier = Modifier.semantics { contentDescription = toggleLabel },
             )
         }
-        ManageGate(decision = edit) { enabled ->
+        ManageGate(decision = rowEdit) { enabled ->
             GlyphButton(imageVector = EditGlyph, label = editLabel, onClick = onEdit, enabled = enabled)
         }
-        ManageGate(decision = lifecycle) { enabled ->
+        ManageGate(decision = rowLifecycle) { enabled ->
             GlyphButton(
                 imageVector = TrashGlyph,
                 label = deleteLabel,
