@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 using NomNomzBot.Api.Hubs.Clients;
 using NomNomzBot.Api.Hubs.Dtos;
+using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.Identity.Services;
@@ -30,13 +31,15 @@ public class DashboardHub : Hub<IDashboardClient>
     private readonly IChatProvider _chat;
     private readonly IChannelAccessService _access;
     private readonly IActionAuthorizationService _authorization;
+    private readonly IOperatorChatSender _operatorSender;
 
     public DashboardHub(
         IChannelRegistry registry,
         ILogger<DashboardHub> logger,
         IChatProvider chat,
         IChannelAccessService access,
-        IActionAuthorizationService authorization
+        IActionAuthorizationService authorization,
+        IOperatorChatSender operatorSender
     )
     {
         _registry = registry;
@@ -44,6 +47,7 @@ public class DashboardHub : Hub<IDashboardClient>
         _chat = chat;
         _access = access;
         _authorization = authorization;
+        _operatorSender = operatorSender;
     }
 
     private string? CallerId => Context.UserIdentifier ?? Context.User?.FindFirst("sub")?.Value;
@@ -97,7 +101,11 @@ public class DashboardHub : Hub<IDashboardClient>
         _connectionChannel.TryRemove(Context.ConnectionId, out _);
     }
 
-    public async Task<SendMessageResponse> SendChatMessage(string broadcasterId, string message)
+    public async Task<SendMessageResponse> SendChatMessage(
+        string broadcasterId,
+        string message,
+        string senderIdentity = "you"
+    )
     {
         if (string.IsNullOrWhiteSpace(message) || message.Length > 500)
             return new(false, "Message too long or empty", null);
@@ -107,8 +115,8 @@ public class DashboardHub : Hub<IDashboardClient>
 
         // Hubs cannot carry [RequireAction], so this enforces the SAME two gates the REST send path
         // (ChatController POST messages) gets from the middleware + attribute: Gate 1 entry
-        // (CanResolveTenantAsync) and Gate 2 `chat:send` (Moderator floor) — sending AS THE BOT is a
-        // moderator action, never an any-authenticated-caller one.
+        // (CanResolveTenantAsync) and Gate 2 `chat:send` (Moderator floor) — sending in chat (as the operator by
+        // default, or the bot) is a moderator action, never an any-authenticated-caller one.
         string? userId = CallerId;
         if (userId is null || !Guid.TryParse(userId, out Guid callerId))
             return new(false, "Not authenticated", null);
@@ -126,12 +134,35 @@ public class DashboardHub : Hub<IDashboardClient>
 
         try
         {
-            // Honour the provider's real outcome — a swallowed Helix failure (dead token, no connection) returns
-            // false, and reporting success here would LIE to the dashboard exactly like the old {data:true} path.
-            bool sent = await _chat.SendMessageAsync(tenantId, message);
+            // Honour the real outcome — a swallowed Helix failure (dead token, no connection, or the operator is
+            // banned/timed-out here) returns a failure, and reporting success would LIE to the dashboard exactly
+            // like the old {data:true} path. Default identity is the operator (their own account); "bot" sends as
+            // the bot account instead (chat-client.md §3.1).
+            bool sent;
+            string? error = null;
+            if (string.Equals(senderIdentity, "bot", StringComparison.OrdinalIgnoreCase))
+            {
+                sent = await _chat.SendMessageAsync(tenantId, message);
+            }
+            else
+            {
+                Result operatorResult = await _operatorSender.SendAsUserAsync(
+                    callerId,
+                    tenantId,
+                    message,
+                    null
+                );
+                sent = operatorResult.IsSuccess;
+                error = operatorResult.ErrorMessage;
+            }
+
             return sent
                 ? new SendMessageResponse(true, null, null)
-                : new SendMessageResponse(false, "The message could not be sent to Twitch.", null);
+                : new SendMessageResponse(
+                    false,
+                    error ?? "The message could not be sent to Twitch.",
+                    null
+                );
         }
         catch (Exception ex)
         {

@@ -16,6 +16,7 @@ using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Api.Models;
+using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Chat.Decoration;
 using NomNomzBot.Application.Chat.Services;
@@ -42,18 +43,24 @@ public class ChatController : BaseController
     private readonly IChatProvider _chat;
     private readonly ITwitchChatApi _chatApi;
     private readonly IChatMessageDecorator _decorator;
+    private readonly ICurrentUserService _currentUser;
+    private readonly IOperatorChatSender _operatorSender;
 
     public ChatController(
         IApplicationDbContext db,
         IChatProvider chat,
         ITwitchChatApi chatApi,
-        IChatMessageDecorator decorator
+        IChatMessageDecorator decorator,
+        ICurrentUserService currentUser,
+        IOperatorChatSender operatorSender
     )
     {
         _db = db;
         _chat = chat;
         _chatApi = chatApi;
         _decorator = decorator;
+        _currentUser = currentUser;
+        _operatorSender = operatorSender;
     }
 
     // ── DTOs ──────────────────────────────────────────────────────────────────
@@ -80,7 +87,12 @@ public class ChatController : BaseController
         string Timestamp
     );
 
-    public record SendChatMessageRequest(string Message);
+    // SenderIdentity ∈ "you" (default — the logged-in operator's own Twitch account) | "bot" (the bot account).
+    public record SendChatMessageRequest(
+        string Message,
+        string SenderIdentity = "you",
+        string? ReplyToMessageId = null
+    );
 
     public record ChatSettingsDto(
         bool SlowMode,
@@ -233,11 +245,12 @@ public class ChatController : BaseController
             _ => (false, false, false, false),
         };
 
-    // ── POST message (send as the bot) ─────────────────────────────────────────
+    // ── POST message (send as the operator, or the bot) ────────────────────────
     // The dashboard's REST send path — the same Helix Send Chat Message that DashboardHub.SendChatMessage
-    // performs, exposed over REST so the chat page can send without holding a hub connection.
+    // performs, exposed over REST so the chat page can send without holding a hub connection. Defaults to the
+    // logged-in operator's own Twitch account (chat-client.md §3.1); SenderIdentity="bot" sends as the bot.
 
-    /// <summary>Send a chat message to the channel as the bot, for the dashboard's chat page.</summary>
+    /// <summary>Send a chat message to the channel — as the logged-in operator by default, or as the bot.</summary>
     [RequireAction("chat:send")]
     [HttpPost("messages")]
     [ProducesResponseType<StatusResponseDto<bool>>(StatusCodes.Status200OK)]
@@ -256,13 +269,35 @@ public class ChatController : BaseController
         if (message.Length > 500)
             return BadRequestResponse("Message exceeds the 500-character limit.");
 
-        bool sent = await _chat.SendMessageAsync(broadcasterId, message, ct);
-        if (!sent)
-            // The bot couldn't deliver the message to Twitch (no/unhealthy connection, dead token). Report it
-            // honestly — a 503 the chat page surfaces — instead of a {data:true} that lies the send succeeded.
-            return ServiceUnavailableResponse(
-                "The message could not be sent to Twitch. Your Twitch connection may need to be reconnected."
-            );
+        // "bot" sends as the bot account (bot-voice posts); the default "you" sends as the logged-in operator's
+        // own Twitch identity, so a moderator appears as themselves in the channel (chat-client.md §3.1).
+        if (string.Equals(request.SenderIdentity, "bot", StringComparison.OrdinalIgnoreCase))
+        {
+            bool sent = await _chat.SendMessageAsync(broadcasterId, message, ct);
+            if (!sent)
+                // The bot couldn't deliver the message to Twitch (no/unhealthy connection, dead token). Report it
+                // honestly — a 503 the chat page surfaces — instead of a {data:true} that lies the send succeeded.
+                return ServiceUnavailableResponse(
+                    "The message could not be sent to Twitch. Your Twitch connection may need to be reconnected."
+                );
+
+            return Ok(new StatusResponseDto<bool> { Data = true });
+        }
+
+        if (!Guid.TryParse(_currentUser.UserId, out Guid operatorUserId))
+            return UnauthenticatedResponse();
+
+        Result operatorResult = await _operatorSender.SendAsUserAsync(
+            operatorUserId,
+            broadcasterId,
+            message,
+            request.ReplyToMessageId,
+            ct
+        );
+        if (operatorResult.IsFailure)
+            // Surface the real Twitch reason (dead token, or the operator is banned/timed-out here) via the Helix
+            // error mapping — never a {data:true} that lies the send landed.
+            return TwitchResultResponse(operatorResult);
 
         return Ok(new StatusResponseDto<bool> { Data = true });
     }

@@ -196,10 +196,14 @@ public sealed class TwitchHelixTransport(
         CancellationToken ct
     )
     {
-        Result<TwitchAccessContext> tokenResult =
-            request.Auth == TwitchHelixAuth.User && request.BroadcasterId is { } tenant
-                ? await tokenResolver.GetBroadcasterTokenAsync(tenant, ct)
-                : await tokenResolver.GetBotTokenAsync(ct);
+        Result<TwitchAccessContext> tokenResult = request.Auth switch
+        {
+            TwitchHelixAuth.Operator when request.OperatorUserId is { } op =>
+                await tokenResolver.GetUserTokenAsync(op, ct),
+            TwitchHelixAuth.User when request.BroadcasterId is { } tenant =>
+                await tokenResolver.GetBroadcasterTokenAsync(tenant, ct),
+            _ => await tokenResolver.GetBotTokenAsync(ct),
+        };
 
         if (tokenResult.IsFailure)
             return tokenResult.WithValue<HttpResponseMessage>(default!);
@@ -382,7 +386,7 @@ public sealed class TwitchHelixTransport(
     ) =>
         PublishReauthCoreAsync(
             request.BroadcasterId,
-            request.Auth == TwitchHelixAuth.User ? "twitch" : "twitch_bot",
+            request.Auth == TwitchHelixAuth.App ? "twitch_bot" : "twitch",
             reason,
             missingScope,
             ct

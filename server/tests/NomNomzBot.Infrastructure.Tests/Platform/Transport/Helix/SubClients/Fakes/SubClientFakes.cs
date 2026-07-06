@@ -144,6 +144,11 @@ public sealed class StubScopeTokenResolver(params string[] grantedScopes) : ITwi
         CancellationToken ct = default
     ) => throw new NotSupportedException();
 
+    public Task<Result<TwitchAccessContext>> GetUserTokenAsync(
+        Guid userId,
+        CancellationToken ct = default
+    ) => throw new NotSupportedException();
+
     public Task<Result<TwitchAccessContext>> RefreshAsync(
         TwitchAccessContext context,
         CancellationToken ct = default

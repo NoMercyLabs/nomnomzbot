@@ -12,12 +12,15 @@ namespace NomNomzBot.Application.Contracts.Twitch;
 
 /// <summary>
 /// Which bearer a Helix call rides on. <see cref="App"/> uses the bot/app token (subject-agnostic
-/// reads); <see cref="User"/> uses the broadcaster's user token (tenant-scoped reads/writes).
+/// reads); <see cref="User"/> uses the broadcaster's user token (tenant-scoped reads/writes);
+/// <see cref="Operator"/> uses the logged-in operator's OWN user token (resolved by <c>OperatorUserId</c>),
+/// for acting AS the dashboard operator rather than the tenant broadcaster (chat-client.md §3.1).
 /// </summary>
 public enum TwitchHelixAuth
 {
     App = 0,
     User = 1,
+    Operator = 2,
 }
 
 /// <summary>
@@ -33,6 +36,7 @@ public enum TwitchHelixAuth
 /// <param name="Query">Query parameters appended to the URL (values URL-encoded by the transport).</param>
 /// <param name="Body">Optional object serialised as the JSON request body; null for bodyless calls.</param>
 /// <param name="Priority">Two-band rate-limiter priority; user-triggered calls jump background polls.</param>
+/// <param name="OperatorUserId">The operator whose OWN token signs the call when <c>Auth</c> is <see cref="TwitchHelixAuth.Operator"/>; null otherwise.</param>
 public sealed record TwitchHelixRequest(
     HttpMethod Method,
     string Path,
@@ -40,5 +44,6 @@ public sealed record TwitchHelixRequest(
     Guid? BroadcasterId = null,
     IReadOnlyList<KeyValuePair<string, string>>? Query = null,
     object? Body = null,
-    TwitchCallPriority Priority = TwitchCallPriority.Background
+    TwitchCallPriority Priority = TwitchCallPriority.Background,
+    Guid? OperatorUserId = null
 );

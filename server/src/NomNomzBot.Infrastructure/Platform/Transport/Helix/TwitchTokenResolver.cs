@@ -85,6 +85,49 @@ public sealed class TwitchTokenResolver(
         return await BuildContextAsync(connection, ct);
     }
 
+    public async Task<Result<TwitchAccessContext>> GetUserTokenAsync(
+        Guid userId,
+        CancellationToken ct = default
+    )
+    {
+        // The operator's OWN Twitch connection is the one whose Twitch account IS this user — matched by
+        // ProviderAccountId == the user's TwitchUserId, regardless of which tenant it is filed under. This is the
+        // send-as-operator identity (chat-client.md §3.1): a moderator sends in a channel they moderate as
+        // themselves, on their own user:write:chat grant, never the tenant broadcaster's token.
+        string? twitchUserId = await db
+            .Users.Where(u => u.Id == userId)
+            .Select(u => u.TwitchUserId)
+            .FirstOrDefaultAsync(ct);
+
+        if (string.IsNullOrEmpty(twitchUserId))
+        {
+            return Result.Failure<TwitchAccessContext>(
+                "No Twitch identity for this user.",
+                TwitchErrorCodes.NoToken
+            );
+        }
+
+        IntegrationConnection? connection = await db
+            .IntegrationConnections.IgnoreQueryFilters()
+            .Where(c =>
+                c.Provider == UserProvider
+                && c.ProviderAccountId == twitchUserId
+                && c.DeletedAt == null
+            )
+            .OrderBy(c => c.CreatedAt)
+            .FirstOrDefaultAsync(ct);
+
+        if (connection is null)
+        {
+            return Result.Failure<TwitchAccessContext>(
+                "No Twitch connection for this user.",
+                TwitchErrorCodes.NoToken
+            );
+        }
+
+        return await BuildContextAsync(connection, ct);
+    }
+
     public async Task<Result<TwitchAccessContext>> RefreshAsync(
         TwitchAccessContext context,
         CancellationToken ct = default

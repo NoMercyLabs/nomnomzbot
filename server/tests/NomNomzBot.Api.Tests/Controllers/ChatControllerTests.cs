@@ -13,8 +13,10 @@ using Microsoft.AspNetCore.Mvc;
 using NomNomzBot.Api.Controllers.V1;
 using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Api.Models;
+using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Chat.Decoration;
 using NomNomzBot.Application.Chat.Services;
+using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Domain.Chat.Entities;
 using NomNomzBot.Domain.Chat.Enums;
@@ -35,11 +37,30 @@ namespace NomNomzBot.Api.Tests.Controllers;
 public sealed class ChatControllerTests
 {
     private static readonly Guid Broadcaster = Guid.CreateVersion7();
+    private static readonly Guid OperatorUserId = Guid.CreateVersion7();
+
+    private static ICurrentUserService StubCurrentUser(Guid? userId)
+    {
+        ICurrentUserService currentUser = Substitute.For<ICurrentUserService>();
+        currentUser.UserId.Returns(userId?.ToString());
+        return currentUser;
+    }
 
     private static ChatController Build(
         ChatControllerTestDbContext db,
-        IChatMessageDecorator decorator
-    ) => new(db, Substitute.For<IChatProvider>(), Substitute.For<ITwitchChatApi>(), decorator);
+        IChatMessageDecorator decorator,
+        IChatProvider? chat = null,
+        IOperatorChatSender? operatorSender = null,
+        ICurrentUserService? currentUser = null
+    ) =>
+        new(
+            db,
+            chat ?? Substitute.For<IChatProvider>(),
+            Substitute.For<ITwitchChatApi>(),
+            decorator,
+            currentUser ?? StubCurrentUser(OperatorUserId),
+            operatorSender ?? Substitute.For<IOperatorChatSender>()
+        );
 
     [Fact]
     public async Task GetMessages_returns_the_decorators_output_not_the_raw_persisted_fragment()
@@ -261,22 +282,17 @@ public sealed class ChatControllerTests
     }
 
     [Fact]
-    public async Task SendMessage_returns_ok_when_the_bot_delivers_the_message_to_twitch()
+    public async Task SendMessage_as_bot_returns_ok_when_the_bot_delivers_the_message_to_twitch()
     {
         ChatControllerTestDbContext db = ChatControllerTestDbContext.New();
         IChatProvider chat = Substitute.For<IChatProvider>();
         chat.SendMessageAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(true));
-        ChatController controller = new(
-            db,
-            chat,
-            Substitute.For<ITwitchChatApi>(),
-            Substitute.For<IChatMessageDecorator>()
-        );
+        ChatController controller = Build(db, Substitute.For<IChatMessageDecorator>(), chat: chat);
 
         IActionResult result = await controller.SendMessage(
             Broadcaster.ToString(),
-            new ChatController.SendChatMessageRequest("hello chat")
+            new ChatController.SendChatMessageRequest("hello chat", SenderIdentity: "bot")
         );
 
         result.Should().BeOfType<OkObjectResult>();
@@ -285,7 +301,7 @@ public sealed class ChatControllerTests
     }
 
     [Fact]
-    public async Task SendMessage_returns_503_when_the_send_fails_instead_of_reporting_a_false_success()
+    public async Task SendMessage_as_bot_returns_503_when_the_send_fails_instead_of_reporting_a_false_success()
     {
         ChatControllerTestDbContext db = ChatControllerTestDbContext.New();
         IChatProvider chat = Substitute.For<IChatProvider>();
@@ -293,20 +309,125 @@ public sealed class ChatControllerTests
         // NOT pretend the send worked (the old {data:true} lie); it reports 503 so the chat page shows the failure.
         chat.SendMessageAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(false));
-        ChatController controller = new(
-            db,
-            chat,
-            Substitute.For<ITwitchChatApi>(),
-            Substitute.For<IChatMessageDecorator>()
-        );
+        ChatController controller = Build(db, Substitute.For<IChatMessageDecorator>(), chat: chat);
 
         IActionResult result = await controller.SendMessage(
             Broadcaster.ToString(),
-            new ChatController.SendChatMessageRequest("hello chat")
+            new ChatController.SendChatMessageRequest("hello chat", SenderIdentity: "bot")
         );
 
         ObjectResult response = result.Should().BeOfType<ObjectResult>().Subject;
         response.StatusCode.Should().Be(503);
+    }
+
+    [Fact]
+    public async Task SendMessage_defaults_to_sending_as_the_logged_in_operator_not_the_bot()
+    {
+        ChatControllerTestDbContext db = ChatControllerTestDbContext.New();
+        IChatProvider bot = Substitute.For<IChatProvider>();
+        IOperatorChatSender operatorSender = Substitute.For<IOperatorChatSender>();
+        operatorSender
+            .SendAsUserAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success());
+        ChatController controller = Build(
+            db,
+            Substitute.For<IChatMessageDecorator>(),
+            chat: bot,
+            operatorSender: operatorSender,
+            currentUser: StubCurrentUser(OperatorUserId)
+        );
+
+        IActionResult result = await controller.SendMessage(
+            Broadcaster.ToString(),
+            new ChatController.SendChatMessageRequest("hey there", ReplyToMessageId: "parent-99")
+        );
+
+        result.Should().BeOfType<OkObjectResult>();
+        // Sent as the OPERATOR (their own account) with the caller's user id + reply parent — never the bot.
+        await operatorSender
+            .Received(1)
+            .SendAsUserAsync(
+                OperatorUserId,
+                Broadcaster,
+                "hey there",
+                "parent-99",
+                Arg.Any<CancellationToken>()
+            );
+        await bot.DidNotReceive()
+            .SendMessageAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task SendMessage_as_operator_surfaces_the_twitch_error_instead_of_a_false_success()
+    {
+        ChatControllerTestDbContext db = ChatControllerTestDbContext.New();
+        IOperatorChatSender operatorSender = Substitute.For<IOperatorChatSender>();
+        // The operator's own send was rejected (dead token, or they are banned/timed-out in this channel). The
+        // controller must surface that honestly, never a {data:true} that lies the send landed.
+        operatorSender
+            .SendAsUserAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                Result.Failure(
+                    "Your Twitch connection needs reconnecting.",
+                    TwitchErrorCodes.NoToken
+                )
+            );
+        ChatController controller = Build(
+            db,
+            Substitute.For<IChatMessageDecorator>(),
+            operatorSender: operatorSender
+        );
+
+        IActionResult result = await controller.SendMessage(
+            Broadcaster.ToString(),
+            new ChatController.SendChatMessageRequest("hey there")
+        );
+
+        result.Should().NotBeOfType<OkObjectResult>();
+        ObjectResult response = result.Should().BeAssignableTo<ObjectResult>().Subject;
+        response.StatusCode.Should().Be(409); // TwitchErrorCodes.NoToken → Conflict
+    }
+
+    [Fact]
+    public async Task SendMessage_as_operator_returns_401_when_there_is_no_authenticated_user()
+    {
+        ChatControllerTestDbContext db = ChatControllerTestDbContext.New();
+        IOperatorChatSender operatorSender = Substitute.For<IOperatorChatSender>();
+        ChatController controller = Build(
+            db,
+            Substitute.For<IChatMessageDecorator>(),
+            operatorSender: operatorSender,
+            currentUser: StubCurrentUser(null)
+        );
+
+        IActionResult result = await controller.SendMessage(
+            Broadcaster.ToString(),
+            new ChatController.SendChatMessageRequest("hey there")
+        );
+
+        ObjectResult response = result.Should().BeAssignableTo<ObjectResult>().Subject;
+        response.StatusCode.Should().Be(401);
+        await operatorSender
+            .DidNotReceive()
+            .SendAsUserAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            );
     }
 
     private static List<ChatController.ChatMessageDto> Data(IActionResult result)

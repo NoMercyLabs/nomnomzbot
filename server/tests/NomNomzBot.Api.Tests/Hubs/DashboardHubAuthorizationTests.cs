@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Api.Hubs;
 using NomNomzBot.Api.Hubs.Dtos;
+using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.Identity.Services;
@@ -37,6 +38,7 @@ public sealed class DashboardHubAuthorizationTests
     private sealed record Fixture(
         DashboardHub Hub,
         IChatProvider Chat,
+        IOperatorChatSender OperatorSender,
         IActionAuthorizationService Gate2
     );
 
@@ -64,6 +66,17 @@ public sealed class DashboardHubAuthorizationTests
             )
             .Returns(Result.Success(gate2Allows));
 
+        IOperatorChatSender operatorSender = Substitute.For<IOperatorChatSender>();
+        operatorSender
+            .SendAsUserAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success());
+
         HubCallerContext context = Substitute.For<HubCallerContext>();
         context.UserIdentifier.Returns(authenticated ? Caller.ToString() : null);
         context.ConnectionId.Returns("test-connection");
@@ -73,12 +86,13 @@ public sealed class DashboardHubAuthorizationTests
             NullLogger<DashboardHub>.Instance,
             chat,
             access,
-            gate2
+            gate2,
+            operatorSender
         )
         {
             Context = context,
         };
-        return new Fixture(hub, chat, gate2);
+        return new Fixture(hub, chat, operatorSender, gate2);
     }
 
     [Fact]
@@ -93,6 +107,15 @@ public sealed class DashboardHubAuthorizationTests
         await f
             .Chat.DidNotReceive()
             .SendMessageAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await f
+            .OperatorSender.DidNotReceive()
+            .SendAsUserAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            );
     }
 
     [Fact]
@@ -127,7 +150,14 @@ public sealed class DashboardHubAuthorizationTests
         await f
             .Gate2.Received(1)
             .AuthorizeActionAsync(Caller, Channel, "chat:send", Arg.Any<CancellationToken>());
-        await f.Chat.Received(1).SendMessageAsync(Channel, "hi chat", Arg.Any<CancellationToken>());
+        // The default identity is the operator (their own account): the send rides the operator sender with the
+        // caller's user id, never the bot provider (chat-client.md §3.1).
+        await f
+            .OperatorSender.Received(1)
+            .SendAsUserAsync(Caller, Channel, "hi chat", null, Arg.Any<CancellationToken>());
+        await f
+            .Chat.DidNotReceive()
+            .SendMessageAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]

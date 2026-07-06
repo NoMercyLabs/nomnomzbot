@@ -36,6 +36,17 @@ public interface ITwitchTokenResolver
     );
 
     /// <summary>
+    /// Returns the logged-in operator's OWN Twitch user token (service <c>twitch</c>) — the connection whose
+    /// Twitch account IS this user, independent of which tenant it is filed under (chat-client.md §3.1). Used to
+    /// send/act AS the operator (a moderator in a channel they moderate), not the tenant broadcaster. Fails with
+    /// <c>no_token</c> when the user has no Twitch identity or connection.
+    /// </summary>
+    Task<Result<TwitchAccessContext>> GetUserTokenAsync(
+        Guid userId,
+        CancellationToken ct = default
+    );
+
+    /// <summary>
     /// Forces a single token refresh for the identity behind <paramref name="context"/> via the auth layer
     /// and returns the refreshed context. Called by the transport on a 401 (refresh-and-retry once).
     /// Fails when no refresh is possible (e.g. the app/bot token, or the refresh itself failed).
