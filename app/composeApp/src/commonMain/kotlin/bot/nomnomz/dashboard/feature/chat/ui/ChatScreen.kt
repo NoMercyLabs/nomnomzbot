@@ -168,9 +168,10 @@ fun ChatScreen(
 
     val manage: ManageDecision = rememberManageDecision(role, ShellRoute.Chat)
 
-    // Load the initial history once. When the hub is connected, new messages arrive via [subscribeToHub] in
-    // real-time — no polling needed. Polling only runs as a fallback when the hub is not wired so the page
-    // still works in environments without a live SignalR connection (e.g. local dev without a hub).
+    // Load the initial history once. New lines then arrive over the hub ([subscribeToHub]) in real time — the
+    // client keep-alive ping (DashboardHubClient) holds the socket open so the server never times it out, so the
+    // push keeps flowing. Polling is only a fallback for a no-hub environment (a test/local build with no live
+    // SignalR connection), never the primary path.
     LaunchedEffect(Unit) {
         controller.load()
         if (hubEvents == null) {

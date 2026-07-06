@@ -132,10 +132,12 @@ class ChatController(
                     // No history yet — bootstrap a fresh feed; the first message makes the page live.
                     else -> ChatState.Ready(messages = emptyList())
                 }
-            // Skip a message id already in the feed. EventSub delivery is at-least-once — it redelivers
-            // channel.chat.message after a WebSocket reconnect, and the operator's own sent line echoes back —
-            // and the feed's LazyColumn is keyed by id, so a duplicate key would crash the page. De-dup here.
-            if (ready.messages.any { it.id == newLine.id }) return@collect
+            // Skip a NON-BLANK id already in the feed. EventSub is at-least-once (redelivers channel.chat.message
+            // on a WS reconnect), the operator's own line echoes back, and the safety-net poll re-fetches the same
+            // persisted lines — and the feed's LazyColumn is keyed by id, so a duplicate key would crash the page.
+            // A blank id can't be de-duped, so it always appends: never suppress a live line just because its id
+            // failed to resolve.
+            if (newLine.id.isNotEmpty() && ready.messages.any { it.id == newLine.id }) return@collect
             // Append (newest at bottom) and cap at 200 so the list stays bounded.
             val capped: List<ChatMessage> = (ready.messages + newLine).takeLast(200)
             _state.value = ready.copy(messages = capped)

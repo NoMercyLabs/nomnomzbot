@@ -43,6 +43,11 @@ private const val TYPE_INVOCATION: Int = 1
 private const val TYPE_PING: Int = 6
 private const val TYPE_CLOSE: Int = 7
 
+// Client keep-alive cadence. The SignalR server evicts a connection it hasn't heard from within its
+// ClientTimeoutInterval (default 30 s) — and server→client frames do NOT reset that timer, only client→server
+// traffic does — so the client must send its own protocol ping well under the timeout to hold the socket open.
+private const val PingIntervalMillis: Long = 15_000
+
 /**
  * Thin SignalR hub client targeting the backend `DashboardHub` at `/hubs/dashboard`.
  *
@@ -91,7 +96,9 @@ class DashboardHubClient {
             scope.launch {
                 var backoffMs: Long = 1_000
                 while (true) {
-                    runCatching { openSession(baseUrl, tokenProvider, channelId) }
+                    // Reset the back-off once a session actually establishes, so a long-lived socket that later
+                    // drops reconnects promptly instead of inheriting a grown delay from an earlier failure run.
+                    runCatching { openSession(baseUrl, tokenProvider, channelId) { backoffMs = 1_000 } }
                         .onFailure { /* log if needed */ }
                     isConnected = false
                     // Reconnect loop — honour back-off so we don't spam the server on flaky networks.
@@ -120,7 +127,12 @@ class DashboardHubClient {
 
     // ─── Internals ───────────────────────────────────────────────────────────
 
-    private suspend fun openSession(baseUrl: String, tokenProvider: () -> String?, channelId: String) {
+    private suspend fun openSession(
+        baseUrl: String,
+        tokenProvider: () -> String?,
+        channelId: String,
+        onConnected: () -> Unit,
+    ) {
         // Read the CURRENT token for this attempt (see [connect]); bail and let the caller's back-off retry
         // when none is available yet, instead of opening the socket with an empty token (a guaranteed 401).
         val accessToken: String = tokenProvider() ?: return
@@ -160,18 +172,39 @@ class DashboardHubClient {
                 sendText(joinMsg)
 
                 isConnected = true
+                onConnected()
+
+                // ── Keep-alive ping ────────────────────────────────────────
+                // Send our own SignalR ping under the server's ClientTimeoutInterval; without it the hub evicts
+                // us every ~30 s (server→client chat frames don't reset that timer) and the feed goes silent
+                // until the next reconnect. Cancelled when the session ends (the finally below).
+                val pingJob: Job =
+                    launch {
+                        while (true) {
+                            delay(PingIntervalMillis)
+                            runCatching {
+                                this@DashboardHubClient.session?.send(
+                                    Frame.Text("""{"type":$TYPE_PING}$RECORD_SEPARATOR""")
+                                )
+                            }
+                        }
+                    }
 
                 // ── Event loop ────────────────────────────────────────────
                 // Use incoming.receive() to avoid Channel.iterator() ambiguity in Ktor 3.x.
-                while (true) {
-                    val frame: Frame = incoming.receive()
-                    if (frame !is Frame.Text) continue
-                    val raw: String = frame.readText()
-                    // A single WebSocket frame may carry multiple SignalR messages, each separated by \x1e.
-                    for (segment: String in raw.split(RECORD_SEPARATOR)) {
-                        if (segment.isBlank()) continue
-                        dispatchSegment(segment)
+                try {
+                    while (true) {
+                        val frame: Frame = incoming.receive()
+                        if (frame !is Frame.Text) continue
+                        val raw: String = frame.readText()
+                        // A single WebSocket frame may carry multiple SignalR messages, each separated by \x1e.
+                        for (segment: String in raw.split(RECORD_SEPARATOR)) {
+                            if (segment.isBlank()) continue
+                            dispatchSegment(segment)
+                        }
                     }
+                } finally {
+                    pingJob.cancel()
                 }
             }
         } finally {
