@@ -32,13 +32,25 @@ public sealed class JintScriptExecutorTests
 
     private static readonly IScriptHostBridge NoBridge = new StubBridge((_, _) => null);
 
+    // A deliberately generous wall clock for the outcome-asserting cases. The 2s production Baseline is a real
+    // safety bound, but here it made the OUTCOME race engine construction: the CancellationToken watchdog is
+    // armed before the fresh Jint engine + bootstrap are even built, so on a loaded CI box that setup could
+    // consume the whole budget before the script's own line ran — flipping an expected Denied/Success/… to
+    // Timeout (~1/1676). These scripts finish in microseconds once running, so the large ceiling is never
+    // actually consumed; it only removes the race. Cases that assert a resource limit set their own tight
+    // budget (A_runaway_loop_is_contained, A_script_that_exceeds_its_wall_clock_is_timed_out).
+    private static readonly ScriptResourceBudget Generous = ScriptResourceBudget.Baseline with
+    {
+        WallClockMs = 30_000,
+    };
+
     private static ScriptExecutionRequest Request(string js, params string[] args) =>
         new(
             "exec-1",
             js,
             "hash",
             new ScriptInputs("u1", "User", args, new Dictionary<string, string>()),
-            ScriptResourceBudget.Baseline
+            Generous
         );
 
     private static ScriptCapabilityGrant Grant(params string[] keys) =>
@@ -103,6 +115,30 @@ public sealed class JintScriptExecutorTests
         ).Value;
 
         r.Outcome.Should().BeOneOf(ScriptExecutionOutcome.Faulted, ScriptExecutionOutcome.Timeout);
+    }
+
+    /// <summary>
+    /// The wall-clock watchdog maps to <see cref="ScriptExecutionOutcome.Timeout"/>. A busy loop with the
+    /// statement cap lifted can ONLY be ended by the clock, so this deterministically times out — it can never
+    /// race engine setup (the loop never finishes on its own) and never falls to a statement-overflow fault.
+    /// This holds the Timeout coverage the deflaked outcome-cases above deliberately no longer rely on.
+    /// </summary>
+    [Fact]
+    public async Task A_script_that_exceeds_its_wall_clock_is_timed_out()
+    {
+        JintScriptExecutor sut = new();
+        ScriptExecutionRequest request = Request("while (true) {}") with
+        {
+            Budget = ScriptResourceBudget.Baseline with
+            {
+                WallClockMs = 250,
+                MaxFuelOrStatements = int.MaxValue,
+            },
+        };
+
+        ScriptExecutionOutcomeResult r = (await sut.ExecuteAsync(request, Grant(), NoBridge)).Value;
+
+        r.Outcome.Should().Be(ScriptExecutionOutcome.Timeout);
     }
 
     [Fact]
