@@ -16,6 +16,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Models;
+using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
@@ -39,6 +40,8 @@ namespace NomNomzBot.Api.Controllers.V1;
 public class ModerationController : BaseController
 {
     private readonly IModerationService _moderationService;
+    private readonly IOperatorNetworkBanService _networkBan;
+    private readonly ICurrentUserService _currentUser;
     private readonly IApplicationDbContext _db;
     private readonly TimeProvider _timeProvider;
     private readonly ITwitchChatApi _chatApi;
@@ -46,6 +49,8 @@ public class ModerationController : BaseController
 
     public ModerationController(
         IModerationService moderationService,
+        IOperatorNetworkBanService networkBan,
+        ICurrentUserService currentUser,
         IApplicationDbContext db,
         TimeProvider timeProvider,
         ITwitchChatApi chatApi,
@@ -53,10 +58,94 @@ public class ModerationController : BaseController
     )
     {
         _moderationService = moderationService;
+        _networkBan = networkBan;
+        _currentUser = currentUser;
         _db = db;
         _timeProvider = timeProvider;
         _chatApi = chatApi;
         _eventBus = eventBus;
+    }
+
+    // ─── Ban (this channel, or every channel the operator moderates) ───────────
+
+    /// <summary>
+    /// Ban a viewer — in THIS channel (a permanent ban, or a timeout when <c>DurationSeconds</c> is set) or across
+    /// EVERY channel the operator moderates (chat-client.md §3.5, <c>Scope = "all_moderated"</c>). Both scopes return
+    /// a <see cref="NetworkBanResultDto"/>; <c>this_channel</c> is a one-row result. The <c>all_moderated</c> sweep is
+    /// best-effort per channel and issues each ban AS THE OPERATOR (their own token), so Twitch — not us — decides
+    /// where the ban is permitted.
+    /// </summary>
+    [RequireAction("moderation:ban")]
+    [HttpPost("actions/ban")]
+    [ProducesResponseType<StatusResponseDto<NetworkBanResultDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> BanUser(
+        string channelId,
+        [FromBody] BanUserRequest request,
+        CancellationToken ct
+    )
+    {
+        if (request.Scope == "all_moderated")
+        {
+            if (!Guid.TryParse(_currentUser.UserId, out Guid operatorUserId))
+                return UnauthenticatedResponse();
+
+            Result<NetworkBanResult> fanOut = await _networkBan.BanAcrossModeratedAsync(
+                operatorUserId,
+                request.TargetTwitchUserId,
+                request.Reason,
+                ct
+            );
+            if (fanOut.IsFailure)
+                return ResultResponse(fanOut);
+
+            return Ok(new StatusResponseDto<NetworkBanResultDto> { Data = ToDto(fanOut.Value) });
+        }
+
+        // this_channel — a permanent ban, or a timeout when a duration is supplied.
+        Result<ModerationActionResult> single = request.DurationSeconds is int seconds
+            ? await _moderationService.TimeoutAsync(
+                channelId,
+                request.TargetTwitchUserId,
+                seconds,
+                request.Reason,
+                cancellationToken: ct
+            )
+            : await _moderationService.BanAsync(
+                channelId,
+                request.TargetTwitchUserId,
+                request.Reason,
+                cancellationToken: ct
+            );
+        if (single.IsFailure)
+            return ResultResponse(single);
+
+        string login = await ResolveChannelLoginAsync(channelId, ct);
+        NetworkBanResultDto oneRow = new(1, 1, [new ChannelBanOutcomeDto(login, true, null)]);
+        return Ok(new StatusResponseDto<NetworkBanResultDto> { Data = oneRow });
+    }
+
+    private static NetworkBanResultDto ToDto(NetworkBanResult result) =>
+        new(
+            result.Attempted,
+            result.Succeeded,
+            result
+                .Channels.Select(channel => new ChannelBanOutcomeDto(
+                    channel.BroadcasterLogin,
+                    channel.Succeeded,
+                    channel.Error
+                ))
+                .ToList()
+        );
+
+    private async Task<string> ResolveChannelLoginAsync(string channelId, CancellationToken ct)
+    {
+        if (!Guid.TryParse(channelId, out Guid id))
+            return channelId;
+        return await _db
+                .Channels.Where(channel => channel.Id == id)
+                .Select(channel => channel.Name)
+                .FirstOrDefaultAsync(ct)
+            ?? channelId;
     }
 
     // ─── Rules ───────────────────────────────────────────────────────────────

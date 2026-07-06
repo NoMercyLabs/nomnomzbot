@@ -80,6 +80,42 @@ public sealed class TwitchModerationApi(
         return await transport.SendWithResultAsync<TwitchBanResult>(request, ct);
     }
 
+    public async Task<Result<TwitchBanResult>> BanAsOperatorAsync(
+        Guid operatorUserId,
+        string broadcasterTwitchId,
+        string targetTwitchUserId,
+        string? reason,
+        CancellationToken ct = default
+    )
+    {
+        // The operator's OWN Twitch id is the moderator_id, and the operator's OWN token signs the call
+        // (Auth.Operator resolves it from OperatorUserId). broadcasterTwitchId is the raw Twitch id of the channel
+        // being moderated — which may not be a tenant — so it is NEVER resolved from a Guid. Twitch enforces that
+        // the operator actually moderates that channel, so there is no privilege escalation.
+        string? operatorTwitchId = await identity.GetTwitchUserIdAsync(operatorUserId, ct);
+        if (string.IsNullOrEmpty(operatorTwitchId))
+            return Result.Failure<TwitchBanResult>(
+                "You have no linked Twitch identity to moderate as.",
+                TwitchErrorCodes.NoToken
+            );
+
+        TwitchHelixRequest request = new(
+            HttpMethod.Post,
+            "moderation/bans",
+            TwitchHelixAuth.Operator,
+            Query:
+            [
+                new("broadcaster_id", broadcasterTwitchId),
+                new("moderator_id", operatorTwitchId),
+            ],
+            Body: new BanUserBody(new BanUserData(targetTwitchUserId, null, reason)),
+            Priority: TwitchCallPriority.UserInteractive,
+            OperatorUserId: operatorUserId
+        );
+
+        return await transport.SendWithResultAsync<TwitchBanResult>(request, ct);
+    }
+
     public async Task<Result> UnbanUserAsync(
         Guid broadcasterId,
         string targetTwitchUserId,

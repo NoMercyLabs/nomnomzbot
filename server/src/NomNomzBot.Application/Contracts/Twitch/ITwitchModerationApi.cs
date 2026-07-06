@@ -33,6 +33,22 @@ public interface ITwitchModerationApi
         CancellationToken ct = default
     );
 
+    /// <summary>
+    /// Ban User AS THE OPERATOR — bans <paramref name="targetTwitchUserId"/> from
+    /// <paramref name="broadcasterTwitchId"/>'s chat using the logged-in operator's OWN token
+    /// (<c>moderator_id</c> = the operator), so it works in ANY channel Twitch has made the operator a moderator
+    /// of — tenant or not (chat-client.md §3.5). <paramref name="broadcasterTwitchId"/> is a raw Twitch id, never
+    /// a tenant Guid. Requires the operator token to carry <c>moderator:manage:banned_users</c>; Twitch enforces
+    /// that the operator actually moderates the channel, so there is no privilege escalation.
+    /// </summary>
+    Task<Result<TwitchBanResult>> BanAsOperatorAsync(
+        Guid operatorUserId,
+        string broadcasterTwitchId,
+        string targetTwitchUserId,
+        string? reason,
+        CancellationToken ct = default
+    );
+
     /// <summary>Timeout User — times out <paramref name="targetTwitchUserId"/> for <paramref name="durationSeconds"/>. Requires <c>moderator:manage:banned_users</c>.</summary>
     Task<Result<TwitchBanResult>> TimeoutUserAsync(
         Guid broadcasterId,
