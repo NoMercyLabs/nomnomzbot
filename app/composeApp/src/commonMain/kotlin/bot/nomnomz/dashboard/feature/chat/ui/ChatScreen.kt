@@ -635,21 +635,14 @@ private fun SendBox(
     var identity: String by remember { mutableStateOf("you") }
     val canSend: Boolean = draft.isNotBlank()
 
-    // Emote autocomplete: a trailing ":token" (2+ word chars) filters the catalogue by code prefix.
+    // Emote autocomplete: a trailing ":token" (2+ word chars) filters the catalogue by SUBSTRING (see
+    // [emoteSuggestions]) — prefix matches ranked first — like the Twitch/7TV composer, so ":wa" surfaces
+    // verosWaving / aaoaWat / basedcodeWave, not only codes that literally start with "wa".
     val query: String? =
         remember(draft) { Regex(":([A-Za-z0-9_]{2,})$").find(draft)?.groupValues?.get(1) }
     val suggestions: List<ChatEmoteCatalogue> =
         remember(query, emotes) {
-            if (query == null) {
-                emptyList()
-            } else {
-                emotes
-                    .asSequence()
-                    .filter { it.code.startsWith(query, ignoreCase = true) }
-                    .sortedBy { it.code.length }
-                    .take(8)
-                    .toList()
-            }
+            if (query == null) emptyList() else emoteSuggestions(emotes, query)
         }
 
     // Live WYSIWYG preview: tokenize the draft against the catalogue (case-insensitive, whitespace-delimited) so
@@ -850,6 +843,26 @@ private sealed interface ComposerToken {
 
     data class Word(val text: String) : ComposerToken
 }
+
+// Filter the emote catalogue for the composer autocomplete: every emote whose code CONTAINS [query]
+// (case-insensitive), like the Twitch/7TV composer — not merely a prefix — so ":wa" surfaces verosWaving,
+// aaoaWat, basedcodeWave, … and not only codes that literally start with "wa". Prefix matches rank first, then
+// shorter codes, then alphabetically; the list is capped at [limit] so the dropdown stays compact.
+internal fun emoteSuggestions(
+    emotes: List<ChatEmoteCatalogue>,
+    query: String,
+    limit: Int = 12,
+): List<ChatEmoteCatalogue> =
+    emotes
+        .asSequence()
+        .filter { it.code.contains(query, ignoreCase = true) }
+        .sortedWith(
+            compareByDescending<ChatEmoteCatalogue> { it.code.startsWith(query, ignoreCase = true) }
+                .thenBy { it.code.length }
+                .thenBy { it.code.lowercase() },
+        )
+        .take(limit)
+        .toList()
 
 // Split the composer [draft] into preview tokens: each whitespace-delimited token that matches a catalogue emote
 // code (case-insensitive) becomes a [ComposerToken.Emote]; every other token stays a [ComposerToken.Word]. A blank
