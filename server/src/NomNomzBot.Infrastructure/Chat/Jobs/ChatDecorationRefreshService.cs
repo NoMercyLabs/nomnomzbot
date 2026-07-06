@@ -19,10 +19,13 @@ namespace NomNomzBot.Infrastructure.Chat.Jobs;
 /// <summary>
 /// Keeps the decoration caches warm so the pipeline only ever reads cache on the chat hot path (chat-decoration spec
 /// §3.6). Two cadences run concurrently: GLOBAL sets (third-party emotes + Helix badges) on startup then every 6 h, and
-/// every live channel's sets on startup then every 5 min (the staleness window for a newly-added emote). Per-iteration
-/// failures are logged and retried next tick — they never tear the worker (or the host) down. Auto-discovered by
-/// <c>AddHostedWorkers</c>; a channel going live is warmed immediately by <c>StreamWentLiveEmoteWarmer</c>. The badge
-/// warmer is scoped (it uses the scoped Helix client), so it is resolved inside a per-iteration scope.
+/// every ACTIVE channel's sets on startup then every 5 min (the staleness window for a newly-added emote). "Active"
+/// means every channel the bot is registered in — live OR offline — because the dashboard decorates a channel's chat
+/// (and history) whenever the bot serves it, not only while it is live; scoping the warm to live channels alone left
+/// offline channels' third-party emotes rendering as plain text. Per-iteration failures are logged and retried next
+/// tick — they never tear the worker (or the host) down. Auto-discovered by <c>AddHostedWorkers</c>; a channel going
+/// live is still warmed immediately by <c>StreamWentLiveEmoteWarmer</c>. The badge warmer is scoped (it uses the scoped
+/// Helix client), so it is resolved inside a per-iteration scope.
 /// <para>
 /// The Helix-backed warming (badges + cheermotes) needs the platform bot token, so it stays dormant until onboarding
 /// completes — gated on <see cref="IPlatformBotReadinessGate"/>, re-checked each tick so it activates without a restart
@@ -59,7 +62,7 @@ public sealed class ChatDecorationRefreshService : BackgroundService
     protected override Task ExecuteAsync(CancellationToken stoppingToken) =>
         Task.WhenAll(
             RunLoopAsync(GlobalRefreshInterval, WarmGlobalsAsync, stoppingToken),
-            RunLoopAsync(ChannelRefreshInterval, WarmLiveChannelsAsync, stoppingToken)
+            RunLoopAsync(ChannelRefreshInterval, WarmActiveChannelsAsync, stoppingToken)
         );
 
     // One self-priming loop: warm immediately, then on every interval tick until the host stops.
@@ -105,26 +108,31 @@ public sealed class ChatDecorationRefreshService : BackgroundService
         );
     }
 
-    private async Task WarmLiveChannelsAsync(CancellationToken ct)
+    // internal (not private) so ChatDecorationRefreshServiceTests can drive one warm pass directly and assert an
+    // offline-but-active channel is warmed — the regression that scoping to live channels reintroduced.
+    internal async Task WarmActiveChannelsAsync(CancellationToken ct)
     {
-        IReadOnlyCollection<ChannelContext> live = _channels.GetLiveChannels();
+        // Every channel the bot is registered in — live OR offline — because chat is decorated (and shown in the
+        // dashboard, with history) whenever the bot serves the channel, not only while it is live. The registry
+        // evicts idle-offline channels after 2 h, so this set stays bounded to channels actually being served.
+        IReadOnlyCollection<ChannelContext> active = _channels.GetAll();
 
         try
         {
-            foreach (ChannelContext channel in live)
+            foreach (ChannelContext channel in active)
                 await _warmer.WarmChannelAsync(channel.TwitchChannelId, channel.ChannelName, ct);
 
-            if (live.Count > 0)
+            if (active.Count > 0)
                 _logger.LogDebug(
-                    "Refreshed channel emote sets for {Count} live channel(s).",
-                    live.Count
+                    "Refreshed channel emote sets for {Count} active channel(s).",
+                    active.Count
                 );
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             _logger.LogError(
                 ex,
-                "Live-channel emote refresh iteration failed; retrying at the next interval."
+                "Active-channel emote refresh iteration failed; retrying at the next interval."
             );
         }
 
@@ -134,13 +142,13 @@ public sealed class ChatDecorationRefreshService : BackgroundService
                 ChatBadgeCacheWarmer badges = services.GetRequiredService<ChatBadgeCacheWarmer>();
                 ChatCheermoteCacheWarmer cheermotes =
                     services.GetRequiredService<ChatCheermoteCacheWarmer>();
-                foreach (ChannelContext channel in live)
+                foreach (ChannelContext channel in active)
                 {
                     await badges.WarmChannelAsync(channel.BroadcasterId, ct);
                     await cheermotes.WarmChannelAsync(channel.BroadcasterId, ct);
                 }
             },
-            "live-channel badges + cheermotes",
+            "active-channel badges + cheermotes",
             ct
         );
     }
