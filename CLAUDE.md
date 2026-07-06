@@ -193,7 +193,7 @@ NomNomzBot.Domain          → Entities, domain events, value objects, no extern
 - **No MediatR** — services are injected via typed interfaces (`IAuthService`, `ITwitchApiService`, etc.) and called directly. This keeps the call stack shallow and obvious.
 - **`Result<T>` pattern** — operations that can fail return `Result<T>` instead of throwing. Never return null; always return a result with a `Success` flag and optional error.
 - **Soft deletes** — entities use `IsDeleted` + EF Core global query filters. Never `DELETE` from the database.
-- **Multi-tenancy** — resolved per-request by `TenantResolutionMiddleware` from the JWT `sub` claim. Each user sees only their own channel data.
+- **Multi-tenancy** — `TenantResolutionMiddleware` resolves the tenant per request from an explicit channel target (route `{channelId}` → `X-Channel-Id` header → `channelId` query), falling back to the caller's own channel (JWT `sub`) only when none is given — so an operator can act on any channel they moderate, not just their own. Gate-1 entry (`CanResolveTenantAsync`) admits any authenticated caller to any existing channel; per-action `[RequireAction]` (Gate-2) enforces their role there. A global EF query filter scopes every read to the resolved tenant.
 - **Nullable reference types** — enabled everywhere (`<Nullable>enable</Nullable>`).
 - **Global usings** — each project has a `GlobalUsings.cs`.
 - **Async all the way** — never `.Result` or `.Wait()`.
