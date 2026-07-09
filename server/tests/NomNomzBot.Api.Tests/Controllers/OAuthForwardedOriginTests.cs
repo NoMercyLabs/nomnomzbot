@@ -55,6 +55,7 @@ public sealed class OAuthForwardedOriginTests
             Substitute.For<ILoginProviderRegistry>(),
             Substitute.For<IUserIdentityService>(),
             Array.Empty<ILoginIdentityProvider>(),
+            Array.Empty<IAuthCodeLoginProvider>(),
             Substitute.For<IExternalLoginService>()
         )
         {

@@ -39,6 +39,7 @@ public sealed class AuthControllerIdentitiesTests
             Substitute.For<ILoginProviderRegistry>(),
             identities,
             Array.Empty<ILoginIdentityProvider>(),
+            Array.Empty<IAuthCodeLoginProvider>(),
             Substitute.For<IExternalLoginService>()
         )
         {

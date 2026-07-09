@@ -140,6 +140,7 @@ public sealed class AuthControllerWebFlowTests
             Substitute.For<ILoginProviderRegistry>(),
             Substitute.For<IUserIdentityService>(),
             Array.Empty<ILoginIdentityProvider>(),
+            Array.Empty<IAuthCodeLoginProvider>(),
             Substitute.For<IExternalLoginService>()
         )
         {

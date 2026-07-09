@@ -40,6 +40,7 @@ public class AuthController : BaseController
     private readonly ILoginProviderRegistry _loginProviders;
     private readonly IUserIdentityService _identities;
     private readonly IEnumerable<ILoginIdentityProvider> _loginImpls;
+    private readonly IEnumerable<IAuthCodeLoginProvider> _authCodeImpls;
     private readonly IExternalLoginService _externalLogin;
 
     public AuthController(
@@ -51,6 +52,7 @@ public class AuthController : BaseController
         ILoginProviderRegistry loginProviders,
         IUserIdentityService identities,
         IEnumerable<ILoginIdentityProvider> loginImpls,
+        IEnumerable<IAuthCodeLoginProvider> authCodeImpls,
         IExternalLoginService externalLogin
     )
     {
@@ -62,11 +64,17 @@ public class AuthController : BaseController
         _loginProviders = loginProviders;
         _identities = identities;
         _loginImpls = loginImpls;
+        _authCodeImpls = authCodeImpls;
         _externalLogin = externalLogin;
     }
 
     private ILoginIdentityProvider? FindLoginImpl(string key) =>
         _loginImpls.FirstOrDefault(p =>
+            string.Equals(p.Key, key, StringComparison.OrdinalIgnoreCase)
+        );
+
+    private IAuthCodeLoginProvider? FindAuthCodeImpl(string key) =>
+        _authCodeImpls.FirstOrDefault(p =>
             string.Equals(p.Key, key, StringComparison.OrdinalIgnoreCase)
         );
 
@@ -283,28 +291,37 @@ public class AuthController : BaseController
             return ResultResponse(result);
         }
 
-        AuthResultDto auth = result.Value;
+        return BuildLoginResponse(result.Value, client, mobileRedirectUri);
+    }
+
+    /// <summary>
+    /// Turns a successful login into the client-appropriate response — shared by the Twitch callback and the
+    /// generic auth-code login callback. A mobile <c>redirect_uri</c> gets the tokens in the deep-link query;
+    /// the served-web dashboard gets the access token in the URL fragment (never sent to the server) + the
+    /// refresh token in an HttpOnly + Secure + Lax cookie the SPA's JS can't read (XSS can't exfiltrate it);
+    /// native clients get a JSON body.
+    /// </summary>
+    private IActionResult BuildLoginResponse(
+        AuthResultDto auth,
+        string? client,
+        string? mobileRedirectUri
+    )
+    {
         int expiresIn = (int)(auth.ExpiresAt - _timeProvider.GetUtcNow().UtcDateTime).TotalSeconds;
 
         if (!string.IsNullOrWhiteSpace(mobileRedirectUri))
         {
-            StringBuilder qs = new StringBuilder(mobileRedirectUri);
+            StringBuilder qs = new(mobileRedirectUri);
             qs.Append(mobileRedirectUri.Contains('?') ? '&' : '?');
             qs.Append("access_token=").Append(Uri.EscapeDataString(auth.AccessToken));
             qs.Append("&refresh_token=").Append(Uri.EscapeDataString(auth.RefreshToken));
             qs.Append("&expires_in=").Append(expiresIn);
-
             return Redirect(qs.ToString());
         }
 
-        // Served-web dashboard: the page navigated the whole window to Twitch, so it can't read a JSON body on
-        // the way back. Hand the access token to the SPA in the URL fragment (never sent to the server, so it
-        // stays out of logs/Referer) and keep the long-lived refresh token in an HttpOnly + Secure + Lax cookie
-        // the SPA's JS can't read — defeating token exfiltration via XSS.
         if (string.Equals(client, "web", StringComparison.OrdinalIgnoreCase))
         {
             SetRefreshTokenCookie(auth.RefreshToken);
-
             string fragment =
                 $"#access_token={Uri.EscapeDataString(auth.AccessToken)}&expires_in={expiresIn}";
             return Redirect($"{GetPublicBaseUrl()}/{fragment}");
@@ -581,6 +598,99 @@ public class AuthController : BaseController
         }
 
         return Ok(new StatusResponseDto<DeviceLoginPollDto> { Data = dto });
+    }
+
+    /// <summary>
+    /// Begin an auth-code + PKCE login for a provider (kick / twitter, platform-identity §10.3): generate the
+    /// PKCE pair, stash the verifier + provider key server-side under a single-use state nonce, and 302 the
+    /// whole page to the provider's authorize URL. 404 <c>UNKNOWN_PROVIDER</c> / 403 <c>PROVIDER_DISABLED</c> gate it.
+    /// </summary>
+    [HttpGet("{provider}/authorize")]
+    [AllowAnonymous]
+    [EnableRateLimiting("auth")]
+    public async Task<IActionResult> StartExternalAuthorize(
+        string provider,
+        [FromQuery] string? redirect_uri,
+        [FromQuery] string? client,
+        CancellationToken ct
+    )
+    {
+        if (!ClientRedirectPolicy.IsAllowed(redirect_uri))
+            return BadRequest("Disallowed redirect_uri.");
+
+        IActionResult? gate = await ValidateEnabledProviderAsync(provider, ct);
+        if (gate is not null)
+            return gate;
+
+        IAuthCodeLoginProvider? impl = FindAuthCodeImpl(provider);
+        if (impl is null)
+            return NotYetLoginable(provider);
+
+        PkceCodePair pkce = PkceCodePair.Generate();
+        string callbackUri = $"{GetPublicBaseUrl()}/api/v1/auth/{provider}/callback";
+        string state = await _oauthState.IssueAsync(
+            new TwitchOAuthFlowState(
+                "login",
+                redirect_uri,
+                Client: client,
+                Provider: provider.ToLowerInvariant(),
+                CodeVerifier: pkce.Verifier
+            ),
+            ct
+        );
+
+        Result<Uri> url = await impl.BuildAuthorizeUrlAsync(state, callbackUri, pkce.Challenge, ct);
+        return url.IsFailure ? ResultResponse(url) : Redirect(url.Value.ToString());
+    }
+
+    /// <summary>
+    /// The auth-code login callback (kick / twitter). The literal <c>twitch/callback</c> route wins for Twitch;
+    /// this handles every other provider, exchanging the code with the stored PKCE verifier into a session and
+    /// responding per the client class (mobile deep-link / served-web fragment+cookie / JSON).
+    /// </summary>
+    [HttpGet("{provider}/callback")]
+    [AllowAnonymous]
+    [EnableRateLimiting("auth")]
+    public async Task<IActionResult> HandleExternalCallback(
+        string provider,
+        [FromQuery] string code,
+        [FromQuery] string? state,
+        CancellationToken ct
+    )
+    {
+        TwitchOAuthFlowState? flowState = await _oauthState.ConsumeAsync(state, ct);
+        if (flowState?.CodeVerifier is null)
+            return BadRequest("Invalid or expired OAuth state.");
+        if (!string.Equals(flowState.Provider, provider, StringComparison.OrdinalIgnoreCase))
+            return BadRequest("OAuth state provider mismatch.");
+
+        IAuthCodeLoginProvider? impl = FindAuthCodeImpl(provider);
+        if (impl is null)
+            return NotYetLoginable(provider);
+
+        string callbackUri = $"{GetPublicBaseUrl()}/api/v1/auth/{provider}/callback";
+        Result<ExternalIdentityProof> proof = await impl.ExchangeCodeAsync(
+            code,
+            callbackUri,
+            flowState.CodeVerifier,
+            ct
+        );
+        if (proof.IsFailure)
+        {
+            if (!string.IsNullOrWhiteSpace(flowState.RedirectUri))
+                return Redirect($"{flowState.RedirectUri}?error=auth_failed");
+            return ResultResponse(proof);
+        }
+
+        Result<AuthResultDto> login = await _externalLogin.LoginAsync(
+            proof.Value,
+            BuildAuthContext(),
+            ct
+        );
+        if (login.IsFailure)
+            return ResultResponse(login);
+
+        return BuildLoginResponse(login.Value, flowState.Client, flowState.RedirectUri);
     }
 
     /// <summary>Wire tokens for the flows a provider supports (<c>device_code</c>/<c>auth_code_pkce</c>/<c>auth_code</c>).</summary>

@@ -36,10 +36,17 @@ public interface ITwitchOAuthStateService
 /// is the optional client class that started the flow (e.g. <c>web</c>) — the served-web dashboard navigates
 /// the whole page to Twitch, so a JSON body can't reach it; the callback uses this to instead 302 back to the
 /// served origin with the access token in the URL fragment + the refresh token in an HttpOnly cookie.
+/// <para>
+/// <paramref name="Provider"/> + <paramref name="CodeVerifier"/> carry a multi-platform auth-code+PKCE LOGIN
+/// (platform-identity §10.3): the login-provider key (kick / twitter) the generic callback routes to, and the
+/// PKCE verifier proving the same client that started the flow is finishing it. Both null for Twitch flows.
+/// </para>
 /// </summary>
 public sealed record TwitchOAuthFlowState(
     string Flow,
     string? RedirectUri = null,
     string? ChannelId = null,
-    string? Client = null
+    string? Client = null,
+    string? Provider = null,
+    string? CodeVerifier = null
 );
