@@ -279,7 +279,7 @@ public sealed class AuthService : IAuthService
             AdminBootstrap.ShouldPromote(
                 user.IsPlatformPrincipal,
                 _initialAdminTwitchId,
-                user.TwitchUserId,
+                user.TwitchUserId!,
                 _isSelfHost,
                 anyPlatformPrincipalExists
             )

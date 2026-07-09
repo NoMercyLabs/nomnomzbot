@@ -111,7 +111,7 @@ public sealed class AgeConsentService(
             {
                 BroadcasterId = broadcasterId,
                 ViewerUserId = request.ViewerUserId,
-                ViewerTwitchUserId = user.TwitchUserId,
+                ViewerTwitchUserId = user.TwitchUserId!,
                 ConsentRecordId = record.Id,
                 Granted = true,
                 ConfirmedAt = now,
@@ -246,7 +246,7 @@ public sealed class AgeConsentService(
                 {
                     BroadcasterId = broadcasterId,
                     ViewerUserId = user.Id,
-                    ViewerTwitchUserId = user.TwitchUserId,
+                    ViewerTwitchUserId = user.TwitchUserId!,
                     ConsentRecordId = Guid.Empty, // an inference is not backed by a consent record
                     Granted = true,
                     ConfirmedAt = clock.GetUtcNow().UtcDateTime,

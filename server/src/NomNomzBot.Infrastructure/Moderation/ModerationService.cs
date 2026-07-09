@@ -743,8 +743,8 @@ public class ModerationService : IModerationService
         if (twitchIds.Count > 0)
         {
             Dictionary<string, string> byTwitch = await _db
-                .Users.Where(u => twitchIds.Contains(u.TwitchUserId))
-                .ToDictionaryAsync(u => u.TwitchUserId, u => u.DisplayName, cancellationToken);
+                .Users.Where(u => twitchIds.Contains(u.TwitchUserId!))
+                .ToDictionaryAsync(u => u.TwitchUserId!, u => u.DisplayName, cancellationToken);
             foreach (KeyValuePair<string, string> kv in byTwitch)
                 result[kv.Key] = kv.Value;
         }

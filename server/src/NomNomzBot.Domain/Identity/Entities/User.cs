@@ -20,10 +20,11 @@ public class User : BaseEntity
     // never DB-default, never Guid.NewGuid(). The internal FK target; never sent to Twitch.
     public Guid Id { get; set; } = Guid.CreateVersion7();
 
-    // External Twitch user id — a first-class indexed attribute (schema A.1), NOT the key.
-    // This is what every Helix/IRC/EventSub call uses; the Guid never reaches Twitch.
+    // External Twitch user id — a first-class indexed attribute (schema A.1), NOT the key. Nullable
+    // projection (platform-identity §1): a YouTube/Kick-only user has none; for a Twitch identity it is
+    // maintained from the UserIdentity row. This is what every Helix/EventSub call uses.
     [MaxLength(50)]
-    public string TwitchUserId { get; set; } = null!;
+    public string? TwitchUserId { get; set; }
 
     // Identity platform ([VC:enum], schema A.1). Defaults to Twitch — the only login provider today.
     [MaxLength(20)]

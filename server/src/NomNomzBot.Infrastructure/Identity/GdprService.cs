@@ -95,7 +95,7 @@ public sealed class GdprService : IGdprService
 
         // Service.UserId stores the external Twitch user id (not the internal key), so a user's
         // connected integrations are matched by their TwitchUserId.
-        string twitchUserId = user.TwitchUserId;
+        string? twitchUserId = user.TwitchUserId;
         var services = await _db
             .Services.Where(s => s.UserId == twitchUserId)
             .Select(s => new
@@ -187,7 +187,7 @@ public sealed class GdprService : IGdprService
 
         // Hard delete: legacy service tokens (orphaned for Twitch, still live for Discord/Spotify).
         // Service.UserId stores the external Twitch user id, so match by the user's TwitchUserId.
-        string twitchUserId = user.TwitchUserId;
+        string? twitchUserId = user.TwitchUserId;
         List<Service> services = await _db
             .Services.Where(s => s.UserId == twitchUserId)
             .ToListAsync(cancellationToken);

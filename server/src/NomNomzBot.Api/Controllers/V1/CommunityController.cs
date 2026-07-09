@@ -176,8 +176,8 @@ public class CommunityController : BaseController
             List<string> followerIds = followers.Select(f => f.UserId).ToList();
 
             Dictionary<string, User> users = await _db
-                .Users.Where(u => followerIds.Contains(u.TwitchUserId))
-                .ToDictionaryAsync(u => u.TwitchUserId, ct);
+                .Users.Where(u => followerIds.Contains(u.TwitchUserId!))
+                .ToDictionaryAsync(u => u.TwitchUserId!, ct);
 
             var chatStats = await _db
                 .ChatMessages.Where(m =>
@@ -245,8 +245,8 @@ public class CommunityController : BaseController
             List<string> vipIds = pagedVips.Select(v => v.UserId).ToList();
 
             Dictionary<string, User> vipUsers = await _db
-                .Users.Where(u => vipIds.Contains(u.TwitchUserId))
-                .ToDictionaryAsync(u => u.TwitchUserId, ct);
+                .Users.Where(u => vipIds.Contains(u.TwitchUserId!))
+                .ToDictionaryAsync(u => u.TwitchUserId!, ct);
 
             var vipChatStats = await _db
                 .ChatMessages.Where(m =>
@@ -307,7 +307,7 @@ public class CommunityController : BaseController
         {
             candidateUserIds = await _db
                 .ChannelModerators.Where(cm => cm.ChannelId == broadcasterId)
-                .Select(cm => cm.User.TwitchUserId)
+                .Select(cm => cm.User.TwitchUserId!)
                 .ToListAsync(ct);
         }
         else
@@ -321,7 +321,7 @@ public class CommunityController : BaseController
 
             List<string> modIds = await _db
                 .ChannelModerators.Where(cm => cm.ChannelId == broadcasterId)
-                .Select(cm => cm.User.TwitchUserId)
+                .Select(cm => cm.User.TwitchUserId!)
                 .ToListAsync(ct);
 
             candidateUserIds = chattedIds.Union(modIds).Distinct().ToList();
@@ -352,14 +352,14 @@ public class CommunityController : BaseController
             .ToList();
 
         Dictionary<string, User> users2 = await _db
-            .Users.Where(u => pagedIds.Contains(u.TwitchUserId))
-            .ToDictionaryAsync(u => u.TwitchUserId, ct);
+            .Users.Where(u => pagedIds.Contains(u.TwitchUserId!))
+            .ToDictionaryAsync(u => u.TwitchUserId!, ct);
 
         HashSet<string> moderatorIds = await _db
             .ChannelModerators.Where(cm =>
-                cm.ChannelId == broadcasterId && pagedIds.Contains(cm.User.TwitchUserId)
+                cm.ChannelId == broadcasterId && pagedIds.Contains(cm.User.TwitchUserId!)
             )
-            .Select(cm => cm.User.TwitchUserId)
+            .Select(cm => cm.User.TwitchUserId!)
             .ToHashSetAsync(ct);
 
         Dictionary<string, string> trustConfigs = await _db
@@ -626,7 +626,7 @@ public class CommunityController : BaseController
         }
 
         UserDetailDto detail = new UserDetailDto(
-            user.TwitchUserId,
+            user.TwitchUserId!,
             user.Username,
             user.DisplayName,
             user.ProfileImageUrl,

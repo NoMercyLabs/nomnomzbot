@@ -112,7 +112,7 @@ public sealed class UserProfileHydrationService : BackgroundService
             int hydrated = 0;
             foreach (User[] batch in pending.Chunk(HelixBatchSize))
             {
-                List<string> ids = batch.Select(u => u.TwitchUserId).ToList();
+                List<string> ids = batch.Select(u => u.TwitchUserId!).ToList();
                 Result<IReadOnlyList<TwitchUser>> result = await usersApi.GetUsersByIdsAsync(
                     ids,
                     ct
@@ -132,7 +132,7 @@ public sealed class UserProfileHydrationService : BackgroundService
                 foreach (User user in batch)
                 {
                     if (
-                        byId.TryGetValue(user.TwitchUserId, out TwitchUser? twitchUser)
+                        byId.TryGetValue(user.TwitchUserId!, out TwitchUser? twitchUser)
                         && ApplyProfile(user, twitchUser)
                     )
                         hydrated++;

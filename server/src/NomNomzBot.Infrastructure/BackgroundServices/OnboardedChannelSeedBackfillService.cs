@@ -96,7 +96,7 @@ public sealed class OnboardedChannelSeedBackfillService : BackgroundService
 
         List<ChannelSeedRow> rows = await db
             .Channels.Where(c => c.IsOnboarded)
-            .Select(c => new ChannelSeedRow(c.Id, c.OwnerUserId, c.TwitchChannelId, c.Name))
+            .Select(c => new ChannelSeedRow(c.Id, c.OwnerUserId, c.TwitchChannelId!, c.Name))
             .ToListAsync(ct);
 
         return

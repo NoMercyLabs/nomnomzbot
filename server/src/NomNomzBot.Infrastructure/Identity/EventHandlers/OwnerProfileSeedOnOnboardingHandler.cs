@@ -51,7 +51,7 @@ public sealed class OwnerProfileSeedOnOnboardingHandler(
                 return;
 
             Result<IReadOnlyList<TwitchUser>> result = await users.GetUsersByIdsAsync(
-                [channel.TwitchChannelId],
+                [channel.TwitchChannelId!],
                 ct
             );
 

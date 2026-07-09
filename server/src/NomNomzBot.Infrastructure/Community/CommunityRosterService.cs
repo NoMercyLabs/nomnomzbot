@@ -98,8 +98,8 @@ public sealed class CommunityRosterService(
             .ToList();
 
         List<string> existingTwitchUserIds = await db
-            .Users.Where(u => allTwitchUserIds.Contains(u.TwitchUserId))
-            .Select(u => u.TwitchUserId)
+            .Users.Where(u => allTwitchUserIds.Contains(u.TwitchUserId!))
+            .Select(u => u.TwitchUserId!)
             .ToListAsync(cancellationToken);
 
         // Get-or-create a User for every moderator (then every VIP not already covered by a moderator).
@@ -133,8 +133,8 @@ public sealed class CommunityRosterService(
 
         // Resolve Twitch user ids → internal User.Id Guids for the moderator FK.
         Dictionary<string, Guid> userIdByTwitchId = await db
-            .Users.Where(u => allTwitchUserIds.Contains(u.TwitchUserId))
-            .ToDictionaryAsync(u => u.TwitchUserId, u => u.Id, cancellationToken);
+            .Users.Where(u => allTwitchUserIds.Contains(u.TwitchUserId!))
+            .ToDictionaryAsync(u => u.TwitchUserId!, u => u.Id, cancellationToken);
 
         HashSet<Guid> existingModUserIds = await db
             .ChannelModerators.Where(cm => cm.ChannelId == broadcasterId)

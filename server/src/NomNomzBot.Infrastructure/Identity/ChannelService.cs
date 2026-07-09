@@ -249,7 +249,7 @@ public class ChannelService : IChannelService
         {
             OwnerUserId = user.Id,
             TwitchChannelId = user.TwitchUserId,
-            ExternalChannelId = user.TwitchUserId,
+            ExternalChannelId = user.TwitchUserId!,
             Name = user.Username,
             NameNormalized = user.Username.ToLowerInvariant(),
             IsOnboarded = true,
@@ -279,7 +279,7 @@ public class ChannelService : IChannelService
             {
                 BroadcasterId = channel.Id,
                 OwnerUserId = channel.OwnerUserId,
-                TwitchChannelId = channel.TwitchChannelId,
+                TwitchChannelId = channel.TwitchChannelId!,
                 Name = channel.Name,
             },
             cancellationToken

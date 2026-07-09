@@ -76,8 +76,8 @@ public class PermissionsController : BaseController
             .ToList();
 
         Dictionary<string, User> users = await _db
-            .Users.Where(u => userIds.Contains(u.TwitchUserId))
-            .ToDictionaryAsync(u => u.TwitchUserId, ct);
+            .Users.Where(u => userIds.Contains(u.TwitchUserId!))
+            .ToDictionaryAsync(u => u.TwitchUserId!, ct);
 
         List<PermissionDto> result = permissions
             .Select(p =>

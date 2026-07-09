@@ -3345,7 +3345,6 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         .HasColumnType("character varying(255)");
 
                     b.Property<string>("TwitchChannelId")
-                        .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
 
@@ -4445,7 +4444,6 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         .HasColumnType("character varying(50)");
 
                     b.Property<string>("TwitchUserId")
-                        .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
 

@@ -40,7 +40,9 @@ public class ChannelRepository : GenericRepository<Channel>
     {
         IQueryable<Channel> query = Set.Include(c => c.User).AsQueryable();
         if (!string.IsNullOrWhiteSpace(search))
-            query = query.Where(c => c.Name.Contains(search) || c.TwitchChannelId.Contains(search));
+            query = query.Where(c =>
+                c.Name.Contains(search) || c.TwitchChannelId!.Contains(search)
+            );
         return query.OrderBy(c => c.Name).Skip((page - 1) * take).Take(take).ToListAsync(ct);
     }
 
@@ -48,7 +50,9 @@ public class ChannelRepository : GenericRepository<Channel>
     {
         IQueryable<Channel> query = Set.AsQueryable();
         if (!string.IsNullOrWhiteSpace(search))
-            query = query.Where(c => c.Name.Contains(search) || c.TwitchChannelId.Contains(search));
+            query = query.Where(c =>
+                c.Name.Contains(search) || c.TwitchChannelId!.Contains(search)
+            );
         return query.CountAsync(ct);
     }
 

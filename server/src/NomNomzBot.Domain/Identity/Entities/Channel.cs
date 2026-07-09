@@ -25,10 +25,11 @@ public class Channel : SoftDeletableEntity
     // [ForeignKey(nameof(Id))] shared-PK hack between Channel and User.
     public Guid OwnerUserId { get; set; }
 
-    // External Twitch channel/broadcaster id — first-class indexed attribute (schema A.2),
-    // NOT the key. Every Helix call's broadcaster_id resolves to this from the tenant Guid.
+    // External Twitch channel/broadcaster id — first-class indexed attribute (schema A.2), NOT the key.
+    // Nullable projection (platform-identity §1): filled iff Provider=twitch; a YouTube/Kick channel uses
+    // ExternalChannelId instead. Every Helix call's broadcaster_id resolves to this from the tenant Guid.
     [MaxLength(50)]
-    public string TwitchChannelId { get; set; } = null!;
+    public string? TwitchChannelId { get; set; }
 
     // Streaming platform this channel lives on ([VC:enum] AuthEnums.Platform, platform-identity §1). Backfilled
     // 'twitch'; a YouTube/Kick presence is a separate Channel row (tenant) under the same owner.

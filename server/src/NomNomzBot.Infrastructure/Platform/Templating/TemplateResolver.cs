@@ -337,7 +337,7 @@ public sealed partial class TemplateResolver : ITemplateResolver
                 return;
 
             // {{target.id}} is the Twitch user string id, not the internal Guid PK.
-            vars.TryAdd("target.id", target.TwitchUserId);
+            vars.TryAdd("target.id", target.TwitchUserId!);
             vars.TryAdd("target.name", target.Username ?? targetName);
             vars.TryAdd("target.followAge", "unknown");
         }

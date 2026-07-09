@@ -275,8 +275,8 @@ public class RewardsController : BaseController
         // ChatMessage.UserId holds the Twitch user string id — join on User.TwitchUserId.
         List<string> userIds = topChatters.Select(t => t.UserId).ToList();
         Dictionary<string, string> displayNames = await _db
-            .Users.Where(u => userIds.Contains(u.TwitchUserId))
-            .ToDictionaryAsync(u => u.TwitchUserId, u => u.DisplayName, ct);
+            .Users.Where(u => userIds.Contains(u.TwitchUserId!))
+            .ToDictionaryAsync(u => u.TwitchUserId!, u => u.DisplayName, ct);
 
         List<LeaderboardEntryDto> entries = topChatters
             .Select(

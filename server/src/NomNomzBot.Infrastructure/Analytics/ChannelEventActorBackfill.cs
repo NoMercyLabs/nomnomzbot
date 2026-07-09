@@ -91,8 +91,8 @@ public sealed class ChannelEventActorBackfill(IApplicationDbContext db)
     {
         List<string> twitchIds = actors.Keys.ToList();
         Dictionary<string, Guid> map = await db
-            .Users.Where(u => twitchIds.Contains(u.TwitchUserId))
-            .Select(u => new { u.TwitchUserId, u.Id })
+            .Users.Where(u => twitchIds.Contains(u.TwitchUserId!))
+            .Select(u => new { TwitchUserId = u.TwitchUserId!, u.Id })
             .ToDictionaryAsync(u => u.TwitchUserId, u => u.Id, cancellationToken);
 
         List<User> toCreate = [];

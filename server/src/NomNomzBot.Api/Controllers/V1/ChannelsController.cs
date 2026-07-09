@@ -187,8 +187,8 @@ public class ChannelsController : BaseController
         // string ids — match on Channel.TwitchChannelId, not the internal Guid key.
         List<string> allIds = moderated.Select(m => m.BroadcasterId).ToList();
         HashSet<string> onboardedIds = await _db
-            .Channels.Where(c => allIds.Contains(c.TwitchChannelId) && c.IsOnboarded)
-            .Select(c => c.TwitchChannelId)
+            .Channels.Where(c => allIds.Contains(c.TwitchChannelId!) && c.IsOnboarded)
+            .Select(c => c.TwitchChannelId!)
             .ToHashSetAsync(ct);
 
         List<ModeratedChannelDto> dtos = moderated

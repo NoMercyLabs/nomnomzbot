@@ -41,7 +41,8 @@ public sealed class TwitchIdentityBackfillSeeder : ISeeder
         // Users with no twitch identity yet (NOT EXISTS anti-join — zero rows once backfilled).
         List<User> missing = await _db
             .Users.Where(u =>
-                !_db.UserIdentities.Any(i =>
+                u.TwitchUserId != null
+                && !_db.UserIdentities.Any(i =>
                     i.Provider == AuthEnums.Platform.Twitch && i.ProviderUserId == u.TwitchUserId
                 )
             )
@@ -58,7 +59,7 @@ public sealed class TwitchIdentityBackfillSeeder : ISeeder
                 {
                     UserId = user.Id,
                     Provider = AuthEnums.Platform.Twitch,
-                    ProviderUserId = user.TwitchUserId,
+                    ProviderUserId = user.TwitchUserId!,
                     ProviderUsername = user.Username,
                     ProviderDisplayName = user.DisplayName,
                     ProviderAvatarUrl = user.ProfileImageUrl,
