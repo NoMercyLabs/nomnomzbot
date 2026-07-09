@@ -116,6 +116,12 @@ public sealed class ScriptRunnerTests
         (ScriptRunner sut, AuthDbContext db) = Build();
         Guid id = await SeedAsync(db, enabled: true, withValidVersion: true);
 
+        // Warm Jint once. Its first engine construction + JIT is cold-start-heavy; on a loaded CI box that can
+        // consume the whole 2s production wall-clock budget before the script's own line runs — flaking
+        // Success → Timeout (~1/1700). The warm-up run's result is irrelevant; the asserted run below executes
+        // against a hot engine. Deflake only; the production ScriptResourceBudget is untouched (cf. d27f8df).
+        await sut.RunAsync(id, Invocation());
+
         ScriptRunResult r = (await sut.RunAsync(id, Invocation())).Value;
 
         r.Outcome.Should().Be(ScriptExecutionOutcome.Success);
