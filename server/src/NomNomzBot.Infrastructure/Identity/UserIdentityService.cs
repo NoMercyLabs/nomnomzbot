@@ -114,16 +114,18 @@ public sealed class UserIdentityService : IUserIdentityService
         if (ownerResult.IsFailure)
             return ownerResult;
 
-        db.UserIdentities.Add(
-            new UserIdentity
-            {
-                UserId = ownerResult.Value,
-                Provider = normalizedProvider,
-                ProviderUserId = providerUserId,
-                ProviderUsername = providerUserId, // placeholder until enriched with the real username
-                IsPrimary = true,
-                LinkedAt = _clock.GetUtcNow().UtcDateTime,
-            }
+        // ProviderUsername is a placeholder here (this path only has the external id); the login / chat
+        // get-or-create paths call the same writer with the real profile to enrich it.
+        await PrimaryIdentityWriter.EnsureAsync(
+            db,
+            _clock,
+            ownerResult.Value,
+            normalizedProvider,
+            providerUserId,
+            username: providerUserId,
+            displayName: null,
+            avatarUrl: null,
+            cancellationToken
         );
         await db.SaveChangesAsync(cancellationToken);
 

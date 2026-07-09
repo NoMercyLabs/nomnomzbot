@@ -292,6 +292,19 @@ public sealed class AuthService : IAuthService
             );
         }
 
+        // Keep the streamer's primary Twitch identity live + enriched from Helix (platform-identity §3.1).
+        await PrimaryIdentityWriter.EnsureAsync(
+            _db,
+            _timeProvider,
+            user.Id,
+            AuthEnums.Platform.Twitch,
+            twitchUser.Id,
+            twitchUser.Login,
+            twitchUser.DisplayName,
+            twitchUser.ProfileImageUrl,
+            cancellationToken
+        );
+
         await _db.SaveChangesAsync(cancellationToken);
 
         // Upsert the owning Channel (tenant root). A streamer's own channel = their Twitch user id.
