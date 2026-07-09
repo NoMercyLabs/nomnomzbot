@@ -33,6 +33,15 @@ public class ChannelConfiguration : IEntityTypeConfiguration<Channel>
             .IsUnique()
             .HasDatabaseName("IX_Channel_TwitchChannelId");
 
+        builder.Property(e => e.Provider).IsRequired().HasMaxLength(20);
+
+        builder.Property(e => e.ExternalChannelId).IsRequired().HasMaxLength(100);
+
+        builder
+            .HasIndex(e => new { e.Provider, e.ExternalChannelId })
+            .IsUnique()
+            .HasDatabaseName("IX_Channel_Provider_ExternalChannelId");
+
         builder.Property(e => e.Name).IsRequired().HasMaxLength(25);
 
         builder.Property(e => e.NameNormalized).IsRequired().HasMaxLength(25);

@@ -338,6 +338,7 @@ public sealed class AuthService : IAuthService
             {
                 OwnerUserId = user.Id,
                 TwitchChannelId = twitchUser.Id,
+                ExternalChannelId = twitchUser.Id,
                 Name = twitchUser.Login,
                 NameNormalized = twitchUser.Login.ToLowerInvariant(),
                 IsOnboarded = true,

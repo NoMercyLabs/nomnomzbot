@@ -30,6 +30,16 @@ public class Channel : SoftDeletableEntity
     [MaxLength(50)]
     public string TwitchChannelId { get; set; } = null!;
 
+    // Streaming platform this channel lives on ([VC:enum] AuthEnums.Platform, platform-identity §1). Backfilled
+    // 'twitch'; a YouTube/Kick presence is a separate Channel row (tenant) under the same owner.
+    [MaxLength(20)]
+    public string Provider { get; set; } = AuthEnums.Platform.Twitch;
+
+    // The platform's own channel/broadcaster id — equals TwitchChannelId for a Twitch channel. The stable
+    // cross-platform key: (Provider, ExternalChannelId) uniquely identifies a channel on any platform.
+    [MaxLength(100)]
+    public string ExternalChannelId { get; set; } = "";
+
     [MaxLength(25)]
     public string Name { get; set; } = null!;
 

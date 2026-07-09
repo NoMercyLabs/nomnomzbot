@@ -249,6 +249,7 @@ public class ChannelService : IChannelService
         {
             OwnerUserId = user.Id,
             TwitchChannelId = user.TwitchUserId,
+            ExternalChannelId = user.TwitchUserId,
             Name = user.Username,
             NameNormalized = user.Username.ToLowerInvariant(),
             IsOnboarded = true,

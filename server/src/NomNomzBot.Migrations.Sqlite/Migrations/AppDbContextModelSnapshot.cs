@@ -3203,6 +3203,11 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                         .HasColumnType("INTEGER")
                         .HasDefaultValue(true);
 
+                    b.Property<string>("ExternalChannelId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("GameId")
                         .HasMaxLength(50)
                         .HasColumnType("TEXT");
@@ -3243,6 +3248,11 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<Guid>("OwnerUserId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Provider")
+                        .IsRequired()
+                        .HasMaxLength(20)
                         .HasColumnType("TEXT");
 
                     b.Property<int>("ShoutoutInterval")
@@ -3313,6 +3323,10 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.HasIndex("TwitchChannelId")
                         .IsUnique()
                         .HasDatabaseName("IX_Channel_TwitchChannelId");
+
+                    b.HasIndex("Provider", "ExternalChannelId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_Channel_Provider_ExternalChannelId");
 
                     b.ToTable("Channels");
                 });
