@@ -527,6 +527,17 @@ public static class DependencyInjection
             Identity.Login.GoogleYouTubeLoginProvider
         >();
 
+        // The auth-code + PKCE login providers (platform-identity §10.3). One IAuthCodeLoginProvider
+        // implementation per provider key; the generic auth/{provider}/authorize + /callback routes dispatch.
+        services.AddScoped<
+            Application.Identity.Services.IAuthCodeLoginProvider,
+            Identity.Login.KickLoginProvider
+        >();
+        services.AddScoped<
+            Application.Identity.Services.IAuthCodeLoginProvider,
+            Identity.Login.TwitterLoginProvider
+        >();
+
         // ISessionService, IScopeGrantService, IIntegrationOAuthService, IAuthService follow the
         // I<X>Service single-impl convention and are bound scoped by AddServicesByConvention above.
 
