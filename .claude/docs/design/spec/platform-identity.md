@@ -180,3 +180,40 @@ Sessions, JWTs, and refresh tokens are untouched — nobody is logged out.
 6. **Tokens stay in the vault.** `UserIdentity` carries no secrets; `ConnectionId` links to the user-level `IntegrationConnection` (`BroadcasterId = null`), which already models per-provider scopes/status/refresh.
 7. **Standing/actor attribution goes through `ResolveUserAsync`.** Every ingest path that today does a `TwitchUserId` lookup migrates to the one resolver (get-or-create per the viewer-identity rule); `EventJournal` keeps raw external id + provider for audit fidelity alongside the resolved internal id.
 8. **Federation/OIDC is unrelated.** `federation-oidc.md` covers operator/enterprise SSO into the platform plane; this spec covers streamer/viewer platform identities. Neither replaces the other.
+
+---
+
+## 10. Provider OAuth surfaces + Twitter login-only (verified against live docs 2026-07-09)
+
+The login-provider implementations (`ILoginIdentityProvider`, §3.2) plug these verified surfaces into the
+registry seam. Endpoints/flows re-verified against each provider's live docs (verify-current-docs rule);
+re-confirm at implementation time.
+
+| Provider | Flow | Authorize / device | Token / poll | Identity (userinfo) | Login scopes |
+|---|---|---|---|---|---|
+| **twitch** | DeviceCode + AuthCode | (shipped) `id.twitch.tv/oauth2/device` | `id.twitch.tv/oauth2/token` | Helix `GET /helix/users` | `user:read:email` |
+| **youtube** (Google) | DeviceCode | `oauth2.googleapis.com/device/code` | `oauth2.googleapis.com/token` (poll; `authorization_pending`/`slow_down`) | `openidconnect.googleapis.com/v1/userinfo` | `openid email profile` |
+| **kick** | AuthCode + PKCE (S256) | `id.kick.com/oauth/authorize` | `id.kick.com/oauth/token` | Kick `GET /public/v1/users` (docs.kick.com) | `user:read` |
+| **twitter / x** | AuthCode + PKCE (S256) | `twitter.com/i/oauth2/authorize` | `api.x.com/2/oauth2/token` | `api.x.com/2/users/me` | `users.read tweet.read offline.access` |
+
+### Decisions (resolved 2026-07-09)
+
+1. **Twitter/X is a login-only identity provider, not a streaming platform.** You can *log in* with X but
+   you do not *stream* on X — so a Twitter identity never owns a `Channel`. The **login-provider key space**
+   (`AuthEnums.LoginProvider` = `twitch|kick|youtube|twitter`) is therefore a **superset** of the **streaming
+   `Platform`** (`twitch|kick|youtube`). `UserIdentity.Provider` + `LoginProviderDescriptor.Key` range over
+   the login-provider space; `Channel.Provider` stays the streaming space. A Twitter-only user gets a
+   `UserIdentity` and can act on channels they moderate elsewhere, but onboarding a *Twitter channel* is
+   meaningless and refused.
+2. **Google device flow needs a TV/limited-input client type;** the YouTube *login* uses only
+   `openid email profile` (the broader `youtube.*` scopes belong to the music/channel integration, not login).
+3. **Kick + Twitter are auth-code+PKCE only** (no device grant) — they reuse the existing state-registry
+   callback (login / `link:{userId}` state variants), the same mechanism as the Twitch redirect flow.
+
+### The `ILoginIdentityProvider` seam to implement next (§3.2)
+
+`Key`; `StartDeviceAsync`/`PollDeviceAsync` (device providers: twitch, youtube); `BuildAuthorizeUrlAsync`/
+`ExchangeCodeAsync` (auth-code+PKCE providers: kick, twitter). Each returns an `ExternalIdentityProof`
+`(Provider, ProviderUserId, Username, DisplayName?, AvatarUrl?, ConnectionId?)`; the generic login flow then
+routes through `IUserIdentityService.ResolveUserAsync(getOrCreate)` → session/JWT. Channel onboarding for a
+non-Twitch streamer rides that platform's chat/API seam (`IChatPlatform`/`IPlatformApi`), a separate build item.
