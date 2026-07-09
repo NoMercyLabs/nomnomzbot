@@ -520,6 +520,13 @@ public static class DependencyInjection
             Identity.LoginProviderRegistry
         >();
 
+        // The Google/YouTube device-flow login provider (platform-identity §3.2). One ILoginIdentityProvider
+        // implementation per provider key; the generic auth/{provider}/device[/poll] routes dispatch to it.
+        services.AddScoped<
+            Application.Identity.Services.ILoginIdentityProvider,
+            Identity.Login.GoogleYouTubeLoginProvider
+        >();
+
         // ISessionService, IScopeGrantService, IIntegrationOAuthService, IAuthService follow the
         // I<X>Service single-impl convention and are bound scoped by AddServicesByConvention above.
 

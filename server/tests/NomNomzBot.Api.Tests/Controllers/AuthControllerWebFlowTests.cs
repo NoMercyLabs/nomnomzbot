@@ -138,7 +138,9 @@ public sealed class AuthControllerWebFlowTests
             TimeProvider.System,
             state,
             Substitute.For<ILoginProviderRegistry>(),
-            Substitute.For<IUserIdentityService>()
+            Substitute.For<IUserIdentityService>(),
+            Array.Empty<ILoginIdentityProvider>(),
+            Substitute.For<IExternalLoginService>()
         )
         {
             ControllerContext = new ControllerContext { HttpContext = http },

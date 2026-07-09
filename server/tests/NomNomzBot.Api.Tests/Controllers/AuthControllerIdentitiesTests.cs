@@ -37,7 +37,9 @@ public sealed class AuthControllerIdentitiesTests
             TimeProvider.System,
             Substitute.For<ITwitchOAuthStateService>(),
             Substitute.For<ILoginProviderRegistry>(),
-            identities
+            identities,
+            Array.Empty<ILoginIdentityProvider>(),
+            Substitute.For<IExternalLoginService>()
         )
         {
             ControllerContext = new ControllerContext

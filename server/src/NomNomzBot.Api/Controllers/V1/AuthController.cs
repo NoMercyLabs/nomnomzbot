@@ -39,6 +39,8 @@ public class AuthController : BaseController
     private readonly ITwitchOAuthStateService _oauthState;
     private readonly ILoginProviderRegistry _loginProviders;
     private readonly IUserIdentityService _identities;
+    private readonly IEnumerable<ILoginIdentityProvider> _loginImpls;
+    private readonly IExternalLoginService _externalLogin;
 
     public AuthController(
         IUserService userService,
@@ -47,7 +49,9 @@ public class AuthController : BaseController
         TimeProvider timeProvider,
         ITwitchOAuthStateService oauthState,
         ILoginProviderRegistry loginProviders,
-        IUserIdentityService identities
+        IUserIdentityService identities,
+        IEnumerable<ILoginIdentityProvider> loginImpls,
+        IExternalLoginService externalLogin
     )
     {
         _userService = userService;
@@ -57,7 +61,14 @@ public class AuthController : BaseController
         _oauthState = oauthState;
         _loginProviders = loginProviders;
         _identities = identities;
+        _loginImpls = loginImpls;
+        _externalLogin = externalLogin;
     }
+
+    private ILoginIdentityProvider? FindLoginImpl(string key) =>
+        _loginImpls.FirstOrDefault(p =>
+            string.Equals(p.Key, key, StringComparison.OrdinalIgnoreCase)
+        );
 
     private string GetPublicBaseUrl() => Request.ResolvePublicOrigin(_config);
 
@@ -483,7 +494,11 @@ public class AuthController : BaseController
         if (string.Equals(provider, AuthEnums.Platform.Twitch, StringComparison.OrdinalIgnoreCase))
             return ResultResponse(await _authService.StartTwitchDeviceLoginAsync(ct));
 
-        return NotYetLoginable(provider);
+        ILoginIdentityProvider? impl = FindLoginImpl(provider);
+        if (impl is null)
+            return NotYetLoginable(provider);
+
+        return ResultResponse(await impl.StartDeviceAsync(ct));
     }
 
     /// <summary>
@@ -509,7 +524,63 @@ public class AuthController : BaseController
         if (string.Equals(provider, AuthEnums.Platform.Twitch, StringComparison.OrdinalIgnoreCase))
             return await PollTwitchDeviceLogin(body, client, ct);
 
-        return NotYetLoginable(provider);
+        ILoginIdentityProvider? impl = FindLoginImpl(provider);
+        if (impl is null)
+            return NotYetLoginable(provider);
+
+        return await PollExternalDeviceLoginAsync(impl, body.DeviceCode, client, ct);
+    }
+
+    /// <summary>
+    /// Non-Twitch device poll: a pending grant surfaces as the loop status; an approved grant runs the generic
+    /// login (<see cref="IExternalLoginService"/>) into a tenant-less session, with the same web HttpOnly-cookie
+    /// refresh-token custody as the Twitch path.
+    /// </summary>
+    private async Task<IActionResult> PollExternalDeviceLoginAsync(
+        ILoginIdentityProvider impl,
+        string deviceCode,
+        string? client,
+        CancellationToken ct
+    )
+    {
+        Result<ExternalIdentityProof> poll = await impl.PollDeviceAsync(deviceCode, ct);
+        if (poll.IsFailure)
+        {
+            if (poll.ErrorCode == "SERVICE_UNAVAILABLE")
+                return ServiceUnavailableResponse(poll.ErrorMessage);
+
+            // pending / slow_down / expired / denied / error — the client loops on this status.
+            return Ok(
+                new StatusResponseDto<DeviceLoginPollDto>
+                {
+                    Data = new DeviceLoginPollDto(poll.ErrorCode ?? DeviceLoginStatus.Error),
+                }
+            );
+        }
+
+        Result<AuthResultDto> login = await _externalLogin.LoginAsync(
+            poll.Value,
+            BuildAuthContext(),
+            ct
+        );
+        if (login.IsFailure)
+            return ResultResponse(login);
+
+        DeviceLoginPollDto dto = new(DeviceLoginStatus.Authorized, login.Value);
+        if (
+            string.Equals(client, "web", StringComparison.OrdinalIgnoreCase) && dto.Auth is not null
+        )
+        {
+            SetRefreshTokenCookie(dto.Auth.RefreshToken);
+            return Ok(
+                new StatusResponseDto<DeviceLoginPollDto>
+                {
+                    Data = dto with { Auth = dto.Auth with { RefreshToken = string.Empty } },
+                }
+            );
+        }
+
+        return Ok(new StatusResponseDto<DeviceLoginPollDto> { Data = dto });
     }
 
     /// <summary>Wire tokens for the flows a provider supports (<c>device_code</c>/<c>auth_code_pkce</c>/<c>auth_code</c>).</summary>
