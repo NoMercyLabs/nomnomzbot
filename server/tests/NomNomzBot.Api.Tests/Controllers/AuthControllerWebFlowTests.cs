@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Security.Claims;
 using FluentAssertions;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
@@ -25,7 +26,8 @@ namespace NomNomzBot.Api.Tests.Controllers;
 /// <c>client=web</c>, the Twitch callback returns a <b>302 to the served origin</b> carrying the access token in
 /// the URL <c>#fragment</c> and the refresh token in an <c>HttpOnly</c>+<c>Secure</c>+<c>SameSite=Lax</c> cookie
 /// — never a JSON body (a full-page redirect cannot read one). The default (non-web) caller still gets the
-/// JSON token shape, so existing callback behavior is unchanged.
+/// JSON token shape, so existing callback behavior is unchanged. Logout completes the custody lifecycle by
+/// <b>clearing</b> that cookie, so a browser can't silently re-authenticate via <c>/refresh</c> after signing out.
 /// </summary>
 public sealed class AuthControllerWebFlowTests
 {
@@ -89,6 +91,34 @@ public sealed class AuthControllerWebFlowTests
             .ToString()
             .Should()
             .NotContain("nnz_refresh_token");
+    }
+
+    [Fact]
+    public async Task Logout_ClearsTheRefreshCookie_SoAReloadCannotSilentlyReauth()
+    {
+        (AuthController controller, IAuthService auth, _) = Build();
+        Guid userId = Guid.NewGuid();
+        Guid sessionId = Guid.NewGuid();
+        auth.LogoutAsync(userId, sessionId, Arg.Any<CancellationToken>()).Returns(Result.Success());
+        controller.ControllerContext.HttpContext.User = new ClaimsPrincipal(
+            new ClaimsIdentity(
+                [
+                    new Claim(ClaimTypes.NameIdentifier, userId.ToString()),
+                    new Claim("sid", sessionId.ToString()),
+                ],
+                "test"
+            )
+        );
+
+        await controller.Logout(default);
+
+        // The server-side session is revoked AND the cookie is deleted (emitted with an empty value + past
+        // expiry, on the same path it was set with) — otherwise the browser keeps a working refresh token.
+        await auth.Received(1).LogoutAsync(userId, sessionId, Arg.Any<CancellationToken>());
+        string setCookie = controller.Response.Headers["Set-Cookie"].ToString().ToLowerInvariant();
+        setCookie.Should().Contain("nnz_refresh_token=;");
+        setCookie.Should().Contain("path=/api/v1/auth");
+        setCookie.Should().Contain("expires=");
     }
 
     // ─── scaffolding ───────────────────────────────────────────────────────────

@@ -10,6 +10,7 @@
 
 using Microsoft.Extensions.DependencyInjection;
 using NomNomzBot.Application.Abstractions.Platform;
+using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Identity.Enums;
@@ -18,10 +19,11 @@ namespace NomNomzBot.Infrastructure.Identity;
 
 /// <summary>
 /// The login-provider descriptor registry (platform-identity §3.2). Providers are data: Twitch is always on;
-/// YouTube and Kick are registered but feature-flagged off until their login seams ship, so the login screen
-/// never shows a dead button and enabling one is "flip the flag". Registered as a singleton (the descriptor
-/// list is static); the feature-flag lookup is resolved through a fresh scope to avoid capturing the scoped
-/// <c>IFeatureFlagService</c>.
+/// YouTube, Kick and Twitter/X are registered but light up only when BOTH their platform feature flag is on
+/// AND their OAuth app credentials are configured — so the login screen never shows a button whose flow would
+/// 503 for lack of a client id ("no broken buttons"), and enabling one is "register the app + set the creds +
+/// flip the flag". Registered as a singleton (the descriptor list is static); the feature-flag and credential
+/// lookups resolve through a fresh scope to avoid capturing the scoped services.
 /// </summary>
 public sealed class LoginProviderRegistry : ILoginProviderRegistry
 {
@@ -70,10 +72,13 @@ public sealed class LoginProviderRegistry : ILoginProviderRegistry
     {
         using IServiceScope scope = _scopeFactory.CreateScope();
         IFeatureFlagService flags = scope.ServiceProvider.GetRequiredService<IFeatureFlagService>();
+        ISystemCredentialsProvider credentials =
+            scope.ServiceProvider.GetRequiredService<ISystemCredentialsProvider>();
 
         List<LoginProviderDescriptor> enabled = [];
         foreach (LoginProviderDescriptor descriptor in Descriptors)
         {
+            // Twitch is the shipped, always-on provider — its client id is a required boot credential.
             if (string.IsNullOrEmpty(descriptor.FeatureFlagKey))
             {
                 enabled.Add(descriptor);
@@ -81,14 +86,24 @@ public sealed class LoginProviderRegistry : ILoginProviderRegistry
             }
 
             // Platform-level gate (no tenant on the login screen) — the platform sentinel channel.
-            if (
-                await flags.IsEnabledForAsync(
-                    descriptor.FeatureFlagKey,
-                    Guid.Empty,
-                    cancellationToken
-                )
-            )
-                enabled.Add(descriptor);
+            bool flagOn = await flags.IsEnabledForAsync(
+                descriptor.FeatureFlagKey,
+                Guid.Empty,
+                cancellationToken
+            );
+            if (!flagOn)
+                continue;
+
+            // A flag can only be honoured once the provider's OAuth app credentials actually exist; without a
+            // client id the authorize/device flow returns SERVICE_UNAVAILABLE, so we must not surface the button.
+            string? clientId = await credentials.GetClientIdAsync(
+                descriptor.Key,
+                cancellationToken
+            );
+            if (string.IsNullOrEmpty(clientId))
+                continue;
+
+            enabled.Add(descriptor);
         }
 
         return enabled;

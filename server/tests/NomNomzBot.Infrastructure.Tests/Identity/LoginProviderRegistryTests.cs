@@ -11,6 +11,7 @@
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using NomNomzBot.Application.Abstractions.Platform;
+using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Infrastructure.Identity;
@@ -21,15 +22,20 @@ namespace NomNomzBot.Infrastructure.Tests.Identity;
 
 /// <summary>
 /// Behavioural proof for <see cref="LoginProviderRegistry"/> (platform-identity §3.2): Twitch is always on,
-/// YouTube/Kick are registered but gated by their feature flags, and enablement is resolved through a fresh
-/// scope so the singleton registry never captures the scoped <see cref="IFeatureFlagService"/>.
+/// YouTube/Kick/Twitter are registered but light up only when BOTH their feature flag is on AND their OAuth app
+/// credentials are configured, and enablement is resolved through a fresh scope so the singleton registry never
+/// captures the scoped <see cref="IFeatureFlagService"/> / <see cref="ISystemCredentialsProvider"/>.
 /// </summary>
 public sealed class LoginProviderRegistryTests
 {
-    private static LoginProviderRegistry Build(IFeatureFlagService flags)
+    private static LoginProviderRegistry Build(
+        IFeatureFlagService flags,
+        ISystemCredentialsProvider? credentials = null
+    )
     {
         ServiceCollection services = new();
         services.AddSingleton(flags);
+        services.AddSingleton(credentials ?? Substitute.For<ISystemCredentialsProvider>());
         ServiceProvider provider = services.BuildServiceProvider();
         return new LoginProviderRegistry(provider.GetRequiredService<IServiceScopeFactory>());
     }
@@ -79,7 +85,7 @@ public sealed class LoginProviderRegistryTests
     }
 
     [Fact]
-    public async Task EnabledAsync_includes_a_provider_whose_flag_is_on()
+    public async Task EnabledAsync_includes_a_flagged_on_provider_that_has_credentials()
     {
         IFeatureFlagService flags = Substitute.For<IFeatureFlagService>();
         flags
@@ -89,8 +95,35 @@ public sealed class LoginProviderRegistryTests
             .IsEnabledForAsync("use_kick_login", Arg.Any<Guid>(), Arg.Any<CancellationToken>())
             .Returns(false);
 
-        IReadOnlyList<LoginProviderDescriptor> enabled = await Build(flags).EnabledAsync();
+        // YouTube's flag is on AND its OAuth app is configured — so the button is safe to show.
+        ISystemCredentialsProvider credentials = Substitute.For<ISystemCredentialsProvider>();
+        credentials
+            .GetClientIdAsync("youtube", Arg.Any<CancellationToken>())
+            .Returns("yt-client-id");
+
+        IReadOnlyList<LoginProviderDescriptor> enabled = await Build(flags, credentials)
+            .EnabledAsync();
 
         enabled.Select(d => d.Key).Should().BeEquivalentTo(["twitch", "youtube"]);
+    }
+
+    [Fact]
+    public async Task EnabledAsync_excludes_a_flagged_on_provider_that_has_no_credentials()
+    {
+        // Every provider's flag is on, but none of the flag-gated ones have OAuth credentials configured.
+        IFeatureFlagService flags = Substitute.For<IFeatureFlagService>();
+        flags
+            .IsEnabledForAsync(Arg.Any<string>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .Returns(true);
+        ISystemCredentialsProvider credentials = Substitute.For<ISystemCredentialsProvider>();
+        credentials
+            .GetClientIdAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns((string?)null);
+
+        IReadOnlyList<LoginProviderDescriptor> enabled = await Build(flags, credentials)
+            .EnabledAsync();
+
+        // Only Twitch survives (always-on; its client id is a boot credential) — no dead buttons for the rest.
+        enabled.Select(d => d.Key).Should().Equal("twitch");
     }
 }

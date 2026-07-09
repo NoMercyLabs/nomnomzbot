@@ -363,6 +363,24 @@ public class AuthController : BaseController
         );
 
     /// <summary>
+    /// Clears the served-web refresh cookie on logout. Revoking the session server-side is not enough on its
+    /// own: the browser still holds the <c>nnz_refresh_token</c> cookie and would silently re-mint an access
+    /// token via <c>/refresh</c> on the next load, so a "logout" that leaves the cookie in place isn't one. The
+    /// delete must carry the same <c>Path</c> the cookie was set with, or the browser keeps the original.
+    /// </summary>
+    private void ClearRefreshTokenCookie() =>
+        Response.Cookies.Delete(
+            "nnz_refresh_token",
+            new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = Request.IsHttps,
+                SameSite = SameSiteMode.Lax,
+                Path = "/api/v1/auth",
+            }
+        );
+
+    /// <summary>
     /// Exchange an OAuth authorization code for platform tokens (mobile / SPA flow).
     /// The client handles the Twitch redirect directly and sends the code + redirect_uri
     /// to this endpoint for server-side token exchange.
@@ -809,6 +827,7 @@ public class AuthController : BaseController
             return UnauthenticatedResponse();
 
         Result result = await _authService.LogoutAsync(userGuid, sessionGuid, ct);
+        ClearRefreshTokenCookie();
         return ResultResponse(result);
     }
 
@@ -822,6 +841,7 @@ public class AuthController : BaseController
             return UnauthenticatedResponse();
 
         Result<int> result = await _authService.LogoutAllAsync(userGuid, ct);
+        ClearRefreshTokenCookie();
         return ResultResponse(result);
     }
 
