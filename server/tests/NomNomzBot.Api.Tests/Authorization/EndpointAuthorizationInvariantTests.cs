@@ -78,6 +78,8 @@ public sealed class EndpointAuthorizationInvariantTests
         // ── Own-session auth surface (identity-auth.md §5: '— (any authenticated user, own session)') ──
         ["AuthController.GetCurrentUser"] =
             "own session: auth/me returns the caller's own identity (identity-auth.md §5)",
+        ["AuthController.GetMyIdentities"] =
+            "own account: auth/identities lists the caller's own linked identities (platform-identity.md §5)",
         ["AuthController.Logout"] =
             "own session: revokes the caller's own session tokens (identity-auth.md §5)",
         ["AuthController.LogoutAll"] =

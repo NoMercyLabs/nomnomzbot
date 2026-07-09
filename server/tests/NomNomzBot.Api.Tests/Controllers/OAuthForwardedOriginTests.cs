@@ -52,7 +52,8 @@ public sealed class OAuthForwardedOriginTests
             LoopbackConfig(),
             TimeProvider.System,
             state,
-            Substitute.For<ILoginProviderRegistry>()
+            Substitute.For<ILoginProviderRegistry>(),
+            Substitute.For<IUserIdentityService>()
         )
         {
             ControllerContext = ForwardedContext(),

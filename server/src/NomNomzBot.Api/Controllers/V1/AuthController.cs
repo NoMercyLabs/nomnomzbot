@@ -38,6 +38,7 @@ public class AuthController : BaseController
     private readonly TimeProvider _timeProvider;
     private readonly ITwitchOAuthStateService _oauthState;
     private readonly ILoginProviderRegistry _loginProviders;
+    private readonly IUserIdentityService _identities;
 
     public AuthController(
         IUserService userService,
@@ -45,7 +46,8 @@ public class AuthController : BaseController
         IConfiguration config,
         TimeProvider timeProvider,
         ITwitchOAuthStateService oauthState,
-        ILoginProviderRegistry loginProviders
+        ILoginProviderRegistry loginProviders,
+        IUserIdentityService identities
     )
     {
         _userService = userService;
@@ -54,6 +56,7 @@ public class AuthController : BaseController
         _timeProvider = timeProvider;
         _oauthState = oauthState;
         _loginProviders = loginProviders;
+        _identities = identities;
     }
 
     private string GetPublicBaseUrl() => Request.ResolvePublicOrigin(_config);
@@ -86,6 +89,25 @@ public class AuthController : BaseController
     {
         Result<CurrentUserDto> result = await _userService.GetCurrentUserAsync(ct);
         return ResultResponse(result);
+    }
+
+    /// <summary>
+    /// The caller's own linked external identities (platform-identity §5), primary first. Self-scoped — no
+    /// tenant, no Gate-2 key (same plane as <c>auth/me</c>): the JWT <c>sub</c> is the only input.
+    /// </summary>
+    [HttpGet("identities")]
+    [Authorize]
+    [EnableRateLimiting("auth")]
+    [ProducesResponseType<StatusResponseDto<IReadOnlyList<UserIdentityDto>>>(
+        StatusCodes.Status200OK
+    )]
+    public async Task<IActionResult> GetMyIdentities(CancellationToken ct)
+    {
+        string? sub = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!Guid.TryParse(sub, out Guid userId))
+            return UnauthenticatedResponse();
+
+        return ResultResponse(await _identities.ListAsync(userId, ct));
     }
 
     /// <summary>

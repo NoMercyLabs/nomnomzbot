@@ -18,7 +18,8 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                 nullable: true,
                 oldClrType: typeof(string),
                 oldType: "TEXT",
-                oldMaxLength: 50);
+                oldMaxLength: 50
+            );
 
             migrationBuilder.AlterColumn<string>(
                 name: "TwitchChannelId",
@@ -28,7 +29,8 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                 nullable: true,
                 oldClrType: typeof(string),
                 oldType: "TEXT",
-                oldMaxLength: 50);
+                oldMaxLength: 50
+            );
         }
 
         /// <inheritdoc />
@@ -44,7 +46,8 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                 oldClrType: typeof(string),
                 oldType: "TEXT",
                 oldMaxLength: 50,
-                oldNullable: true);
+                oldNullable: true
+            );
 
             migrationBuilder.AlterColumn<string>(
                 name: "TwitchChannelId",
@@ -56,7 +59,8 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                 oldClrType: typeof(string),
                 oldType: "TEXT",
                 oldMaxLength: 50,
-                oldNullable: true);
+                oldNullable: true
+            );
         }
     }
 }
