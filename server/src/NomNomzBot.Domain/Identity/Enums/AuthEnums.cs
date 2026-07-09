@@ -25,6 +25,22 @@ public static class AuthEnums
         public const string YouTube = "youtube";
     }
 
+    /// <summary>
+    /// Login-provider keys (platform-identity §10) — the streaming <see cref="Platform"/> set PLUS login-only
+    /// providers (Twitter/X, which you sign in with but never stream on). Ranges over
+    /// <c>UserIdentity.Provider</c> and <c>LoginProviderDescriptor.Key</c>; <c>Channel.Provider</c> stays the
+    /// narrower streaming <see cref="Platform"/> set.
+    /// </summary>
+    public static class LoginProvider
+    {
+        public const string Twitch = Platform.Twitch;
+        public const string Kick = Platform.Kick;
+        public const string YouTube = Platform.YouTube;
+
+        /// <summary>Login-only — a Twitter identity never owns a <c>Channel</c> (platform-identity §10.1).</summary>
+        public const string Twitter = "twitter";
+    }
+
     /// <summary><c>Channel.Status</c> lifecycle.</summary>
     public static class ChannelStatus
     {

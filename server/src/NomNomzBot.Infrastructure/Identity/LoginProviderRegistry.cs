@@ -30,25 +30,33 @@ public sealed class LoginProviderRegistry : ILoginProviderRegistry
     private static readonly IReadOnlyList<LoginProviderDescriptor> Descriptors =
     [
         new LoginProviderDescriptor(
-            Key: AuthEnums.Platform.Twitch,
+            Key: AuthEnums.LoginProvider.Twitch,
             DisplayName: "Twitch",
             SupportedFlows: LoginFlows.DeviceCode | LoginFlows.AuthCode,
             FeatureFlagKey: "", // always on — the shipped login provider
             LoginScopes: ["user:read:email"]
         ),
         new LoginProviderDescriptor(
-            Key: AuthEnums.Platform.YouTube,
+            Key: AuthEnums.LoginProvider.YouTube,
             DisplayName: "YouTube",
             SupportedFlows: LoginFlows.DeviceCode | LoginFlows.AuthCode,
             FeatureFlagKey: "use_youtube_login",
             LoginScopes: ["openid", "email", "profile"]
         ),
         new LoginProviderDescriptor(
-            Key: AuthEnums.Platform.Kick,
+            Key: AuthEnums.LoginProvider.Kick,
             DisplayName: "Kick",
             SupportedFlows: LoginFlows.AuthCodePkce,
             FeatureFlagKey: "use_kick_login",
             LoginScopes: ["user:read"]
+        ),
+        // Login-only (never owns a Channel, platform-identity §10.1). Auth-code + PKCE; no device grant.
+        new LoginProviderDescriptor(
+            Key: AuthEnums.LoginProvider.Twitter,
+            DisplayName: "Twitter / X",
+            SupportedFlows: LoginFlows.AuthCodePkce,
+            FeatureFlagKey: "use_twitter_login",
+            LoginScopes: ["users.read", "tweet.read", "offline.access"]
         ),
     ];
 

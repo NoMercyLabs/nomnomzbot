@@ -35,10 +35,13 @@ public sealed class LoginProviderRegistryTests
     }
 
     [Fact]
-    public void All_lists_twitch_youtube_and_kick()
+    public void All_lists_every_registered_login_provider()
     {
         LoginProviderRegistry registry = Build(Substitute.For<IFeatureFlagService>());
-        registry.All.Select(d => d.Key).Should().BeEquivalentTo(["twitch", "youtube", "kick"]);
+        registry
+            .All.Select(d => d.Key)
+            .Should()
+            .BeEquivalentTo(["twitch", "youtube", "kick", "twitter"]);
     }
 
     [Fact]
