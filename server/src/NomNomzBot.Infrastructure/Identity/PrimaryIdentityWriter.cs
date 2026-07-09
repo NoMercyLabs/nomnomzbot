@@ -32,6 +32,7 @@ internal static class PrimaryIdentityWriter
         string username,
         string? displayName,
         string? avatarUrl,
+        Guid? connectionId = null,
         CancellationToken cancellationToken = default
     )
     {
@@ -51,6 +52,7 @@ internal static class PrimaryIdentityWriter
                     ProviderUsername = username,
                     ProviderDisplayName = displayName,
                     ProviderAvatarUrl = avatarUrl,
+                    ConnectionId = connectionId,
                     IsPrimary = true,
                     LinkedAt = clock.GetUtcNow().UtcDateTime,
                 }
@@ -65,5 +67,7 @@ internal static class PrimaryIdentityWriter
             identity.ProviderDisplayName = displayName;
         if (avatarUrl is not null && identity.ProviderAvatarUrl != avatarUrl)
             identity.ProviderAvatarUrl = avatarUrl;
+        if (connectionId is not null && identity.ConnectionId != connectionId)
+            identity.ConnectionId = connectionId;
     }
 }

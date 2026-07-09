@@ -302,7 +302,7 @@ public sealed class AuthService : IAuthService
             twitchUser.Login,
             twitchUser.DisplayName,
             twitchUser.ProfileImageUrl,
-            cancellationToken
+            cancellationToken: cancellationToken
         );
 
         await _db.SaveChangesAsync(cancellationToken);

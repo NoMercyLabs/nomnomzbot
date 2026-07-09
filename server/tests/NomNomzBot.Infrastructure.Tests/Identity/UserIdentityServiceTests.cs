@@ -179,4 +179,28 @@ public sealed class UserIdentityServiceTests
         list.Value[0].Provider.Should().Be("twitch");
         list.Value.Select(i => i.Provider).Should().BeEquivalentTo(["twitch", "youtube"]);
     }
+
+    [Fact]
+    public async Task ResolveUserAsync_creates_a_non_twitch_user_with_null_twitch_id()
+    {
+        using ServiceProvider provider = BuildProvider();
+        using IServiceScope scope = provider.CreateScope();
+
+        Result<Guid> result = await NewService(scope)
+            .ResolveUserAsync("youtube", "yt-1", getOrCreate: true);
+
+        result.IsSuccess.Should().BeTrue();
+
+        IApplicationDbContext db =
+            scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+        User user = await db.Users.SingleAsync(u => u.Id == result.Value);
+        user.TwitchUserId.Should().BeNull();
+        user.Platform.Should().Be("youtube");
+
+        UserIdentity identity = await db.UserIdentities.SingleAsync(i =>
+            i.ProviderUserId == "yt-1"
+        );
+        identity.Provider.Should().Be("youtube");
+        identity.IsPrimary.Should().BeTrue();
+    }
 }

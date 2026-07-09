@@ -125,7 +125,7 @@ public sealed class UserIdentityService : IUserIdentityService
             username: providerUserId,
             displayName: null,
             avatarUrl: null,
-            cancellationToken
+            cancellationToken: cancellationToken
         );
         await db.SaveChangesAsync(cancellationToken);
 
@@ -144,6 +144,8 @@ public sealed class UserIdentityService : IUserIdentityService
         CancellationToken cancellationToken
     )
     {
+        // Twitch has pre-identity users keyed by TwitchUserId (created before the identity table / via chat
+        // get-or-create) — reuse one if present rather than minting a duplicate.
         if (normalizedProvider == AuthEnums.Platform.Twitch)
         {
             User? legacy = await db.Users.FirstOrDefaultAsync(
@@ -152,25 +154,23 @@ public sealed class UserIdentityService : IUserIdentityService
             );
             if (legacy is not null)
                 return Result.Success(legacy.Id);
-
-            User created = new()
-            {
-                TwitchUserId = providerUserId,
-                Platform = AuthEnums.Platform.Twitch,
-                Username = providerUserId,
-                UsernameNormalized = providerUserId.ToLowerInvariant(),
-                DisplayName = providerUserId,
-                Enabled = true,
-            };
-            db.Users.Add(created);
-            await db.SaveChangesAsync(cancellationToken);
-            return Result.Success(created.Id);
         }
 
-        // Minting a user for a non-Twitch provider needs the nullable TwitchUserId projection (next sub-slice).
-        return Result.Failure<Guid>(
-            $"Creating a user for provider '{normalizedProvider}' is not yet supported.",
-            "PROVIDER_NOT_CREATABLE"
-        );
+        // Mint the user. TwitchUserId is the hot-path projection only for a Twitch identity; a YouTube/Kick/
+        // Twitter user has none (nullable projection, platform-identity §1). Username is a placeholder here —
+        // the login/chat paths enrich it with the real profile.
+        bool isTwitch = normalizedProvider == AuthEnums.Platform.Twitch;
+        User created = new()
+        {
+            TwitchUserId = isTwitch ? providerUserId : null,
+            Platform = normalizedProvider,
+            Username = providerUserId,
+            UsernameNormalized = providerUserId.ToLowerInvariant(),
+            DisplayName = providerUserId,
+            Enabled = true,
+        };
+        db.Users.Add(created);
+        await db.SaveChangesAsync(cancellationToken);
+        return Result.Success(created.Id);
     }
 }
