@@ -22,6 +22,7 @@ using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Integrations.Dtos;
 using NomNomzBot.Domain.Identity;
+using NomNomzBot.Domain.Identity.Enums;
 
 namespace NomNomzBot.Api.Controllers.V1;
 
@@ -36,13 +37,15 @@ public class AuthController : BaseController
     private readonly IConfiguration _config;
     private readonly TimeProvider _timeProvider;
     private readonly ITwitchOAuthStateService _oauthState;
+    private readonly ILoginProviderRegistry _loginProviders;
 
     public AuthController(
         IUserService userService,
         IAuthService authService,
         IConfiguration config,
         TimeProvider timeProvider,
-        ITwitchOAuthStateService oauthState
+        ITwitchOAuthStateService oauthState,
+        ILoginProviderRegistry loginProviders
     )
     {
         _userService = userService;
@@ -50,6 +53,7 @@ public class AuthController : BaseController
         _config = config;
         _timeProvider = timeProvider;
         _oauthState = oauthState;
+        _loginProviders = loginProviders;
     }
 
     private string GetPublicBaseUrl() => Request.ResolvePublicOrigin(_config);
@@ -408,6 +412,123 @@ public class AuthController : BaseController
 
         return ResultResponse(result);
     }
+
+    /// <summary>
+    /// The login providers this deployment offers (platform-identity §5). Public — the login screen reads it
+    /// before any auth. Each carries the handshake flows the client should run and whether it is currently
+    /// enabled (a registered descriptor whose feature flag resolves true); disabled ones are returned so the
+    /// client can show "coming soon" rather than a dead button. Twitch is always enabled.
+    /// </summary>
+    [HttpGet("providers")]
+    [AllowAnonymous]
+    [EnableRateLimiting("auth")]
+    [ProducesResponseType<StatusResponseDto<IReadOnlyList<LoginProviderDto>>>(
+        StatusCodes.Status200OK
+    )]
+    public async Task<IActionResult> GetLoginProviders(CancellationToken ct)
+    {
+        IReadOnlyList<LoginProviderDescriptor> enabled = await _loginProviders.EnabledAsync(ct);
+        HashSet<string> enabledKeys = enabled.Select(d => d.Key).ToHashSet();
+
+        List<LoginProviderDto> providers = _loginProviders
+            .All.Select(d => new LoginProviderDto(
+                d.Key,
+                d.DisplayName,
+                FlowTokens(d.SupportedFlows),
+                enabledKeys.Contains(d.Key)
+            ))
+            .ToList();
+
+        return Ok(new StatusResponseDto<IReadOnlyList<LoginProviderDto>> { Data = providers });
+    }
+
+    /// <summary>
+    /// Begin the no-secret device login for a provider (platform-identity §5). The literal <c>twitch/device</c>
+    /// route is the <c>provider=twitch</c> case (literal segments win in routing), so existing clients are
+    /// unaffected; this handles every other enabled provider. 404 <c>UNKNOWN_PROVIDER</c> / 403
+    /// <c>PROVIDER_DISABLED</c> gate it.
+    /// </summary>
+    [HttpPost("{provider}/device")]
+    [AllowAnonymous]
+    [EnableRateLimiting("auth")]
+    [ProducesResponseType<StatusResponseDto<DeviceCodeStartDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> StartDeviceLogin(string provider, CancellationToken ct)
+    {
+        IActionResult? gate = await ValidateEnabledProviderAsync(provider, ct);
+        if (gate is not null)
+            return gate;
+
+        if (string.Equals(provider, AuthEnums.Platform.Twitch, StringComparison.OrdinalIgnoreCase))
+            return ResultResponse(await _authService.StartTwitchDeviceLoginAsync(ct));
+
+        return NotYetLoginable(provider);
+    }
+
+    /// <summary>
+    /// Poll a provider device login once (platform-identity §5). Delegates the Twitch case to the established
+    /// streamer-session flow (incl. the web HttpOnly-cookie custody); other enabled providers plug in with
+    /// their login seams.
+    /// </summary>
+    [HttpPost("{provider}/device/poll")]
+    [AllowAnonymous]
+    [EnableRateLimiting("device-poll")]
+    [ProducesResponseType<StatusResponseDto<DeviceLoginPollDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> PollDeviceLogin(
+        string provider,
+        [FromBody] DevicePollRequest body,
+        [FromQuery] string? client,
+        CancellationToken ct
+    )
+    {
+        IActionResult? gate = await ValidateEnabledProviderAsync(provider, ct);
+        if (gate is not null)
+            return gate;
+
+        if (string.Equals(provider, AuthEnums.Platform.Twitch, StringComparison.OrdinalIgnoreCase))
+            return await PollTwitchDeviceLogin(body, client, ct);
+
+        return NotYetLoginable(provider);
+    }
+
+    /// <summary>Wire tokens for the flows a provider supports (<c>device_code</c>/<c>auth_code_pkce</c>/<c>auth_code</c>).</summary>
+    private static IReadOnlyList<string> FlowTokens(LoginFlows flows)
+    {
+        List<string> tokens = [];
+        if (flows.HasFlag(LoginFlows.DeviceCode))
+            tokens.Add("device_code");
+        if (flows.HasFlag(LoginFlows.AuthCodePkce))
+            tokens.Add("auth_code_pkce");
+        if (flows.HasFlag(LoginFlows.AuthCode))
+            tokens.Add("auth_code");
+        return tokens;
+    }
+
+    /// <summary>404 if the provider is unknown, 403 if it is registered but disabled; otherwise null (proceed).</summary>
+    private async Task<IActionResult?> ValidateEnabledProviderAsync(
+        string provider,
+        CancellationToken ct
+    )
+    {
+        if (_loginProviders.Get(provider).IsFailure)
+            return NotFoundResponse($"Unknown login provider '{provider}'.");
+
+        IReadOnlyList<LoginProviderDescriptor> enabled = await _loginProviders.EnabledAsync(ct);
+        bool isEnabled = enabled.Any(d =>
+            string.Equals(d.Key, provider, StringComparison.OrdinalIgnoreCase)
+        );
+
+        return isEnabled ? null : UnauthorizedResponse($"Login provider '{provider}' is disabled.");
+    }
+
+    private IActionResult NotYetLoginable(string provider) =>
+        StatusCode(
+            StatusCodes.Status501NotImplemented,
+            new StatusResponseDto<object>
+            {
+                Status = "error",
+                Message = $"Device login for '{provider}' is not yet implemented.",
+            }
+        );
 
     /// <summary>Refresh an expired access token.</summary>
     [HttpPost("refresh")]

@@ -341,6 +341,7 @@ public sealed class IdentityRekeyBehaviorTests
     private sealed class ResolverDb(RekeyTestContext inner) : IApplicationDbContext
     {
         public DbSet<User> Users => inner.Users;
+        public DbSet<UserIdentity> UserIdentities => throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.Rewards.Entities.Redemption> Redemptions =>
             inner.Redemptions;
         public DbSet<ConsentRecord> ConsentRecords => inner.ConsentRecords;

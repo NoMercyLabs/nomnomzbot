@@ -123,6 +123,7 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
         : base(options) { }
 
     public DbSet<User> Users => Set<User>();
+    public DbSet<UserIdentity> UserIdentities => Set<UserIdentity>();
     public DbSet<NomNomzBot.Domain.Rewards.Entities.Redemption> Redemptions =>
         Set<NomNomzBot.Domain.Rewards.Entities.Redemption>();
     public DbSet<ConsentRecord> ConsentRecords => Set<ConsentRecord>();
@@ -138,6 +139,10 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
     {
         b.Entity<User>().HasKey(e => e.Id);
         b.Entity<User>().Ignore(e => e.Channel).Ignore(e => e.Pronoun);
+
+        // Scalar-only mapping (navs ignored) so the platform-identity tests resolve + list identities here.
+        b.Entity<UserIdentity>().HasKey(e => e.Id);
+        b.Entity<UserIdentity>().Ignore(e => e.User).Ignore(e => e.Connection);
 
         b.Entity<Channel>().HasKey(e => e.Id);
         b.Entity<Channel>().Ignore(e => e.Tags).Ignore(e => e.ContentLabels);

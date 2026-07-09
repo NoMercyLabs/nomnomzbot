@@ -103,6 +103,36 @@ public class JwtTokenServiceTests
     }
 
     [Fact]
+    public void GenerateAccessToken_WithIdp_EmbedsIdpClaim()
+    {
+        JwtTokenService svc = Create();
+        string token = svc.GenerateAccessToken(
+            UserId,
+            "alice",
+            TenantId,
+            SessionId,
+            roles: null,
+            idp: "twitch"
+        );
+
+        // Assert the raw wire claim (ValidateAccessToken remaps the "idp" short name to a URI).
+        System.IdentityModel.Tokens.Jwt.JwtSecurityToken jwt =
+            new System.IdentityModel.Tokens.Jwt.JwtSecurityTokenHandler().ReadJwtToken(token);
+        jwt.Claims.Should().ContainSingle(c => c.Type == "idp").Which.Value.Should().Be("twitch");
+    }
+
+    [Fact]
+    public void GenerateAccessToken_NoIdp_OmitsIdpClaim()
+    {
+        JwtTokenService svc = Create();
+        string token = svc.GenerateAccessToken(UserId, "alice", TenantId, SessionId);
+
+        System.IdentityModel.Tokens.Jwt.JwtSecurityToken jwt =
+            new System.IdentityModel.Tokens.Jwt.JwtSecurityTokenHandler().ReadJwtToken(token);
+        jwt.Claims.Should().NotContain(c => c.Type == "idp");
+    }
+
+    [Fact]
     public void GenerateAccessToken_DistinctCalls_DifferByJti()
     {
         JwtTokenService svc = Create();

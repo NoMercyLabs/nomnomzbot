@@ -52,6 +52,7 @@ internal sealed class HubUserEnrichmentTestDbContext : DbContext, IApplicationDb
         );
 
     public DbSet<User> Users => Set<User>();
+    public DbSet<UserIdentity> UserIdentities => throw new NotSupportedException();
     public DbSet<Pronoun> Pronouns => Set<Pronoun>();
     public DbSet<ChannelCommunityStanding> ChannelCommunityStandings =>
         Set<ChannelCommunityStanding>();

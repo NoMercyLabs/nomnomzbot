@@ -117,6 +117,7 @@ internal sealed class ApiTestDbContext : DbContext, IApplicationDbContext
 
     // ── Unused IApplicationDbContext surface — never reached by these tests ──
     public DbSet<User> Users => throw new NotSupportedException();
+    public DbSet<UserIdentity> UserIdentities => throw new NotSupportedException();
     public DbSet<ConsentRecord> ConsentRecords => throw new NotSupportedException();
     public DbSet<ChannelModerator> ChannelModerators => throw new NotSupportedException();
     public DbSet<Service> Services => throw new NotSupportedException();

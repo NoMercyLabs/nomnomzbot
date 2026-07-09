@@ -95,7 +95,8 @@ public sealed class SessionService : ISessionService
             user.Username,
             broadcasterId,
             session.Id,
-            RolesFor(user)
+            RolesFor(user),
+            idp: user.Platform
         );
 
         await _eventBus.PublishAsync(
@@ -195,7 +196,8 @@ public sealed class SessionService : ISessionService
             user.Username,
             session.BroadcasterId,
             session.Id,
-            RolesFor(user)
+            RolesFor(user),
+            idp: user.Platform
         );
 
         return Result.Success(

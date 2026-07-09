@@ -512,6 +512,14 @@ public static class DependencyInjection
         // The descriptor-driven connect flow's token-exchange / account-identity HTTP client.
         services.AddHttpClient("integration-oauth");
 
+        // Login-provider descriptors (platform-identity §3.2) — data, not a fork. Singleton (static list); the
+        // feature-flag lookup inside EnabledAsync is resolved through a fresh scope. Not an I<X>Service, so it
+        // is excluded from the convention scan and registered explicitly here.
+        services.AddSingleton<
+            Application.Identity.Services.ILoginProviderRegistry,
+            Identity.LoginProviderRegistry
+        >();
+
         // ISessionService, IScopeGrantService, IIntegrationOAuthService, IAuthService follow the
         // I<X>Service single-impl convention and are bound scoped by AddServicesByConvention above.
 

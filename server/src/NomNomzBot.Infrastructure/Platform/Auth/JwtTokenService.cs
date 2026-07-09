@@ -75,7 +75,8 @@ public sealed class JwtTokenService : IJwtTokenService
         string username,
         Guid? broadcasterId,
         Guid sessionId,
-        IEnumerable<string>? roles = null
+        IEnumerable<string>? roles = null,
+        string? idp = null
     )
     {
         List<Claim> claims =
@@ -97,6 +98,10 @@ public sealed class JwtTokenService : IJwtTokenService
         if (roles is not null)
             foreach (string role in roles)
                 claims.Add(new(ClaimTypes.Role, role));
+
+        // The login provider this session authenticated with (platform-identity §3.3).
+        if (!string.IsNullOrEmpty(idp))
+            claims.Add(new("idp", idp));
 
         JwtSecurityToken token = new(
             issuer: _issuer,

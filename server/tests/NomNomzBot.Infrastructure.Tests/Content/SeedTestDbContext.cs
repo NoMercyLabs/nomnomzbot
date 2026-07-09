@@ -52,6 +52,7 @@ public sealed class SeedTestDbContext : DbContext, IApplicationDbContext
 
     // ── Remaining IApplicationDbContext surface (not mapped — Ignored below) ──
     public DbSet<User> Users => Set<User>();
+    public DbSet<UserIdentity> UserIdentities => Set<UserIdentity>();
     public DbSet<ConsentRecord> ConsentRecords => Set<ConsentRecord>();
     public DbSet<ChannelModerator> ChannelModerators => Set<ChannelModerator>();
     public DbSet<Service> Services => Set<Service>();

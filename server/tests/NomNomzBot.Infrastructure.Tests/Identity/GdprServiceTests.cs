@@ -233,6 +233,7 @@ internal sealed class GdprTestDbContext : DbContext, IApplicationDbContext
         : base(options) { }
 
     public DbSet<User> Users => Set<User>();
+    public DbSet<UserIdentity> UserIdentities => throw new NotSupportedException();
     public DbSet<Redemption> Redemptions => Set<Redemption>();
     public DbSet<ConsentRecord> ConsentRecords => Set<ConsentRecord>();
     public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();

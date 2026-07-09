@@ -46,6 +46,7 @@ internal sealed class ReadModelRebuildDbContext : DbContext, IApplicationDbConte
     public DbSet<ViewerEngagementDaily> ViewerEngagementDailies => Set<ViewerEngagementDaily>();
     public DbSet<ChannelAnalyticsDaily> ChannelAnalyticsDailies => Set<ChannelAnalyticsDaily>();
     public DbSet<User> Users => Set<User>();
+    public DbSet<UserIdentity> UserIdentities => throw new NotSupportedException();
     public DbSet<ChannelEvent> ChannelEvents => Set<ChannelEvent>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

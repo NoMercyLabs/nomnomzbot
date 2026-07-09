@@ -22,14 +22,15 @@ public interface IJwtTokenService
 {
     /// <summary>
     /// Mints a short-lived access JWT: <c>sub=userId</c>, <c>tenant=broadcasterId</c>, <c>sid=sessionId</c>,
-    /// plus any roles. Pure — no persistence.
+    /// plus any roles and the login-provider <c>idp</c> claim (platform-identity §3.3). Pure — no persistence.
     /// </summary>
     string GenerateAccessToken(
         Guid userId,
         string username,
         Guid? broadcasterId,
         Guid sessionId,
-        IEnumerable<string>? roles = null
+        IEnumerable<string>? roles = null,
+        string? idp = null
     );
 
     /// <summary>

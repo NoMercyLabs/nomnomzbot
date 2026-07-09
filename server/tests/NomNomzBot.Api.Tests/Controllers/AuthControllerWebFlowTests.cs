@@ -136,7 +136,8 @@ public sealed class AuthControllerWebFlowTests
             authService,
             config,
             TimeProvider.System,
-            state
+            state,
+            Substitute.For<ILoginProviderRegistry>()
         )
         {
             ControllerContext = new ControllerContext { HttpContext = http },
