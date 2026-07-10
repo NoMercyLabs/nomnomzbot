@@ -19,6 +19,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Integrations.Dtos;
+using NomNomzBot.Domain.Identity.Enums;
 
 namespace NomNomzBot.Api.Controllers.V1;
 
@@ -35,6 +36,12 @@ namespace NomNomzBot.Api.Controllers.V1;
 [Tags("Channel Bot")]
 public class ChannelBotController : BaseController
 {
+    // The streamer's own Twitch connection (self-host: the bot chats as the streamer's own account until a
+    // dedicated bot registers) and the dedicated white-label bot connection (twitch_bot). Mirrors
+    // AuthService's TwitchProvider / PlatformBotProvider so the scopes page reads exactly what the bot flow writes.
+    private const string TwitchProvider = AuthEnums.IntegrationProvider.Twitch;
+    private const string TwitchBotProvider = AuthEnums.IntegrationProvider.Twitch + "_bot";
+
     private readonly IAuthService _authService;
     private readonly IIntegrationTokenVault _vault;
     private readonly IConfiguration _config;
@@ -66,6 +73,14 @@ public class ChannelBotController : BaseController
 
     public record ScopesResponseDto(List<ScopeDto> Permissions, int GrantedCount, int TotalCount);
 
+    // The scopes the white-label bot OAuth flow actually grants (mirrors AuthService.BotScopes). This is the
+    // BOT account's chat-permission page, not the streamer's — so it lists only the bot's chat scopes.
+    //  - user:read:chat / user:write:chat are the live Helix chat path (read via EventSub, send via
+    //    POST /helix/chat/messages) and are REQUIRED: their absence is a genuine "action required".
+    //  - chat:read / chat:edit are the legacy IRC scopes. The bot OAuth still requests them, but the Helix
+    //    chat path never exercises them (IRC is fully retired, scaling-qos.md §6). They are listed for
+    //    transparency but are NOT required — so a self-host bot chatting as the streamer's own account
+    //    (which holds the Helix scopes but not the IRC ones) still reads as complete.
     private static readonly (
         string Scope,
         string Name,
@@ -74,119 +89,37 @@ public class ChannelBotController : BaseController
         bool Required
     )[] KnownScopes =
     [
-        ("user:read:email", "Read Email", "Access your verified email address", "Account", true),
-        ("user:read:chat", "Read Chat (user)", "Read chat messages as you", "Chat", true),
-        ("chat:read", "Read Chat", "Read live stream chat and rooms", "Chat", true),
         (
-            "chat:edit",
-            "Send Chat Messages",
-            "Send live stream chat and rooms messages",
+            "user:read:chat",
+            "Read Chat",
+            "Read chat messages so the bot can see and respond to commands",
             "Chat",
             true
         ),
+        ("user:write:chat", "Send Chat Messages", "Send chat messages as the bot", "Chat", true),
         (
-            "channel:read:subscriptions",
-            "Read Subscriptions",
-            "View your channel's subscription events",
-            "Channel",
-            true
-        ),
-        ("bits:read", "Read Bits", "View Bits information for your channel", "Channel", true),
-        (
-            "channel:manage:redemptions",
-            "Manage Redemptions",
-            "Manage channel point redemption statuses",
-            "Rewards",
-            true
+            "chat:read",
+            "Read Chat (legacy IRC)",
+            "Legacy IRC chat read — superseded by the Helix chat path and no longer used",
+            "Chat",
+            false
         ),
         (
-            "channel:read:redemptions",
-            "Read Redemptions",
-            "View channel point custom reward redemptions",
-            "Rewards",
-            true
+            "chat:edit",
+            "Send Chat (legacy IRC)",
+            "Legacy IRC chat send — superseded by the Helix chat path and no longer used",
+            "Chat",
+            false
         ),
-        (
-            "moderator:read:chatters",
-            "Read Chatters",
-            "View the list of chatters in your channel",
-            "Moderation",
-            true
-        ),
-        (
-            "moderator:manage:banned_users",
-            "Manage Bans",
-            "Ban and unban users in your channel",
-            "Moderation",
-            true
-        ),
-        (
-            "moderator:manage:chat_messages",
-            "Delete Messages",
-            "Delete chat messages in your channel",
-            "Moderation",
-            true
-        ),
-        (
-            "moderator:manage:chat_settings",
-            "Manage Chat Settings",
-            "Update chat settings such as slow mode and subscriber-only",
-            "Moderation",
-            true
-        ),
-        (
-            "moderator:read:followers",
-            "Read Followers",
-            "Read information about followers in your channel",
-            "Channel",
-            true
-        ),
-        (
-            "channel:moderate",
-            "Channel Moderate",
-            "Perform moderation actions in your channel",
-            "Moderation",
-            true
-        ),
-        (
-            "channel:manage:broadcast",
-            "Manage Broadcast",
-            "Update your channel's title, game, and other settings",
-            "Stream",
-            true
-        ),
-        (
-            "channel:read:polls",
-            "Read Polls",
-            "View information about polls in your channel",
-            "Polls",
-            true
-        ),
-        (
-            "channel:manage:polls",
-            "Manage Polls",
-            "Create and end polls in your channel",
-            "Polls",
-            true
-        ),
-        (
-            "channel:read:predictions",
-            "Read Predictions",
-            "View information about predictions in your channel",
-            "Predictions",
-            true
-        ),
-        (
-            "channel:manage:predictions",
-            "Manage Predictions",
-            "Create and end predictions in your channel",
-            "Predictions",
-            true
-        ),
-        ("channel:read:vips", "Read VIPs", "View your channel's VIP list", "Channel", true),
     ];
 
-    /// <summary>Returns OAuth scopes status for the broadcaster token on this channel.</summary>
+    /// <summary>
+    /// Returns the white-label bot account's chat-permission status for this channel — the signal behind the
+    /// dashboard's bot "action required" prompt. Reads the dedicated bot connection (<c>twitch_bot</c>, written
+    /// by the bot OAuth flow), falling back to the streamer's own <c>twitch</c> connection for the self-host case
+    /// where the bot chats as the streamer's own account until a custom bot is registered. Only the required
+    /// scopes gate completion, so once the bot grant lands the prompt clears (100%).
+    /// </summary>
     [HttpGet("{channelId}/scopes")]
     [Authorize]
     [RequireAction("channelbot:read")]
@@ -198,12 +131,18 @@ public class ChannelBotController : BaseController
 
         Result<IReadOnlyList<IntegrationConnectionDto>> connections =
             await _vault.ListConnectionsAsync(tenantId, ct);
-        IntegrationConnectionDto? twitch = connections.IsSuccess
-            ? connections.Value.FirstOrDefault(c => c.Provider == "twitch")
-            : null;
+        IReadOnlyList<IntegrationConnectionDto> list = connections.IsSuccess
+            ? connections.Value
+            : [];
+
+        // Prefer the dedicated white-label bot connection; fall back to the streamer's own connection for the
+        // self-host case where the bot IS the streamer's own account (bot-identity self-host fallback).
+        IntegrationConnectionDto? botConnection =
+            list.FirstOrDefault(c => c.Provider == TwitchBotProvider)
+            ?? list.FirstOrDefault(c => c.Provider == TwitchProvider);
 
         HashSet<string> grantedScopes =
-            twitch?.Scopes.ToHashSet(StringComparer.OrdinalIgnoreCase)
+            botConnection?.Scopes.ToHashSet(StringComparer.OrdinalIgnoreCase)
             ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         List<ScopeDto> permissions = KnownScopes
@@ -217,12 +156,17 @@ public class ChannelBotController : BaseController
             ))
             .ToList();
 
-        int grantedCount = permissions.Count(p => p.Granted);
+        // Only the required scopes decide the "action required" prompt. The legacy IRC scopes are informational
+        // (Required=false) and the Helix chat path never exercises them, so their absence must never keep the
+        // prompt open — a completed bot grant (or a self-host streamer token carrying the Helix chat scopes)
+        // reads 100%.
+        int totalCount = permissions.Count(p => p.Required);
+        int grantedCount = permissions.Count(p => p.Required && p.Granted);
 
         return Ok(
             new StatusResponseDto<ScopesResponseDto>
             {
-                Data = new ScopesResponseDto(permissions, grantedCount, permissions.Count),
+                Data = new ScopesResponseDto(permissions, grantedCount, totalCount),
             }
         );
     }
