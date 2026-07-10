@@ -53,6 +53,13 @@ public sealed class TwitchEventSubHostedService
     private DateTimeOffset? _lastEventAt;
     private volatile int _activeSubscriptionCount;
 
+    // Owners whose session has welcomed at least once this process. The FIRST welcome per owner does NOT trigger
+    // a re-register: BotLifecycleService's startup reconcile already subscribes the desired set, so re-registering
+    // in parallel just double-POSTs every topic and 409-storms Twitch. Only a RECONNECT welcome (owner already
+    // seen) re-homes the rows onto the fresh session.
+    private readonly HashSet<string> _welcomedOwners = [];
+    private readonly Lock _welcomedLock = new();
+
     // Set once the transport has actually been started (after the readiness gate opened), so the dormancy
     // waiter never double-starts and so it stops re-checking once it has handed off to the receive loop.
     private volatile bool _transportStarted;
@@ -194,11 +201,18 @@ public sealed class TwitchEventSubHostedService
         // A fresh welcome for this OWNER means its previous WebSocket session is dead. Twitch keeps that session's
         // subscriptions in a `websocket_disconnected` state for ~1 minute, and a re-create's 409-conflict key
         // is (type + condition) — session-independent — so those lingering subs would 409 every re-create and
-        // strand this owner's topics. Clear this owner's dead-session orphans first (never another owner's),
-        // then re-register this owner's enabled registry rows against the new session and announce steady state.
+        // strand this owner's topics. Clear this owner's dead-session orphans first (never another owner's).
         await CleanupOwnerStaleSubsAsync(ownerKey, sessionId, ct);
-        int active = await ReRegisterOwnerAsync(ownerKey, ct);
-        _activeSubscriptionCount = active;
+
+        // Re-register the owner's rows onto the fresh session ONLY on a RECONNECT welcome. The FIRST welcome per
+        // owner is skipped: BotLifecycleService's startup reconcile subscribes the desired set, so re-registering
+        // here too just double-POSTs every topic and 409-storms Twitch.
+        bool firstWelcome;
+        lock (_welcomedLock)
+            firstWelcome = _welcomedOwners.Add(ownerKey);
+
+        if (!firstWelcome)
+            _activeSubscriptionCount = await ReRegisterOwnerAsync(ownerKey, ct);
 
         await _eventBus.PublishAsync(
             new EventSubConnectedEvent
@@ -206,7 +220,7 @@ public sealed class TwitchEventSubHostedService
                 BroadcasterId = Guid.Empty,
                 Transport = _transport.Kind,
                 SessionId = sessionId,
-                ActiveSubscriptionCount = active,
+                ActiveSubscriptionCount = _activeSubscriptionCount,
                 OccurredAt = _clock.GetUtcNow(),
             },
             ct
@@ -521,6 +535,24 @@ public sealed class TwitchEventSubHostedService
 
         if (created.IsFailure)
         {
+            // A 409 whose winner already enabled this exact (type+condition) on the CURRENT session must not be
+            // downgraded: re-read fresh (a concurrent create runs on its own DbContext, so the tracked row is
+            // stale) and keep the enabled row instead of clobbering it back to pending.
+            if (created.ErrorCode == TwitchErrorCodes.Conflict)
+            {
+                var live = await db
+                    .EventSubSubscriptions.AsNoTracking()
+                    .Where(s => s.Id == row.Id)
+                    .Select(s => new { s.Status, s.SessionId })
+                    .FirstOrDefaultAsync(ct);
+                if (
+                    live is { Status: "enabled" }
+                    && currentSession is not null
+                    && live.SessionId == currentSession
+                )
+                    return Result.Success(ToDto(row));
+            }
+
             // Map the failure to a retryable / terminal status instead of a permanent "failed":
             //  - Conflict (409): an identical sub still lingers from a dead session inside Twitch's ~1-min GC
             //    window → "pending" so the next reconcile retries once it clears (expected, transient).
