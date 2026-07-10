@@ -621,6 +621,13 @@ public static class DependencyInjection
         services.AddHttpContextAccessor();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
 
+        // Per-platform channel provisioning (cross-platform chat, item 6) — get-or-create the tenant Channel
+        // for a streamer's YouTube/Kick presence. Not an I<X>Service, so registered explicitly.
+        services.AddScoped<
+            Application.Identity.Services.IPlatformChannelProvisioner,
+            Identity.PlatformChannelProvisioner
+        >();
+
         // Startup helpers consumed by concrete type (not pluggable markers) — kept explicit.
         services.AddTransient<StartupReadinessChecker>();
         services.AddScoped<IDatabaseMigrator, DatabaseMigrator>();
