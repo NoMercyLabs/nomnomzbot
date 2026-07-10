@@ -24,6 +24,7 @@ using NomNomzBot.Infrastructure.EventStore;
 using NomNomzBot.Infrastructure.EventStore.LegacyImport;
 using NomNomzBot.Infrastructure.Identity;
 using NomNomzBot.Infrastructure.Platform.Persistence;
+using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.EventStore.LegacyImport;
@@ -224,7 +225,7 @@ public sealed class LegacyImportLiveDbVerification
         services.AddScoped<IApplicationDbContext>(sp => sp.GetRequiredService<AppDbContext>());
         ServiceProvider provider = services.BuildServiceProvider();
         IServiceScopeFactory scopeFactory = provider.GetRequiredService<IServiceScopeFactory>();
-        IUserService userService = new UserService(db, currentUser, scopeFactory);
+        IUserService userService = AuthTestBuilder.UserService(db, currentUser, scopeFactory);
         ViewerResolver resolver = new(db, userService);
         ILiveWindowResolver liveWindow = Substitute.For<ILiveWindowResolver>();
         liveWindow

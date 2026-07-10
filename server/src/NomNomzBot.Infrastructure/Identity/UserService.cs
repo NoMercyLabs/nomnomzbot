@@ -16,6 +16,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Identity.Entities;
+using NomNomzBot.Domain.Identity.Enums;
 
 namespace NomNomzBot.Infrastructure.Identity;
 
@@ -24,16 +25,22 @@ public class UserService : IUserService
     private readonly IApplicationDbContext _db;
     private readonly ICurrentUserService _currentUser;
     private readonly IServiceScopeFactory _scopeFactory;
+    private readonly IUserIdentityService _identities;
+    private readonly TimeProvider _clock;
 
     public UserService(
         IApplicationDbContext db,
         ICurrentUserService currentUser,
-        IServiceScopeFactory scopeFactory
+        IServiceScopeFactory scopeFactory,
+        IUserIdentityService identities,
+        TimeProvider clock
     )
     {
         _db = db;
         _currentUser = currentUser;
         _scopeFactory = scopeFactory;
+        _identities = identities;
+        _clock = clock;
     }
 
     public async Task<Result<CurrentUserDto>> GetCurrentUserAsync(
@@ -72,40 +79,52 @@ public class UserService : IUserService
         CancellationToken cancellationToken = default
     )
     {
-        // Use a dedicated scope so this call never races with other DB operations on the caller's
-        // scoped context (e.g. when the membership seeder calls GetOrCreateAsync inside a loop
-        // while the Helix token resolver runs a concurrent query on the same scope's DbContext).
+        // Resolve through the platform-agnostic identity table (get-or-create by provider + external id), not a
+        // Twitch-only Users lookup — so a chatter on any platform maps to the right User and always gets a
+        // UserIdentity row (viewer-identity rule, platform-identity §3.1). Chat is Twitch today, so the provider
+        // is fixed here; the resolver reuses a pre-identity Twitch user and mints the primary identity when unseen.
+        Result<Guid> resolved = await _identities.ResolveUserAsync(
+            AuthEnums.Platform.Twitch,
+            platformUserId,
+            getOrCreate: true,
+            cancellationToken
+        );
+        if (resolved.IsFailure)
+            return resolved.WithValue<UserDto>(null!);
+
+        Guid userId = resolved.Value;
+
+        // Enrich the user + its identity with the freshest chat profile. A dedicated scope keeps this off the
+        // caller's scoped context (e.g. the membership seeder loops over this while other queries run there).
         using IServiceScope scope = _scopeFactory.CreateScope();
         IApplicationDbContext db =
             scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
 
-        // platformUserId is the external Twitch user id (the id seen in chat), not the internal key.
-        User? user = await db.Users.FirstOrDefaultAsync(
-            u => u.TwitchUserId == platformUserId,
-            cancellationToken
-        );
-
+        User? user = await db.Users.FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
         if (user is null)
-        {
-            user = new()
-            {
-                TwitchUserId = platformUserId,
-                Username = username,
-                UsernameNormalized = username.ToLowerInvariant(),
-                DisplayName = displayName,
-                Enabled = true,
-            };
+            return Errors.NotFound<UserDto>("User", userId.ToString());
 
-            db.Users.Add(user);
-            await db.SaveChangesAsync(cancellationToken);
-        }
-        else
+        if (user.Username != username)
         {
             user.Username = username;
             user.UsernameNormalized = username.ToLowerInvariant();
-            user.DisplayName = displayName;
-            await db.SaveChangesAsync(cancellationToken);
         }
+        if (user.DisplayName != displayName)
+            user.DisplayName = displayName;
+
+        // Replace the resolver's placeholder profile (username = the external id) with the real chat identity.
+        await PrimaryIdentityWriter.EnsureAsync(
+            db,
+            _clock,
+            userId,
+            AuthEnums.Platform.Twitch,
+            platformUserId,
+            username,
+            displayName,
+            avatarUrl: null,
+            cancellationToken: cancellationToken
+        );
+        await db.SaveChangesAsync(cancellationToken);
 
         return Result.Success(ToDto(user));
     }

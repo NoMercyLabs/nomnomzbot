@@ -46,7 +46,7 @@ internal sealed class ReadModelRebuildDbContext : DbContext, IApplicationDbConte
     public DbSet<ViewerEngagementDaily> ViewerEngagementDailies => Set<ViewerEngagementDaily>();
     public DbSet<ChannelAnalyticsDaily> ChannelAnalyticsDailies => Set<ChannelAnalyticsDaily>();
     public DbSet<User> Users => Set<User>();
-    public DbSet<UserIdentity> UserIdentities => throw new NotSupportedException();
+    public DbSet<UserIdentity> UserIdentities => Set<UserIdentity>();
     public DbSet<ChannelEvent> ChannelEvents => Set<ChannelEvent>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -67,6 +67,15 @@ internal sealed class ReadModelRebuildDbContext : DbContext, IApplicationDbConte
             b.HasKey(u => u.Id);
             b.Ignore(u => u.Channel);
             b.Ignore(u => u.Pronoun);
+        });
+
+        // UserIdentity is minted alongside the User by the platform-agnostic resolver the viewer resolver calls;
+        // map it scalar-only (its User/Connection navs point at entities not hosted here — drop them).
+        modelBuilder.Entity<UserIdentity>(b =>
+        {
+            b.HasKey(i => i.Id);
+            b.Ignore(i => i.User);
+            b.Ignore(i => i.Connection);
         });
 
         // ChannelEvent is the channel-event-log read model (F.4); map it minimally so TwitchChannelEventLogProjection

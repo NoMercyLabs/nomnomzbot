@@ -24,6 +24,7 @@ using NomNomzBot.Domain.Rewards.Events;
 using NomNomzBot.Infrastructure.Analytics;
 using NomNomzBot.Infrastructure.EventStore;
 using NomNomzBot.Infrastructure.Identity;
+using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.EventStore;
@@ -178,7 +179,7 @@ public sealed class ReadModelRebuildFromJournalTests
         ServiceProvider provider = services.BuildServiceProvider();
         IServiceScopeFactory scopeFactory = provider.GetRequiredService<IServiceScopeFactory>();
 
-        IUserService userService = new UserService(db, currentUser, scopeFactory);
+        IUserService userService = AuthTestBuilder.UserService(db, currentUser, scopeFactory);
         ViewerResolver resolver = new(db, userService);
 
         // Activity always falls inside one live window so watch-sessions open during replay exactly as on the

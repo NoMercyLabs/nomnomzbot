@@ -13,14 +13,17 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
+using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Services;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Integrations.Entities;
 using NomNomzBot.Domain.Platform;
 using NomNomzBot.Domain.Platform.Interfaces;
+using NomNomzBot.Infrastructure.Identity;
 using NomNomzBot.Infrastructure.Platform.Auth;
 using NomNomzBot.Infrastructure.Platform.Configuration;
 using NomNomzBot.Infrastructure.Platform.Security;
@@ -63,6 +66,24 @@ internal static class AuthTestBuilder
         );
         return new TokenProtector(subjectKeys, NullLogger<TokenProtector>.Instance);
     }
+
+    /// <summary>
+    /// A real <see cref="UserService"/> wired over the same context + scope factory the caller uses, with its
+    /// platform-agnostic <see cref="UserIdentityService"/> collaborator (recording bus, system clock). Every
+    /// get-or-create seam thus routes through the identity resolver exactly as production does.
+    /// </summary>
+    public static IUserService UserService(
+        IApplicationDbContext db,
+        ICurrentUserService currentUser,
+        IServiceScopeFactory scopeFactory
+    ) =>
+        new UserService(
+            db,
+            currentUser,
+            scopeFactory,
+            new UserIdentityService(db, scopeFactory, TimeProvider.System, new RecordingEventBus()),
+            TimeProvider.System
+        );
 
     public static AuthDbContext NewContext() => NewContext(Guid.NewGuid().ToString());
 

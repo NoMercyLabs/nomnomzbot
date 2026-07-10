@@ -42,7 +42,7 @@ public sealed class ViewerEngagementDailyProjectionTests
         services.AddSingleton<IApplicationDbContext>(db);
         ServiceProvider provider = services.BuildServiceProvider();
         IServiceScopeFactory scopeFactory = provider.GetRequiredService<IServiceScopeFactory>();
-        IUserService userService = new UserService(db, currentUser, scopeFactory);
+        IUserService userService = AuthTestBuilder.UserService(db, currentUser, scopeFactory);
         return (new ViewerEngagementDailyProjection(db, new ViewerResolver(db, userService)), db);
     }
 

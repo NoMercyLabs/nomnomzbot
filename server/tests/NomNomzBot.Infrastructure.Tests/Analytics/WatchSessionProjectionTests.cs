@@ -45,7 +45,7 @@ public sealed class WatchSessionProjectionTests
         services.AddSingleton<IApplicationDbContext>(db);
         ServiceProvider provider = services.BuildServiceProvider();
         IServiceScopeFactory scopeFactory = provider.GetRequiredService<IServiceScopeFactory>();
-        IUserService userService = new UserService(db, currentUser, scopeFactory);
+        IUserService userService = AuthTestBuilder.UserService(db, currentUser, scopeFactory);
         ILiveWindowResolver live = Substitute.For<ILiveWindowResolver>();
         live.GetCoveringStreamIdAsync(
                 Arg.Any<Guid>(),
