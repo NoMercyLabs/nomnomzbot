@@ -591,8 +591,8 @@
     <string name="integrations_action_reauth">Reconnect</string>
     <string name="integrations_action_retry">Retry</string>
     <string name="permissions_banner_title">Twitch permissions needed</string>
-    <string name="permissions_banner_body">The bot needs %1$s to %2$s. Grant it in one click — your existing permissions are kept.</string>
-    <string name="permissions_banner_body_generic">The bot needs %1$d more Twitch permission(s) to power some features. Grant them in one click — your existing permissions are kept.</string>
+    <string name="permissions_banner_body">NomNomzBot needs %1$s on your own Twitch account — the one you stream on, not the bot account — to %2$s. One click re-authorizes your account and keeps every permission you already granted.</string>
+    <string name="permissions_banner_body_generic">NomNomzBot needs %1$d more permission(s) on your own Twitch account — the one you stream on, not the bot account — to power some features. One click re-authorizes your account and keeps every permission you already granted.</string>
     <string name="permissions_banner_action">Grant permission</string>
     <string name="permissions_regrant_title">Approve the permissions on Twitch</string>
     <string name="permissions_regrant_instruction">Open Twitch and enter this code at twitch.tv/activate:</string>

@@ -588,8 +588,8 @@
     <string name="integrations_action_reauth">Opnieuw verbinden</string>
     <string name="integrations_action_retry">Opnieuw proberen</string>
     <string name="permissions_banner_title">Twitch-rechten nodig</string>
-    <string name="permissions_banner_body">De bot heeft %1$s nodig om %2$s. Verleen het met één klik — je bestaande rechten blijven behouden.</string>
-    <string name="permissions_banner_body_generic">De bot heeft nog %1$d Twitch-recht(en) nodig voor sommige functies. Verleen ze met één klik — je bestaande rechten blijven behouden.</string>
+    <string name="permissions_banner_body">NomNomzBot heeft %1$s nodig op je eigen Twitch-account — het account waarmee je streamt, niet het botaccount — om %2$s. Eén klik herautoriseert je account en behoudt elke toestemming die je al hebt gegeven.</string>
+    <string name="permissions_banner_body_generic">NomNomzBot heeft nog %1$d recht(en) nodig op je eigen Twitch-account — het account waarmee je streamt, niet het botaccount — voor sommige functies. Eén klik herautoriseert je account en behoudt elke toestemming die je al hebt gegeven.</string>
     <string name="permissions_banner_action">Recht verlenen</string>
     <string name="permissions_regrant_title">Keur de rechten goed op Twitch</string>
     <string name="permissions_regrant_instruction">Open Twitch en voer deze code in op twitch.tv/activate:</string>
