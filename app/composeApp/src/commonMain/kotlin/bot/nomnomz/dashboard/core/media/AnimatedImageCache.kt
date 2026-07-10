@@ -11,6 +11,7 @@
 package bot.nomnomz.dashboard.core.media
 
 import androidx.compose.ui.graphics.ImageBitmap
+import bot.nomnomz.dashboard.core.network.buildHttpClient
 import io.ktor.client.HttpClient
 import io.ktor.client.request.get
 import io.ktor.client.statement.HttpResponse
@@ -35,9 +36,11 @@ object AnimatedImageCache {
     private const val MIN_FRAME_MILLIS: Int = 20
 
     // A plain, unauthenticated client for third-party emote CDNs (7TV / Twitch / BTTV / FFZ) — deliberately
-    // separate from the app's authed API client. The engine is the single one on each target's classpath
-    // (CIO on desktop, Fetch on web), so the no-argument factory resolves it.
-    private val client: HttpClient by lazy { HttpClient() }
+    // separate from the app's authed API client. It goes through the shared [buildHttpClient] engine seam
+    // (CIO on desktop, Ktor Js/Fetch on web) so the engine is passed EXPLICITLY. The no-argument `HttpClient()`
+    // only auto-discovers an engine via JVM ServiceLoader, which does not exist on wasmJs — there the bare
+    // factory threw, every fetch failed, and animated emotes silently fell back to a frozen first frame.
+    private val client: HttpClient by lazy { buildHttpClient { } }
     private val mutex: Mutex = Mutex()
     private val framesByUrl: LinkedHashMap<String, List<AnimatedFrame>> = LinkedHashMap()
     private val staticUrls: HashSet<String> = HashSet()

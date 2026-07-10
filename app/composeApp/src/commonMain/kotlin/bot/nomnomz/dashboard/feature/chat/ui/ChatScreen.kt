@@ -77,6 +77,7 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.media.AnimatedNetworkImage
+import bot.nomnomz.dashboard.core.media.EmojiText
 import bot.nomnomz.dashboard.core.network.ChatEmoteCatalogue
 import bot.nomnomz.dashboard.core.network.ChatMessage
 import bot.nomnomz.dashboard.core.network.ChatSettings
@@ -406,12 +407,16 @@ private fun MessageRow(
                             )
                         }
                         else -> {
-                            Text(text = fragment.text, style = typography.sm, color = tokens.cardForeground)
+                            // Plain text run — may carry Unicode emoji, so render through [EmojiText] (inline
+                            // Twemoji images) rather than raw `Text`, which draws □ tofu on the web build.
+                            EmojiText(text = fragment.text, style = typography.sm, color = tokens.cardForeground)
                         }
                     }
                 }
             } else {
-                Text(text = message.message, style = typography.sm, color = tokens.cardForeground)
+                // REST history has no fragments — render the flat message string, which is where typed Unicode
+                // emoji land, through [EmojiText] so they show as images instead of □ tofu on the web build.
+                EmojiText(text = message.message, style = typography.sm, color = tokens.cardForeground)
             }
         }
         MessageActions(
