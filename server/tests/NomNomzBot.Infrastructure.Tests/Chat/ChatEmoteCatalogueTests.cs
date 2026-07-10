@@ -23,15 +23,23 @@ namespace NomNomzBot.Infrastructure.Tests.Chat;
 
 /// <summary>
 /// Proves the composer emote catalogue (chat-client.md §3.2): it unifies Twitch global + this channel's Twitch
-/// emotes + the warm BTTV/FFZ/7TV cache into one <see cref="ChatEmote"/> list, deduped by code (channel over
-/// global, Twitch native over third-party); builds Twitch emote urls from the same CDN template the feed uses
-/// (so animated emotes carry the animated url + flag); caches the fetched Twitch sets; and degrades a failed
-/// Twitch fetch to an empty source rather than failing the whole catalogue.
+/// emotes + the logged-in OPERATOR's cross-channel emotes + the warm BTTV/FFZ/7TV cache into one
+/// <see cref="ChatEmote"/> list, deduped by code (channel over user over global, Twitch native over third-party);
+/// builds Twitch emote urls from the same CDN template the feed uses (so animated emotes carry the animated url +
+/// flag); caches the fetched Twitch sets; and degrades a failed Twitch fetch to an empty source rather than
+/// failing the whole catalogue. The user-emotes source is the OPERATOR's OWN set — fetched on the operator's
+/// token and cached under the OPERATOR's Twitch id (never the tenant's) — so it is correct on any channel they
+/// operate and never leaks between operators.
 /// </summary>
 public sealed class ChatEmoteCatalogueTests
 {
     private static readonly Guid Broadcaster = Guid.Parse("0197b2c0-0000-7000-8000-0000000000c3");
+    private static readonly Guid Operator = Guid.Parse("0197b2c0-1111-7000-8000-0000000000d4");
     private const string TwitchId = "12345";
+
+    // The operator's OWN Twitch id — deliberately DIFFERENT from the channel's, so a test can prove the
+    // user-emotes source (and its cache key) rides the operator's identity, not the viewed channel's.
+    private const string OperatorTwitchId = "98765";
 
     private static ChatEmote SevenTv(string code) =>
         new(
@@ -78,14 +86,33 @@ public sealed class ChatEmoteCatalogueTests
             ["dark"]
         );
 
-    // The user-emotes source is best-effort: tests that aren't about it stub a single empty page so it
+    // The user-emotes source is best-effort: tests that aren't about it stub a single empty operator page so it
     // contributes nothing (and never throws on an unstubbed call).
     private static void StubNoUserEmotes(ITwitchChatAssetsApi assets) =>
         assets
-            .GetUserEmotesAsync(Arg.Any<Guid>(), Arg.Any<string?>(), Arg.Any<CancellationToken>())
+            .GetUserEmotesAsOperatorAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string?>(),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            )
             .Returns(
                 Result.Success(new TwitchPage<TwitchUserEmote>([], NextCursor: null, Total: 0))
             );
+
+    // Resolves the channel Guid → its Twitch id AND the operator Guid → the operator's OWN (distinct) Twitch id,
+    // the two independent lookups the catalogue makes.
+    private static ITwitchIdentityResolver Identity()
+    {
+        ITwitchIdentityResolver identity = Substitute.For<ITwitchIdentityResolver>();
+        identity
+            .GetTwitchChannelIdAsync(Broadcaster, Arg.Any<CancellationToken>())
+            .Returns(TwitchId);
+        identity
+            .GetTwitchUserIdAsync(Operator, Arg.Any<CancellationToken>())
+            .Returns(OperatorTwitchId);
+        return identity;
+    }
 
     private static ChatEmoteCatalogue Build(
         ICacheService cache,
@@ -121,13 +148,8 @@ public sealed class ChatEmoteCatalogueTests
             );
         StubNoUserEmotes(assets);
 
-        ITwitchIdentityResolver identity = Substitute.For<ITwitchIdentityResolver>();
-        identity
-            .GetTwitchChannelIdAsync(Broadcaster, Arg.Any<CancellationToken>())
-            .Returns(TwitchId);
-
-        Result<IReadOnlyList<ChatEmote>> result = await Build(cache, assets, identity)
-            .GetForChannelAsync(Broadcaster);
+        Result<IReadOnlyList<ChatEmote>> result = await Build(cache, assets, Identity())
+            .GetForChannelAsync(Broadcaster, Operator);
 
         result.IsSuccess.Should().BeTrue();
         IReadOnlyList<ChatEmote> emotes = result.Value;
@@ -178,13 +200,8 @@ public sealed class ChatEmoteCatalogueTests
             );
         StubNoUserEmotes(assets);
 
-        ITwitchIdentityResolver identity = Substitute.For<ITwitchIdentityResolver>();
-        identity
-            .GetTwitchChannelIdAsync(Broadcaster, Arg.Any<CancellationToken>())
-            .Returns(TwitchId);
-
-        Result<IReadOnlyList<ChatEmote>> result = await Build(cache, assets, identity)
-            .GetForChannelAsync(Broadcaster);
+        Result<IReadOnlyList<ChatEmote>> result = await Build(cache, assets, Identity())
+            .GetForChannelAsync(Broadcaster, Operator);
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Select(e => e.Code).Should().ContainSingle().Which.Should().Be("peepoHappy");
@@ -203,25 +220,25 @@ public sealed class ChatEmoteCatalogueTests
             .Returns(Result.Success<IReadOnlyList<TwitchChannelEmote>>([]));
         StubNoUserEmotes(assets);
 
-        ITwitchIdentityResolver identity = Substitute.For<ITwitchIdentityResolver>();
-        identity
-            .GetTwitchChannelIdAsync(Broadcaster, Arg.Any<CancellationToken>())
-            .Returns(TwitchId);
-
-        ChatEmoteCatalogue catalogue = Build(cache, assets, identity);
-        await catalogue.GetForChannelAsync(Broadcaster);
-        await catalogue.GetForChannelAsync(Broadcaster);
+        ChatEmoteCatalogue catalogue = Build(cache, assets, Identity());
+        await catalogue.GetForChannelAsync(Broadcaster, Operator);
+        await catalogue.GetForChannelAsync(Broadcaster, Operator);
 
         // The global set is fetched once, then served from cache on the second call.
         await assets.Received(1).GetGlobalEmotesAsync(Arg.Any<CancellationToken>());
-        // The user set too — keyed to the resolved user, cached after the first call.
+        // The operator's user set too — keyed to the operator, cached after the first call.
         await assets
             .Received(1)
-            .GetUserEmotesAsync(Arg.Any<Guid>(), Arg.Any<string?>(), Arg.Any<CancellationToken>());
+            .GetUserEmotesAsOperatorAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string?>(),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            );
     }
 
     [Fact]
-    public async Task Includes_the_users_cross_channel_emotes_following_the_cursor_across_pages()
+    public async Task Includes_the_operators_cross_channel_emotes_as_the_operator_keyed_to_the_operator()
     {
         FakeCache cache = new();
         ITwitchChatAssetsApi assets = Substitute.For<ITwitchChatAssetsApi>();
@@ -232,9 +249,10 @@ public sealed class ChatEmoteCatalogueTests
             .GetChannelEmotesAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success<IReadOnlyList<TwitchChannelEmote>>([]));
 
-        // Page 1 hands back a cursor; page 2 exhausts it (NextCursor null). The walk must follow the cursor.
+        // The fetch must ride the OPERATOR's Guid, with the CHANNEL's Twitch id as the optional broadcaster_id.
+        // Page 1 hands back a cursor; page 2 exhausts it — the walk must follow the cursor.
         assets
-            .GetUserEmotesAsync(Broadcaster, null, Arg.Any<CancellationToken>())
+            .GetUserEmotesAsOperatorAsync(Operator, TwitchId, null, Arg.Any<CancellationToken>())
             .Returns(
                 Result.Success(
                     new TwitchPage<TwitchUserEmote>(
@@ -245,7 +263,7 @@ public sealed class ChatEmoteCatalogueTests
                 )
             );
         assets
-            .GetUserEmotesAsync(Broadcaster, "page2", Arg.Any<CancellationToken>())
+            .GetUserEmotesAsOperatorAsync(Operator, TwitchId, "page2", Arg.Any<CancellationToken>())
             .Returns(
                 Result.Success(
                     new TwitchPage<TwitchUserEmote>(
@@ -256,18 +274,13 @@ public sealed class ChatEmoteCatalogueTests
                 )
             );
 
-        ITwitchIdentityResolver identity = Substitute.For<ITwitchIdentityResolver>();
-        identity
-            .GetTwitchChannelIdAsync(Broadcaster, Arg.Any<CancellationToken>())
-            .Returns(TwitchId);
-
-        Result<IReadOnlyList<ChatEmote>> result = await Build(cache, assets, identity)
-            .GetForChannelAsync(Broadcaster);
+        Result<IReadOnlyList<ChatEmote>> result = await Build(cache, assets, Identity())
+            .GetForChannelAsync(Broadcaster, Operator);
 
         result.IsSuccess.Should().BeTrue();
         IReadOnlyList<ChatEmote> emotes = result.Value;
 
-        // Both pages of the user's cross-channel emotes reach the catalogue.
+        // Both pages of the operator's cross-channel emotes reach the catalogue.
         emotes.Select(e => e.Code).Should().Contain(["subFromFriendA", "subFromFriendB"]);
 
         // Mapped to the Twitch-native ChatEmote shape: provider, set id, animated flag + the animated CDN url.
@@ -279,20 +292,97 @@ public sealed class ChatEmoteCatalogueTests
             .Should()
             .Be("https://static-cdn.jtvnw.net/emoticons/v2/subFromFriendB-id/animated/dark/1.0");
 
-        // The second page was actually requested with the returned cursor.
+        // The fetch went out AS THE OPERATOR, carrying the CHANNEL's Twitch id as the optional broadcaster_id —
+        // and the second page was requested with the returned cursor.
         await assets
             .Received(1)
-            .GetUserEmotesAsync(Broadcaster, "page2", Arg.Any<CancellationToken>());
+            .GetUserEmotesAsOperatorAsync(Operator, TwitchId, null, Arg.Any<CancellationToken>());
+        await assets
+            .Received(1)
+            .GetUserEmotesAsOperatorAsync(
+                Operator,
+                TwitchId,
+                "page2",
+                Arg.Any<CancellationToken>()
+            );
 
-        // The assembled set is cached against the resolved USER id (not the channel), so it can't leak across users.
-        IReadOnlyList<ChatEmote>? userCached = await cache.GetAsync<IReadOnlyList<ChatEmote>>(
-            ChatEmoteCacheKeys.TwitchUser(TwitchId)
+        // The assembled set is cached against the OPERATOR's Twitch id (98765), NOT the viewed channel's (12345),
+        // so operator A's subscription emotes can never leak into operator B's composer on the same channel.
+        IReadOnlyList<ChatEmote>? operatorCached = await cache.GetAsync<IReadOnlyList<ChatEmote>>(
+            ChatEmoteCacheKeys.TwitchUser(OperatorTwitchId)
         );
-        userCached.Should().NotBeNull();
-        userCached!
+        operatorCached.Should().NotBeNull();
+        operatorCached!
             .Select(e => e.Code)
             .Should()
             .BeEquivalentTo(["subFromFriendA", "subFromFriendB"]);
+
+        // Nothing is cached under the CHANNEL's id — proving the key is the operator's, not the tenant's.
+        (await cache.GetAsync<IReadOnlyList<ChatEmote>>(ChatEmoteCacheKeys.TwitchUser(TwitchId)))
+            .Should()
+            .BeNull();
+    }
+
+    [Fact]
+    public async Task Operator_with_no_linked_twitch_identity_omits_user_emotes_but_returns_the_rest()
+    {
+        FakeCache cache = new();
+        await cache.SetAsync<IReadOnlyList<ChatEmote>>(
+            ChatEmoteCacheKeys.Global(EmoteProvider.SevenTv),
+            [SevenTv("peepoHappy")]
+        );
+
+        ITwitchChatAssetsApi assets = Substitute.For<ITwitchChatAssetsApi>();
+        assets
+            .GetGlobalEmotesAsync(Arg.Any<CancellationToken>())
+            .Returns(Result.Success<IReadOnlyList<TwitchGlobalEmote>>([Global("Kappa")]));
+        assets
+            .GetChannelEmotesAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success<IReadOnlyList<TwitchChannelEmote>>([]));
+        // If the catalogue ever reached for the operator's emotes despite no identity, this would inject one.
+        assets
+            .GetUserEmotesAsOperatorAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string?>(),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                Result.Success(
+                    new TwitchPage<TwitchUserEmote>(
+                        [UserEmote("shouldNotAppear", "500")],
+                        NextCursor: null,
+                        Total: 0
+                    )
+                )
+            );
+
+        // The channel resolves, but the operator has NO linked Twitch identity (GetTwitchUserIdAsync → null).
+        ITwitchIdentityResolver identity = Substitute.For<ITwitchIdentityResolver>();
+        identity
+            .GetTwitchChannelIdAsync(Broadcaster, Arg.Any<CancellationToken>())
+            .Returns(TwitchId);
+        identity
+            .GetTwitchUserIdAsync(Operator, Arg.Any<CancellationToken>())
+            .Returns((string?)null);
+
+        Result<IReadOnlyList<ChatEmote>> result = await Build(cache, assets, identity)
+            .GetForChannelAsync(Broadcaster, Operator);
+
+        result.IsSuccess.Should().BeTrue();
+        // The rest of the catalogue still returns; the operator's user-emotes source is simply absent.
+        result.Value.Select(e => e.Code).Should().BeEquivalentTo(["Kappa", "peepoHappy"]);
+        result.Value.Select(e => e.Code).Should().NotContain("shouldNotAppear");
+
+        // Never even attempted the fetch — there is no operator token to read as.
+        await assets
+            .DidNotReceive()
+            .GetUserEmotesAsOperatorAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string?>(),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            );
     }
 
     [Fact]
@@ -315,13 +405,8 @@ public sealed class ChatEmoteCatalogueTests
             .Returns(Result.Success<IReadOnlyList<TwitchGlobalEmote>>([]));
         StubNoUserEmotes(assets);
 
-        ITwitchIdentityResolver identity = Substitute.For<ITwitchIdentityResolver>();
-        identity
-            .GetTwitchChannelIdAsync(Broadcaster, Arg.Any<CancellationToken>())
-            .Returns(TwitchId);
-
-        Result<IReadOnlyList<ChatEmote>> result = await Build(cache, assets, identity)
-            .GetForChannelAsync(Broadcaster);
+        Result<IReadOnlyList<ChatEmote>> result = await Build(cache, assets, Identity())
+            .GetForChannelAsync(Broadcaster, Operator);
 
         result.IsSuccess.Should().BeTrue();
         IReadOnlyList<ChatEmote> emotes = result.Value;

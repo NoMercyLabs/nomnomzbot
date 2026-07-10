@@ -326,7 +326,7 @@ public class ChatController : BaseController
 
     // ── GET emote catalogue (composer autocomplete + inline rendering) ─────────
 
-    /// <summary>Get the emotes usable in this channel — Twitch global+channel and BTTV/FFZ/7TV — for the composer.</summary>
+    /// <summary>Get the emotes usable in this channel — Twitch global+channel, the operator's own emotes, and BTTV/FFZ/7TV — for the composer.</summary>
     [RequireAction("chat:read")]
     [HttpGet("emotes")]
     [ProducesResponseType<StatusResponseDto<IReadOnlyList<ChatEmoteCatalogueDto>>>(
@@ -337,8 +337,15 @@ public class ChatController : BaseController
         if (!Guid.TryParse(channelId, out Guid broadcasterId))
             return BadRequestResponse("Invalid channel id.");
 
+        // The user-emotes source is the LOGGED-IN OPERATOR's own cross-channel emotes (their personal
+        // subscriptions), fetched on their token — so it must be keyed to the operator, not the tenant channel,
+        // to be correct on a channel they moderate (chat-client.md §3.2). Mirrors the operator send/delete paths.
+        if (!Guid.TryParse(_currentUser.UserId, out Guid operatorUserId))
+            return UnauthenticatedResponse();
+
         Result<IReadOnlyList<ChatEmote>> catalogue = await _emoteCatalogue.GetForChannelAsync(
             broadcasterId,
+            operatorUserId,
             ct
         );
         if (catalogue.IsFailure)

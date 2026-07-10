@@ -277,6 +277,100 @@ public class TwitchChatAssetsApiTests
     }
 
     [Fact]
+    public async Task GetUserEmotesAsOperator_BuildsOperatorTokenQuery_WithOperatorAsUserId_AndBroadcasterId()
+    {
+        CapturingHelixTransport transport = new()
+        {
+            PageResult = new TwitchPage<TwitchUserEmote>(
+                [
+                    new TwitchUserEmote(
+                        "777",
+                        "subFromFriend",
+                        "subscriptions",
+                        "set-x",
+                        "owner-x",
+                        ["static"],
+                        ["1.0"],
+                        ["dark"]
+                    ),
+                ],
+                "next",
+                0
+            ),
+        };
+        // No scope pre-check (the operator rides their OWN token, not the tenant's), so an empty scope set is fine.
+        // The stub resolver maps the operator's user Guid (Tenant) to their own Twitch id — the user_id.
+        TwitchChatAssetsApi api = Build(transport);
+
+        // The channel being viewed is a DIFFERENT raw Twitch id than the operator's — proving broadcaster_id is
+        // passed straight through (never resolved from a Guid) and that user_id is the operator, not the channel.
+        Result<TwitchPage<TwitchUserEmote>> result = await api.GetUserEmotesAsOperatorAsync(
+            Tenant,
+            "55443322",
+            "cur"
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.NextCursor.Should().Be("next");
+        result.Value.Items.Should().ContainSingle().Which.Name.Should().Be("subFromFriend");
+        transport.LastRequest!.Method.Should().Be(HttpMethod.Get);
+        transport.LastRequest.Path.Should().Be("chat/emotes/user");
+        // Rides the OPERATOR's own token (keyed by OperatorUserId) — NOT the broadcaster's user token.
+        transport.LastRequest.Auth.Should().Be(TwitchHelixAuth.Operator);
+        transport.LastRequest.OperatorUserId.Should().Be(Tenant);
+        // user_id is the operator's OWN Twitch id — so Twitch returns the operator's personal cross-channel emotes.
+        transport
+            .LastRequest.Query.Should()
+            .Contain(q => q.Key == "user_id" && q.Value == TwitchId);
+        // broadcaster_id is the raw channel id, passed straight through (distinct from the operator's user_id).
+        transport
+            .LastRequest.Query.Should()
+            .Contain(q => q.Key == "broadcaster_id" && q.Value == "55443322");
+        transport.LastRequest.Query.Should().Contain(q => q.Key == "after" && q.Value == "cur");
+    }
+
+    [Fact]
+    public async Task GetUserEmotesAsOperator_NoBroadcaster_OmitsBroadcasterId()
+    {
+        CapturingHelixTransport transport = new()
+        {
+            PageResult = new TwitchPage<TwitchUserEmote>([], null, 0),
+        };
+        TwitchChatAssetsApi api = Build(transport);
+
+        await api.GetUserEmotesAsOperatorAsync(
+            Tenant,
+            broadcasterTwitchId: null,
+            afterCursor: null
+        );
+
+        transport
+            .LastRequest!.Query.Should()
+            .Contain(q => q.Key == "user_id" && q.Value == TwitchId);
+        transport.LastRequest.Query.Should().NotContain(q => q.Key == "broadcaster_id");
+        transport.LastRequest.Query.Should().NotContain(q => q.Key == "after");
+    }
+
+    [Fact]
+    public async Task GetUserEmotesAsOperator_NoLinkedIdentity_FailsNoToken_WithoutCallingTransport()
+    {
+        CapturingHelixTransport transport = new();
+        TwitchChatAssetsApi api = Build(transport);
+        // A user the stub identity resolver doesn't know → no Twitch id to read emotes as.
+        Guid unknownOperator = Guid.Parse("0195e0d2-9999-7999-8999-000000000099");
+
+        Result<TwitchPage<TwitchUserEmote>> result = await api.GetUserEmotesAsOperatorAsync(
+            unknownOperator,
+            "55443322",
+            null
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be(TwitchErrorCodes.NoToken);
+        transport.CallCount.Should().Be(0);
+    }
+
+    [Fact]
     public async Task GetChannelChatBadges_BuildsAppTokenRequest_MapsNestedVersions()
     {
         CapturingHelixTransport transport = new()

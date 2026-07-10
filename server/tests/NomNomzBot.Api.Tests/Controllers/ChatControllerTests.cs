@@ -652,7 +652,7 @@ public sealed class ChatControllerTests
         ChatControllerTestDbContext db = ChatControllerTestDbContext.New();
         IChatEmoteCatalogue catalogue = Substitute.For<IChatEmoteCatalogue>();
         catalogue
-            .GetForChannelAsync(Broadcaster, Arg.Any<CancellationToken>())
+            .GetForChannelAsync(Broadcaster, OperatorUserId, Arg.Any<CancellationToken>())
             .Returns(
                 Result.Success<IReadOnlyList<ChatEmote>>([
                     new ChatEmote(
@@ -692,6 +692,29 @@ public sealed class ChatControllerTests
         IActionResult result = await controller.GetEmotes("not-a-guid");
 
         result.Should().BeOfType<BadRequestObjectResult>();
+    }
+
+    [Fact]
+    public async Task GetEmotes_returns_401_when_no_operator_is_authenticated()
+    {
+        // The catalogue's user-emotes source is the operator's OWN emotes, so an unresolved operator can't build
+        // one — reject before touching the catalogue rather than silently keying it to the wrong actor.
+        ChatControllerTestDbContext db = ChatControllerTestDbContext.New();
+        IChatEmoteCatalogue catalogue = Substitute.For<IChatEmoteCatalogue>();
+        ChatController controller = Build(
+            db,
+            Substitute.For<IChatMessageDecorator>(),
+            currentUser: StubCurrentUser(null),
+            emoteCatalogue: catalogue
+        );
+
+        IActionResult result = await controller.GetEmotes(Broadcaster.ToString());
+
+        ObjectResult response = result.Should().BeAssignableTo<ObjectResult>().Subject;
+        response.StatusCode.Should().Be(401);
+        await catalogue
+            .DidNotReceive()
+            .GetForChannelAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>());
     }
 
     private static List<DashboardChatMessageDto> Data(IActionResult result)

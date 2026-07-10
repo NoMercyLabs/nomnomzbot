@@ -22,12 +22,13 @@ namespace NomNomzBot.Infrastructure.Chat;
 /// <summary>
 /// Builds the channel emote catalogue (chat-client.md §3.2). BTTV/FFZ/7TV come straight from the warm decoration
 /// cache (chat-decoration §7); the Twitch global + channel sets are fetched via <see cref="ITwitchChatAssetsApi"/>
-/// (app token, no scope), and the signed-in user's cross-channel emotes via Get User Emotes (user token,
-/// <c>user:read:emotes</c>) so a streamer's emotes from every channel they're subscribed to reach their composer;
-/// each is cached under the same key scheme. Twitch emote urls are built from the deterministic CDN template — the
-/// exact shape <c>TwitchEmoteUrlAdapter</c> uses for the live feed — so the composer renders Twitch emotes
-/// identically. Cache-only for third-party (never a provider HTTP call here); any Twitch fetch failure (including a
-/// missing user-emotes scope) degrades that source to empty rather than failing the catalogue.
+/// (app token, no scope), and the logged-in OPERATOR's cross-channel emotes via Get User Emotes on the OPERATOR's
+/// OWN token (<c>user:read:emotes</c>) so a moderator's personal subscription emotes reach their composer on ANY
+/// channel they operate — not only their own — keyed to the operator so they never leak between operators. Twitch
+/// emote urls are built from the deterministic CDN template — the exact shape <c>TwitchEmoteUrlAdapter</c> uses for
+/// the live feed — so the composer renders Twitch emotes identically. Cache-only for third-party (never a provider
+/// HTTP call here); any Twitch fetch failure (including a missing user-emotes scope, or an operator with no linked
+/// Twitch identity) degrades that source to empty rather than failing the catalogue.
 /// </summary>
 public sealed class ChatEmoteCatalogue : IChatEmoteCatalogue
 {
@@ -79,16 +80,19 @@ public sealed class ChatEmoteCatalogue : IChatEmoteCatalogue
 
     public async Task<Result<IReadOnlyList<ChatEmote>>> GetForChannelAsync(
         Guid broadcasterId,
+        Guid operatorUserId,
         CancellationToken ct = default
     )
     {
         string? twitchId = await _identity.GetTwitchChannelIdAsync(broadcasterId, ct);
 
-        // Add in precedence order (channel, then the user's cross-channel set, then global; Twitch before
-        // third-party); dedup keeps the first.
+        // Add in precedence order (channel, then the operator's cross-channel set, then global; Twitch before
+        // third-party); dedup keeps the first. The operator's set rides THEIR own token and is keyed to THEM —
+        // the channel's Twitch id (when known) travels as the optional broadcaster_id so this channel's follower
+        // emotes the operator has are included too, but the emotes returned are the operator's, not the tenant's.
         List<ChatEmote> all = new();
         all.AddRange(await TwitchChannelAsync(broadcasterId, twitchId, ct));
-        all.AddRange(await TwitchUserEmotesAsync(broadcasterId, twitchId, ct));
+        all.AddRange(await TwitchUserEmotesAsync(operatorUserId, twitchId, ct));
         all.AddRange(await TwitchGlobalAsync(ct));
 
         if (twitchId is not null)
@@ -159,20 +163,25 @@ public sealed class ChatEmoteCatalogue : IChatEmoteCatalogue
         return mapped;
     }
 
-    // The signed-in user's emotes across every channel they can use them in (subs, follower rewards, bits tiers,
-    // global) — Get User Emotes on the user token. Cursor-paged: follow NextCursor until exhausted or the page cap.
-    // Keyed to the resolved Twitch user id so it never leaks across users; a missing user:read:emotes scope or any
-    // fetch failure degrades this source to empty, exactly like the app-token Twitch sources.
+    // The logged-in OPERATOR's emotes across every channel they can use them in (subs, follower rewards, bits
+    // tiers, global) — Get User Emotes on the OPERATOR's OWN token, so a moderator's personal emotes are correct
+    // on any channel they operate, not only their own. Cursor-paged: follow NextCursor until exhausted or the
+    // page cap. Keyed to the OPERATOR's resolved Twitch id (never the tenant's) so one operator's subscription
+    // emotes never leak into another operator's composer on the same channel; a missing user:read:emotes scope,
+    // an operator with no linked Twitch identity, or any fetch failure degrades this source to empty.
     private async Task<IReadOnlyList<ChatEmote>> TwitchUserEmotesAsync(
-        Guid broadcasterId,
-        string? twitchId,
+        Guid operatorUserId,
+        string? broadcasterTwitchId,
         CancellationToken ct
     )
     {
-        if (twitchId is null)
+        // The cache key is the OPERATOR's Twitch id — resolved here so a cache hit never rides another actor's
+        // key. No linked Twitch identity ⇒ no personal emotes to show; degrade this source to empty.
+        string? operatorTwitchId = await _identity.GetTwitchUserIdAsync(operatorUserId, ct);
+        if (string.IsNullOrEmpty(operatorTwitchId))
             return [];
 
-        string key = ChatEmoteCacheKeys.TwitchUser(twitchId);
+        string key = ChatEmoteCacheKeys.TwitchUser(operatorTwitchId);
         IReadOnlyList<ChatEmote>? cached = await _cache.GetAsync<IReadOnlyList<ChatEmote>>(key, ct);
         if (cached is not null)
             return cached;
@@ -183,16 +192,18 @@ public sealed class ChatEmoteCatalogue : IChatEmoteCatalogue
 
         do
         {
-            Result<TwitchPage<TwitchUserEmote>> fetched = await _assets.GetUserEmotesAsync(
-                broadcasterId,
-                cursor,
-                ct
-            );
+            Result<TwitchPage<TwitchUserEmote>> fetched =
+                await _assets.GetUserEmotesAsOperatorAsync(
+                    operatorUserId,
+                    broadcasterTwitchId,
+                    cursor,
+                    ct
+                );
             if (fetched.IsFailure)
             {
                 _logger.LogDebug(
-                    "ChatEmoteCatalogue: Twitch user emotes fetch failed for {BroadcasterId}, omitting",
-                    broadcasterId
+                    "ChatEmoteCatalogue: Twitch user emotes fetch failed for operator {OperatorUserId}, omitting",
+                    operatorUserId
                 );
                 return [];
             }
@@ -206,8 +217,8 @@ public sealed class ChatEmoteCatalogue : IChatEmoteCatalogue
 
         if (cursor is not null)
             _logger.LogDebug(
-                "ChatEmoteCatalogue: Twitch user emotes for {BroadcasterId} hit the {MaxPages}-page cap; the list is truncated",
-                broadcasterId,
+                "ChatEmoteCatalogue: Twitch user emotes for operator {OperatorUserId} hit the {MaxPages}-page cap; the list is truncated",
+                operatorUserId,
                 MaxUserEmotePages
             );
 

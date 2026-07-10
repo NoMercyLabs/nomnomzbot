@@ -59,6 +59,25 @@ public interface ITwitchChatAssetsApi
         CancellationToken ct = default
     );
 
+    /// <summary>
+    /// Get User Emotes AS THE LOGGED-IN OPERATOR — one page of the emotes available to the operator across
+    /// every channel (subscriptions, follower rewards, bits tiers, global) on the operator's OWN token. The
+    /// <c>user_id</c> is the operator's resolved Twitch id (never the tenant broadcaster's), and the call rides
+    /// <see cref="TwitchHelixAuth.Operator"/> — the transport signs it with the operator's own token via
+    /// <c>OperatorUserId</c> — so a moderator sees THEIR personal emotes regardless of whose channel is active
+    /// (chat-client.md §3.2). Optional <paramref name="broadcasterTwitchId"/> is the current channel's RAW
+    /// Twitch id (the channel may not be a tenant, so it is NEVER resolved from a Guid); when supplied it
+    /// guarantees that channel's follower emotes are included. Cursor-paged with no <c>total</c>. Requires
+    /// <c>user:read:emotes</c> on the operator's grant — enforced by Twitch, never a local tenant-token
+    /// pre-check; a missing scope surfaces as a typed failure the caller degrades to empty.
+    /// </summary>
+    Task<Result<TwitchPage<TwitchUserEmote>>> GetUserEmotesAsOperatorAsync(
+        Guid operatorUserId,
+        string? broadcasterTwitchId,
+        string? afterCursor,
+        CancellationToken ct = default
+    );
+
     /// <summary>Get Channel Chat Badges — the broadcaster's custom chat-badge sets. App token; no scope.</summary>
     Task<Result<IReadOnlyList<TwitchChatBadgeSet>>> GetChannelChatBadgesAsync(
         Guid broadcasterId,

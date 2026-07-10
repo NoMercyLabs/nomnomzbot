@@ -144,6 +144,46 @@ public sealed class TwitchChatAssetsApi(
         return await transport.GetPageAsync<TwitchUserEmote>(request, ct);
     }
 
+    public async Task<Result<TwitchPage<TwitchUserEmote>>> GetUserEmotesAsOperatorAsync(
+        Guid operatorUserId,
+        string? broadcasterTwitchId,
+        string? afterCursor,
+        CancellationToken ct = default
+    )
+    {
+        // The operator's OWN Twitch id is the user_id, and the operator's OWN token signs the call
+        // (Auth.Operator resolves it from OperatorUserId) — so these are the operator's PERSONAL cross-channel
+        // emotes, not the tenant broadcaster's. No local scope pre-check is possible here: HasScopeAsync inspects
+        // the tenant broadcaster's token, but this call rides the operator's token — so Twitch is the authority
+        // that the operator's grant carries user:read:emotes (a missing scope surfaces as a typed failure the
+        // caller degrades to empty), which means there is no privilege escalation.
+        string? operatorTwitchId = await identity.GetTwitchUserIdAsync(operatorUserId, ct);
+        if (string.IsNullOrEmpty(operatorTwitchId))
+            return Result.Failure<TwitchPage<TwitchUserEmote>>(
+                "You have no linked Twitch identity to read emotes as.",
+                TwitchErrorCodes.NoToken
+            );
+
+        List<KeyValuePair<string, string>> query = [new("user_id", operatorTwitchId)];
+
+        // broadcaster_id is the current channel's RAW Twitch id (never resolved from a Guid — the channel may
+        // not be a tenant); when present it guarantees that channel's follower emotes reach the operator's set.
+        if (!string.IsNullOrEmpty(broadcasterTwitchId))
+            query.Add(new("broadcaster_id", broadcasterTwitchId));
+        if (afterCursor is not null)
+            query.Add(new("after", afterCursor));
+
+        TwitchHelixRequest request = new(
+            HttpMethod.Get,
+            "chat/emotes/user",
+            TwitchHelixAuth.Operator,
+            Query: query,
+            OperatorUserId: operatorUserId
+        );
+
+        return await transport.GetPageAsync<TwitchUserEmote>(request, ct);
+    }
+
     public async Task<Result<IReadOnlyList<TwitchChatBadgeSet>>> GetChannelChatBadgesAsync(
         Guid broadcasterId,
         CancellationToken ct = default
