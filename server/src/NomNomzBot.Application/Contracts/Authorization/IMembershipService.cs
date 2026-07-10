@@ -48,10 +48,16 @@ public interface IMembershipService
     /// Reconciles the <c>TwitchBadge</c>- + <c>HelixEditors</c>-sourced memberships from a freshly-fetched
     /// snapshot: idempotent upsert + prune of stale synced rows (BotGrant/Owner rows untouched), sets
     /// <c>LastSyncedAt</c>, and emits a <c>ManagementRoleChangedEvent</c> per delta.
+    /// <para>
+    /// Prune-safe: only rows whose <see cref="MembershipSource"/> is in <paramref name="authoritativeSources"/>
+    /// (the sources whose Twitch read succeeded this run) are eligible for pruning — so a failed moderator- or
+    /// editor-read never wipes that source's roles. A member present in the snapshot is upserted regardless.
+    /// </para>
     /// </summary>
     Task<Result> SyncManagementFromTwitchAsync(
         Guid broadcasterId,
         IReadOnlyList<TwitchManagementMember> snapshot,
+        IReadOnlySet<MembershipSource> authoritativeSources,
         CancellationToken cancellationToken = default
     );
 

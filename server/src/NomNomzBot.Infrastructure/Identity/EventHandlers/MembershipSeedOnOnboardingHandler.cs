@@ -11,10 +11,6 @@
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Authorization;
-using NomNomzBot.Application.Contracts.Twitch;
-using NomNomzBot.Application.Identity.Dtos;
-using NomNomzBot.Application.Identity.Services;
-using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Identity.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
 
@@ -23,17 +19,16 @@ namespace NomNomzBot.Infrastructure.Identity.EventHandlers;
 /// <summary>
 /// Onboarding seed job (Identity / roles-permissions domain): when a channel finishes onboarding, build the
 /// Plane-B management snapshot from Twitch — moderators (badge-sourced) + channel editors (Helix editors) —
-/// and reconcile the channel's <c>ChannelMemberships</c> so the dashboard's roles screen is populated. Each
-/// member is resolved to a local <c>User</c> via get-or-create (a viewer is a non-setup User), then handed to
-/// <see cref="IMembershipService.SyncManagementFromTwitchAsync"/>, which idempotently upserts + prunes only the
-/// synced rows (Owner / bot-grant rows untouched). Independently resilient — caught + logged, never propagated,
-/// so it cannot affect the other onboarding seed jobs. Safe to run on every onboarding + backfill.
+/// via <see cref="ITwitchManagementSnapshotBuilder"/> and reconcile the channel's <c>ChannelMemberships</c> so
+/// the dashboard's roles screen is populated. <see cref="IMembershipService.SyncManagementFromTwitchAsync"/>
+/// idempotently upserts + prunes only the synced rows whose read succeeded (Owner / bot-grant rows untouched).
+/// Independently resilient — caught + logged, never propagated, so it cannot affect the other onboarding seed
+/// jobs. Safe to run on every onboarding + backfill; the periodic <c>ManagementRoleReconcileService</c> keeps it
+/// fresh afterwards (so an editor granted post-onboarding is honoured without a re-onboard).
 /// </summary>
 public sealed class MembershipSeedOnOnboardingHandler(
     IMembershipService membership,
-    IUserService users,
-    ITwitchModeratorsApi moderators,
-    ITwitchChannelsApi channels,
+    ITwitchManagementSnapshotBuilder snapshotBuilder,
     ILogger<MembershipSeedOnOnboardingHandler> logger
 ) : IEventHandler<ChannelOnboardedEvent>
 {
@@ -50,14 +45,15 @@ public sealed class MembershipSeedOnOnboardingHandler(
 
         try
         {
-            List<TwitchManagementMember> snapshot = await BuildSnapshotAsync(
+            ManagementSnapshot snapshot = await snapshotBuilder.BuildAsync(
                 @event.BroadcasterId,
                 ct
             );
 
             Result result = await membership.SyncManagementFromTwitchAsync(
                 @event.BroadcasterId,
-                snapshot,
+                snapshot.Members,
+                snapshot.AuthoritativeSources,
                 ct
             );
 
@@ -65,7 +61,7 @@ public sealed class MembershipSeedOnOnboardingHandler(
                 logger.LogInformation(
                     "Onboarding seed (memberships): completed for {BroadcasterId} ({Count} management member(s))",
                     @event.BroadcasterId,
-                    snapshot.Count
+                    snapshot.Members.Count
                 );
             else
                 logger.LogWarning(
@@ -83,106 +79,5 @@ public sealed class MembershipSeedOnOnboardingHandler(
                 @event.BroadcasterId
             );
         }
-    }
-
-    /// <summary>
-    /// Pulls moderators + editors from Helix and projects them to the management snapshot, resolving each
-    /// Twitch user to a local <c>User</c> Guid via get-or-create. A member that resolves to both a moderator
-    /// and an editor is recorded once at the higher (editor) role — the snapshot is keyed by user, and a later
-    /// duplicate would otherwise overwrite the row in the reconciler.
-    /// </summary>
-    private async Task<List<TwitchManagementMember>> BuildSnapshotAsync(
-        Guid broadcasterId,
-        CancellationToken ct
-    )
-    {
-        Dictionary<Guid, TwitchManagementMember> byUser = [];
-
-        Result<TwitchPage<TwitchModerator>> modsResult = await moderators.GetModeratorsAsync(
-            broadcasterId,
-            new TwitchPageRequest(),
-            ct
-        );
-        if (modsResult.IsFailure)
-            logger.LogWarning(
-                "Onboarding seed (memberships): reading moderators from Twitch failed for {BroadcasterId}: {Error} ({Code}) — management roles sourced from moderators will be empty until re-auth grants the scope",
-                broadcasterId,
-                modsResult.ErrorMessage,
-                modsResult.ErrorCode
-            );
-        if (modsResult.IsSuccess)
-            foreach (TwitchModerator mod in modsResult.Value.Items)
-            {
-                Guid? userId = await ResolveUserIdAsync(
-                    mod.UserId,
-                    mod.UserLogin,
-                    mod.UserName ?? mod.UserLogin,
-                    ct
-                );
-                if (userId is Guid id)
-                    byUser[id] = new TwitchManagementMember(
-                        id,
-                        mod.UserId,
-                        ManagementRole.Moderator,
-                        MembershipSource.TwitchBadge
-                    );
-            }
-
-        Result<IReadOnlyList<TwitchChannelEditor>> editorsResult =
-            await channels.GetChannelEditorsAsync(broadcasterId, ct);
-        if (editorsResult.IsFailure)
-            logger.LogWarning(
-                "Onboarding seed (memberships): reading channel editors from Twitch failed for {BroadcasterId}: {Error} ({Code}) — editor roles will be empty until re-auth grants the scope",
-                broadcasterId,
-                editorsResult.ErrorMessage,
-                editorsResult.ErrorCode
-            );
-        if (editorsResult.IsSuccess)
-            foreach (TwitchChannelEditor editor in editorsResult.Value)
-            {
-                // Editors expose only the Twitch user id + display name (no login); fall back to the display
-                // name as the username so get-or-create can still mint the row.
-                Guid? userId = await ResolveUserIdAsync(
-                    editor.UserId,
-                    editor.UserName,
-                    editor.UserName,
-                    ct
-                );
-                if (userId is Guid id)
-                    byUser[id] = new TwitchManagementMember(
-                        id,
-                        editor.UserId,
-                        ManagementRole.Editor,
-                        MembershipSource.HelixEditors
-                    );
-            }
-
-        return [.. byUser.Values];
-    }
-
-    private async Task<Guid?> ResolveUserIdAsync(
-        string twitchUserId,
-        string username,
-        string displayName,
-        CancellationToken ct
-    )
-    {
-        Result<UserDto> user = await users.GetOrCreateAsync(
-            twitchUserId,
-            username,
-            displayName,
-            ct
-        );
-        if (user.IsFailure)
-        {
-            logger.LogWarning(
-                "Onboarding seed (memberships): could not resolve Twitch user {TwitchUserId}: {Error}",
-                twitchUserId,
-                user.ErrorMessage
-            );
-            return null;
-        }
-
-        return Guid.TryParse(user.Value.Id, out Guid id) ? id : null;
     }
 }

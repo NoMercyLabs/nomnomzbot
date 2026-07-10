@@ -3599,7 +3599,9 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("BroadcasterId", "UserId");
+                    b.HasIndex("BroadcasterId", "UserId")
+                        .IsUnique()
+                        .HasFilter("\"DeletedAt\" IS NULL");
 
                     b.ToTable("ChannelMemberships");
                 });

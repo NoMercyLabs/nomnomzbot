@@ -853,6 +853,13 @@ public static class DependencyInjection
             Identity.RoleResolver
         >();
 
+        // Twitch management snapshot builder (moderators + editors) — shared by the onboarding seed and the
+        // periodic ManagementRoleReconcileService. Not an I<X>Service; scoped (composes IUserService + Helix).
+        services.AddScoped<
+            Application.Contracts.Authorization.ITwitchManagementSnapshotBuilder,
+            Identity.TwitchManagementSnapshotBuilder
+        >();
+
         // Twitch identity resolver — the single seam translating tenant/user Guids ↔ Twitch string ids
         // (the invariant: Twitch never receives a Guid). Scoped: reads the per-request DbContext.
         services.AddScoped<ITwitchIdentityResolver, TwitchIdentityResolver>();

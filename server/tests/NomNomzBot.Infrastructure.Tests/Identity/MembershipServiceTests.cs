@@ -171,7 +171,15 @@ public sealed class MembershipServiceTests
         [
             new(fresh, "tw-fresh", ManagementRole.Editor, MembershipSource.HelixEditors),
         ];
-        Result result = await sut.SyncManagementFromTwitchAsync(Channel, snapshot);
+        Result result = await sut.SyncManagementFromTwitchAsync(
+            Channel,
+            snapshot,
+            new HashSet<MembershipSource>
+            {
+                MembershipSource.TwitchBadge,
+                MembershipSource.HelixEditors,
+            }
+        );
 
         result.IsSuccess.Should().BeTrue();
         List<ChannelMembership> live = await db
@@ -183,6 +191,36 @@ public sealed class MembershipServiceTests
         (await db.ChannelMemberships.AnyAsync(m => m.UserId == staleBadge && m.DeletedAt == null))
             .Should()
             .BeFalse();
+    }
+
+    [Fact]
+    public async Task Sync_does_not_prune_a_source_whose_read_failed()
+    {
+        // Prune-safety: only HelixEditors was read this run (badge read failed). A stale badge row must survive —
+        // a transient moderator-read failure must never wipe the channel's mod roles — while a stale editor row
+        // (authoritative source, absent from the snapshot) is still pruned.
+        (MembershipService sut, AuthDbContext db, _) = Build();
+        Guid staleBadge = Guid.Parse("0192a000-0000-7000-8000-0000000000f0");
+        Guid staleEditor = Guid.Parse("0192a000-0000-7000-8000-0000000000f1");
+        SeedMembership(db, staleBadge, ManagementRole.Moderator, MembershipSource.TwitchBadge);
+        SeedMembership(db, staleEditor, ManagementRole.Editor, MembershipSource.HelixEditors);
+        await db.SaveChangesAsync();
+
+        Result result = await sut.SyncManagementFromTwitchAsync(
+            Channel,
+            [],
+            new HashSet<MembershipSource> { MembershipSource.HelixEditors }
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        (await db.ChannelMemberships.AnyAsync(m => m.UserId == staleBadge && m.DeletedAt == null))
+            .Should()
+            .BeTrue("the badge source was not read this run, so its rows are left intact");
+        (await db.ChannelMemberships.AnyAsync(m => m.UserId == staleEditor && m.DeletedAt == null))
+            .Should()
+            .BeFalse(
+                "the editor source was authoritative and this row was absent from the snapshot"
+            );
     }
 
     [Fact]

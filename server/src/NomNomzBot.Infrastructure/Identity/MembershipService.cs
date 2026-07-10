@@ -66,7 +66,7 @@ public sealed class MembershipService(
         ManagementRole? oldRole = existing?.ManagementRole;
         if (existing is null)
         {
-            existing = new ChannelMembership
+            ChannelMembership created = new()
             {
                 BroadcasterId = broadcasterId,
                 UserId = userId,
@@ -76,7 +76,28 @@ public sealed class MembershipService(
                 GrantedByUserId = grantedByUserId,
                 GrantedAt = clock.GetUtcNow().UtcDateTime,
             };
-            db.ChannelMemberships.Add(existing);
+            db.ChannelMemberships.Add(created);
+            try
+            {
+                await db.SaveChangesAsync(cancellationToken);
+                existing = created;
+            }
+            catch (DbUpdateException)
+            {
+                // Lost a concurrent-insert race — the partial unique index (BroadcasterId, UserId) rejected the
+                // duplicate. Detach our rejected row and adopt the winner's instead, applying the requested role.
+                // (Removing an Added-but-unsaved entity detaches it rather than scheduling a delete.)
+                db.ChannelMemberships.Remove(created);
+                existing = await FindAsync(broadcasterId, userId, cancellationToken);
+                if (existing is null)
+                    throw;
+                oldRole = existing.ManagementRole;
+                existing.ManagementRole = role;
+                existing.LevelValue = role.ToLevel();
+                existing.Source = source;
+                existing.GrantedByUserId = grantedByUserId;
+                await db.SaveChangesAsync(cancellationToken);
+            }
         }
         else
         {
@@ -84,8 +105,8 @@ public sealed class MembershipService(
             existing.LevelValue = role.ToLevel();
             existing.Source = source;
             existing.GrantedByUserId = grantedByUserId;
+            await db.SaveChangesAsync(cancellationToken);
         }
-        await db.SaveChangesAsync(cancellationToken);
 
         await PublishRoleChangedAsync(
             broadcasterId,
@@ -137,6 +158,7 @@ public sealed class MembershipService(
     public async Task<Result> SyncManagementFromTwitchAsync(
         Guid broadcasterId,
         IReadOnlyList<TwitchManagementMember> snapshot,
+        IReadOnlySet<MembershipSource> authoritativeSources,
         CancellationToken cancellationToken = default
     )
     {
@@ -188,8 +210,12 @@ public sealed class MembershipService(
             }
         }
 
+        // Prune only rows of a source whose Twitch read SUCCEEDED this run (authoritative) and that are no longer
+        // in the snapshot — so a failed moderator/editor read never wipes that source's roles.
         foreach (
-            ChannelMembership stale in existingSynced.Where(m => !snapshotUsers.Contains(m.UserId))
+            ChannelMembership stale in existingSynced.Where(m =>
+                authoritativeSources.Contains(m.Source) && !snapshotUsers.Contains(m.UserId)
+            )
         )
         {
             stale.DeletedAt = now;

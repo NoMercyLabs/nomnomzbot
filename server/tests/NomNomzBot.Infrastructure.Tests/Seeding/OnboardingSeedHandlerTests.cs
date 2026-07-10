@@ -131,80 +131,53 @@ public sealed class OnboardingSeedHandlerTests
     // ── Membership (Plane-B roles) seed handler ──────────────────────────────
 
     [Fact]
-    public async Task Membership_handler_builds_a_snapshot_and_syncs_for_the_event_broadcaster()
+    public async Task Membership_handler_syncs_the_builders_snapshot_for_the_event_broadcaster()
     {
         IMembershipService membership = Substitute.For<IMembershipService>();
-        IUserService users = Substitute.For<IUserService>();
-        ITwitchModeratorsApi moderators = Substitute.For<ITwitchModeratorsApi>();
-        ITwitchChannelsApi channels = Substitute.For<ITwitchChannelsApi>();
+        ITwitchManagementSnapshotBuilder builder =
+            Substitute.For<ITwitchManagementSnapshotBuilder>();
 
         Guid modUserGuid = Guid.Parse("0192a000-0000-7000-8000-00000000b001");
         Guid editorUserGuid = Guid.Parse("0192a000-0000-7000-8000-00000000b002");
-
-        moderators
-            .GetModeratorsAsync(
-                Broadcaster,
-                Arg.Any<TwitchPageRequest>(),
-                Arg.Any<CancellationToken>()
-            )
-            .Returns(
-                Result.Success(
-                    new TwitchPage<TwitchModerator>(
-                        [new TwitchModerator("tw-mod", "modlogin", "ModName")],
-                        null,
-                        1
-                    )
-                )
-            );
-        channels
-            .GetChannelEditorsAsync(Broadcaster, Arg.Any<CancellationToken>())
-            .Returns(
-                Result.Success<IReadOnlyList<TwitchChannelEditor>>([
-                    new TwitchChannelEditor("tw-editor", "EditorName", DateTimeOffset.UtcNow),
-                ])
-            );
-
-        users
-            .GetOrCreateAsync("tw-mod", "modlogin", "ModName", Arg.Any<CancellationToken>())
-            .Returns(UserResult(modUserGuid, "modlogin", "ModName"));
-        users
-            .GetOrCreateAsync("tw-editor", "EditorName", "EditorName", Arg.Any<CancellationToken>())
-            .Returns(UserResult(editorUserGuid, "EditorName", "EditorName"));
+        ManagementSnapshot snapshot = new(
+            [
+                new(modUserGuid, "tw-mod", ManagementRole.Moderator, MembershipSource.TwitchBadge),
+                new(
+                    editorUserGuid,
+                    "tw-editor",
+                    ManagementRole.Editor,
+                    MembershipSource.HelixEditors
+                ),
+            ],
+            new HashSet<MembershipSource>
+            {
+                MembershipSource.TwitchBadge,
+                MembershipSource.HelixEditors,
+            }
+        );
+        builder.BuildAsync(Broadcaster, Arg.Any<CancellationToken>()).Returns(snapshot);
 
         membership
             .SyncManagementFromTwitchAsync(
                 Arg.Any<Guid>(),
                 Arg.Any<IReadOnlyList<TwitchManagementMember>>(),
+                Arg.Any<IReadOnlySet<MembershipSource>>(),
                 Arg.Any<CancellationToken>()
             )
             .Returns(Result.Success());
 
         ListLogger<MembershipSeedOnOnboardingHandler> log = new();
-        MembershipSeedOnOnboardingHandler sut = new(membership, users, moderators, channels, log);
+        MembershipSeedOnOnboardingHandler sut = new(membership, builder, log);
 
         await sut.HandleAsync(Event());
 
-        // The sync ran for the event's broadcaster with both the mod (badge) and the editor (Helix editors),
-        // each mapped to its resolved User Guid and the correct role/source.
+        // The handler forwards the builder's snapshot + its authoritative sources verbatim to the sync.
         await membership
             .Received(1)
             .SyncManagementFromTwitchAsync(
                 Broadcaster,
-                Arg.Is<IReadOnlyList<TwitchManagementMember>>(snapshot =>
-                    snapshot.Count == 2
-                    && snapshot.Any(m =>
-                        m.UserId == modUserGuid
-                        && m.TwitchUserId == "tw-mod"
-                        && m.Role == ManagementRole.Moderator
-                        && m.Source == MembershipSource.TwitchBadge
-                    )
-                    && snapshot.Any(m =>
-                        m.UserId == editorUserGuid
-                        && m.TwitchUserId == "tw-editor"
-                        && m.Role == ManagementRole.Editor
-                        && m.Source == MembershipSource.HelixEditors
-                    )
-                ),
+                snapshot.Members,
+                snapshot.AuthoritativeSources,
                 Arg.Any<CancellationToken>()
             );
     }
@@ -213,20 +186,14 @@ public sealed class OnboardingSeedHandlerTests
     public async Task Membership_handler_catches_and_logs_a_failure_without_throwing()
     {
         IMembershipService membership = Substitute.For<IMembershipService>();
-        IUserService users = Substitute.For<IUserService>();
-        ITwitchModeratorsApi moderators = Substitute.For<ITwitchModeratorsApi>();
-        ITwitchChannelsApi channels = Substitute.For<ITwitchChannelsApi>();
-
-        moderators
-            .GetModeratorsAsync(
-                Arg.Any<Guid>(),
-                Arg.Any<TwitchPageRequest>(),
-                Arg.Any<CancellationToken>()
-            )
+        ITwitchManagementSnapshotBuilder builder =
+            Substitute.For<ITwitchManagementSnapshotBuilder>();
+        builder
+            .BuildAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
             .ThrowsAsync(new InvalidOperationException("twitch is down"));
 
         ListLogger<MembershipSeedOnOnboardingHandler> log = new();
-        MembershipSeedOnOnboardingHandler sut = new(membership, users, moderators, channels, log);
+        MembershipSeedOnOnboardingHandler sut = new(membership, builder, log);
 
         Func<Task> act = () => sut.HandleAsync(Event());
 
@@ -238,6 +205,7 @@ public sealed class OnboardingSeedHandlerTests
             .SyncManagementFromTwitchAsync(
                 Arg.Any<Guid>(),
                 Arg.Any<IReadOnlyList<TwitchManagementMember>>(),
+                Arg.Any<IReadOnlySet<MembershipSource>>(),
                 Arg.Any<CancellationToken>()
             );
     }

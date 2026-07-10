@@ -23,8 +23,13 @@ public class ChannelMembershipConfiguration : IEntityTypeConfiguration<ChannelMe
         builder.Property(e => e.ManagementRole).HasConversion<string>().HasMaxLength(20);
         builder.Property(e => e.Source).HasConversion<string>().HasMaxLength(20);
 
-        // One active membership per (channel, user) is enforced in MembershipService (soft-delete makes a DB
-        // unique index awkward); this index serves the per-user lookups the resolver/Gate-1 run.
-        builder.HasIndex(e => new { e.BroadcasterId, e.UserId });
+        // One ACTIVE membership per (channel, user), enforced at the DB via a partial unique index (matching the
+        // soft-delete filter) so concurrent grant/sync writes can't race a duplicate row in — the service-level
+        // guard alone let ~58 duplicate (channel, user) rows accumulate. Also serves the per-user lookups the
+        // resolver / Gate-1 run.
+        builder
+            .HasIndex(e => new { e.BroadcasterId, e.UserId })
+            .IsUnique()
+            .HasFilter("\"DeletedAt\" IS NULL");
     }
 }
