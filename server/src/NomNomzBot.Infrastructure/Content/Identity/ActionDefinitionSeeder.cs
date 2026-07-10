@@ -31,6 +31,11 @@ namespace NomNomzBot.Infrastructure.Content.Identity;
 public sealed class ActionDefinitionSeeder : ISeeder
 {
     private const int Everyone = 0;
+
+    // Unified-ladder rungs below Moderator (AuthorizationLadder: Subscriber=2, Vip=4, Artist=6). Trivial,
+    // non-sensitive reads sit at Vip(4) so a VIP viewer can see channel config/content the streamer curates,
+    // while a plain viewer (0) is still denied. Kept in sync with PermissionLevel.Vip.ToLevelValue().
+    private const int Vip = 4;
     private const int Mod = 10;
     private const int LeadModerator = 20;
     private const int Editor = 30;
@@ -92,16 +97,16 @@ public sealed class ActionDefinitionSeeder : ISeeder
             s.Add(new ActionSeed(key, level, level, tier, grant, AuthPlane.Management));
 
         // Commands / pipelines / responses / timers
-        M("commands:read", Mod);
+        M("commands:read", Vip);
         M("commands:write", Editor);
         M("commands:builtin:read", Mod);
         M("commands:builtin:write", Editor);
-        M("pipelines:read", Mod);
+        M("pipelines:read", Vip);
         M("pipelines:write", Editor);
-        M("pipelines:validate", Mod);
-        M("eventresponses:read", Mod);
+        M("pipelines:validate", Vip);
+        M("eventresponses:read", Vip);
         M("eventresponses:write", Editor);
-        M("timers:read", Mod);
+        M("timers:read", Vip);
         M("timers:write", Editor);
 
         // Roles & permits & code
@@ -165,7 +170,7 @@ public sealed class ActionDefinitionSeeder : ISeeder
         M("chat:announce", Mod);
         // Dashboard chat page (frontend-ia.md §Chat: read floor Moderator, manage floor Moderator — "live chat
         // console, send-as-bot"): chat-history read + send-a-message-as-the-bot (REST and DashboardHub).
-        M("chat:read", Mod);
+        M("chat:read", Vip);
         M("chat:send", Mod);
         M("moderation:shoutout", Mod);
         M("moderation:chatcolor:write", Editor);
@@ -179,7 +184,7 @@ public sealed class ActionDefinitionSeeder : ISeeder
         // TTS
         M("tts:config:read", Mod);
         M("tts:config:write", Editor);
-        M("tts:voice:read", Mod);
+        M("tts:voice:read", Vip);
         M("tts:voice:test", Mod);
         M("tts:uservoice:write", Mod);
         M("tts:queue:review", Mod);
@@ -206,7 +211,7 @@ public sealed class ActionDefinitionSeeder : ISeeder
         M("music:config:write", Editor);
         // music-sr.md §5.1 floors GET config at management/Moderator with no named key; the read key follows
         // the catalogue's *:config:read convention (cf. economy:config:read) at that floor.
-        M("music:config:read", Mod);
+        M("music:config:read", Vip);
         M("music:queue:moderate", Mod);
         M("music:token:read", Editor);
         M("music:token:rotate", Broadcaster, DangerTier.Critical, grant: false);
@@ -216,7 +221,7 @@ public sealed class ActionDefinitionSeeder : ISeeder
         // Stream / channel / live-ops
         // stream-admin.md §5 floors the stream-info/status/category reads at management entry ("Gate 1 only",
         // i.e. Moderator) with no named key; stream:read carries that floor now that Gate 1 is pure entry.
-        M("stream:read", Mod);
+        M("stream:read", Vip);
         M("stream:preset:write", Editor);
         M("stream:schedule:write", Editor);
         M("channel:title:write", Editor);
@@ -244,14 +249,14 @@ public sealed class ActionDefinitionSeeder : ISeeder
         M("webhooks:inbound:write", Editor);
         M("webhooks:outbound:read", Mod);
         M("webhooks:outbound:write", Editor);
-        M("widget:read", Mod);
+        M("widget:read", Vip);
         M("widget:write", Editor);
         M("integration:read", Mod);
         M("integration:write", Editor);
         M("community:read", Mod);
         // Managing a viewer's trust level is a per-viewer moderation-tier community write.
         M("community:trust:write", Mod);
-        M("dashboard:read", Mod);
+        M("dashboard:read", Vip);
         M("setup:write", Broadcaster, grant: false);
         // Per-channel feature enablement (FeaturesController): read at Mod, toggle at the config-write tier.
         M("feature:read", Mod);
@@ -289,7 +294,7 @@ public sealed class ActionDefinitionSeeder : ISeeder
         M("federation:optin:delete", LeadModerator);
 
         // Rewards
-        M("reward:read", Mod);
+        M("reward:read", Vip);
         M("reward:manage", Broadcaster);
         M("reward:sync", Broadcaster);
         M("reward:redemption:read", Mod);
@@ -297,7 +302,7 @@ public sealed class ActionDefinitionSeeder : ISeeder
         M("reward:redemption:refund", Mod);
 
         // Quotes (quotes.md §5) — read at Moderator, write at Moderator (mods curate the quote library).
-        M("quotes:read", Mod);
+        M("quotes:read", Vip);
         M("quotes:write", Mod);
 
         // Custom data sources (custom-events.md §5) — the pipeline-facing external data feeds (HypeRate,
@@ -307,7 +312,7 @@ public sealed class ActionDefinitionSeeder : ISeeder
 
         // Sound clips (sound-system.md §5) — audio clip library for pipeline SendSound actions. Read
         // (including preview playback, non-mutating) at Moderator, write (upload/update/delete) at Editor.
-        M("sounds:read", Mod);
+        M("sounds:read", Vip);
         M("sounds:write", Editor);
 
         // ── Community plane (Default = Floor = Everyone(0), Tier = Low, Grant = true) ──

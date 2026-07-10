@@ -33,6 +33,7 @@ public sealed class GateEndToEndTests
     private static readonly Guid Moderator = Guid.Parse("0192a000-0000-7000-8000-0000000000e2");
     private static readonly Guid Editor = Guid.Parse("0192a000-0000-7000-8000-0000000000e3");
     private static readonly Guid PlainViewer = Guid.Parse("0192a000-0000-7000-8000-0000000000e4");
+    private static readonly Guid VipViewer = Guid.Parse("0192a000-0000-7000-8000-0000000000e5");
     private static readonly DateTime Now = new(2026, 7, 4, 12, 0, 0, DateTimeKind.Utc);
 
     private sealed record Fixture(
@@ -79,6 +80,17 @@ public sealed class GateEndToEndTests
                 LevelValue = ManagementRole.Editor.ToLevel(),
                 Source = MembershipSource.HelixEditors,
                 GrantedAt = Now,
+            }
+        );
+        // A community-plane VIP with NO management membership: effective level = MAX(4, 0, 0) = Vip(4).
+        db.ChannelCommunityStandings.Add(
+            new ChannelCommunityStanding
+            {
+                BroadcasterId = Channel,
+                UserId = VipViewer,
+                Standing = CommunityStanding.Vip,
+                LevelValue = CommunityStanding.Vip.ToLevel(),
+                Source = StandingSource.EventSubBadge,
             }
         );
         await new ActionDefinitionSeeder(db).SeedAsync();
@@ -159,11 +171,10 @@ public sealed class GateEndToEndTests
     }
 
     [Theory]
-    [InlineData("chat:read")]
     [InlineData("chat:send")]
-    [InlineData("music:config:read")]
-    [InlineData("stream:read")]
-    public async Task Gate2_allows_the_new_moderator_floored_keys_for_a_moderator_but_not_a_viewer(
+    [InlineData("commands:builtin:read")]
+    [InlineData("moderation:read")]
+    public async Task Gate2_allows_the_moderator_floored_keys_for_a_moderator_but_not_a_viewer(
         string moderatorFlooredKey
     )
     {
@@ -182,6 +193,97 @@ public sealed class GateEndToEndTests
 
         moderatorResult.Value.Should().BeTrue("the key is seeded at the Moderator(10) floor");
         viewerResult.Value.Should().BeFalse("a plain viewer resolves to level 0");
+    }
+
+    [Fact]
+    public async Task Gate2_allows_a_vip_a_retiered_read_but_denies_a_destructive_action()
+    {
+        Fixture f = await BuildAsync();
+
+        // The required proof: a caller whose ONLY standing is community-plane VIP (no management role)
+        // clears a re-tiered non-sensitive read but is still denied a Twitch-mutating moderation action.
+        Result<bool> allowedRead = await f.Gate2.AuthorizeActionAsync(
+            VipViewer,
+            Channel,
+            "commands:read"
+        );
+        Result<bool> deniedBan = await f.Gate2.AuthorizeActionAsync(
+            VipViewer,
+            Channel,
+            "moderation:ban"
+        );
+
+        allowedRead.IsSuccess.Should().BeTrue();
+        allowedRead
+            .Value.Should()
+            .BeTrue(
+                "commands:read was re-tiered to the Vip(4) floor and the caller's standing is Vip"
+            );
+        deniedBan.IsSuccess.Should().BeTrue();
+        deniedBan
+            .Value.Should()
+            .BeFalse(
+                "moderation:ban stayed at the Moderator(10) floor — a VIP(4) must not clear it"
+            );
+    }
+
+    [Theory]
+    [InlineData("commands:read")]
+    [InlineData("pipelines:read")]
+    [InlineData("pipelines:validate")]
+    [InlineData("eventresponses:read")]
+    [InlineData("timers:read")]
+    [InlineData("quotes:read")]
+    [InlineData("sounds:read")]
+    [InlineData("reward:read")]
+    [InlineData("music:config:read")]
+    [InlineData("tts:voice:read")]
+    [InlineData("stream:read")]
+    [InlineData("widget:read")]
+    [InlineData("chat:read")]
+    [InlineData("dashboard:read")]
+    public async Task Gate2_allows_every_retiered_read_for_a_vip_but_still_denies_a_plain_viewer(
+        string vipReadKey
+    )
+    {
+        Fixture f = await BuildAsync();
+
+        Result<bool> vipResult = await f.Gate2.AuthorizeActionAsync(VipViewer, Channel, vipReadKey);
+        Result<bool> viewerResult = await f.Gate2.AuthorizeActionAsync(
+            PlainViewer,
+            Channel,
+            vipReadKey
+        );
+
+        vipResult.Value.Should().BeTrue("the read was re-tiered to the Vip(4) floor");
+        viewerResult
+            .Value.Should()
+            .BeFalse("a plain viewer resolves to level 0, still below the Vip(4) floor");
+    }
+
+    [Theory]
+    [InlineData("moderation:ban")]
+    [InlineData("moderation:timeout")]
+    [InlineData("moderation:delete_message")]
+    [InlineData("chat:send")]
+    [InlineData("commands:write")]
+    [InlineData("quotes:write")] // bundles DELETE — deliberately NOT lowered
+    [InlineData("timers:write")] // bundles DELETE — deliberately NOT lowered
+    [InlineData("economy:account:adjust")]
+    [InlineData("reward:manage")]
+    [InlineData("roles:manage")]
+    public async Task Gate2_denies_a_vip_every_action_that_stayed_above_the_vip_floor(
+        string protectedKey
+    )
+    {
+        Fixture f = await BuildAsync();
+
+        // Proves the re-tiering lowered ONLY the enumerated non-sensitive reads: every mutating/destructive
+        // or write action stayed above Vip(4), so the VIP caller (level 4) is denied each one.
+        Result<bool> result = await f.Gate2.AuthorizeActionAsync(VipViewer, Channel, protectedKey);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().BeFalse($"'{protectedKey}' must stay above the Vip(4) floor");
     }
 
     [Theory]
