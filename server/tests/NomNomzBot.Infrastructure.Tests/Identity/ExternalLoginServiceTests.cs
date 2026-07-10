@@ -18,6 +18,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Identity.Entities;
+using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Identity;
 using NSubstitute;
 using Xunit;
@@ -44,6 +45,7 @@ public sealed class ExternalLoginServiceTests
         );
         services.AddScoped<IApplicationDbContext>(sp => sp.GetRequiredService<AuthDbContext>());
         services.AddSingleton<TimeProvider>(new FakeTimeProvider(FixedNow));
+        services.AddSingleton<IEventBus>(Substitute.For<IEventBus>());
         services.AddScoped<IUserIdentityService, UserIdentityService>();
 
         ISessionService sessions = Substitute.For<ISessionService>();
