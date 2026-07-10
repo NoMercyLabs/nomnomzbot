@@ -22,15 +22,25 @@ namespace NomNomzBot.Infrastructure.Chat;
 /// <summary>
 /// Builds the channel emote catalogue (chat-client.md §3.2). BTTV/FFZ/7TV come straight from the warm decoration
 /// cache (chat-decoration §7); the Twitch global + channel sets are fetched via <see cref="ITwitchChatAssetsApi"/>
-/// (app token, no scope) and cached under the same key scheme. Twitch emote urls are built from the deterministic
-/// CDN template — the exact shape <c>TwitchEmoteUrlAdapter</c> uses for the live feed — so the composer renders
-/// Twitch emotes identically. Cache-only for third-party (never a provider HTTP call here); a Twitch fetch failure
-/// degrades that source to empty rather than failing the catalogue.
+/// (app token, no scope), and the signed-in user's cross-channel emotes via Get User Emotes (user token,
+/// <c>user:read:emotes</c>) so a streamer's emotes from every channel they're subscribed to reach their composer;
+/// each is cached under the same key scheme. Twitch emote urls are built from the deterministic CDN template — the
+/// exact shape <c>TwitchEmoteUrlAdapter</c> uses for the live feed — so the composer renders Twitch emotes
+/// identically. Cache-only for third-party (never a provider HTTP call here); any Twitch fetch failure (including a
+/// missing user-emotes scope) degrades that source to empty rather than failing the catalogue.
 /// </summary>
 public sealed class ChatEmoteCatalogue : IChatEmoteCatalogue
 {
     private static readonly TimeSpan TwitchGlobalTtl = TimeSpan.FromHours(6);
     private static readonly TimeSpan TwitchChannelTtl = TimeSpan.FromHours(1);
+
+    // The user's cross-channel emotes track subscription changes; a short TTL matching the channel set keeps them
+    // fresh without a per-request fetch.
+    private static readonly TimeSpan TwitchUserTtl = TwitchChannelTtl;
+
+    // Get User Emotes is cursor-paged; cap the walk so a pathological account can never spin the catalogue. A hit is
+    // logged (never silent truncation) — 10 × 100 emotes is far beyond any real user's reachable set.
+    private const int MaxUserEmotePages = 10;
 
     // Twitch emote CDN v2: /{id}/{format}/{theme}/{scale}. Dark theme + the three offered scales — mirrors
     // TwitchEmoteUrlAdapter so a Twitch emote in the composer matches the same emote in the feed.
@@ -74,9 +84,11 @@ public sealed class ChatEmoteCatalogue : IChatEmoteCatalogue
     {
         string? twitchId = await _identity.GetTwitchChannelIdAsync(broadcasterId, ct);
 
-        // Add in precedence order (channel before global, Twitch before third-party); dedup keeps the first.
+        // Add in precedence order (channel, then the user's cross-channel set, then global; Twitch before
+        // third-party); dedup keeps the first.
         List<ChatEmote> all = new();
         all.AddRange(await TwitchChannelAsync(broadcasterId, twitchId, ct));
+        all.AddRange(await TwitchUserEmotesAsync(broadcasterId, twitchId, ct));
         all.AddRange(await TwitchGlobalAsync(ct));
 
         if (twitchId is not null)
@@ -147,6 +159,62 @@ public sealed class ChatEmoteCatalogue : IChatEmoteCatalogue
         return mapped;
     }
 
+    // The signed-in user's emotes across every channel they can use them in (subs, follower rewards, bits tiers,
+    // global) — Get User Emotes on the user token. Cursor-paged: follow NextCursor until exhausted or the page cap.
+    // Keyed to the resolved Twitch user id so it never leaks across users; a missing user:read:emotes scope or any
+    // fetch failure degrades this source to empty, exactly like the app-token Twitch sources.
+    private async Task<IReadOnlyList<ChatEmote>> TwitchUserEmotesAsync(
+        Guid broadcasterId,
+        string? twitchId,
+        CancellationToken ct
+    )
+    {
+        if (twitchId is null)
+            return [];
+
+        string key = ChatEmoteCacheKeys.TwitchUser(twitchId);
+        IReadOnlyList<ChatEmote>? cached = await _cache.GetAsync<IReadOnlyList<ChatEmote>>(key, ct);
+        if (cached is not null)
+            return cached;
+
+        List<ChatEmote> mapped = new();
+        string? cursor = null;
+        int page = 0;
+
+        do
+        {
+            Result<TwitchPage<TwitchUserEmote>> fetched = await _assets.GetUserEmotesAsync(
+                broadcasterId,
+                cursor,
+                ct
+            );
+            if (fetched.IsFailure)
+            {
+                _logger.LogDebug(
+                    "ChatEmoteCatalogue: Twitch user emotes fetch failed for {BroadcasterId}, omitting",
+                    broadcasterId
+                );
+                return [];
+            }
+
+            foreach (TwitchUserEmote emote in fetched.Value.Items)
+                mapped.Add(Map(emote.Id, emote.Name, emote.Format, emote.EmoteSetId));
+
+            cursor = fetched.Value.NextCursor;
+            page++;
+        } while (cursor is not null && page < MaxUserEmotePages);
+
+        if (cursor is not null)
+            _logger.LogDebug(
+                "ChatEmoteCatalogue: Twitch user emotes for {BroadcasterId} hit the {MaxPages}-page cap; the list is truncated",
+                broadcasterId,
+                MaxUserEmotePages
+            );
+
+        await _cache.SetAsync<IReadOnlyList<ChatEmote>>(key, mapped, TwitchUserTtl, ct);
+        return mapped;
+    }
+
     private static ChatEmote Map(
         string id,
         string code,
@@ -173,10 +241,12 @@ public sealed class ChatEmoteCatalogue : IChatEmoteCatalogue
         );
     }
 
-    // Dedup by code, case-insensitive, first-wins — so the precedence-ordered add above decides collisions.
+    // Dedup by code, CASE-SENSITIVE, first-wins. Emote codes are case-sensitive everywhere — Twitch "Kappa", and
+    // on 7TV/BTTV/FFZ "Pog", "POG" and "pog" are three distinct emotes — so only an exact-case repeat is a true
+    // collision, which the precedence-ordered add above then resolves; differently-cased codes all survive.
     private static IReadOnlyList<ChatEmote> Dedup(IEnumerable<ChatEmote> emotes)
     {
-        Dictionary<string, ChatEmote> byCode = new(StringComparer.OrdinalIgnoreCase);
+        Dictionary<string, ChatEmote> byCode = new(StringComparer.Ordinal);
         foreach (ChatEmote emote in emotes)
             byCode.TryAdd(emote.Code, emote);
         return byCode.Values.ToList();

@@ -66,6 +66,27 @@ public sealed class ChatEmoteCatalogueTests
             ["dark"]
         );
 
+    private static TwitchUserEmote UserEmote(string name, string setId, params string[] formats) =>
+        new(
+            $"{name}-id",
+            name,
+            "subscriptions",
+            setId,
+            "999",
+            formats.Length == 0 ? ["static"] : formats,
+            ["1.0"],
+            ["dark"]
+        );
+
+    // The user-emotes source is best-effort: tests that aren't about it stub a single empty page so it
+    // contributes nothing (and never throws on an unstubbed call).
+    private static void StubNoUserEmotes(ITwitchChatAssetsApi assets) =>
+        assets
+            .GetUserEmotesAsync(Arg.Any<Guid>(), Arg.Any<string?>(), Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Success(new TwitchPage<TwitchUserEmote>([], NextCursor: null, Total: 0))
+            );
+
     private static ChatEmoteCatalogue Build(
         ICacheService cache,
         ITwitchChatAssetsApi assets,
@@ -98,6 +119,7 @@ public sealed class ChatEmoteCatalogueTests
                     Channel("stoneyWave", "42", "static", "animated"),
                 ])
             );
+        StubNoUserEmotes(assets);
 
         ITwitchIdentityResolver identity = Substitute.For<ITwitchIdentityResolver>();
         identity
@@ -154,6 +176,7 @@ public sealed class ChatEmoteCatalogueTests
                     TwitchErrorCodes.NotFound
                 )
             );
+        StubNoUserEmotes(assets);
 
         ITwitchIdentityResolver identity = Substitute.For<ITwitchIdentityResolver>();
         identity
@@ -178,6 +201,7 @@ public sealed class ChatEmoteCatalogueTests
         assets
             .GetChannelEmotesAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success<IReadOnlyList<TwitchChannelEmote>>([]));
+        StubNoUserEmotes(assets);
 
         ITwitchIdentityResolver identity = Substitute.For<ITwitchIdentityResolver>();
         identity
@@ -190,6 +214,129 @@ public sealed class ChatEmoteCatalogueTests
 
         // The global set is fetched once, then served from cache on the second call.
         await assets.Received(1).GetGlobalEmotesAsync(Arg.Any<CancellationToken>());
+        // The user set too — keyed to the resolved user, cached after the first call.
+        await assets
+            .Received(1)
+            .GetUserEmotesAsync(Arg.Any<Guid>(), Arg.Any<string?>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Includes_the_users_cross_channel_emotes_following_the_cursor_across_pages()
+    {
+        FakeCache cache = new();
+        ITwitchChatAssetsApi assets = Substitute.For<ITwitchChatAssetsApi>();
+        assets
+            .GetGlobalEmotesAsync(Arg.Any<CancellationToken>())
+            .Returns(Result.Success<IReadOnlyList<TwitchGlobalEmote>>([]));
+        assets
+            .GetChannelEmotesAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success<IReadOnlyList<TwitchChannelEmote>>([]));
+
+        // Page 1 hands back a cursor; page 2 exhausts it (NextCursor null). The walk must follow the cursor.
+        assets
+            .GetUserEmotesAsync(Broadcaster, null, Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Success(
+                    new TwitchPage<TwitchUserEmote>(
+                        [UserEmote("subFromFriendA", "301")],
+                        NextCursor: "page2",
+                        Total: 0
+                    )
+                )
+            );
+        assets
+            .GetUserEmotesAsync(Broadcaster, "page2", Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Success(
+                    new TwitchPage<TwitchUserEmote>(
+                        [UserEmote("subFromFriendB", "302", "animated")],
+                        NextCursor: null,
+                        Total: 0
+                    )
+                )
+            );
+
+        ITwitchIdentityResolver identity = Substitute.For<ITwitchIdentityResolver>();
+        identity
+            .GetTwitchChannelIdAsync(Broadcaster, Arg.Any<CancellationToken>())
+            .Returns(TwitchId);
+
+        Result<IReadOnlyList<ChatEmote>> result = await Build(cache, assets, identity)
+            .GetForChannelAsync(Broadcaster);
+
+        result.IsSuccess.Should().BeTrue();
+        IReadOnlyList<ChatEmote> emotes = result.Value;
+
+        // Both pages of the user's cross-channel emotes reach the catalogue.
+        emotes.Select(e => e.Code).Should().Contain(["subFromFriendA", "subFromFriendB"]);
+
+        // Mapped to the Twitch-native ChatEmote shape: provider, set id, animated flag + the animated CDN url.
+        ChatEmote b = emotes.Single(e => e.Code == "subFromFriendB");
+        b.Provider.Should().Be(EmoteProvider.Twitch);
+        b.Animated.Should().BeTrue();
+        b.SetId.Should().Be("302");
+        b.Urls["1"]
+            .Should()
+            .Be("https://static-cdn.jtvnw.net/emoticons/v2/subFromFriendB-id/animated/dark/1.0");
+
+        // The second page was actually requested with the returned cursor.
+        await assets
+            .Received(1)
+            .GetUserEmotesAsync(Broadcaster, "page2", Arg.Any<CancellationToken>());
+
+        // The assembled set is cached against the resolved USER id (not the channel), so it can't leak across users.
+        IReadOnlyList<ChatEmote>? userCached = await cache.GetAsync<IReadOnlyList<ChatEmote>>(
+            ChatEmoteCacheKeys.TwitchUser(TwitchId)
+        );
+        userCached.Should().NotBeNull();
+        userCached!
+            .Select(e => e.Code)
+            .Should()
+            .BeEquivalentTo(["subFromFriendA", "subFromFriendB"]);
+    }
+
+    [Fact]
+    public async Task Dedup_is_case_sensitive_so_differently_cased_codes_all_survive()
+    {
+        FakeCache cache = new();
+        // Two DISTINCT 7TV codes differing only in case, plus a genuine same-case collision resolved below.
+        await cache.SetAsync<IReadOnlyList<ChatEmote>>(
+            ChatEmoteCacheKeys.Channel(EmoteProvider.SevenTv, TwitchId),
+            [SevenTv("Pog"), SevenTv("POG")]
+        );
+
+        ITwitchChatAssetsApi assets = Substitute.For<ITwitchChatAssetsApi>();
+        // A Twitch-native "Pog" — exact-case match of the 7TV "Pog": the higher-precedence Twitch one must win it.
+        assets
+            .GetChannelEmotesAsync(Broadcaster, Arg.Any<CancellationToken>())
+            .Returns(Result.Success<IReadOnlyList<TwitchChannelEmote>>([Channel("Pog", "7")]));
+        assets
+            .GetGlobalEmotesAsync(Arg.Any<CancellationToken>())
+            .Returns(Result.Success<IReadOnlyList<TwitchGlobalEmote>>([]));
+        StubNoUserEmotes(assets);
+
+        ITwitchIdentityResolver identity = Substitute.For<ITwitchIdentityResolver>();
+        identity
+            .GetTwitchChannelIdAsync(Broadcaster, Arg.Any<CancellationToken>())
+            .Returns(TwitchId);
+
+        Result<IReadOnlyList<ChatEmote>> result = await Build(cache, assets, identity)
+            .GetForChannelAsync(Broadcaster);
+
+        result.IsSuccess.Should().BeTrue();
+        IReadOnlyList<ChatEmote> emotes = result.Value;
+
+        // "Pog" and "POG" are three-distinct-emote territory — both codes survive the case-sensitive dedup.
+        emotes
+            .Where(e => string.Equals(e.Code, "pog", StringComparison.OrdinalIgnoreCase))
+            .Select(e => e.Code)
+            .Should()
+            .BeEquivalentTo(["Pog", "POG"]);
+
+        // The genuine same-case "Pog" collision keeps the higher-precedence Twitch-native emote over the 7TV one.
+        emotes.Single(e => e.Code == "Pog").Provider.Should().Be(EmoteProvider.Twitch);
+        // The differently-cased "POG" is left untouched — still the 7TV emote.
+        emotes.Single(e => e.Code == "POG").Provider.Should().Be(EmoteProvider.SevenTv);
     }
 
     private sealed class FakeCache : ICacheService

@@ -36,6 +36,7 @@ public static class FeatureScopeMap
         ["vips"] = ["channel:read:vips", "channel:manage:vips"],
         ["chat_read"] = ["user:read:chat"],
         ["chat_send"] = ["user:write:chat"],
+        ["chat_emotes"] = ["user:read:emotes"],
     };
 
     /// <summary>
@@ -67,6 +68,7 @@ public static class FeatureScopeMap
         ["vips"] = "read and manage your VIPs",
         ["chat_read"] = "read your chat",
         ["chat_send"] = "send messages in your chat",
+        ["chat_emotes"] = "show the emotes you can use across every channel you're subscribed to",
     };
 
     /// <summary>The scopes <paramref name="featureKey"/> needs, or an empty list when the feature is unknown.</summary>

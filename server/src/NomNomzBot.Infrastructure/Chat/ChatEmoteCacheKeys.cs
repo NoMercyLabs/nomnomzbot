@@ -26,6 +26,14 @@ internal static class ChatEmoteCacheKeys
     public static string Channel(EmoteProvider provider, string twitchBroadcasterId) =>
         $"chat:emotes:{Token(provider)}:channel:{twitchBroadcasterId}";
 
+    /// <summary>
+    /// <c>chat:emotes:twitch:user:{twitchUserId}</c> — the signed-in user's cross-channel Twitch emotes
+    /// (Get User Emotes). Keyed to the resolved Twitch user id, never the viewed channel, so one user's
+    /// subscription emotes never leak into another user's composer.
+    /// </summary>
+    public static string TwitchUser(string twitchUserId) =>
+        $"chat:emotes:twitch:user:{twitchUserId}";
+
     /// <summary>The stable lowercase token a provider is cached under (7TV is "7tv", matching the provider's own naming).</summary>
     public static string Token(EmoteProvider provider) =>
         provider switch

@@ -127,6 +127,7 @@ public sealed class ScopeNotificationServiceTests
             "channel:manage:vips",
             "user:read:chat",
             "user:write:chat",
+            "user:read:emotes",
         ];
         await SeedTwitchConnectionAsync(db, all);
 
@@ -315,6 +316,7 @@ public sealed class ScopeNotificationServiceTests
             "channel:manage:vips",
             "user:read:chat",
             "user:write:chat",
+            "user:read:emotes",
         ];
         await SeedTwitchConnectionAsync(db, all);
 
