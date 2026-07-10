@@ -109,13 +109,14 @@ public sealed class ReadModelRebuildFromJournalTests
             Chat("100", "alice", "Alice", Live),
             Chat("100", "alice", "Alice", Live.AddSeconds(90)),
             Chat("200", "bob", "Bob", Live.AddSeconds(120)),
-            new NewFollowerEvent
+            new FollowEvent
             {
                 BroadcasterId = Channel,
                 OccurredAt = new DateTimeOffset(Live, TimeSpan.Zero),
                 UserId = "100",
                 UserDisplayName = "Alice",
                 UserLogin = "alice",
+                FollowedAt = new DateTimeOffset(Live, TimeSpan.Zero),
             },
             new NewSubscriptionEvent
             {
@@ -308,10 +309,11 @@ public sealed class ReadModelRebuildFromJournalTests
         {
             BroadcasterId = Channel,
             OccurredAt = new DateTimeOffset(at, TimeSpan.Zero),
-            ChannelId = Channel.ToString(),
             CommandName = "!hello",
             UserId = id,
             Username = login,
+            UserDisplayName = login,
+            Succeeded = true,
         };
 
     private static DomainEventBase Reward(string id, string display, DateTime at) =>

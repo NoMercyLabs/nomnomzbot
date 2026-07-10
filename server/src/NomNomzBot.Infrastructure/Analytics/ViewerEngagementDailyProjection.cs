@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using Microsoft.EntityFrameworkCore;
+using Newtonsoft.Json.Linq;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.EventStore;
@@ -75,7 +76,12 @@ public sealed class ViewerEngagementDailyProjection(
                 row.MessageCount++;
                 break;
             case "CommandExecutedEvent":
-                row.CommandCount++;
+                // Only a run that actually did its work counts as "executed".
+                if (
+                    ViewerResolver.TryParse(@event.PayloadJson)?["Succeeded"]?.Value<bool?>()
+                    == true
+                )
+                    row.CommandCount++;
                 break;
             case "RewardRedeemedEvent":
                 row.RedemptionCount++;

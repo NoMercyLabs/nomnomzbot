@@ -249,13 +249,14 @@ public sealed class TwitchChannelEventLogProjectionTests
 
     private static IReadOnlyList<DomainEventBase> Spread() =>
         [
-            new NewFollowerEvent
+            new FollowEvent
             {
                 BroadcasterId = Channel,
                 OccurredAt = new DateTimeOffset(Live, TimeSpan.Zero),
                 UserId = "100",
                 UserDisplayName = "Alice",
                 UserLogin = "alice",
+                FollowedAt = new DateTimeOffset(Live, TimeSpan.Zero),
             },
             new NewSubscriptionEvent
             {

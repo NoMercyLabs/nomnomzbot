@@ -100,15 +100,33 @@ public sealed class ViewerEngagementDailyProjectionTests
         await sut.ApplyAsync(
             Event(
                 "CommandExecutedEvent",
-                new { UserId = "t1", Username = "t1u" },
+                new
+                {
+                    UserId = "t1",
+                    Username = "t1u",
+                    Succeeded = true,
+                },
                 Day.AddMinutes(2)
+            )
+        );
+        // A failed run is not an executed command — it must not inflate the viewer's count.
+        await sut.ApplyAsync(
+            Event(
+                "CommandExecutedEvent",
+                new
+                {
+                    UserId = "t1",
+                    Username = "t1u",
+                    Succeeded = false,
+                },
+                Day.AddMinutes(3)
             )
         );
         await sut.ApplyAsync(
             Event(
                 "RewardRedeemedEvent",
                 new { UserId = "t1", UserDisplayName = "T1" },
-                Day.AddMinutes(3)
+                Day.AddMinutes(4)
             )
         );
 

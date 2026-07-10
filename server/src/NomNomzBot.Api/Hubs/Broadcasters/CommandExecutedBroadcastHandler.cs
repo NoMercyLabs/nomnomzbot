@@ -14,7 +14,7 @@ using NomNomzBot.Domain.Platform.Interfaces;
 namespace NomNomzBot.Api.Hubs.Broadcasters;
 
 /// <summary>Broadcasts command execution results to dashboard clients.</summary>
-public sealed class CommandExecutedBroadcastHandler : IEventHandler<AfterCommandExecutedEvent>
+public sealed class CommandExecutedBroadcastHandler : IEventHandler<CommandExecutedEvent>
 {
     private readonly IDashboardNotifier _notifier;
     private readonly IChannelRegistry _registry;
@@ -25,7 +25,7 @@ public sealed class CommandExecutedBroadcastHandler : IEventHandler<AfterCommand
         _registry = registry;
     }
 
-    public Task HandleAsync(AfterCommandExecutedEvent @event, CancellationToken ct = default)
+    public Task HandleAsync(CommandExecutedEvent @event, CancellationToken ct = default)
     {
         if (@event.BroadcasterId == Guid.Empty)
             return Task.CompletedTask;
@@ -45,7 +45,7 @@ public sealed class CommandExecutedBroadcastHandler : IEventHandler<AfterCommand
             new(
                 @event.BroadcasterId.ToString(),
                 @event.CommandName,
-                @event.TriggeredByUserId,
+                @event.UserId,
                 @event.Succeeded,
                 @event.OccurredAt.ToString("O")
             ),

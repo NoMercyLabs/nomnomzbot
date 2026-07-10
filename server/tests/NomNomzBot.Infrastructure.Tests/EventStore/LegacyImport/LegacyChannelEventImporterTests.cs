@@ -98,7 +98,7 @@ public sealed class LegacyChannelEventImporterTests
         stream
             .Value.Select(e => e.EventType)
             .Should()
-            .BeEquivalentTo(["NewFollowerEvent", "NewSubscriptionEvent", "CheerEvent"]);
+            .BeEquivalentTo(["FollowEvent", "NewSubscriptionEvent", "CheerEvent"]);
         stream.Value.Should().OnlyContain(e => e.Source == "import");
         stream.Value.Select(e => e.StreamPosition).Should().BeEquivalentTo([1L, 2L, 3L]);
     }

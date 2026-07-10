@@ -153,9 +153,10 @@ public sealed class ViewerProfileProjectionTests
     {
         (ViewerProfileProjection sut, AuthDbContext db) = Build();
 
+        // The live translator's FollowEvent — the canonical follow fact.
         await sut.ApplyAsync(
             Event(
-                "NewFollowerEvent",
+                "FollowEvent",
                 new
                 {
                     UserId = "t1",
@@ -169,6 +170,28 @@ public sealed class ViewerProfileProjectionTests
         profile.IsFollower.Should().BeTrue();
         profile.ViewerTwitchUserId.Should().Be("t1");
         profile.TotalMessages.Should().Be(0); // a follow is not a chat message
+    }
+
+    [Fact]
+    public async Task Folding_a_legacy_imported_follow_also_marks_the_viewer_a_follower()
+    {
+        // Journals written by legacy imports before the follow event was canonicalized hold
+        // "NewFollowerEvent" rows — a rebuild over such a journal must still mark the follower.
+        (ViewerProfileProjection sut, AuthDbContext db) = Build();
+
+        await sut.ApplyAsync(
+            Event(
+                "NewFollowerEvent",
+                new
+                {
+                    UserId = "t1",
+                    UserLogin = "fan",
+                    UserDisplayName = "Fan",
+                }
+            )
+        );
+
+        db.ViewerProfiles.Single().IsFollower.Should().BeTrue();
     }
 
     [Fact]

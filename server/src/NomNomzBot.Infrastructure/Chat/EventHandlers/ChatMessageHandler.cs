@@ -22,6 +22,7 @@ using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Chat.Interfaces;
+using NomNomzBot.Domain.Commands.Events;
 using NomNomzBot.Domain.Identity;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
@@ -49,6 +50,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
     private readonly IPipelineEngine _pipeline;
     private readonly IBuiltinCommandCatalog _builtins;
     private readonly ITemplateResolver _templateResolver;
+    private readonly IEventBus _eventBus;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<ChatMessageHandler> _logger;
 
@@ -60,6 +62,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
         IPipelineEngine pipeline,
         IBuiltinCommandCatalog builtins,
         ITemplateResolver templateResolver,
+        IEventBus eventBus,
         TimeProvider timeProvider,
         ILogger<ChatMessageHandler> logger
     )
@@ -71,6 +74,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
         _pipeline = pipeline;
         _builtins = builtins;
         _templateResolver = templateResolver;
+        _eventBus = eventBus;
         _timeProvider = timeProvider;
         _logger = logger;
     }
@@ -171,6 +175,12 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
                     cancellationToken
                 );
 
+            await PublishExecutedAsync(
+                @event,
+                commandName,
+                builtinResult.IsSuccess,
+                cancellationToken
+            );
             return;
         }
 
@@ -249,7 +259,18 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
                     InitialVariables = BuildInitialVariables(@event, args),
                 };
 
-                await _pipeline.ExecuteAsync(request, cancellationToken);
+                PipelineExecutionResult pipelineResult = await _pipeline.ExecuteAsync(
+                    request,
+                    cancellationToken
+                );
+
+                // Stopped is a deliberate Stop action mid-pipeline — the command still did its work.
+                await PublishExecutedAsync(
+                    @event,
+                    command.Name,
+                    pipelineResult.Outcome is PipelineOutcome.Completed or PipelineOutcome.Stopped,
+                    cancellationToken
+                );
             }
             else
             {
@@ -287,6 +308,13 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
                             builtinFallbackResult.Value,
                             cancellationToken
                         );
+
+                    await PublishExecutedAsync(
+                        @event,
+                        command.Name,
+                        builtinFallbackResult.IsSuccess,
+                        cancellationToken
+                    );
                     return;
                 }
 
@@ -302,6 +330,8 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
                 // IChatProvider takes the tenant Guid and resolves it to the Twitch channel string id
                 // internally (the invariant boundary lives in HelixChatProvider).
                 await _chat.SendMessageAsync(@event.BroadcasterId, resolved, cancellationToken);
+
+                await PublishExecutedAsync(@event, command.Name, true, cancellationToken);
             }
         }
         catch (Exception ex)
@@ -311,6 +341,45 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
                 "Error executing command {Command} for {User} in {Channel}",
                 commandName,
                 @event.UserDisplayName,
+                @event.BroadcasterId
+            );
+            await PublishExecutedAsync(@event, command.Name, false, cancellationToken);
+        }
+    }
+
+    /// <summary>
+    /// Publishes the single command-execution fact (<see cref="CommandExecutedEvent"/>) the hub broadcast,
+    /// the use-count, and the analytics projections all fold from. A bus failure is logged and swallowed —
+    /// bookkeeping must never break the chat hot path.
+    /// </summary>
+    private async Task PublishExecutedAsync(
+        ChatMessageReceivedEvent @event,
+        string commandName,
+        bool succeeded,
+        CancellationToken ct
+    )
+    {
+        try
+        {
+            await _eventBus.PublishAsync(
+                new CommandExecutedEvent
+                {
+                    BroadcasterId = @event.BroadcasterId,
+                    CommandName = commandName,
+                    UserId = @event.UserId,
+                    Username = @event.UserLogin,
+                    UserDisplayName = @event.UserDisplayName,
+                    Succeeded = succeeded,
+                },
+                ct
+            );
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(
+                ex,
+                "Failed to publish CommandExecutedEvent for {Command} in {Channel}",
+                commandName,
                 @event.BroadcasterId
             );
         }

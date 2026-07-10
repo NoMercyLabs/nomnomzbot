@@ -38,8 +38,10 @@ public sealed class LegacyChannelEventMapperTests
         );
 
     [Fact]
-    public void Maps_follow_to_NewFollowerEvent_with_real_follow_time()
+    public void Maps_follow_to_the_canonical_FollowEvent_with_real_follow_time()
     {
+        // FollowEvent is the same canonical fact the live channel.follow translator publishes, so imported
+        // and live follows fold through one journal name.
         AppendEventRequest? request = _mapper.Map(
             Row(
                 "channel.follow",
@@ -49,7 +51,7 @@ public sealed class LegacyChannelEventMapperTests
         );
 
         request.Should().NotBeNull();
-        request!.EventType.Should().Be("NewFollowerEvent");
+        request!.EventType.Should().Be("FollowEvent");
         request.Source.Should().Be("import");
         request.BroadcasterId.Should().Be(Tenant);
         request

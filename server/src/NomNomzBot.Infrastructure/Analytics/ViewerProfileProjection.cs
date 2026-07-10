@@ -26,9 +26,12 @@ namespace NomNomzBot.Infrastructure.Analytics;
 public sealed class ViewerProfileProjection(IApplicationDbContext db, ViewerResolver resolver)
     : IProjection
 {
+    // "FollowEvent" is the live EventSub translation; "NewFollowerEvent" only exists in journals written by
+    // legacy imports before the follow event was canonicalized — both must fold or a rebuild undercounts.
     private static readonly HashSet<string> Subscribed = new(StringComparer.Ordinal)
     {
         "ChatMessageReceivedEvent",
+        "FollowEvent",
         "NewFollowerEvent",
         "RewardRedeemedEvent",
         "NewSubscriptionEvent",
@@ -77,6 +80,7 @@ public sealed class ViewerProfileProjection(IApplicationDbContext db, ViewerReso
                 profile.TotalMessages++;
                 profile.IsSubscriber = payload["IsSubscriber"]?.Value<bool?>() ?? false;
                 break;
+            case "FollowEvent":
             case "NewFollowerEvent":
                 profile.IsFollower = true;
                 break;

@@ -304,15 +304,15 @@ public sealed class LegacyChannelEventMapper
     }
 
     // ── follow ──────────────────────────────────────────────────────────────────────────────────────────────
-    // The new model splits the moment of following: NewFollowerEvent is the count-bearing fact the analytics and
-    // viewer projections subscribe to, so the legacy channel.follow maps to it (FollowEvent is the realtime alert
-    // twin and is not journaled by the analytics fold).
-    private static NewFollowerEvent? MapFollow(JObject data, EventEnvelope env)
+    // FollowEvent is THE canonical follow fact — the same event the live channel.follow translator publishes —
+    // so imported and live follows fold through one name. (Journals from imports before this canonicalization
+    // hold "NewFollowerEvent" rows; the projections keep that string case for them.)
+    private static FollowEvent? MapFollow(JObject data, EventEnvelope env)
     {
         string? userId = Str(data, "UserId");
         return userId is null
             ? null
-            : new NewFollowerEvent
+            : new FollowEvent
             {
                 EventId = env.EventId,
                 BroadcasterId = env.Tenant,
@@ -320,6 +320,7 @@ public sealed class LegacyChannelEventMapper
                 UserId = userId,
                 UserDisplayName = Str(data, "UserName") ?? userId,
                 UserLogin = Str(data, "UserLogin") ?? userId,
+                FollowedAt = env.OccurredAt,
             };
     }
 

@@ -12,10 +12,24 @@ namespace NomNomzBot.Domain.Commands.Events;
 
 using NomNomzBot.Domain.Platform;
 
+/// <summary>
+/// Published by the chat hot path after every command execution — builtin, template response, and
+/// pipeline tier alike. The single command-execution fact: the dashboard hub broadcast, the command
+/// use-count, and the analytics projections (<c>CommandsRun</c>, per-viewer <c>CommandCount</c>) all
+/// fold from this one event.
+/// </summary>
 public sealed class CommandExecutedEvent : DomainEventBase
 {
-    public required string ChannelId { get; init; }
+    /// <summary>The canonical command name (alias-resolved for custom commands).</summary>
     public required string CommandName { get; init; }
+
+    /// <summary>Twitch user id of the caller.</summary>
     public required string UserId { get; init; }
+
+    /// <summary>Twitch login of the caller.</summary>
     public required string Username { get; init; }
+
+    public required string UserDisplayName { get; init; }
+
+    public required bool Succeeded { get; init; }
 }

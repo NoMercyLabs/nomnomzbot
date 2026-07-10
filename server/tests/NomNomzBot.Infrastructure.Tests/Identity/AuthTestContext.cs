@@ -218,8 +218,15 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
         // EF discovers entity types from the DbSet<T> property declarations regardless of the throwing
         // getter bodies, then tries to map their jsonb-of-complex-type columns (unsupported on InMemory).
         // Ignore every entity these tests do not exercise so the model stays minimal and provider-agnostic.
-        b.Ignore<NomNomzBot.Domain.Commands.Entities.Command>();
         b.Ignore<NomNomzBot.Domain.Widgets.Entities.Widget>();
+
+        // Command: mapped scalar-only (both navs ignored; Aliases/TemplateResponses are primitive
+        // collections that materialize on InMemory) so CommandUseCountHandler tests can prove the
+        // UseCount/LastUsedAt fold through this harness.
+        b.Entity<NomNomzBot.Domain.Commands.Entities.Command>().HasKey(e => e.Id);
+        b.Entity<NomNomzBot.Domain.Commands.Entities.Command>()
+            .Ignore(e => e.Channel)
+            .Ignore(e => e.Pipeline);
 
         // Reward is scalar-only (no jsonb-of-complex-type column), so it materializes on InMemory. Mapped
         // (navs ignored) so the reward-sync tests can prove the Twitch read path through this harness.
@@ -283,7 +290,7 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
     public DbSet<NomNomzBot.Domain.Platform.Entities.Service> Services =>
         Set<NomNomzBot.Domain.Platform.Entities.Service>();
     public DbSet<NomNomzBot.Domain.Commands.Entities.Command> Commands =>
-        throw new NotSupportedException();
+        Set<NomNomzBot.Domain.Commands.Entities.Command>();
     public DbSet<NomNomzBot.Domain.Rewards.Entities.Reward> Rewards =>
         Set<NomNomzBot.Domain.Rewards.Entities.Reward>();
     public DbSet<NomNomzBot.Domain.Quotes.Entities.Quote> Quotes =>

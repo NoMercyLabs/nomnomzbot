@@ -24,15 +24,22 @@ namespace NomNomzBot.Infrastructure.Analytics;
 /// </summary>
 public sealed class ChannelAnalyticsDailyProjection(IApplicationDbContext db) : IProjection
 {
+    // "FollowEvent" is the live EventSub translation; "NewFollowerEvent" only exists in journals written by
+    // legacy imports before the follow event was canonicalized — both must fold or a rebuild undercounts.
     private static readonly HashSet<string> Subscribed = new(StringComparer.Ordinal)
     {
         "ChatMessageReceivedEvent",
+        "FollowEvent",
         "NewFollowerEvent",
         "NewSubscriptionEvent",
         "GiftSubscriptionEvent",
         "CheerEvent",
         "CommandExecutedEvent",
         "RewardRedeemedEvent",
+        "SongRequestedEvent",
+        "CurrencyCreditedEvent",
+        "CurrencyDebitedEvent",
+        "GamePlayedEvent",
     };
 
     public string Name => "analytics.channel-daily";
@@ -55,6 +62,7 @@ public sealed class ChannelAnalyticsDailyProjection(IApplicationDbContext db) : 
             case "ChatMessageReceivedEvent":
                 row.TotalMessages++;
                 break;
+            case "FollowEvent":
             case "NewFollowerEvent":
                 row.NewFollowers++;
                 break;
@@ -63,13 +71,28 @@ public sealed class ChannelAnalyticsDailyProjection(IApplicationDbContext db) : 
                 row.NewSubscribers++;
                 break;
             case "CommandExecutedEvent":
-                row.CommandsRun++;
+                // Only a run that actually did its work counts as "executed".
+                if (ParseBool(@event.PayloadJson, "Succeeded"))
+                    row.CommandsRun++;
                 break;
             case "RewardRedeemedEvent":
                 row.RedemptionsCount++;
                 break;
             case "CheerEvent":
-                row.BitsCheered += ParseBits(@event.PayloadJson);
+                row.BitsCheered += ParseAmount(@event.PayloadJson, "Bits");
+                break;
+            case "SongRequestedEvent":
+                row.SongRequests++;
+                break;
+            case "CurrencyCreditedEvent":
+                row.CurrencyEarnedTotal += ParseAmount(@event.PayloadJson, "Amount");
+                break;
+            case "CurrencyDebitedEvent":
+                // A debit's Amount is the raw NEGATIVE ledger amount — fold its magnitude.
+                row.CurrencySpentTotal += Math.Abs(ParseAmount(@event.PayloadJson, "Amount"));
+                break;
+            case "GamePlayedEvent":
+                row.GamesPlayed++;
                 break;
         }
 
@@ -110,15 +133,27 @@ public sealed class ChannelAnalyticsDailyProjection(IApplicationDbContext db) : 
         return row;
     }
 
-    private static long ParseBits(string payloadJson)
+    private static long ParseAmount(string payloadJson, string field)
     {
         try
         {
-            return JObject.Parse(payloadJson)["Bits"]?.Value<long?>() ?? 0;
+            return JObject.Parse(payloadJson)[field]?.Value<long?>() ?? 0;
         }
         catch (Newtonsoft.Json.JsonException)
         {
             return 0;
+        }
+    }
+
+    private static bool ParseBool(string payloadJson, string field)
+    {
+        try
+        {
+            return JObject.Parse(payloadJson)[field]?.Value<bool?>() ?? false;
+        }
+        catch (Newtonsoft.Json.JsonException)
+        {
+            return false;
         }
     }
 }

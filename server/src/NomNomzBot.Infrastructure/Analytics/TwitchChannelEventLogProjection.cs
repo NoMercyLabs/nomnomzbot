@@ -44,6 +44,9 @@ public sealed class TwitchChannelEventLogProjection(IApplicationDbContext db) : 
         new Dictionary<string, string>(StringComparer.Ordinal)
         {
             ["ChatMessageReceivedEvent"] = "channel.chat.message",
+            // "FollowEvent" is the live EventSub translation; "NewFollowerEvent" only exists in journals
+            // written by legacy imports before the follow event was canonicalized.
+            ["FollowEvent"] = "channel.follow",
             ["NewFollowerEvent"] = "channel.follow",
             ["NewSubscriptionEvent"] = "channel.subscribe",
             ["ResubscriptionEvent"] = "channel.subscription.message",
@@ -177,6 +180,7 @@ public sealed class TwitchChannelEventLogProjection(IApplicationDbContext db) : 
                 );
                 CopyInt(source, data, ("Bits", "bits"));
                 break;
+            case "FollowEvent":
             case "NewFollowerEvent":
             case "ModeratorAddedEvent":
             case "ModeratorRemovedEvent":
@@ -297,6 +301,7 @@ public sealed class TwitchChannelEventLogProjection(IApplicationDbContext db) : 
     > ActorByEventType = new Dictionary<string, (string, string, string?)>(StringComparer.Ordinal)
     {
         ["ChatMessageReceivedEvent"] = ("UserId", "UserDisplayName", "UserLogin"),
+        ["FollowEvent"] = ("UserId", "UserDisplayName", "UserLogin"),
         ["NewFollowerEvent"] = ("UserId", "UserDisplayName", "UserLogin"),
         ["NewSubscriptionEvent"] = ("UserId", "UserDisplayName", null),
         ["ResubscriptionEvent"] = ("UserId", "UserDisplayName", null),

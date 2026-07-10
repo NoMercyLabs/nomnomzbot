@@ -272,6 +272,7 @@ public sealed class ChatCommandEffectiveLevelTests
             Substitute.For<IPipelineEngine>(),
             Substitute.For<IBuiltinCommandCatalog>(),
             templates,
+            Substitute.For<IEventBus>(),
             clock,
             NullLogger<ChatMessageHandler>.Instance
         );

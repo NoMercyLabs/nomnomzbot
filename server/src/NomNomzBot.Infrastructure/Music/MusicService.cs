@@ -309,6 +309,21 @@ public sealed class MusicService : IMusicService
             requestedBy
         );
 
+        // The accepted-request fact the analytics fold (SongRequests) and future SR surfaces consume. The
+        // requester key is what the fair queue records today; the SR engine spec extends this event with the
+        // resolved viewer identity when it lands (music-sr.md §2).
+        await _eventBus.PublishAsync(
+            new SongRequestedEvent
+            {
+                BroadcasterId = tenantId,
+                UserId = requestedBy ?? "anonymous",
+                UserDisplayName = requestedBy ?? "anonymous",
+                TrackUri = trackUri,
+                TrackName = trackInfo.TrackName,
+            },
+            cancellationToken
+        );
+
         return true;
     }
 

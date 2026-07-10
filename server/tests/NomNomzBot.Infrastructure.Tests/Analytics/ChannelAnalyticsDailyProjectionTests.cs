@@ -18,8 +18,9 @@ namespace NomNomzBot.Infrastructure.Tests.Analytics;
 
 /// <summary>
 /// Proves the channel-daily projection (analytics.md §3.1, M.8): it folds the journal into the per-channel daily
-/// aggregate (chat → messages, follow → new followers, sub/gift → new subscribers, cheer → bits, command/reward
-/// → counts), ignores directory-level events with no channel, and a reset clears the read model for replay.
+/// aggregate (chat → messages, follow → new followers, sub/gift → new subscribers, cheer → bits, successful
+/// command/reward/song-request/game → counts, currency credit/debit → earned/spent totals), ignores
+/// directory-level events with no channel, and a reset clears the read model for replay.
 /// </summary>
 public sealed class ChannelAnalyticsDailyProjectionTests
 {
@@ -63,23 +64,45 @@ public sealed class ChannelAnalyticsDailyProjectionTests
         await sut.ApplyAsync(Event("ChatMessageReceivedEvent", Channel));
         await sut.ApplyAsync(Event("ChatMessageReceivedEvent", Channel));
         await sut.ApplyAsync(Event("ChatMessageReceivedEvent", Channel));
-        await sut.ApplyAsync(Event("NewFollowerEvent", Channel));
+        // The live translator's FollowEvent and the pre-canonicalization legacy-import
+        // NewFollowerEvent both count — a rebuild over a mixed journal must not undercount.
+        await sut.ApplyAsync(Event("FollowEvent", Channel));
         await sut.ApplyAsync(Event("NewFollowerEvent", Channel));
         await sut.ApplyAsync(Event("NewSubscriptionEvent", Channel));
         await sut.ApplyAsync(Event("GiftSubscriptionEvent", Channel));
-        await sut.ApplyAsync(Event("CommandExecutedEvent", Channel));
+        await sut.ApplyAsync(Event("CommandExecutedEvent", Channel, "{\"Succeeded\":true}"));
         await sut.ApplyAsync(Event("RewardRedeemedEvent", Channel));
         await sut.ApplyAsync(Event("CheerEvent", Channel, "{\"Bits\":100}"));
+        await sut.ApplyAsync(Event("SongRequestedEvent", Channel));
+        await sut.ApplyAsync(Event("CurrencyCreditedEvent", Channel, "{\"Amount\":50}"));
+        await sut.ApplyAsync(Event("CurrencyCreditedEvent", Channel, "{\"Amount\":25}"));
+        await sut.ApplyAsync(Event("CurrencyDebitedEvent", Channel, "{\"Amount\":-30}"));
+        await sut.ApplyAsync(Event("GamePlayedEvent", Channel));
 
         ChannelAnalyticsDaily row = db.ChannelAnalyticsDailies.Single();
         row.BroadcasterId.Should().Be(Channel);
         row.ActivityDate.Should().Be(new DateOnly(2026, 6, 22));
         row.TotalMessages.Should().Be(3);
-        row.NewFollowers.Should().Be(2);
+        row.NewFollowers.Should().Be(2); // live FollowEvent + legacy NewFollowerEvent
         row.NewSubscribers.Should().Be(2); // sub + gift
         row.CommandsRun.Should().Be(1);
         row.RedemptionsCount.Should().Be(1);
         row.BitsCheered.Should().Be(100);
+        row.SongRequests.Should().Be(1);
+        row.CurrencyEarnedTotal.Should().Be(75);
+        row.CurrencySpentTotal.Should().Be(30); // debit Amount travels negative — magnitude folds
+        row.GamesPlayed.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task A_failed_command_run_does_not_count_as_executed()
+    {
+        (ChannelAnalyticsDailyProjection sut, AuthDbContext db) = Build();
+
+        await sut.ApplyAsync(Event("CommandExecutedEvent", Channel, "{\"Succeeded\":false}"));
+        await sut.ApplyAsync(Event("CommandExecutedEvent", Channel, "{\"Succeeded\":true}"));
+
+        db.ChannelAnalyticsDailies.Single().CommandsRun.Should().Be(1);
     }
 
     [Fact]

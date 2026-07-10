@@ -110,6 +110,49 @@ public sealed class ChatMessageHandlerTests
         await chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!, default);
     }
 
+    [Fact]
+    public async Task Executed_builtin_publishes_the_command_executed_fact()
+    {
+        // The single execution fact the hub broadcast, use-count, and analytics projections fold from —
+        // without it the dashboard's CommandsRun/UseCount/live push all silently stay at zero.
+        ChannelContext ctx = NewChannelContext();
+
+        (ChatMessageHandler sut, _, IEventBus bus) = BuildWithBus(ctx);
+
+        await sut.HandleAsync(MessageEvent($"!{BuiltinKey}"), CancellationToken.None);
+
+        await bus.Received(1)
+            .PublishAsync(
+                Arg.Is<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(e =>
+                    e.BroadcasterId == Broadcaster
+                    && e.CommandName == BuiltinKey
+                    && e.UserId == "tw-viewer-1"
+                    && e.Username == "viewer"
+                    && e.UserDisplayName == "Viewer"
+                    && e.Succeeded
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task Ignored_disabled_builtin_publishes_no_execution_fact()
+    {
+        // A silently-ignored command is NOT an execution — publishing one would fabricate analytics counts.
+        ChannelContext ctx = NewChannelContext();
+        ctx.DisabledBuiltins[BuiltinKey] = 0;
+
+        (ChatMessageHandler sut, _, IEventBus bus) = BuildWithBus(ctx);
+
+        await sut.HandleAsync(MessageEvent($"!{BuiltinKey}"), CancellationToken.None);
+
+        await bus.DidNotReceiveWithAnyArgs()
+            .PublishAsync<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(
+                default!,
+                default
+            );
+    }
+
     // ── shared scaffolding ──────────────────────────────────────────────────
 
     private static ChannelContext NewChannelContext() =>
@@ -122,6 +165,14 @@ public sealed class ChatMessageHandlerTests
 
     private static (ChatMessageHandler Sut, IChatProvider Chat) Build(ChannelContext ctx)
     {
+        (ChatMessageHandler sut, IChatProvider chat, _) = BuildWithBus(ctx);
+        return (sut, chat);
+    }
+
+    private static (ChatMessageHandler Sut, IChatProvider Chat, IEventBus Bus) BuildWithBus(
+        ChannelContext ctx
+    )
+    {
         IChannelRegistry registry = Substitute.For<IChannelRegistry>();
         registry.Get(Broadcaster).Returns(ctx);
 
@@ -129,6 +180,7 @@ public sealed class ChatMessageHandlerTests
         builtins.Get(BuiltinKey).Returns(new StubBuiltinCommand());
 
         IChatProvider chat = Substitute.For<IChatProvider>();
+        IEventBus bus = Substitute.For<IEventBus>();
 
         ChatMessageHandler sut = new(
             registry,
@@ -138,11 +190,12 @@ public sealed class ChatMessageHandlerTests
             Substitute.For<IPipelineEngine>(),
             builtins,
             Substitute.For<ITemplateResolver>(),
+            bus,
             TimeProvider.System,
             NullLogger<ChatMessageHandler>.Instance
         );
 
-        return (sut, chat);
+        return (sut, chat, bus);
     }
 
     private static ChatMessageReceivedEvent MessageEvent(string message) =>
