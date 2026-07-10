@@ -1,0 +1,258 @@
+// -----------------------------------------------------------------------------
+//  Copyright (c) NoMercy Labs.
+//
+//  This file is part of NomNomzBot, free software licensed under the GNU Affero
+//  General Public License v3.0 or later. You may redistribute and/or modify it
+//  under those terms. Distributed WITHOUT ANY WARRANTY. See LICENSE for details.
+//
+//  SPDX-License-Identifier: AGPL-3.0-or-later
+// -----------------------------------------------------------------------------
+
+using System.Net;
+using System.Net.Http.Json;
+using System.Text.Json.Serialization;
+using Microsoft.Extensions.Logging;
+using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.YouTube;
+
+namespace NomNomzBot.Infrastructure.Chat.YouTube;
+
+/// <summary>
+/// <see cref="IYouTubeLiveChatClient"/> over the YouTube Live Streaming API (Data API v3). Reads ride the
+/// broadcaster's own <c>youtube.readonly</c> OAuth bearer (the app key cannot read a live chat), mirroring the
+/// manage-plane pattern in <c>YouTubeMusicProvider</c>. Every transport/HTTP failure degrades to a typed
+/// <see cref="Result"/> failure (never throws), and a missing/expired scope maps to <c>MISSING_SCOPE</c> so the
+/// poller can trigger re-auth rather than crash a background loop.
+/// </summary>
+public sealed class YouTubeLiveChatClient : IYouTubeLiveChatClient
+{
+    private const string YouTubeApiBase = "https://www.googleapis.com/youtube/v3";
+
+    private readonly HttpClient _http;
+    private readonly ILogger<YouTubeLiveChatClient> _logger;
+
+    public YouTubeLiveChatClient(
+        IHttpClientFactory httpClientFactory,
+        ILogger<YouTubeLiveChatClient> logger
+    )
+    {
+        _http = httpClientFactory.CreateClient("youtube");
+        _logger = logger;
+    }
+
+    public async Task<Result<YouTubeActiveChat?>> GetActiveLiveChatAsync(
+        string accessToken,
+        CancellationToken cancellationToken = default
+    )
+    {
+        // broadcastStatus/mine/id are mutually exclusive; broadcastStatus=active on the caller's token returns
+        // only their live broadcasts, so one item (if any) is the active one whose snippet carries liveChatId.
+        string url =
+            $"{YouTubeApiBase}/liveBroadcasts?part=snippet&broadcastStatus=active&maxResults=1";
+
+        (HttpStatusCode? status, LiveBroadcastListResponse? body) =
+            await GetAsync<LiveBroadcastListResponse>(url, accessToken, cancellationToken);
+
+        if (status is null)
+            return Result.Failure<YouTubeActiveChat?>(
+                "YouTube is temporarily unavailable.",
+                "SERVICE_UNAVAILABLE"
+            );
+        if (status is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
+            return Result.Failure<YouTubeActiveChat?>(
+                "The YouTube connection is missing the required scope.",
+                "MISSING_SCOPE"
+            );
+
+        LiveBroadcastItem? broadcast = body?.Items?.FirstOrDefault(b =>
+            !string.IsNullOrEmpty(b.Snippet?.LiveChatId)
+        );
+
+        // Not live (no active broadcast, or an active broadcast with chat disabled) — a normal state, not a
+        // failure. The poller treats a null value as "nothing to read right now".
+        if (broadcast?.Snippet?.LiveChatId is not { } liveChatId)
+            return Result.Success<YouTubeActiveChat?>(null);
+
+        return Result.Success<YouTubeActiveChat?>(
+            new YouTubeActiveChat(broadcast.Id ?? string.Empty, liveChatId, broadcast.Snippet.Title)
+        );
+    }
+
+    public async Task<Result<YouTubeLiveChatPage>> ListMessagesAsync(
+        string accessToken,
+        string liveChatId,
+        string? pageToken,
+        CancellationToken cancellationToken = default
+    )
+    {
+        string url =
+            $"{YouTubeApiBase}/liveChatMessages?part=snippet,authorDetails"
+            + $"&liveChatId={Uri.EscapeDataString(liveChatId)}";
+        if (!string.IsNullOrEmpty(pageToken))
+            url += $"&pageToken={Uri.EscapeDataString(pageToken)}";
+
+        (HttpStatusCode? status, LiveChatMessageListResponse? body) =
+            await GetAsync<LiveChatMessageListResponse>(url, accessToken, cancellationToken);
+
+        if (status is null)
+            return Result.Failure<YouTubeLiveChatPage>(
+                "YouTube is temporarily unavailable.",
+                "SERVICE_UNAVAILABLE"
+            );
+        if (status is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
+            return Result.Failure<YouTubeLiveChatPage>(
+                "The YouTube connection is missing the required scope.",
+                "MISSING_SCOPE"
+            );
+        // The chat ended or the id is stale — surface it so the poller re-resolves the active broadcast.
+        if (status is HttpStatusCode.NotFound)
+            return Result.Failure<YouTubeLiveChatPage>(
+                "The YouTube live chat is no longer available.",
+                "NOT_FOUND"
+            );
+        if (body is null)
+            return Result.Failure<YouTubeLiveChatPage>(
+                "YouTube is temporarily unavailable.",
+                "SERVICE_UNAVAILABLE"
+            );
+
+        List<YouTubeLiveChatMessage> messages =
+        [
+            .. (body.Items ?? [])
+                .Where(item => item.Snippet is not null && item.AuthorDetails is not null)
+                .Select(MapMessage),
+        ];
+
+        return Result.Success(
+            new YouTubeLiveChatPage(messages, body.NextPageToken, body.PollingIntervalMillis)
+        );
+    }
+
+    private static YouTubeLiveChatMessage MapMessage(LiveChatMessageItem item) =>
+        new(
+            item.Id ?? string.Empty,
+            item.AuthorDetails!.ChannelId ?? string.Empty,
+            item.AuthorDetails.DisplayName ?? string.Empty,
+            item.Snippet!.DisplayMessage ?? string.Empty,
+            item.Snippet.PublishedAt ?? DateTimeOffset.MinValue,
+            item.AuthorDetails.IsChatModerator,
+            item.AuthorDetails.IsChatOwner,
+            item.AuthorDetails.IsChatSponsor
+        );
+
+    private async Task<(HttpStatusCode? Status, T? Body)> GetAsync<T>(
+        string url,
+        string accessToken,
+        CancellationToken cancellationToken
+    )
+        where T : class
+    {
+        HttpRequestMessage request = new(HttpMethod.Get, url);
+        request.Headers.Authorization = new("Bearer", accessToken);
+
+        try
+        {
+            HttpResponseMessage response = await _http.SendAsync(request, cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogDebug(
+                    "YouTube live-chat read failed: {Status} for {Path}",
+                    response.StatusCode,
+                    new Uri(url).AbsolutePath
+                );
+                return (response.StatusCode, null);
+            }
+
+            T? body = await response.Content.ReadFromJsonAsync<T>(
+                cancellationToken: cancellationToken
+            );
+            return (response.StatusCode, body);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogError(
+                ex,
+                "YouTube live-chat read threw for {Path}",
+                new Uri(url).AbsolutePath
+            );
+            return (null, null);
+        }
+    }
+
+    // ─── Wire models (YouTube Data API v3 live) ──────────────────────────────
+
+    private sealed class LiveBroadcastListResponse
+    {
+        [JsonPropertyName("items")]
+        public List<LiveBroadcastItem>? Items { get; set; }
+    }
+
+    private sealed class LiveBroadcastItem
+    {
+        [JsonPropertyName("id")]
+        public string? Id { get; set; }
+
+        [JsonPropertyName("snippet")]
+        public LiveBroadcastSnippet? Snippet { get; set; }
+    }
+
+    private sealed class LiveBroadcastSnippet
+    {
+        [JsonPropertyName("liveChatId")]
+        public string? LiveChatId { get; set; }
+
+        [JsonPropertyName("title")]
+        public string? Title { get; set; }
+    }
+
+    private sealed class LiveChatMessageListResponse
+    {
+        [JsonPropertyName("pollingIntervalMillis")]
+        public int PollingIntervalMillis { get; set; }
+
+        [JsonPropertyName("nextPageToken")]
+        public string? NextPageToken { get; set; }
+
+        [JsonPropertyName("items")]
+        public List<LiveChatMessageItem>? Items { get; set; }
+    }
+
+    private sealed class LiveChatMessageItem
+    {
+        [JsonPropertyName("id")]
+        public string? Id { get; set; }
+
+        [JsonPropertyName("snippet")]
+        public LiveChatMessageSnippet? Snippet { get; set; }
+
+        [JsonPropertyName("authorDetails")]
+        public LiveChatAuthorDetails? AuthorDetails { get; set; }
+    }
+
+    private sealed class LiveChatMessageSnippet
+    {
+        [JsonPropertyName("displayMessage")]
+        public string? DisplayMessage { get; set; }
+
+        [JsonPropertyName("publishedAt")]
+        public DateTimeOffset? PublishedAt { get; set; }
+    }
+
+    private sealed class LiveChatAuthorDetails
+    {
+        [JsonPropertyName("channelId")]
+        public string? ChannelId { get; set; }
+
+        [JsonPropertyName("displayName")]
+        public string? DisplayName { get; set; }
+
+        [JsonPropertyName("isChatModerator")]
+        public bool IsChatModerator { get; set; }
+
+        [JsonPropertyName("isChatOwner")]
+        public bool IsChatOwner { get; set; }
+
+        [JsonPropertyName("isChatSponsor")]
+        public bool IsChatSponsor { get; set; }
+    }
+}

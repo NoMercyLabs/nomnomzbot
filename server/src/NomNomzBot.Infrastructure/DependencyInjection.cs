@@ -25,6 +25,7 @@ using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Application.Contracts.Twitch;
+using NomNomzBot.Application.Contracts.YouTube;
 using NomNomzBot.Application.Services;
 using NomNomzBot.Application.Tts.Services;
 using NomNomzBot.Domain.Chat.Interfaces;
@@ -34,6 +35,7 @@ using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Tts.Interfaces;
 using NomNomzBot.Infrastructure.BackgroundServices;
 using NomNomzBot.Infrastructure.Chat;
+using NomNomzBot.Infrastructure.Chat.YouTube;
 using NomNomzBot.Infrastructure.Commands;
 using NomNomzBot.Infrastructure.Moderation;
 using NomNomzBot.Infrastructure.Music;
@@ -686,6 +688,10 @@ public static class DependencyInjection
         // YouTube Data API v3 client backing the browser-source song-request provider's search/resolve
         // (music-sr.md §3.5.2). App-level YouTube:ApiKey — no per-user OAuth (music-sr.md decision #8).
         services.AddHttpClient("youtube");
+
+        // YouTube live-chat READ transport (cross-platform combined chat, item 6). Stateless over the "youtube"
+        // client + the broadcaster's youtube.readonly bearer, so a singleton the future poll worker can inject.
+        services.AddSingleton<IYouTubeLiveChatClient, YouTubeLiveChatClient>();
 
         // ── Discord (discord.md §7) — guild link, notification rules, dispatch + dedupe ──
         // IDiscordGuildService / IDiscordNotificationConfigService / IDiscordNotificationRoleService follow the

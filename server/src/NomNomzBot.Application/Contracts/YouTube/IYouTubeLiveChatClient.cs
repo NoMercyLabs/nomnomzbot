@@ -1,0 +1,78 @@
+// -----------------------------------------------------------------------------
+//  Copyright (c) NoMercy Labs.
+//
+//  This file is part of NomNomzBot, free software licensed under the GNU Affero
+//  General Public License v3.0 or later. You may redistribute and/or modify it
+//  under those terms. Distributed WITHOUT ANY WARRANTY. See LICENSE for details.
+//
+//  SPDX-License-Identifier: AGPL-3.0-or-later
+// -----------------------------------------------------------------------------
+
+using NomNomzBot.Application.Common.Models;
+
+namespace NomNomzBot.Application.Contracts.YouTube;
+
+/// <summary>
+/// Read-only transport over the YouTube Live Streaming API (Data API v3) for a streamer's OWN live chat —
+/// the cross-platform chat READ seam for YouTube (combined-chat item 6). It resolves the caller's currently
+/// active broadcast to its live-chat id, then pages that chat's messages. Pure HTTP I/O keyed by the
+/// broadcaster's OAuth bearer (scope <c>youtube.readonly</c>); it holds no database or event-bus dependency,
+/// mirroring the thin Twitch sub-clients — persisting messages and raising domain events is the poller's job.
+/// Verified against the live API 2026-07-10: <c>liveBroadcasts.list</c> filters (<c>broadcastStatus</c> /
+/// <c>mine</c> / <c>id</c>) are mutually exclusive, so the active broadcast is fetched with
+/// <c>broadcastStatus=active</c> on the caller's token.
+/// </summary>
+public interface IYouTubeLiveChatClient
+{
+    /// <summary>
+    /// Resolves the caller's currently active live broadcast to its live-chat id
+    /// (<c>GET liveBroadcasts?part=snippet&amp;broadcastStatus=active</c>). A successful result with a
+    /// <c>null</c> value means the caller is not live (no active broadcast) — a normal state, not an error;
+    /// a failure is a transport/auth problem. <paramref name="accessToken"/> is the broadcaster's decrypted
+    /// YouTube OAuth bearer.
+    /// </summary>
+    Task<Result<YouTubeActiveChat?>> GetActiveLiveChatAsync(
+        string accessToken,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>
+    /// Lists one page of a live chat's messages (<c>GET liveChatMessages?part=snippet,authorDetails</c>).
+    /// Pass <paramref name="pageToken"/> = the previous page's <see cref="YouTubeLiveChatPage.NextPageToken"/>
+    /// to continue (null for the first read). The caller MUST wait
+    /// <see cref="YouTubeLiveChatPage.PollingIntervalMs"/> before the next call (the API sets it per chat
+    /// activity). Returns the messages published since the token, chronological.
+    /// </summary>
+    Task<Result<YouTubeLiveChatPage>> ListMessagesAsync(
+        string accessToken,
+        string liveChatId,
+        string? pageToken,
+        CancellationToken cancellationToken = default
+    );
+}
+
+/// <summary>The caller's active broadcast and its live-chat id.</summary>
+public sealed record YouTubeActiveChat(string BroadcastId, string LiveChatId, string? Title);
+
+/// <summary>One page of live-chat messages plus the paging cursor and the API-directed poll delay.</summary>
+public sealed record YouTubeLiveChatPage(
+    IReadOnlyList<YouTubeLiveChatMessage> Messages,
+    string? NextPageToken,
+    int PollingIntervalMs
+);
+
+/// <summary>
+/// A single YouTube live-chat message, flattened to what the ingest needs: the author's YouTube channel id
+/// and display name, the rendered text, when it was published, and the author's chat standing (owner /
+/// moderator / member) so the domain event can carry the same role signal Twitch chat does.
+/// </summary>
+public sealed record YouTubeLiveChatMessage(
+    string Id,
+    string AuthorChannelId,
+    string AuthorDisplayName,
+    string DisplayText,
+    DateTimeOffset PublishedAt,
+    bool IsModerator,
+    bool IsOwner,
+    bool IsMember
+);
