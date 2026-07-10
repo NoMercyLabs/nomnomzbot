@@ -10,6 +10,13 @@ env:
   REGISTRY: ghcr.io
   IMAGE_NAME: nomercylabs/nomnomzbot
 
+# Cancel an in-progress run when a newer commit lands on the same ref (or a PR gets a new push):
+# no point burning a ~25-minute Wasm image build on a commit that's already been superseded. Grouped
+# by ref so master pushes cancel prior master runs and each PR cancels only its own earlier run.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     name: Test (backend)
