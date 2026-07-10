@@ -84,7 +84,8 @@ public sealed class NotificationDispatcher : INotificationDispatcher
             PayloadJson: notification.Event.GetRawText(),
             MetadataJson: BuildMetadata(notification),
             OccurredAt: notification.MessageTimestamp.UtcDateTime,
-            ActorTwitchUserId: notification.TwitchBroadcasterUserId
+            ActorExternalUserId: notification.TwitchBroadcasterUserId,
+            ActorProvider: "twitch"
         );
 
         Result<EventRecord> appended = await _journal.AppendAsync(append, ct);

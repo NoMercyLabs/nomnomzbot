@@ -28,7 +28,8 @@ public sealed record AppendEventRequest(
     Guid? CorrelationId = null,
     Guid? CausationId = null,
     Guid? ActorUserId = null,
-    string? ActorTwitchUserId = null
+    string? ActorExternalUserId = null,
+    string? ActorProvider = null // twitch|kick|youtube|twitter — the namespace of ActorExternalUserId
 );
 
 /// <summary>An immutable journal row as read back by projections / replay / the audit UI.</summary>
@@ -46,7 +47,8 @@ public sealed record EventRecord(
     Guid? CorrelationId,
     Guid? CausationId,
     Guid? ActorUserId,
-    string? ActorTwitchUserId,
+    string? ActorExternalUserId,
+    string? ActorProvider,
     string MetadataJson,
     DateTime OccurredAt,
     DateTime RecordedAt

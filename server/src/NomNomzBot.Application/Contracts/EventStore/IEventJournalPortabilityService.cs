@@ -67,7 +67,8 @@ public sealed record EventJournalExportLine(
     Guid? CorrelationId,
     Guid? CausationId,
     Guid? ActorUserId,
-    string? ActorTwitchUserId,
+    string? ActorExternalUserId,
+    string? ActorProvider,
     DateTime OccurredAt,
     DateTime RecordedAt
 );

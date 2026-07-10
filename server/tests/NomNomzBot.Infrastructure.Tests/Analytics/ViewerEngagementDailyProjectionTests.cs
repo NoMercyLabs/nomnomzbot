@@ -62,6 +62,7 @@ public sealed class ViewerEngagementDailyProjectionTests
             null,
             null,
             null,
+            null,
             "{}",
             at,
             at

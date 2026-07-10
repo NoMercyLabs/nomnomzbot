@@ -231,7 +231,8 @@ public sealed class EventJournalPortabilityService : IEventJournalPortabilitySer
                     CorrelationId: line.CorrelationId,
                     CausationId: line.CausationId,
                     ActorUserId: line.ActorUserId,
-                    ActorTwitchUserId: line.ActorTwitchUserId
+                    ActorExternalUserId: line.ActorExternalUserId,
+                    ActorProvider: line.ActorProvider
                 )
             );
         }
@@ -253,7 +254,8 @@ public sealed class EventJournalPortabilityService : IEventJournalPortabilitySer
             record.CorrelationId,
             record.CausationId,
             record.ActorUserId,
-            record.ActorTwitchUserId,
+            record.ActorExternalUserId,
+            record.ActorProvider,
             record.OccurredAt,
             record.RecordedAt
         );

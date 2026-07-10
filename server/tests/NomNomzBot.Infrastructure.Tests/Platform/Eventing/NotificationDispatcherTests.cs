@@ -95,7 +95,10 @@ public sealed class NotificationDispatcherTests
         record.EventType.Should().Be("channel.follow");
         record.EventVersion.Should().Be(2);
         record.Source.Should().Be("eventsub");
-        record.ActorTwitchUserId.Should().Be("twitch-123");
+        record.ActorExternalUserId.Should().Be("twitch-123");
+        record
+            .ActorProvider.Should()
+            .Be("twitch", "an EventSub-sourced actor is attributed to the twitch platform");
         JsonDocument
             .Parse(record.PayloadJson)
             .RootElement.GetProperty("user_name")

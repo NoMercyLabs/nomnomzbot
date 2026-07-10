@@ -65,8 +65,18 @@ public class EventJournal
     /// <summary>Internal surrogate of the actor (FK→Users).</summary>
     public Guid? ActorUserId { get; set; }
 
-    /// <summary>The actor's Twitch user id (hashed PII when present).</summary>
-    public string? ActorTwitchUserId { get; set; }
+    /// <summary>
+    /// The actor's platform-specific external user id (hashed PII when present); <c>null</c> for
+    /// historical/system rows with no external actor. Interpreted under <see cref="ActorProvider"/>.
+    /// </summary>
+    public string? ActorExternalUserId { get; set; }
+
+    /// <summary>
+    /// The platform key naming <see cref="ActorExternalUserId"/>'s namespace —
+    /// <c>twitch</c>|<c>kick</c>|<c>youtube</c>|<c>twitter</c> (the provider vocabulary shared with
+    /// <c>Channel.Provider</c> / <c>UserIdentity</c>); <c>null</c> when there is no external actor.
+    /// </summary>
+    public string? ActorProvider { get; set; }
 
     /// <summary>Serialized headers/trace metadata (JSON string).</summary>
     public string Metadata { get; set; } = null!;

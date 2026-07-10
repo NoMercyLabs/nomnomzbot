@@ -76,6 +76,7 @@ public sealed class ViewerProfileProjectionTests
             null,
             null,
             null,
+            null,
             "{}",
             Now,
             Now
@@ -92,6 +93,7 @@ public sealed class ViewerProfileProjectionTests
             "domain",
             JsonConvert.SerializeObject(payload),
             false,
+            null,
             null,
             null,
             null,

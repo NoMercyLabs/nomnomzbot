@@ -45,6 +45,7 @@ public sealed class RewardRedemptionProjectionTests
             null,
             null,
             null,
+            null,
             "{}",
             Now,
             Now

@@ -150,6 +150,65 @@ public sealed class EventJournalPortabilityServiceTests
     }
 
     [Fact]
+    public async Task RoundTrip_PreservesActorAttribution_ExternalUserIdAndProvider()
+    {
+        // Source deployment: seed an event whose actor is attributed to a platform (external id + provider).
+        using SqliteTestDatabase sourceDb = SqliteTestDatabase.Open();
+        Guid source = Guid.NewGuid();
+        Guid eventId = Guid.NewGuid();
+        byte[] exported;
+
+        await using (EventStoreTestDbContext db = sourceDb.NewContext())
+        {
+            EventJournalService journal = NewJournal(db);
+            AppendEventRequest attributed = CounterEvent(
+                source,
+                5,
+                version: 2,
+                field: "amount",
+                eventId: eventId
+            ) with
+            {
+                ActorExternalUserId = "kick-987",
+                ActorProvider = "kick",
+            };
+            Result<EventRecord> appended = await journal.AppendAsync(attributed);
+            appended.IsSuccess.Should().BeTrue(appended.ErrorMessage);
+            // The stored row carries the attribution verbatim — the field the export must reproduce.
+            appended.Value.ActorExternalUserId.Should().Be("kick-987");
+            appended.Value.ActorProvider.Should().Be("kick");
+
+            exported = await ExportToBytesAsync(NewPortability(journal, new([])), source);
+        }
+
+        // Target deployment: a fresh journal. Import re-tenants the row but must carry the actor attribution across.
+        using SqliteTestDatabase targetDb = SqliteTestDatabase.Open();
+        Guid target = Guid.NewGuid();
+        await using EventStoreTestDbContext targetContext = targetDb.NewContext();
+        EventJournalService targetJournal = NewJournal(targetContext);
+
+        using MemoryStream importStream = new(exported);
+        Result<EventJournalImportSummary> import = await NewPortability(targetJournal, new([]))
+            .ImportAsync(target, importStream);
+        import.IsSuccess.Should().BeTrue(import.ErrorMessage);
+        import.Value.Imported.Should().Be(1);
+
+        // Read the imported row back: both actor fields survived the JSONL export/import round-trip intact.
+        Result<EventRecord> reread = await targetJournal.GetByEventIdAsync(eventId);
+        reread.IsSuccess.Should().BeTrue(reread.ErrorMessage);
+        reread
+            .Value.ActorExternalUserId.Should()
+            .Be(
+                "kick-987",
+                "the platform-specific external actor id round-trips through export/import"
+            );
+        reread
+            .Value.ActorProvider.Should()
+            .Be("kick", "the actor's platform key round-trips alongside the external id");
+        reread.Value.BroadcasterId.Should().Be(target, "the row is re-tenanted onto the importer");
+    }
+
+    [Fact]
     public async Task ReImport_SecondPass_SkipsEveryEvent_NoDuplicates()
     {
         // Export from a source deployment.

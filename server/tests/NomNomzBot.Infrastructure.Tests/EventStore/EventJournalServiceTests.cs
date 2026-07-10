@@ -108,7 +108,8 @@ public sealed class EventJournalServiceTests
         ) with
         {
             CorrelationId = correlation,
-            ActorTwitchUserId = "12345",
+            ActorExternalUserId = "12345",
+            ActorProvider = "twitch",
         };
         Result<EventRecord> appended = await journal.AppendAsync(request);
 
@@ -121,7 +122,8 @@ public sealed class EventJournalServiceTests
         record.EventVersion.Should().Be(1);
         record.Source.Should().Be("domain");
         record.CorrelationId.Should().Be(correlation);
-        record.ActorTwitchUserId.Should().Be("12345");
+        record.ActorExternalUserId.Should().Be("12345");
+        record.ActorProvider.Should().Be("twitch");
         record.PayloadIsEncrypted.Should().BeFalse();
         record.RecordedAt.Should().Be(Clock.GetUtcNow().UtcDateTime);
         record.OccurredAt.Should().Be(new DateTime(2026, 6, 20, 11, 0, 0, DateTimeKind.Utc));

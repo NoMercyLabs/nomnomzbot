@@ -2748,9 +2748,13 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
-                    b.Property<string>("ActorTwitchUserId")
+                    b.Property<string>("ActorExternalUserId")
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
+
+                    b.Property<string>("ActorProvider")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
 
                     b.Property<Guid?>("ActorUserId")
                         .HasColumnType("uuid");

@@ -68,6 +68,7 @@ public sealed class MessageActivityDailyProjectionTests
             null,
             null,
             null,
+            null,
             "{}",
             occurredAt,
             occurredAt

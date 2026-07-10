@@ -49,6 +49,7 @@ public sealed class ChannelAnalyticsDailyProjectionTests
             null,
             null,
             null,
+            null,
             "{}",
             Now,
             Now

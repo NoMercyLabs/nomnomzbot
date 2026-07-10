@@ -79,6 +79,7 @@ public sealed class WatchSessionProjectionTests
             null,
             null,
             null,
+            null,
             "{}",
             at,
             at

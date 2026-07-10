@@ -57,7 +57,8 @@ public class EventJournalConfiguration : IEntityTypeConfiguration<EventJournal>
 
         builder.Property(e => e.ActorUserId);
         builder.HasIndex(e => e.ActorUserId).HasDatabaseName("IX_EventJournal_ActorUserId");
-        builder.Property(e => e.ActorTwitchUserId).HasMaxLength(50);
+        builder.Property(e => e.ActorExternalUserId).HasMaxLength(50);
+        builder.Property(e => e.ActorProvider).HasMaxLength(20);
 
         builder.Property(e => e.Metadata).IsRequired();
 
