@@ -112,3 +112,14 @@ hashes and its granular bullets are removed — finished work is never left as a
   pipeline `user.role` badge-only fix; builtin key-format (bare keys + repair migration); twitch-helix
   spec/code drift; credential-component DRY; user-plane topic attribution; **owner-confirm** authz key
   names (Plane-C + Gate-2 buckets).
+
+## 🖌️ Designer reviews
+- [ ] Dashboard viewer count in the top card need to get removed (redundant with metrics row)
+- [ ] Chat need styling controls (size, time and so on, like twitch)
+- [ ] Chat line is top aligned should be center-aligned
+- [ ] Chat input doesn't wrap but overflow right
+- [ ] StreamElements import feature that let user grab their overlays, quotes, timers and all
+- [ ] Channel point page header has overlapping top right buttons
+- [ ] Analytics metrics row should balance itslef when possible
+- [ ] Analytics could benefit from some charts
+- [ ] Discord server un-link icon should eb the trash icon not the minus icon
