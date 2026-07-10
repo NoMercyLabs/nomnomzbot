@@ -23,7 +23,8 @@ namespace NomNomzBot.Api.Controllers.V1;
 /// <summary>
 /// The channel's numbered quote library (quotes.md §5). Gate 1 is <c>[Authorize]</c> + tenant resolution from
 /// the JWT (<see cref="ICurrentTenantService"/>) — quotes are inherently "my own channel". Gate 2 is the
-/// per-route <c>[RequireAction]</c> floor (<c>quotes:read</c> / <c>quotes:write</c>, Moderator).
+/// per-route <c>[RequireAction]</c> floor: reading + adding/editing (<c>quotes:read</c> / <c>quotes:write</c>)
+/// sit at VIP so a trusted VIP can curate quotes; deleting (<c>quotes:delete</c>) stays Moderator.
 /// </summary>
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/quotes")]
@@ -136,7 +137,7 @@ public class QuotesController : BaseController
     }
 
     /// <summary>Delete a quote by its number.</summary>
-    [RequireAction("quotes:write")]
+    [RequireAction("quotes:delete")]
     [HttpDelete("{number:int}")]
     [ProducesResponseType<StatusResponseDto<QuoteDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> DeleteQuote(int number, CancellationToken ct)

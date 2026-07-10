@@ -301,9 +301,12 @@ public sealed class ActionDefinitionSeeder : ISeeder
         M("reward:redemption:fulfill", Mod);
         M("reward:redemption:refund", Mod);
 
-        // Quotes (quotes.md §5) — read at Moderator, write at Moderator (mods curate the quote library).
+        // Quotes (quotes.md §5) — reading + curating (add/edit) sit at VIP so a trusted VIP can help build the
+        // quote library; deleting stays Moderator so a VIP can't wipe it. The DELETE route carries quotes:delete,
+        // POST/PUT carry quotes:write.
         M("quotes:read", Vip);
-        M("quotes:write", Mod);
+        M("quotes:write", Vip);
+        M("quotes:delete", Mod);
 
         // Custom data sources (custom-events.md §5) — the pipeline-facing external data feeds (HypeRate,
         // Pulsoid, webhooks). Read at Moderator, write (create/update/delete/test) at Editor.

@@ -242,20 +242,21 @@ public sealed class GateEndToEndTests
     [InlineData("widget:read")]
     [InlineData("chat:read")]
     [InlineData("dashboard:read")]
-    public async Task Gate2_allows_every_retiered_read_for_a_vip_but_still_denies_a_plain_viewer(
-        string vipReadKey
+    [InlineData("quotes:write")] // curating a quote (add/edit) — the one non-destructive write lowered to VIP
+    public async Task Gate2_allows_every_retiered_action_for_a_vip_but_still_denies_a_plain_viewer(
+        string vipKey
     )
     {
         Fixture f = await BuildAsync();
 
-        Result<bool> vipResult = await f.Gate2.AuthorizeActionAsync(VipViewer, Channel, vipReadKey);
+        Result<bool> vipResult = await f.Gate2.AuthorizeActionAsync(VipViewer, Channel, vipKey);
         Result<bool> viewerResult = await f.Gate2.AuthorizeActionAsync(
             PlainViewer,
             Channel,
-            vipReadKey
+            vipKey
         );
 
-        vipResult.Value.Should().BeTrue("the read was re-tiered to the Vip(4) floor");
+        vipResult.Value.Should().BeTrue("the action was re-tiered to the Vip(4) floor");
         viewerResult
             .Value.Should()
             .BeFalse("a plain viewer resolves to level 0, still below the Vip(4) floor");
@@ -267,7 +268,7 @@ public sealed class GateEndToEndTests
     [InlineData("moderation:delete_message")]
     [InlineData("chat:send")]
     [InlineData("commands:write")]
-    [InlineData("quotes:write")] // bundles DELETE — deliberately NOT lowered
+    [InlineData("quotes:delete")] // deleting a quote stays Moderator — a VIP can add/edit, not wipe the book
     [InlineData("timers:write")] // bundles DELETE — deliberately NOT lowered
     [InlineData("economy:account:adjust")]
     [InlineData("reward:manage")]
