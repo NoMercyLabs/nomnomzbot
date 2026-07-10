@@ -129,8 +129,14 @@ public class ChannelsController : BaseController
         if (onboardedModerated.Count == 0)
             return;
 
+        // IgnoreQueryFilters: onboardedModerated are channels the caller MODERATES — every one is a tenant other
+        // than the request's resolved tenant (the caller's own channel). The global tenant filter would scope this
+        // to the resolved tenant and thus never see those memberships, so the grant below would try to re-insert a
+        // row that already exists (a hard 23505 against the partial unique index). Soft-delete is still applied by
+        // the explicit DeletedAt == null.
         HashSet<Guid> alreadyMember = await _db
-            .ChannelMemberships.Where(m =>
+            .ChannelMemberships.IgnoreQueryFilters()
+            .Where(m =>
                 m.UserId == userGuid
                 && onboardedModerated.Contains(m.BroadcasterId)
                 && m.DeletedAt == null

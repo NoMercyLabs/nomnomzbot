@@ -282,10 +282,18 @@ public sealed class MembershipService(
         Guid userId,
         CancellationToken ct
     ) =>
-        await db.ChannelMemberships.FirstOrDefaultAsync(
-            m => m.BroadcasterId == broadcasterId && m.UserId == userId,
-            ct
-        );
+        // IgnoreQueryFilters: this service manages memberships by EXPLICIT (broadcasterId, userId), which is
+        // routinely a channel OTHER than the request's resolved tenant — e.g. granting a mod their Moderator
+        // role on a channel they moderate (not their own). The global tenant filter would hide that row, so the
+        // find (and the concurrent-insert recovery above) would never see the existing membership and would
+        // re-insert forever, now a hard 23505 against the partial unique index. Re-apply DeletedAt IS NULL by
+        // hand so it matches exactly the active row that index guards.
+        await db
+            .ChannelMemberships.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(
+                m => m.BroadcasterId == broadcasterId && m.UserId == userId && m.DeletedAt == null,
+                ct
+            );
 
     private async Task<string?> LookupUsernameAsync(Guid userId, CancellationToken ct) =>
         await db.Users.Where(u => u.Id == userId).Select(u => u.Username).FirstOrDefaultAsync(ct);
