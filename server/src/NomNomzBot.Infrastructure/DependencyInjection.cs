@@ -512,6 +512,15 @@ public static class DependencyInjection
         // The descriptor-driven connect flow's token-exchange / account-identity HTTP client.
         services.AddHttpClient("integration-oauth");
 
+        // Music-provider token bridge (integrations-oauth → music): after a Spotify/YouTube connect, mirrors the
+        // just-vaulted OAuth tokens into the legacy `Service` store the music providers still read from, so a
+        // connected music integration is actually usable instead of looping on "reconnect". Scoped — writes
+        // through the per-request DbContext. Not an I<X>Service, so it is registered explicitly here.
+        services.AddScoped<
+            Application.Contracts.Music.IMusicProviderTokenMirror,
+            Music.MusicProviderTokenMirror
+        >();
+
         // Login-provider descriptors (platform-identity §3.2) — data, not a fork. Singleton (static list); the
         // feature-flag lookup inside EnabledAsync is resolved through a fresh scope. Not an I<X>Service, so it
         // is excluded from the convention scan and registered explicitly here.

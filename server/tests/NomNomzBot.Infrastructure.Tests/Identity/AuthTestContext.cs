@@ -188,10 +188,15 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
             .Ignore(e => e.Channel)
             .Ignore(e => e.User);
 
+        // Service is scalar-only (the Scopes string[] materializes on InMemory), so it maps cleanly (nav ignored)
+        // — mapped so the IntegrationOAuthService mirror test can prove the connect flow writes the legacy
+        // `Service` token row the music providers read.
+        b.Entity<NomNomzBot.Domain.Platform.Entities.Service>().HasKey(e => e.Id);
+        b.Entity<NomNomzBot.Domain.Platform.Entities.Service>().Ignore(e => e.Channel);
+
         // EF discovers entity types from the DbSet<T> property declarations regardless of the throwing
         // getter bodies, then tries to map their jsonb-of-complex-type columns (unsupported on InMemory).
         // Ignore every entity these tests do not exercise so the model stays minimal and provider-agnostic.
-        b.Ignore<NomNomzBot.Domain.Platform.Entities.Service>();
         b.Ignore<NomNomzBot.Domain.Commands.Entities.Command>();
         b.Ignore<NomNomzBot.Domain.Widgets.Entities.Widget>();
 
@@ -255,7 +260,7 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
     public DbSet<NomNomzBot.Domain.Identity.Entities.ChannelModerator> ChannelModerators =>
         Set<NomNomzBot.Domain.Identity.Entities.ChannelModerator>();
     public DbSet<NomNomzBot.Domain.Platform.Entities.Service> Services =>
-        throw new NotSupportedException();
+        Set<NomNomzBot.Domain.Platform.Entities.Service>();
     public DbSet<NomNomzBot.Domain.Commands.Entities.Command> Commands =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Rewards.Entities.Reward> Rewards =>

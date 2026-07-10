@@ -18,6 +18,7 @@ using NomNomzBot.Application.Abstractions.Caching;
 using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Discord;
+using NomNomzBot.Application.Contracts.Music;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Integrations.Dtos;
@@ -42,6 +43,7 @@ public sealed class IntegrationOAuthService : IIntegrationOAuthService
     private readonly IDiscordGuildService _discord;
     private readonly IIntegrationCapabilityStore _capabilities;
     private readonly ISystemCredentialsProvider _credentials;
+    private readonly IMusicProviderTokenMirror _musicTokenMirror;
     private readonly ICacheService _cache;
     private readonly HttpClient _http;
     private readonly TimeProvider _timeProvider;
@@ -54,6 +56,7 @@ public sealed class IntegrationOAuthService : IIntegrationOAuthService
         IDiscordGuildService discord,
         IIntegrationCapabilityStore capabilities,
         ISystemCredentialsProvider credentials,
+        IMusicProviderTokenMirror musicTokenMirror,
         ICacheService cache,
         IHttpClientFactory httpClientFactory,
         IConfiguration configuration,
@@ -66,6 +69,7 @@ public sealed class IntegrationOAuthService : IIntegrationOAuthService
         _discord = discord;
         _capabilities = capabilities;
         _credentials = credentials;
+        _musicTokenMirror = musicTokenMirror;
         _cache = cache;
         _http = httpClientFactory.CreateClient("integration-oauth");
         _timeProvider = timeProvider;
@@ -246,6 +250,24 @@ public sealed class IntegrationOAuthService : IIntegrationOAuthService
         );
         if (store.IsFailure)
             return store.WithValue<OAuthCallbackResultDto>(null!);
+
+        // NOTE (token-store bridge): the vault above is the CANONICAL store, but the music providers
+        // (SpotifyMusicProvider / YouTubeMusicProvider) and IntegrationsController.ListIntegrations still read the
+        // legacy `Service` token store, which nothing else writes for these providers — so without this mirror a
+        // connected Spotify/YouTube reads back as disconnected and the dashboard loops on "reconnect". Mirror the
+        // just-vaulted tokens + the app credentials the providers' refresh path needs into that `Service` row
+        // (no-op for non-music providers). This is a bridge, not a replacement: the real long-term fix is
+        // migrating those consumers to read the vault directly and retiring the Service-table token store.
+        await _musicTokenMirror.MirrorAsync(
+            entry.BroadcasterId,
+            provider,
+            tokens.AccessToken,
+            tokens.RefreshToken,
+            tokens.ExpiresAt,
+            app.ClientId,
+            app.ClientSecret,
+            cancellationToken
+        );
 
         IReadOnlyList<string> grantedScopeSets = GrantedScopeSets(descriptor, grantedScopes);
         return Result.Success(

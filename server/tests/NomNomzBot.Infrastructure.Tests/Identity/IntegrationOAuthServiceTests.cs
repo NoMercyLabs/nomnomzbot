@@ -29,6 +29,7 @@ using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Integrations.Entities;
 using NomNomzBot.Infrastructure.Identity;
 using NomNomzBot.Infrastructure.Integrations;
+using NomNomzBot.Infrastructure.Music;
 
 namespace NomNomzBot.Infrastructure.Tests.Identity;
 
@@ -182,6 +183,126 @@ public sealed class IntegrationOAuthServiceTests
             .Contain(
                 "redirect_uri=https://bot-dev.nomercy.tv/api/v1/integrations/spotify/callback"
             );
+    }
+
+    // ─── HandleCallback: music provider also mirrored into the legacy Service store ────
+
+    [Fact]
+    public async Task HandleCallback_ForSpotify_MirrorsTokensIntoServiceRow_SoMusicProviderFindsThem()
+    {
+        StubHandler handler = new()
+        {
+            TokenJson =
+                """{"access_token":"spotify-access","refresh_token":"spotify-refresh","expires_in":3600,"scope":"user-read-playback-state user-modify-playback-state"}""",
+            IdentityJson = """{"id":"spotify-user-1","display_name":"DJ Test"}""",
+        };
+        (IntegrationOAuthService service, AuthDbContext db, _, _) = Build(handler);
+
+        Result<OAuthStartDto> start = await service.StartConnectAsync(
+            Tenant,
+            AuthEnums.IntegrationProvider.Spotify,
+            "spotify.playback",
+            null,
+            Actor,
+            publicOrigin: "https://bot-dev.nomercy.tv"
+        );
+        Result<OAuthCallbackResultDto> callback = await service.HandleCallbackAsync(
+            AuthEnums.IntegrationProvider.Spotify,
+            new OAuthCallbackParams("the-auth-code", start.Value.State, null, null)
+        );
+        callback.IsSuccess.Should().BeTrue();
+
+        // The bridge wrote the legacy Service row keyed exactly how SpotifyMusicProvider.GetTokenAsync queries it:
+        // (BroadcasterId == tenant, Name == "spotify", Enabled, AccessToken != null) — the row whose absence made
+        // the provider read the account as disconnected.
+        NomNomzBot.Domain.Platform.Entities.Service row = await db
+            .Services.AsNoTracking()
+            .SingleAsync(s => s.BroadcasterId == Tenant && s.Name == "spotify");
+        row.Enabled.Should().BeTrue();
+        row.TokenExpiry.Should().NotBeNull();
+        row.AccessToken.Should().NotBeNullOrEmpty();
+        row.RefreshToken.Should().NotBeNullOrEmpty();
+        row.ClientId.Should().NotBeNullOrEmpty();
+        row.ClientSecret.Should().NotBeNullOrEmpty();
+
+        // The columns are sealed under the SAME TokenProtectionContext the provider unseals them with
+        // ((broadcaster, "spotify", field)), so GetTokenAsync would open the vaulted access token and its
+        // refresh path would open the app client credentials — the round-trip that makes playback work.
+        ITokenProtector reader = AuthTestBuilder.RealTokenProtector(db, out _);
+        (
+            await reader.TryUnprotectAsync(
+                row.AccessToken,
+                new TokenProtectionContext(Tenant.ToString(), "spotify", "access")
+            )
+        )
+            .Should()
+            .Be("spotify-access");
+        (
+            await reader.TryUnprotectAsync(
+                row.RefreshToken,
+                new TokenProtectionContext(Tenant.ToString(), "spotify", "refresh")
+            )
+        )
+            .Should()
+            .Be("spotify-refresh");
+        (
+            await reader.TryUnprotectAsync(
+                row.ClientId,
+                new TokenProtectionContext(Tenant.ToString(), "spotify", "client_id")
+            )
+        )
+            .Should()
+            .Be("spotify-client");
+        (
+            await reader.TryUnprotectAsync(
+                row.ClientSecret,
+                new TokenProtectionContext(Tenant.ToString(), "spotify", "client_secret")
+            )
+        )
+            .Should()
+            .Be("spotify-secret");
+    }
+
+    [Fact]
+    public async Task HandleCallback_ForYouTube_MirrorsTokensIntoServiceRow()
+    {
+        StubHandler handler = new()
+        {
+            TokenJson =
+                """{"access_token":"yt-access","refresh_token":"yt-refresh","expires_in":3600,"scope":"https://www.googleapis.com/auth/youtube"}""",
+            IdentityJson = """{"sub":"yt-user-1","name":"YT Test"}""",
+        };
+        (IntegrationOAuthService service, AuthDbContext db, _, _) = Build(handler);
+
+        Result<OAuthStartDto> start = await service.StartConnectAsync(
+            Tenant,
+            AuthEnums.IntegrationProvider.YouTube,
+            "youtube.manage",
+            null,
+            Actor,
+            publicOrigin: "https://bot-dev.nomercy.tv"
+        );
+        Result<OAuthCallbackResultDto> callback = await service.HandleCallbackAsync(
+            AuthEnums.IntegrationProvider.YouTube,
+            new OAuthCallbackParams("the-auth-code", start.Value.State, null, null)
+        );
+        callback.IsSuccess.Should().BeTrue();
+
+        NomNomzBot.Domain.Platform.Entities.Service row = await db
+            .Services.AsNoTracking()
+            .SingleAsync(s => s.BroadcasterId == Tenant && s.Name == "youtube");
+        row.Enabled.Should().BeTrue();
+        row.AccessToken.Should().NotBeNullOrEmpty();
+
+        ITokenProtector reader = AuthTestBuilder.RealTokenProtector(db, out _);
+        (
+            await reader.TryUnprotectAsync(
+                row.AccessToken,
+                new TokenProtectionContext(Tenant.ToString(), "youtube", "access")
+            )
+        )
+            .Should()
+            .Be("yt-access");
     }
 
     [Fact]
@@ -342,6 +463,8 @@ public sealed class IntegrationOAuthServiceTests
                     ["App:BaseUrl"] = "https://api.example.test",
                     ["Spotify:ClientId"] = "spotify-client",
                     ["Spotify:ClientSecret"] = "spotify-secret",
+                    ["YouTube:ClientId"] = "youtube-client",
+                    ["YouTube:ClientSecret"] = "youtube-secret",
                 }
             )
             .Build();
@@ -359,6 +482,11 @@ public sealed class IntegrationOAuthServiceTests
             discord,
             new InMemoryIntegrationCapabilityStore(),
             credentials,
+            new MusicProviderTokenMirror(
+                db,
+                protector,
+                NullLogger<MusicProviderTokenMirror>.Instance
+            ),
             cache,
             new SingleClientFactory(handler),
             config,
