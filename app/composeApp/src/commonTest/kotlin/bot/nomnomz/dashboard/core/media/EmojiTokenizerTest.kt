@@ -48,10 +48,9 @@ class EmojiTokenizerTest {
         assertEquals(1, spans.size)
         assertEquals("1f923", emoji(spans, 0).codepoints)
         assertEquals(rofl, emoji(spans, 0).raw)
-        assertEquals(
-            "https://cdn2.frankerfacez.com/static/emoji/images/twemoji/1f923.png",
-            emoji(spans, 0).imageUrl,
-        )
+        // Assert via twemojiUrl so the test verifies the codepoint→filename mapping, not the CDN host (which
+        // can change): imageUrl is always "{TWEMOJI_CDN_BASE}/1f923.png".
+        assertEquals(twemojiUrl("1f923"), emoji(spans, 0).imageUrl)
     }
 
     @Test

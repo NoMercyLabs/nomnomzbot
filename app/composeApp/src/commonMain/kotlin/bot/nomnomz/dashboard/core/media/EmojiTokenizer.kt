@@ -18,11 +18,12 @@ package bot.nomnomz.dashboard.core.media
 //
 // Pure logic (no Compose) so it is unit-testable off-device; the rendering half lives in `EmojiText`.
 
-// The FrankerFaceZ Twemoji image mirror. Files are keyed by the emoji's code point(s) in lowercase hex joined by
-// '-' (see [twemojiCodePoints]); e.g. 🤣 (U+1F923) → `.../twemoji/1f923.png`. NOTE: this mirror is an older
-// Twemoji set (~v13.1) — Unicode 14.0+ additions (🫠 U+1FAE0, keycaps, …) are not hosted and will 404.
+// The jsDelivr-hosted jdecked/twemoji image set — the maintained Twemoji fork, pinned to a complete current
+// release. Files are keyed by the emoji's code point(s) in lowercase hex joined by '-' (see [twemojiCodePoints]);
+// e.g. 🤣 (U+1F923) → `.../72x72/1f923.png`. Chosen over the older FFZ mirror (~v13.1) which 404s every Unicode
+// 14.0+ emoji — including 🫠 (U+1FAE0), keycaps, heart-on-fire. Same filename scheme, CORS-enabled.
 const val TWEMOJI_CDN_BASE: String =
-    "https://cdn2.frankerfacez.com/static/emoji/images/twemoji"
+    "https://cdn.jsdelivr.net/gh/jdecked/twemoji@16.0.1/assets/72x72"
 
 /** The Twemoji image URL for a code-point filename (e.g. `"1f923"` → `".../twemoji/1f923.png"`). */
 fun twemojiUrl(codepoints: String): String = "$TWEMOJI_CDN_BASE/$codepoints.png"
