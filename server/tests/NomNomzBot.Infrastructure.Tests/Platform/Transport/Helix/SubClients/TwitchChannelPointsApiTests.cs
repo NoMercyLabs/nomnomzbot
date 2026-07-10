@@ -49,7 +49,6 @@ public class TwitchChannelPointsApiTests
             new TwitchCustomRewardImage("d1x", "d2x", "d4x"),
             "#9146FF",
             true, // IsEnabled
-            true, // IsManageable
             true, // IsUserInputRequired
             new TwitchCustomRewardMaxPerStreamSetting(false, 0),
             new TwitchCustomRewardMaxPerUserPerStreamSetting(false, 0),

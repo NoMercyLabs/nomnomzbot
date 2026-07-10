@@ -331,9 +331,16 @@ public class RewardService : IRewardService
             return Result.Success();
         }
 
+        // Sync read `only_manageable_rewards=true`, so every reward it received is one THIS client can manage —
+        // the whole returned set IS the manageable id set.
+        HashSet<string> manageableRewardIds = twitchRewards
+            .Select(r => r.Id)
+            .ToHashSet(StringComparer.Ordinal);
+
         int syncedCount = await UpsertTwitchRewardsAsync(
             broadcaster,
             twitchRewards,
+            manageableRewardIds,
             cancellationToken
         );
 
@@ -392,9 +399,36 @@ public class RewardService : IRewardService
             return Result.Success();
         }
 
+        // Manageability is NOT a field on the reward payload — it is the `only_manageable_rewards=true` subset.
+        // A second read gives the ids THIS client can manage; a reward is stored manageable iff its id is in it.
+        // A failed read must NOT be swallowed into "everything unmanaged" (the bug this fix removes) — surface
+        // the real Helix error so the import fails loudly rather than persisting wrong manageability.
+        Result<IReadOnlyList<TwitchCustomReward>> manageableResult =
+            await _channelPoints.GetCustomRewardsAsync(
+                broadcaster,
+                onlyManageableRewards: true,
+                ct: cancellationToken
+            );
+        if (manageableResult.IsFailure)
+        {
+            _logger.LogWarning(
+                "Reward import: reading the bot-manageable reward subset from Twitch failed for {BroadcasterId}: {Error} ({Code}){Detail}",
+                broadcasterId,
+                manageableResult.ErrorMessage,
+                manageableResult.ErrorCode,
+                manageableResult.ErrorDetail is null ? "" : $" — {manageableResult.ErrorDetail}"
+            );
+            return manageableResult;
+        }
+
+        HashSet<string> manageableRewardIds = manageableResult
+            .Value.Select(r => r.Id)
+            .ToHashSet(StringComparer.Ordinal);
+
         int importedCount = await UpsertTwitchRewardsAsync(
             broadcaster,
             twitchRewards,
+            manageableRewardIds,
             cancellationToken
         );
 
@@ -487,14 +521,17 @@ public class RewardService : IRewardService
 
     /// <summary>
     /// Upserts a set of Twitch rewards into the local table, matching first by Twitch id, then by title
-    /// (linking a locally-created reward), else creating a new row. The persisted
-    /// <see cref="Reward.IsManageable"/> mirrors Twitch's <c>is_manageable</c> so external rewards are recorded
-    /// as read-only; the platform flag tracks it (a new bot-managed row is a platform reward). Shared by sync
-    /// (managed set only) and import (full set). Returns the number of rewards upserted.
+    /// (linking a locally-created reward), else creating a new row. A reward is manageable iff its Twitch id is
+    /// in <paramref name="manageableRewardIds"/> — the id set Twitch returns for
+    /// <c>only_manageable_rewards=true</c>, i.e. the rewards THIS client_id created. That drives both the
+    /// persisted <see cref="Reward.IsManageable"/> (external rewards recorded read-only) and the platform flag
+    /// on a newly-created row. Twitch's reward payload carries no manageability field, so it is never inferred
+    /// from the wire. Shared by sync (managed set only) and import (full set). Returns the number upserted.
     /// </summary>
     private async Task<int> UpsertTwitchRewardsAsync(
         Guid broadcaster,
         IReadOnlyList<TwitchCustomReward> twitchRewards,
+        IReadOnlySet<string> manageableRewardIds,
         CancellationToken cancellationToken
     )
     {
@@ -517,6 +554,7 @@ public class RewardService : IRewardService
         int upsertedCount = 0;
         foreach (TwitchCustomReward tr in twitchRewards)
         {
+            bool manageable = manageableRewardIds.Contains(tr.Id);
             if (existingByTwitchId.TryGetValue(tr.Id, out Reward? reward))
             {
                 // Update existing record
@@ -524,7 +562,7 @@ public class RewardService : IRewardService
                 reward.Cost = tr.Cost;
                 reward.IsEnabled = tr.IsEnabled;
                 reward.Description = tr.Prompt;
-                reward.IsManageable = tr.IsManageable;
+                reward.IsManageable = manageable;
                 upsertedCount++;
             }
             else if (existingByTitle.TryGetValue(tr.Title, out Reward? rewardByTitle))
@@ -534,7 +572,7 @@ public class RewardService : IRewardService
                 rewardByTitle.Cost = tr.Cost;
                 rewardByTitle.IsEnabled = tr.IsEnabled;
                 rewardByTitle.Description = tr.Prompt;
-                rewardByTitle.IsManageable = tr.IsManageable;
+                rewardByTitle.IsManageable = manageable;
                 upsertedCount++;
             }
             else
@@ -550,8 +588,8 @@ public class RewardService : IRewardService
                         Cost = tr.Cost,
                         IsEnabled = tr.IsEnabled,
                         Description = tr.Prompt,
-                        IsPlatform = tr.IsManageable,
-                        IsManageable = tr.IsManageable,
+                        IsPlatform = manageable,
+                        IsManageable = manageable,
                     }
                 );
                 upsertedCount++;

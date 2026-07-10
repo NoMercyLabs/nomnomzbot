@@ -58,8 +58,7 @@ public sealed class RewardServiceImportTests
         string id,
         string title,
         int cost,
-        bool enabled,
-        bool manageable
+        bool enabled
     ) =>
         new(
             BroadcasterId: "tw-channel",
@@ -73,7 +72,6 @@ public sealed class RewardServiceImportTests
             DefaultImage: new TwitchCustomRewardImage("1x", "2x", "4x"),
             BackgroundColor: "#000000",
             IsEnabled: enabled,
-            IsManageable: manageable,
             IsUserInputRequired: false,
             MaxPerStreamSetting: new TwitchCustomRewardMaxPerStreamSetting(false, 0),
             MaxPerUserPerStreamSetting: new TwitchCustomRewardMaxPerUserPerStreamSetting(false, 0),
@@ -85,31 +83,50 @@ public sealed class RewardServiceImportTests
             CooldownExpiresAt: null
         );
 
+    // Mirror Twitch: the FULL reward set answers `only_manageable_rewards=false`, the manageable subset (the
+    // rewards THIS client_id created) answers `=true`. Manageability is thus expressed ONLY by set membership,
+    // exactly as the live API does — the reward payload carries no is_manageable field to lean on.
     private static void StubGetRewards(
         ITwitchChannelPointsApi points,
-        params TwitchCustomReward[] rewards
-    ) =>
+        IReadOnlyList<TwitchCustomReward> full,
+        IReadOnlyList<TwitchCustomReward> manageable
+    )
+    {
         points
             .GetCustomRewardsAsync(
                 Channel,
                 Arg.Any<IReadOnlyList<string>?>(),
-                Arg.Any<bool>(),
+                onlyManageableRewards: false,
                 Arg.Any<CancellationToken>()
             )
-            .Returns(Result.Success<IReadOnlyList<TwitchCustomReward>>(rewards));
+            .Returns(Result.Success<IReadOnlyList<TwitchCustomReward>>(full));
+        points
+            .GetCustomRewardsAsync(
+                Channel,
+                Arg.Any<IReadOnlyList<string>?>(),
+                onlyManageableRewards: true,
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success<IReadOnlyList<TwitchCustomReward>>(manageable));
+    }
 
     [Fact]
     public async Task Import_persists_an_external_reward_as_read_only_and_a_managed_one_as_manageable()
     {
-        // Import pulls the full set. The bot-created reward comes back is_manageable=true; the reward some other
-        // app / the Twitch UI created comes back is_manageable=false and MUST be recorded read-only so the
-        // dashboard never offers an edit/delete Twitch would reject.
+        // Import pulls the full set, then the manageable subset, and derives manageability from set membership.
+        // "mine-1" is in the manageable subset (the bot created it) → stored manageable + platform. "ext-1" is
+        // in the full set but NOT the manageable subset (another app / the Twitch UI created it) → stored
+        // read-only, so the dashboard never offers an edit/delete Twitch would reject and instead shows
+        // "take control".
         (RewardService sut, AuthDbContext db, ITwitchChannelPointsApi points) = Build();
-        StubGetRewards(
-            points,
-            TwitchReward("mine-1", "Bot Reward", 200, enabled: true, manageable: true),
-            TwitchReward("ext-1", "StreamElements Reward", 999, enabled: true, manageable: false)
+        TwitchCustomReward mineReward = TwitchReward("mine-1", "Bot Reward", 200, enabled: true);
+        TwitchCustomReward extReward = TwitchReward(
+            "ext-1",
+            "StreamElements Reward",
+            999,
+            enabled: true
         );
+        StubGetRewards(points, full: [mineReward, extReward], manageable: [mineReward]);
 
         Result result = await sut.ImportFromTwitchAsync(Channel.ToString());
 
@@ -132,13 +149,80 @@ public sealed class RewardServiceImportTests
     }
 
     [Fact]
+    public async Task Import_stores_our_own_rewards_manageable_even_though_the_wire_carries_no_manageable_flag()
+    {
+        // Regression guard for the data-truthfulness bug: Twitch's Get Custom Rewards response never emits
+        // is_manageable, so nothing on the reward payload can mark a reward manageable. Before the fix EVERY
+        // imported reward was stored unmanaged and the dashboard offered "take control" on rewards we already
+        // own. Manageability MUST resolve from the only_manageable_rewards subset alone: an id in that subset is
+        // stored manageable + platform; an id absent from it is stored read-only.
+        (RewardService sut, AuthDbContext db, ITwitchChannelPointsApi points) = Build();
+        TwitchCustomReward ours = TwitchReward("ours-1", "Follow Alert", 50, enabled: true);
+        TwitchCustomReward theirs = TwitchReward("theirs-1", "Nightbot Reward", 300, enabled: true);
+        StubGetRewards(points, full: [ours, theirs], manageable: [ours]);
+
+        Result result = await sut.ImportFromTwitchAsync(Channel.ToString());
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+
+        Reward storedOurs = await db.Rewards.SingleAsync(r => r.TwitchRewardId == "ours-1");
+        storedOurs.IsManageable.Should().BeTrue();
+        storedOurs.IsPlatform.Should().BeTrue();
+
+        Reward storedTheirs = await db.Rewards.SingleAsync(r => r.TwitchRewardId == "theirs-1");
+        storedTheirs.IsManageable.Should().BeFalse();
+        storedTheirs.IsPlatform.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Import_surfaces_the_manageable_subset_read_failure_instead_of_marking_everything_unmanaged()
+    {
+        // The manageable subset is a SECOND Helix read. If it fails, import must NOT fall back to "everything
+        // unmanaged" (that is exactly the wrong-data outcome the fix exists to prevent) — it must fail carrying
+        // the real Helix error, and persist nothing.
+        (RewardService sut, AuthDbContext db, ITwitchChannelPointsApi points) = Build();
+        points
+            .GetCustomRewardsAsync(
+                Channel,
+                Arg.Any<IReadOnlyList<string>?>(),
+                onlyManageableRewards: false,
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                Result.Success<IReadOnlyList<TwitchCustomReward>>([
+                    TwitchReward("ext-1", "External", 100, enabled: true),
+                ])
+            );
+        points
+            .GetCustomRewardsAsync(
+                Channel,
+                Arg.Any<IReadOnlyList<string>?>(),
+                onlyManageableRewards: true,
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                Result.Failure<IReadOnlyList<TwitchCustomReward>>(
+                    "Twitch rejected the token.",
+                    TwitchErrorCodes.Unauthorized
+                )
+            );
+
+        Result result = await sut.ImportFromTwitchAsync(Channel.ToString());
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be(TwitchErrorCodes.Unauthorized);
+        (await db.Rewards.AnyAsync(r => r.BroadcasterId == Channel)).Should().BeFalse();
+    }
+
+    [Fact]
     public async Task Import_verifies_it_requested_the_full_set_not_only_manageable()
     {
         // The whole point of import (vs sync) is only_manageable_rewards=FALSE — assert we asked Twitch for it.
         (RewardService sut, _, ITwitchChannelPointsApi points) = Build();
         StubGetRewards(
             points,
-            TwitchReward("ext-1", "External", 100, enabled: true, manageable: false)
+            full: [TwitchReward("ext-1", "External", 100, enabled: true)],
+            manageable: []
         );
 
         await sut.ImportFromTwitchAsync(Channel.ToString());
@@ -181,11 +265,7 @@ public sealed class RewardServiceImportTests
                 Arg.Any<CreateCustomRewardRequest>(),
                 Arg.Any<CancellationToken>()
             )
-            .Returns(
-                Result.Success(
-                    TwitchReward("bot-1", "First Light", 500, enabled: true, manageable: true)
-                )
-            );
+            .Returns(Result.Success(TwitchReward("bot-1", "First Light", 500, enabled: true)));
 
         Result<RewardDetail> result = await sut.RecreateUnderBotAsync(
             Channel.ToString(),
@@ -302,19 +382,13 @@ public sealed class RewardServiceImportTests
                 Arg.Any<CreateCustomRewardRequest>(),
                 Arg.Any<CancellationToken>()
             )
-            .Returns(
-                Result.Success(
-                    TwitchReward("bot-1", "First Light", 500, enabled: true, manageable: true)
-                )
-            );
+            .Returns(Result.Success(TwitchReward("bot-1", "First Light", 500, enabled: true)));
         await sut.RecreateUnderBotAsync(Channel.ToString(), externalId.ToString());
 
-        // Now both same-titled rewards come back from the full import.
-        StubGetRewards(
-            points,
-            TwitchReward("ext-1", "First Light", 550, enabled: false, manageable: false),
-            TwitchReward("bot-1", "First Light", 500, enabled: true, manageable: true)
-        );
+        // Now both same-titled rewards come back from the full import; only bot-1 is in the manageable subset.
+        TwitchCustomReward extAgain = TwitchReward("ext-1", "First Light", 550, enabled: false);
+        TwitchCustomReward botAgain = TwitchReward("bot-1", "First Light", 500, enabled: true);
+        StubGetRewards(points, full: [extAgain, botAgain], manageable: [botAgain]);
 
         Result result = await sut.ImportFromTwitchAsync(Channel.ToString());
 

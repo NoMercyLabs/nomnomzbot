@@ -36,9 +36,12 @@ public sealed record TwitchCustomRewardGlobalCooldownSetting(
 /// <summary>
 /// A channel-points Custom Reward in full (Create / Get / Update Custom Reward responses) — the reward's
 /// identity, redemption cost and prompt, enabled / paused / in-stock state, colours, icon images, and the
-/// three cap/cooldown settings as their own nested records. <see cref="IsManageable"/> (Twitch's
-/// <c>is_manageable</c>) is true only when THIS client_id created the reward — the precondition for
-/// updating/deleting it or changing its redemption status through Helix.
+/// three cap/cooldown settings as their own nested records. There is deliberately no <c>is_manageable</c>
+/// property: Twitch's Get Custom Rewards response never emits that field. Manageability (whether THIS
+/// client_id created the reward, the precondition for updating/deleting it or changing a redemption's status)
+/// is expressed only by the <c>only_manageable_rewards=true</c> query filter — a reward is manageable iff its
+/// id appears in that filtered set. Deriving it from that set is the caller's job; do NOT infer it from any
+/// wire field on this record.
 /// </summary>
 public sealed record TwitchCustomReward(
     string BroadcasterId,
@@ -52,7 +55,6 @@ public sealed record TwitchCustomReward(
     TwitchCustomRewardImage DefaultImage,
     string BackgroundColor,
     bool IsEnabled,
-    bool IsManageable,
     bool IsUserInputRequired,
     TwitchCustomRewardMaxPerStreamSetting MaxPerStreamSetting,
     TwitchCustomRewardMaxPerUserPerStreamSetting MaxPerUserPerStreamSetting,

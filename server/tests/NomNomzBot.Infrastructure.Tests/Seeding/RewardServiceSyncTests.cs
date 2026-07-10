@@ -52,13 +52,7 @@ public sealed class RewardServiceSyncTests
         return (sut, db, points);
     }
 
-    private static TwitchCustomReward Reward(
-        string id,
-        string title,
-        int cost,
-        bool enabled,
-        bool manageable = true
-    ) =>
+    private static TwitchCustomReward Reward(string id, string title, int cost, bool enabled) =>
         new(
             BroadcasterId: "tw-channel",
             BroadcasterLogin: "stoney",
@@ -71,7 +65,6 @@ public sealed class RewardServiceSyncTests
             DefaultImage: new TwitchCustomRewardImage("1x", "2x", "4x"),
             BackgroundColor: "#000000",
             IsEnabled: enabled,
-            IsManageable: manageable,
             IsUserInputRequired: false,
             MaxPerStreamSetting: new TwitchCustomRewardMaxPerStreamSetting(false, 0),
             MaxPerUserPerStreamSetting: new TwitchCustomRewardMaxPerUserPerStreamSetting(false, 0),
