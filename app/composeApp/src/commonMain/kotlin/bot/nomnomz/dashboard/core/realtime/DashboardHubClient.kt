@@ -178,11 +178,16 @@ class DashboardHubClient {
                 // Send the JSON hub protocol handshake request, terminated with the record separator.
                 sendText("""{"protocol":"json","version":1}$RECORD_SEPARATOR""")
 
-                // The first frame back is the handshake response: `{}\x1e` on success.
+                // The first frame back is the handshake response. In the SignalR JSON hub protocol a SUCCESS
+                // response is the EMPTY OBJECT `{}` (followed by the record separator); a rejection carries
+                // `{"error":"…"}`. Bail ONLY when an "error" field is actually present — the previous check treated
+                // the non-empty `{}` success as a rejection and returned, closing the socket the instant every
+                // handshake succeeded, so live push never stayed up (the feed only ever refreshed on a reload).
                 val handshakeFrame: String = receiveText() ?: return@webSocket
                 val handshakeMsg: String = handshakeFrame.trimEnd(RECORD_SEPARATOR)
-                if (handshakeMsg.isNotEmpty()) {
-                    // Non-empty body means the server rejected our handshake.
+                val handshake: JsonObject? =
+                    runCatching { Json.parseToJsonElement(handshakeMsg).jsonObject }.getOrNull()
+                if (handshake?.containsKey("error") == true) {
                     return@webSocket
                 }
 
