@@ -34,12 +34,14 @@ using RecordEntity = NomNomzBot.Domain.Platform.Entities.Record;
 namespace NomNomzBot.Infrastructure.Tests.Moderation;
 
 /// <summary>
-/// A focused <see cref="IApplicationDbContext"/> over only the free-form <see cref="RecordEntity"/> rows — on the
-/// EF Core InMemory provider — for the <c>ModerationService</c> AutoMod-config read tests. The production
-/// <c>AppDbContext</c> is Npgsql-bound (jsonb complex types) and cannot host a test provider, so only the one
-/// entity these tests exercise is mapped; every other <see cref="IApplicationDbContext"/> set throws, since the
-/// read path never reaches it. Mirrors the "declare every DbSet, auto-ignore the unmapped ones by reflection"
-/// shape of <c>Commands/CommandsTestDbContext.cs</c>.
+/// A focused <see cref="IApplicationDbContext"/> over just the entities the <c>ModerationService</c> tests
+/// exercise — on the EF Core InMemory provider. The production <c>AppDbContext</c> is Npgsql-bound (jsonb
+/// complex types) and cannot host a test provider, so only <see cref="RecordEntity"/> (AutoMod-config +
+/// action rows), <see cref="Channel"/> (the broadcaster-guard's <c>TwitchChannelId</c> lookup), and
+/// <see cref="User"/> (target-username resolution on a recorded action) are mapped; every other
+/// <see cref="IApplicationDbContext"/> set throws, since no exercised path reaches it. Mirrors the
+/// "declare every DbSet, auto-ignore the unmapped ones by reflection" shape of
+/// <c>Commands/CommandsTestDbContext.cs</c>.
 /// </summary>
 internal sealed class ModerationServiceTestDbContext : DbContext, IApplicationDbContext
 {
@@ -55,6 +57,11 @@ internal sealed class ModerationServiceTestDbContext : DbContext, IApplicationDb
 
     public DbSet<RecordEntity> Records => Set<RecordEntity>();
 
+    // Mapped alongside Records for the ban/timeout tests: the broadcaster-guard reads Channel.TwitchChannelId,
+    // and recording a successful action resolves the target's username via Users.
+    public DbSet<Channel> Channels => Set<Channel>();
+    public DbSet<User> Users => Set<User>();
+
     protected override void OnModelCreating(ModelBuilder b)
     {
         b.Entity<RecordEntity>(e =>
@@ -63,13 +70,35 @@ internal sealed class ModerationServiceTestDbContext : DbContext, IApplicationDb
             e.Ignore(r => r.Channel);
         });
 
+        b.Entity<Channel>(e =>
+        {
+            e.HasKey(c => c.Id);
+            e.Ignore(c => c.User);
+            e.Ignore(c => c.Moderators);
+            e.Ignore(c => c.Streams);
+            e.Ignore(c => c.Events);
+        });
+
+        b.Entity<User>(e =>
+        {
+            e.HasKey(u => u.Id);
+            e.Ignore(u => u.Pronoun);
+            e.Ignore(u => u.AltPronoun);
+            e.Ignore(u => u.Channel);
+        });
+
         // EF discovers entity types from the DbSet<T> property declarations regardless of the throwing getter
         // bodies; ignore every entity these tests do not exercise so the model stays minimal + provider-agnostic.
         foreach (Type entity in UnmappedEntities)
             b.Ignore(entity);
     }
 
-    private static readonly HashSet<Type> Mapped = [typeof(RecordEntity)];
+    private static readonly HashSet<Type> Mapped =
+    [
+        typeof(RecordEntity),
+        typeof(Channel),
+        typeof(User),
+    ];
 
     private static readonly IReadOnlyList<Type> UnmappedEntities = typeof(IApplicationDbContext)
         .GetProperties()
@@ -82,10 +111,8 @@ internal sealed class ModerationServiceTestDbContext : DbContext, IApplicationDb
         .ToList();
 
     // ── Unused IApplicationDbContext surface — never reached by these tests ──
-    public DbSet<User> Users => throw new NotSupportedException();
     public DbSet<UserIdentity> UserIdentities => throw new NotSupportedException();
     public DbSet<ConsentRecord> ConsentRecords => throw new NotSupportedException();
-    public DbSet<Channel> Channels => throw new NotSupportedException();
     public DbSet<ChannelModerator> ChannelModerators => throw new NotSupportedException();
     public DbSet<Service> Services => throw new NotSupportedException();
     public DbSet<Reward> Rewards => throw new NotSupportedException();

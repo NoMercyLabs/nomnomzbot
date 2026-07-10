@@ -58,7 +58,32 @@ public class ModerationService : IModerationService
         if (!Guid.TryParse(broadcasterId, out Guid tenantId))
             return Errors.ChannelNotFound<ModerationActionResult>(broadcasterId);
 
-        Result<ModerationActionResult> result = await RecordActionAsync(
+        Result guard = await EnsureTargetIsModeratableAsync(
+            tenantId,
+            targetUserId,
+            "timeout",
+            cancellationToken
+        );
+        if (guard.IsFailure)
+            return Result.Failure<ModerationActionResult>(guard.ErrorMessage!, guard.ErrorCode!);
+
+        // Enforce on Twitch FIRST, and only record the action once Twitch actually applied it. The dashboard's
+        // action log and banned-viewers list are built from these local records, so recording before (or
+        // regardless of) the Helix call is what let a timeout Twitch rejected show up as if it had happened.
+        Result<TwitchBanResult> twitchResult = await _moderation.TimeoutUserAsync(
+            tenantId,
+            targetUserId,
+            durationSeconds,
+            reason,
+            cancellationToken
+        );
+        if (twitchResult.IsFailure)
+            return Result.Failure<ModerationActionResult>(
+                twitchResult.ErrorMessage ?? "Twitch rejected the timeout.",
+                twitchResult.ErrorCode ?? "TWITCH_ERROR"
+            );
+
+        return await RecordActionAsync(
             tenantId,
             "timeout",
             targetUserId,
@@ -67,26 +92,6 @@ public class ModerationService : IModerationService
             moderatorId,
             cancellationToken
         );
-
-        if (result.IsSuccess)
-        {
-            Result<TwitchBanResult> twitchResult = await _moderation.TimeoutUserAsync(
-                tenantId,
-                targetUserId,
-                durationSeconds,
-                reason,
-                cancellationToken
-            );
-            if (twitchResult.IsFailure)
-                _logger.LogWarning(
-                    "Twitch API timeout failed for {UserId} in {Channel}: {Error}",
-                    targetUserId,
-                    tenantId,
-                    twitchResult.ErrorMessage
-                );
-        }
-
-        return result;
     }
 
     public async Task<Result<ModerationActionResult>> BanAsync(
@@ -100,7 +105,31 @@ public class ModerationService : IModerationService
         if (!Guid.TryParse(broadcasterId, out Guid tenantId))
             return Errors.ChannelNotFound<ModerationActionResult>(broadcasterId);
 
-        Result<ModerationActionResult> result = await RecordActionAsync(
+        Result guard = await EnsureTargetIsModeratableAsync(
+            tenantId,
+            targetUserId,
+            "ban",
+            cancellationToken
+        );
+        if (guard.IsFailure)
+            return Result.Failure<ModerationActionResult>(guard.ErrorMessage!, guard.ErrorCode!);
+
+        // Enforce on Twitch FIRST, and only record the ban once Twitch actually applied it. The dashboard's
+        // banned-viewers list is built from these local records, so recording before (or regardless of) the
+        // Helix result is exactly what let a ban Twitch rejected — e.g. banning the broadcaster — show as real.
+        Result<TwitchBanResult> twitchResult = await _moderation.BanUserAsync(
+            tenantId,
+            targetUserId,
+            reason,
+            cancellationToken
+        );
+        if (twitchResult.IsFailure)
+            return Result.Failure<ModerationActionResult>(
+                twitchResult.ErrorMessage ?? "Twitch rejected the ban.",
+                twitchResult.ErrorCode ?? "TWITCH_ERROR"
+            );
+
+        return await RecordActionAsync(
             tenantId,
             "ban",
             targetUserId,
@@ -109,25 +138,6 @@ public class ModerationService : IModerationService
             moderatorId,
             cancellationToken
         );
-
-        if (result.IsSuccess)
-        {
-            Result<TwitchBanResult> twitchResult = await _moderation.BanUserAsync(
-                tenantId,
-                targetUserId,
-                reason,
-                cancellationToken
-            );
-            if (twitchResult.IsFailure)
-                _logger.LogWarning(
-                    "Twitch API ban failed for {UserId} in {Channel}: {Error}",
-                    targetUserId,
-                    tenantId,
-                    twitchResult.ErrorMessage
-                );
-        }
-
-        return result;
     }
 
     public async Task<Result<ModerationActionResult>> UnbanAsync(
@@ -408,6 +418,35 @@ public class ModerationService : IModerationService
     }
 
     // ─── Helpers ─────────────────────────────────────────────────────────────
+
+    // Twitch structurally protects the channel's own broadcaster: a ban/timeout against them 400s, so a local
+    // record would be a fake the dashboard's banned list then displays. The broadcaster's Twitch user id IS the
+    // tenant's TwitchChannelId, and targetUserId is the raw Twitch id passed to Helix, so this rejects any
+    // attempt (including the owner banning themselves) before it can be recorded.
+    private async Task<Result> EnsureTargetIsModeratableAsync(
+        Guid tenantId,
+        string targetUserId,
+        string action,
+        CancellationToken cancellationToken
+    )
+    {
+        string? broadcasterTwitchId = await _db
+            .Channels.Where(c => c.Id == tenantId)
+            .Select(c => c.TwitchChannelId)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (
+            !string.IsNullOrEmpty(broadcasterTwitchId)
+            && string.Equals(broadcasterTwitchId, targetUserId, StringComparison.OrdinalIgnoreCase)
+        )
+            return Result.Failure(
+                $"The broadcaster can't be {(action == "ban" ? "banned" : "timed out")} — Twitch protects the "
+                    + "channel owner from being moderated on their own channel.",
+                "CANNOT_MODERATE_BROADCASTER"
+            );
+
+        return Result.Success();
+    }
 
     private async Task<Result<ModerationActionResult>> RecordActionAsync(
         Guid tenantId,
