@@ -64,6 +64,22 @@ hashes and its granular bullets are removed — finished work is never left as a
 - `83187cd6` — EventJournal actor attribution made platform-agnostic (`ActorExternalUserId` + `ActorProvider`) + migration pair + portability round-trip.
 - `901de001` + `892bc2fd` — `auth/identities` link / unlink / set-primary + `MergeIdentitiesAsync` (re-parents identity rows on a viewer merge, no orphaned/duplicate primary) + chat-ingest now resolves chatters through `IUserIdentityService.ResolveUserAsync` (get-or-create by provider + external id).
 
+### 🐛 Session QA fixes (2026-07-11, owner-reported live)
+- [x] **Title didn't live-update** — the banner renders `stats.streamTitle` but the PUT echo only merged
+  `streamInfo`, and the hub's `StreamInfoChanged` push wasn't modelled in the KMP client (decoded to `Unknown`,
+  dropped). Both paths now update the banner. `1b44933a` (frontend commit).
+- [x] **Analytics all-zero** (followers/subs/commands/SR/currency/games) — projections listened for event names
+  nothing publishes. Canonicalized `FollowEvent`, made `CommandExecutedEvent` THE published execution fact
+  (hub push + `UseCount`/top-commands were dead too), folded currency ledger events + song requests + games.
+  `fe339805`. **Peak viewers / unique chatters / watch seconds still have no writer** (needs a viewer-count
+  sampler — pending below).
+- [x] **EventSub 403 retry storm** — ~60 scope-blocked topics re-POSTed per channel every 5 min forever;
+  ~84k no-op `failed→failed` journal rows/day + reauth spam. Scope-gated creates (self-heal on re-grant) +
+  transition-only status journaling. `8ca9f502`. *Data caveat: follows/subs that happened while a channel's
+  subscriptions were 403-broken (before 2026-07-10 ~18:30 UTC) never arrived — nothing to backfill from.*
+- [x] **!coinflip was dead air** — the game engine had NO chat wiring. `!coinflip|!dice|!slots <bet>` builtins
+  → `PlayAsync` (opt-in: seeded disabled; replies "not enabled" until the streamer enables). `d6d63d3d`.
+
 ### 🐛 Session QA fixes (2026-07-10, owner-reported live — not build slices)
 - Chat live-push restored: hub socket opens for every rung (`a1750141`), refreshes its own JWT, and the SignalR `{}` handshake is read as success (`440a4283`) — verified live (persistent socket, joins channel). Emotes: subscribed-channel emotes wired + case-sensitive dedup (`ccfe973e`). Delete-message attributed to the acting moderator, not the broadcaster (`5eaa894b`).
 
@@ -150,6 +166,21 @@ ONE substrate — a chat feed that **aggregates messages across a SET of channel
   merged chat UI (select channels, side-by-side or merged, platform+channel tags) → **handoff**.
 - Sequence: slice 4 → item 7 (mod multi-watch — fastest value, Twitch works now); slice 3 → item 6
   (cross-platform, the bigger lift).
+
+### 🎯 Streamer requests (qtkitte, 2026-07-11) — half already supported, close the loops
+- [ ] **SR1. Rotating auto-shoutouts** — a timer-driven shoutout that walks a curated list of names every N
+  minutes (round-robin, skip-offline optional). Timers + the Shoutout pipeline action exist; missing: the
+  curated-list rotation state + a first-class "auto-shoutout" config surface (not hand-built pipelines).
+- [ ] **SR2. Walk-in sounds** — play a sound clip when someone subs AND on a channel-point redemption.
+  Sound clips + event responses exist; missing: the sub/redeem → sound-clip trigger mapping + the
+  browser-source playback route (overlay widget) end-to-end.
+- [ ] **SR3. Overlay management** — change, import, create, and manage overlays from the dashboard
+  (widgets system — ties into item 5's render-manifest + the compiled-widget pipeline).
+
+### 📊 Analytics writers still missing (from the 2026-07-11 audit)
+- [ ] **Peak viewers / unique chatters / watch seconds / trends columns** — need a viewer-count sampler
+  (Helix Get Streams poll while live → fold max into `PeakViewers`) and distinct-chatter folding; the daily
+  trends table renders these as 0/— today.
 
 ## 🤖 StreamElements / Streamer.bot parity (each = backend + dashboard page)
 - [ ] **8. Automation API** (`automation-api.md`) — external tokens, event catalog, data plane,
