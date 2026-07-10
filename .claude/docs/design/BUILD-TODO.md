@@ -123,10 +123,31 @@ every broadcaster token already holds the full scope set (`channel:read:subscrip
 ### 🔀 Act on any channel — no install required
 - [ ] **4. Moderated-channels resolution + switching** — Helix *Get Moderated Channels*
   (`user:read:moderated_channels`); operate any moderated channel via the caller's own token with the
-  bot never installed on it. *(Unblocks the moderated-channels list in the auth UI.)*
+  bot never installed on it. *(Unblocks the moderated-channels list in the auth UI **and the multi-channel
+  chat picker, item 7**.)*
 - [ ] **5. Render-manifest endpoint** (tier-gated features + integration states + scopes + effective
   role in one call) + `FeaturesController` tier-gating (`IFeatureFlagService`) + dashboard event-class
   subscriptions (chat/activity/liveops/music/moderation + always-on core).
+
+### 💬 Combined / multi-source chat (owner-specced 2026-07-10)
+ONE substrate — a chat feed that **aggregates messages across a SET of channels**, each line tagged by source
+(platform + channel), time-ordered — at two scopes mapped to two roles:
+- [ ] **6. Streamer cross-platform feed** — a streamer sees their chat from EVERY platform they stream on
+  (Twitch + YouTube + Kick …) merged into one feed. A streamer's platforms = the `Channel` rows they own
+  (one per `Channel.Provider`); merge their `ChatMessages`, tag by provider. **Blocked on slice 3** — needs
+  chat *read* on YouTube (Live Chat API) + Kick; only Twitch ingests chat today. Also needs a per-platform
+  chat-source per streamer (a `Channel` row per platform they broadcast on).
+- [ ] **7. Viewer+ multi-channel watch** — any authorized user may open MULTIPLE channels' chats at once
+  (opt-in) so a mod monitors several channels simultaneously. Channel picker = channels the caller owns +
+  moderates (**slice 4** *Get Moderated Channels*); per-channel `chat:read` gates each. The live feed already
+  works per channel (hub `channel-{id}` groups + `GET …/chat/messages`); the NEW backend bits are (a) an
+  optional **merged aggregate** history endpoint over a channelId set, and (b) **source-channel + provider +
+  channel-name tagging on `DashboardChatMessageDto`** so a merged view can label + route each line
+  (API-contract change → `ApiContractTest` + `v1.json` + Kotlin DTO).
+- Backend (this track): the aggregation substrate + DTO source-tag. Frontend (`app/`, aaoa): the multi-pane /
+  merged chat UI (select channels, side-by-side or merged, platform+channel tags) → **handoff**.
+- Sequence: slice 4 → item 7 (mod multi-watch — fastest value, Twitch works now); slice 3 → item 6
+  (cross-platform, the bigger lift).
 
 ## 🤖 StreamElements / Streamer.bot parity (each = backend + dashboard page)
 - [ ] **8. Automation API** (`automation-api.md`) — external tokens, event catalog, data plane,
