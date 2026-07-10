@@ -30,7 +30,12 @@ public class WidgetService : IWidgetService
     public WidgetService(IApplicationDbContext db, IConfiguration configuration, IEventBus eventBus)
     {
         _db = db;
-        _overlayBaseUrl = configuration["OverlayBaseUrl"] ?? "http://localhost:8080";
+        // The overlay host page is served by this API (OverlayHostController) — the widget URL points
+        // at the bot's own base URL unless an operator explicitly fronts overlays elsewhere.
+        _overlayBaseUrl =
+            configuration["OverlayBaseUrl"]
+            ?? configuration["App:BaseUrl"]
+            ?? "http://localhost:5080";
         _eventBus = eventBus;
     }
 
