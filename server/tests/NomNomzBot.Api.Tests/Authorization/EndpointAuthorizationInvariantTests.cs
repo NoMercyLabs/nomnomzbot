@@ -80,6 +80,14 @@ public sealed class EndpointAuthorizationInvariantTests
             "own session: auth/me returns the caller's own identity (identity-auth.md §5)",
         ["AuthController.GetMyIdentities"] =
             "own account: auth/identities lists the caller's own linked identities (platform-identity.md §5)",
+        ["AuthController.StartIdentityLink"] =
+            "own account: begins linking a platform identity to the caller (subject = JWT sub) (platform-identity.md §4)",
+        ["AuthController.PollIdentityLink"] =
+            "own account: completes a device-grant link onto the caller (subject = JWT sub) (platform-identity.md §4)",
+        ["AuthController.UnlinkIdentity"] =
+            "own account: unlinks one of the caller's own identities (self-scoped by JWT sub) (platform-identity.md §4)",
+        ["AuthController.SetPrimaryIdentity"] =
+            "own account: sets one of the caller's own identities primary (self-scoped by JWT sub) (platform-identity.md §4)",
         ["AuthController.Logout"] =
             "own session: revokes the caller's own session tokens (identity-auth.md §5)",
         ["AuthController.LogoutAll"] =

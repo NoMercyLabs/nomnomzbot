@@ -38,17 +38,20 @@ public class UserIdentityConfiguration : IEntityTypeConfiguration<UserIdentity>
 
         builder.Property(e => e.LinkedAt).IsRequired();
 
-        // One identity per external account across the whole system.
+        // One identity per external account across the whole system. Partial (WHERE DeletedAt IS NULL) so an
+        // unlinked (soft-deleted) row frees the slot and the account can be linked again later.
         builder
             .HasIndex(e => new { e.Provider, e.ProviderUserId })
             .IsUnique()
-            .HasDatabaseName("IX_UserIdentity_Provider_ProviderUserId");
+            .HasDatabaseName("IX_UserIdentity_Provider_ProviderUserId")
+            .HasFilter("\"DeletedAt\" IS NULL");
 
-        // At most one identity per provider per user (re-link replaces).
+        // At most one identity per provider per user (re-link replaces). Partial for the same soft-delete reason.
         builder
             .HasIndex(e => new { e.UserId, e.Provider })
             .IsUnique()
-            .HasDatabaseName("IX_UserIdentity_UserId_Provider");
+            .HasDatabaseName("IX_UserIdentity_UserId_Provider")
+            .HasFilter("\"DeletedAt\" IS NULL");
 
         builder
             .HasOne(e => e.User)

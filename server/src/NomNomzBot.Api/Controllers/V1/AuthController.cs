@@ -130,6 +130,191 @@ public class AuthController : BaseController
     }
 
     /// <summary>
+    /// Begin linking another platform identity to the caller's account (platform-identity §4). Self-scoped —
+    /// the JWT <c>sub</c> is the target user. Auth-code + PKCE providers (kick / twitter) return the provider's
+    /// authorize URL; the shared <c>{provider}/callback</c> finishes the link because the server-side state
+    /// carries the caller's id. Device-grant providers (youtube) return the device start, then the client polls
+    /// <c>identities/{provider}/link/poll</c> (authenticated). Twitch is the primary sign-in, not linkable here.
+    /// </summary>
+    [HttpPost("identities/{provider}/link")]
+    [Authorize]
+    [EnableRateLimiting("auth")]
+    public async Task<IActionResult> StartIdentityLink(
+        string provider,
+        [FromQuery] string? redirect_uri,
+        [FromQuery] string? client,
+        CancellationToken ct
+    )
+    {
+        string? sub = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!Guid.TryParse(sub, out Guid userId))
+            return UnauthenticatedResponse();
+
+        if (!ClientRedirectPolicy.IsAllowed(redirect_uri))
+            return BadRequest("Disallowed redirect_uri.");
+
+        IActionResult? gate = await ValidateEnabledProviderAsync(provider, ct);
+        if (gate is not null)
+            return gate;
+
+        if (string.Equals(provider, AuthEnums.Platform.Twitch, StringComparison.OrdinalIgnoreCase))
+            return BadRequestResponse(
+                "Twitch is your primary sign-in and can't be linked as a secondary identity."
+            );
+
+        IAuthCodeLoginProvider? authCode = FindAuthCodeImpl(provider);
+        if (authCode is not null)
+        {
+            PkceCodePair pkce = PkceCodePair.Generate();
+            string callbackUri = $"{GetPublicBaseUrl()}/api/v1/auth/{provider}/callback";
+            string state = await _oauthState.IssueAsync(
+                new TwitchOAuthFlowState(
+                    "link",
+                    redirect_uri,
+                    Client: client,
+                    Provider: provider.ToLowerInvariant(),
+                    CodeVerifier: pkce.Verifier,
+                    LinkUserId: userId
+                ),
+                ct
+            );
+            Result<Uri> url = await authCode.BuildAuthorizeUrlAsync(
+                state,
+                callbackUri,
+                pkce.Challenge,
+                ct
+            );
+            return url.IsFailure
+                ? ResultResponse(url)
+                : Ok(
+                    new StatusResponseDto<OAuthStartDto>
+                    {
+                        Data = new OAuthStartDto(url.Value.ToString(), state),
+                    }
+                );
+        }
+
+        ILoginIdentityProvider? device = FindLoginImpl(provider);
+        if (device is not null)
+            return ResultResponse(await device.StartDeviceAsync(ct));
+
+        return NotYetLoginable(provider);
+    }
+
+    /// <summary>
+    /// Poll a device-grant identity link once (platform-identity §4). Authenticated — the caller is the target
+    /// user (JWT <c>sub</c>), so no state nonce is needed. A pending grant surfaces as the loop status; an
+    /// approved grant attaches the proven identity to the caller (never mints a session, unlike the login poll).
+    /// </summary>
+    [HttpPost("identities/{provider}/link/poll")]
+    [Authorize]
+    [EnableRateLimiting("device-poll")]
+    public async Task<IActionResult> PollIdentityLink(
+        string provider,
+        [FromBody] DevicePollRequest body,
+        CancellationToken ct
+    )
+    {
+        string? sub = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!Guid.TryParse(sub, out Guid userId))
+            return UnauthenticatedResponse();
+
+        IActionResult? gate = await ValidateEnabledProviderAsync(provider, ct);
+        if (gate is not null)
+            return gate;
+
+        ILoginIdentityProvider? impl = FindLoginImpl(provider);
+        if (impl is null)
+            return NotYetLoginable(provider);
+
+        Result<ExternalIdentityProof> poll = await impl.PollDeviceAsync(body.DeviceCode, ct);
+        if (poll.IsFailure)
+        {
+            if (poll.ErrorCode == "SERVICE_UNAVAILABLE")
+                return ServiceUnavailableResponse(poll.ErrorMessage);
+
+            // pending / slow_down / expired / denied / error — the client loops on this status.
+            return Ok(
+                new StatusResponseDto<object>
+                {
+                    Data = new { status = poll.ErrorCode ?? DeviceLoginStatus.Error },
+                }
+            );
+        }
+
+        Result<UserIdentityDto> link = await _identities.LinkAsync(userId, poll.Value, ct);
+        if (link.IsFailure)
+            return IdentityWriteResponse(link);
+
+        return Ok(
+            new StatusResponseDto<object>
+            {
+                Data = new { status = DeviceLoginStatus.Authorized, identity = link.Value },
+            }
+        );
+    }
+
+    /// <summary>Unlink one of the caller's own external identities (platform-identity §4). Self-scoped.</summary>
+    [HttpDelete("identities/{identityId:guid}")]
+    [Authorize]
+    [EnableRateLimiting("auth")]
+    public async Task<IActionResult> UnlinkIdentity(Guid identityId, CancellationToken ct)
+    {
+        string? sub = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!Guid.TryParse(sub, out Guid userId))
+            return UnauthenticatedResponse();
+
+        return IdentityWriteResponse(await _identities.UnlinkAsync(userId, identityId, ct));
+    }
+
+    /// <summary>Make one of the caller's existing identities the primary (platform-identity §4). Self-scoped.</summary>
+    [HttpPost("identities/{identityId:guid}/primary")]
+    [Authorize]
+    [EnableRateLimiting("auth")]
+    public async Task<IActionResult> SetPrimaryIdentity(Guid identityId, CancellationToken ct)
+    {
+        string? sub = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!Guid.TryParse(sub, out Guid userId))
+            return UnauthenticatedResponse();
+
+        return IdentityWriteResponse(await _identities.SetPrimaryAsync(userId, identityId, ct));
+    }
+
+    /// <summary>
+    /// Maps the self-scoped identity-write error codes to HTTP: <c>IDENTITY_NOT_FOUND</c>→404;
+    /// <c>PRIMARY_IDENTITY</c> / <c>LAST_IDENTITY</c> / <c>IDENTITY_ALREADY_LINKED</c> /
+    /// <c>PROVIDER_ALREADY_LINKED</c>→409; otherwise the shared <see cref="BaseController.ResultResponse{T}"/> map.
+    /// </summary>
+    private IActionResult IdentityWriteResponse<T>(Result<T> result)
+    {
+        if (result.IsSuccess)
+            return Ok(new StatusResponseDto<T> { Data = result.Value });
+
+        return result.ErrorCode switch
+        {
+            "IDENTITY_NOT_FOUND" => NotFoundResponse(result.ErrorMessage),
+            "PRIMARY_IDENTITY"
+            or "LAST_IDENTITY"
+            or "IDENTITY_ALREADY_LINKED"
+            or "PROVIDER_ALREADY_LINKED" => ConflictResponse(result.ErrorMessage),
+            _ => ResultResponse(result),
+        };
+    }
+
+    private IActionResult IdentityWriteResponse(Result result)
+    {
+        if (result.IsSuccess)
+            return Ok(new StatusResponseDto<object> { Status = "ok" });
+
+        return result.ErrorCode switch
+        {
+            "IDENTITY_NOT_FOUND" => NotFoundResponse(result.ErrorMessage),
+            "PRIMARY_IDENTITY" or "LAST_IDENTITY" => ConflictResponse(result.ErrorMessage),
+            _ => ResultResponse(result),
+        };
+    }
+
+    /// <summary>
     /// Start the Twitch OAuth flow. Redirects the browser to Twitch's authorization page.
     /// Pass <c>redirect_uri</c> for mobile / desktop-loopback deep-link callbacks (e.g.
     /// <c>nomnomzbot://callback</c>). Pass <c>client=web</c> for the served-web dashboard: a full-page redirect
@@ -700,6 +885,14 @@ public class AuthController : BaseController
             return ResultResponse(proof);
         }
 
+        // A LINK flow attaches the proven identity to the already-authenticated user carried in the state; a
+        // plain login turns it into a tenant-less session. Same proof, different destination.
+        if (flowState.LinkUserId is Guid linkUserId)
+        {
+            Result<UserIdentityDto> link = await _identities.LinkAsync(linkUserId, proof.Value, ct);
+            return BuildLinkResponse(link, provider, flowState.Client, flowState.RedirectUri);
+        }
+
         Result<AuthResultDto> login = await _externalLogin.LoginAsync(
             proof.Value,
             BuildAuthContext(),
@@ -709,6 +902,40 @@ public class AuthController : BaseController
             return ResultResponse(login);
 
         return BuildLoginResponse(login.Value, flowState.Client, flowState.RedirectUri);
+    }
+
+    /// <summary>
+    /// Turns a link-callback outcome into the client-appropriate response. A mobile <c>redirect_uri</c> and the
+    /// served-web dashboard get a deep-link / same-origin redirect carrying <c>linked=&lt;provider&gt;</c> (or
+    /// <c>link_error</c>); native clients get a JSON body. No tokens are involved — the identity is already the
+    /// caller's, and the session is unchanged.
+    /// </summary>
+    private IActionResult BuildLinkResponse(
+        Result<UserIdentityDto> link,
+        string provider,
+        string? client,
+        string? mobileRedirectUri
+    )
+    {
+        if (!string.IsNullOrWhiteSpace(mobileRedirectUri))
+        {
+            string outcome = link.IsSuccess
+                ? $"linked={Uri.EscapeDataString(provider)}"
+                : $"link_error={Uri.EscapeDataString(link.ErrorCode ?? "link_failed")}";
+            return Redirect(
+                $"{mobileRedirectUri}{(mobileRedirectUri.Contains('?') ? '&' : '?')}{outcome}"
+            );
+        }
+
+        if (string.Equals(client, "web", StringComparison.OrdinalIgnoreCase))
+        {
+            string fragment = link.IsSuccess
+                ? $"#linked={Uri.EscapeDataString(provider)}"
+                : $"#link_error={Uri.EscapeDataString(link.ErrorCode ?? "link_failed")}";
+            return Redirect($"{GetPublicBaseUrl()}/{fragment}");
+        }
+
+        return IdentityWriteResponse(link);
     }
 
     /// <summary>Wire tokens for the flows a provider supports (<c>device_code</c>/<c>auth_code_pkce</c>/<c>auth_code</c>).</summary>

@@ -4483,11 +4483,13 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
 
                     b.HasIndex("Provider", "ProviderUserId")
                         .IsUnique()
-                        .HasDatabaseName("IX_UserIdentity_Provider_ProviderUserId");
+                        .HasDatabaseName("IX_UserIdentity_Provider_ProviderUserId")
+                        .HasFilter("\"DeletedAt\" IS NULL");
 
                     b.HasIndex("UserId", "Provider")
                         .IsUnique()
-                        .HasDatabaseName("IX_UserIdentity_UserId_Provider");
+                        .HasDatabaseName("IX_UserIdentity_UserId_Provider")
+                        .HasFilter("\"DeletedAt\" IS NULL");
 
                     b.ToTable("UserIdentities");
                 });

@@ -93,4 +93,83 @@ public sealed class AuthControllerIdentitiesTests
 
         result.Should().BeOfType<UnauthorizedObjectResult>();
     }
+
+    [Fact]
+    public async Task UnlinkIdentity_passes_the_callers_sub_and_returns_ok_on_success()
+    {
+        Guid userId = Guid.Parse("0192a000-0000-7000-8000-0000000000a1");
+        Guid identityId = Guid.Parse("0192a000-0000-7000-8000-0000000000b2");
+        IUserIdentityService svc = Substitute.For<IUserIdentityService>();
+        svc.UnlinkAsync(userId, identityId, Arg.Any<CancellationToken>()).Returns(Result.Success());
+
+        IActionResult result = await Build(svc, Principal(userId))
+            .UnlinkIdentity(identityId, default);
+
+        result.Should().BeOfType<OkObjectResult>();
+        await svc.Received(1).UnlinkAsync(userId, identityId, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task UnlinkIdentity_maps_the_primary_refusal_to_conflict()
+    {
+        Guid userId = Guid.Parse("0192a000-0000-7000-8000-0000000000a1");
+        Guid identityId = Guid.Parse("0192a000-0000-7000-8000-0000000000b2");
+        IUserIdentityService svc = Substitute.For<IUserIdentityService>();
+        svc.UnlinkAsync(userId, identityId, Arg.Any<CancellationToken>())
+            .Returns(Result.Failure("Can't unlink your primary identity.", "PRIMARY_IDENTITY"));
+
+        IActionResult result = await Build(svc, Principal(userId))
+            .UnlinkIdentity(identityId, default);
+
+        result.Should().BeOfType<ConflictObjectResult>();
+    }
+
+    [Fact]
+    public async Task SetPrimaryIdentity_returns_the_new_primary_on_success()
+    {
+        Guid userId = Guid.Parse("0192a000-0000-7000-8000-0000000000a1");
+        Guid identityId = Guid.Parse("0192a000-0000-7000-8000-0000000000b2");
+        UserIdentityDto dto = new(
+            "kick",
+            "k-1",
+            "kicker",
+            "Kicker",
+            null,
+            true,
+            DateTime.UtcNow,
+            null
+        );
+        IUserIdentityService svc = Substitute.For<IUserIdentityService>();
+        svc.SetPrimaryAsync(userId, identityId, Arg.Any<CancellationToken>())
+            .Returns(Result.Success(dto));
+
+        IActionResult result = await Build(svc, Principal(userId))
+            .SetPrimaryIdentity(identityId, default);
+
+        OkObjectResult ok = result.Should().BeOfType<OkObjectResult>().Subject;
+        StatusResponseDto<UserIdentityDto> body = ok
+            .Value.Should()
+            .BeOfType<StatusResponseDto<UserIdentityDto>>()
+            .Subject;
+        body.Data!.IsPrimary.Should().BeTrue();
+        body.Data.Provider.Should().Be("kick");
+    }
+
+    [Fact]
+    public async Task SetPrimaryIdentity_maps_not_found_to_404()
+    {
+        Guid userId = Guid.Parse("0192a000-0000-7000-8000-0000000000a1");
+        Guid identityId = Guid.Parse("0192a000-0000-7000-8000-0000000000b2");
+        IUserIdentityService svc = Substitute.For<IUserIdentityService>();
+        svc.SetPrimaryAsync(userId, identityId, Arg.Any<CancellationToken>())
+            .Returns(Result.Failure<UserIdentityDto>("Identity not found.", "IDENTITY_NOT_FOUND"));
+
+        IActionResult result = await Build(svc, Principal(userId))
+            .SetPrimaryIdentity(identityId, default);
+
+        result.Should().BeOfType<NotFoundObjectResult>();
+    }
+
+    private static ClaimsPrincipal Principal(Guid userId) =>
+        new(new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, userId.ToString())], "test"));
 }

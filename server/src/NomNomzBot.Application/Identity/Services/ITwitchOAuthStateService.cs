@@ -41,6 +41,12 @@ public interface ITwitchOAuthStateService
 /// (platform-identity §10.3): the login-provider key (kick / twitter) the generic callback routes to, and the
 /// PKCE verifier proving the same client that started the flow is finishing it. Both null for Twitch flows.
 /// </para>
+/// <para>
+/// <paramref name="LinkUserId"/> marks an auth-code+PKCE flow as a LINK (platform-identity §4) rather than a
+/// login: the callback attaches the proven identity to this already-authenticated user instead of minting a
+/// session. Null for a plain login. (Device-grant links complete on an authenticated poll and carry the user in
+/// the JWT, so they never need this.)
+/// </para>
 /// </summary>
 public sealed record TwitchOAuthFlowState(
     string Flow,
@@ -48,5 +54,6 @@ public sealed record TwitchOAuthFlowState(
     string? ChannelId = null,
     string? Client = null,
     string? Provider = null,
-    string? CodeVerifier = null
+    string? CodeVerifier = null,
+    Guid? LinkUserId = null
 );

@@ -40,4 +40,55 @@ public interface IUserIdentityService
         bool getOrCreate,
         CancellationToken cancellationToken = default
     );
+
+    /// <summary>
+    /// Attach a proven external identity (<paramref name="proof"/>) to <paramref name="userId"/> as a NON-primary
+    /// linked identity (platform-identity §4). The proof comes only from a login provider's OAuth handler — the
+    /// same proof→identity flow a fresh login runs, but bound to the CURRENT user instead of minting a session.
+    /// Idempotent when the identity is already this user's. Fails <c>IDENTITY_ALREADY_LINKED</c> when the account
+    /// belongs to a different user, and <c>PROVIDER_ALREADY_LINKED</c> when this user already has an identity for
+    /// that provider (one identity per provider per user).
+    /// </summary>
+    Task<Result<UserIdentityDto>> LinkAsync(
+        Guid userId,
+        ExternalIdentityProof proof,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>
+    /// Unlink one of <paramref name="userId"/>'s own identities (platform-identity §4). Refuses to remove the
+    /// <c>IsPrimary</c> identity (<c>PRIMARY_IDENTITY</c> — set another primary first) or the user's last
+    /// remaining identity (<c>LAST_IDENTITY</c> — a user must always keep at least one), so the primary is never
+    /// orphaned. <c>IDENTITY_NOT_FOUND</c> when the id is not one of the caller's identities.
+    /// </summary>
+    Task<Result> UnlinkAsync(
+        Guid userId,
+        Guid identityId,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>
+    /// Make one of <paramref name="userId"/>'s existing identities the primary (platform-identity §4): moves the
+    /// single <c>IsPrimary</c> marker to <paramref name="identityId"/>, clears it from the others, and points
+    /// <c>User.Platform</c> at the new primary's provider. <c>IDENTITY_NOT_FOUND</c> when the id is not one of
+    /// the caller's identities.
+    /// </summary>
+    Task<Result<UserIdentityDto>> SetPrimaryAsync(
+        Guid userId,
+        Guid identityId,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>
+    /// Transfer the identities of an absorbed user onto a surviving user when two viewer <c>User</c> rows are
+    /// merged (platform-identity §3.1a). Re-parents each absorbed identity to <paramref name="survivingUserId"/>
+    /// as NON-primary, drops any whose provider the survivor already holds (one identity per provider per user),
+    /// and guarantees the survivor ends with exactly one primary — never an orphaned or duplicated primary. The
+    /// per-viewer domains re-key their own rows off <c>ViewerRowAbsorbedEvent</c>; this owns the identity table.
+    /// </summary>
+    Task<Result> MergeIdentitiesAsync(
+        Guid survivingUserId,
+        Guid absorbedUserId,
+        CancellationToken cancellationToken = default
+    );
 }
