@@ -196,30 +196,67 @@ public sealed class GateEndToEndTests
     }
 
     [Fact]
-    public async Task Gate2_allows_a_vip_a_retiered_read_but_denies_a_destructive_action()
+    public async Task A_vip_is_denied_a_lowerable_read_by_default_but_allowed_once_the_broadcaster_lowers_it()
     {
         Fixture f = await BuildAsync();
 
-        // The required proof: a caller whose ONLY standing is community-plane VIP (no management role)
-        // clears a re-tiered non-sensitive read but is still denied a Twitch-mutating moderation action.
-        Result<bool> allowedRead = await f.Gate2.AuthorizeActionAsync(
+        // (a) Out of the box commands:read DEFAULTS to the Moderator(10) base — a caller whose only standing is
+        // community-plane VIP(4) does NOT clear it. Lowering the floor granted the VIP nothing on its own.
+        Result<bool> beforeOverride = await f.Gate2.AuthorizeActionAsync(
             VipViewer,
             Channel,
             "commands:read"
         );
+        beforeOverride.IsSuccess.Should().BeTrue();
+        beforeOverride
+            .Value.Should()
+            .BeFalse("commands:read defaults to the Moderator(10) base — a VIP(4) is below it");
+
+        // (b) The broadcaster CHOOSES to lower commands:read to its Vip(4) floor via the override machinery.
+        Result<int> lowered = await f.Gate2.SetActionOverrideAsync(
+            Channel,
+            "commands:read",
+            4,
+            Owner
+        );
+        lowered
+            .IsSuccess.Should()
+            .BeTrue("Vip(4) is at commands:read's floor, so the override is accepted");
+        lowered.Value.Should().Be(4);
+
+        // …and now the same VIP clears it.
+        Result<bool> afterOverride = await f.Gate2.AuthorizeActionAsync(
+            VipViewer,
+            Channel,
+            "commands:read"
+        );
+        afterOverride
+            .Value.Should()
+            .BeTrue("the broadcaster lowered commands:read to the Vip(4) floor the caller sits at");
+    }
+
+    [Fact]
+    public async Task A_broadcaster_cannot_lower_a_destructive_action_below_its_moderator_floor()
+    {
+        Fixture f = await BuildAsync();
+
+        // (c) moderation:ban is Twitch-mutating and irreversible-if-abused — its floor stays Moderator(10). The
+        // override machinery REJECTS any attempt to drop it to Vip(4), so a VIP can never be handed the ban.
+        Result<int> rejected = await f.Gate2.SetActionOverrideAsync(
+            Channel,
+            "moderation:ban",
+            4,
+            Owner
+        );
+        rejected.IsSuccess.Should().BeFalse("Vip(4) is below moderation:ban's Moderator(10) floor");
+        rejected.ErrorMessage.Should().Contain("floor");
+
+        // And with no override taking effect, the VIP is still denied the ban.
         Result<bool> deniedBan = await f.Gate2.AuthorizeActionAsync(
             VipViewer,
             Channel,
             "moderation:ban"
         );
-
-        allowedRead.IsSuccess.Should().BeTrue();
-        allowedRead
-            .Value.Should()
-            .BeTrue(
-                "commands:read was re-tiered to the Vip(4) floor and the caller's standing is Vip"
-            );
-        deniedBan.IsSuccess.Should().BeTrue();
         deniedBan
             .Value.Should()
             .BeFalse(
@@ -229,6 +266,7 @@ public sealed class GateEndToEndTests
 
     [Theory]
     [InlineData("commands:read")]
+    [InlineData("commands:builtin:read")]
     [InlineData("pipelines:read")]
     [InlineData("pipelines:validate")]
     [InlineData("eventresponses:read")]
@@ -237,27 +275,53 @@ public sealed class GateEndToEndTests
     [InlineData("sounds:read")]
     [InlineData("reward:read")]
     [InlineData("music:config:read")]
+    [InlineData("tts:config:read")]
     [InlineData("tts:voice:read")]
     [InlineData("stream:read")]
     [InlineData("widget:read")]
     [InlineData("chat:read")]
     [InlineData("dashboard:read")]
-    [InlineData("quotes:write")] // curating a quote (add/edit) — the one non-destructive write lowered to VIP
-    public async Task Gate2_allows_every_retiered_action_for_a_vip_but_still_denies_a_plain_viewer(
-        string vipKey
+    [InlineData("quotes:write")] // curating a quote (add/edit) — the one non-destructive write with a VIP floor
+    public async Task A_lowerable_action_defaults_to_moderator_and_the_broadcaster_can_open_it_to_a_vip(
+        string lowerableKey
     )
     {
         Fixture f = await BuildAsync();
 
-        Result<bool> vipResult = await f.Gate2.AuthorizeActionAsync(VipViewer, Channel, vipKey);
-        Result<bool> viewerResult = await f.Gate2.AuthorizeActionAsync(
+        // By default the action sits at its Moderator(10) base — the VIP(4) is denied and the broadcaster gets
+        // nothing extra out of the box.
+        Result<bool> vipByDefault = await f.Gate2.AuthorizeActionAsync(
+            VipViewer,
+            Channel,
+            lowerableKey
+        );
+        vipByDefault
+            .Value.Should()
+            .BeFalse(
+                $"'{lowerableKey}' defaults to the Moderator(10) base until the broadcaster lowers it"
+            );
+
+        // The broadcaster may lower it to the Vip(4) floor (the override is accepted because Vip is the floor).
+        Result<int> lowered = await f.Gate2.SetActionOverrideAsync(Channel, lowerableKey, 4, Owner);
+        lowered
+            .IsSuccess.Should()
+            .BeTrue($"'{lowerableKey}' has a Vip(4) floor the broadcaster may lower to");
+
+        // Now the VIP clears it, but a plain viewer (level 0) still does not.
+        Result<bool> vipAfter = await f.Gate2.AuthorizeActionAsync(
+            VipViewer,
+            Channel,
+            lowerableKey
+        );
+        Result<bool> viewerAfter = await f.Gate2.AuthorizeActionAsync(
             PlainViewer,
             Channel,
-            vipKey
+            lowerableKey
         );
-
-        vipResult.Value.Should().BeTrue("the action was re-tiered to the Vip(4) floor");
-        viewerResult
+        vipAfter
+            .Value.Should()
+            .BeTrue($"the broadcaster lowered '{lowerableKey}' to the Vip(4) floor");
+        viewerAfter
             .Value.Should()
             .BeFalse("a plain viewer resolves to level 0, still below the Vip(4) floor");
     }
@@ -273,18 +337,33 @@ public sealed class GateEndToEndTests
     [InlineData("economy:account:adjust")]
     [InlineData("reward:manage")]
     [InlineData("roles:manage")]
-    public async Task Gate2_denies_a_vip_every_action_that_stayed_above_the_vip_floor(
+    public async Task A_protected_action_denies_a_vip_and_cannot_be_lowered_to_the_vip_floor(
         string protectedKey
     )
     {
         Fixture f = await BuildAsync();
 
-        // Proves the re-tiering lowered ONLY the enumerated non-sensitive reads: every mutating/destructive
-        // or write action stayed above Vip(4), so the VIP caller (level 4) is denied each one.
-        Result<bool> result = await f.Gate2.AuthorizeActionAsync(VipViewer, Channel, protectedKey);
+        // The floor stayed at Moderator+ because abusing the action causes real / irreversible harm: the VIP
+        // caller (level 4) is denied by default…
+        Result<bool> vipByDefault = await f.Gate2.AuthorizeActionAsync(
+            VipViewer,
+            Channel,
+            protectedKey
+        );
+        vipByDefault.IsSuccess.Should().BeTrue();
+        vipByDefault.Value.Should().BeFalse($"'{protectedKey}' must stay above the Vip(4) floor");
 
-        result.IsSuccess.Should().BeTrue();
-        result.Value.Should().BeFalse($"'{protectedKey}' must stay above the Vip(4) floor");
+        // …and the broadcaster CANNOT lower it to Vip(4): the override machinery rejects a level below the floor,
+        // so there is no path by which a VIP is ever handed one of these actions.
+        Result<int> rejected = await f.Gate2.SetActionOverrideAsync(
+            Channel,
+            protectedKey,
+            4,
+            Owner
+        );
+        rejected
+            .IsSuccess.Should()
+            .BeFalse($"'{protectedKey}' has a floor above Vip(4) and must reject a VIP override");
     }
 
     [Theory]

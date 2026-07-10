@@ -22,9 +22,14 @@ namespace NomNomzBot.Infrastructure.Content.Identity;
 /// fails closed (403) on every gated route. GLOBAL reference data, no FK dependencies (Order 5). Idempotent:
 /// upserts by the natural key <see cref="ActionDefinition.ActionKey"/>, so a re-run adds nothing.
 /// <para>
-/// Convention: management-plane rows have <c>DefaultLevel = FloorLevel</c>, <c>Tier = Low</c>, and
-/// <c>Grant = true</c> unless the helper overload says otherwise; community-plane rows are
-/// <c>Default = Floor = Everyone(0)</c>, <c>Low</c>, grantable. The one row where default ≠ floor
+/// Convention: a management-plane row's <c>DefaultLevel</c> is its Twitch base role and equals
+/// <c>FloorLevel</c> (<c>Tier = Low</c>, <c>Grant = true</c>) UNLESS the two-level <c>M</c> overload sets a
+/// lower floor. For non-destructive reads and reversible, non-destructive writes the default stays at the
+/// base role (a lower-standing viewer gets nothing extra out of the box) but the floor drops to
+/// <c>Vip(4)</c>, so the broadcaster MAY choose to lower the requirement to a trusted VIP — the override is
+/// clamped to <c>[FloorLevel, Broadcaster]</c>. Destructive, irreversible, Twitch-mutating, currency, or
+/// role/IAM actions keep <c>Floor = Default</c> at Moderator+. Community-plane rows are
+/// <c>Default = Floor = Everyone(0)</c>, <c>Low</c>, grantable. The one row with a HIGHER default than floor
 /// (<c>permit:issue</c>) is added explicitly. These rows are the source for the per-spec §5 controller gates.
 /// </para>
 /// </summary>
@@ -32,9 +37,11 @@ public sealed class ActionDefinitionSeeder : ISeeder
 {
     private const int Everyone = 0;
 
-    // Unified-ladder rungs below Moderator (AuthorizationLadder: Subscriber=2, Vip=4, Artist=6). Trivial,
-    // non-sensitive reads sit at Vip(4) so a VIP viewer can see channel config/content the streamer curates,
-    // while a plain viewer (0) is still denied. Kept in sync with PermissionLevel.Vip.ToLevelValue().
+    // Unified-ladder rungs below Moderator (AuthorizationLadder: Subscriber=2, Vip=4, Artist=6). Vip(4) is
+    // used as the FLOOR for non-destructive reads and reversible writes: the action still DEFAULTS to its
+    // Twitch base role, but the broadcaster MAY lower the requirement as far as Vip so a trusted VIP can be
+    // let in — abusing these actions cannot cause irreversible harm. Kept in sync with
+    // PermissionLevel.Vip.ToLevelValue().
     private const int Vip = 4;
     private const int Mod = 10;
     private const int LeadModerator = 20;
@@ -92,21 +99,40 @@ public sealed class ActionDefinitionSeeder : ISeeder
     {
         List<ActionSeed> s = [];
 
-        // ── Management plane (Default = Floor, Tier = Low, Grant = true unless noted) ──
+        // ── Management plane (Default = Floor, Tier = Low, Grant = true unless noted; the
+        //    M(key, default, floor) overload lowers the floor below the default for actions the broadcaster
+        //    may choose to open to a trusted VIP/Sub) ──
+
+        // Default == floor: the action requires `level` and can never be lowered below it.
         void M(string key, int level, DangerTier tier = DangerTier.Low, bool grant = true) =>
             s.Add(new ActionSeed(key, level, level, tier, grant, AuthPlane.Management));
 
-        // Commands / pipelines / responses / timers
-        M("commands:read", Vip);
+        // Default ≠ floor: the action DEFAULTS to `defaultLevel` (its Twitch base role — nothing extra is
+        // granted out of the box) but the broadcaster MAY lower the per-action requirement as far as
+        // `floorLevel` via ChannelActionOverride. Used ONLY where abusing the action cannot cause
+        // irreversible or serious harm: non-destructive reads and reversible, non-destructive writes.
+        void MFloor(
+            string key,
+            int defaultLevel,
+            int floorLevel,
+            DangerTier tier = DangerTier.Low,
+            bool grant = true
+        ) =>
+            s.Add(new ActionSeed(key, defaultLevel, floorLevel, tier, grant, AuthPlane.Management));
+
+        // Commands / pipelines / responses / timers — reads (and non-mutating pipeline validation) default to
+        // the Moderator base but the broadcaster may lower them to Vip; the writes bundle create/edit/DELETE
+        // (real data loss) so they stay at Editor.
+        MFloor("commands:read", Mod, Vip);
         M("commands:write", Editor);
-        M("commands:builtin:read", Mod);
+        MFloor("commands:builtin:read", Mod, Vip);
         M("commands:builtin:write", Editor);
-        M("pipelines:read", Vip);
+        MFloor("pipelines:read", Mod, Vip);
         M("pipelines:write", Editor);
-        M("pipelines:validate", Vip);
-        M("eventresponses:read", Vip);
+        MFloor("pipelines:validate", Mod, Vip);
+        MFloor("eventresponses:read", Mod, Vip);
         M("eventresponses:write", Editor);
-        M("timers:read", Vip);
+        MFloor("timers:read", Mod, Vip);
         M("timers:write", Editor);
 
         // Roles & permits & code
@@ -168,9 +194,10 @@ public sealed class ActionDefinitionSeeder : ISeeder
         M("moderation:shieldmode:read", Mod);
         M("moderation:shieldmode:write", LeadModerator);
         M("chat:announce", Mod);
-        // Dashboard chat page (frontend-ia.md §Chat: read floor Moderator, manage floor Moderator — "live chat
-        // console, send-as-bot"): chat-history read + send-a-message-as-the-bot (REST and DashboardHub).
-        M("chat:read", Vip);
+        // Dashboard chat page (frontend-ia.md §Chat): chat-history read + send-a-message-as-the-bot (REST and
+        // DashboardHub). chat:read DEFAULTS to Moderator but is broadcaster-lowerable to Vip (reading chat is
+        // non-destructive); chat:send stays Moderator — sending as the bot is not something a VIP should do.
+        MFloor("chat:read", Mod, Vip);
         M("chat:send", Mod);
         M("moderation:shoutout", Mod);
         M("moderation:chatcolor:write", Editor);
@@ -182,9 +209,11 @@ public sealed class ActionDefinitionSeeder : ISeeder
         M("moderation:suspicioususer:write", LeadModerator);
 
         // TTS
-        M("tts:config:read", Mod);
+        // Reads default to the Moderator base, floor Vip (broadcaster may open the presentation config /
+        // voice list to a VIP — non-destructive). tts:voice:test triggers audio (spammable) so it stays Mod.
+        MFloor("tts:config:read", Mod, Vip);
         M("tts:config:write", Editor);
-        M("tts:voice:read", Vip);
+        MFloor("tts:voice:read", Mod, Vip);
         M("tts:voice:test", Mod);
         M("tts:uservoice:write", Mod);
         M("tts:queue:review", Mod);
@@ -210,8 +239,9 @@ public sealed class ActionDefinitionSeeder : ISeeder
         // Music
         M("music:config:write", Editor);
         // music-sr.md §5.1 floors GET config at management/Moderator with no named key; the read key follows
-        // the catalogue's *:config:read convention (cf. economy:config:read) at that floor.
-        M("music:config:read", Vip);
+        // the catalogue's *:config:read convention (cf. economy:config:read). Default Moderator, floor Vip —
+        // reading config is non-destructive so the broadcaster may open it to a VIP.
+        MFloor("music:config:read", Mod, Vip);
         M("music:queue:moderate", Mod);
         M("music:token:read", Editor);
         M("music:token:rotate", Broadcaster, DangerTier.Critical, grant: false);
@@ -219,9 +249,10 @@ public sealed class ActionDefinitionSeeder : ISeeder
         M("music:library:write", Editor);
 
         // Stream / channel / live-ops
-        // stream-admin.md §5 floors the stream-info/status/category reads at management entry ("Gate 1 only",
-        // i.e. Moderator) with no named key; stream:read carries that floor now that Gate 1 is pure entry.
-        M("stream:read", Vip);
+        // stream-admin.md §5 floors the stream-info/status/category reads at management entry (i.e. Moderator);
+        // stream:read carries that DEFAULT now that Gate 1 is pure entry. Reading stream info is non-destructive,
+        // so its floor drops to Vip and the broadcaster may open it to a VIP.
+        MFloor("stream:read", Mod, Vip);
         M("stream:preset:write", Editor);
         M("stream:schedule:write", Editor);
         M("channel:title:write", Editor);
@@ -249,14 +280,14 @@ public sealed class ActionDefinitionSeeder : ISeeder
         M("webhooks:inbound:write", Editor);
         M("webhooks:outbound:read", Mod);
         M("webhooks:outbound:write", Editor);
-        M("widget:read", Vip);
+        MFloor("widget:read", Mod, Vip);
         M("widget:write", Editor);
         M("integration:read", Mod);
         M("integration:write", Editor);
         M("community:read", Mod);
         // Managing a viewer's trust level is a per-viewer moderation-tier community write.
         M("community:trust:write", Mod);
-        M("dashboard:read", Vip);
+        MFloor("dashboard:read", Mod, Vip);
         M("setup:write", Broadcaster, grant: false);
         // Per-channel feature enablement (FeaturesController): read at Mod, toggle at the config-write tier.
         M("feature:read", Mod);
@@ -293,19 +324,21 @@ public sealed class ActionDefinitionSeeder : ISeeder
         M("federation:optin:write", LeadModerator);
         M("federation:optin:delete", LeadModerator);
 
-        // Rewards
-        M("reward:read", Vip);
+        // Rewards — reading the reward list defaults to Moderator, floor Vip (non-destructive). Managing /
+        // syncing rewards is Twitch-mutating and owner-level, so it stays at Broadcaster.
+        MFloor("reward:read", Mod, Vip);
         M("reward:manage", Broadcaster);
         M("reward:sync", Broadcaster);
         M("reward:redemption:read", Mod);
         M("reward:redemption:fulfill", Mod);
         M("reward:redemption:refund", Mod);
 
-        // Quotes (quotes.md §5) — reading + curating (add/edit) sit at VIP so a trusted VIP can help build the
-        // quote library; deleting stays Moderator so a VIP can't wipe it. The DELETE route carries quotes:delete,
-        // POST/PUT carry quotes:write.
-        M("quotes:read", Vip);
-        M("quotes:write", Vip);
+        // Quotes (quotes.md §5) — reading + curating (add/edit) DEFAULT to Moderator but the broadcaster MAY
+        // lower them to Vip (floor Vip) so a trusted VIP can help build the quote library. Deleting is
+        // low-but-real data loss, so quotes:delete stays Moderator with a Moderator FLOOR — it can never be
+        // lowered to VIP. The DELETE route carries quotes:delete; POST/PUT carry quotes:write.
+        MFloor("quotes:read", Mod, Vip);
+        MFloor("quotes:write", Mod, Vip);
         M("quotes:delete", Mod);
 
         // Custom data sources (custom-events.md §5) — the pipeline-facing external data feeds (HypeRate,
@@ -314,8 +347,9 @@ public sealed class ActionDefinitionSeeder : ISeeder
         M("customdata:write", Editor);
 
         // Sound clips (sound-system.md §5) — audio clip library for pipeline SendSound actions. Read
-        // (including preview playback, non-mutating) at Moderator, write (upload/update/delete) at Editor.
-        M("sounds:read", Vip);
+        // (including preview playback, non-mutating) DEFAULTS to Moderator, floor Vip (broadcaster may open it
+        // to a VIP); write (upload/update/delete) at Editor.
+        MFloor("sounds:read", Mod, Vip);
         M("sounds:write", Editor);
 
         // ── Community plane (Default = Floor = Everyone(0), Tier = Low, Grant = true) ──

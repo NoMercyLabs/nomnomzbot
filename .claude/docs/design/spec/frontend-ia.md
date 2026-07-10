@@ -84,9 +84,17 @@ The main shell is one persistent frame around the content `NavHost` (`frontend.m
 
 Twenty-one content pages in the approved **Feature/Setup** IA: eight daily-driver FEATURE groups (top,
 scrolling) and one pinned **SETUP** owner group (bottom, divider-separated, labelled). Each row: the §5
-`Route`, the **read floor** (minimum `ManagementRole` to see/open the page) and the **manage floor**
-(minimum to mutate within it), and the owning backend spec. "—" manage floor = read-only page. The single
-source is `ShellNav.pages`; this table is its ratified mirror.
+`Route`, the **default read floor** (the built-in minimum standing to see/open the page) and the **default
+manage floor** (the built-in minimum to mutate within it), and the owning backend spec. "—" manage floor =
+read-only page. The single source is `ShellNav.pages`; this table is its ratified mirror.
+
+**Floors are DEFAULTS, not the effective gate (see §7).** The read/manage floors below are the actions'
+*built-in* required levels. A broadcaster may **lower** a safe action's required level (per-action override,
+`roles-permissions.md` §4: effective = `clamp(override ?? default, floor, Broadcaster)`), so the level that
+actually gates a page for a given caller is the **effective** one. The shell therefore gates on the caller's
+resolved **held-capability set** — the action keys they clear on this channel after overrides — surfaced by
+the unfloored `/effective/me` self-introspection (§7), never on the raw default columns alone. Out of the box
+(no override) these defaults ARE the effective gate, so a plain viewer/VIP still clears no management page.
 
 ### FEATURE — daily-driver workspaces (top)
 
@@ -177,8 +185,17 @@ Plane-A `CommunityStanding` rather than a management role (`ParticipantNav`). Th
 | **Me** | Everyone | the caller's own data: pronouns, activity summary, participation footprint |
 
 Progressive unlocks (a sub-only lane, sub leaderboards, higher pending limits) are decided **on the page**
-from the caller's standing — never by hiding the whole page. `ShellNav.visiblePagesFor(null)` returns no
-management pages, and the shell routes a null role here instead.
+from the caller's standing — never by hiding the whole page.
+
+**Effective-level surfacing (broadcaster-lowered pages).** The participant rung is the default for a caller
+who holds **no** management-page capability — out of the box a VIP/sub clears no management page (the §3
+defaults floor at `Moderator`), so nothing management leaks. But when the broadcaster **lowers** a management
+page's action to a level the caller's standing clears (e.g. drops `quotes:read`/`quotes:write` to `Vip` —
+both seed with a `Vip` floor), that caller now holds that page's read capability, so the page **surfaces to
+them** and its read works — the lowering has a visible effect. The rung fork is therefore on the caller's **effective held-capabilities**, not on holding a
+`ManagementRole`: the shell renders the management rung when the caller can reach **≥1** management page
+(showing exactly the pages they hold), else the participant rung. A caller with a real `ManagementRole`
+(Moderator+/Editor/Broadcaster) is unchanged — they hold every page at/below their level, exactly as today.
 
 ---
 
@@ -244,20 +261,35 @@ Plane-C gate, so "Switch to Admin" never appears).
 
 ## 7. Role-gated visibility (Plane B)
 
-One rule, applied everywhere: **resolve the caller's `ManagementRole` once per active channel; gate nav and
-actions off it.** Mechanics:
+One rule, applied everywhere: **resolve the caller's effective access once per active channel; gate nav and
+actions off the capabilities it grants — not off the raw `ManagementRole` alone.** The resolver folds the
+three planes (community standing, management role, permits) AND the broadcaster's per-action overrides into
+one answer, so a lowered action reaches the UI. Mechanics:
 
-- **Page visibility** — a sidebar item renders only if the caller's role ≥ the page's **read floor** (§3). A
-  `Moderator` sees the full shell except the Broadcaster-floored Setup pages (Integrations, Roles & Permits)
-  and the Broadcaster-only Settings tabs. A `Moderator` now SEES Discord (read floor lowered to Moderator) but
-  cannot mutate it (manage floor SuperMod).
+- **Effective, not default.** Every page/action floor in §3 is a **default**. The binding gate is the
+  action's **effective** required level = `clamp(override ?? default, floor, Broadcaster)`
+  (`roles-permissions.md` §4). A caller "holds" a page/action when their resolved level clears its effective
+  level OR they hold a direct permit for it. Out of the box (no override) the defaults ARE the effective
+  levels, so behaviour is identical to a pure `ManagementRole` gate until a broadcaster lowers something.
+- **Page visibility** — a sidebar item renders only if the caller **holds** that page (its read capability,
+  effective). A `Moderator` sees the full shell except the Broadcaster-floored Setup pages (Integrations,
+  Roles & Permits) and the Broadcaster-only Settings tabs; a `Moderator` SEES Discord (read floor Moderator)
+  but cannot mutate it (manage floor SuperMod). A role-less VIP normally holds **no** management page (→
+  participant rung, §3a); if the broadcaster lowers a page's action to the VIP's standing, that page — and
+  only that page — surfaces to them.
 - **Action gating** — within a visible page, mutating controls are **disabled with a reason tooltip** (not
-  hidden) when the caller is below the **manage floor** — so a Mod browsing Commands sees the list but the
-  "New command" button is disabled ("Requires Editor"). Visibility-hide for *pages*, disable-with-reason for
-  *actions* — consistent, never silent.
-- **Source of truth** — the floor check reads the caller's role from the `SessionStore`/channel-membership
-  surface; the backend re-checks on every write (the frontend gate is UX, never the security boundary —
-  `roles-permissions.md` enforces server-side).
+  hidden) when the caller does not hold that action's **effective** manage capability — so a Mod browsing
+  Commands sees the list but the "New command" button is disabled ("Requires Editor"). A page may carry
+  **several action keys at different floors**: e.g. Quotes gates add/edit on `quotes:write` (Editor by
+  default, **broadcaster-lowerable**) but delete on `quotes:delete` (Moderator, a moderation-grade floor), so
+  a caller granted quote-editing via a lowered `quotes:write` still cannot delete. Visibility-hide for
+  *pages*, disable-with-reason for *actions* — consistent, never silent.
+- **Source of truth** — the gate reads the caller's **resolved held-capability set** for the active channel
+  from the unfloored `/effective/me` self-introspection (the same envelope that already carries the caller's
+  `effectiveLevel` and permit capabilities). It lists the action keys the caller clears **after** overrides,
+  so the frontend never has to fetch — nor is it allowed to, that matrix is `roles:read`/Moderator+ — the
+  channel-wide override table to gate a participant. The backend re-checks every write (the frontend gate is
+  UX, never the security boundary — `roles-permissions.md` enforces server-side).
 - **Break-glass admins** — a Plane-C principal who entered via `tenant:access` operates at an effective
   `Broadcaster` floor; the active-channel chip shows a "platform access" marker so the context is never
   ambiguous.
@@ -279,10 +311,11 @@ All settled and binding:
   action-permission matrix + permits.
 - **The single-item Automation group is dropped**; Pipelines folds into the Chat workspace.
 - **Feature pages carry no wire-up controls** — provider/credential setup lives in the Setup group.
-- **One shell, three rungs** — participant (Rung 0, §3a, gated by Plane-A standing) / Mod / Broadcaster; the
-  streamer and delegated managers share the management rungs, gated per `ManagementRole` (hide pages below the
-  read floor, disable-with-reason for actions below the manage floor); a null role routes to the participant
-  surface, never a dead-end.
+- **One shell, three rungs** — participant (Rung 0, §3a) / Mod / Broadcaster; the streamer and delegated
+  managers share the management rungs, gated on the caller's **effective held-capabilities** (§7) — hide a
+  page the caller does not hold, disable-with-reason for actions the caller cannot manage. Defaults floor at
+  `ManagementRole`, but a broadcaster-lowered action surfaces its page to the eligible standing; a caller who
+  holds no management page routes to the participant surface, never a dead-end.
 - **One app, gated Admin graph** for Plane-C — same client, same design system, reached via the profile menu,
   never shown to self-host or sub-Plane-C principals.
 - **Stream live-ops are Dashboard quick-actions**, not a standalone page.

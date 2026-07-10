@@ -436,26 +436,27 @@ else
 
 These are the `[GLOBAL, seed]` rows the `DataSeeder` writes (idempotent upsert by natural key) for `ActionDefinitions` (B.3), `IamPermissions` (C.1), `IamRoles` (C.2), and `IamRolePermissions` (C.3). Without them Gate 2 fails closed (403) on every gated route. Columns follow the schema: an `ActionDefinition` is `ActionKey` · `Plane` (`AuthPlane{Community,Management}`) · `DefaultLevel` · `FloorLevel` · `FloorTier` (`DangerTier{Critical,Tos,Low}`) · `IsGrantableViaPermit`. Level values: `Everyone(0)`, `Subscriber(2)`, `Vip(4)`, `Artist(6)`, `Moderator(10)`, `SuperMod(20)`, `Editor(30)`, `Broadcaster(40)`.
 
-**Rule:** `DefaultLevel = FloorLevel` for every row **except where noted**; a broadcaster may **raise** the required level via `ChannelActionOverride` but never below `FloorLevel`, and Critical-tier rows are not lowerable at all. The per-spec §5 controller tables are the **source** of these rows and must stay in sync — a §5 cell whose action key is absent here is a seed bug.
+**Rule:** unless a row shows an explicit `Default X, Floor Y`, `DefaultLevel = FloorLevel`. `DefaultLevel` is the **out-of-the-box** required level — the action's Twitch base role — so a lower-standing viewer (e.g. a VIP or Sub) gets **nothing extra by default**. `FloorLevel` is the **lowest a broadcaster may set** via `ChannelActionOverride`: the override is clamped to `[FloorLevel, Broadcaster(40)]`, so a broadcaster may **raise** an action as high as Broadcaster **or lower** it as far as its floor — never below `FloorLevel`, and Critical-tier rows are not lowerable at all. A floor sits **below** the default only where abusing the action **cannot cause irreversible or serious harm** — non-destructive reads and reversible, non-destructive writes — so the broadcaster can *choose* to open them to a trusted VIP/Sub. Destructive, irreversible, Twitch-mutating, currency, or role/IAM actions keep `Floor = Default` at Moderator+ (or Broadcaster/Critical) and can never be lowered to VIP. The per-spec §5 controller tables are the **source** of these rows and must stay in sync — a §5 cell whose action key is absent here is a seed bug.
 
 ### ActionDefinitions — Management plane
-`Plane = Management`; `DefaultLevel = FloorLevel`, `Tier = Low`, and `Grant = true` unless noted.
+`Plane = Management`; `DefaultLevel = FloorLevel`, `Tier = Low`, and `Grant = true` unless noted. A `Default X, Floor Y` cell marks a **broadcaster-lowerable** action: it defaults to `X` (its base role) but the broadcaster may lower the requirement as far as `Y`.
 
 | ActionKey | Floor | Tier | Grant |
 |---|---|---|---|
-| commands:read | Moderator(10) | Low | true |
+| commands:read | **Default Moderator(10), Floor Vip(4)** | Low | true |
 | commands:write | Editor(30) | Low | true |
-| commands:builtin:read | Moderator(10) | Low | true |
+| commands:builtin:read | **Default Moderator(10), Floor Vip(4)** | Low | true |
 | commands:builtin:write | Editor(30) | Low | true |
-| pipelines:read | Moderator(10) | Low | true |
+| pipelines:read | **Default Moderator(10), Floor Vip(4)** | Low | true |
 | pipelines:write | Editor(30) | Low | true |
-| pipelines:validate | Moderator(10) | Low | true |
-| eventresponses:read | Moderator(10) | Low | true |
+| pipelines:validate | **Default Moderator(10), Floor Vip(4)** | Low | true |
+| eventresponses:read | **Default Moderator(10), Floor Vip(4)** | Low | true |
 | eventresponses:write | Editor(30) | Low | true |
-| timers:read | Moderator(10) | Low | true |
+| timers:read | **Default Moderator(10), Floor Vip(4)** | Low | true |
 | timers:write | Editor(30) | Low | true |
-| quotes:read | Moderator(10) | Low | true |
-| quotes:write | Moderator(10) | Low | true |
+| quotes:read | **Default Moderator(10), Floor Vip(4)** | Low | true |
+| quotes:write | **Default Moderator(10), Floor Vip(4)** | Low | true |
+| quotes:delete | Moderator(10) | Low | true |
 | giveaways:read | Moderator(10) | Low | true |
 | giveaways:write | Moderator(10) | Low | true |
 | giveaways:codes:write | Broadcaster(40) | Critical | false |
@@ -501,9 +502,9 @@ These are the `[GLOBAL, seed]` rows the `DataSeeder` writes (idempotent upsert b
 | moderation:report:triage | SuperMod(20) | Low | true |
 | moderation:evidence:build | Moderator(10) | Low | true |
 | moderation:usercontext:read | Moderator(10) | Low | true |
-| tts:config:read | Moderator(10) | Low | true |
+| tts:config:read | **Default Moderator(10), Floor Vip(4)** | Low | true |
 | tts:config:write | Editor(30) | Low | true |
-| tts:voice:read | Moderator(10) | Low | true |
+| tts:voice:read | **Default Moderator(10), Floor Vip(4)** | Low | true |
 | tts:voice:test | Moderator(10) | Low | true |
 | tts:uservoice:write | Moderator(10) | Low | true |
 | tts:queue:review | Moderator(10) | Low | true |
@@ -511,6 +512,7 @@ These are the `[GLOBAL, seed]` rows the `DataSeeder` writes (idempotent upsert b
 | eventsub:subscribe | Editor(30) | Low | true |
 | eventsub:unsubscribe | Editor(30) | Low | true |
 | twitch:diagnostics:read | Moderator(10) | Low | true |
+| music:config:read | **Default Moderator(10), Floor Vip(4)** | Low | true |
 | music:config:write | Editor(30) | Low | true |
 | music:queue:moderate | Moderator(10) | Low | true |
 | music:token:read | Editor(30) | Low | true |
@@ -518,8 +520,9 @@ These are the `[GLOBAL, seed]` rows the `DataSeeder` writes (idempotent upsert b
 | media:read | Moderator(10) | Low | true |
 | media:moderate | Moderator(10) | Low | true |
 | media:write | Editor(30) | Low | true |
-| sounds:read | Moderator(10) | Low | true |
+| sounds:read | **Default Moderator(10), Floor Vip(4)** | Low | true |
 | sounds:write | Editor(30) | Low | true |
+| stream:read | **Default Moderator(10), Floor Vip(4)** | Low | true |
 | stream:preset:write | Editor(30) | Low | true |
 | stream:schedule:write | Editor(30) | Low | true |
 | obs:control | Moderator(10) | Low | true |
@@ -541,7 +544,7 @@ These are the `[GLOBAL, seed]` rows the `DataSeeder` writes (idempotent upsert b
 | supporters:config:write | Broadcaster(40) | Critical | false |
 | automation:tokens:read | Editor(30) | Low | true |
 | automation:tokens:write | Broadcaster(40) | Critical | false |
-| widget:read | Moderator(10) | Low | true |
+| widget:read | **Default Moderator(10), Floor Vip(4)** | Low | true |
 | widget:write | Editor(30) | Low | true |
 | eventstore:journal:read | Broadcaster(40) | Low | true |
 | eventstore:projection:read | Moderator(10) | Low | true |
@@ -564,7 +567,7 @@ These are the `[GLOBAL, seed]` rows the `DataSeeder` writes (idempotent upsert b
 | economy:leaderboards:config:read | Moderator(10) | Low | true |
 | economy:leaderboards:config:write | Editor(30) | Low | true |
 | economy:leaderboards:config:delete | Editor(30) | Low | true |
-| reward:read | Moderator(10) | Low | true |
+| reward:read | **Default Moderator(10), Floor Vip(4)** | Low | true |
 | reward:manage | Broadcaster(40) | Low | true |
 | reward:sync | Broadcaster(40) | Low | true |
 | reward:redemption:read | Moderator(10) | Low | true |
@@ -580,7 +583,9 @@ These are the `[GLOBAL, seed]` rows the `DataSeeder` writes (idempotent upsert b
 | channelbot:disconnect | Broadcaster(40) | Low | false |
 | community:read | Moderator(10) | Low | true |
 | community:trust:write | Moderator(10) | Low | true |
-| dashboard:read | Moderator(10) | Low | true |
+| dashboard:read | **Default Moderator(10), Floor Vip(4)** | Low | true |
+| chat:read | **Default Moderator(10), Floor Vip(4)** | Low | true |
+| chat:send | Moderator(10) | Low | true |
 | feature:read | Moderator(10) | Low | true |
 | feature:write | Editor(30) | Low | true |
 | liveops:poll:read | Moderator(10) | Low | true |

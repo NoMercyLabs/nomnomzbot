@@ -156,4 +156,54 @@ public sealed class ActionDefinitionSeederTests
             .Be(10, "the catalogue is authoritative and corrects a drifted floor on re-seed");
         corrected.DefaultLevel.Should().Be(10);
     }
+
+    [Theory]
+    [InlineData("commands:read")]
+    [InlineData("commands:builtin:read")]
+    [InlineData("pipelines:read")]
+    [InlineData("pipelines:validate")]
+    [InlineData("eventresponses:read")]
+    [InlineData("timers:read")]
+    [InlineData("quotes:read")]
+    [InlineData("quotes:write")]
+    [InlineData("sounds:read")]
+    [InlineData("reward:read")]
+    [InlineData("music:config:read")]
+    [InlineData("tts:config:read")]
+    [InlineData("tts:voice:read")]
+    [InlineData("stream:read")]
+    [InlineData("widget:read")]
+    [InlineData("chat:read")]
+    [InlineData("dashboard:read")]
+    public async Task Seeds_a_broadcaster_lowerable_action_at_default_moderator_and_floor_vip(
+        string key
+    )
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        await SeedAsync(db);
+
+        ActionDefinition row = await db.ActionDefinitions.SingleAsync(a => a.ActionKey == key);
+        // Corrected model: the action DEFAULTS to the Twitch base (Moderator 10) — a VIP gets nothing extra out
+        // of the box — but its floor is Vip(4), the lowest the broadcaster MAY lower it to. Default ≠ floor.
+        row.Plane.Should().Be(AuthPlane.Management);
+        row.DefaultLevel.Should().Be(10, "the default stays at the Moderator base — not lowered");
+        row.FloorLevel.Should().Be(4, "the broadcaster may lower it as far as the Vip(4) floor");
+        row.FloorTier.Should().Be(DangerTier.Low);
+    }
+
+    [Fact]
+    public async Task Seeds_quotes_delete_at_default_moderator_and_floor_moderator()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        await SeedAsync(db);
+
+        ActionDefinition row = await db.ActionDefinitions.SingleAsync(a =>
+            a.ActionKey == "quotes:delete"
+        );
+        // Deleting a quote is low-but-real data loss: the broadcaster may open add/edit (quotes:write) to a VIP,
+        // but delete stays Moderator with a Moderator FLOOR — it can never be lowered to VIP.
+        row.Plane.Should().Be(AuthPlane.Management);
+        row.DefaultLevel.Should().Be(10);
+        row.FloorLevel.Should().Be(10, "delete stays Moderator — never lowerable to VIP");
+    }
 }
