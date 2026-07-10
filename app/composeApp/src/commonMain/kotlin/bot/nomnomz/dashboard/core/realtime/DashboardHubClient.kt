@@ -87,8 +87,18 @@ class DashboardHubClient {
      *
      * [tokenProvider] is read on EVERY (re)connect, never captured once: the REST layer rotates the JWT on a
      * 401, so a reconnect must send the CURRENT token or the socket strands on a stale one and every retry 401s.
+     *
+     * [refreshToken] refreshes the JWT (POST /auth/refresh) and returns true when a fresh one was stored. A raw
+     * WebSocket has no HTTP interceptor, so when the SignalR handshake 401s on an expired token — the common case
+     * for an idle chat page where no REST call has fired to refresh — the client would otherwise 401-storm the
+     * handshake forever. We call it before each retry that failed to establish, so an expired token self-heals.
      */
-    fun connect(baseUrl: String, tokenProvider: () -> String?, channelId: String) {
+    fun connect(
+        baseUrl: String,
+        tokenProvider: () -> String?,
+        channelId: String,
+        refreshToken: (suspend () -> Boolean)? = null,
+    ) {
         if (connectJob?.isActive == true && currentChannelId == channelId) return
         connectJob?.cancel()
         currentChannelId = channelId
@@ -96,11 +106,22 @@ class DashboardHubClient {
             scope.launch {
                 var backoffMs: Long = 1_000
                 while (true) {
+                    var established = false
                     // Reset the back-off once a session actually establishes, so a long-lived socket that later
                     // drops reconnects promptly instead of inheriting a grown delay from an earlier failure run.
-                    runCatching { openSession(baseUrl, tokenProvider, channelId) { backoffMs = 1_000 } }
+                    runCatching {
+                            openSession(baseUrl, tokenProvider, channelId) {
+                                established = true
+                                backoffMs = 1_000
+                            }
+                        }
                         .onFailure { /* log if needed */ }
                     isConnected = false
+                    // The session never completed the handshake this attempt — overwhelmingly an expired/absent
+                    // JWT (a 401 upgrade). Refresh the token before the next attempt so an idle session recovers
+                    // on the next reconnect instead of 401-storming. A network failure also trips this; the
+                    // refresh is a cheap idempotent no-op there (it just fails and we retry on back-off anyway).
+                    if (!established) refreshToken?.invoke()
                     // Reconnect loop — honour back-off so we don't spam the server on flaky networks.
                     delay(backoffMs)
                     backoffMs = (backoffMs * 2).coerceAtMost(30_000)

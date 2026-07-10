@@ -214,6 +214,26 @@ fun ShellScreen(
     // participant early-return so it runs regardless of role; App re-resolves access on every activeChannelId change.
     LaunchedEffect(Unit) { graph.channelSwitcherController.load() }
 
+    // Keep the dashboard hub connected to the ACTIVE channel for the WHOLE session, for EVERY rung. Kept ABOVE
+    // the mid-switch guard and the participant fork below: those `return` before the old connect site, so a
+    // participant — or a caller mid channel-switch — never opened the socket and the chat feed only ever
+    // repopulated on a reload. It (re)connects and rejoins the channel group whenever the active channel resolves
+    // or changes. The token GETTER is passed live (not a snapshot), and [tokenRefresher] lets the socket refresh
+    // an expired JWT itself, so an idle feed self-heals instead of 401-storming the handshake.
+    LaunchedEffect(Unit) {
+        graph.channelSwitcherController.activeChannelId.filterNotNull().collect { channelId ->
+            val url: String? = graph.sessionStore.baseUrl()
+            if (url != null) {
+                graph.dashboardHubClient.connect(
+                    url,
+                    graph.sessionStore::accessToken,
+                    channelId,
+                    graph.tokenRefresher,
+                )
+            }
+        }
+    }
+
     // Mid-switch guard (frontend-ia.md §7 — never over-grant). On a channel switch the resolved [access] still
     // describes the PREVIOUS channel until the new /effective/me probe lands; render a neutral splash for that
     // brief window rather than the old channel's (possibly higher) role. Kept ABOVE the role fork so switching
@@ -279,21 +299,6 @@ fun ShellScreen(
     val selected: ShellRoute = if (requestedRoute in allowedRoutes) requestedRoute else fallbackRoute
     LaunchedEffect(selected) { routeStore.save(selected) }
     LaunchedEffect(routeStore) { routeStore.externalChanges.collect { requestedRoute = it } }
-    // Keep the dashboard hub connected to the ACTIVE channel for the whole session — not as a side effect of the
-    // Home page loading. It (re)connects and rejoins the channel group whenever the active channel resolves or
-    // changes, so every page (the chat feed, alerts, live stats) receives realtime events on a direct load or
-    // after a channel switch — previously the socket was opened only when Home loaded, so chat never updated
-    // when the user landed elsewhere.
-    LaunchedEffect(Unit) {
-        graph.channelSwitcherController.activeChannelId.filterNotNull().collect { channelId ->
-            val url: String? = graph.sessionStore.baseUrl()
-            if (url != null) {
-                // Pass the live token GETTER, not a snapshot: the hub reads the current JWT on every reconnect,
-                // so a REST-driven token refresh doesn't strand the socket on a stale token (a dead chat feed).
-                graph.dashboardHubClient.connect(url, graph.sessionStore::accessToken, channelId)
-            }
-        }
-    }
     // Surface hub signals that affect the whole shell frame regardless of the active page.
     val hubEvents = graph.dashboardHubClient.events
     LaunchedEffect(hubEvents) {

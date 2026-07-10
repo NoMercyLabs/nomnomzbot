@@ -195,19 +195,26 @@ class AppGraph {
 
     val authApi: AuthApi = RestAuthApi(apiClient)
 
+    // Shared JWT refresher: POST /auth/refresh (against the HttpOnly cookie on web, the stored refresh token
+    // on native) and store the new access token; returns true when a fresh token was obtained. Used by BOTH
+    // the REST 401→refresh→retry interceptor AND the SignalR hub client — a raw WebSocket has no HTTP
+    // interceptor, so without a refresher of its own an expired token would 401-storm the handshake forever on
+    // an idle session (no REST call fires to refresh it). One definition, two consumers.
+    val tokenRefresher: suspend () -> Boolean = {
+        when (val result: ApiResult<AuthPayload> = authApi.refresh(null)) {
+            is ApiResult.Ok -> {
+                sessionStore.updateAccessToken(result.value.accessToken)
+                true
+            }
+            is ApiResult.Failure -> false
+        }
+    }
+
     init {
         // Wire the 401→refresh→retry interceptor. ApiClient and AuthApi are both ready at this point.
         // On any 401 (except the refresh endpoint itself), ApiClient silently calls refresh(), stores
         // the new JWT, and retries the original request — so stale-token failures are invisible to callers.
-        apiClient.tokenRefresher = {
-            when (val result: ApiResult<AuthPayload> = authApi.refresh(null)) {
-                is ApiResult.Ok -> {
-                    sessionStore.updateAccessToken(result.value.accessToken)
-                    true
-                }
-                is ApiResult.Failure -> false
-            }
-        }
+        apiClient.tokenRefresher = tokenRefresher
     }
 
     val channelsApi: ChannelsApi = RestChannelsApi(apiClient, sessionStore)
