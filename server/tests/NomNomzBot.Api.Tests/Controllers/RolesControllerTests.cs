@@ -60,7 +60,8 @@ public sealed class RolesControllerTests
             role?.ToLevel() ?? 0,
             null,
             [],
-            level == 0 ? "community" : "management"
+            level == 0 ? "community" : "management",
+            []
         );
 
     [Fact]

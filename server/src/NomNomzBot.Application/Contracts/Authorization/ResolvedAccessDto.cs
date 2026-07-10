@@ -16,6 +16,13 @@ namespace NomNomzBot.Application.Contracts.Authorization;
 /// The full breakdown of a caller's resolved authorization for a channel (roles-permissions §4) — each
 /// plane's contributing level and the winning source — for the permissions UI and debugging.
 /// <c>EffectiveLevel</c> is <c>MAX(CommunityLevel, ManagementLevel, permit-role level)</c>.
+/// <para>
+/// <c>PermitCapabilities</c> are the caller's per-USER capability grants only. <c>HeldActionKeys</c> is the
+/// broader, UI-facing set: EVERY action key in the catalogue the caller actually CLEARS on this channel —
+/// their <c>EffectiveLevel</c> meets the action's channel-effective required level (which FOLDS IN the
+/// broadcaster's <c>ChannelActionOverride</c>, unlike the per-plane level fields), OR they hold a direct
+/// per-user capability grant for it. The dashboard gates page/action visibility on this set.
+/// </para>
 /// </summary>
 public sealed record ResolvedAccessDto(
     Guid UserId,
@@ -27,5 +34,6 @@ public sealed record ResolvedAccessDto(
     int ManagementLevel,
     ManagementRole? PermitRole,
     IReadOnlyList<string> PermitCapabilities,
-    string WinningSource
+    string WinningSource,
+    IReadOnlyList<string> HeldActionKeys
 );

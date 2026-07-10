@@ -28,6 +28,7 @@ public sealed class RoleResolverTests
 {
     private static readonly Guid Channel = Guid.Parse("0192a000-0000-7000-8000-0000000000b1");
     private static readonly Guid User = Guid.Parse("0192a000-0000-7000-8000-0000000000b2");
+    private static readonly Guid Actor = Guid.Parse("0192a000-0000-7000-8000-0000000000b3");
     private static readonly DateTimeOffset Now = new(2026, 6, 21, 12, 0, 0, TimeSpan.Zero);
 
     private static (RoleResolver Sut, AuthDbContext Db) Build()
@@ -36,6 +37,52 @@ public sealed class RoleResolverTests
         RoleResolver sut = new(db, new FakeTimeProvider(Now));
         return (sut, db);
     }
+
+    private static ActionDefinition SeedAction(
+        AuthDbContext db,
+        string key,
+        int defaultLevel,
+        int floor,
+        DangerTier tier = DangerTier.Low
+    )
+    {
+        ActionDefinition action = new()
+        {
+            ActionKey = key,
+            Plane = AuthPlane.Management,
+            DefaultLevel = defaultLevel,
+            FloorLevel = floor,
+            FloorTier = tier,
+            IsGrantableViaPermit = true,
+        };
+        db.ActionDefinitions.Add(action);
+        return action;
+    }
+
+    private static void SeedStanding(AuthDbContext db, CommunityStanding standing) =>
+        db.ChannelCommunityStandings.Add(
+            new ChannelCommunityStanding
+            {
+                BroadcasterId = Channel,
+                UserId = User,
+                Standing = standing,
+                LevelValue = standing.ToLevel(),
+                Source = StandingSource.ChatTags,
+            }
+        );
+
+    private static void SeedModerator(AuthDbContext db) =>
+        db.ChannelMemberships.Add(
+            new ChannelMembership
+            {
+                BroadcasterId = Channel,
+                UserId = User,
+                ManagementRole = ManagementRole.Moderator,
+                LevelValue = ManagementRole.Moderator.ToLevel(),
+                Source = MembershipSource.TwitchBadge,
+                GrantedAt = Now.UtcDateTime,
+            }
+        );
 
     [Fact]
     public async Task ResolveEffectiveLevel_takes_the_MAX_across_all_three_planes()
@@ -280,5 +327,74 @@ public sealed class RoleResolverTests
         await db.SaveChangesAsync();
 
         (await sut.HasCapabilityAsync(User, Channel, "code:script:author")).Value.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ResolveAccess_HeldActionKeys_excludes_a_Moderator_default_action_for_a_bare_Vip()
+    {
+        (RoleResolver sut, AuthDbContext db) = Build();
+        // commands:read defaults to Moderator (10) with a Vip(4) floor; moderation:ban is Moderator-floored (10).
+        SeedAction(db, "commands:read", defaultLevel: 10, floor: 4);
+        SeedAction(db, "moderation:ban", defaultLevel: 10, floor: 10);
+        SeedStanding(db, CommunityStanding.Vip);
+        await db.SaveChangesAsync();
+
+        Result<ResolvedAccessDto> access = await sut.ResolveAccessAsync(User, Channel);
+
+        // A bare VIP (level 4) clears neither: both default to Moderator (10) with no override lowering them.
+        access.IsSuccess.Should().BeTrue();
+        access.Value.EffectiveLevel.Should().Be(CommunityStanding.Vip.ToLevel());
+        access.Value.HeldActionKeys.Should().NotContain("commands:read");
+        access.Value.HeldActionKeys.Should().NotContain("moderation:ban");
+    }
+
+    [Fact]
+    public async Task ResolveAccess_HeldActionKeys_folds_in_a_broadcaster_override_lowering_commands_read_to_Vip()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        FakeTimeProvider clock = new(Now);
+        RoleResolver sut = new(db, clock);
+        ActionAuthorizationService overrides = new(db, sut, new RecordingEventBus(), clock);
+        SeedAction(db, "commands:read", defaultLevel: 10, floor: 4);
+        SeedAction(db, "moderation:ban", defaultLevel: 10, floor: 10);
+        SeedStanding(db, CommunityStanding.Vip);
+        await db.SaveChangesAsync();
+
+        // The broadcaster lowers commands:read to Vip via a ChannelActionOverride.
+        Result<int> stored = await overrides.SetActionOverrideAsync(
+            Channel,
+            "commands:read",
+            CommunityStanding.Vip.ToLevel(),
+            Actor
+        );
+        stored.IsSuccess.Should().BeTrue();
+
+        Result<ResolvedAccessDto> access = await sut.ResolveAccessAsync(User, Channel);
+
+        // The same VIP now CLEARS commands:read (override folded in) but still not the Moderator-floored ban —
+        // an override can never drop a Moderator-floored destructive action onto a VIP.
+        access.Value.HeldActionKeys.Should().Contain("commands:read");
+        access.Value.HeldActionKeys.Should().NotContain("moderation:ban");
+    }
+
+    [Fact]
+    public async Task ResolveAccess_HeldActionKeys_for_a_Moderator_holds_every_Moderator_floored_key()
+    {
+        (RoleResolver sut, AuthDbContext db) = Build();
+        SeedAction(db, "commands:read", defaultLevel: 10, floor: 4);
+        SeedAction(db, "moderation:ban", defaultLevel: 10, floor: 10);
+        SeedAction(db, "moderation:read", defaultLevel: 10, floor: 10);
+        // A Broadcaster/Critical action the Moderator must NOT clear.
+        SeedAction(db, "roles:manage", defaultLevel: 40, floor: 40, tier: DangerTier.Critical);
+        SeedModerator(db);
+        await db.SaveChangesAsync();
+
+        Result<ResolvedAccessDto> access = await sut.ResolveAccessAsync(User, Channel);
+
+        access.Value.EffectiveLevel.Should().Be(ManagementRole.Moderator.ToLevel());
+        access
+            .Value.HeldActionKeys.Should()
+            .Contain(["commands:read", "moderation:ban", "moderation:read"]);
+        access.Value.HeldActionKeys.Should().NotContain("roles:manage");
     }
 }

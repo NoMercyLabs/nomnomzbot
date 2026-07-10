@@ -101,7 +101,7 @@ public sealed class ActionAuthorizationService(
             .. actions.Select(a =>
             {
                 int? ov = overrides.TryGetValue(a.Id, out int v) ? v : null;
-                int effective = Math.Clamp(ov ?? a.DefaultLevel, a.FloorLevel, BroadcasterLevel);
+                int effective = ActionLevelPolicy.EffectiveRequiredLevel(a, ov);
                 return new ActionPermissionDto(
                     a.Id,
                     a.ActionKey,
@@ -239,10 +239,6 @@ public sealed class ActionAuthorizationService(
     )
     {
         ChannelActionOverride? ov = await FindOverrideAsync(broadcasterId, action.Id, ct);
-        return Math.Clamp(
-            ov?.OverrideLevel ?? action.DefaultLevel,
-            action.FloorLevel,
-            BroadcasterLevel
-        );
+        return ActionLevelPolicy.EffectiveRequiredLevel(action, ov?.OverrideLevel);
     }
 }

@@ -6980,7 +6980,7 @@
         "tags": [
           "Channel Bot"
         ],
-        "summary": "Returns OAuth scopes status for the broadcaster token on this channel.",
+        "summary": "Returns the white-label bot account's chat-permission status for this channel — the signal behind the\r\ndashboard's bot \"action required\" prompt. Reads the dedicated bot connection (`twitch_bot`, written\r\nby the bot OAuth flow), falling back to the streamer's own `twitch` connection for the self-host case\r\nwhere the bot chats as the streamer's own account until a custom bot is registered. Only the required\r\nscopes gate completion, so once the bot grant lands the prompt clears (100%).",
         "parameters": [
           {
             "name": "channelId",
@@ -31802,6 +31802,16 @@
                 }
               }
             }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfResolvedAccessDto"
+                }
+              }
+            }
           }
         }
       }
@@ -31897,6 +31907,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfResolvedAccessDto"
                 }
               }
             }
@@ -41486,6 +41506,9 @@
         },
         "description": "Lightweight command info for list views — includes the response text and pipeline id so the edit\r\n            form can pre-fill without a separate detail fetch."
       },
+      "CommunityStanding": {
+        "type": "integer"
+      },
       "CommunityStatsDto": {
         "required": [
           "followers",
@@ -47782,6 +47805,97 @@
           }
         }
       },
+      "ResolvedAccessDto": {
+        "required": [
+          "userId",
+          "broadcasterId",
+          "effectiveLevel",
+          "communityStanding",
+          "communityLevel",
+          "managementRole",
+          "managementLevel",
+          "permitRole",
+          "permitCapabilities",
+          "winningSource",
+          "heldActionKeys"
+        ],
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
+          },
+          "broadcasterId": {
+            "type": "string",
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
+          },
+          "effectiveLevel": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "communityStanding": {
+            "$ref": "#/components/schemas/CommunityStanding"
+          },
+          "communityLevel": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "managementRole": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ManagementRole"
+              }
+            ]
+          },
+          "managementLevel": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "permitRole": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ManagementRole"
+              }
+            ]
+          },
+          "permitCapabilities": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "winningSource": {
+            "type": "string"
+          },
+          "heldActionKeys": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "description": "The full breakdown of a caller's resolved authorization for a channel (roles-permissions §4) — each\r\nplane's contributing level and the winning source — for the permissions UI and debugging.\r\n`EffectiveLevel` is `MAX(CommunityLevel, ManagementLevel, permit-role level)`.\r\nPermitCapabilities are the caller's per-USER capability grants only. HeldActionKeys is the\r\nbroader, UI-facing set: EVERY action key in the catalogue the caller actually CLEARS on this channel —\r\ntheir EffectiveLevel meets the action's channel-effective required level (which FOLDS IN the\r\nbroadcaster's ChannelActionOverride, unlike the per-plane level fields), OR they hold a direct\r\nper-user capability grant for it. The dashboard gates page/action visibility on this set."
+      },
       "RevokeFederationPeerRequest": {
         "required": [
           "reason",
@@ -50921,6 +51035,36 @@
               },
               {
                 "$ref": "#/components/schemas/RedeemInviteCodeResultDto"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
+      "StatusResponseDtoOfResolvedAccessDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ResolvedAccessDto"
               }
             ]
           },

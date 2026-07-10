@@ -113,6 +113,7 @@ public class RolesController(
     /// participation-only surface), which a <c>roles:read</c> (Moderator) floor would forbid.
     /// </summary>
     [HttpGet("effective/me")]
+    [ProducesResponseType<StatusResponseDto<ResolvedAccessDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> EffectiveMe(string channelId, CancellationToken ct)
     {
         if (!Guid.TryParse(channelId, out Guid broadcasterId))
@@ -129,6 +130,7 @@ public class RolesController(
     /// </summary>
     [HttpGet("effective/{userId:guid}")]
     [RequireAction("roles:read")]
+    [ProducesResponseType<StatusResponseDto<ResolvedAccessDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> Effective(string channelId, Guid userId, CancellationToken ct)
     {
         if (!Guid.TryParse(channelId, out Guid broadcasterId))

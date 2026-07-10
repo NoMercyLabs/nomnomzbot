@@ -43,6 +43,11 @@ public sealed class RoleResolver(IApplicationDbContext db, TimeProvider clock) :
     )
     {
         AccessFacts facts = await LoadFactsAsync(userId, broadcasterId, cancellationToken);
+        IReadOnlyList<string> heldActionKeys = await ComputeHeldActionKeysAsync(
+            broadcasterId,
+            facts,
+            cancellationToken
+        );
         return Result.Success(
             new ResolvedAccessDto(
                 userId,
@@ -54,7 +59,8 @@ public sealed class RoleResolver(IApplicationDbContext db, TimeProvider clock) :
                 facts.ManagementLevel,
                 facts.PermitRole,
                 facts.PermitCapabilities,
-                facts.WinningSource
+                facts.WinningSource,
+                heldActionKeys
             )
         );
     }
@@ -200,8 +206,42 @@ public sealed class RoleResolver(IApplicationDbContext db, TimeProvider clock) :
             .Select(o => (int?)o.OverrideLevel)
             .FirstOrDefaultAsync(ct);
 
-        int desired = overrideLevel ?? action.DefaultLevel;
-        return Math.Clamp(desired, action.FloorLevel, BroadcasterLevel);
+        return ActionLevelPolicy.EffectiveRequiredLevel(action, overrideLevel);
+    }
+
+    /// <summary>
+    /// Every action key in the catalogue this caller CLEARS on this channel — the same allow rule as
+    /// <see cref="HasCapabilityAsync"/>, evaluated across the whole catalogue: their <see cref="AccessFacts.EffectiveLevel"/>
+    /// meets the action's channel-effective required level (FOLDING IN the broadcaster's override), OR they hold
+    /// a direct per-user capability grant for it. Loads the catalogue + the channel's overrides ONCE, then a
+    /// MAX/compare per action in memory — no per-action round-trip.
+    /// </summary>
+    private async Task<IReadOnlyList<string>> ComputeHeldActionKeysAsync(
+        Guid broadcasterId,
+        AccessFacts facts,
+        CancellationToken ct
+    )
+    {
+        List<ActionDefinition> actions = await db.ActionDefinitions.ToListAsync(ct);
+        Dictionary<Guid, int> overrides = await db
+            .ChannelActionOverrides.Where(o =>
+                o.BroadcasterId == broadcasterId && o.DeletedAt == null
+            )
+            .ToDictionaryAsync(o => o.ActionDefinitionId, o => o.OverrideLevel, ct);
+        HashSet<string> directGrants = new(facts.PermitCapabilities, StringComparer.Ordinal);
+
+        List<string> held = [];
+        foreach (ActionDefinition action in actions)
+        {
+            int? overrideLevel = overrides.TryGetValue(action.Id, out int level)
+                ? level
+                : (int?)null;
+            int required = ActionLevelPolicy.EffectiveRequiredLevel(action, overrideLevel);
+            if (facts.EffectiveLevel >= required || directGrants.Contains(action.ActionKey))
+                held.Add(action.ActionKey);
+        }
+        held.Sort(StringComparer.Ordinal);
+        return held;
     }
 
     private sealed record AccessFacts(
