@@ -39,6 +39,7 @@ class ApiContractTest {
     private val contracts: List<Pair<KSerializer<*>, String>> =
         listOf(
             BotStatus.serializer() to "BotStatusDto",
+            LoginProvider.serializer() to "LoginProviderDto",
             CurrentUser.serializer() to "CurrentUserDto",
             DashboardStats.serializer() to "DashboardStatsDto",
             DeviceCodeStart.serializer() to "DeviceCodeStartDto",

@@ -55,6 +55,11 @@
     <string name="connect_modal_subtitle_youtube">Link YouTube to enable the YouTube music provider.</string>
     <string name="connect_cta_youtube">Continue with YouTube</string>
     <string name="connect_logo_cd_youtube">YouTube logo</string>
+    <string name="connect_cta_kick">Continue with Kick</string>
+    <string name="connect_cta_twitter">Continue with X</string>
+    <string name="landing_heading">Your channel, supercharged</string>
+    <string name="landing_subtitle">NomNomzBot runs your commands, timers, moderation, alerts, music, and more — one dashboard for your whole stream.</string>
+    <string name="landing_get_started">Get started</string>
     <string name="language_label">Language</string>
     <string name="language_system_default">System default</string>
     <string name="setup_title">Set up your bot</string>

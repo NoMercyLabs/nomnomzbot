@@ -27,6 +27,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Spinner
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
@@ -37,6 +38,7 @@ import androidx.compose.ui.platform.UriHandler
 import androidx.compose.ui.text.style.TextAlign
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.connection.ConnectionProfile
+import bot.nomnomz.dashboard.core.network.LoginProvider
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -82,8 +84,14 @@ fun ConnectScreen(controller: ConnectController) {
     val baseUrl: String by controller.baseUrl.collectAsStateWithLifecycle()
     val status: ConnectStatus by controller.status.collectAsStateWithLifecycle()
     val discovered: List<ConnectionProfile> by controller.discovered.collectAsStateWithLifecycle()
+    val providers: List<LoginProvider> by controller.providers.collectAsStateWithLifecycle()
     val busy: Boolean =
         status is ConnectStatus.Connecting || status is ConnectStatus.AwaitingApproval
+
+    // Endpoint-driven login: ask the backend which providers to offer (GET /api/v1/auth/providers) on first
+    // composition, so the card renders one button per ENABLED provider instead of a hardcoded Twitch button.
+    // Fail-open in the controller keeps Twitch on the card even if this probe fails.
+    LaunchedEffect(controller) { controller.loadProviders() }
 
     // Browse the LAN only while the Connect screen is on-screen, and only where discovery actually works
     // (desktop) — never on web, where it is a no-op; release the browser on dispose.
@@ -97,12 +105,13 @@ fun ConnectScreen(controller: ConnectController) {
     val awaiting: ConnectStatus.AwaitingApproval? = status as? ConnectStatus.AwaitingApproval
 
     ConnectModal(
+        // The card keeps its Twitch-first branding (backdrop glow + NomNomz × Twitch header) — Twitch is the
+        // primary login. The per-provider CTAs are rendered in the content slot below (one per ENABLED
+        // provider), so the modal's own built-in CTA is suppressed here.
         provider = ConnectProviders.Twitch,
         // First Twitch login → the welcome heading rather than the generic "Link your Twitch account".
         heading = Res.string.connect_modal_heading_first_login,
-        // The brand CTA IS the "Connect with twitch" action; suppressed once a device login is awaiting
-        // approval (the in-card device panel drives it from there) and while a connect is in flight.
-        onCta = if (busy) null else { { scope.launch { controller.connect() } } },
+        onCta = null,
         // First login: no Back (this is the entry point), and the Terms/Privacy footer is shown.
         onBack = null,
         showTerms = true,
@@ -121,6 +130,14 @@ fun ConnectScreen(controller: ConnectController) {
                     verificationUri = awaiting.verificationUri,
                 )
             } else {
+                // One brand CTA per ENABLED provider the backend advertises (Twitch first). The controller
+                // fail-opens to Twitch, so there is always at least the Twitch button — never a blank card.
+                ProviderCtas(
+                    providers = providers,
+                    enabled = !busy,
+                    onConnect = { provider -> scope.launch { controller.connect(provider) } },
+                )
+
                 // Discovery is desktop-only; the web build is single-origin and can't browse, so hide the
                 // whole "found on your network" section there rather than show a forever-"searching" hint.
                 if (controller.discoverySupported) {
@@ -156,6 +173,36 @@ fun ConnectScreen(controller: ConnectController) {
             }
 
             ConnectStatusRow(status = status)
+        }
+    }
+}
+
+// One brand CTA per backend-advertised login provider (Twitch first), each resolved to its brand
+// presentation via [loginProviderCta]; a provider the client has no branding for is simply skipped rather
+// than drawn as an unbranded button. Each is wired to the controller's provider-aware connect.
+@Composable
+private fun ProviderCtas(
+    providers: List<LoginProvider>,
+    enabled: Boolean,
+    onConnect: (LoginProvider) -> Unit,
+) {
+    val spacing = LocalSpacing.current
+    // Twitch first (the primary login), then the rest in the order the backend advertised them.
+    val ordered: List<LoginProvider> = providers.sortedByDescending { it.key == "twitch" }
+
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(spacing.s2),
+    ) {
+        ordered.forEach { provider ->
+            val cta: LoginProviderCta = loginProviderCta(provider.key) ?: return@forEach
+            ProviderBrandCta(
+                brand = cta.brand,
+                logo = cta.logo,
+                label = cta.label,
+                enabled = enabled,
+                onClick = { onConnect(provider) },
+            )
         }
     }
 }

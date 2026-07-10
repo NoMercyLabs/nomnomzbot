@@ -27,6 +27,14 @@ interface ConnectLauncher {
     suspend fun authorizeStreamer(baseUrl: String): ApiResult<SessionTokens>
 
     /**
+     * Run the token-returning LOGIN redirect for a non-Twitch [providerKey] (youtube / kick / twitter)
+     * against [baseUrl] via the generic `/api/v1/auth/{providerKey}/authorize` route. Mirrors
+     * [authorizeStreamer] but targets the generic per-provider path; the same redirect-vs-loopback shapes
+     * apply. Depending on this interface (not the expect/actual [OAuthLauncher]) keeps it fakeable in tests.
+     */
+    suspend fun authorizeProvider(baseUrl: String, providerKey: String): ApiResult<SessionTokens>
+
+    /**
      * Run a token-less connect dance: hand [authorizeUrlFor] the redirect the backend should return to
      * (the desktop loopback; empty on web), open the resulting authorize URL, and resolve when the
      * provider returns (desktop) — the token is vaulted server-side, so only a success/error is surfaced.
@@ -40,6 +48,11 @@ interface ConnectLauncher {
 class OAuthConnectLauncher(private val launcher: OAuthLauncher) : ConnectLauncher {
     override suspend fun authorizeStreamer(baseUrl: String): ApiResult<SessionTokens> =
         launcher.authorize(baseUrl, OAuthFlow.Streamer)
+
+    override suspend fun authorizeProvider(
+        baseUrl: String,
+        providerKey: String,
+    ): ApiResult<SessionTokens> = launcher.authorizeProvider(baseUrl, providerKey)
 
     override suspend fun awaitConnect(
         authorizeUrlFor: suspend (redirect: String) -> ApiResult<String>

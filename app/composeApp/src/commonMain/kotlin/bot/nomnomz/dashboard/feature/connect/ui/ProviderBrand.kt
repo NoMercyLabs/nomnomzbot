@@ -45,10 +45,12 @@ data class ProviderBrandColors(
  *   - Spotify `#1DB954`  (Spotify green, BLACK foreground per brand contrast)
  *   - Discord `#5865F2`  (Discord blurple, white foreground)
  *   - YouTube `#FF0000`  (YouTube red, white foreground)
+ *   - Kick    `#53FC18`  (Kick green, BLACK foreground — bright green needs a dark on-colour, like Spotify)
+ *   - X       inverted   (see below — X's mark is monochrome black/white, so it can't carry a fixed hue)
  */
 object ProviderBrand {
-    /** Foreground that reads on the bright Spotify green — Spotify's brand pairs green with black. */
-    private val SpotifyOnBrand: Color = Color(0xFF000000)
+    /** Foreground that reads on a bright brand surface (Spotify green, Kick green) — black. */
+    private val BlackOnBrand: Color = Color(0xFF000000)
 
     /** Foreground that reads on the darker purple/blurple/red brands — white. */
     private val LightOnBrand: Color = Color(0xFFFFFFFF)
@@ -57,11 +59,23 @@ object ProviderBrand {
         ProviderBrandColors(brand = Color(0xFF9146FF), onBrand = LightOnBrand)
 
     val Spotify: ProviderBrandColors =
-        ProviderBrandColors(brand = Color(0xFF1DB954), onBrand = SpotifyOnBrand)
+        ProviderBrandColors(brand = Color(0xFF1DB954), onBrand = BlackOnBrand)
 
     val Discord: ProviderBrandColors =
         ProviderBrandColors(brand = Color(0xFF5865F2), onBrand = LightOnBrand)
 
     val YouTube: ProviderBrandColors =
         ProviderBrandColors(brand = Color(0xFFFF0000), onBrand = LightOnBrand)
+
+    val Kick: ProviderBrandColors =
+        ProviderBrandColors(brand = Color(0xFF53FC18), onBrand = BlackOnBrand)
+
+    // X (Twitter): the mark is monochrome — black-on-white or white-on-black — so it has no coloured hue to
+    // paint the CTA with. Pure `#000000` as the CTA surface is invisible against the near-black connect
+    // backdrop (and fails WCAG contrast in dark mode), so X uses the INVERTED chip treatment: a WHITE surface
+    // carrying the BLACK X mark, which reads cleanly on the dark card. (A future light theme would want the
+    // opposite inversion; the correct long-term fix is a foreground-token-driven surface, but ProviderBrand
+    // holds raw brand values only — the app currently renders in the dark scheme, where white-on-dark is right.)
+    val X: ProviderBrandColors =
+        ProviderBrandColors(brand = Color(0xFFFFFFFF), onBrand = BlackOnBrand)
 }

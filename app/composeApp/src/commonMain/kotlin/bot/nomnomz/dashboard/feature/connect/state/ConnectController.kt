@@ -25,6 +25,7 @@ import bot.nomnomz.dashboard.core.network.AuthPayload
 import bot.nomnomz.dashboard.core.network.CurrentUser
 import bot.nomnomz.dashboard.core.network.DeviceCodeStart
 import bot.nomnomz.dashboard.core.network.DeviceLoginPoll
+import bot.nomnomz.dashboard.core.network.LoginProvider
 import bot.nomnomz.dashboard.core.network.MissingScopes
 import bot.nomnomz.dashboard.core.network.SystemApi
 import bot.nomnomz.dashboard.core.network.SystemStatus
@@ -74,6 +75,11 @@ class ConnectController(
     // operator hunting a menu — one tap, no logout. Cleared once a reconnect re-establishes the session.
     private val _reauthRequired: MutableStateFlow<Boolean> = MutableStateFlow(false)
 
+    // The ENABLED login providers the backend offers (GET /api/v1/auth/providers). Seeded with a synthetic
+    // Twitch entry so the login screen always offers Twitch — even before [loadProviders] resolves, and even
+    // if that probe fails (fail-open: the screen must never be a blank card).
+    private val _providers: MutableStateFlow<List<LoginProvider>> = MutableStateFlow(listOf(TWITCH_FALLBACK))
+
     // The profile the user is onboarding against, pinned when the flow routes to setup so [signInStreamer]
     // can run the streamer OAuth against the same backend once the wizard finishes.
     private var pendingProfile: ConnectionProfile? = null
@@ -86,6 +92,9 @@ class ConnectController(
 
     /** True when the operator's Twitch token needs re-auth (dead/expired) — the shell auto-shows the reconnect prompt on load. */
     val reauthRequired: StateFlow<Boolean> = _reauthRequired.asStateFlow()
+
+    /** The ENABLED login providers to render one button each for (Twitch always present). Refined by [loadProviders]. */
+    val providers: StateFlow<List<LoginProvider>> = _providers.asStateFlow()
 
     /** The live set of bots mDNS-discovered on the LAN, surfaced as click-to-connect rows (empty on web). */
     val discovered: StateFlow<List<ConnectionProfile>> = lanDiscovery.discovered
@@ -128,6 +137,64 @@ class ConnectController(
                 source = ProfileSource.Manual,
             )
         beginOnboarding(profile, forceDevice)
+    }
+
+    /**
+     * Load the ENABLED login providers the backend offers, so the screen renders one button per provider
+     * (never a dead button). Keeps only `enabled == true`. Fail-open: a probe failure — or a backend that
+     * somehow reports no enabled provider — falls back to the synthetic Twitch entry, so the screen always
+     * offers Twitch. Anonymous; safe to call on first composition before any session exists.
+     */
+    suspend fun loadProviders() {
+        when (val result: ApiResult<List<LoginProvider>> = authApi.providers()) {
+            is ApiResult.Ok -> {
+                val enabled: List<LoginProvider> = result.value.filter { it.enabled }
+                _providers.value = enabled.ifEmpty { listOf(TWITCH_FALLBACK) }
+            }
+
+            is ApiResult.Failure -> _providers.value = listOf(TWITCH_FALLBACK)
+        }
+    }
+
+    /**
+     * Start the login for a specific [provider] chosen from the endpoint-driven button list. Twitch keeps its
+     * full onboarding (readiness probe → redirect or device — [connect]); every other provider runs the
+     * generic per-provider flow: a full-page authorize redirect when it supports an `auth_code`(+PKCE) flow,
+     * otherwise the generic device-code login. [forceDevice] only applies to Twitch (its redirect-vs-device
+     * choice); non-Twitch providers pick their path from the advertised [LoginProvider.flows].
+     */
+    suspend fun connect(provider: LoginProvider, forceDevice: Boolean = false) {
+        if (provider.key == TWITCH_PROVIDER) {
+            connect(forceDevice)
+            return
+        }
+
+        if (loginInProgress()) return
+
+        val normalized: String? = normalizeBaseUrl(_baseUrl.value)
+        if (normalized == null) {
+            _status.value = ConnectStatus.Error(ConnectError.InvalidUrl)
+            return
+        }
+
+        val profile =
+            ConnectionProfile(
+                id = profileIdFactory(),
+                displayName = normalized,
+                baseUrl = normalized,
+                source = ProfileSource.Manual,
+            )
+        _status.value = ConnectStatus.Connecting
+        sessionStore.pin(profile)
+        pendingProfile = profile
+
+        val supportsRedirect: Boolean =
+            provider.flows.any { it == FLOW_AUTH_CODE || it == FLOW_AUTH_CODE_PKCE }
+        if (supportsRedirect) {
+            runProviderOAuth(profile, provider.key)
+        } else {
+            runDeviceLogin(profile, provider = provider.key)
+        }
     }
 
     /**
@@ -240,9 +307,13 @@ class ConnectController(
         _reauthRequired.value = false
     }
 
-    /** Start the device authorization, then poll it to completion (or surface the failure). */
-    private suspend fun runDeviceLogin(profile: ConnectionProfile, keepSession: Boolean = false) {
-        when (val start: ApiResult<DeviceCodeStart> = authApi.startDeviceLogin()) {
+    /** Start the device authorization for [provider], then poll it to completion (or surface the failure). */
+    private suspend fun runDeviceLogin(
+        profile: ConnectionProfile,
+        keepSession: Boolean = false,
+        provider: String = TWITCH_PROVIDER,
+    ) {
+        when (val start: ApiResult<DeviceCodeStart> = authApi.startDeviceLogin(provider)) {
             is ApiResult.Failure -> {
                 // A RECONNECT (keepSession) must NOT drop the operator's still-valid app session on a failed
                 // start — only onboarding rolls back. The error surfaces on [status]; the session stays put.
@@ -253,7 +324,7 @@ class ConnectController(
                 _status.value = ConnectStatus.Error(ConnectError.Auth(start.error.message))
             }
 
-            is ApiResult.Ok -> pollDeviceLogin(profile, start.value)
+            is ApiResult.Ok -> pollDeviceLogin(profile, start.value, provider)
         }
     }
 
@@ -263,7 +334,11 @@ class ConnectController(
      * until the code's deadline so a network blip mid-approval doesn't abort the login. The delay is a
      * coroutine suspend (never a thread block), so the Connect screen stays responsive.
      */
-    private suspend fun pollDeviceLogin(profile: ConnectionProfile, start: DeviceCodeStart) {
+    private suspend fun pollDeviceLogin(
+        profile: ConnectionProfile,
+        start: DeviceCodeStart,
+        provider: String = TWITCH_PROVIDER,
+    ) {
         _status.value = ConnectStatus.AwaitingApproval(start.userCode, start.verificationUri)
 
         var intervalMs: Long = start.interval.toLong().coerceAtLeast(1) * 1_000
@@ -274,7 +349,7 @@ class ConnectController(
             delay(intervalMs)
             elapsedSeconds += (intervalMs / 1_000).toInt()
 
-            when (val poll: ApiResult<DeviceLoginPoll> = authApi.pollDeviceLogin(start.deviceCode)) {
+            when (val poll: ApiResult<DeviceLoginPoll> = authApi.pollDeviceLogin(provider, start.deviceCode)) {
                 is ApiResult.Failure -> {
                     if (elapsedSeconds > deadlineSeconds) {
                         _status.value = ConnectStatus.Error(ConnectError.Auth(poll.error.message))
@@ -335,6 +410,25 @@ class ConnectController(
     /** Run the streamer OAuth dance against [profile] and establish the session on success. */
     private suspend fun runStreamerOAuth(profile: ConnectionProfile): Boolean =
         when (val authResult: ApiResult<SessionTokens> = connectLauncher.authorizeStreamer(profile.baseUrl)) {
+            is ApiResult.Failure -> {
+                _status.value = ConnectStatus.Error(ConnectError.Auth(authResult.error.message))
+                false
+            }
+
+            is ApiResult.Ok -> establishSession(profile, authResult.value)
+        }
+
+    /**
+     * Run the generic per-provider login redirect for [providerKey] against [profile] and establish the
+     * session on success — the non-Twitch equivalent of [runStreamerOAuth], hitting the backend's
+     * `/api/v1/auth/{providerKey}/authorize` route. On web the page navigates away and the session returns on
+     * reload; on desktop the loopback resolves with the tokens.
+     */
+    private suspend fun runProviderOAuth(profile: ConnectionProfile, providerKey: String): Boolean =
+        when (
+            val authResult: ApiResult<SessionTokens> =
+                connectLauncher.authorizeProvider(profile.baseUrl, providerKey)
+        ) {
             is ApiResult.Failure -> {
                 _status.value = ConnectStatus.Error(ConnectError.Auth(authResult.error.message))
                 false
@@ -445,6 +539,25 @@ class ConnectController(
 
     private companion object {
         const val DEFAULT_BASE_URL: String = "http://localhost:5080"
+
+        // The backend's advertised login-handshake tokens (LoginProviderDto.Flows) — a redirect flow means a
+        // full-page authorize; device-code means the poll loop.
+        const val FLOW_DEVICE_CODE: String = "device_code"
+        const val FLOW_AUTH_CODE: String = "auth_code"
+        const val FLOW_AUTH_CODE_PKCE: String = "auth_code_pkce"
+
+        // The Twitch provider key + the always-available fallback descriptor the screen offers when the
+        // provider probe hasn't landed or failed (fail-open — never a blank login card). Twitch supports both
+        // the device-code and the redirect (auth_code) login handshakes.
+        const val TWITCH_PROVIDER: String = "twitch"
+
+        val TWITCH_FALLBACK: LoginProvider =
+            LoginProvider(
+                key = TWITCH_PROVIDER,
+                displayName = "Twitch",
+                flows = listOf(FLOW_DEVICE_CODE, FLOW_AUTH_CODE),
+                enabled = true,
+            )
 
         // The device-login poll statuses the backend returns (server-side DeviceLoginStatus).
         const val STATUS_AUTHORIZED: String = "authorized"

@@ -50,6 +50,16 @@ actual class OAuthLauncher {
             parseTokenCallback(exchange)
         }
 
+    actual suspend fun authorizeProvider(
+        baseUrl: String,
+        providerKey: String,
+    ): ApiResult<SessionTokens> =
+        runLoopback { redirect ->
+            ApiResult.Ok(buildProviderStartUrl(baseUrl, providerKey, redirect))
+        } resolveWith { exchange ->
+            parseTokenCallback(exchange)
+        }
+
     actual suspend fun awaitConnect(
         authorizeUrlFor: suspend (redirect: String) -> ApiResult<String>
     ): ApiResult<Unit> =
@@ -143,6 +153,13 @@ actual class OAuthLauncher {
         // awaitConnect (it cannot return tokens), so it never reaches this builder.
         val path: String = if (flow == OAuthFlow.Bot) "/api/v1/auth/twitch/bot" else "/api/v1/auth/twitch"
         return "$base$path?client=desktop&redirect_uri=${encode(redirect)}"
+    }
+
+    // The generic per-provider login redirect (non-Twitch): the backend's `/auth/{key}/authorize` route,
+    // token-returning to the loopback exactly like the streamer flow.
+    private fun buildProviderStartUrl(baseUrl: String, providerKey: String, redirect: String): String {
+        val base: String = baseUrl.trimEnd('/')
+        return "$base/api/v1/auth/$providerKey/authorize?client=desktop&redirect_uri=${encode(redirect)}"
     }
 
     // ── Callback parsers ───────────────────────────────────────────────────────────

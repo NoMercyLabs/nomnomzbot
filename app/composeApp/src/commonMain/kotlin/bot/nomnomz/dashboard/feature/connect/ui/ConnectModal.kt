@@ -39,6 +39,7 @@ import androidx.compose.ui.input.pointer.pointerHoverIcon
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
@@ -78,6 +79,9 @@ private val LogoSeparatorSize = 16.dp
 private val CtaCornerRadius = 14.dp
 private val CtaIconSize = 20.dp
 private val BackIconSize = 18.dp
+
+// The opacity a brand CTA drops to while disabled (a connect in flight). An effect constant, not a token.
+private const val DisabledCtaAlpha = 0.5f
 
 /**
  * Render the branded connect modal for [provider].
@@ -208,12 +212,32 @@ private fun DualLogoHeader(provider: ConnectProvider) {
     }
 }
 
-// The full-width brand-coloured primary CTA: the provider logo + the CTA label, on the brand background with
-// the brand-correct on-colour (white for Twitch/Discord/YouTube, black for Spotify).
-// Uses a direct Foundation Row — not a catalogue Button — because the background is a per-provider brand
-// colour that is NOT a design token, and the corner radius (xl=14dp) differs from Button's default (md=8dp).
+// The modal's own primary CTA — the descriptor-driven wrapper over the reusable [ProviderBrandCta].
 @Composable
 private fun BrandCta(provider: ConnectProvider, onClick: () -> Unit) {
+    ProviderBrandCta(
+        brand = provider.brand,
+        logo = provider.providerLogo,
+        label = provider.ctaLabel,
+        onClick = onClick,
+    )
+}
+
+// The full-width brand-coloured login CTA: the provider logo + the CTA label, on the brand background with
+// the brand-correct on-colour (white for Twitch/Discord/YouTube, black for Spotify/Kick, black-on-white for
+// X). Reusable so the login screen can render one per endpoint-advertised provider, not just the modal's own.
+// Uses a direct Foundation Row — not a catalogue Button — because the background is a per-provider brand
+// colour that is NOT a design token, and the corner radius (xl=14dp) differs from Button's default (md=8dp).
+// [enabled] dims + de-activates the button while a connect is in flight (never removes it — the card stays stable).
+@Composable
+fun ProviderBrandCta(
+    brand: ProviderBrandColors,
+    logo: ImageVector,
+    label: StringResource,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+) {
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
     val ctaShape: RoundedCornerShape = RoundedCornerShape(CtaCornerRadius)
@@ -221,27 +245,33 @@ private fun BrandCta(provider: ConnectProvider, onClick: () -> Unit) {
 
     Row(
         modifier =
-            Modifier
+            modifier
                 .fillMaxWidth()
+                .alpha(if (enabled) 1f else DisabledCtaAlpha)
                 .clip(ctaShape)
-                .background(provider.brand.brand)
+                .background(brand.brand)
                 .hoverable(interactionSource)
-                .clickable(interactionSource = interactionSource, indication = null, onClick = onClick)
-                .pointerHoverIcon(PointerIcon.Hand)
+                .clickable(
+                    interactionSource = interactionSource,
+                    indication = null,
+                    enabled = enabled,
+                    onClick = onClick,
+                )
+                .pointerHoverIcon(if (enabled) PointerIcon.Hand else PointerIcon.Default)
                 .padding(horizontal = spacing.s4, vertical = spacing.s2),
         horizontalArrangement = Arrangement.spacedBy(spacing.s2, Alignment.CenterHorizontally),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
-            imageVector = provider.providerLogo,
+            imageVector = logo,
             contentDescription = null,
-            tint = provider.brand.onBrand,
+            tint = brand.onBrand,
             modifier = Modifier.size(CtaIconSize),
         )
         Text(
-            text = stringResource(provider.ctaLabel),
+            text = stringResource(label),
             style = typography.sm.copy(fontWeight = FontWeight.Medium),
-            color = provider.brand.onBrand,
+            color = brand.onBrand,
         )
     }
 }

@@ -73,6 +73,14 @@ private const val DISCORD_PATH: String =
 private const val YOUTUBE_PATH: String =
     "M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"
 
+// Kick (simple-icons `kick.svg`) and X / Twitter (simple-icons `x.svg`) — the two login providers beyond
+// the original four. Copied verbatim from the published `d` strings (viewBox 0 0 24 24), same as the others.
+private const val KICK_PATH: String =
+    "M1.333 0h8v5.333H12V2.667h2.667V0h8v8H20v2.667h-2.667v2.666H20V16h2.667v8h-8v-2.667H12v-2.666H9.333V24h-8Z"
+
+private const val X_PATH: String =
+    "M18.901 1.153h3.68l-8.04 9.19L24 22.846h-7.406l-5.8-7.584-6.638 7.584H.474l8.6-9.83L0 1.154h7.594l5.243 6.932ZM17.61 20.644h2.039L6.486 3.24H4.298Z"
+
 /** The real Twitch logo (simple-icons `twitch.svg`, viewBox 0 0 24 24). Tinted by the caller. */
 val TwitchLogoGlyph: ImageVector = brandLogo("TwitchLogo", TWITCH_PATH)
 
@@ -84,6 +92,12 @@ val DiscordLogoGlyph: ImageVector = brandLogo("DiscordLogo", DISCORD_PATH)
 
 /** The real YouTube logo (simple-icons `youtube.svg`, viewBox 0 0 24 24). Tinted by the caller. */
 val YouTubeLogoGlyph: ImageVector = brandLogo("YouTubeLogo", YOUTUBE_PATH)
+
+/** The real Kick logo (simple-icons `kick.svg`, viewBox 0 0 24 24). Tinted by the caller. */
+val KickLogoGlyph: ImageVector = brandLogo("KickLogo", KICK_PATH)
+
+/** The real X (Twitter) logo (simple-icons `x.svg`, viewBox 0 0 24 24). Tinted by the caller. */
+val XLogoGlyph: ImageVector = brandLogo("XLogo", X_PATH)
 
 /**
  * The NomNomz app mark used in the modal header (left logo, tinted in the provider's brand colour).

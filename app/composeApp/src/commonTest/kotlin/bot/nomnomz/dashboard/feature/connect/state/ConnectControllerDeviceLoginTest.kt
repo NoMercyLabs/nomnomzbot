@@ -633,15 +633,21 @@ private class FakeAuthApi(
     var baseUrlAtRefresh: String? = null
         private set
 
+    override suspend fun providers():
+        ApiResult<List<bot.nomnomz.dashboard.core.network.LoginProvider>> = ApiResult.Ok(emptyList())
+
     override suspend fun me(): ApiResult<CurrentUser> {
         val index: Int = minOf(meCall, meResults.lastIndex)
         meCall++
         return meResults[index]
     }
 
-    override suspend fun startDeviceLogin(): ApiResult<DeviceCodeStart> = start
+    override suspend fun startDeviceLogin(provider: String): ApiResult<DeviceCodeStart> = start
 
-    override suspend fun pollDeviceLogin(deviceCode: String): ApiResult<DeviceLoginPoll> = poll
+    override suspend fun pollDeviceLogin(
+        provider: String,
+        deviceCode: String,
+    ): ApiResult<DeviceLoginPoll> = poll
 
     override suspend fun refresh(refreshToken: String?): ApiResult<AuthPayload> {
         baseUrlAtRefresh = baseUrlProbe?.invoke()
@@ -661,6 +667,12 @@ private class FakeConnectLauncher(
         authorizeStreamerCalled = true
         return streamerResult
     }
+
+    override suspend fun authorizeProvider(
+        baseUrl: String,
+        providerKey: String,
+    ): ApiResult<SessionTokens> =
+        ApiResult.Failure(ApiError(0, "NO_LAUNCH", "provider redirect login not expected in this test"))
 
     override suspend fun awaitConnect(
         authorizeUrlFor: suspend (redirect: String) -> ApiResult<String>

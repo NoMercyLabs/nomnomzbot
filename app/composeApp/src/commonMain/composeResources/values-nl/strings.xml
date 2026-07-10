@@ -52,6 +52,11 @@
     <string name="connect_modal_subtitle_youtube">Koppel YouTube om de YouTube-muziekprovider in te schakelen.</string>
     <string name="connect_cta_youtube">Verdergaan met YouTube</string>
     <string name="connect_logo_cd_youtube">YouTube-logo</string>
+    <string name="connect_cta_kick">Verdergaan met Kick</string>
+    <string name="connect_cta_twitter">Verdergaan met X</string>
+    <string name="landing_heading">Jouw kanaal, naar een hoger niveau</string>
+    <string name="landing_subtitle">NomNomzBot verzorgt je commando's, timers, moderatie, meldingen, muziek en meer — één dashboard voor je hele stream.</string>
+    <string name="landing_get_started">Aan de slag</string>
     <string name="language_label">Taal</string>
     <string name="language_system_default">Systeemstandaard</string>
     <string name="setup_title">Stel je bot in</string>

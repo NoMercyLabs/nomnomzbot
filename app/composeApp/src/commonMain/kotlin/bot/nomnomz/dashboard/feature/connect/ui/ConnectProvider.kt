@@ -15,8 +15,10 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import org.jetbrains.compose.resources.StringResource
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.connect_cta_discord
+import nomnomzbot.composeapp.generated.resources.connect_cta_kick
 import nomnomzbot.composeapp.generated.resources.connect_cta_spotify
 import nomnomzbot.composeapp.generated.resources.connect_cta_twitch
+import nomnomzbot.composeapp.generated.resources.connect_cta_twitter
 import nomnomzbot.composeapp.generated.resources.connect_cta_youtube
 import nomnomzbot.composeapp.generated.resources.connect_logo_cd_discord
 import nomnomzbot.composeapp.generated.resources.connect_logo_cd_spotify
@@ -95,3 +97,28 @@ object ConnectProviders {
             ctaLabel = Res.string.connect_cta_youtube,
         )
 }
+
+// The minimal brand presentation for ONE endpoint-driven login button — just what a [ProviderBrandCta]
+// paints: the brand palette, the provider mark, and the CTA label. Deliberately lighter than the full
+// [ConnectProvider] descriptor (no heading/subtitle) because the login screen renders these providers as
+// CTA buttons inside the Twitch-branded card, never as its header — so Kick/X need no card copy of their own.
+@Immutable
+data class LoginProviderCta(
+    val brand: ProviderBrandColors,
+    val logo: ImageVector,
+    val label: StringResource,
+)
+
+/**
+ * Resolve the brand CTA presentation for a backend login-provider key (from `GET /api/v1/auth/providers`),
+ * or null for a key the client has no branding for (so the screen simply skips it rather than drawing an
+ * unbranded button). Twitter is keyed `twitter` on the backend but presents as the X mark.
+ */
+fun loginProviderCta(key: String): LoginProviderCta? =
+    when (key.lowercase()) {
+        "twitch" -> LoginProviderCta(ProviderBrand.Twitch, TwitchLogoGlyph, Res.string.connect_cta_twitch)
+        "youtube" -> LoginProviderCta(ProviderBrand.YouTube, YouTubeLogoGlyph, Res.string.connect_cta_youtube)
+        "kick" -> LoginProviderCta(ProviderBrand.Kick, KickLogoGlyph, Res.string.connect_cta_kick)
+        "twitter", "x" -> LoginProviderCta(ProviderBrand.X, XLogoGlyph, Res.string.connect_cta_twitter)
+        else -> null
+    }

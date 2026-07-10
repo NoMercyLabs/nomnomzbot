@@ -418,7 +418,10 @@ class IntegrationsController(
             delay(intervalMs)
             elapsedMs += intervalMs
 
-            when (val poll: ApiResult<DeviceLoginPoll> = authApi.pollDeviceLogin(start.deviceCode)) {
+            when (
+                val poll: ApiResult<DeviceLoginPoll> =
+                    authApi.pollDeviceLogin(deviceCode = start.deviceCode)
+            ) {
                 is ApiResult.Failure -> Unit // tolerate transient failures until the code's deadline.
                 is ApiResult.Ok ->
                     when (poll.value.status) {

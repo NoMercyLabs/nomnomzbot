@@ -29,6 +29,15 @@ expect class OAuthLauncher() {
     suspend fun authorize(baseUrl: String, flow: OAuthFlow): ApiResult<SessionTokens>
 
     /**
+     * Run the token-returning LOGIN redirect for a non-Twitch [providerKey] (e.g. `youtube` / `kick` /
+     * `twitter`) against [baseUrl] via the generic per-provider authorize route
+     * (`/api/v1/auth/{providerKey}/authorize`). Same two shapes as [authorize]: on desktop the loopback
+     * captures the returned tokens; on web the page navigates to the backend and this never resolves — the
+     * session arrives on reload via readReturnedSession. Twitch keeps its dedicated [authorize] path.
+     */
+    suspend fun authorizeProvider(baseUrl: String, providerKey: String): ApiResult<SessionTokens>
+
+    /**
      * Run a token-LESS connect dance and resolve when the provider returns. Used for the bot-account
      * and integration connects, where the resulting token is stored SERVER-SIDE and only a
      * success/error signal returns to the client (no [SessionTokens]).

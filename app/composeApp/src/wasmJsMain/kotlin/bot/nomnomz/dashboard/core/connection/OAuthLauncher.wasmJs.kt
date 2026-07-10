@@ -47,6 +47,17 @@ actual class OAuthLauncher {
         return CompletableDeferred<ApiResult<SessionTokens>>().await()
     }
 
+    actual suspend fun authorizeProvider(
+        baseUrl: String,
+        providerKey: String,
+    ): ApiResult<SessionTokens> {
+        // Web is single-origin: the backend returns to the served origin itself, so no redirect param is
+        // sent (unlike the desktop loopback). Same shape as [authorize] — the session rides back in the URL
+        // fragment on reload, read by readReturnedSession.
+        window.location.assign("${baseUrl.trimEnd('/')}/api/v1/auth/$providerKey/authorize?client=web")
+        return CompletableDeferred<ApiResult<SessionTokens>>().await()
+    }
+
     actual suspend fun awaitConnect(
         authorizeUrlFor: suspend (redirect: String) -> ApiResult<String>
     ): ApiResult<Unit> {

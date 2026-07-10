@@ -18,25 +18,34 @@ import kotlinx.serialization.Serializable
 // impl over the shared [ApiClient].
 //
 // Backend routes (AuthController):
-//   GET  /api/v1/auth/me                  →  StatusResponseDto<CurrentUserDto>   (requires Authorization: Bearer)
-//   POST /api/v1/auth/twitch/device       →  StatusResponseDto<DeviceCodeStart>  (anonymous)
-//   POST /api/v1/auth/twitch/device/poll  →  StatusResponseDto<DeviceLoginPoll>  (anonymous)
-//   POST /api/v1/auth/refresh             →  StatusResponseDto<AuthPayload>      (anonymous; renew a stale access token)
+//   GET  /api/v1/auth/providers            →  StatusResponseDto<List<LoginProviderDto>>  (anonymous)
+//   GET  /api/v1/auth/me                    →  StatusResponseDto<CurrentUserDto>   (requires Authorization: Bearer)
+//   POST /api/v1/auth/{provider}/device      →  StatusResponseDto<DeviceCodeStart>  (anonymous)
+//   POST /api/v1/auth/{provider}/device/poll →  StatusResponseDto<DeviceLoginPoll>  (anonymous)
+//   POST /api/v1/auth/refresh               →  StatusResponseDto<AuthPayload>      (anonymous; renew a stale access token)
 interface AuthApi {
+    /**
+     * The login providers this backend offers (platform-identity §4). The login screen renders one button
+     * per ENABLED provider, so it never shows a dead button. Anonymous — read before any session exists.
+     */
+    suspend fun providers(): ApiResult<List<LoginProvider>>
+
     /** The signed-in streamer for the active session, proving the captured JWT is valid. */
     suspend fun me(): ApiResult<CurrentUser>
 
     /**
-     * Begin the no-secret streamer login: the backend mints a short user code the operator approves at
-     * [DeviceCodeStart.verificationUri]; the client then polls with [DeviceCodeStart.deviceCode].
+     * Begin the no-secret login for [provider] (defaults to `twitch`): the backend mints a short user code
+     * the operator approves at [DeviceCodeStart.verificationUri]; the client then polls with
+     * [DeviceCodeStart.deviceCode].
      */
-    suspend fun startDeviceLogin(): ApiResult<DeviceCodeStart>
+    suspend fun startDeviceLogin(provider: String = "twitch"): ApiResult<DeviceCodeStart>
 
     /**
-     * Poll a streamer device login once. Until the operator approves, [DeviceLoginPoll.status] is
-     * `pending` / `slow_down`; on `authorized` the session tokens ride [DeviceLoginPoll.auth].
+     * Poll a device login once for [provider] (defaults to `twitch`). Until the operator approves,
+     * [DeviceLoginPoll.status] is `pending` / `slow_down`; on `authorized` the session tokens ride
+     * [DeviceLoginPoll.auth].
      */
-    suspend fun pollDeviceLogin(deviceCode: String): ApiResult<DeviceLoginPoll>
+    suspend fun pollDeviceLogin(provider: String = "twitch", deviceCode: String): ApiResult<DeviceLoginPoll>
 
     /**
      * Renew the session — the "remembered" restore path on boot when the persisted access token has expired.
@@ -49,13 +58,22 @@ interface AuthApi {
 
 class RestAuthApi(private val client: ApiClient) : AuthApi {
 
+    override suspend fun providers(): ApiResult<List<LoginProvider>> =
+        client.getEnvelope("api/v1/auth/providers")
+
     override suspend fun me(): ApiResult<CurrentUser> = client.getEnvelope("api/v1/auth/me")
 
-    override suspend fun startDeviceLogin(): ApiResult<DeviceCodeStart> =
-        client.postEnvelope("api/v1/auth/twitch/device")
+    override suspend fun startDeviceLogin(provider: String): ApiResult<DeviceCodeStart> =
+        client.postEnvelope("api/v1/auth/$provider/device")
 
-    override suspend fun pollDeviceLogin(deviceCode: String): ApiResult<DeviceLoginPoll> =
-        client.postEnvelope("api/v1/auth/twitch/device/poll${clientQuery()}", DevicePollBody(deviceCode))
+    override suspend fun pollDeviceLogin(
+        provider: String,
+        deviceCode: String,
+    ): ApiResult<DeviceLoginPoll> =
+        client.postEnvelope(
+            "api/v1/auth/$provider/device/poll${clientQuery()}",
+            DevicePollBody(deviceCode),
+        )
 
     override suspend fun refresh(refreshToken: String?): ApiResult<AuthPayload> =
         client.postEnvelope("api/v1/auth/refresh${clientQuery()}", RefreshBody(refreshToken))
@@ -64,6 +82,21 @@ class RestAuthApi(private val client: ApiClient) : AuthApi {
 // Advertise the client class to the cookie-sensitive auth endpoints (device poll, refresh) so the backend
 // applies browser HttpOnly-cookie custody on web and token-in-body custody on native. Empty on native.
 private fun clientQuery(): String = authClientClass()?.let { "?client=$it" } ?: ""
+
+/**
+ * A login provider the client may offer on the login screen (platform-identity §4) — a wire descriptor from
+ * `GET /api/v1/auth/providers`. [enabled] is the descriptor being registered AND its feature flag resolving
+ * true for THIS deployment, so the login screen renders only enabled providers (never a dead button).
+ * [flows] are the handshake tokens supported for it (`device_code` | `auth_code` | `auth_code_pkce`), which
+ * pick the login path (device-code poll vs. full-page authorize redirect).
+ */
+@Serializable
+data class LoginProvider(
+    val key: String,
+    val displayName: String,
+    val flows: List<String> = emptyList(),
+    val enabled: Boolean = false,
+)
 
 /** A started device authorization — the user code to show + the verification URL + the poll handle/interval. */
 @Serializable

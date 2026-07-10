@@ -480,6 +480,14 @@ private class FakeConnectLauncher : ConnectLauncher {
             bot.nomnomz.dashboard.core.network.ApiError(0, "UNUSED", "streamer login not used here")
         )
 
+    override suspend fun authorizeProvider(
+        baseUrl: String,
+        providerKey: String,
+    ): ApiResult<bot.nomnomz.dashboard.core.connection.SessionTokens> =
+        ApiResult.Failure(
+            bot.nomnomz.dashboard.core.network.ApiError(0, "UNUSED", "provider login not used here")
+        )
+
     override suspend fun awaitConnect(
         authorizeUrlFor: suspend (redirect: String) -> ApiResult<String>
     ): ApiResult<Unit> =

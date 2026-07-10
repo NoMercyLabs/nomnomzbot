@@ -11,12 +11,15 @@
 package bot.nomnomz.dashboard.core.navigation
 
 // The top-level destinations of the FOUNDATION spine. The gate in App.kt resolves these
-// from the boot timer + the session phase, in the order Splash -> Connect -> Setup -> Shell.
+// from the boot timer + the session phase, in the order Splash -> Landing -> Connect -> Setup -> Shell.
+// Landing is the public front page shown to a booted-but-not-connected visitor; its "Get started" CTA
+// advances to Connect (the sign-in card).
 //
 // Next slice replaces this with the full type-safe `@Serializable sealed interface Route`
 // graph + Navigation Compose NavHost (frontend.md §5).
 enum class Destination {
     Splash,
+    Landing,
     Connect,
     Setup,
     Shell,

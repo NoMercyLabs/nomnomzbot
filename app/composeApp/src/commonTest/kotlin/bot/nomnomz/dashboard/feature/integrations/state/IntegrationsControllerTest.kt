@@ -736,6 +736,14 @@ private class FakeConnectLauncher : ConnectLauncher {
             bot.nomnomz.dashboard.core.network.ApiError(0, "UNUSED", "streamer login not used here")
         )
 
+    override suspend fun authorizeProvider(
+        baseUrl: String,
+        providerKey: String,
+    ): ApiResult<bot.nomnomz.dashboard.core.connection.SessionTokens> =
+        ApiResult.Failure(
+            bot.nomnomz.dashboard.core.network.ApiError(0, "UNUSED", "provider login not used here")
+        )
+
     override suspend fun awaitConnect(
         authorizeUrlFor: suspend (redirect: String) -> ApiResult<String>
     ): ApiResult<Unit> =
@@ -786,13 +794,21 @@ private class FakeAuthApi(private val pollStatuses: List<String> = emptyList()) 
     var polledDeviceCode: String? = null
     private var pollIndex: Int = 0
 
+    override suspend fun providers():
+        ApiResult<List<bot.nomnomz.dashboard.core.network.LoginProvider>> = ApiResult.Ok(emptyList())
+
     override suspend fun me(): ApiResult<CurrentUser> =
         ApiResult.Failure(ApiError(0, "UNUSED", "not used here"))
 
-    override suspend fun startDeviceLogin(): ApiResult<bot.nomnomz.dashboard.core.network.DeviceCodeStart> =
+    override suspend fun startDeviceLogin(
+        provider: String
+    ): ApiResult<bot.nomnomz.dashboard.core.network.DeviceCodeStart> =
         ApiResult.Failure(ApiError(0, "UNUSED", "not used here"))
 
-    override suspend fun pollDeviceLogin(deviceCode: String): ApiResult<DeviceLoginPoll> {
+    override suspend fun pollDeviceLogin(
+        provider: String,
+        deviceCode: String,
+    ): ApiResult<DeviceLoginPoll> {
         polledDeviceCode = deviceCode
         val status: String = pollStatuses.getOrElse(pollIndex) { "pending" }
         pollIndex++
