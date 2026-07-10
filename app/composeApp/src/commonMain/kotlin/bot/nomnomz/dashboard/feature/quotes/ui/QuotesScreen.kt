@@ -54,11 +54,9 @@ import bot.nomnomz.dashboard.core.designsystem.icon.AddGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.EditGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
 import bot.nomnomz.dashboard.core.network.Quote
+import bot.nomnomz.dashboard.feature.quotes.state.QuotesAccess
 import bot.nomnomz.dashboard.feature.quotes.state.QuotesController
 import bot.nomnomz.dashboard.feature.quotes.state.QuotesState
-import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
-import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
-import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecision
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.quotes_action_error
@@ -82,6 +80,8 @@ import nomnomzbot.composeapp.generated.resources.quotes_error
 import nomnomzbot.composeapp.generated.resources.quotes_loading
 import nomnomzbot.composeapp.generated.resources.quotes_new_action
 import nomnomzbot.composeapp.generated.resources.quotes_number
+import nomnomzbot.composeapp.generated.resources.quotes_requires_delete
+import nomnomzbot.composeapp.generated.resources.quotes_requires_write
 import nomnomzbot.composeapp.generated.resources.quotes_retry
 import nomnomzbot.composeapp.generated.resources.quotes_title
 import nomnomzbot.composeapp.generated.resources.shell_nav_quotes
@@ -92,15 +92,22 @@ import org.jetbrains.compose.resources.stringResource
 // composition. This is the full management surface — create, edit, and delete — each routed back through the
 // controller, which re-lists after every successful write so the page reflects the backend.
 @Composable
-fun QuotesScreen(controller: QuotesController, role: ManagementRole?) {
+fun QuotesScreen(controller: QuotesController, heldActionKeys: Set<String>) {
     val state: QuotesState by controller.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val spacing = LocalSpacing.current
 
-    // One decision for the whole page: Quotes gates every write control at its single Editor manage floor
-    // (frontend-ia.md §3). A caller below it sees the list but every create/edit/delete control disabled with
-    // "Requires Editor" (§7); the backend re-checks every write regardless.
-    val manage: ManageDecision = rememberManageDecision(role, ShellRoute.Quotes)
+    // Quotes gates create/edit and delete on the caller's RESOLVED capability keys, not a management role — so the
+    // broadcaster can delegate quote-editing to a VIP/Sub by lowering `quotes:write` (and, separately, `quotes:delete`).
+    // A caller who holds `quotes:write` but not `quotes:delete` gets create/edit live but delete disabled-with-reason
+    // (frontend-ia.md §7); an Editor+ clears both default floors and so holds both keys. The backend re-checks every
+    // write regardless — the gate is UX only. The reasons resolve unconditionally so no composable sits behind a branch.
+    val writeManage: ManageDecision =
+        if (QuotesAccess.canWrite(heldActionKeys)) ManageDecision.Allowed
+        else ManageDecision.Denied(stringResource(Res.string.quotes_requires_write))
+    val deleteManage: ManageDecision =
+        if (QuotesAccess.canDelete(heldActionKeys)) ManageDecision.Allowed
+        else ManageDecision.Denied(stringResource(Res.string.quotes_requires_delete))
 
     // The create/edit dialog target: null = closed, a value = open (an empty editor = create, a pre-filled one
     // = edit). The delete-confirm target is the quote pending confirmation, or null when none.
@@ -118,7 +125,8 @@ fun QuotesScreen(controller: QuotesController, role: ManagementRole?) {
                 ManagedContent(
                     quotes = emptyList(),
                     actionError = null,
-                    manage = manage,
+                    writeManage = writeManage,
+                    deleteManage = deleteManage,
                     onNew = { editor = QuoteEditor.create() },
                     onEdit = { quote -> editor = QuoteEditor.edit(quote) },
                     onDelete = { quote -> pendingDelete = quote },
@@ -127,7 +135,8 @@ fun QuotesScreen(controller: QuotesController, role: ManagementRole?) {
                 ManagedContent(
                     quotes = current.quotes,
                     actionError = current.actionError,
-                    manage = manage,
+                    writeManage = writeManage,
+                    deleteManage = deleteManage,
                     onNew = { editor = QuoteEditor.create() },
                     onEdit = { quote -> editor = QuoteEditor.edit(quote) },
                     onDelete = { quote -> pendingDelete = quote },
@@ -172,7 +181,8 @@ fun QuotesScreen(controller: QuotesController, role: ManagementRole?) {
 private fun ManagedContent(
     quotes: List<Quote>,
     actionError: String?,
-    manage: ManageDecision,
+    writeManage: ManageDecision,
+    deleteManage: ManageDecision,
     onNew: () -> Unit,
     onEdit: (Quote) -> Unit,
     onDelete: (Quote) -> Unit,
@@ -185,7 +195,7 @@ private fun ManagedContent(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(spacing.s4),
     ) {
-        Header(manage = manage, onNew = onNew)
+        Header(writeManage = writeManage, onNew = onNew)
         actionError?.let { ActionErrorBanner(message = stringResource(Res.string.quotes_action_error, it)) }
 
         Card(modifier = Modifier.fillMaxWidth().weight(1f)) {
@@ -202,7 +212,8 @@ private fun ManagedContent(
                     itemsIndexed(items = quotes, key = { _, quote -> quote.id }) { index, quote ->
                         QuoteRow(
                             quote = quote,
-                            manage = manage,
+                            writeManage = writeManage,
+                            deleteManage = deleteManage,
                             onEdit = { onEdit(quote) },
                             onDelete = { onDelete(quote) },
                         )
@@ -217,12 +228,12 @@ private fun ManagedContent(
 }
 
 @Composable
-private fun Header(manage: ManageDecision, onNew: () -> Unit) {
+private fun Header(writeManage: ManageDecision, onNew: () -> Unit) {
     val tokens = LocalTokens.current
     val newLabel: String = stringResource(Res.string.quotes_new_action)
 
     PageHeader(title = stringResource(Res.string.shell_nav_quotes)) {
-        ManageGate(decision = manage) { enabled ->
+        ManageGate(decision = writeManage) { enabled ->
             GlyphButton(
                 imageVector = AddGlyph,
                 label = newLabel,
@@ -234,7 +245,13 @@ private fun Header(manage: ManageDecision, onNew: () -> Unit) {
 }
 
 @Composable
-private fun QuoteRow(quote: Quote, manage: ManageDecision, onEdit: () -> Unit, onDelete: () -> Unit) {
+private fun QuoteRow(
+    quote: Quote,
+    writeManage: ManageDecision,
+    deleteManage: ManageDecision,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit,
+) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
@@ -285,10 +302,10 @@ private fun QuoteRow(quote: Quote, manage: ManageDecision, onEdit: () -> Unit, o
             }
         }
 
-        ManageGate(decision = manage) { enabled ->
+        ManageGate(decision = writeManage) { enabled ->
             GlyphButton(imageVector = EditGlyph, label = editLabel, onClick = onEdit, enabled = enabled)
         }
-        ManageGate(decision = manage) { enabled ->
+        ManageGate(decision = deleteManage) { enabled ->
             GlyphButton(
                 imageVector = TrashGlyph,
                 label = deleteLabel,

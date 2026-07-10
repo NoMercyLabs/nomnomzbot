@@ -69,60 +69,92 @@ enum class NavGroup {
  * One sidebar entry: its [route], the [group] it renders under, the [readFloor] (minimum [ManagementRole] to
  * see/open the page) and the [manageFloor] (minimum to mutate within it; null = a read-only page or per-tab
  * gating handled inside it). Action-level nuances (e.g. "create reward needs Broadcaster") live on the page.
+ *
+ * [readActionKey] is the single backend action key that GOVERNS reading this page (e.g. `commands:read`). It is
+ * the seam that lets a broadcaster-LOWERED page reach a role-less caller: visibility is `role clears readFloor`
+ * OR `caller holds readActionKey` (from `ResolvedAccess.heldActionKeys`, which folds in per-action overrides).
+ * `null` marks a page with no single VIP-lowerable read key — a Broadcaster-admin page (Roles, Integrations,
+ * Webhooks…) or a multi-tab/ambiguous one (Settings) — which then stays gated on [readFloor] alone.
  */
 data class NavPage(
     val route: ShellRoute,
     val group: NavGroup,
     val readFloor: ManagementRole,
     val manageFloor: ManagementRole?,
+    val readActionKey: String?,
 )
 
 object ShellNav {
 
-    /** The binding page inventory (frontend-ia.md §3), in sidebar order. */
+    /**
+     * The binding page inventory (frontend-ia.md §3), in sidebar order. Each page's `readActionKey` is the real
+     * backend `[RequireAction("…")]` key that governs reading it (verified against the V1 controllers) — the seam
+     * a broadcaster lowers to delegate a page to a VIP/Sub. Broadcaster-admin pages (Roles, Integrations, Features,
+     * Webhooks, Federation, CodeScripts), the multi-tab Settings, and the pages without a single governing read key
+     * (SongRequests, Alerts, CustomEvents) carry `null` — they stay gated on their [NavPage.readFloor] alone.
+     */
     val pages: List<NavPage> =
         listOf(
             // Top-level single-entry groups render as plain items (no header) — see SidebarSection.
-            NavPage(ShellRoute.Dashboard, NavGroup.Home, ManagementRole.Moderator, null),
-            NavPage(ShellRoute.Chat, NavGroup.Chat, ManagementRole.Moderator, ManagementRole.Moderator),
-            NavPage(ShellRoute.Commands, NavGroup.Chat, ManagementRole.Moderator, ManagementRole.Editor),
-            NavPage(ShellRoute.EventResponses, NavGroup.Chat, ManagementRole.Moderator, ManagementRole.Editor),
-            NavPage(ShellRoute.Timers, NavGroup.Chat, ManagementRole.Moderator, ManagementRole.Editor),
-            NavPage(ShellRoute.Quotes, NavGroup.Chat, ManagementRole.Moderator, ManagementRole.Editor),
-            NavPage(ShellRoute.Moderation, NavGroup.Moderation, ManagementRole.Moderator, ManagementRole.Moderator),
-            NavPage(ShellRoute.Rewards, NavGroup.Loyalty, ManagementRole.Moderator, ManagementRole.Editor),
-            NavPage(ShellRoute.Economy, NavGroup.Loyalty, ManagementRole.Moderator, ManagementRole.Editor),
-            NavPage(ShellRoute.Games, NavGroup.Loyalty, ManagementRole.Moderator, ManagementRole.Editor),
-            NavPage(ShellRoute.Music, NavGroup.Music, ManagementRole.Moderator, ManagementRole.Editor),
-            NavPage(ShellRoute.SongRequests, NavGroup.Music, ManagementRole.Moderator, ManagementRole.Editor),
-            NavPage(ShellRoute.SoundClips, NavGroup.Music, ManagementRole.Moderator, ManagementRole.Editor),
-            NavPage(ShellRoute.Tts, NavGroup.Music, ManagementRole.Moderator, ManagementRole.Editor),
-            NavPage(ShellRoute.Widgets, NavGroup.Stream, ManagementRole.Moderator, ManagementRole.Editor),
-            NavPage(ShellRoute.Alerts, NavGroup.Stream, ManagementRole.Moderator, ManagementRole.Editor),
-            NavPage(ShellRoute.Pipelines, NavGroup.Stream, ManagementRole.Moderator, ManagementRole.Editor),
-            NavPage(ShellRoute.CodeScripts, NavGroup.Stream, ManagementRole.Broadcaster, ManagementRole.Broadcaster),
-            NavPage(ShellRoute.Analytics, NavGroup.Stream, ManagementRole.Moderator, null),
-            NavPage(ShellRoute.Community, NavGroup.Community, ManagementRole.Moderator, ManagementRole.Moderator),
-            NavPage(ShellRoute.Discord, NavGroup.Connect, ManagementRole.Moderator, ManagementRole.SuperMod),
-            NavPage(ShellRoute.Webhooks, NavGroup.Connect, ManagementRole.Broadcaster, ManagementRole.Broadcaster),
-            NavPage(ShellRoute.Federation, NavGroup.Connect, ManagementRole.Broadcaster, ManagementRole.Broadcaster),
-            NavPage(ShellRoute.CustomEvents, NavGroup.Connect, ManagementRole.Moderator, ManagementRole.Editor),
-            NavPage(ShellRoute.Integrations, NavGroup.Setup, ManagementRole.Broadcaster, ManagementRole.Broadcaster),
-            NavPage(ShellRoute.Roles, NavGroup.Setup, ManagementRole.Broadcaster, ManagementRole.Broadcaster),
-            NavPage(ShellRoute.Features, NavGroup.Setup, ManagementRole.Broadcaster, ManagementRole.Broadcaster),
-            NavPage(ShellRoute.Settings, NavGroup.Setup, ManagementRole.Moderator, null),
+            NavPage(ShellRoute.Dashboard, NavGroup.Home, ManagementRole.Moderator, null, readActionKey = "dashboard:read"),
+            NavPage(ShellRoute.Chat, NavGroup.Chat, ManagementRole.Moderator, ManagementRole.Moderator, readActionKey = "chat:read"),
+            NavPage(ShellRoute.Commands, NavGroup.Chat, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "commands:read"),
+            NavPage(ShellRoute.EventResponses, NavGroup.Chat, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "eventresponses:read"),
+            NavPage(ShellRoute.Timers, NavGroup.Chat, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "timers:read"),
+            NavPage(ShellRoute.Quotes, NavGroup.Chat, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "quotes:read"),
+            NavPage(ShellRoute.Moderation, NavGroup.Moderation, ManagementRole.Moderator, ManagementRole.Moderator, readActionKey = "moderation:read"),
+            NavPage(ShellRoute.Rewards, NavGroup.Loyalty, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "reward:read"),
+            NavPage(ShellRoute.Economy, NavGroup.Loyalty, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "economy:config:read"),
+            NavPage(ShellRoute.Games, NavGroup.Loyalty, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "economy:games:read"),
+            NavPage(ShellRoute.Music, NavGroup.Music, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "music:config:read"),
+            NavPage(ShellRoute.SongRequests, NavGroup.Music, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = null),
+            NavPage(ShellRoute.SoundClips, NavGroup.Music, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "sounds:read"),
+            NavPage(ShellRoute.Tts, NavGroup.Music, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "tts:config:read"),
+            NavPage(ShellRoute.Widgets, NavGroup.Stream, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "widget:read"),
+            NavPage(ShellRoute.Alerts, NavGroup.Stream, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = null),
+            NavPage(ShellRoute.Pipelines, NavGroup.Stream, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "pipelines:read"),
+            NavPage(ShellRoute.CodeScripts, NavGroup.Stream, ManagementRole.Broadcaster, ManagementRole.Broadcaster, readActionKey = null),
+            NavPage(ShellRoute.Analytics, NavGroup.Stream, ManagementRole.Moderator, null, readActionKey = "analytics:read"),
+            NavPage(ShellRoute.Community, NavGroup.Community, ManagementRole.Moderator, ManagementRole.Moderator, readActionKey = "community:read"),
+            NavPage(ShellRoute.Discord, NavGroup.Connect, ManagementRole.Moderator, ManagementRole.SuperMod, readActionKey = "discord:connection:read"),
+            NavPage(ShellRoute.Webhooks, NavGroup.Connect, ManagementRole.Broadcaster, ManagementRole.Broadcaster, readActionKey = null),
+            NavPage(ShellRoute.Federation, NavGroup.Connect, ManagementRole.Broadcaster, ManagementRole.Broadcaster, readActionKey = null),
+            NavPage(ShellRoute.CustomEvents, NavGroup.Connect, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = null),
+            NavPage(ShellRoute.Integrations, NavGroup.Setup, ManagementRole.Broadcaster, ManagementRole.Broadcaster, readActionKey = null),
+            NavPage(ShellRoute.Roles, NavGroup.Setup, ManagementRole.Broadcaster, ManagementRole.Broadcaster, readActionKey = null),
+            NavPage(ShellRoute.Features, NavGroup.Setup, ManagementRole.Broadcaster, ManagementRole.Broadcaster, readActionKey = null),
+            NavPage(ShellRoute.Settings, NavGroup.Setup, ManagementRole.Moderator, null, readActionKey = null),
         )
 
     /**
-     * The MANAGEMENT pages a caller of [role] may see — those whose read floor the role clears (frontend-ia.md §7).
-     * A `null` [role] is a participant (no Plane-B management role): every management page floors at Moderator+, so
-     * a participant sees **no** management pages here and the shell renders the PARTICIPANT rung instead (Rung 0 —
-     * `ParticipantNav`, gated by Plane-A community standing). The participant surface is a real page set, not a
-     * dead-end; [participantPagesFor] is its entry. The two rungs share one shell; the role just selects which.
+     * The MANAGEMENT pages a caller may see (frontend-ia.md §3a/§7). A page is visible when EITHER the caller's
+     * [role] clears its read floor, OR the caller holds the page's `readActionKey` in [heldActionKeys] — the
+     * backend-resolved set of keys they actually clear, which folds in the broadcaster's per-action overrides. So
+     * a Moderator/Editor/Broadcaster sees exactly the pages their rung clears (their shell is unchanged, since the
+     * default [heldActionKeys] is empty and the role branch alone decides), while a role-LESS VIP whose broadcaster
+     * lowered, say, `commands:read` sees just that page (read-only). A pure participant (null role, no management
+     * read key held) sees **no** management pages and the shell renders the PARTICIPANT rung instead (Rung 0 —
+     * `ParticipantNav`, gated by Plane-A community standing); [participantPagesFor] is its entry.
      */
-    fun visiblePagesFor(role: ManagementRole?): List<NavPage> =
-        if (role == null) emptyList()
-        else pages.filter { role.level >= it.readFloor.level }
+    fun visiblePagesFor(role: ManagementRole?, heldActionKeys: Set<String> = emptySet()): List<NavPage> =
+        pages.filter { it.isVisibleTo(role, heldActionKeys) }
+
+    /**
+     * Whether the caller enters the MANAGEMENT shell at all (frontend-ia.md §3a) — true iff at least one management
+     * page is visible to them. This is the shell's rung fork: `false` routes a pure participant to the participant
+     * rung; `true` renders the management shell (showing only their visible pages). A Moderator+ is always `true`.
+     */
+    fun hasManagementAccess(role: ManagementRole?, heldActionKeys: Set<String>): Boolean =
+        pages.any { it.isVisibleTo(role, heldActionKeys) }
+
+    /**
+     * A page is visible when the [role] clears its read floor OR the caller holds its `readActionKey`. A page with a
+     * `null` `readActionKey` (a Broadcaster-admin / multi-tab / no-single-key page) is visible on the role branch
+     * only — no held key can surface it, keeping those pages on their existing floor.
+     */
+    private fun NavPage.isVisibleTo(role: ManagementRole?, heldActionKeys: Set<String>): Boolean =
+        (role != null && role.level >= readFloor.level) ||
+            (readActionKey != null && readActionKey in heldActionKeys)
 
     /**
      * The PARTICIPANT pages a role-less caller of [standing] sees (Rung 0). Delegates to [ParticipantNav] — the

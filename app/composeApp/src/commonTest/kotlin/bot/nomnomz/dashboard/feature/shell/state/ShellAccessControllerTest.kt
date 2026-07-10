@@ -185,7 +185,39 @@ class ShellAccessControllerTest {
 
         controller.load()
 
-        assertEquals(null, (controller.state.value as ShellAccess.Resolved).role)
+        val resolved: ShellAccess.Resolved = controller.state.value as ShellAccess.Resolved
+        assertEquals(null, resolved.role)
+        // Fail closed carries NO held keys — the shell must never surface a management page off a failed resolve.
+        assertTrue(resolved.heldActionKeys.isEmpty())
+    }
+
+    @Test
+    fun the_resolved_access_carries_the_backends_held_action_keys_as_a_set() = runTest {
+        // heldActionKeys is what the shell gates page/action visibility on — it must thread through from
+        // /effective/me into the resolved state (deduplicated into a Set) so a broadcaster-LOWERED page can surface
+        // to a role-less caller. A VIP the broadcaster delegated Commands + quote-editing to carries exactly those
+        // keys, with no management role.
+        val controller =
+            ShellAccessController(
+                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                FakeRolesApi(
+                    access =
+                        ApiResult.Ok(
+                            resolvedAccess(
+                                role = null,
+                                level = 40,
+                                standing = WireStanding.Vip,
+                                heldActionKeys = listOf("commands:read", "quotes:read", "quotes:write"),
+                            )
+                        )
+                ),
+            )
+
+        controller.load()
+
+        val resolved: ShellAccess.Resolved = controller.state.value as ShellAccess.Resolved
+        assertEquals(null, resolved.role)
+        assertEquals(setOf("commands:read", "quotes:read", "quotes:write"), resolved.heldActionKeys)
     }
 }
 
@@ -196,6 +228,7 @@ private fun resolvedAccess(
     level: Int,
     standing: WireStanding = WireStanding.Everyone,
     capabilities: List<String> = emptyList(),
+    heldActionKeys: List<String> = emptyList(),
 ): ResolvedAccess =
     ResolvedAccess(
         userId = "caller",
@@ -207,6 +240,7 @@ private fun resolvedAccess(
         managementLevel = role?.level ?: 0,
         permitCapabilities = capabilities,
         winningSource = if (role == null) "community" else "management",
+        heldActionKeys = heldActionKeys,
     )
 
 // ── Fakes ───────────────────────────────────────────────────────────────────

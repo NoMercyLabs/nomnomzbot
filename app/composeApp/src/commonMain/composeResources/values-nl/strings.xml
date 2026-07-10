@@ -1089,6 +1089,8 @@
     <string name="quotes_dialog_create">Toevoegen</string>
     <string name="quotes_dialog_save">Opslaan</string>
     <string name="quotes_dialog_cancel">Annuleren</string>
+    <string name="quotes_requires_write">Vereist toestemming om quotes te bewerken</string>
+    <string name="quotes_requires_delete">Vereist toestemming om quotes te verwijderen</string>
 
     <!-- Discord page. -->
     <string name="discord_title">Discord</string>

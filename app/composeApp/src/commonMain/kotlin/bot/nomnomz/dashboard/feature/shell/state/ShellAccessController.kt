@@ -63,6 +63,7 @@ class ShellAccessController(
                             role = null,
                             standing = ParticipantStanding.Everyone,
                             capabilities = emptyList(),
+                            heldActionKeys = emptySet(),
                         )
                     return
                 }
@@ -80,6 +81,7 @@ class ShellAccessController(
                         role = null,
                         standing = ParticipantStanding.Everyone,
                         capabilities = emptyList(),
+                        heldActionKeys = emptySet(),
                     )
                 is ApiResult.Ok ->
                     ShellAccess.Resolved(
@@ -88,6 +90,7 @@ class ShellAccessController(
                         role = result.value.role.toShellRole(),
                         standing = result.value.standing.toShellStanding(),
                         capabilities = result.value.permitCapabilities,
+                        heldActionKeys = result.value.heldActionKeys.toSet(),
                     )
             }
     }
@@ -103,6 +106,11 @@ sealed interface ShellAccess {
      * participant surface unlocks from — always present, even for a role-less viewer). [userId] is the caller's
      * platform GUID the participant self-service addresses its own records by; [capabilities] are the per-user
      * permit action keys that light up capability-gated affordances (e.g. `economy:transfer:write`).
+     *
+     * [heldActionKeys] is the broader, UI-facing set the shell gates page/action VISIBILITY on: every action key
+     * the caller actually CLEARS on this channel — folding in the broadcaster's per-action overrides, unlike
+     * [role]/[capabilities] which don't. It is what lets a broadcaster-LOWERED page (e.g. `commands:read` dropped
+     * to VIP) surface to a role-less caller, and what the Quotes page reads to gate `quotes:write` / `quotes:delete`.
      */
     data class Resolved(
         val channelId: String,
@@ -110,6 +118,7 @@ sealed interface ShellAccess {
         val role: ManagementRole?,
         val standing: ParticipantStanding,
         val capabilities: List<String>,
+        val heldActionKeys: Set<String>,
     ) : ShellAccess
 }
 

@@ -96,6 +96,7 @@ class ApiContractTest {
             BanUserBody.serializer() to "BanUserRequest",
             NetworkBanResult.serializer() to "NetworkBanResultDto",
             ChannelBanOutcome.serializer() to "ChannelBanOutcomeDto",
+            ResolvedAccess.serializer() to "ResolvedAccessDto",
         )
 
     @Test

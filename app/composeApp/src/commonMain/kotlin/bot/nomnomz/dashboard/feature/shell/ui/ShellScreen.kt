@@ -229,12 +229,16 @@ fun ShellScreen(
         return
     }
 
-    // One shell, three rungs (participant → mod → broadcaster), never forked. A caller with no Plane-B management
-    // role is a PARTICIPANT (Rung 0): the same shell renders the participant surface — their own profile/standing,
-    // the channel they're watching, and the read-mostly + self-service slices they're permitted — gated by their
-    // Plane-A community standing, not a management role. A non-null role gets the management shell below unchanged.
+    // One shell, three rungs (participant → mod → broadcaster), never forked. The caller enters the MANAGEMENT
+    // shell iff they can see at least one management page — either their Plane-B role clears a page's read floor,
+    // OR the broadcaster LOWERED/granted them a page's read action key (a role-less VIP with a lowered
+    // `commands:read` gets a read-only Commands page). A caller who can see NO management page is a pure
+    // PARTICIPANT (Rung 0): the same shell renders the participant surface — gated by their Plane-A community
+    // standing, not a management role. A Moderator/Editor/Broadcaster always clears a floor, so their shell is
+    // unchanged. [role] stays NULLABLE through the management shell: a VIP who entered via a held key has no
+    // management role, so every write gate defaults closed (read-only) except where a held key opens it.
     val role: ManagementRole? = access.role
-    if (role == null) {
+    if (!ShellNav.hasManagementAccess(role, access.heldActionKeys)) {
         ParticipantShell(
             graph = graph,
             languageController = languageController,
@@ -247,23 +251,32 @@ fun ShellScreen(
 
     val tokens = LocalTokens.current
 
-    // The routes this caller may actually OPEN on the active channel: the role's visible pages (frontend-ia.md §7)
-    // plus the admin console when they're a platform admin. Drives both the initial page seed and the gate below.
+    // The pages/routes this caller may actually OPEN on the active channel: those their role floor OR a held read
+    // key surfaces (frontend-ia.md §7), plus the admin console when they're a platform admin. Drives the sidebar,
+    // the initial page seed, and the route gate below. Keyed on [access.heldActionKeys] so a live grant/revoke
+    // re-derives with no reload.
+    val visiblePages: List<NavPage> =
+        remember(role, access.heldActionKeys) { ShellNav.visiblePagesFor(role, access.heldActionKeys) }
     val allowedRoutes: Set<ShellRoute> =
-        remember(role, user?.isAdmin) {
-            val visible: Set<ShellRoute> = ShellNav.visiblePagesFor(role).map { it.route }.toSet()
+        remember(visiblePages, user?.isAdmin) {
+            val visible: Set<ShellRoute> = visiblePages.map { it.route }.toSet()
             if (user?.isAdmin == true) visible + ShellRoute.Admin else visible
         }
+    // The safe landing route when the requested one isn't allowed: Home when the caller can open it (every
+    // Moderator+ can), else their first visible page — a VIP who only holds `commands:read` lands on Commands, not
+    // a Dashboard they can't read. [hasManagementAccess] guaranteed [visiblePages] is non-empty here.
+    val fallbackRoute: ShellRoute =
+        if (ShellRoute.Dashboard in allowedRoutes) ShellRoute.Dashboard else visiblePages.first().route
 
     // [requestedRoute] is the raw navigation intent (URL-seeded, sidebar taps, browser Back/Forward); [selected] is
-    // what actually renders — coerced down to Home (floors at Moderator, always reachable) whenever the intent sits
-    // on a page the caller can't read. This one derivation re-gates the content on EVERY path that could move the
-    // selection below the floor, including a LIVE role drop (a permission revoked over SignalR, or a switch to a
-    // channel the caller manages less), so the content host can never render — or crash on — a page the sidebar is
-    // hiding. Routing responds to permission changes with no reload. The route persisted to the URL is the coerced
-    // one, so a reload never restores a page the caller has since lost.
+    // what actually renders — coerced to [fallbackRoute] whenever the intent sits on a page the caller can't read.
+    // This one derivation re-gates the content on EVERY path that could move the selection below the floor,
+    // including a LIVE role/permission drop (revoked over SignalR, or a switch to a channel the caller manages
+    // less), so the content host can never render — or crash on — a page the sidebar is hiding. Routing responds to
+    // permission changes with no reload. The route persisted to the URL is the coerced one, so a reload never
+    // restores a page the caller has since lost.
     var requestedRoute: ShellRoute by remember { mutableStateOf(routeStore.initialRoute()) }
-    val selected: ShellRoute = if (requestedRoute in allowedRoutes) requestedRoute else ShellRoute.Dashboard
+    val selected: ShellRoute = if (requestedRoute in allowedRoutes) requestedRoute else fallbackRoute
     LaunchedEffect(selected) { routeStore.save(selected) }
     LaunchedEffect(routeStore) { routeStore.externalChanges.collect { requestedRoute = it } }
     // Keep the dashboard hub connected to the ACTIVE channel for the whole session — not as a side effect of the
@@ -328,6 +341,7 @@ fun ShellScreen(
                     selected = selected,
                     graph = graph,
                     role = role,
+                    heldActionKeys = access.heldActionKeys,
                     onChannelDeleted = onLogout,
                     modifier = Modifier.weight(1f).fillMaxWidth(),
                 )
@@ -340,6 +354,7 @@ fun ShellScreen(
             ) {
                 Sidebar(
                     role = role,
+                    heldActionKeys = access.heldActionKeys,
                     selected = selected,
                     isAdmin = user?.isAdmin == true,
                     onSelect = {
@@ -361,6 +376,7 @@ fun ShellScreen(
             Row(modifier = Modifier.fillMaxSize()) {
                 Sidebar(
                     role = role,
+                    heldActionKeys = access.heldActionKeys,
                     selected = selected,
                     isAdmin = user?.isAdmin == true,
                     onSelect = { requestedRoute = it },
@@ -378,6 +394,7 @@ fun ShellScreen(
                         selected = selected,
                         graph = graph,
                         role = role,
+                        heldActionKeys = access.heldActionKeys,
                         onChannelDeleted = onLogout,
                         modifier = Modifier.weight(1f).fillMaxWidth(),
                     )
@@ -409,12 +426,16 @@ fun ShellScreen(
 // reflow with the window — the inner screens fill this Box, so resizing flows straight through. The resolved
 // [role] threads into every screen so each gates its own write controls through `ManageGate` at the right floor
 // (frontend-ia.md §7) — read stays open per the page's read floor, writes disable-with-reason below the manage
-// floor. The role is non-null here (a viewer was routed to the participation surface above).
+// floor. [role] may be NULL here: a role-less VIP who entered the management shell via a broadcaster-lowered read
+// key has no management role, so every role-gated write defaults closed (read-only). [heldActionKeys] carries the
+// caller's cleared action keys so a page can gate on a specific capability instead of the role — the Quotes page
+// uses it to enable `quotes:write` / `quotes:delete` for a delegated VIP.
 @Composable
 private fun ShellContent(
     selected: ShellRoute,
     graph: AppGraph,
-    role: ManagementRole,
+    role: ManagementRole?,
+    heldActionKeys: Set<String>,
     onChannelDeleted: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
@@ -440,7 +461,7 @@ private fun ShellContent(
                     hubEvents = graph.dashboardHubClient.events,
                 )
             ShellRoute.EventResponses -> EventResponsesScreen(controller = graph.eventResponsesController, role = role)
-            ShellRoute.Quotes -> QuotesScreen(controller = graph.quotesController, role = role)
+            ShellRoute.Quotes -> QuotesScreen(controller = graph.quotesController, heldActionKeys = heldActionKeys)
             ShellRoute.Timers -> TimersScreen(controller = graph.timersController, role = role)
             ShellRoute.Moderation ->
                 ModerationScreen(
@@ -505,7 +526,8 @@ private fun ShellContent(
 
 @Composable
 private fun Sidebar(
-    role: ManagementRole,
+    role: ManagementRole?,
+    heldActionKeys: Set<String>,
     selected: ShellRoute,
     isAdmin: Boolean,
     onSelect: (ShellRoute) -> Unit,
@@ -518,7 +540,7 @@ private fun Sidebar(
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
 
-    val visible: List<NavPage> = ShellNav.visiblePagesFor(role)
+    val visible: List<NavPage> = ShellNav.visiblePagesFor(role, heldActionKeys)
     val groups: Map<NavGroup, List<NavPage>> =
         visible.filter { it.group != NavGroup.Setup }.groupBy { it.group }
     val pinned: List<NavPage> = visible.filter { it.group == NavGroup.Setup }

@@ -183,7 +183,11 @@ enum class ManagementRole(val wire: Int, val level: Int) {
  * ordinal — Everyone/Subscriber/Vip/Artist/Moderator) the **participant** surface unlocks progressively from
  * (a Sub sees a lane a plain viewer doesn't). [permitCapabilities] are the per-user action keys the backend
  * granted, which the participant surface uses to light up capability-gated self-service (e.g. `economy:transfer:write`).
- * `ApiClient`'s JSON ignores any field we don't read here.
+ * [heldActionKeys] is the broader, UI-facing set the shell gates VISIBILITY on: EVERY action key the caller
+ * actually CLEARS on this channel — their effective level meets the action's channel-effective required level
+ * (which FOLDS IN the broadcaster's per-action override, unlike the per-plane [effectiveLevel]/[permitCapabilities]
+ * fields), OR they hold a direct per-user capability grant for it. It is what lets a broadcaster-lowered page
+ * surface to a VIP/Sub. `ApiClient`'s JSON ignores any field we don't read here.
  */
 @Serializable
 data class ResolvedAccess(
@@ -196,6 +200,7 @@ data class ResolvedAccess(
     val managementLevel: Int = 0,
     val permitCapabilities: List<String> = emptyList(),
     val winningSource: String = "",
+    val heldActionKeys: List<String> = emptyList(),
 ) {
     /** The Plane-B rung the shell gates on, or null when the caller holds no management role (a viewer). */
     val role: ManagementRole?

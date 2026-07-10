@@ -16,38 +16,6 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
 
 ## Open
 
-### 2026-07-10 — Boot perf: the i18n string resource is re-fetched ~30× on load
-- **From:** Stoney_Eagle (via Claude, backend track)
-- **What:** On dashboard boot the Dutch i18n resource
-  `composeResources/nomnomzbot.composeapp.generated.resources/values-nl/strings.commonMain.cvr` is fetched
-  **~30 times in a row** (observed live in the network trace: reqid 49–74, every one `[304]`), each a network
-  round-trip. It should be fetched once per locale and cached, not re-requested per string / per recomposition.
-  This materially slows the "boot takes too long" the owner reported (alongside the `refresh` 401 → device-login
-  fallback, which is expected right after a logout).
-- **Why:** ~30 redundant round-trips on every load = visibly slow boot.
-- **Where:** the Compose Resources / i18n read path (`core/i18n/**`, how `stringResource` + `LocalAppLocale`
-  load the `.cvr`) — likely a missing memoization of the resource load, or it re-triggers on every recomposition.
-  Compare with how Compose Multiplatform caches `composeResources`.
-- **Done when:** the `.cvr` (per locale) is fetched at most once per session; the boot trace shows a single
-  request for it, not ~30.
-
-### 2026-07-10 — IAM floors lowered for VIPs + quotes:delete split off
-- **From:** Stoney_Eagle (via Claude, backend track)
-- **What:** Two role-gating changes the dashboard should reflect. (1) 14 trivial **read** actions now floor
-  at **VIP** instead of Moderator — `commands:read`, `pipelines:read`, `pipelines:validate`,
-  `eventresponses:read`, `timers:read`, `quotes:read`, `sounds:read`, `reward:read`, `music:config:read`,
-  `tts:voice:read`, `stream:read`, `widget:read`, `chat:read`, `dashboard:read` — so a signed-in VIP can now
-  see those pages/panels (the read floor gates page visibility, frontend-ia §7). (2) The quote **DELETE**
-  action moved off `quotes:write` onto a new **`quotes:delete`** (Moderator) key; `quotes:write` (add/edit) is
-  now **VIP**. Gate the quote **delete** button on `quotes:delete`, NOT `quotes:write` — otherwise a VIP sees
-  a delete button that 403s (backend already denies it; this is UX only).
-- **Why:** owner asked to let trusted VIPs do trivial, non-destructive things; the backend floors changed.
-- **Where:** `feature/quotes/**` (the delete button's action-key gate); page visibility derived from the read
-  floors (`frontend-ia.md §7`); effective role/floors from `/effective/me` + the action catalogue. No DTO/
-  contract change (`server/openapi/v1.json` unchanged).
-- **Done when:** VIP-floored read pages are visible to a VIP; the quote delete button is gated on
-  `quotes:delete` (hidden/disabled for a VIP) while add/edit stays available to them.
-
 ### 2026-07-05 — Standing rule: users never see numeric permission levels (names only)
 - **From:** Stoney_Eagle (via Claude, backend track)
 - **What:** owner rule — **no user-facing surface ever renders the numeric ladder value** of a role.
@@ -70,22 +38,6 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
   if you'd rather not mirror the table.
 - **Where:** `docs/bot-capabilities.md` §1.3 (new third golden rule) + §1.5; `RolesScreen.kt`.
 - **Done when:** no dashboard surface renders a permission number; role pickers/badges/gates read by name.
-
-### 2026-07-05 — `ShellNavTest` is red on master after the sidebar reorder (18159a7) — please reconcile
-- **From:** Stoney_Eagle (via Claude, backend track — flagging, not fixing: this is your IA design)
-- **What:** `jvmTest` fails on `ShellNavTest.pages_are_grouped_in_the_binding_ia_order_with_setup_pinned_last`
-  (`feature/shell/nav/ShellNavTest.kt:65`). Commit **18159a7 "reorder sidebar IA and rename Music group
-  to Audio"** reordered `ShellNav.pages` so the group order is now
-  `Home, Moderation, Community, Chat, Loyalty, Music, Stream, Connect, Setup`, but the test still asserts
-  the **old** order `Home, Chat, Moderation, Loyalty, Music, Stream, Community, Connect, Setup`, and the
-  `NavGroup` enum declaration order (ShellNav.kt:56) also still reflects the old order. Three things now
-  disagree (pages list vs enum order vs test).
-- **Why it matters:** there is **no frontend CI job** (only the Docker/wasm build runs in CI), so this
-  red is **local-only** and silently sitting on master — a `jvmTest` gate would be flagging it.
-- **Where:** `feature/shell/nav/ShellNav.kt` (`pages`, `NavGroup`), `feature/shell/nav/ShellNavTest.kt`.
-- **Done when:** the intended canonical IA order (per `frontend-ia.md` §3) is the single truth across
-  the `pages` list, the `NavGroup` enum order, and the test — and `jvmTest` is green. (Consider wiring
-  `jvmTest` into CI so this can't recur.)
 
 ### 2026-07-05 — Features endpoint now reports ENTITLEMENT, not just opt-in (gate the Features UI on it)
 - **From:** Stoney_Eagle (via Claude, backend track)
@@ -223,3 +175,24 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
 ## Done
 
 _(completed entries move here, with their commit hashes)_
+
+### 2026-07-10 — i18n string bundle re-fetched ~30× on boot — DONE `b6dbfbb1`
+- Done by the backend track directly (owner directed the UI work). `core/i18n/BundleCachingResourceReader.kt`
+  caches the `.cvr` bundle once per session behind `LocalAppLocale`; boot now reads the bundle a single time
+  instead of per-string. Verified in `:composeApp:jvmTest` (green).
+
+### 2026-07-10 — VIP-lowerable actions + quotes:delete split — DONE (frontend consume + `ba9167a4` `5c56dc05` `8a9e305e`)
+- Done by the backend track directly (owner directed the UI work). **Superseded the original framing:** the
+  final model is NOT "default floors lowered to VIP". Defaults stay at the Twitch base; the broadcaster
+  **lowers via a per-action override** down to a VIP floor for non-harmful actions (`ba9167a4`). The dashboard
+  reflects this through the new `ResolvedAccessDto.heldActionKeys` (`8a9e305e`, `GET /roles/effective/me`):
+  page visibility = `role clears readFloor` **OR** `readActionKey ∈ heldActionKeys`, so a broadcaster-lowered
+  page surfaces to a VIP/Sub without changing the two-plane default. Quote add/edit gate on `quotes:write`,
+  delete on `quotes:delete` (`5c56dc05`) via disable-with-reason. `ShellNav`/`ShellAccessController`/
+  `QuotesAccess` + tests (`ShellNavTest` 14/0, `QuotesAccessTest` 3/0, `ShellAccessControllerTest` 10/0);
+  Kotlin DTO field registered in `ApiContractTest` (1/0). `:composeApp:jvmTest` + `compileKotlinWasmJs` green.
+
+### 2026-07-05 — `ShellNavTest` red after sidebar reorder (18159a7) — DONE (reconciled; jvmTest green 14/0)
+- Reconciled as part of the `heldActionKeys` shell work: `ShellNav.pages`, the `NavGroup` order, and
+  `ShellNavTest` now agree, and `:composeApp:jvmTest` is green (14/14) — verified locally before push. The
+  local-only red is cleared.

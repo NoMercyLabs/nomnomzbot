@@ -1092,6 +1092,8 @@
     <string name="quotes_dialog_create">Add</string>
     <string name="quotes_dialog_save">Save</string>
     <string name="quotes_dialog_cancel">Cancel</string>
+    <string name="quotes_requires_write">Requires quote-editing permission</string>
+    <string name="quotes_requires_delete">Requires quote-deletion permission</string>
 
     <!-- Discord page. -->
     <string name="discord_title">Discord</string>

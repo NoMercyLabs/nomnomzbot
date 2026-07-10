@@ -180,4 +180,59 @@ class ShellNavTest {
         assertFalse(ShellNav.canManage(ManagementRole.Broadcaster, ShellRoute.Dashboard))
         assertFalse(ShellNav.canManage(ManagementRole.Broadcaster, ShellRoute.Analytics))
     }
+
+    // ── Held-key visibility (frontend-ia.md §3a) — a broadcaster-LOWERED page surfaces to a role-less caller ────
+
+    @Test
+    fun a_role_less_caller_holding_a_pages_read_key_sees_that_page_and_enters_the_management_shell() {
+        // The broadcaster lowered `commands:read` to a VIP: the caller has NO management role, but holds the key,
+        // so the Commands page becomes visible AND the shell's rung fork admits them to the management shell (where
+        // every write still defaults off — read-only — until a write key is also held).
+        val held: Set<String> = setOf("commands:read")
+
+        val visible: List<NavPage> = ShellNav.visiblePagesFor(null, held)
+        assertTrue(visible.any { it.route == ShellRoute.Commands }, "a lowered commands:read must surface Commands")
+        // ONLY the held page surfaces — one lowered key never leaks the rest of the management shell.
+        assertEquals(setOf(ShellRoute.Commands), visible.map { it.route }.toSet())
+        assertTrue(
+            ShellNav.hasManagementAccess(null, held),
+            "holding a management page's read key must admit a role-less caller to the management shell",
+        )
+    }
+
+    @Test
+    fun a_participant_only_held_key_set_hides_every_management_page_and_stays_on_the_participant_rung() {
+        // A pure participant's held keys carry only participant capabilities (e.g. self-service transfer) — none is
+        // a management page's read key — so no management page is visible and the fork keeps them on the
+        // participant rung. An empty held set behaves identically (the fail-closed default).
+        val participantOnly: Set<String> = setOf("economy:transfer:write")
+
+        assertTrue(ShellNav.visiblePagesFor(null, participantOnly).isEmpty())
+        assertFalse(ShellNav.hasManagementAccess(null, participantOnly))
+        assertTrue(ShellNav.visiblePagesFor(null, emptySet()).isEmpty())
+        assertFalse(ShellNav.hasManagementAccess(null, emptySet()))
+    }
+
+    @Test
+    fun a_role_that_clears_the_floor_is_unchanged_by_held_keys() {
+        // The invariant that keeps the Mod/Editor/Broadcaster shells UNCHANGED: for a role that already clears the
+        // floors, the visible set is identical whether or not held keys are supplied. Held keys only ADD pages a
+        // role can't reach, and every keyed page floors at Moderator (Broadcaster pages carry a null key), so a
+        // Mod's real held set never surfaces anything the role branch didn't already.
+        val roleOnly: Set<ShellRoute> =
+            ShellNav.visiblePagesFor(ManagementRole.Moderator).map { it.route }.toSet()
+        val withHeldReadKeys: Set<ShellRoute> =
+            ShellNav.visiblePagesFor(
+                    ManagementRole.Moderator,
+                    setOf("commands:read", "quotes:read", "chat:read", "reward:read"),
+                )
+                .map { it.route }
+                .toSet()
+
+        assertEquals(roleOnly, withHeldReadKeys)
+        // Every management role always enters the management shell, held keys or not.
+        ManagementRole.entries.forEach { role ->
+            assertTrue(ShellNav.hasManagementAccess(role, emptySet()), "$role must always reach the management shell")
+        }
+    }
 }
