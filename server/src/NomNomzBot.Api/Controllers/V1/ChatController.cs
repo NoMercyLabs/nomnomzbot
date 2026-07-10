@@ -23,6 +23,7 @@ using NomNomzBot.Application.Chat.Decoration;
 using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
+using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Domain.Chat.Entities;
 using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Chat.Interfaces;
@@ -47,6 +48,7 @@ public class ChatController : BaseController
     private readonly IChatMessageDecorator _decorator;
     private readonly ICurrentUserService _currentUser;
     private readonly IOperatorChatSender _operatorSender;
+    private readonly IOperatorMessageDeleter _operatorDeleter;
     private readonly IChatEmoteCatalogue _emoteCatalogue;
     private readonly IHubUserEnricher _enricher;
 
@@ -57,6 +59,7 @@ public class ChatController : BaseController
         IChatMessageDecorator decorator,
         ICurrentUserService currentUser,
         IOperatorChatSender operatorSender,
+        IOperatorMessageDeleter operatorDeleter,
         IChatEmoteCatalogue emoteCatalogue,
         IHubUserEnricher enricher
     )
@@ -67,6 +70,7 @@ public class ChatController : BaseController
         _decorator = decorator;
         _currentUser = currentUser;
         _operatorSender = operatorSender;
+        _operatorDeleter = operatorDeleter;
         _emoteCatalogue = emoteCatalogue;
         _enricher = enricher;
     }
@@ -355,7 +359,7 @@ public class ChatController : BaseController
 
     // ── DELETE message (moderation quick-action) ───────────────────────────────
 
-    /// <summary>Delete a chat message — a moderator's quick-action from the dashboard's chat page.</summary>
+    /// <summary>Delete a chat message — a moderator's quick-action from the dashboard's chat page, attributed to them.</summary>
     [RequireAction("moderation:delete_message")]
     [HttpDelete("messages/{messageId}")]
     [ProducesResponseType<StatusResponseDto<bool>>(StatusCodes.Status200OK)]
@@ -371,7 +375,32 @@ public class ChatController : BaseController
         if (string.IsNullOrWhiteSpace(messageId))
             return BadRequestResponse("Missing message id.");
 
-        await _chat.DeleteMessageAsync(broadcasterId, messageId, ct);
+        if (!Guid.TryParse(_currentUser.UserId, out Guid operatorUserId))
+            return UnauthenticatedResponse();
+
+        // Delete AS THE LOGGED-IN OPERATOR (their own token, moderator_id = them) so Twitch attributes the removal to
+        // the moderator who clicked — not the broadcaster (chat-client.md §3.5). Mirrors the operator send path above;
+        // the bot's IChatProvider stays the automation (pipeline / AutoMod) delete path.
+        Result result = await _operatorDeleter.DeleteAsUserAsync(
+            operatorUserId,
+            broadcasterId,
+            messageId,
+            ct
+        );
+
+        // Edge case ONLY: the operator has no linked Twitch identity to act as (no usable operator token). Rather than
+        // fail the moderation outright, fall back to the tenant delete (broadcaster's token, broadcaster as moderator_id).
+        // This is the single path that mis-attributes to the broadcaster, and only when acting AS the operator is
+        // impossible — every other failure is surfaced honestly below, never a silent broadcaster-attributed retry.
+        if (result.IsFailure && result.ErrorCode == TwitchErrorCodes.NoToken)
+        {
+            await _chat.DeleteMessageAsync(broadcasterId, messageId, ct);
+            return Ok(new StatusResponseDto<bool> { Data = true });
+        }
+
+        if (result.IsFailure)
+            return TwitchResultResponse(result);
+
         return Ok(new StatusResponseDto<bool> { Data = true });
     }
 

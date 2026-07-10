@@ -120,6 +120,21 @@ public interface ITwitchModerationApi
     /// <summary>Clear Chat — removes every message from the channel's chat room (omits <c>message_id</c>). Requires <c>moderator:manage:chat_messages</c>.</summary>
     Task<Result> DeleteAllChatMessagesAsync(Guid broadcasterId, CancellationToken ct = default);
 
+    /// <summary>
+    /// Delete Chat Message AS THE OPERATOR — removes <paramref name="messageId"/> from
+    /// <paramref name="broadcasterTwitchId"/>'s chat using the logged-in operator's OWN token
+    /// (<c>moderator_id</c> = the operator), so a moderator deleting from the dashboard is attributed to THEM,
+    /// not the broadcaster (chat-client.md §3.5). <paramref name="broadcasterTwitchId"/> is a raw Twitch id, never
+    /// a tenant Guid. Requires the operator token to carry <c>moderator:manage:chat_messages</c>; Twitch enforces
+    /// that the operator actually moderates the channel, so there is no privilege escalation.
+    /// </summary>
+    Task<Result> DeleteChatMessageAsOperatorAsync(
+        Guid operatorUserId,
+        string broadcasterTwitchId,
+        string messageId,
+        CancellationToken ct = default
+    );
+
     /// <summary>Get Shield Mode Status — the channel's current Shield Mode activation status. Requires <c>moderator:read:shield_mode</c>.</summary>
     Task<Result<TwitchShieldModeStatus>> GetShieldModeStatusAsync(
         Guid broadcasterId,

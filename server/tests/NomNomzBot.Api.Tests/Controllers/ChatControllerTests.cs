@@ -19,6 +19,7 @@ using NomNomzBot.Application.Chat.Decoration;
 using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
+using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Domain.Chat.Entities;
 using NomNomzBot.Domain.Chat.Enums;
 using NomNomzBot.Domain.Chat.Events;
@@ -52,6 +53,7 @@ public sealed class ChatControllerTests
         IChatMessageDecorator decorator,
         IChatProvider? chat = null,
         IOperatorChatSender? operatorSender = null,
+        IOperatorMessageDeleter? operatorDeleter = null,
         ICurrentUserService? currentUser = null,
         IChatEmoteCatalogue? emoteCatalogue = null,
         IHubUserEnricher? enricher = null
@@ -63,6 +65,7 @@ public sealed class ChatControllerTests
             decorator,
             currentUser ?? StubCurrentUser(OperatorUserId),
             operatorSender ?? Substitute.For<IOperatorChatSender>(),
+            operatorDeleter ?? Substitute.For<IOperatorMessageDeleter>(),
             emoteCatalogue ?? Substitute.For<IChatEmoteCatalogue>(),
             enricher ?? Substitute.For<IHubUserEnricher>()
         );
@@ -487,6 +490,158 @@ public sealed class ChatControllerTests
                 Arg.Any<Guid>(),
                 Arg.Any<string>(),
                 Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task DeleteMessage_deletes_as_the_logged_in_operator_never_via_the_bots_tenant_path()
+    {
+        ChatControllerTestDbContext db = ChatControllerTestDbContext.New();
+        IChatProvider bot = Substitute.For<IChatProvider>();
+        IOperatorMessageDeleter deleter = Substitute.For<IOperatorMessageDeleter>();
+        deleter
+            .DeleteAsUserAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success());
+        ChatController controller = Build(
+            db,
+            Substitute.For<IChatMessageDecorator>(),
+            chat: bot,
+            operatorDeleter: deleter,
+            currentUser: StubCurrentUser(OperatorUserId)
+        );
+
+        IActionResult result = await controller.DeleteMessage(Broadcaster.ToString(), "msg-1");
+
+        result.Should().BeOfType<OkObjectResult>();
+        // Routed through the OPERATOR deleter with the caller's user id — so Twitch attributes it to them, not the
+        // broadcaster — and the bot's tenant delete path is NEVER touched when acting as the operator succeeds.
+        await deleter
+            .Received(1)
+            .DeleteAsUserAsync(OperatorUserId, Broadcaster, "msg-1", Arg.Any<CancellationToken>());
+        await bot.DidNotReceive()
+            .DeleteMessageAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task DeleteMessage_falls_back_to_the_tenant_delete_only_when_the_operator_has_no_linked_twitch_identity()
+    {
+        ChatControllerTestDbContext db = ChatControllerTestDbContext.New();
+        IChatProvider bot = Substitute.For<IChatProvider>();
+        IOperatorMessageDeleter deleter = Substitute.For<IOperatorMessageDeleter>();
+        // The one documented edge case: the operator has no linked Twitch identity to act as (no_token). The
+        // controller falls back to the tenant delete rather than failing the moderation outright.
+        deleter
+            .DeleteAsUserAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                Result.Failure("You have no linked Twitch identity.", TwitchErrorCodes.NoToken)
+            );
+        ChatController controller = Build(
+            db,
+            Substitute.For<IChatMessageDecorator>(),
+            chat: bot,
+            operatorDeleter: deleter
+        );
+
+        IActionResult result = await controller.DeleteMessage(Broadcaster.ToString(), "msg-1");
+
+        result.Should().BeOfType<OkObjectResult>();
+        await bot.Received(1)
+            .DeleteMessageAsync(Broadcaster, "msg-1", Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task DeleteMessage_surfaces_a_twitch_rejection_and_never_silently_retries_as_the_broadcaster()
+    {
+        ChatControllerTestDbContext db = ChatControllerTestDbContext.New();
+        IChatProvider bot = Substitute.For<IChatProvider>();
+        IOperatorMessageDeleter deleter = Substitute.For<IOperatorMessageDeleter>();
+        // Twitch rejected the operator's own delete (e.g. rate-limited, or they are not actually a mod there). This is
+        // NOT the no-token edge case, so the controller must surface it honestly — never fall back to a broadcaster-
+        // attributed retry that would both mis-attribute AND lie {data:true}.
+        deleter
+            .DeleteAsUserAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Failure("Slow down.", TwitchErrorCodes.RateLimited));
+        ChatController controller = Build(
+            db,
+            Substitute.For<IChatMessageDecorator>(),
+            chat: bot,
+            operatorDeleter: deleter
+        );
+
+        IActionResult result = await controller.DeleteMessage(Broadcaster.ToString(), "msg-1");
+
+        ObjectResult response = result.Should().BeAssignableTo<ObjectResult>().Subject;
+        response.StatusCode.Should().Be(429); // TwitchErrorCodes.RateLimited → Too Many Requests
+        await bot.DidNotReceive()
+            .DeleteMessageAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task DeleteMessage_returns_401_and_deletes_nothing_when_there_is_no_authenticated_user()
+    {
+        ChatControllerTestDbContext db = ChatControllerTestDbContext.New();
+        IChatProvider bot = Substitute.For<IChatProvider>();
+        IOperatorMessageDeleter deleter = Substitute.For<IOperatorMessageDeleter>();
+        ChatController controller = Build(
+            db,
+            Substitute.For<IChatMessageDecorator>(),
+            chat: bot,
+            operatorDeleter: deleter,
+            currentUser: StubCurrentUser(null)
+        );
+
+        IActionResult result = await controller.DeleteMessage(Broadcaster.ToString(), "msg-1");
+
+        ObjectResult response = result.Should().BeAssignableTo<ObjectResult>().Subject;
+        response.StatusCode.Should().Be(401);
+        await deleter
+            .DidNotReceive()
+            .DeleteAsUserAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            );
+        await bot.DidNotReceive()
+            .DeleteMessageAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task DeleteMessage_rejects_an_invalid_channel_id_without_deleting()
+    {
+        ChatControllerTestDbContext db = ChatControllerTestDbContext.New();
+        IOperatorMessageDeleter deleter = Substitute.For<IOperatorMessageDeleter>();
+        ChatController controller = Build(
+            db,
+            Substitute.For<IChatMessageDecorator>(),
+            operatorDeleter: deleter
+        );
+
+        IActionResult result = await controller.DeleteMessage("not-a-guid", "msg-1");
+
+        result.Should().BeOfType<BadRequestObjectResult>();
+        await deleter
+            .DidNotReceive()
+            .DeleteAsUserAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
                 Arg.Any<CancellationToken>()
             );
     }

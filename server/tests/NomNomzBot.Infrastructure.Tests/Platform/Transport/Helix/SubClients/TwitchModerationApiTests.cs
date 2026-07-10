@@ -493,6 +493,56 @@ public class TwitchModerationApiTests
         transport.CallCount.Should().Be(0);
     }
 
+    [Fact]
+    public async Task DeleteChatMessageAsOperator_BuildsOperatorTokenDelete_WithOperatorAsModeratorId()
+    {
+        CapturingHelixTransport transport = new();
+        // No scope pre-check (the operator rides their OWN token, not the tenant's), so an empty scope set is fine.
+        // The stub resolver maps the operator's user Guid (Tenant) to their own Twitch id — the moderator_id.
+        TwitchModerationApi api = Build(transport);
+
+        // The channel being moderated is a DIFFERENT raw Twitch id than the operator's — proving broadcaster_id is
+        // passed straight through (never resolved from a Guid) and that moderator_id is the operator, not the channel.
+        Result result = await api.DeleteChatMessageAsOperatorAsync(Tenant, "55443322", "msg-7");
+
+        result.IsSuccess.Should().BeTrue();
+        transport.LastRequest!.Method.Should().Be(HttpMethod.Delete);
+        transport.LastRequest.Path.Should().Be("moderation/chat");
+        // Rides the OPERATOR's own token (keyed by OperatorUserId) — NOT the broadcaster's user token.
+        transport.LastRequest.Auth.Should().Be(TwitchHelixAuth.Operator);
+        transport.LastRequest.OperatorUserId.Should().Be(Tenant);
+        transport.LastRequest.Priority.Should().Be(TwitchCallPriority.UserInteractive);
+        transport
+            .LastRequest.Query.Should()
+            .Contain(q => q.Key == "broadcaster_id" && q.Value == "55443322");
+        // moderator_id is the operator's OWN Twitch id — so Twitch attributes the deletion to the moderator.
+        transport
+            .LastRequest.Query.Should()
+            .Contain(q => q.Key == "moderator_id" && q.Value == TwitchId);
+        transport
+            .LastRequest.Query.Should()
+            .Contain(q => q.Key == "message_id" && q.Value == "msg-7");
+    }
+
+    [Fact]
+    public async Task DeleteChatMessageAsOperator_NoLinkedIdentity_FailsNoToken_WithoutCallingTransport()
+    {
+        CapturingHelixTransport transport = new();
+        TwitchModerationApi api = Build(transport);
+        // A user the stub identity resolver doesn't know → no Twitch id to act as.
+        Guid unknownOperator = Guid.Parse("0195e0d2-9999-7999-8999-000000000099");
+
+        Result result = await api.DeleteChatMessageAsOperatorAsync(
+            unknownOperator,
+            "55443322",
+            "msg-7"
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be(TwitchErrorCodes.NoToken);
+        transport.CallCount.Should().Be(0);
+    }
+
     // ── Shield mode ──
 
     [Fact]

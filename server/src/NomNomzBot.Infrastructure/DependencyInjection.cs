@@ -261,6 +261,12 @@ public static class DependencyInjection
         services.AddScoped<Application.Chat.Services.IChatMessageDecorator, ChatMessageDecorator>();
         // Operator chat sender (scoped — resolves the operator identity via ITwitchIdentityResolver; chat-client.md §3.3).
         services.AddScoped<Application.Chat.Services.IOperatorChatSender, OperatorChatSender>();
+        // Operator message deleter (scoped — deletes AS the operator so Twitch attributes it to them; chat-client.md §3.5).
+        // Not an I<X>Service, so it is registered explicitly rather than by AddServicesByConvention.
+        services.AddScoped<
+            Application.Moderation.Services.IOperatorMessageDeleter,
+            Moderation.OperatorMessageDeleter
+        >();
         // Composer emote catalogue (scoped — reads the warm decoration cache + fetches Twitch emotes; chat-client.md §3.2).
         services.AddScoped<Application.Chat.Services.IChatEmoteCatalogue, ChatEmoteCatalogue>();
         // Every outbound HttpClient the factory builds (provider fetches, OAuth, Twitch, TTS, webhooks…) sends

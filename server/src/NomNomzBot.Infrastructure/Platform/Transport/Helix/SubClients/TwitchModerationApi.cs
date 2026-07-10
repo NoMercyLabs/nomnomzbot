@@ -419,6 +419,43 @@ public sealed class TwitchModerationApi(
         return await transport.SendAsync(request, ct);
     }
 
+    public async Task<Result> DeleteChatMessageAsOperatorAsync(
+        Guid operatorUserId,
+        string broadcasterTwitchId,
+        string messageId,
+        CancellationToken ct = default
+    )
+    {
+        // The operator's OWN Twitch id is the moderator_id, and the operator's OWN token signs the call
+        // (Auth.Operator resolves it from OperatorUserId). broadcasterTwitchId is the raw Twitch id of the channel
+        // being moderated — which may not be a tenant — so it is NEVER resolved from a Guid. No local scope
+        // pre-check is possible here: HasScopeAsync inspects the tenant broadcaster's token, but this call rides the
+        // operator's token — so Twitch is the authority that the operator moderates the channel and that their token
+        // carries moderator:manage:chat_messages, which means there is no privilege escalation.
+        string? operatorTwitchId = await identity.GetTwitchUserIdAsync(operatorUserId, ct);
+        if (string.IsNullOrEmpty(operatorTwitchId))
+            return Result.Failure(
+                "You have no linked Twitch identity to moderate as.",
+                TwitchErrorCodes.NoToken
+            );
+
+        TwitchHelixRequest request = new(
+            HttpMethod.Delete,
+            "moderation/chat",
+            TwitchHelixAuth.Operator,
+            Query:
+            [
+                new("broadcaster_id", broadcasterTwitchId),
+                new("moderator_id", operatorTwitchId),
+                new("message_id", messageId),
+            ],
+            Priority: TwitchCallPriority.UserInteractive,
+            OperatorUserId: operatorUserId
+        );
+
+        return await transport.SendAsync(request, ct);
+    }
+
     public async Task<Result<TwitchShieldModeStatus>> GetShieldModeStatusAsync(
         Guid broadcasterId,
         CancellationToken ct = default
