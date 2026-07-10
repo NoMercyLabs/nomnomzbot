@@ -24,10 +24,23 @@ public interface IEventSubTransport
     EventSubTransportKind Kind { get; }
 
     /// <summary>
-    /// Brings the transport up (connect WS / ensure conduit+shards exist) and returns the session/conduit
-    /// handle the service uses when creating subscriptions. Idempotent; safe to call after reconnect.
+    /// Brings the transport up (connect the bot's WS session / ensure conduit+shards exist) and returns its
+    /// handle. Idempotent; safe to call after reconnect. Equivalent to <see cref="EnsureSessionAsync"/> for the
+    /// bot owner (<see cref="EventSubOwnerKeys.Bot"/>).
     /// </summary>
     Task<Result<EventSubTransportHandle>> StartAsync(CancellationToken ct = default);
+
+    /// <summary>
+    /// Ensures a live session exists for the given token owner (see <see cref="EventSubOwnerKeys"/>), connecting
+    /// its WebSocket and awaiting the welcome if needed, and returns its handle. Twitch forbids subscriptions
+    /// from different users on one WebSocket session, so each broadcaster's authorized topics ride their OWN
+    /// session; this opens (or returns) it. Idempotent. For the conduit transport a single conduit backs every
+    /// owner, so it resolves to the same handle.
+    /// </summary>
+    Task<Result<EventSubTransportHandle>> EnsureSessionAsync(
+        string ownerKey,
+        CancellationToken ct = default
+    );
 
     /// <summary>
     /// Creates one subscription at Twitch under this transport (session_id for WS, conduit_id for conduit).
@@ -38,6 +51,12 @@ public interface IEventSubTransport
         EventSubTransportHandle handle,
         CancellationToken ct = default
     );
+
+    /// <summary>
+    /// The live session/conduit id currently backing the given token owner, or null when none is open. Used by
+    /// reconcile to tell a live subscription apart from one stranded on a dead session (per owner).
+    /// </summary>
+    string? CurrentSessionId(string ownerKey);
 
     /// <summary><c>DELETE /eventsub/subscriptions?id=</c>. Idempotent (404 → Success).</summary>
     Task<Result> DeleteSubscriptionAsync(

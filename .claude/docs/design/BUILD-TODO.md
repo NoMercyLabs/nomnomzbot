@@ -75,17 +75,21 @@ hashes and its granular bullets are removed — finished work is never left as a
 Root-caused against the live Proxmox DB (`event_sub_subscriptions` statuses + stored token scopes). Evidence:
 every broadcaster token already holds the full scope set (`channel:read:subscriptions`, `bits:read`,
 `moderator:read:followers`, `channel:manage:broadcast`, …); the **platform bot token holds only chat scopes**.
-- [ ] **A. EventSub subscriptions ride the wrong token** — `EventSubConditionBuilder.RequiresBroadcasterToken`
-  is hard-`false`, so EVERY topic is created with the **bot** token. Consequence: scoped topics
-  (`channel.subscribe`, `channel.cheer`, `channel.follow`, `channel.ban`, `channel.moderate`, polls,
-  predictions, …) **403** (bot lacks the broadcaster's scopes), and all cost-1 topics
-  (`stream.online/offline`, `channel.update`, `channel.raid`, reward redemptions) pile onto the bot's single
-  **10-cost** budget (cost is *per user token* — client-id+user-id tuple) → **429 "deferred"**. Fix: create each
-  channel's subs with **that channel's own broadcaster token** (own scopes → no 403; own 10-cost budget where
-  those topics are cost-0 → no 429). Chat-read topics stay on the bot token (bot is the reader). ⚠️ Verify Twitch
-  allows multiple broadcasters' tokens on one WS session (cost-per-token model implies yes); if it rejects,
-  escalate to **conduit transport** (tables `EventSubConduits`/`EventSubConduitShards` already exist) or
-  per-broadcaster WS connections.
+- [x] **A. EventSub subscriptions ride the wrong token** — DONE `3427229e`. `RequiresBroadcasterToken` was
+  hard-`false`, so every topic was created with the **bot** token (chat scopes only) → scoped topics 403,
+  cost-1 topics piled onto the bot's single 10-cost budget → 429. Now each channel's subs are created with
+  **that channel's own broadcaster token** (chat-read + the bot's whispers stay on the bot token). Verified on
+  the live deploy: the bot's OWN channel went 16 → **55 enabled**, and self-host (bot == broadcaster == session
+  owner) now gets the full event set.
+- [x] **A2. Multi-tenant WebSocket topology — per-broadcaster sessions** DONE. Constraint EMPIRICALLY PROVEN on
+  the live deploy: a broadcaster-token subscription on the **bot's** session is rejected with
+  `HTTP 400 — "websocket transport cannot have subscriptions created by different users"` (one WS session = one
+  Twitch user). Shipped: `WebSocketEventSubTransport` now keeps **one WS session per token owner**
+  (`EventSubOwnerKeys`) — the bot session carries every channel's chat-read topics; each broadcaster gets its OWN
+  session (their token owns it) for their authorized topics. `TwitchEventSubHostedService` is owner-aware
+  (subscribe routes per owner; welcome re-registers only that owner's slice; cleanup + reconcile are per-owner).
+  Within Twitch limits — 3 connections + 300 subs are **per user token**, and we use 1 connection per user.
+  Conduits remain the SaaS-scale path (tables exist) but aren't needed for self-host + small multi-tenant.
 - [ ] **B. Dashboard stuck "live"** — `stream.offline` is a 429-deferred topic, so the offline transition never
   arrives. Fixed by (A); ALSO add a periodic Helix stream-status poll fallback (defense-in-depth, truthful data)
   so live status self-heals regardless of EventSub health.

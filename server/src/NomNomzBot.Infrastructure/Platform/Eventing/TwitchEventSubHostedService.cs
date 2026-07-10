@@ -50,7 +50,6 @@ public sealed class TwitchEventSubHostedService
     private readonly TimeProvider _clock;
     private readonly ILogger<TwitchEventSubHostedService> _logger;
 
-    private EventSubTransportHandle? _handle;
     private DateTimeOffset? _lastEventAt;
     private volatile int _activeSubscriptionCount;
 
@@ -146,7 +145,6 @@ public sealed class TwitchEventSubHostedService
         }
 
         _transportStarted = true;
-        _handle = started.Value;
         _logger.LogInformation("EventSub transport started ({Kind})", _transport.Kind);
     }
 
@@ -185,21 +183,21 @@ public sealed class TwitchEventSubHostedService
 
     // ── IEventSubNotificationSink (called by the transport receive loop) ────
 
-    public async Task OnSessionWelcomeAsync(string sessionId, CancellationToken ct)
+    public async Task OnSessionWelcomeAsync(string sessionId, string ownerKey, CancellationToken ct)
     {
-        _handle = new EventSubTransportHandle { Kind = _transport.Kind, SessionId = sessionId };
         _logger.LogInformation(
-            "EventSub session welcome ({SessionId}) — re-homing subscriptions",
+            "EventSub session welcome ({Owner} / {SessionId}) — re-homing subscriptions",
+            ownerKey,
             sessionId
         );
 
-        // A fresh welcome means the previous WebSocket session is dead. Twitch keeps that session's
+        // A fresh welcome for this OWNER means its previous WebSocket session is dead. Twitch keeps that session's
         // subscriptions in a `websocket_disconnected` state for ~1 minute, and a re-create's 409-conflict key
         // is (type + condition) — session-independent — so those lingering subs would 409 every re-create and
-        // strand chat. Clear the dead-session orphans first, then re-register the enabled registry against the
-        // new session id and announce the steady state.
-        await CleanupStaleSessionSubsAsync(sessionId, ct);
-        int active = await ReRegisterAllAsync(ct);
+        // strand this owner's topics. Clear this owner's dead-session orphans first (never another owner's),
+        // then re-register this owner's enabled registry rows against the new session and announce steady state.
+        await CleanupOwnerStaleSubsAsync(ownerKey, sessionId, ct);
+        int active = await ReRegisterOwnerAsync(ownerKey, ct);
         _activeSubscriptionCount = active;
 
         await _eventBus.PublishAsync(
@@ -383,8 +381,10 @@ public sealed class TwitchEventSubHostedService
     {
         get
         {
+            // Connected once the bot session (which carries every channel's chat-read topics) has a session id;
+            // non-WebSocket transports report connected via their own liveness.
             bool connected =
-                _handle?.SessionId is not null
+                (_transport as WebSocketEventSubTransport)?.SessionId is not null
                 || _transport.Kind != EventSubTransportKind.WebSocket;
             DateTimeOffset? lastReconnect = (
                 _transport as WebSocketEventSubTransport
@@ -422,10 +422,23 @@ public sealed class TwitchEventSubHostedService
 
         string version = _conditionBuilder.GetVersion(eventType);
 
-        // Resolve the bot's Twitch user id to populate user_id / moderator_user_id in conditions.
-        // Multi-tenant WebSocket EventSub requires all subscription creates for one session to come from
-        // the same Twitch user; we use the bot account for this. When no dedicated bot account is configured
-        // (streamer IS the bot), botTwitchUserId is null and the broadcaster id is used as the fallback.
+        // Ensure the WebSocket session this topic must ride is live, and post the create onto it. A topic rides
+        // its token owner's session: bot-owned topics (chat-read) ride the bot's session; a broadcaster's
+        // authorized topics ride that broadcaster's OWN session — Twitch rejects subs from different users on one
+        // session ("websocket transport cannot have subscriptions created by different users").
+        string ownerKey = OwnerKeyFor(broadcasterId, eventType);
+        Result<EventSubTransportHandle> session = await _transport.EnsureSessionAsync(ownerKey, ct);
+        if (session.IsFailure)
+            return Result.Failure<EventSubSubscriptionDto>(
+                session.ErrorMessage!,
+                session.ErrorCode
+            );
+        EventSubTransportHandle handle = session.Value;
+
+        // Resolve the bot's Twitch user id to fill the user_id / moderator_user_id slot for BOT-OWNED topics
+        // (chat-read + the bot's whispers). Broadcaster-owned topics ignore it (they key on the broadcaster).
+        // When no dedicated bot account is configured (streamer IS the bot), it is null and the broadcaster id
+        // fills the slot as a single-account-self-host fallback.
         string? botTwitchUserId = await db
             .IntegrationConnections.Where(c =>
                 c.Provider == "twitch_bot" && c.BroadcasterId == null
@@ -478,7 +491,7 @@ public sealed class TwitchEventSubHostedService
         //  - an already-`enabled` row on the CURRENT session is live at Twitch — re-POSTing it would only 409.
         //  - a `deferred` row was parked by a prior 429 (WebSocket cost cap full); leave it for the conduit
         //    transport instead of re-hammering the cost budget on every reconnect / reconcile.
-        string? currentSession = _handle?.SessionId;
+        string? currentSession = handle.SessionId;
         if (!isNew)
         {
             if (
@@ -505,8 +518,6 @@ public sealed class TwitchEventSubHostedService
                 : EventSubTokenOwnerKind.Bot,
         };
 
-        EventSubTransportHandle handle =
-            _handle ?? new EventSubTransportHandle { Kind = _transport.Kind };
         Result<TwitchSubscriptionResult> created = await _transport.CreateSubscriptionAsync(
             request,
             handle,
@@ -681,10 +692,11 @@ public sealed class TwitchEventSubHostedService
 
         // Delete stale / orphan subscriptions this tenant owns at Twitch (attributed by TwitchSubscriptionId —
         // LIST doesn't return the condition, so we only ever delete ids in our own registry, never another
-        // tenant's). "Stale" = a live sub on a dead session (SessionId set and != the current one); "orphan" =
-        // a live sub whose registry row is no longer desired (disabled / soft-deleted). Removing it from the
-        // live set lets the re-create pass below re-home a still-desired stale row on the current session.
-        string? currentSession = _handle?.SessionId;
+        // tenant's). "Stale" = a live sub on a dead session (SessionId set and != its OWNER's current session);
+        // "orphan" = a live sub whose registry row is no longer desired (disabled / soft-deleted). Removing it
+        // from the live set lets the re-create pass below re-home a still-desired stale row on the current
+        // session. Each row's owner has its own session (bot vs broadcaster), so the "current" session is
+        // per-owner.
         Dictionary<string, EventSubSubscription> registryById = registry
             .Where(r => r.TwitchSubscriptionId is not null)
             .ToDictionary(r => r.TwitchSubscriptionId!, r => r);
@@ -699,6 +711,9 @@ public sealed class TwitchEventSubHostedService
             )
                 continue;
 
+            string? currentSession = _transport.CurrentSessionId(
+                OwnerKeyFor(owned.BroadcasterId, owned.EventType)
+            );
             bool staleSession =
                 !string.IsNullOrEmpty(live.SessionId)
                 && currentSession is not null
@@ -772,101 +787,100 @@ public sealed class TwitchEventSubHostedService
     {
         await _transport.StopAsync(ct);
         Result<EventSubTransportHandle> restarted = await _transport.StartAsync(ct);
-        if (restarted.IsFailure)
-            return restarted;
-
-        _handle = restarted.Value;
-        return Result.Success();
+        return restarted.IsFailure ? restarted : Result.Success();
     }
 
     // ── Internals ───────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Deletes subscriptions still registered at Twitch under a DEAD WebSocket session before re-registering.
-    /// After a restart Twitch holds the old session's subs in a <c>websocket_disconnected</c> state for ~1
-    /// minute; since a create's 409-conflict key is (type + condition) — session-independent — those lingering
-    /// subs would 409 every re-create on the new session and strand chat. We LIST the app's subs and DELETE any
-    /// whose <c>SessionId</c> is set and differs from the current one (dead-session orphans). WebSocket subs are
-    /// the only ones carrying a <c>SessionId</c>, so conduit/webhook subs (null) are never touched. A genuine
-    /// Twitch <c>session_reconnect</c> keeps the same session id, so nothing is stale and nothing is deleted.
-    /// Best-effort: a failed LIST just logs and lets re-register proceed.
+    /// The WebSocket session bucket a topic rides: the broadcaster's own session for its authorized topics,
+    /// the bot's shared session for the bot-owned (chat-read) set. Mirrors the token that creates the sub.
     /// </summary>
-    private async Task CleanupStaleSessionSubsAsync(string currentSessionId, CancellationToken ct)
-    {
-        Result<IReadOnlyList<TwitchSubscriptionResult>> listed =
-            await _transport.ListSubscriptionsAsync(Guid.Empty, ct);
-        if (listed.IsFailure)
-        {
-            _logger.LogWarning(
-                "EventSub stale-session cleanup skipped — listing subscriptions failed: {Error}",
-                listed.ErrorMessage
-            );
-            return;
-        }
-
-        int deleted = 0;
-        foreach (TwitchSubscriptionResult sub in listed.Value)
-        {
-            if (
-                string.IsNullOrEmpty(sub.TwitchSubscriptionId)
-                || string.IsNullOrEmpty(sub.SessionId)
-                || sub.SessionId == currentSessionId
-            )
-                continue;
-
-            await _transport.DeleteSubscriptionAsync(sub.TwitchSubscriptionId, ct);
-            deleted++;
-        }
-
-        if (deleted > 0)
-            _logger.LogInformation(
-                "EventSub: deleted {Count} stale-session subscription(s) before re-registering on {SessionId}",
-                deleted,
-                currentSessionId
-            );
-    }
+    private string OwnerKeyFor(Guid broadcasterId, string eventType) =>
+        EventSubOwnerKeys.For(broadcasterId, _conditionBuilder.RequiresBroadcasterToken(eventType));
 
     /// <summary>
-    /// Re-registers every enabled registry subscription against the current session/handle (post-welcome,
-    /// for every tenant). Returns the count that ended up enabled.
+    /// Deletes THIS owner's subscriptions still registered at Twitch under a DEAD WebSocket session before
+    /// re-registering. After a full drop Twitch holds the old session's subs in a <c>websocket_disconnected</c>
+    /// state for ~1 minute; since a create's 409-conflict key is (type + condition) — session-independent — those
+    /// lingering subs would 409 every re-create on the new session and strand this owner's topics. Driven off our
+    /// OWN registry (never another owner's rows, never another live session): the owner's rows whose
+    /// <c>SessionId</c> is set and differs from the current one are the dead-session orphans. A genuine Twitch
+    /// <c>session_reconnect</c> keeps the same session id, so nothing is stale and nothing is deleted.
     /// </summary>
-    private async Task<int> ReRegisterAllAsync(CancellationToken ct)
+    private async Task CleanupOwnerStaleSubsAsync(
+        string ownerKey,
+        string currentSessionId,
+        CancellationToken ct
+    )
     {
         await using AsyncServiceScope scope = _scopeFactory.CreateAsyncScope();
         IApplicationDbContext db =
             scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
 
-        List<Guid> tenants = await db
-            .EventSubSubscriptions.Where(s => s.Enabled && s.DeletedAt == null)
-            .Select(s => s.BroadcasterId)
-            .Distinct()
+        List<EventSubSubscription> rows = await db
+            .EventSubSubscriptions.Where(s =>
+                s.Enabled
+                && s.DeletedAt == null
+                && s.TwitchSubscriptionId != null
+                && s.SessionId != null
+                && s.SessionId != currentSessionId
+            )
             .ToListAsync(ct);
 
-        int enabled = 0;
-        foreach (Guid tenant in tenants)
+        int deleted = 0;
+        foreach (EventSubSubscription row in rows)
         {
-            List<string> eventTypes = await db
-                .EventSubSubscriptions.Where(s =>
-                    s.BroadcasterId == tenant && s.Enabled && s.DeletedAt == null
-                )
-                .Select(s => s.EventType)
-                .ToListAsync(ct);
+            if (OwnerKeyFor(row.BroadcasterId, row.EventType) != ownerKey)
+                continue;
 
-            // Subscribe cost-0 topics (chat + the chat-read set) FIRST: they never touch the WebSocket cost
-            // cap, so chat lands even when the cost-1 topics have exhausted it — and ahead of the general
-            // Helix rate burn.
-            eventTypes = [.. eventTypes.OrderByDescending(EventSubConditionBuilder.IsCost0Topic)];
+            await _transport.DeleteSubscriptionAsync(row.TwitchSubscriptionId!, ct);
+            deleted++;
+        }
 
-            foreach (string eventType in eventTypes)
+        if (deleted > 0)
+            _logger.LogInformation(
+                "EventSub: deleted {Count} stale-session subscription(s) for owner {Owner} before re-registering on {SessionId}",
+                deleted,
+                ownerKey,
+                currentSessionId
+            );
+    }
+
+    /// <summary>
+    /// Re-registers the enabled registry subscriptions that belong to <paramref name="ownerKey"/> against its
+    /// fresh session (post-welcome): the bot owner re-homes every channel's chat-read topics; a broadcaster owner
+    /// re-homes that channel's authorized topics. Returns the count that ended up enabled.
+    /// </summary>
+    private async Task<int> ReRegisterOwnerAsync(string ownerKey, CancellationToken ct)
+    {
+        await using AsyncServiceScope scope = _scopeFactory.CreateAsyncScope();
+        IApplicationDbContext db =
+            scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+
+        List<EventSubSubscription> rows = await db
+            .EventSubSubscriptions.Where(s => s.Enabled && s.DeletedAt == null)
+            .Select(s => new EventSubSubscription
             {
-                Result<EventSubSubscriptionDto> result = await SubscribeAsync(
-                    tenant,
-                    eventType,
-                    ct
-                );
-                if (result.IsSuccess)
-                    enabled++;
-            }
+                BroadcasterId = s.BroadcasterId,
+                EventType = s.EventType,
+            })
+            .ToListAsync(ct);
+
+        // Keep only this owner's slice, cost-0 (chat-read) first so chat lands ahead of the cost-1 burn.
+        List<(Guid Tenant, string EventType)> owned =
+        [
+            .. rows.Where(r => OwnerKeyFor(r.BroadcasterId, r.EventType) == ownerKey)
+                .OrderByDescending(r => EventSubConditionBuilder.IsCost0Topic(r.EventType))
+                .Select(r => (r.BroadcasterId, r.EventType)),
+        ];
+
+        int enabled = 0;
+        foreach ((Guid tenant, string eventType) in owned)
+        {
+            Result<EventSubSubscriptionDto> result = await SubscribeAsync(tenant, eventType, ct);
+            if (result.IsSuccess)
+                enabled++;
         }
 
         return enabled;

@@ -79,22 +79,29 @@ public sealed class TwitchEventSubReconnectTests
     }
 
     [Fact]
-    public async Task OnSessionWelcome_deletes_dead_session_subs_before_reregister()
+    public async Task OnSessionWelcome_deletes_this_owners_dead_session_subs_before_reregister()
     {
-        // Twitch still lists both the dead session's sub ("old") and the fresh one ("new"); only the dead one
-        // must be deleted so its (type+condition) 409 key stops blocking the re-create on the new session.
-        List<TwitchSubscriptionResult> live =
-        [
-            Sub("sub-old", "channel.chat.message", session: "old"),
-            Sub("sub-new", "channel.chat.message", session: "new"),
-        ];
-        RecordingEventSubTransport transport = new(list: live);
-        (TwitchEventSubHostedService service, _) = Build(transport);
+        // The bot owner's chat-read row is stranded on the dead session "old"; the fresh welcome is "new". Only
+        // the dead-session row must be deleted at Twitch so its (type+condition) 409 key stops blocking the
+        // re-create on the new session. Cleanup is registry-driven: it only ever touches our OWN rows for THIS
+        // owner, never another owner's live subscription.
+        Guid tenant = Guid.CreateVersion7();
+        RecordingEventSubTransport transport = new(startSessionId: "new");
+        (TwitchEventSubHostedService service, EventSubTestDbContext db) = Build(transport);
 
-        await service.OnSessionWelcomeAsync("new", CancellationToken.None);
+        Seed(
+            db,
+            tenant,
+            "channel.chat.message",
+            version: "1",
+            status: "enabled",
+            twitchSubscriptionId: "sub-old",
+            sessionId: "old"
+        );
+
+        await service.OnSessionWelcomeAsync("new", EventSubOwnerKeys.Bot, CancellationToken.None);
 
         transport.Deletes.Should().Contain("sub-old");
-        transport.Deletes.Should().NotContain("sub-new");
     }
 
     [Fact]
@@ -213,6 +220,24 @@ public sealed class TwitchEventSubReconnectTests
     }
 
     [Fact]
+    public async Task SubscribeAsync_routes_each_topic_to_its_token_owners_session()
+    {
+        // The whole point of per-broadcaster sessions: a broadcaster-authorized topic must ride THAT
+        // broadcaster's own session (Twitch forbids different users' subs on one WS session), while a bot-owned
+        // chat-read topic rides the shared bot session. Prove the routing by the owner key each create is
+        // ensured against.
+        Guid tenant = Guid.CreateVersion7();
+        RecordingEventSubTransport transport = new();
+        (TwitchEventSubHostedService service, _) = Build(transport);
+
+        await service.SubscribeAsync(tenant, "channel.subscribe"); // broadcaster-authorized
+        await service.SubscribeAsync(tenant, "channel.chat.message"); // bot-owned (chat-read)
+
+        transport.EnsuredOwners.Should().Contain(tenant.ToString());
+        transport.EnsuredOwners.Should().Contain(EventSubOwnerKeys.Bot);
+    }
+
+    [Fact]
     public async Task ReconcileAsync_deletes_stale_tenant_sub_and_reports_count()
     {
         Guid tenant = Guid.CreateVersion7();
@@ -313,12 +338,30 @@ public sealed class TwitchEventSubReconnectTests
         /// <summary>Every subscription id passed to delete (proves stale-session cleanup / reconcile pruning).</summary>
         public List<string> Deletes { get; } = [];
 
+        /// <summary>Every owner key a create was routed to (proves per-owner session routing).</summary>
+        public List<string> EnsuredOwners { get; } = [];
+
         public Task<Result<EventSubTransportHandle>> StartAsync(CancellationToken ct = default) =>
             Task.FromResult(
                 Result.Success(
                     new EventSubTransportHandle { Kind = Kind, SessionId = startSessionId }
                 )
             );
+
+        public Task<Result<EventSubTransportHandle>> EnsureSessionAsync(
+            string ownerKey,
+            CancellationToken ct = default
+        )
+        {
+            EnsuredOwners.Add(ownerKey);
+            return Task.FromResult(
+                Result.Success(
+                    new EventSubTransportHandle { Kind = Kind, SessionId = startSessionId }
+                )
+            );
+        }
+
+        public string? CurrentSessionId(string ownerKey) => startSessionId;
 
         public Task<Result<TwitchSubscriptionResult>> CreateSubscriptionAsync(
             EventSubSubscriptionRequest request,

@@ -40,6 +40,10 @@ public interface IEventSubNotificationSink
         CancellationToken ct
     );
 
-    /// <summary>The transport reached a fresh steady state (welcome received) — (re)register subscriptions.</summary>
-    Task OnSessionWelcomeAsync(string sessionId, CancellationToken ct);
+    /// <summary>
+    /// A transport session reached a fresh steady state (welcome received) — (re)register the subscriptions that
+    /// belong to <paramref name="ownerKey"/> (see <see cref="EventSubOwnerKeys"/>). Each token owner has its own
+    /// WebSocket session, so a welcome re-registers only that owner's slice, not the whole registry.
+    /// </summary>
+    Task OnSessionWelcomeAsync(string sessionId, string ownerKey, CancellationToken ct);
 }

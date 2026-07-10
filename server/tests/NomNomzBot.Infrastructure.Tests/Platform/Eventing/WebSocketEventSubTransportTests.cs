@@ -303,7 +303,7 @@ public sealed class WebSocketEventSubTransportTests
         public IReadOnlyList<CapturedNotification> Notifications => _notifications.ToList();
         public IReadOnlyList<CapturedRevocation> Revocations => _revocations.ToList();
 
-        public Task OnSessionWelcomeAsync(string sessionId, CancellationToken ct)
+        public Task OnSessionWelcomeAsync(string sessionId, string ownerKey, CancellationToken ct)
         {
             _welcomes.Enqueue(sessionId);
             return Task.CompletedTask;
