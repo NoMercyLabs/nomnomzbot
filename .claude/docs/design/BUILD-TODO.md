@@ -60,15 +60,16 @@ hashes and its granular bullets are removed — finished work is never left as a
 - `8a9e305e` *(unpushed)* — `HeldActionKeys` on `/effective/me` so the UI reflects broadcaster overrides.
 - `965b7a4f` — CI cancels superseded in-progress runs (concurrency group per ref).
 
+### 🔑 Foundation tail — DONE (2026-07-10, in the batch on master)
+- `83187cd6` — EventJournal actor attribution made platform-agnostic (`ActorExternalUserId` + `ActorProvider`) + migration pair + portability round-trip.
+- `901de001` + `892bc2fd` — `auth/identities` link / unlink / set-primary + `MergeIdentitiesAsync` (re-parents identity rows on a viewer merge, no orphaned/duplicate primary) + chat-ingest now resolves chatters through `IUserIdentityService.ResolveUserAsync` (get-or-create by provider + external id).
+
+### 🐛 Session QA fixes (2026-07-10, owner-reported live — not build slices)
+- Chat live-push restored: hub socket opens for every rung (`a1750141`), refreshes its own JWT, and the SignalR `{}` handshake is read as success (`440a4283`) — verified live (persistent socket, joins channel). Emotes: subscribed-channel emotes wired + case-sensitive dedup (`ccfe973e`). Delete-message attributed to the acting moderator, not the broadcaster (`5eaa894b`).
+
 ---
 
 ## 📋 Pending
-
-### Foundation tail (deferred from slice 2 — load-bearing only as identity coverage grows)
-- [ ] `EventJournal.ActorTwitchUserId` → `ActorExternalUserId` + `ActorProvider` (event-store contracts
-  + portability) — **still `ActorTwitchUserId`**.
-- [ ] `auth/identities` **link / unlink / set-primary** CRUD (only `GET` list landed) +
-  `IViewerMergeParticipant` absorption + chat-ingest → `ResolveUserAsync`.
 
 ### 🌐 Multi-platform auth
 - [ ] **3. Chat + platform-API seams** — `IChatPlatform` + `IPlatformApi` abstracting send/read/
