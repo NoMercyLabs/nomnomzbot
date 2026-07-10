@@ -16,6 +16,38 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
 
 ## Open
 
+### 2026-07-10 — Boot perf: the i18n string resource is re-fetched ~30× on load
+- **From:** Stoney_Eagle (via Claude, backend track)
+- **What:** On dashboard boot the Dutch i18n resource
+  `composeResources/nomnomzbot.composeapp.generated.resources/values-nl/strings.commonMain.cvr` is fetched
+  **~30 times in a row** (observed live in the network trace: reqid 49–74, every one `[304]`), each a network
+  round-trip. It should be fetched once per locale and cached, not re-requested per string / per recomposition.
+  This materially slows the "boot takes too long" the owner reported (alongside the `refresh` 401 → device-login
+  fallback, which is expected right after a logout).
+- **Why:** ~30 redundant round-trips on every load = visibly slow boot.
+- **Where:** the Compose Resources / i18n read path (`core/i18n/**`, how `stringResource` + `LocalAppLocale`
+  load the `.cvr`) — likely a missing memoization of the resource load, or it re-triggers on every recomposition.
+  Compare with how Compose Multiplatform caches `composeResources`.
+- **Done when:** the `.cvr` (per locale) is fetched at most once per session; the boot trace shows a single
+  request for it, not ~30.
+
+### 2026-07-10 — IAM floors lowered for VIPs + quotes:delete split off
+- **From:** Stoney_Eagle (via Claude, backend track)
+- **What:** Two role-gating changes the dashboard should reflect. (1) 14 trivial **read** actions now floor
+  at **VIP** instead of Moderator — `commands:read`, `pipelines:read`, `pipelines:validate`,
+  `eventresponses:read`, `timers:read`, `quotes:read`, `sounds:read`, `reward:read`, `music:config:read`,
+  `tts:voice:read`, `stream:read`, `widget:read`, `chat:read`, `dashboard:read` — so a signed-in VIP can now
+  see those pages/panels (the read floor gates page visibility, frontend-ia §7). (2) The quote **DELETE**
+  action moved off `quotes:write` onto a new **`quotes:delete`** (Moderator) key; `quotes:write` (add/edit) is
+  now **VIP**. Gate the quote **delete** button on `quotes:delete`, NOT `quotes:write` — otherwise a VIP sees
+  a delete button that 403s (backend already denies it; this is UX only).
+- **Why:** owner asked to let trusted VIPs do trivial, non-destructive things; the backend floors changed.
+- **Where:** `feature/quotes/**` (the delete button's action-key gate); page visibility derived from the read
+  floors (`frontend-ia.md §7`); effective role/floors from `/effective/me` + the action catalogue. No DTO/
+  contract change (`server/openapi/v1.json` unchanged).
+- **Done when:** VIP-floored read pages are visible to a VIP; the quote delete button is gated on
+  `quotes:delete` (hidden/disabled for a VIP) while add/edit stays available to them.
+
 ### 2026-07-05 — Standing rule: users never see numeric permission levels (names only)
 - **From:** Stoney_Eagle (via Claude, backend track)
 - **What:** owner rule — **no user-facing surface ever renders the numeric ladder value** of a role.
