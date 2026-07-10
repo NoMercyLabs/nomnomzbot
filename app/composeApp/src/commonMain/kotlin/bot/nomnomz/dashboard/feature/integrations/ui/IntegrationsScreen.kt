@@ -27,6 +27,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import bot.nomnomz.dashboard.core.designsystem.component.Button
+import bot.nomnomz.dashboard.core.designsystem.component.CopyLinkButton
 import bot.nomnomz.dashboard.core.designsystem.component.OutlinedButton
 import bot.nomnomz.dashboard.core.designsystem.component.Spinner
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
@@ -67,6 +68,8 @@ import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.connect_device_copied
+import nomnomzbot.composeapp.generated.resources.connect_device_copy_link
 import nomnomzbot.composeapp.generated.resources.integrations_action_connect
 import nomnomzbot.composeapp.generated.resources.integrations_action_disconnect
 import nomnomzbot.composeapp.generated.resources.integrations_action_reauth
@@ -562,6 +565,11 @@ private fun RegrantPanel(regrant: RegrantState, onCancel: () -> Unit) {
             Button(onClick = { uriHandler.openUri(regrant.verificationUri) }) {
                 Text(stringResource(Res.string.permissions_regrant_open), maxLines = 1)
             }
+            CopyLinkButton(
+                url = regrant.verificationUri,
+                copyLabel = stringResource(Res.string.connect_device_copy_link),
+                copiedLabel = stringResource(Res.string.connect_device_copied),
+            )
             TextButton(onClick = onCancel) {
                 Text(stringResource(Res.string.permissions_regrant_cancel), maxLines = 1)
             }
@@ -610,6 +618,11 @@ private fun BotDevicePanel(device: BotDeviceState, onCancel: () -> Unit) {
             Button(onClick = { uriHandler.openUri(device.verificationUri) }) {
                 Text(stringResource(Res.string.integrations_bot_device_open), maxLines = 1)
             }
+            CopyLinkButton(
+                url = device.verificationUri,
+                copyLabel = stringResource(Res.string.connect_device_copy_link),
+                copiedLabel = stringResource(Res.string.connect_device_copied),
+            )
             TextButton(onClick = onCancel) {
                 Text(stringResource(Res.string.integrations_bot_device_cancel), maxLines = 1)
             }

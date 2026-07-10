@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import bot.nomnomz.dashboard.core.designsystem.component.Button
+import bot.nomnomz.dashboard.core.designsystem.component.CopyLinkButton
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import androidx.compose.material3.Text
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
@@ -49,6 +50,8 @@ import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.connect_account_hint
 import nomnomzbot.composeapp.generated.resources.connect_connecting
+import nomnomzbot.composeapp.generated.resources.connect_device_copied
+import nomnomzbot.composeapp.generated.resources.connect_device_copy_link
 import nomnomzbot.composeapp.generated.resources.connect_device_instruction
 import nomnomzbot.composeapp.generated.resources.connect_device_open
 import nomnomzbot.composeapp.generated.resources.connect_device_title
@@ -341,6 +344,11 @@ private fun DeviceCodePanel(userCode: String, verificationUri: String) {
             textAlign = TextAlign.Center,
         )
         DeviceOpenButton(verificationUri = verificationUri, uriHandler = uriHandler)
+        CopyLinkButton(
+            url = verificationUri,
+            copyLabel = stringResource(Res.string.connect_device_copy_link),
+            copiedLabel = stringResource(Res.string.connect_device_copied),
+        )
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Spinner(modifier = Modifier.size(spacing.s6))
             Text(

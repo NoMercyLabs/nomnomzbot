@@ -27,6 +27,8 @@
     <string name="connect_device_instruction">Open Twitch en voer deze code in op twitch.tv/activate:</string>
     <string name="connect_device_open">Open Twitch om goed te keuren</string>
     <string name="connect_device_waiting">Wachten op goedkeuring…</string>
+    <string name="connect_device_copy_link">Kopieer link</string>
+    <string name="connect_device_copied">Gekopieerd</string>
     <string name="connect_error_login_expired">De code is verlopen voordat je hem goedkeurde. Probeer het opnieuw.</string>
     <string name="connect_error_login_denied">De aanmelding is op Twitch geweigerd.</string>
     <string name="connect_error_login_failed">Aanmelden mislukt. Probeer het opnieuw.</string>

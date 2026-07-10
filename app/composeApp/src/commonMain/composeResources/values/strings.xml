@@ -30,6 +30,8 @@
     <string name="connect_device_instruction">Open Twitch and enter this code at twitch.tv/activate:</string>
     <string name="connect_device_open">Open Twitch to approve</string>
     <string name="connect_device_waiting">Waiting for approval…</string>
+    <string name="connect_device_copy_link">Copy link</string>
+    <string name="connect_device_copied">Copied</string>
     <string name="connect_error_login_expired">The code expired before you approved it. Try again.</string>
     <string name="connect_error_login_denied">The login was declined on Twitch.</string>
     <string name="connect_error_login_failed">Login failed. Please try again.</string>
