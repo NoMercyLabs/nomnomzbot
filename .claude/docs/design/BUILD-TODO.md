@@ -71,6 +71,36 @@ hashes and its granular bullets are removed — finished work is never left as a
 
 ## 📋 Pending
 
+### 🔴 Live-ops correctness (owner-reported 2026-07-10 — "nothing but chat updates live; bot isn't useful")
+Root-caused against the live Proxmox DB (`event_sub_subscriptions` statuses + stored token scopes). Evidence:
+every broadcaster token already holds the full scope set (`channel:read:subscriptions`, `bits:read`,
+`moderator:read:followers`, `channel:manage:broadcast`, …); the **platform bot token holds only chat scopes**.
+- [ ] **A. EventSub subscriptions ride the wrong token** — `EventSubConditionBuilder.RequiresBroadcasterToken`
+  is hard-`false`, so EVERY topic is created with the **bot** token. Consequence: scoped topics
+  (`channel.subscribe`, `channel.cheer`, `channel.follow`, `channel.ban`, `channel.moderate`, polls,
+  predictions, …) **403** (bot lacks the broadcaster's scopes), and all cost-1 topics
+  (`stream.online/offline`, `channel.update`, `channel.raid`, reward redemptions) pile onto the bot's single
+  **10-cost** budget (cost is *per user token* — client-id+user-id tuple) → **429 "deferred"**. Fix: create each
+  channel's subs with **that channel's own broadcaster token** (own scopes → no 403; own 10-cost budget where
+  those topics are cost-0 → no 429). Chat-read topics stay on the bot token (bot is the reader). ⚠️ Verify Twitch
+  allows multiple broadcasters' tokens on one WS session (cost-per-token model implies yes); if it rejects,
+  escalate to **conduit transport** (tables `EventSubConduits`/`EventSubConduitShards` already exist) or
+  per-broadcaster WS connections.
+- [ ] **B. Dashboard stuck "live"** — `stream.offline` is a 429-deferred topic, so the offline transition never
+  arrives. Fixed by (A); ALSO add a periodic Helix stream-status poll fallback (defense-in-depth, truthful data)
+  so live status self-heals regardless of EventSub health.
+- [ ] **C. Non-chat events don't render even when pushed** — confirm each broadcast handler
+  (Follow/Subscription/Cheer/Raid/Ban…) pushes a hub method the frontend models + renders in the activity feed
+  (HomeController handles only `StreamStatusChanged` + `ChannelEvent` today). Map every domain event → hub DTO →
+  activity/alert surface.
+- [ ] **D. Title edit 403 (`channel:title:write`)** — internal **Gate-2**, not Twitch: a Twitch mod maps to
+  Moderator (level 10) which does NOT clear the Editor floor. Sync Twitch **Editors** (Get Channel Editors,
+  `channel:read:editors` — bot has it) → Editor management role so an editor grant actually works (opt-in /
+  Twitch's own role rules define defaults).
+- [ ] **E. Duplicate `ChannelMemberships` rows** — the TwitchBadge membership sync inserts instead of upserting
+  (~58 identical (stoney, aaoa_, Moderator) rows observed). Make the sync idempotent on
+  (BroadcasterId, UserId, Source) + one-off dedup/repair migration.
+
 ### 🌐 Multi-platform auth
 - [ ] **3. Chat + platform-API seams** — `IChatPlatform` + `IPlatformApi` abstracting send/read/
   channel-ops off Twitch-welded code.

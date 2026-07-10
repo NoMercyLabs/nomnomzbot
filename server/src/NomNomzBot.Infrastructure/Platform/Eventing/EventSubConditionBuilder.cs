@@ -24,11 +24,17 @@ namespace NomNomzBot.Infrastructure.Platform.Eventing;
 /// (<c>user.update</c>, <c>user.whisper.message</c>) key on <c>user_id</c> only.
 /// </para>
 /// <para>
-/// Multi-tenant WebSocket constraint: Twitch requires all subscription POSTs for a given WebSocket session to
-/// come from the same Twitch user. We satisfy this by always using the bot's user token regardless of which
-/// channel is being subscribed. When a dedicated bot account is configured, its Twitch user id replaces the
-/// broadcaster id in the <c>user_id</c> / <c>moderator_user_id</c> slots. When no bot account exists (the
-/// streamer IS the bot), the broadcaster id fills both slots — valid for a single-channel self-host.
+/// Token ownership: a topic is created with the token of the identity that AUTHORIZES it. Chat-read topics
+/// (and the bot's own whisper inbox) are read under the bot's <c>user:read:chat</c> identity → the bot's token,
+/// with the bot's id in the <c>user_id</c> slot. Every other topic is authorized by the BROADCASTER (their
+/// <c>channel:*</c> / <c>moderator:*</c> scopes) → the broadcaster's own token, with the broadcaster's id in any
+/// <c>moderator_user_id</c> / <c>user_id</c> slot (the broadcaster is implicitly a moderator of their own
+/// channel). Creating each channel's subscriptions with that channel's own token is what makes the scoped topics
+/// authorize at all (the bot token holds only chat scopes) AND keeps them within Twitch's per-user-token cost
+/// budget (each broadcaster authorized the app, so <c>stream.online</c>/<c>channel.update</c> and the
+/// user-authorization topics are cost-0 on the broadcaster's own budget instead of piling onto the bot's single
+/// <c>max_total_cost</c> of 10). When no dedicated bot account exists (the streamer IS the bot), the broadcaster
+/// id fills the bot slot too — valid for a single-account self-host.
 /// </para>
 /// </summary>
 public sealed class EventSubConditionBuilder : IEventSubConditionBuilder
@@ -48,30 +54,33 @@ public sealed class EventSubConditionBuilder : IEventSubConditionBuilder
         string? botTwitchUserId = null
     )
     {
-        // For user_id / moderator_user_id slots: prefer the bot's Twitch id so that ALL subscription
-        // creates for this WebSocket session come from the same Twitch user (the bot). When no dedicated
-        // bot account is configured, fall back to the broadcaster id (single-user self-host).
-        string botOrBroadcaster = botTwitchUserId ?? twitchBroadcasterUserId;
+        // The user_id / moderator_user_id slot is filled by the identity whose token authorizes the create:
+        //  - bot-owned topics (chat-read + the bot's own whisper inbox) ride the bot's user token → the bot's
+        //    Twitch id. When no dedicated bot account is configured (the streamer IS the bot), fall back to the
+        //    broadcaster id (single-account self-host).
+        //  - every other topic rides the BROADCASTER's own token (it holds the channel/moderator scopes and gets
+        //    its own per-token cost budget), so the broadcaster fills the moderator_user_id / user_id slot too
+        //    (the broadcaster is implicitly a moderator of their own channel).
+        string slotUserId = IsBotOwnedTopic(eventType)
+            ? botTwitchUserId ?? twitchBroadcasterUserId
+            : twitchBroadcasterUserId;
         return ShapeOf(eventType) switch
         {
             ConditionShape.BroadcasterAndModerator => new Dictionary<string, string>
             {
                 ["broadcaster_user_id"] = twitchBroadcasterUserId,
-                ["moderator_user_id"] = botOrBroadcaster,
+                ["moderator_user_id"] = slotUserId,
             },
             ConditionShape.BroadcasterAndUser => new Dictionary<string, string>
             {
                 ["broadcaster_user_id"] = twitchBroadcasterUserId,
-                ["user_id"] = botOrBroadcaster,
+                ["user_id"] = slotUserId,
             },
             ConditionShape.RaidTo => new Dictionary<string, string>
             {
                 ["to_broadcaster_user_id"] = twitchBroadcasterUserId,
             },
-            ConditionShape.UserOnly => new Dictionary<string, string>
-            {
-                ["user_id"] = botOrBroadcaster,
-            },
+            ConditionShape.UserOnly => new Dictionary<string, string> { ["user_id"] = slotUserId },
             _ => new Dictionary<string, string>
             {
                 ["broadcaster_user_id"] = twitchBroadcasterUserId,
@@ -98,11 +107,17 @@ public sealed class EventSubConditionBuilder : IEventSubConditionBuilder
             _ => "1",
         };
 
-    // All subscriptions ride the bot/app token regardless of topic. Multi-tenant WebSocket EventSub requires
-    // every subscription POST to come from the same Twitch user; the bot is that user. Broadcaster-token
-    // subscriptions worked fine for a single channel but break the moment a second channel is added because
-    // Twitch rejects "subscriptions created by different users" on the same session.
-    public bool RequiresBroadcasterToken(string eventType) => false;
+    // A topic rides the BROADCASTER's user token unless it is bot-owned (chat-read + the bot's own whispers,
+    // which the bot subscribes under its own user:read:chat identity). The broadcaster holds every channel /
+    // moderator scope the scoped topics need — the bot token holds only chat scopes, so riding the bot token is
+    // exactly why the scoped topics 403'd — and each broadcaster gets its own per-token cost budget, so the
+    // cost-1 topics no longer pile onto the bot's single max_total_cost of 10 (they went 429 "deferred").
+    public bool RequiresBroadcasterToken(string eventType) => !IsBotOwnedTopic(eventType);
+
+    // Topics the BOT subscribes under its own user token because it is the reading identity: the chat-read set
+    // (user:read:chat) and its own whisper inbox. Every other topic is authorized by the broadcaster.
+    private static bool IsBotOwnedTopic(string eventType) =>
+        ChatReadEvents.Contains(eventType) || eventType == "user.whisper.message";
 
     /// <summary>
     /// True for cost-0 EventSub topics — the chat-read set the bot subscribes with its own authorized

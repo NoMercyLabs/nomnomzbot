@@ -105,22 +105,25 @@ public sealed class EventSubConditionBuilderTests
             BotTwitchId
         );
 
+        // Moderator-plane topics are authorized by the BROADCASTER's token (it holds the moderator:* scopes and
+        // the broadcaster is implicitly a moderator of their own channel), so the broadcaster — not the bot —
+        // fills the moderator_user_id slot even when a dedicated bot account exists.
         condition
             .Should()
             .BeEquivalentTo(
                 new Dictionary<string, string>
                 {
                     ["broadcaster_user_id"] = BroadcasterTwitchId,
-                    ["moderator_user_id"] = BotTwitchId,
+                    ["moderator_user_id"] = BroadcasterTwitchId,
                 }
             );
     }
 
     [Fact]
-    public void BuildCondition_ModeratorPlaneTopic_FallsBackToBroadcasterId_WhenNoDedicatedBot()
+    public void BuildCondition_ModeratorPlaneTopic_UsesBroadcasterId_WhenNoDedicatedBot()
     {
-        // Self-host with no registered bot account: the streamer IS the bot, so moderator_user_id falls back
-        // to the broadcaster's own Twitch id rather than staying null/empty.
+        // Self-host with no registered bot account: the streamer IS the bot, so moderator_user_id is the
+        // broadcaster's own Twitch id (same as the dedicated-bot case for broadcaster-authorized topics).
         IReadOnlyDictionary<string, string> condition = Builder.BuildCondition(
             "channel.shoutout.create",
             BroadcasterTwitchId,
@@ -169,13 +172,12 @@ public sealed class EventSubConditionBuilderTests
 
     // ── UserOnly shape: { user_id } ──────────────────────────────────────────────────────────────────
 
-    [Theory]
-    [InlineData("user.update")]
-    [InlineData("user.whisper.message")]
-    public void BuildCondition_UserPlaneTopics_CarryOnlyUserId(string eventType)
+    [Fact]
+    public void BuildCondition_UserWhisper_CarriesTheBotUserId()
     {
+        // The bot reads its OWN whisper inbox under its own user token, so user.whisper.message keys on the bot.
         IReadOnlyDictionary<string, string> condition = Builder.BuildCondition(
-            eventType,
+            "user.whisper.message",
             BroadcasterTwitchId,
             BotTwitchId
         );
@@ -185,6 +187,24 @@ public sealed class EventSubConditionBuilderTests
             .ContainSingle()
             .Which.Should()
             .Be(new KeyValuePair<string, string>("user_id", BotTwitchId));
+    }
+
+    [Fact]
+    public void BuildCondition_UserUpdate_CarriesTheBroadcasterUserId()
+    {
+        // user.update is the broadcaster's own profile-change feed, authorized by the broadcaster's token, so it
+        // keys on the broadcaster — not the bot.
+        IReadOnlyDictionary<string, string> condition = Builder.BuildCondition(
+            "user.update",
+            BroadcasterTwitchId,
+            BotTwitchId
+        );
+
+        condition
+            .Should()
+            .ContainSingle()
+            .Which.Should()
+            .Be(new KeyValuePair<string, string>("user_id", BroadcasterTwitchId));
     }
 
     // ── Versions ─────────────────────────────────────────────────────────────────────────────────────
@@ -259,15 +279,27 @@ public sealed class EventSubConditionBuilderTests
     [Theory]
     [InlineData("channel.update")]
     [InlineData("channel.moderate")]
-    [InlineData("channel.chat.notification")]
+    [InlineData("channel.subscribe")]
+    [InlineData("channel.cheer")]
+    [InlineData("channel.follow")]
+    [InlineData("stream.online")]
     [InlineData("user.update")]
-    [InlineData("user.whisper.message")]
     [InlineData("channel.guest_star_session.begin")]
-    public void RequiresBroadcasterToken_IsAlwaysFalse_EveryCreateRidesTheBotToken(string eventType)
+    public void RequiresBroadcasterToken_IsTrue_ForBroadcasterAuthorizedTopics(string eventType)
     {
-        // Multi-tenant WebSocket EventSub requires every subscription POST on one session to come from the
-        // same Twitch user; this codebase satisfies that by always using the bot/app token, never the
-        // broadcaster's, regardless of topic.
+        // Broadcaster-authorized topics ride the broadcaster's own token: it holds the channel/moderator scopes
+        // the bot token lacks (else they 403), and each broadcaster gets its own per-token cost budget.
+        Builder.RequiresBroadcasterToken(eventType).Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData("channel.chat.message")]
+    [InlineData("channel.chat.notification")]
+    [InlineData("channel.chat.message_delete")]
+    [InlineData("user.whisper.message")]
+    public void RequiresBroadcasterToken_IsFalse_ForBotOwnedReadTopics(string eventType)
+    {
+        // The chat-read set and the bot's own whisper inbox are read under the bot's own user token.
         Builder.RequiresBroadcasterToken(eventType).Should().BeFalse();
     }
 
