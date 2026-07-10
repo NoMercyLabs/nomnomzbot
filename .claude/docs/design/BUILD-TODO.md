@@ -90,20 +90,23 @@ every broadcaster token already holds the full scope set (`channel:read:subscrip
   (subscribe routes per owner; welcome re-registers only that owner's slice; cleanup + reconcile are per-owner).
   Within Twitch limits — 3 connections + 300 subs are **per user token**, and we use 1 connection per user.
   Conduits remain the SaaS-scale path (tables exist) but aren't needed for self-host + small multi-tenant.
-- [ ] **B. Dashboard stuck "live"** — `stream.offline` is a 429-deferred topic, so the offline transition never
-  arrives. Fixed by (A); ALSO add a periodic Helix stream-status poll fallback (defense-in-depth, truthful data)
-  so live status self-heals regardless of EventSub health.
-- [ ] **C. Non-chat events don't render even when pushed** — confirm each broadcast handler
-  (Follow/Subscription/Cheer/Raid/Ban…) pushes a hub method the frontend models + renders in the activity feed
-  (HomeController handles only `StreamStatusChanged` + `ChannelEvent` today). Map every domain event → hub DTO →
-  activity/alert surface.
-- [ ] **D. Title edit 403 (`channel:title:write`)** — internal **Gate-2**, not Twitch: a Twitch mod maps to
-  Moderator (level 10) which does NOT clear the Editor floor. Sync Twitch **Editors** (Get Channel Editors,
-  `channel:read:editors` — bot has it) → Editor management role so an editor grant actually works (opt-in /
-  Twitch's own role rules define defaults).
-- [ ] **E. Duplicate `ChannelMemberships` rows** — the TwitchBadge membership sync inserts instead of upserting
-  (~58 identical (stoney, aaoa_, Moderator) rows observed). Make the sync idempotent on
-  (BroadcasterId, UserId, Source) + one-off dedup/repair migration.
+- [x] **B. Dashboard stuck "live"** — DONE. `stream.offline` now subscribes (broadcaster token, cost-0) so the
+  offline transition arrives; the existing `StreamStatusPollingService` (2-min Helix poll) is the backstop.
+  Verified `stream.online`/`stream.offline` = enabled on the live deploy.
+- [ ] **C. Non-chat events render with full detail** *(frontend follow-up — `app/`)* — backend broadcast handlers
+  DO push follow/sub/cheer/raid as `ChannelEvent` (`NotifyChannelAsync`), but the follower/cheerer name rides in
+  the nested `data` payload the Kotlin `HubChannelEvent` DTO doesn't parse (top-level `userDisplayName` is null),
+  so the activity feed shows the event without the actor. Either parse `data` on the frontend or add a top-level
+  actor field to the ChannelEvent contract. Logged to `handoff/for-frontend.md`.
+- [x] **D. Title edit 403 (`channel:title:write`)** DONE `6cf417fe`. The 403 is correct authz — a Twitch mod
+  cannot edit stream info; only editors/broadcasters can. Fix: `ManagementRoleReconcileService` (10-min) re-reads
+  each channel's Twitch moderators + editors and reconciles memberships prune-safe, so a Twitch **editor** grant
+  is honoured within 10 min (previously only synced at onboarding). A mod stays a mod (still 403 for title — as
+  Twitch intends).
+- [x] **E. Duplicate `ChannelMemberships` rows** DONE `6cf417fe`. Partial unique index
+  `(BroadcasterId, UserId) WHERE DeletedAt IS NULL` + race-safe upsert (adopt the winner on a unique violation);
+  migration collapsed the existing duplicates first (kept the most-privileged row per pair). Verified on the live
+  deploy: **1339 duplicate rows → 0 dup groups**.
 
 ### 🌐 Multi-platform auth
 - [ ] **3. Chat + platform-API seams** — `IChatPlatform` + `IPlatformApi` abstracting send/read/
