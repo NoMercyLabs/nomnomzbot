@@ -16,6 +16,37 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
 
 ## Open
 
+### 2026-07-10 — Multi-channel chat watch: let a mod monitor several channels at once
+- **From:** Stoney_Eagle (via Claude, backend track)
+- **What:** build the **multi-watch** chat surface — the operator picks several channels and watches all
+  their chats at once (side-by-side panes, or one merged feed), so a moderator monitors multiple channels in
+  one session. Owner requirement (2026-07-10): "a viewer+ should be able to view multiple chats at once if
+  they please so mods can monitor multiple channels at the same time." This is the **cross-channel** half of
+  combined chat; the streamer **cross-platform** half (all platforms merged) is a later backend slice (item 6)
+  and will reuse the same UI.
+- **Why the backend is ready (no contract change):**
+  - **Watchable-channel list:** `GET /api/v1/channels` already returns the channels the caller owns **and
+    moderates** (`ChannelSummaryDto`, incl. `role`); `GET /api/v1/channels/moderated` lists Twitch-moderated
+    channels specifically. Use these to populate the channel picker.
+  - **Live feed, many channels at once:** `DashboardHub` now supports a **single connection watching many
+    channels concurrently** — call `JoinChannel(channelId)` once per channel to add it, `LeaveChannel(channelId)`
+    to drop just that one; disconnect cleans up all. (Previously the hub tracked only the last-joined channel.)
+    Every `ChatMessage` hub push already carries **`channelId`** on `DashboardChatMessageDto`, so you can route
+    each message to its pane / tag it in a merged feed.
+  - **Scrollback per channel:** `GET /api/v1/channels/{channelId}/chat/messages` (same `DashboardChatMessageDto`
+    shape) for each watched channel's history.
+- **Where:** `feature/chat/` (new multi-pane / merged mode + channel picker); `core/realtime` hub client
+  (`JoinChannel`/`LeaveChannel` per selected channel; route by `channelId`). No `v1.json` change — contract is
+  unchanged; nothing to re-sync.
+- **Note (backend follow-up, not blocking you):** the hub's `JoinChannel` currently gates on Gate-1 entry
+  (`CanResolveTenantAsync`) only, while the REST chat-history path also requires Gate-2 `chat:read`. That
+  consistency + the exact read floor for multi-watch ("viewer+" vs the current `chat:read` Mod-default) is an
+  open backend decision; build the picker from the channels the list endpoints return (already access-scoped)
+  and it'll be correct regardless.
+- **Done when:** an operator can select 2+ channels they own/moderate and see all their live chats at once
+  (panes or merged, each line clearly tagged with its channel), add/remove a channel without dropping the
+  others, and scrollback loads per channel.
+
 ### 2026-07-10 — Activity feed: show the actor name on follow/sub/cheer/raid events
 - **From:** Stoney_Eagle (via Claude, backend track)
 - **What:** the dashboard activity feed (Home) shows non-chat events without WHO did them (no follower/

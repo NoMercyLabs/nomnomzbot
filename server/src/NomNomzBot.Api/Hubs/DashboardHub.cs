@@ -25,7 +25,16 @@ namespace NomNomzBot.Api.Hubs;
 [Authorize]
 public class DashboardHub : Hub<IDashboardClient>
 {
-    private static readonly ConcurrentDictionary<string, string> _connectionChannel = new(); // connectionId -> broadcasterId
+    // connectionId -> the SET of channel ids this connection is watching. A dashboard connection may watch
+    // MANY channels at once (chat-client multi-watch: a moderator monitoring several channels' chat/events in
+    // one session). SignalR groups fan every joined channel's push to the connection; this map is the
+    // authoritative per-connection watch set so LeaveChannel drops exactly one channel and disconnect cleans up
+    // every group this connection joined (not just the most recent). The inner dictionary is a concurrent set
+    // (value is an ignored sentinel).
+    private static readonly ConcurrentDictionary<
+        string,
+        ConcurrentDictionary<string, byte>
+    > _connectionChannels = new();
     private readonly IChannelRegistry _registry;
     private readonly ILogger<DashboardHub> _logger;
     private readonly IChatProvider _chat;
@@ -60,8 +69,16 @@ public class DashboardHub : Hub<IDashboardClient>
 
     public override async Task OnDisconnectedAsync(Exception? exception)
     {
-        if (_connectionChannel.TryRemove(Context.ConnectionId, out string? broadcasterId))
-            await Groups.RemoveFromGroupAsync(Context.ConnectionId, $"channel-{broadcasterId}");
+        if (
+            _connectionChannels.TryRemove(
+                Context.ConnectionId,
+                out ConcurrentDictionary<string, byte>? channels
+            )
+        )
+        {
+            foreach (string broadcasterId in channels.Keys)
+                await Groups.RemoveFromGroupAsync(Context.ConnectionId, $"channel-{broadcasterId}");
+        }
         await base.OnDisconnectedAsync(exception);
     }
 
@@ -78,7 +95,9 @@ public class DashboardHub : Hub<IDashboardClient>
             ? _registry.Get(tenantId)
             : null;
         await Groups.AddToGroupAsync(Context.ConnectionId, $"channel-{broadcasterId}");
-        _connectionChannel[Context.ConnectionId] = broadcasterId;
+        _connectionChannels
+            .GetOrAdd(Context.ConnectionId, static _ => new ConcurrentDictionary<string, byte>())
+            .TryAdd(broadcasterId, 0);
         _logger.LogDebug("Connection {C} joined channel {B}", Context.ConnectionId, broadcasterId);
 
         StreamStatusDto status =
@@ -98,7 +117,17 @@ public class DashboardHub : Hub<IDashboardClient>
     public async Task LeaveChannel(string broadcasterId)
     {
         await Groups.RemoveFromGroupAsync(Context.ConnectionId, $"channel-{broadcasterId}");
-        _connectionChannel.TryRemove(Context.ConnectionId, out _);
+        if (
+            _connectionChannels.TryGetValue(
+                Context.ConnectionId,
+                out ConcurrentDictionary<string, byte>? channels
+            )
+        )
+        {
+            channels.TryRemove(broadcasterId, out _);
+            if (channels.IsEmpty)
+                _connectionChannels.TryRemove(Context.ConnectionId, out _);
+        }
     }
 
     public async Task<SendMessageResponse> SendChatMessage(

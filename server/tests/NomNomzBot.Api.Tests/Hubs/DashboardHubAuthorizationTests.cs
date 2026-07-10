@@ -29,20 +29,31 @@ namespace NomNomzBot.Api.Tests.Hubs;
 /// <c>chat:send</c> (Moderator floor) — a hub cannot carry <c>[RequireAction]</c>, so the gates run in the
 /// method body. Denied callers get a failure response and the bot NEVER sends; allowed moderators send.
 /// Also proves <see cref="DashboardHub.TriggerAction"/> no longer lies: it reports failure, not fake success.
+/// Finally proves the multi-channel watch contract (<see cref="DashboardHub.JoinChannel"/> /
+/// <see cref="DashboardHub.LeaveChannel"/> / <see cref="DashboardHub.OnDisconnectedAsync"/>): a single
+/// connection may watch many channels at once, leaving one keeps the rest, and disconnect drops every watched
+/// group — the set-based tracking a moderator monitoring several channels depends on.
 /// </summary>
 public sealed class DashboardHubAuthorizationTests
 {
     private static readonly Guid Channel = Guid.Parse("0192a000-0000-7000-8000-000000000f11");
+    private static readonly Guid Channel2 = Guid.Parse("0192a000-0000-7000-8000-000000000f13");
     private static readonly Guid Caller = Guid.Parse("0192a000-0000-7000-8000-000000000f12");
 
     private sealed record Fixture(
         DashboardHub Hub,
         IChatProvider Chat,
         IOperatorChatSender OperatorSender,
-        IActionAuthorizationService Gate2
+        IActionAuthorizationService Gate2,
+        IGroupManager Groups
     );
 
-    private static Fixture Build(bool entryAllowed, bool gate2Allows, bool authenticated = true)
+    private static Fixture Build(
+        bool entryAllowed,
+        bool gate2Allows,
+        bool authenticated = true,
+        string connectionId = "test-connection"
+    )
     {
         IChatProvider chat = Substitute.For<IChatProvider>();
         chat.SendMessageAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
@@ -79,7 +90,9 @@ public sealed class DashboardHubAuthorizationTests
 
         HubCallerContext context = Substitute.For<HubCallerContext>();
         context.UserIdentifier.Returns(authenticated ? Caller.ToString() : null);
-        context.ConnectionId.Returns("test-connection");
+        context.ConnectionId.Returns(connectionId);
+
+        IGroupManager groups = Substitute.For<IGroupManager>();
 
         DashboardHub hub = new(
             Substitute.For<IChannelRegistry>(),
@@ -91,8 +104,9 @@ public sealed class DashboardHubAuthorizationTests
         )
         {
             Context = context,
+            Groups = groups,
         };
-        return new Fixture(hub, chat, operatorSender, gate2);
+        return new Fixture(hub, chat, operatorSender, gate2, groups);
     }
 
     [Fact]
@@ -182,5 +196,84 @@ public sealed class DashboardHubAuthorizationTests
 
         response.Success.Should().BeFalse("an unimplemented action must never claim it ran");
         response.Error.Should().NotBeNullOrEmpty();
+    }
+
+    // ── Multi-channel watch (a moderator monitoring several channels in one session) ──────────────
+
+    [Fact]
+    public async Task Joining_multiple_channels_adds_the_connection_to_every_channel_group()
+    {
+        Fixture f = Build(entryAllowed: true, gate2Allows: true, connectionId: "conn-multi-join");
+
+        JoinChannelResponse a = await f.Hub.JoinChannel(Channel.ToString());
+        JoinChannelResponse b = await f.Hub.JoinChannel(Channel2.ToString());
+
+        a.Success.Should().BeTrue();
+        b.Success.Should().BeTrue();
+        await f
+            .Groups.Received(1)
+            .AddToGroupAsync("conn-multi-join", $"channel-{Channel}", Arg.Any<CancellationToken>());
+        await f
+            .Groups.Received(1)
+            .AddToGroupAsync(
+                "conn-multi-join",
+                $"channel-{Channel2}",
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task Disconnecting_removes_the_connection_from_every_watched_channel_group()
+    {
+        // The regression guard for set-based tracking: the old single-value map remembered only the LAST
+        // channel joined, so a disconnect leaked every earlier channel's group. Now disconnect drops them all.
+        Fixture f = Build(entryAllowed: true, gate2Allows: true, connectionId: "conn-multi-disc");
+        await f.Hub.JoinChannel(Channel.ToString());
+        await f.Hub.JoinChannel(Channel2.ToString());
+
+        await f.Hub.OnDisconnectedAsync(null);
+
+        await f
+            .Groups.Received(1)
+            .RemoveFromGroupAsync(
+                "conn-multi-disc",
+                $"channel-{Channel}",
+                Arg.Any<CancellationToken>()
+            );
+        await f
+            .Groups.Received(1)
+            .RemoveFromGroupAsync(
+                "conn-multi-disc",
+                $"channel-{Channel2}",
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task Leaving_one_channel_keeps_the_others_watched()
+    {
+        Fixture f = Build(entryAllowed: true, gate2Allows: true, connectionId: "conn-leave-one");
+        await f.Hub.JoinChannel(Channel.ToString());
+        await f.Hub.JoinChannel(Channel2.ToString());
+
+        await f.Hub.LeaveChannel(Channel.ToString());
+        f.Groups.ClearReceivedCalls();
+
+        // Channel2 is still watched: a later disconnect drops exactly it, and never re-touches the left channel.
+        await f.Hub.OnDisconnectedAsync(null);
+        await f
+            .Groups.Received(1)
+            .RemoveFromGroupAsync(
+                "conn-leave-one",
+                $"channel-{Channel2}",
+                Arg.Any<CancellationToken>()
+            );
+        await f
+            .Groups.DidNotReceive()
+            .RemoveFromGroupAsync(
+                "conn-leave-one",
+                $"channel-{Channel}",
+                Arg.Any<CancellationToken>()
+            );
     }
 }

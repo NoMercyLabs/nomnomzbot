@@ -137,13 +137,15 @@ ONE substrate — a chat feed that **aggregates messages across a SET of channel
   (one per `Channel.Provider`); merge their `ChatMessages`, tag by provider. **Blocked on slice 3** — needs
   chat *read* on YouTube (Live Chat API) + Kick; only Twitch ingests chat today. Also needs a per-platform
   chat-source per streamer (a `Channel` row per platform they broadcast on).
-- [ ] **7. Viewer+ multi-channel watch** — any authorized user may open MULTIPLE channels' chats at once
-  (opt-in) so a mod monitors several channels simultaneously. Channel picker = channels the caller owns +
-  moderates (**slice 4** *Get Moderated Channels*); per-channel `chat:read` gates each. The live feed already
-  works per channel (hub `channel-{id}` groups + `GET …/chat/messages`); the NEW backend bits are (a) an
-  optional **merged aggregate** history endpoint over a channelId set, and (b) **source-channel + provider +
-  channel-name tagging on `DashboardChatMessageDto`** so a merged view can label + route each line
-  (API-contract change → `ApiContractTest` + `v1.json` + Kotlin DTO).
+- [x] **7. Viewer+ multi-channel watch — BACKEND DONE** (frontend handed off). The picker data already exists
+  (`GET /channels` returns owned + moderated; `GET /channels/moderated`; slice 4's *Get Moderated Channels* +
+  auto-granted Moderator membership all shipped and tested). The one real backend gap was the hub: `DashboardHub`
+  tracked only ONE channel per connection (last-join-wins), so a connection watching several channels leaked
+  groups on disconnect and mis-tracked `LeaveChannel`. Now **set-based** — a connection watches many channels at
+  once, `JoinChannel`/`LeaveChannel` are per-channel, disconnect drops them all (3 hub tests). Each push already
+  carries `channelId` on `DashboardChatMessageDto` for routing/tagging — **no contract change needed**. Frontend
+  multi-pane/merged UI → `handoff/for-frontend.md` (2026-07-10). *Open backend follow-up:* the hub `JoinChannel`
+  gates Gate-1 only vs REST's Gate-2 `chat:read` — reconcile + decide the "viewer+" read floor (noted in handoff).
 - Backend (this track): the aggregation substrate + DTO source-tag. Frontend (`app/`, aaoa): the multi-pane /
   merged chat UI (select channels, side-by-side or merged, platform+channel tags) → **handoff**.
 - Sequence: slice 4 → item 7 (mod multi-watch — fastest value, Twitch works now); slice 3 → item 6
