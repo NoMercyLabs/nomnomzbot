@@ -207,7 +207,9 @@ public class RenderManifestServiceTests
         Harness harness = CreateHealthy(FullAccess());
         harness
             .Integrations.GetStatusesAsync(BroadcasterId, Arg.Any<CancellationToken>())
-            .Returns(Result.Failure<List<ChannelIntegrationDto>>("discord unreachable", "UPSTREAM"));
+            .Returns(
+                Result.Failure<List<ChannelIntegrationDto>>("discord unreachable", "UPSTREAM")
+            );
 
         Result<RenderManifestDto> result = await harness.Service.GetManifestAsync(
             UserId,
