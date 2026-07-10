@@ -115,6 +115,7 @@ hashes and its granular bullets are removed — finished work is never left as a
 
 ## 🖌️ Designer reviews
 - [ ] Dashboard viewer count in the top card need to get removed (redundant with metrics row)
+- [ ] Dashboard Title view need to support emojis
 - [ ] Chat need styling controls (size, time and so on, like twitch)
 - [ ] Chat line is top aligned should be center-aligned
 - [ ] Chat input doesn't wrap but overflow right
