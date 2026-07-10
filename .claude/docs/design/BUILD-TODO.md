@@ -38,6 +38,13 @@ hashes and its granular bullets are removed — finished work is never left as a
   public landing page on `/`. Channel switcher present in the shell (`channelSwitcherController`).
   *(Moderated-channels list still pending — blocked on slice 4 backend.)*
 
+### 🔑 Frontend consumes `HeldActionKeys` — broadcaster overrides surface in the UI
+- Shell gates page visibility on `role clears readFloor` **OR** `readActionKey ∈ heldActionKeys`
+  (`ShellNav`/`ShellAccessController`/`ShellScreen`), so a broadcaster-lowered page reaches a role-less
+  VIP/Sub without changing the two-plane default. Quote add/edit gate on `quotes:write`, delete on
+  `quotes:delete`. Kotlin DTO field registered in `ApiContractTest`; `jvmTest` + `compileKotlinWasmJs`
+  green. Closes the i18n / IAM-floors / ShellNavTest handoff entries.
+
 ### 🧹 QA correctness pass (bugs found mid-build — owner-reported)
 - `c6dfb509` — sign-out calls `POST /auth/logout`, refresh cookie actually clears.
 - `7c322006` — reject banning the broadcaster; record moderation **only** when Twitch enforces.
@@ -52,13 +59,6 @@ hashes and its granular bullets are removed — finished work is never left as a
 - `b6dbfbb1` *(unpushed)* — cache the i18n string bundle (boot stopped re-fetching it ~30×).
 - `8a9e305e` *(unpushed)* — `HeldActionKeys` on `/effective/me` so the UI reflects broadcaster overrides.
 - `965b7a4f` — CI cancels superseded in-progress runs (concurrency group per ref).
-
----
-
-## 🚧 In flight
-- **Frontend consumes `HeldActionKeys`** — gate shell page visibility + quote add/edit vs delete on
-  key-membership (two-plane default preserved); register the Kotlin DTO field in `ApiContractTest`.
-  *(then push i18n + floors + contract + frontend together → wasm-rebuild CI → deploy)*
 
 ---
 
