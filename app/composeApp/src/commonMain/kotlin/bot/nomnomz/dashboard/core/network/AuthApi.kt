@@ -54,6 +54,15 @@ interface AuthApi {
      * web), so a native caller persists whatever [AuthPayload.refreshToken] comes back.
      */
     suspend fun refresh(refreshToken: String?): ApiResult<AuthPayload>
+
+    /**
+     * End the session server-side: revoke this session's refresh token AND — on web — delete the HttpOnly
+     * refresh cookie. Without this call a "logout" only clears local state, leaving the cookie in place, so a
+     * reload silently re-authenticates via [refresh] and lands back on the dashboard. Must be called while the
+     * access token is still armed (before local custody is dropped), so the request carries the bearer the
+     * `[Authorize]`d endpoint requires. Best-effort: the caller drops local custody regardless of the result.
+     */
+    suspend fun logout(): ApiResult<Unit>
 }
 
 class RestAuthApi(private val client: ApiClient) : AuthApi {
@@ -77,6 +86,10 @@ class RestAuthApi(private val client: ApiClient) : AuthApi {
 
     override suspend fun refresh(refreshToken: String?): ApiResult<AuthPayload> =
         client.postEnvelope("api/v1/auth/refresh${clientQuery()}", RefreshBody(refreshToken))
+
+    // The cookie is scoped to /api/v1/auth, so the browser attaches it to this same-origin POST and honours
+    // the response's Set-Cookie deletion; postUnit treats any 2xx as success and ignores the status envelope.
+    override suspend fun logout(): ApiResult<Unit> = client.postUnit("api/v1/auth/logout")
 }
 
 // Advertise the client class to the cookie-sensitive auth endpoints (device poll, refresh) so the backend

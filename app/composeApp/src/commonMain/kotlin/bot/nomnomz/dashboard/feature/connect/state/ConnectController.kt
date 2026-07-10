@@ -207,6 +207,17 @@ class ConnectController(
         beginOnboarding(profile)
     }
 
+    /**
+     * Explicit sign-out. Tell the backend to revoke the session and (web) delete the HttpOnly refresh cookie
+     * BEFORE dropping local custody — otherwise the cookie survives and a reload silently re-authenticates via
+     * [restoreSession]'s refresh, landing the operator straight back on the dashboard. Best-effort on the
+     * network call: local custody is dropped regardless, so even an offline logout returns the gate to Connect.
+     */
+    suspend fun logout() {
+        authApi.logout()
+        sessionStore.disconnect()
+    }
+
     /** True while a device login is connecting or awaiting approval — used to refuse a second concurrent login. */
     private fun loginInProgress(): Boolean =
         _status.value is ConnectStatus.Connecting || _status.value is ConnectStatus.AwaitingApproval

@@ -535,6 +535,30 @@ class ConnectControllerDeviceLoginTest {
         assertEquals(false, restored)
         assertEquals(SessionPhase.NotConnected, sessionOf(controller).phase.value)
     }
+
+    // ── Logout (revoke the server session + clear the cookie, not just local state) ──
+
+    @Test
+    fun logout_revokes_the_backend_session_then_returns_the_gate_to_connect() = runTest {
+        val authApi = FakeAuthApi()
+        val controller = controller(FakeSystemApi(ready = true), authApi)
+        val session: SessionStore = sessionOf(controller)
+        // A live, signed-in session — logout must tear it down on BOTH sides.
+        session.connect(
+            rememberedProfile,
+            SessionTokens(accessToken = "acc", refreshToken = "ref"),
+        )
+        assertEquals(SessionPhase.Connected, session.phase.value)
+
+        controller.logout()
+
+        // The backend /auth/logout was invoked (revoking the refresh token + deleting the HttpOnly cookie, so a
+        // reload can't silently re-authenticate via /refresh) — the regression the user hit — AND local custody
+        // was then dropped so the gate returns to Connect. Without the backend call the cookie would survive.
+        assertEquals(true, authApi.logoutCalled)
+        assertEquals(SessionPhase.NotConnected, session.phase.value)
+        assertEquals(null, session.accessToken())
+    }
 }
 
 private class FakeSystemApi(
@@ -652,6 +676,15 @@ private class FakeAuthApi(
     override suspend fun refresh(refreshToken: String?): ApiResult<AuthPayload> {
         baseUrlAtRefresh = baseUrlProbe?.invoke()
         return refreshResult
+    }
+
+    /** Records that logout hit the backend — the fix that revokes the session + clears the HttpOnly cookie. */
+    var logoutCalled: Boolean = false
+        private set
+
+    override suspend fun logout(): ApiResult<Unit> {
+        logoutCalled = true
+        return ApiResult.Ok(Unit)
     }
 }
 

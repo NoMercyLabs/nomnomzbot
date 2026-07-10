@@ -820,4 +820,6 @@ private class FakeAuthApi(private val pollStatuses: List<String> = emptyList()) 
 
     override suspend fun refresh(refreshToken: String?): ApiResult<AuthPayload> =
         ApiResult.Failure(ApiError(0, "UNUSED", "not used here"))
+
+    override suspend fun logout(): ApiResult<Unit> = ApiResult.Ok(Unit)
 }

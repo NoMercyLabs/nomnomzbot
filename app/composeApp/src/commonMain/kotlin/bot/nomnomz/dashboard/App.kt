@@ -135,7 +135,7 @@ fun App(graph: AppGraph = remember { AppGraph() }) {
         // we pushed on connect) and sign the operator out — returning them to the Connect screen.
         LaunchedEffect(destination) {
             if (destination == Destination.Shell) {
-                routeStore.disconnectRequests.collect { graph.sessionStore.disconnect() }
+                routeStore.disconnectRequests.collect { graph.connectController.logout() }
             }
         }
 
@@ -180,7 +180,7 @@ fun App(graph: AppGraph = remember { AppGraph() }) {
                                         routeStore = routeStore,
                                         user = user,
                                         access = resolved,
-                                        onLogout = { scope.launch { graph.sessionStore.disconnect() } },
+                                        onLogout = { scope.launch { graph.connectController.logout() } },
                                     )
                             }
                         }
