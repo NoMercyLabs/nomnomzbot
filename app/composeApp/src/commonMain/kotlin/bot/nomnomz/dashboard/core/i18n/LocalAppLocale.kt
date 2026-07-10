@@ -14,6 +14,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.ProvidedValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.remember
+import org.jetbrains.compose.resources.ExperimentalResourceApi
+import org.jetbrains.compose.resources.LocalResourceReader
+import org.jetbrains.compose.resources.ResourceReader
 
 // The runtime display-language override (Compose Multiplatform locale-environment pattern). Forcing the
 // UI language regardless of the OS/browser locale lets a Dutch-system streamer pin the dashboard to
@@ -41,9 +45,20 @@ expect object LocalAppLocale {
 // recomposition on its own — `key` is what re-resolves the strings. There is no tracked resource-environment
 // local in this version that would avoid it. To keep the freeze it causes small, the CALLER must wrap only the
 // content that actually reads strings (see App.kt) — never the theme, DI graph, or heavy derived state.
+@OptIn(ExperimentalResourceApi::class)
 @Composable
 fun AppEnvironment(tag: String?, content: @Composable () -> Unit) {
-    CompositionLocalProvider(LocalAppLocale provides tag) {
+    // Route every `stringResource` read under here through a bundle-caching resource reader so each locale's
+    // packed string bundle (`.cvr`) is fetched ONCE per session and sliced from memory — not re-fetched per
+    // string on boot (~30 identical `[304]` GETs were observed) nor on every recomposition. It is remembered
+    // OUTSIDE the `key(tag)` restart below, so a language switch re-reads the previous locale from cache with
+    // no network round-trips; the reader is keyed by the (stable) delegate, so it is created once per session.
+    val delegateReader: ResourceReader = LocalResourceReader.current
+    val cachingReader: ResourceReader = remember(delegateReader) { BundleCachingResourceReader(delegateReader) }
+    CompositionLocalProvider(
+        LocalAppLocale provides tag,
+        LocalResourceReader provides cachingReader,
+    ) {
         key(tag) { content() }
     }
 }
