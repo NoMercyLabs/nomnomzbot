@@ -77,6 +77,25 @@ public sealed class ActionAuthorizationServiceTests
         );
     }
 
+    private static void SeedCapabilityGrant(
+        AuthDbContext db,
+        ActionDefinition action,
+        DateTime? expiresAt = null
+    )
+    {
+        db.PermitGrants.Add(
+            new PermitGrant
+            {
+                BroadcasterId = Channel,
+                UserId = User,
+                GrantType = PermitGrantType.Capability,
+                ActionDefinitionId = action.Id,
+                GrantedByUserId = Channel,
+                ExpiresAt = expiresAt,
+            }
+        );
+    }
+
     [Fact]
     public async Task Authorize_allows_when_caller_level_meets_required()
     {
@@ -112,6 +131,70 @@ public sealed class ActionAuthorizationServiceTests
         denied.RequiredLevel.Should().Be(40);
         denied.CallerLevel.Should().Be(10);
         denied.Gate.Should().Be("gate2");
+    }
+
+    [Fact]
+    public async Task Authorize_allows_a_moderator_holding_a_capability_grant_above_the_floor()
+    {
+        // The live title-edit case: channel:title:write floors at Editor(30), the caller is a Moderator(10),
+        // and the broadcaster delegated this exact action via a direct capability grant. Gate 2 must allow it
+        // (the bot then performs the write on the broadcaster's own token). Guards the elevation path.
+        (ActionAuthorizationService sut, AuthDbContext db, RecordingEventBus bus) = Build();
+        ActionDefinition action = SeedAction(
+            db,
+            "channel:title:write",
+            defaultLevel: 30,
+            floor: 30
+        );
+        SeedModerator(db);
+        await db.SaveChangesAsync();
+        SeedCapabilityGrant(db, action);
+        await db.SaveChangesAsync();
+
+        Result<bool> allowed = await sut.AuthorizeActionAsync(User, Channel, "channel:title:write");
+
+        allowed.Value.Should().BeTrue();
+        bus.Published.OfType<AuthorizationDeniedEvent>().Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Authorize_denies_a_moderator_without_a_capability_grant_above_the_floor()
+    {
+        // Same action + role as the allow case, but no grant issued — the level bar (Editor) still holds and
+        // the Moderator is denied. Proves the capability grant, not the role, is what flips the decision.
+        (ActionAuthorizationService sut, AuthDbContext db, RecordingEventBus bus) = Build();
+        SeedAction(db, "channel:title:write", defaultLevel: 30, floor: 30);
+        SeedModerator(db);
+        await db.SaveChangesAsync();
+
+        Result<bool> allowed = await sut.AuthorizeActionAsync(User, Channel, "channel:title:write");
+
+        allowed.Value.Should().BeFalse();
+        AuthorizationDeniedEvent denied = bus.Published.OfType<AuthorizationDeniedEvent>().Single();
+        denied.RequiredLevel.Should().Be(30);
+        denied.CallerLevel.Should().Be(10);
+    }
+
+    [Fact]
+    public async Task Authorize_denies_when_the_capability_grant_is_expired()
+    {
+        // An expired grant is not an active delegation — the caller falls back to the level bar and is denied.
+        (ActionAuthorizationService sut, AuthDbContext db, RecordingEventBus bus) = Build();
+        ActionDefinition action = SeedAction(
+            db,
+            "channel:title:write",
+            defaultLevel: 30,
+            floor: 30
+        );
+        SeedModerator(db);
+        await db.SaveChangesAsync();
+        SeedCapabilityGrant(db, action, expiresAt: Now.UtcDateTime.AddHours(-1));
+        await db.SaveChangesAsync();
+
+        Result<bool> allowed = await sut.AuthorizeActionAsync(User, Channel, "channel:title:write");
+
+        allowed.Value.Should().BeFalse();
+        bus.Published.OfType<AuthorizationDeniedEvent>().Should().ContainSingle();
     }
 
     [Fact]

@@ -169,7 +169,8 @@ public interface IRoleResolver
     // Full breakdown for the permissions UI / debugging: each plane's contributing level + the winning source.
     Task<Result<ResolvedAccessDto>> ResolveAccessAsync(Guid userId, Guid broadcasterId, CancellationToken cancellationToken = default);
 
-    // True if the caller holds (via role OR capability grant OR resolved level) the given action key. Used by chat-command gating.
+    // True if the caller holds (via role OR direct capability grant OR resolved level) the given action key.
+    // The canonical "can this user do this action" rule — backs BOTH chat-command gating and HTTP Gate 2.
     Task<Result<bool>> HasCapabilityAsync(Guid userId, Guid broadcasterId, string actionKey, CancellationToken cancellationToken = default);
 }
 ```
@@ -178,8 +179,12 @@ public interface IRoleResolver
 ```csharp
 public interface IActionAuthorizationService
 {
-    // Gate 2: effectiveRequired = clamp(override ?? default, floor, Broadcaster); allow iff resolved caller level ≥ it.
-    // Emits AuthorizationDeniedEvent on deny. Fails closed if action key unknown.
+    // Gate 2: effectiveRequired = clamp(override ?? default, floor, Broadcaster); allow iff resolved caller level ≥ it
+    // OR the caller holds a direct per-user capability grant for this exact action (the HTTP mirror of
+    // HasCapabilityAsync — how a broadcaster delegates an above-floor, permit-grantable action such as
+    // channel:title:write to a specific mod; the bot then acts on the broadcaster's own token). Bounded by
+    // construction: a grant can only exist for an IsGrantableViaPermit action, so non-delegable Critical actions
+    // stay locked. Emits AuthorizationDeniedEvent on deny. Fails closed if action key unknown.
     Task<Result<bool>> AuthorizeActionAsync(Guid userId, Guid broadcasterId, string actionKey, CancellationToken cancellationToken = default);
 
     // Resolved required level for one action in a channel (override clamped to floor). Read-only; drives UI + AuthorizeActionAsync.

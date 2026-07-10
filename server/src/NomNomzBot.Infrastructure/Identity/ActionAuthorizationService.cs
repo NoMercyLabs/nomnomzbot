@@ -19,10 +19,15 @@ using NomNomzBot.Domain.Platform.Interfaces;
 namespace NomNomzBot.Infrastructure.Identity;
 
 /// <summary>
-/// Gate 2 (roles-permissions §3.3): authorizes a caller against an action's effective required level and owns
-/// the per-channel override config. The effective level is <c>clamp(override ?? default, floor, Broadcaster)</c>;
-/// the caller's level comes from <see cref="IRoleResolver"/>. Denials and override changes publish their
-/// domain events. Unknown action keys fail closed.
+/// Gate 2 (roles-permissions §3.2–3.3): authorizes a caller against an action and owns the per-channel override
+/// config. The action's effective required level is <c>clamp(override ?? default, floor, Broadcaster)</c>; a
+/// caller is allowed when EITHER their resolved level (<see cref="IRoleResolver"/>) meets it OR the broadcaster
+/// issued them a direct per-user capability grant for exactly this action. That capability path is how a
+/// broadcaster delegates an above-floor, permit-grantable action (e.g. <c>channel:title:write</c>) to a
+/// specific moderator — the bot then performs it on the broadcaster's own token. It is the single HTTP mirror of
+/// <see cref="IRoleResolver.HasCapabilityAsync"/> (which also gates chat commands), so a delegated capability
+/// works from the dashboard, not only in chat. Denials and override changes publish their domain events;
+/// unknown action keys fail closed.
 /// </summary>
 public sealed class ActionAuthorizationService(
     IApplicationDbContext db,
@@ -53,6 +58,19 @@ public sealed class ActionAuthorizationService(
         int callerLevel = resolved.IsSuccess ? resolved.Value : 0;
 
         if (callerLevel >= required)
+            return Result.Success(true);
+
+        // Below the level bar, but a broadcaster can still delegate this exact action to this exact user via a
+        // direct capability grant (roles-permissions §3.2/§3.6). HasCapabilityAsync is the canonical allow rule
+        // and is bounded by construction: a grant can only exist for an IsGrantableViaPermit action, so a
+        // non-delegable Critical action (e.g. moderation:nuke) can never be reached this way.
+        Result<bool> capability = await roleResolver.HasCapabilityAsync(
+            userId,
+            broadcasterId,
+            actionKey,
+            cancellationToken
+        );
+        if (capability.IsSuccess && capability.Value)
             return Result.Success(true);
 
         await eventBus.PublishAsync(

@@ -98,11 +98,19 @@ every broadcaster token already holds the full scope set (`channel:read:subscrip
   the nested `data` payload the Kotlin `HubChannelEvent` DTO doesn't parse (top-level `userDisplayName` is null),
   so the activity feed shows the event without the actor. Either parse `data` on the frontend or add a top-level
   actor field to the ChannelEvent contract. Logged to `handoff/for-frontend.md`.
-- [x] **D. Title edit 403 (`channel:title:write`)** DONE `6cf417fe`. The 403 is correct authz — a Twitch mod
-  cannot edit stream info; only editors/broadcasters can. Fix: `ManagementRoleReconcileService` (10-min) re-reads
-  each channel's Twitch moderators + editors and reconciles memberships prune-safe, so a Twitch **editor** grant
-  is honoured within 10 min (previously only synced at onboarding). A mod stays a mod (still 403 for title — as
-  Twitch intends).
+- [x] **D. Title edit 403 (`channel:title:write`) — PERMISSION ELEVATION** DONE. Owner overruled the earlier
+  premise ("a mod stays a mod, 403 is correct"): the whole point of the bot is that a broadcaster can delegate an
+  action our system controls — even one Twitch's mod role can't do — and the bot performs it **on the broadcaster's
+  own token**. Root cause: Gate-2 (`ActionAuthorizationService.AuthorizeActionAsync`) allowed purely on
+  `callerLevel ≥ required` and **never consulted per-user capability grants**, so a broadcaster's `!permit @mod
+  channel:title:write` (an `IsGrantableViaPermit` action, Editor-floored so un-lowerable by override) was ignored
+  by the HTTP gate — it only affected chat commands. Fix: Gate-2 now allows on level **OR** a direct capability
+  grant, reusing `IRoleResolver.HasCapabilityAsync` (the canonical rule) — bounded by construction (a grant can
+  only exist for a grantable action, so Critical non-delegable actions stay locked). The Helix write already rides
+  the tenant broadcaster's token (`TwitchHelixAuth.User` → `GetBroadcasterTokenAsync`), so once the gate passes the
+  write lands. Spec updated (roles-permissions §3.2/§3.3). 3 new Gate-2 tests (mod+grant allows / mod-no-grant
+  denies / expired-grant denies). The earlier `6cf417fe` reconcile (`ManagementRoleReconcileService`, 10-min
+  mod+editor sync) still stands — it makes a Twitch **editor** grant flow in — but the mod-delegation path is this.
 - [x] **E. Duplicate `ChannelMemberships` rows** DONE `6cf417fe`. Partial unique index
   `(BroadcasterId, UserId) WHERE DeletedAt IS NULL` + race-safe upsert (adopt the winner on a unique violation);
   migration collapsed the existing duplicates first (kept the most-privileged row per pair). Verified on the live
