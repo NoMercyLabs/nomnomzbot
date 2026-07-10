@@ -159,6 +159,8 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
                 BroadcasterId = @event.BroadcasterId,
                 TriggeringUserId = @event.UserId,
                 TriggeringUserDisplayName = @event.UserDisplayName,
+                TriggeringUserLogin = @event.UserLogin,
+                RoleLevel = BadgeLevel(@event),
                 Args = args,
                 CancellationToken = cancellationToken,
             };
@@ -293,6 +295,8 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
                         BroadcasterId = @event.BroadcasterId,
                         TriggeringUserId = @event.UserId,
                         TriggeringUserDisplayName = @event.UserDisplayName,
+                        TriggeringUserLogin = @event.UserLogin,
+                        RoleLevel = BadgeLevel(@event),
                         Args = args,
                         CancellationToken = cancellationToken,
                     };
@@ -505,6 +509,18 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
                 @event.Badges
             )
         );
+
+    /// <summary>The caller's live badge level — what builtins with a standing floor receive.</summary>
+    private static int BadgeLevel(ChatMessageReceivedEvent @event) =>
+        ChatRole
+            .Resolve(
+                @event.IsBroadcaster,
+                @event.IsModerator,
+                @event.IsVip,
+                @event.IsSubscriber,
+                @event.Badges
+            )
+            .ToLevelValue();
 
     // Called at most once per channel per process lifetime (or after an eviction window).
     // Looks up the channel name from DB so the registry context is fully populated.

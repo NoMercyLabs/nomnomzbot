@@ -36,6 +36,15 @@ public sealed class BuiltinCommandContext
     public required string TriggeringUserId { get; init; }
     public required string TriggeringUserDisplayName { get; init; }
 
+    /// <summary>Twitch login (lowercase) of the caller — the get-or-create viewer-resolution key.</summary>
+    public string TriggeringUserLogin { get; init; } = string.Empty;
+
+    /// <summary>
+    /// The caller's live badge level on the unified ladder (roles-permissions §0) — builtins that enforce
+    /// a standing floor (e.g. a game's Permission) pass it through instead of re-resolving.
+    /// </summary>
+    public int RoleLevel { get; init; }
+
     /// <summary>Arguments after the command trigger (e.g. "!followage @someone" → "@someone").</summary>
     public string Args { get; init; } = string.Empty;
 
