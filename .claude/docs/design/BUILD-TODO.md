@@ -167,15 +167,21 @@ ONE substrate — a chat feed that **aggregates messages across a SET of channel
 - Sequence: slice 4 → item 7 (mod multi-watch — fastest value, Twitch works now); slice 3 → item 6
   (cross-platform, the bigger lift).
 
-### 🎯 Streamer requests (qtkitte, 2026-07-11) — half already supported, close the loops
-- [ ] **SR1. Rotating auto-shoutouts** — a timer-driven shoutout that walks a curated list of names every N
-  minutes (round-robin, skip-offline optional). Timers + the Shoutout pipeline action exist; missing: the
-  curated-list rotation state + a first-class "auto-shoutout" config surface (not hand-built pipelines).
-- [ ] **SR2. Walk-in sounds** — play a sound clip when someone subs AND on a channel-point redemption.
-  Sound clips + event responses exist; missing: the sub/redeem → sound-clip trigger mapping + the
-  browser-source playback route (overlay widget) end-to-end.
-- [ ] **SR3. Overlay management** — change, import, create, and manage overlays from the dashboard
-  (widgets system — ties into item 5's render-manifest + the compiled-widget pipeline).
+### 🎯 Streamer requests (qtkitte, 2026-07-11) — backend halves SHIPPED, config UX handed off
+- [x] **SR1 backend. Rotating auto-shoutouts** — `80d9c936`. TimerService now dispatches `Timer.PipelineId`
+  (specced §I.1, never implemented) with the rotation entry riding as `{timer.message}`; ShoutoutAction
+  resolves logins/channel names (leading @ ok) via Helix Get Users. Auto-shoutout = timer(Messages=names)
+  + pipeline `shoutout(user_id="{timer.message}")`. Frontend preset UX → `handoff/for-frontend.md`.
+- [x] **SR2 backend. Walk-in sounds audible end-to-end** — `cbb7c8de`. The one load-bearing gap was that
+  NOTHING consumed `/hubs/overlay`: `OverlayHostController` now serves the OBS browser-source shell at
+  `/overlay?widgetId={id}&token={overlayToken}` (the URL shape the widgets API always returned) — hand-rolled
+  SignalR JSON client + the PlaySound/StopSound audio bus. Sub→sound = EventResponse(channel.subscribe)=
+  pipeline with `play_sound`; reward→sound = that reward's `PipelineJson`. Config UX → handoff.
+- [ ] **SR3. Overlay management remainder** — widget CRUD + hub push + settings-on-join all exist; the host
+  page logs `WidgetEvent` but doesn't RENDER yet. Next slice: render 2–3 built-in widget types (alerts,
+  now-playing) in the host page. The compiled-bundle/gallery/import pipeline (widgets-overlays.md) stays the
+  later big phase. Also parked: 36 scope-blocked EventSub topics (33 = qtkitte's older grant — her re-grant
+  self-heals; 1×4 = `user.whisper.message` needs bot-token `user:read:whispers`).
 
 ### 📊 Analytics writers still missing (from the 2026-07-11 audit)
 - [ ] **Peak viewers / unique chatters / watch seconds / trends columns** — need a viewer-count sampler
