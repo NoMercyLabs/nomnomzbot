@@ -17,6 +17,7 @@ using NomNomzBot.Application.Abstractions.Transport;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.DTOs.Twitch.EventSub;
+using NomNomzBot.Domain.Integrations.Entities;
 using NomNomzBot.Domain.Platform.Entities;
 using NomNomzBot.Domain.Platform.Enums;
 using NomNomzBot.Domain.Platform.Interfaces;
@@ -37,7 +38,10 @@ namespace NomNomzBot.Infrastructure.Tests.Platform.Eventing;
 ///   <item>a create 409 parks the row <c>pending</c> and a 429 parks it <c>deferred</c> — never a terminal
 ///   <c>failed</c> — and a deferred row is not re-created on the next pass;</item>
 ///   <item>cost-0 chat topics are subscribed first;</item>
-///   <item>reconcile deletes the tenant's stale subscription and reports it in the revoked count.</item>
+///   <item>reconcile deletes the tenant's stale subscription and reports it in the revoked count;</item>
+///   <item>a missing-scope failure holds the topic (no re-POST) until the stored grant set actually
+///   contains the scope, and a repeated identical failure journals no new status event — the fixes for
+///   the 403 retry storm (~84k no-op journal rows/day).</item>
 /// </list>
 /// </summary>
 public sealed class TwitchEventSubReconnectTests
@@ -45,7 +49,8 @@ public sealed class TwitchEventSubReconnectTests
     private const string TwitchChannelId = "twitch-channel-123";
 
     private static (TwitchEventSubHostedService Service, EventSubTestDbContext Db) Build(
-        IEventSubTransport transport
+        IEventSubTransport transport,
+        IEventBus? eventBus = null
     )
     {
         EventSubTestDbContext db = EventSubTestDbContext.New();
@@ -70,7 +75,7 @@ public sealed class TwitchEventSubReconnectTests
             provider.GetRequiredService<IServiceScopeFactory>(),
             transport,
             new EventSubConditionBuilder(),
-            Substitute.For<IEventBus>(),
+            eventBus ?? Substitute.For<IEventBus>(),
             TimeProvider.System,
             NullLogger<TwitchEventSubHostedService>.Instance
         );
@@ -267,7 +272,132 @@ public sealed class TwitchEventSubReconnectTests
         transport.Deletes.Should().Contain("s1");
     }
 
+    [Fact]
+    public async Task SubscribeAsync_holds_a_scope_blocked_topic_without_rePOSTing()
+    {
+        // channel.follow previously 403'd on moderator:read:followers and the grant STILL lacks it: the
+        // reconcile must not re-POST a guaranteed 403 to Twitch every 5 minutes (the retry storm).
+        Guid tenant = Guid.CreateVersion7();
+        RecordingEventSubTransport transport = new();
+        (TwitchEventSubHostedService service, EventSubTestDbContext db) = Build(transport);
+
+        Seed(db, tenant, "channel.follow", version: "2", status: "failed");
+        EventSubSubscription seeded = db.EventSubSubscriptions.Single();
+        seeded.LastError = "Missing required scope moderator:read:followers";
+        SeedConnection(db, tenant, scopes: ["user:read:email"]);
+        db.SaveChanges();
+
+        Result<EventSubSubscriptionDto> result = await service.SubscribeAsync(
+            tenant,
+            "channel.follow"
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be(TwitchErrorCodes.MissingScope);
+        transport.CreatedTypes.Should().BeEmpty("a still-unsatisfiable topic must not hit Twitch");
+    }
+
+    [Fact]
+    public async Task SubscribeAsync_retries_a_scope_blocked_topic_once_the_scope_is_granted()
+    {
+        // The self-heal: the stored grant set is reconciled on every token store/refresh, so the moment the
+        // re-grant lands the next reconcile passes the gate and the create proceeds to enabled.
+        Guid tenant = Guid.CreateVersion7();
+        RecordingEventSubTransport transport = new();
+        (TwitchEventSubHostedService service, EventSubTestDbContext db) = Build(transport);
+
+        Seed(db, tenant, "channel.follow", version: "2", status: "failed");
+        EventSubSubscription seeded = db.EventSubSubscriptions.Single();
+        seeded.LastError = "Missing required scope moderator:read:followers";
+        SeedConnection(db, tenant, scopes: ["user:read:email", "moderator:read:followers"]);
+        db.SaveChanges();
+
+        Result<EventSubSubscriptionDto> result = await service.SubscribeAsync(
+            tenant,
+            "channel.follow"
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Status.Should().Be("enabled");
+        transport.CreatedTypes.Should().ContainSingle();
+    }
+
+    [Fact]
+    public async Task A_403_missing_scope_failure_stores_the_parseable_scope_message()
+    {
+        // The stored LastError is what the pre-create gate parses on the next pass — it must carry the scope,
+        // not just Twitch's generic "request failed" message.
+        Guid tenant = Guid.CreateVersion7();
+        RecordingEventSubTransport transport = new(
+            onCreate: (_, _) =>
+                Result.Failure<TwitchSubscriptionResult>(
+                    "Twitch request failed (403).",
+                    TwitchErrorCodes.TwitchError,
+                    """{"error":"Forbidden","status":403,"message":"Missing required scope moderator:read:followers"}"""
+                )
+        );
+        (TwitchEventSubHostedService service, EventSubTestDbContext db) = Build(transport);
+        SeedConnection(db, tenant, scopes: ["user:read:email"]);
+        db.SaveChanges();
+
+        await service.SubscribeAsync(tenant, "channel.follow");
+
+        EventSubSubscription row = await db.EventSubSubscriptions.SingleAsync(s =>
+            s.BroadcasterId == tenant
+        );
+        row.Status.Should().Be("failed");
+        row.LastError.Should().Be("Missing required scope moderator:read:followers");
+
+        // And the very next pass is held by the gate — the create is never re-attempted.
+        await service.SubscribeAsync(tenant, "channel.follow");
+        transport.CreatedTypes.Should().ContainSingle();
+    }
+
+    [Fact]
+    public async Task A_repeated_identical_failure_journals_no_new_status_event()
+    {
+        // failed→failed with the same error is a no-op fact — publishing it every reconcile was the journal
+        // flood. Only the FIRST discovery is a transition worth journaling.
+        Guid tenant = Guid.CreateVersion7();
+        IEventBus bus = Substitute.For<IEventBus>();
+        RecordingEventSubTransport transport = new(
+            onCreate: (_, _) =>
+                Result.Failure<TwitchSubscriptionResult>(
+                    "Twitch request failed (400).",
+                    TwitchErrorCodes.TwitchError
+                )
+        );
+        (TwitchEventSubHostedService service, _) = Build(transport, bus);
+
+        await service.SubscribeAsync(tenant, "channel.cheer");
+        await service.SubscribeAsync(tenant, "channel.cheer");
+
+        await bus.Received(1)
+            .PublishAsync(
+                Arg.Any<NomNomzBot.Domain.Twitch.Events.EventSubSubscriptionStatusChangedEvent>(),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
     // ── helpers ─────────────────────────────────────────────────────────────
+
+    private static void SeedConnection(
+        EventSubTestDbContext db,
+        Guid tenant,
+        IReadOnlyList<string> scopes
+    )
+    {
+        db.IntegrationConnections.Add(
+            new IntegrationConnection
+            {
+                BroadcasterId = tenant,
+                Provider = "twitch",
+                Status = "connected",
+                Scopes = [.. scopes],
+            }
+        );
+        db.SaveChanges();
+    }
 
     private static TwitchSubscriptionResult Sub(
         string id,

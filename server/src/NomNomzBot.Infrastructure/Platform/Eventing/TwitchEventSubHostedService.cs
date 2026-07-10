@@ -514,6 +514,34 @@ public sealed class TwitchEventSubHostedService
         )
             return Result.Success(ToDto(row));
 
+        EventSubTokenOwnerKind tokenOwner = _conditionBuilder.RequiresBroadcasterToken(eventType)
+            ? EventSubTokenOwnerKind.Broadcaster
+            : EventSubTokenOwnerKind.Bot;
+
+        // A topic that failed on a missing scope is NOT re-POSTed until the owner's grant actually changes:
+        // blind retries hammer Twitch with guaranteed 403s every reconcile and flood the journal with no-op
+        // failed→failed status events. The stored grant set (IntegrationConnection.Scopes) is kept truthful
+        // on every token store/refresh, so the moment a re-grant lands the next reconcile passes this gate
+        // and the create proceeds — self-healing, no manual retry needed.
+        string? blockedScope = ExtractMissingScopeFromMessage(row.LastError);
+        if (row.Status == "failed" && blockedScope is not null)
+        {
+            List<string>? granted = await GetOwnerGrantedScopesAsync(
+                db,
+                broadcasterId,
+                tokenOwner,
+                ct
+            );
+            if (
+                granted is not null
+                && !granted.Contains(blockedScope, StringComparer.OrdinalIgnoreCase)
+            )
+                return Result.Failure<EventSubSubscriptionDto>(
+                    row.LastError!,
+                    TwitchErrorCodes.MissingScope
+                );
+        }
+
         // Create at Twitch via the transport (idempotent at our layer; Twitch 409 on an exact duplicate).
         EventSubSubscriptionRequest request = new()
         {
@@ -522,9 +550,7 @@ public sealed class TwitchEventSubHostedService
             EventType = eventType,
             Version = version,
             Condition = condition,
-            UserAccessTokenOwner = _conditionBuilder.RequiresBroadcasterToken(eventType)
-                ? EventSubTokenOwnerKind.Broadcaster
-                : EventSubTokenOwnerKind.Bot,
+            UserAccessTokenOwner = tokenOwner,
         };
 
         Result<TwitchSubscriptionResult> created = await _transport.CreateSubscriptionAsync(
@@ -561,51 +587,67 @@ public sealed class TwitchEventSubHostedService
             //    topics are cost-0 on their OWN per-user-token budget, so a 429 is always transient rate-limiting,
             //    never a permanent cost exhaustion — the previous "deferred / park for the conduit" was obsolete.)
             //  - otherwise → "failed" (keeps the 403 missing-scope path below intact).
+            string? missingScope = ExtractMissingScope(created.ErrorDetail);
+            string? previousError = row.LastError;
             row.Status = created.ErrorCode switch
             {
                 TwitchErrorCodes.Conflict => "pending",
                 TwitchErrorCodes.RateLimited => "pending",
                 _ => "failed",
             };
-            row.LastError = created.ErrorMessage;
+            // A missing-scope failure stores the parseable scope message so the pre-create gate above holds
+            // the topic until the grant changes; anything else keeps Twitch's error message.
+            row.LastError = missingScope is not null
+                ? $"Missing required scope {missingScope}"
+                : created.ErrorMessage;
             await db.SaveChangesAsync(ct);
-            await PublishStatusChangedAsync(row, oldStatus, row.Status, created.ErrorMessage, ct);
 
-            // Log the full Twitch error body to diagnose real failures (400/403/etc.). A 409 conflict is the
-            // expected transient during the stale-session GC window — don't spam the log with it.
-            if (
-                !string.IsNullOrEmpty(created.ErrorDetail)
-                && created.ErrorCode != TwitchErrorCodes.Conflict
-            )
-                _logger.LogWarning(
-                    "EventSub subscription {EventType} for {BroadcasterId} error detail: {Detail}",
-                    eventType,
-                    broadcasterId,
-                    created.ErrorDetail
-                );
-
-            // When Twitch 403 body says "Missing required scope <scope>", publish the reauth event so
-            // MissingScopeRecordingHandler can record it and the dashboard can surface an action-required flow.
-            string? missingScope = ExtractMissingScope(created.ErrorDetail);
-            if (missingScope is not null)
+            // Journal / log / notify only an actual TRANSITION. A reconcile re-hitting the same failure is a
+            // no-op fact — publishing it every cycle flooded the journal (~84k rows/day at 60 blocked topics
+            // × 5 channels × 288 cycles) and re-spammed the reauth surface.
+            bool transitioned =
+                oldStatus != row.Status
+                || !string.Equals(previousError, row.LastError, StringComparison.Ordinal);
+            if (transitioned)
             {
-                _logger.LogWarning(
-                    "EventSub subscription {EventType} for {BroadcasterId} blocked: missing scope '{Scope}'",
-                    eventType,
-                    broadcasterId,
-                    missingScope
-                );
-                await _eventBus.PublishAsync(
-                    new TwitchHelixReauthRequiredEvent
-                    {
-                        BroadcasterId = broadcasterId,
-                        Provider = "twitch",
-                        ServiceName = "twitch",
-                        Reason = "missing_scope",
-                        MissingScope = missingScope,
-                    },
-                    ct
-                );
+                await PublishStatusChangedAsync(row, oldStatus, row.Status, row.LastError, ct);
+
+                // Log the full Twitch error body to diagnose real failures (400/403/etc.). A 409 conflict is
+                // the expected transient during the stale-session GC window — don't spam the log with it.
+                if (
+                    !string.IsNullOrEmpty(created.ErrorDetail)
+                    && created.ErrorCode != TwitchErrorCodes.Conflict
+                )
+                    _logger.LogWarning(
+                        "EventSub subscription {EventType} for {BroadcasterId} error detail: {Detail}",
+                        eventType,
+                        broadcasterId,
+                        created.ErrorDetail
+                    );
+
+                // When Twitch 403 body says "Missing required scope <scope>", publish the reauth event so
+                // MissingScopeRecordingHandler can record it and the dashboard can surface an action-required
+                // flow — once per discovery, not once per reconcile.
+                if (missingScope is not null)
+                {
+                    _logger.LogWarning(
+                        "EventSub subscription {EventType} for {BroadcasterId} blocked: missing scope '{Scope}'",
+                        eventType,
+                        broadcasterId,
+                        missingScope
+                    );
+                    await _eventBus.PublishAsync(
+                        new TwitchHelixReauthRequiredEvent
+                        {
+                            BroadcasterId = broadcasterId,
+                            Provider = "twitch",
+                            ServiceName = "twitch",
+                            Reason = "missing_scope",
+                            MissingScope = missingScope,
+                        },
+                        ct
+                    );
+                }
             }
 
             return Result.Failure<EventSubSubscriptionDto>(
@@ -622,7 +664,10 @@ public sealed class TwitchEventSubHostedService
         row.LastError = null;
         await db.SaveChangesAsync(ct);
 
-        await PublishStatusChangedAsync(row, oldStatus, row.Status, null, ct);
+        // A re-home onto a fresh session keeps the status "enabled" — that is not a status change; only a
+        // real transition (none/pending/failed → enabled) is journal-worthy.
+        if (oldStatus != row.Status)
+            await PublishStatusChangedAsync(row, oldStatus, row.Status, null, ct);
         return Result.Success(ToDto(row));
     }
 
@@ -936,6 +981,42 @@ public sealed class TwitchEventSubHostedService
             ct
         );
 
+    /// <summary>
+    /// The granted scope set of the token this topic would ride — the broadcaster's own Twitch connection,
+    /// or the bot's (the channel's dedicated bot if connected, else the shared/global bot). Null when no
+    /// connection row exists (unknown → the caller falls through to the create, the pre-gate never blocks
+    /// on missing knowledge).
+    /// </summary>
+    private static async Task<List<string>?> GetOwnerGrantedScopesAsync(
+        IApplicationDbContext db,
+        Guid broadcasterId,
+        EventSubTokenOwnerKind tokenOwner,
+        CancellationToken ct
+    )
+    {
+        if (tokenOwner == EventSubTokenOwnerKind.Broadcaster)
+            return await db
+                .IntegrationConnections.Where(c =>
+                    c.Provider == "twitch" && c.BroadcasterId == broadcasterId
+                )
+                .Select(c => c.Scopes)
+                .FirstOrDefaultAsync(ct);
+
+        List<string>? channelBot = await db
+            .IntegrationConnections.Where(c =>
+                c.Provider == "twitch_bot" && c.BroadcasterId == broadcasterId
+            )
+            .Select(c => c.Scopes)
+            .FirstOrDefaultAsync(ct);
+        return channelBot
+            ?? await db
+                .IntegrationConnections.Where(c =>
+                    c.Provider == "twitch_bot" && c.BroadcasterId == null
+                )
+                .Select(c => c.Scopes)
+                .FirstOrDefaultAsync(ct);
+    }
+
     // Twitch 403 body for a missing scope: {"error":"Forbidden","status":403,"message":"Missing required scope channel:read:hype_train"}
     // Returns the scope token, or null when the body doesn't match.
     private static string? ExtractMissingScope(string? errorDetail)
@@ -945,18 +1026,26 @@ public sealed class TwitchEventSubHostedService
         try
         {
             JsonDocument doc = JsonDocument.Parse(errorDetail);
-            if (
-                doc.RootElement.TryGetProperty("message", out JsonElement msg)
-                && msg.GetString() is string text
-                && text.StartsWith("Missing required scope ", StringComparison.OrdinalIgnoreCase)
-            )
-                return text["Missing required scope ".Length..].Trim();
+            if (doc.RootElement.TryGetProperty("message", out JsonElement msg))
+                return ExtractMissingScopeFromMessage(msg.GetString());
         }
         catch (JsonException)
         {
             // not a JSON body — ignore
         }
         return null;
+    }
+
+    // The stored-LastError twin of ExtractMissingScope: parses the plain "Missing required scope <scope>"
+    // message the failure path persists, so the pre-create gate can recover the blocking scope.
+    private static string? ExtractMissingScopeFromMessage(string? message)
+    {
+        if (
+            message is null
+            || !message.StartsWith("Missing required scope ", StringComparison.OrdinalIgnoreCase)
+        )
+            return null;
+        return message["Missing required scope ".Length..].Trim();
     }
 
     private static EventSubSubscriptionDto ToDto(EventSubSubscription row) =>

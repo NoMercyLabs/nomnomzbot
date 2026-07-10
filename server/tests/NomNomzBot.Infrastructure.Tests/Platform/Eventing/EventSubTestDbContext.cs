@@ -78,7 +78,8 @@ internal sealed class EventSubTestDbContext : DbContext, IApplicationDbContext
             e.HasKey(x => x.Id);
             e.Ignore(x => x.Channel);
             e.Ignore(x => x.Tokens);
-            e.Ignore(x => x.Scopes);
+            // Scopes stays mapped (a List<string> primitive collection materializes on InMemory):
+            // the scope-gate tests seed a grant set and prove SubscribeAsync holds/releases on it.
         });
 
         // EF discovers entity types from the DbSet<T> property declarations regardless of the throwing getter
