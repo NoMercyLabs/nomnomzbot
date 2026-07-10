@@ -25,14 +25,22 @@ import bot.nomnomz.dashboard.core.network.StreamApi
 import bot.nomnomz.dashboard.core.network.StreamInfo
 import bot.nomnomz.dashboard.core.network.StreamInfoUpdate
 import bot.nomnomz.dashboard.core.network.UpdateCommandBody
+import bot.nomnomz.dashboard.core.realtime.HubEvent
+import bot.nomnomz.dashboard.core.realtime.HubStreamInfoChanged
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 
 // Proves the Home page state machine the screen renders: resolve the active channel, then surface the live
 // snapshot — or an error if either step fails. The screen is a pure projection of this, so testing it proves
 // the page shows real data (no fabricated counts) and degrades cleanly.
+@OptIn(ExperimentalCoroutinesApi::class)
 class HomeControllerTest {
 
     @Test
@@ -129,6 +137,72 @@ class HomeControllerTest {
     }
 
     @Test
+    fun updateStreamInfo_merges_the_saved_title_into_the_banner_stats_and_stream_info() = runTest {
+        // The regression: the PUT echoed the saved title, but only streamInfo was merged — the live banner
+        // renders stats.streamTitle, so the old title stayed on screen until a full page reload.
+        val controller =
+            HomeController(
+                channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                dashboardApi = FakeDashboardApi(
+                    ApiResult.Ok(DashboardStats(streamTitle = "Old title", gameName = "Old game"))
+                ),
+                streamApi = FakeStreamApi(
+                    updateResult = ApiResult.Ok(StreamInfo(title = "New title", gameName = "New game"))
+                ),
+                commandsApi = FakeCommandsApi(),
+            )
+        controller.load()
+
+        controller.updateStreamInfo(title = "New title", gameName = "New game", tags = null)
+
+        val state: HomeState = controller.state.value
+        assertTrue(state is HomeState.Ready)
+        val ready: HomeState.Ready = state as HomeState.Ready
+        assertEquals("New title", ready.stats.streamTitle)
+        assertEquals("New game", ready.stats.gameName)
+        assertEquals("New title", ready.streamInfo?.title)
+        assertNull(ready.streamError)
+    }
+
+    @Test
+    fun hub_stream_info_changed_updates_the_banner_without_a_reload() = runTest {
+        // The regression's second half: the hub pushed StreamInfoChanged on channel.update, but the client
+        // dropped it (unmodelled target) — an edit by another operator or on Twitch itself never showed live.
+        val controller =
+            HomeController(
+                channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                dashboardApi = FakeDashboardApi(
+                    ApiResult.Ok(DashboardStats(streamTitle = "Old title", gameName = "Old game"))
+                ),
+                streamApi = FakeStreamApi(),
+                commandsApi = FakeCommandsApi(),
+            )
+        controller.load()
+
+        // Collect on an unconfined test dispatcher so the subscription is live immediately (see ChatControllerTest).
+        val events = MutableSharedFlow<HubEvent>(extraBufferCapacity = 16)
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { controller.subscribeToHub(events) }
+
+        events.emit(
+            HubEvent.StreamInfoChanged(
+                HubStreamInfoChanged(
+                    broadcasterId = "ch1",
+                    broadcasterDisplayName = "Streamer",
+                    title = "Pushed title",
+                    gameName = "Pushed game",
+                )
+            )
+        )
+
+        val state: HomeState = controller.state.value
+        assertTrue(state is HomeState.Ready)
+        val ready: HomeState.Ready = state as HomeState.Ready
+        assertEquals("Pushed title", ready.stats.streamTitle)
+        assertEquals("Pushed game", ready.stats.gameName)
+        assertEquals("Pushed title", ready.streamInfo?.title)
+    }
+
+    @Test
     fun load_survives_commands_api_failure_and_shows_empty_top_commands() = runTest {
         val controller =
             HomeController(
@@ -171,11 +245,13 @@ private class FakeDashboardApi(private val result: ApiResult<DashboardStats>) : 
         ApiResult.Ok(emptyList())
 }
 
-private class FakeStreamApi : StreamApi {
-    override suspend fun info(channelId: String): ApiResult<StreamInfo> =
-        ApiResult.Ok(StreamInfo())
+private class FakeStreamApi(
+    private val infoResult: ApiResult<StreamInfo> = ApiResult.Ok(StreamInfo()),
+    private val updateResult: ApiResult<StreamInfo> = ApiResult.Ok(StreamInfo()),
+) : StreamApi {
+    override suspend fun info(channelId: String): ApiResult<StreamInfo> = infoResult
     override suspend fun update(channelId: String, update: StreamInfoUpdate): ApiResult<StreamInfo> =
-        ApiResult.Ok(StreamInfo())
+        updateResult
 }
 
 private class FakeCommandsApi(

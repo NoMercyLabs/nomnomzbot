@@ -111,7 +111,11 @@ class HomeController(
         }
     }
 
-    /** Update stream title, game, and/or tags. Merges the backend response into the current state. */
+    /**
+     * Update stream title, game, and/or tags. Merges the backend response into the current state — into
+     * [HomeState.Ready.streamInfo] AND the [HomeState.Ready.stats] the live banner renders, so the saved title
+     * shows immediately instead of only after the next full reload.
+     */
     suspend fun updateStreamInfo(title: String?, gameName: String?, tags: List<String>?) {
         val channel: String = channelId ?: return
         val update: StreamInfoUpdate = StreamInfoUpdate(title = title, gameName = gameName, tags = tags)
@@ -125,7 +129,14 @@ class HomeController(
             is ApiResult.Ok -> {
                 val current: HomeState = _state.value
                 if (current is HomeState.Ready) {
-                    _state.value = current.copy(streamInfo = result.value, streamError = null)
+                    _state.value = current.copy(
+                        stats = current.stats.copy(
+                            streamTitle = result.value.title,
+                            gameName = result.value.gameName,
+                        ),
+                        streamInfo = result.value,
+                        streamError = null,
+                    )
                 }
             }
         }
@@ -134,6 +145,8 @@ class HomeController(
     /**
      * Subscribe to hub events — updates the home state in real-time:
      * - [HubEvent.StreamStatusChanged]: toggles live/offline and updates viewer count.
+     * - [HubEvent.StreamInfoChanged]: applies a title/category change (channel.update) to the live banner —
+     *   including one made by another operator or straight on Twitch, not just this session's own edit.
      * - [HubEvent.ChannelEvent]: prepends to the activity feed (cap 20) so new events appear instantly.
      */
     suspend fun subscribeToHub(hubEvents: SharedFlow<HubEvent>) {
@@ -144,6 +157,17 @@ class HomeController(
                     is HubEvent.StreamStatusChanged ->
                         _state.value = current.copy(
                             stats = current.stats.copy(isLive = evt.status.isLive)
+                        )
+                    is HubEvent.StreamInfoChanged ->
+                        _state.value = current.copy(
+                            stats = current.stats.copy(
+                                streamTitle = evt.info.title,
+                                gameName = evt.info.gameName,
+                            ),
+                            streamInfo = current.streamInfo?.copy(
+                                title = evt.info.title,
+                                gameName = evt.info.gameName,
+                            ),
                         )
                     is HubEvent.ChannelEvent -> {
                         val newEvent: ActivityEvent = ActivityEvent(

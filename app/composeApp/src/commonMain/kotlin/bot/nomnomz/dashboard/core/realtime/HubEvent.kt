@@ -26,6 +26,8 @@ sealed interface HubEvent {
 
     data class StreamStatusChanged(val status: HubStreamStatus) : HubEvent
 
+    data class StreamInfoChanged(val info: HubStreamInfoChanged) : HubEvent
+
     data class AlertTriggered(val alert: HubAlert) : HubEvent
 
     data class ModAction(val action: HubModAction) : HubEvent
@@ -53,6 +55,7 @@ sealed interface HubEvent {
                 when (target) {
                     "ChatMessage" -> ChatMessage(json.decodeFromString(first))
                     "StreamStatusChanged" -> StreamStatusChanged(json.decodeFromString(first))
+                    "StreamInfoChanged" -> StreamInfoChanged(json.decodeFromString(first))
                     "AlertTriggered" -> AlertTriggered(json.decodeFromString(first))
                     "ModAction" -> ModAction(json.decodeFromString(first))
                     "CommandExecuted" -> CommandExecuted(json.decodeFromString(first))
@@ -159,6 +162,15 @@ data class HubStreamStatus(
     val title: String? = null,
     val gameName: String? = null,
     val startedAt: String? = null,
+)
+
+/** Pushed when the channel's title/category changes (`channel.update`) — keeps the stream-info banner live. */
+@Serializable
+data class HubStreamInfoChanged(
+    val broadcasterId: String = "",
+    val broadcasterDisplayName: String = "",
+    val title: String = "",
+    val gameName: String = "",
 )
 
 @Serializable
