@@ -166,12 +166,15 @@ public sealed class TwitchEventSubReconnectTests
     }
 
     [Fact]
-    public async Task SubscribeAsync_on_429_marks_deferred_and_second_call_does_not_recreate()
+    public async Task SubscribeAsync_on_429_marks_pending_and_retries_next_pass()
     {
         Guid tenant = Guid.CreateVersion7();
         RecordingEventSubTransport transport = new(
             onCreate: (_, _) =>
-                Result.Failure<TwitchSubscriptionResult>("cost cap", TwitchErrorCodes.RateLimited)
+                Result.Failure<TwitchSubscriptionResult>(
+                    "too many requests",
+                    TwitchErrorCodes.RateLimited
+                )
         );
         (TwitchEventSubHostedService service, EventSubTestDbContext db) = Build(transport);
 
@@ -180,22 +183,18 @@ public sealed class TwitchEventSubReconnectTests
             "channel.cheer"
         );
 
+        // A 429 is a transient burst limit (per-broadcaster sessions removed the permanent cost-cap), so it parks
+        // the row "pending" — retryable — not "deferred".
         first.IsFailure.Should().BeTrue();
         EventSubSubscription row = await db.EventSubSubscriptions.SingleAsync(s =>
             s.BroadcasterId == tenant
         );
-        row.Status.Should().Be("deferred");
+        row.Status.Should().Be("pending");
         transport.CreatedTypes.Should().ContainSingle();
 
-        // A deferred row is parked for the conduit transport — a second pass must not re-hammer Twitch.
-        Result<EventSubSubscriptionDto> second = await service.SubscribeAsync(
-            tenant,
-            "channel.cheer"
-        );
-
-        second.IsSuccess.Should().BeTrue();
-        second.Value.Status.Should().Be("deferred");
-        transport.CreatedTypes.Should().ContainSingle(); // still exactly one create, not two
+        // The next reconcile pass retries the create (a pending row is never parked).
+        await service.SubscribeAsync(tenant, "channel.cheer");
+        transport.CreatedTypes.Should().HaveCount(2);
     }
 
     [Fact]

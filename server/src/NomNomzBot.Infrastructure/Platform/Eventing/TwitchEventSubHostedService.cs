@@ -487,23 +487,18 @@ public sealed class TwitchEventSubHostedService
         await db.SaveChangesAsync(ct);
         string oldStatus = isNew ? "none" : row.Status;
 
-        // Idempotent adopt / park (skip the Twitch POST):
-        //  - an already-`enabled` row on the CURRENT session is live at Twitch — re-POSTing it would only 409.
-        //  - a `deferred` row was parked by a prior 429 (WebSocket cost cap full); leave it for the conduit
-        //    transport instead of re-hammering the cost budget on every reconnect / reconcile.
+        // Idempotent adopt (skip the Twitch POST) only for an already-`enabled` row on the CURRENT session — it is
+        // live at Twitch, so re-POSTing it would only 409. Everything else (pending / failed / legacy deferred)
+        // falls through to a create so it retries every reconcile until it lands.
         string? currentSession = handle.SessionId;
-        if (!isNew)
-        {
-            if (
-                row.Status == "enabled"
-                && row.TwitchSubscriptionId is not null
-                && currentSession is not null
-                && row.SessionId == currentSession
-            )
-                return Result.Success(ToDto(row));
-            if (row.Status == "deferred")
-                return Result.Success(ToDto(row));
-        }
+        if (
+            !isNew
+            && row.Status == "enabled"
+            && row.TwitchSubscriptionId is not null
+            && currentSession is not null
+            && row.SessionId == currentSession
+        )
+            return Result.Success(ToDto(row));
 
         // Create at Twitch via the transport (idempotent at our layer; Twitch 409 on an exact duplicate).
         EventSubSubscriptionRequest request = new()
@@ -526,16 +521,18 @@ public sealed class TwitchEventSubHostedService
 
         if (created.IsFailure)
         {
-            // Map the failure to a retryable / parked / terminal status instead of a permanent "failed":
+            // Map the failure to a retryable / terminal status instead of a permanent "failed":
             //  - Conflict (409): an identical sub still lingers from a dead session inside Twitch's ~1-min GC
             //    window → "pending" so the next reconcile retries once it clears (expected, transient).
-            //  - RateLimited (429): the WebSocket cost cap is full (the cost-1 topics) → "deferred", parked for
-            //    the conduit transport and not re-hammered.
+            //  - RateLimited (429): a transient burst limit while re-registering a channel's ~50 topics → "pending"
+            //    so the reconcile retries. (Per-broadcaster sessions removed the old cost-cap 429: a broadcaster's
+            //    topics are cost-0 on their OWN per-user-token budget, so a 429 is always transient rate-limiting,
+            //    never a permanent cost exhaustion — the previous "deferred / park for the conduit" was obsolete.)
             //  - otherwise → "failed" (keeps the 403 missing-scope path below intact).
             row.Status = created.ErrorCode switch
             {
                 TwitchErrorCodes.Conflict => "pending",
-                TwitchErrorCodes.RateLimited => "deferred",
+                TwitchErrorCodes.RateLimited => "pending",
                 _ => "failed",
             };
             row.LastError = created.ErrorMessage;
