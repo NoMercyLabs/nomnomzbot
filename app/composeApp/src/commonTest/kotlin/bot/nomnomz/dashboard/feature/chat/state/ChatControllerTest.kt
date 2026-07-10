@@ -156,6 +156,86 @@ class ChatControllerTest {
     }
 
     @Test
+    fun a_normal_send_threads_a_null_reply_target() = runTest {
+        val chatApi = FakeChatApi(ApiResult.Ok(listOf(ChatMessage(id = "m1", message = "hi"))))
+        val controller = ChatController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), chatApi)
+
+        controller.load()
+        controller.send("hello")
+
+        // A send outside reply mode carries no parent id — the backend posts a normal message, not a reply.
+        assertEquals(listOf<String?>(null), chatApi.sendReplyTargets)
+        assertNull(controller.replyTarget.value)
+    }
+
+    @Test
+    fun start_reply_sets_the_reply_target() = runTest {
+        val parent = ChatMessage(id = "m1", userId = "u1", displayName = "Viewer", message = "hi")
+        val chatApi = FakeChatApi(ApiResult.Ok(listOf(parent)))
+        val controller = ChatController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), chatApi)
+
+        controller.load()
+        controller.startReply(parent)
+
+        // Reply mode holds the whole selected message so the composer can name its author.
+        assertEquals("m1", controller.replyTarget.value?.id)
+        assertEquals("Viewer", controller.replyTarget.value?.displayName)
+    }
+
+    @Test
+    fun cancel_reply_clears_the_reply_target() = runTest {
+        val parent = ChatMessage(id = "m1", userId = "u1", message = "hi")
+        val chatApi = FakeChatApi(ApiResult.Ok(listOf(parent)))
+        val controller = ChatController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), chatApi)
+
+        controller.load()
+        controller.startReply(parent)
+        controller.cancelReply()
+
+        assertNull(controller.replyTarget.value)
+    }
+
+    @Test
+    fun send_in_reply_mode_threads_the_parent_id_and_clears_reply_mode() = runTest {
+        val parent = ChatMessage(id = "m1", userId = "u1", displayName = "Viewer", message = "hi")
+        val chatApi = FakeChatApi(ApiResult.Ok(listOf(parent)))
+        val controller = ChatController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), chatApi)
+
+        controller.load()
+        controller.startReply(parent)
+        controller.send("great point!")
+
+        // The send carried the parent message id as the reply target, and the trimmed body + default identity.
+        assertEquals(listOf<String?>("m1"), chatApi.sendReplyTargets)
+        assertEquals(listOf(Triple("ch1", "great point!", "you")), chatApi.sendCalls)
+        // Reply mode cleared once the reply landed, so the next send is a normal message.
+        assertNull(controller.replyTarget.value)
+    }
+
+    @Test
+    fun reply_mode_survives_a_failed_send_so_the_operator_can_retry() = runTest {
+        val parent = ChatMessage(id = "m1", userId = "u1", message = "hi")
+        val chatApi =
+            FakeChatApi(
+                messagesResults = listOf(ApiResult.Ok(listOf(parent))),
+                sendResult = ApiResult.Failure(ApiError(403, "FORBIDDEN", "Bot token expired.")),
+            )
+        val controller = ChatController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), chatApi)
+
+        controller.load()
+        controller.startReply(parent)
+        controller.send("great point!")
+
+        // The parent id still went out on the wire, but the failed send keeps reply mode so the operator can retry
+        // without re-selecting the message; the error surfaces over the intact feed.
+        assertEquals(listOf<String?>("m1"), chatApi.sendReplyTargets)
+        assertEquals("m1", controller.replyTarget.value?.id)
+        val state: ChatState = controller.state.value
+        assertTrue(state is ChatState.Ready)
+        assertEquals("Bot token expired.", (state as ChatState.Ready).actionError)
+    }
+
+    @Test
     fun send_surfaces_the_error_and_keeps_the_feed_when_it_fails() = runTest {
         val line = ChatMessage(id = "m1", userId = "u1", message = "hi")
         val chatApi =
@@ -448,6 +528,8 @@ private class FakeChatApi(
 
     // Each send call recorded as (channel, message, senderIdentity) so tests prove the identity is passed through.
     val sendCalls: MutableList<Triple<String, String, String>> = mutableListOf()
+    // The reply-parent id threaded on each send (null for a normal send) — parallel to [sendCalls] by index.
+    val sendReplyTargets: MutableList<String?> = mutableListOf()
     val deleteCalls: MutableList<Pair<String, String>> = mutableListOf()
     val timeoutCalls: MutableList<Triple<String, String, Int>> = mutableListOf()
     val banCalls: MutableList<Triple<String, String, String>> = mutableListOf()
@@ -471,8 +553,10 @@ private class FakeChatApi(
         channelId: String,
         message: String,
         senderIdentity: String,
+        replyToMessageId: String?,
     ): ApiResult<Unit> {
         sendCalls.add(Triple(channelId, message, senderIdentity))
+        sendReplyTargets.add(replyToMessageId)
         return sendResult
     }
 

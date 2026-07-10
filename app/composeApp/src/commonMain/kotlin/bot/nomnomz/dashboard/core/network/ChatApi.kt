@@ -33,11 +33,16 @@ interface ChatApi {
     /** The emotes usable in this channel (Twitch global+channel + BTTV/FFZ/7TV) — the composer autocomplete source. */
     suspend fun emotes(channelId: String): ApiResult<List<ChatEmoteCatalogue>>
 
-    /** Send [message] to the channel's chat as [senderIdentity] ("you" = the operator's own account | "bot"). */
+    /**
+     * Send [message] to the channel's chat as [senderIdentity] ("you" = the operator's own account | "bot").
+     * When [replyToMessageId] is non-null the backend posts it as a Twitch reply to that parent message
+     * (FFZ-style reply); a normal send passes null.
+     */
     suspend fun send(
         channelId: String,
         message: String,
         senderIdentity: String = "you",
+        replyToMessageId: String? = null,
     ): ApiResult<Unit>
 
     /** Delete the single chat message [messageId] (moderation quick-action). */
@@ -91,10 +96,11 @@ class RestChatApi(private val client: ApiClient) : ChatApi {
         channelId: String,
         message: String,
         senderIdentity: String,
+        replyToMessageId: String?,
     ): ApiResult<Unit> =
         client.postUnit(
             "api/v1/channels/$channelId/chat/messages",
-            SendChatMessageBody(message, senderIdentity),
+            SendChatMessageBody(message, senderIdentity, replyToMessageId),
         )
 
     override suspend fun deleteMessage(channelId: String, messageId: String): ApiResult<Unit> =
@@ -150,10 +156,15 @@ class RestChatApi(private val client: ApiClient) : ChatApi {
 
 /**
  * The send-message request body (backend `SendChatMessageRequest`). camelCase JSON; [message] is the line to
- * post as the bot (the backend trims it and rejects empty / >500-char messages).
+ * post as the bot (the backend trims it and rejects empty / >500-char messages). [replyToMessageId] is the
+ * parent message id when composing a reply (FFZ-style), null for a normal send.
  */
 @Serializable
-data class SendChatMessageBody(val message: String, val senderIdentity: String = "you")
+data class SendChatMessageBody(
+    val message: String,
+    val senderIdentity: String = "you",
+    val replyToMessageId: String? = null,
+)
 
 /**
  * The moderation-action request body (backend `PerformModerationActionRequest`). camelCase JSON. The chat page
@@ -206,7 +217,12 @@ data class ChatMessage(
     val isCommand: Boolean = false,
     val isCheer: Boolean = false,
     val bitsAmount: Int? = null,
+    // Reply parent (backend DashboardChatMessageDto): the id of the replied-to message, plus its author + body.
+    // The live hub path carries all three (EventSub supplies them); REST scrollback persists only the id, so the
+    // parent author/body are null there. The reply indicator renders off the id; hover/expand show the body.
     val replyToMessageId: String? = null,
+    val replyParentMessageBody: String? = null,
+    val replyParentUserName: String? = null,
     val timestamp: String = "",
     val fragments: List<ChatFragment> = emptyList(),
     val badges: List<ChatBadge> = emptyList(),

@@ -1065,6 +1065,11 @@
     <string name="chat_timeout_message">Time out %1$s? They won't be able to chat for a while.</string>
     <string name="chat_timeout_confirm">Time out</string>
     <string name="chat_timeout_dismiss">Cancel</string>
+    <string name="chat_reply_action">Reply to %1$s</string>
+    <string name="chat_reply_indicator">Replying to @%1$s</string>
+    <string name="chat_reply_indicator_unknown">Replying to a message</string>
+    <string name="chat_reply_expand">Show the replied-to message from %1$s</string>
+    <string name="chat_reply_cancel">Cancel reply</string>
 
     <!-- Quotes page. -->
     <string name="quotes_title">Quotes</string>

@@ -185,3 +185,8 @@ val DotsVerticalGlyph: ImageVector = icon("DotsVertical") {
 val ChevronDownGlyph: ImageVector = icon("ChevronDown") {
     strokePath("M6 9L12 15L18 9")
 }
+
+/** Curved arrow into a line — Arrows/reply (Lucide reply) */
+val ReplyGlyph: ImageVector = icon("Reply") {
+    strokePath("M9 17L4 12L9 7M20 18V16A4 4 0 0 0 16 12H4")
+}

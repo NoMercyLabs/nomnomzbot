@@ -54,6 +54,14 @@ class ChatController(
     // first successful resolve; updated whenever the operator switches channels via the switcher.
     private var channelId: String? = null
 
+    // The message the composer is currently replying to (FFZ-style reply mode), or null for a normal send. This is
+    // UI state, but it lives here so [send] threads the parent id to the backend and clears it on a successful
+    // send — a single, testable seam rather than scattering the reply id across the screen and the send call.
+    private val _replyTarget: MutableStateFlow<ChatMessage?> = MutableStateFlow(null)
+
+    /** The message being replied to, or null when not in reply mode. The composer renders its banner off this. */
+    val replyTarget: StateFlow<ChatMessage?> = _replyTarget.asStateFlow()
+
     /**
      * Re-resolve the active channel, then load its recent chat. The channel is resolved on EVERY call so a
      * switcher change re-targets the feed — and every subsequent moderation action, which all reuse [channelId].
@@ -155,10 +163,26 @@ class ChatController(
         val trimmed: String = message.trim()
         if (trimmed.isEmpty()) return
         val channel: String = channelId ?: return failAction(NoChannelError)
-        when (val result: ApiResult<Unit> = chatApi.send(channel, trimmed, senderIdentity)) {
-            is ApiResult.Ok -> Unit
+        // In reply mode, thread the parent message id so the backend posts a Twitch reply; a normal send is null.
+        val replyToMessageId: String? = _replyTarget.value?.id
+        when (
+            val result: ApiResult<Unit> = chatApi.send(channel, trimmed, senderIdentity, replyToMessageId)
+        ) {
+            // Leave reply mode only once the reply actually lands — a failed send keeps the target so the operator
+            // can retry without re-selecting the message.
+            is ApiResult.Ok -> _replyTarget.value = null
             is ApiResult.Failure -> failAction(result.error.message)
         }
+    }
+
+    /** Enter reply mode: the next [send] threads [message]'s id as the reply parent. The composer shows a banner. */
+    fun startReply(message: ChatMessage) {
+        _replyTarget.value = message
+    }
+
+    /** Leave reply mode without sending — the composer's ✕ and a successful [send] both clear the target. */
+    fun cancelReply() {
+        _replyTarget.value = null
     }
 
     /** Delete the single message [messageId], then reload so it drops from the feed. The screen confirms first. */
@@ -258,6 +282,8 @@ private fun HubChatMessage.toLocalMessage(): ChatMessage =
         isCheer = isCheer,
         bitsAmount = if (bitsAmount > 0) bitsAmount else null,
         replyToMessageId = replyToMessageId,
+        replyParentMessageBody = replyParentMessageBody,
+        replyParentUserName = replyParentUserName,
         timestamp = timestamp,
         fragments = fragments.map { f ->
             ChatFragment(

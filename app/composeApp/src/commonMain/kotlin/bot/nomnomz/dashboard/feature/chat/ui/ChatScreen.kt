@@ -32,9 +32,12 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
+import bot.nomnomz.dashboard.core.designsystem.icon.CloseGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.DotsHorizontalGlyph
+import bot.nomnomz.dashboard.core.designsystem.icon.ReplyGlyph
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -73,6 +76,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
 import bot.nomnomz.dashboard.core.designsystem.component.Textarea
+import bot.nomnomz.dashboard.core.designsystem.component.Tooltip
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -134,6 +138,11 @@ import nomnomzbot.composeapp.generated.resources.shell_nav_chat
 import nomnomzbot.composeapp.generated.resources.chat_error
 import nomnomzbot.composeapp.generated.resources.chat_loading
 import nomnomzbot.composeapp.generated.resources.chat_message_description
+import nomnomzbot.composeapp.generated.resources.chat_reply_action
+import nomnomzbot.composeapp.generated.resources.chat_reply_cancel
+import nomnomzbot.composeapp.generated.resources.chat_reply_expand
+import nomnomzbot.composeapp.generated.resources.chat_reply_indicator
+import nomnomzbot.composeapp.generated.resources.chat_reply_indicator_unknown
 import nomnomzbot.composeapp.generated.resources.chat_retry
 import nomnomzbot.composeapp.generated.resources.chat_row_actions
 import nomnomzbot.composeapp.generated.resources.chat_composer_preview_label
@@ -163,6 +172,7 @@ fun ChatScreen(
     hubEvents: SharedFlow<HubEvent>? = null,
 ) {
     val state: ChatState by controller.state.collectAsStateWithLifecycle()
+    val replyTarget: ChatMessage? by controller.replyTarget.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val spacing = LocalSpacing.current
     var showAnnounce: Boolean by remember { mutableStateOf(false) }
@@ -228,6 +238,7 @@ fun ChatScreen(
                         onBan = { userId, banScope, reason ->
                             scope.launch { controller.ban(userId, banScope, reason) }
                         },
+                        onReply = { message -> controller.startReply(message) },
                     )
             }
         }
@@ -236,6 +247,8 @@ fun ChatScreen(
         SendBox(
             manage = manage,
             emotes = composerEmotes,
+            replyTarget = replyTarget,
+            onCancelReply = { controller.cancelReply() },
             onSend = { text, identity -> scope.launch { controller.send(text, identity) } },
         )
     }
@@ -259,6 +272,7 @@ private fun MessageFeed(
     onDelete: (messageId: String) -> Unit,
     onTimeout: (userId: String) -> Unit,
     onBan: (userId: String, scope: String, reason: String?) -> Unit,
+    onReply: (message: ChatMessage) -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -286,13 +300,13 @@ private fun MessageFeed(
                     onDelete = onDelete,
                     onTimeout = onTimeout,
                     onBan = onBan,
+                    onReply = onReply,
                 )
             }
         }
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun MessageRow(
     message: ChatMessage,
@@ -300,6 +314,7 @@ private fun MessageRow(
     onDelete: (messageId: String) -> Unit,
     onTimeout: (userId: String) -> Unit,
     onBan: (userId: String, scope: String, reason: String?) -> Unit,
+    onReply: (message: ChatMessage) -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -321,105 +336,299 @@ private fun MessageRow(
         formatClockTime(message.timestamp)?.let { time ->
             Text(text = time, style = typography.sm, color = tokens.mutedForeground, maxLines = 1)
         }
-        // Badges + name + message fragments all flow inline — semantics collapses to a single read.
-        FlowRow(
-            modifier = Modifier.weight(1f).clearAndSetSemantics { contentDescription = rowDescription },
-            horizontalArrangement = Arrangement.spacedBy(spacing.s1),
-            verticalArrangement = Arrangement.Center,
+        // The message-body column takes the row's free width: an optional FFZ-style reply indicator sits above
+        // the inline badges + name + fragments.
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(spacing.s1),
         ) {
-            // Chatter avatar (resolved by the backend enricher) — a small circle before the badges.
-            message.avatarUrl?.takeIf { it.isNotBlank() }?.let { avatar ->
-                AsyncImage(
-                    model = avatar,
-                    contentDescription = null,
-                    modifier = Modifier.size(20.dp).clip(CircleShape).align(Alignment.CenterVertically),
-                )
+            // Render the reply indicator whenever this line is a reply — the parent id alone is enough (REST
+            // scrollback persists only the id); the author/body, when present (live hub), drive hover + expand.
+            if (message.replyToMessageId != null || !message.replyParentUserName.isNullOrBlank()) {
+                ReplyIndicator(message = message)
             }
-            // Badge strip — 18 dp per badge.
-            message.badges.forEach { badge ->
-                val url: String? = badge.urls["2"] ?: badge.urls["1"] ?: badge.urls.values.firstOrNull()
-                if (url != null) {
-                    AnimatedNetworkImage(
-                        url = url,
-                        contentDescription = badge.setId,
-                        modifier = Modifier.size(18.dp).align(Alignment.CenterVertically),
-                    )
-                }
-            }
-            // Pronoun chip (resolved by the backend enricher) — a small muted badge next to the name.
-            message.pronouns?.takeIf { it.isNotBlank() }?.let { pronouns -> PronounChip(pronouns) }
-            // Colored, semi-bold name.
-            Text(
-                text = "$name:",
-                style = typography.sm.copy(fontWeight = FontWeight.SemiBold),
-                color = nameColor,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
+            MessageInlineBody(
+                message = message,
+                rowDescription = rowDescription,
+                name = name,
+                nameColor = nameColor,
             )
-            // Fragment body — falls back to the flat [message] string when fragments are empty (REST history).
-            if (message.fragments.isNotEmpty()) {
-                message.fragments.forEach { fragment ->
-                    when (fragment.type) {
-                        "emote" -> {
-                            val url: String? = fragment.emote?.urls?.let {
-                                it["2"] ?: it["1"] ?: it.values.firstOrNull()
-                            }
-                            if (url != null) {
-                                AnimatedNetworkImage(
-                                    url = url,
-                                    contentDescription = fragment.text,
-                                    modifier = Modifier.size(24.dp).align(Alignment.CenterVertically),
-                                )
-                            } else {
-                                Text(text = fragment.text, style = typography.sm, color = tokens.cardForeground)
-                            }
-                        }
-                        "cheermote" -> {
-                            val url: String? = fragment.cheermote?.urls?.let {
-                                it["2"] ?: it["1"] ?: it.values.firstOrNull()
-                            }
-                            if (url != null) {
-                                AnimatedNetworkImage(
-                                    url = url,
-                                    contentDescription = fragment.text,
-                                    modifier = Modifier.size(24.dp).align(Alignment.CenterVertically),
-                                )
-                            } else {
-                                val tierColor: Color =
-                                    fragment.cheermote?.colorHex?.toComposeColor() ?: tokens.cardForeground
-                                Text(text = fragment.text, style = typography.sm, color = tierColor)
-                            }
-                        }
-                        "mention" -> {
-                            val mentionColor: Color =
-                                fragment.mention?.color?.toComposeColor() ?: tokens.primary
-                            Text(
-                                text = "@${fragment.mention?.displayName?.takeIf { it.isNotBlank() } ?: fragment.text.removePrefix("@")}",
-                                style = typography.sm,
-                                color = mentionColor,
-                            )
-                        }
-                        "link" -> {
-                            Text(
-                                text = fragment.text,
-                                style = typography.sm.copy(textDecoration = TextDecoration.Underline),
-                                color = tokens.primary,
-                            )
-                        }
-                        else -> {
-                            // Plain text run — may carry Unicode emoji, so render through [EmojiText] (inline
-                            // Twemoji images) rather than raw `Text`, which draws □ tofu on the web build.
-                            EmojiText(text = fragment.text, style = typography.sm, color = tokens.cardForeground)
-                        }
-                    }
-                }
-            } else {
-                // REST history has no fragments — render the flat message string, which is where typed Unicode
-                // emoji land, through [EmojiText] so they show as images instead of □ tofu on the web build.
-                EmojiText(text = message.message, style = typography.sm, color = tokens.cardForeground)
-            }
         }
         MessageActions(
+            message = message,
+            name = name,
+            manage = manage,
+            onDelete = onDelete,
+            onTimeout = onTimeout,
+            onBan = onBan,
+            onReply = { onReply(message) },
+        )
+    }
+}
+
+// The inline body of one chat line: badges + name + decorated fragments, all flowing inline as a single a11y
+// read ([rowDescription]). Extracted from [MessageRow] so the row can stack a reply indicator above it.
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun MessageInlineBody(
+    message: ChatMessage,
+    rowDescription: String,
+    name: String,
+    nameColor: Color,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    FlowRow(
+        modifier = Modifier.fillMaxWidth().clearAndSetSemantics { contentDescription = rowDescription },
+        horizontalArrangement = Arrangement.spacedBy(spacing.s1),
+        verticalArrangement = Arrangement.Center,
+    ) {
+        // Chatter avatar (resolved by the backend enricher) — a small circle before the badges.
+        message.avatarUrl?.takeIf { it.isNotBlank() }?.let { avatar ->
+            AsyncImage(
+                model = avatar,
+                contentDescription = null,
+                modifier = Modifier.size(20.dp).clip(CircleShape).align(Alignment.CenterVertically),
+            )
+        }
+        // Badge strip — 18 dp per badge.
+        message.badges.forEach { badge ->
+            val url: String? = badge.urls["2"] ?: badge.urls["1"] ?: badge.urls.values.firstOrNull()
+            if (url != null) {
+                AnimatedNetworkImage(
+                    url = url,
+                    contentDescription = badge.setId,
+                    modifier = Modifier.size(18.dp).align(Alignment.CenterVertically),
+                )
+            }
+        }
+        // Pronoun chip (resolved by the backend enricher) — a small muted badge next to the name.
+        message.pronouns?.takeIf { it.isNotBlank() }?.let { pronouns -> PronounChip(pronouns) }
+        // Colored, semi-bold name.
+        Text(
+            text = "$name:",
+            style = typography.sm.copy(fontWeight = FontWeight.SemiBold),
+            color = nameColor,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        // Fragment body — falls back to the flat [message] string when fragments are empty (REST history).
+        if (message.fragments.isNotEmpty()) {
+            message.fragments.forEach { fragment ->
+                when (fragment.type) {
+                    "emote" -> {
+                        val url: String? = fragment.emote?.urls?.let {
+                            it["2"] ?: it["1"] ?: it.values.firstOrNull()
+                        }
+                        if (url != null) {
+                            AnimatedNetworkImage(
+                                url = url,
+                                contentDescription = fragment.text,
+                                modifier = Modifier.size(24.dp).align(Alignment.CenterVertically),
+                            )
+                        } else {
+                            Text(text = fragment.text, style = typography.sm, color = tokens.cardForeground)
+                        }
+                    }
+                    "cheermote" -> {
+                        val url: String? = fragment.cheermote?.urls?.let {
+                            it["2"] ?: it["1"] ?: it.values.firstOrNull()
+                        }
+                        if (url != null) {
+                            AnimatedNetworkImage(
+                                url = url,
+                                contentDescription = fragment.text,
+                                modifier = Modifier.size(24.dp).align(Alignment.CenterVertically),
+                            )
+                        } else {
+                            val tierColor: Color =
+                                fragment.cheermote?.colorHex?.toComposeColor() ?: tokens.cardForeground
+                            Text(text = fragment.text, style = typography.sm, color = tierColor)
+                        }
+                    }
+                    "mention" -> {
+                        val mentionColor: Color =
+                            fragment.mention?.color?.toComposeColor() ?: tokens.primary
+                        Text(
+                            text = "@${fragment.mention?.displayName?.takeIf { it.isNotBlank() } ?: fragment.text.removePrefix("@")}",
+                            style = typography.sm,
+                            color = mentionColor,
+                        )
+                    }
+                    "link" -> {
+                        Text(
+                            text = fragment.text,
+                            style = typography.sm.copy(textDecoration = TextDecoration.Underline),
+                            color = tokens.primary,
+                        )
+                    }
+                    else -> {
+                        // Plain text run — may carry Unicode emoji, so render through [EmojiText] (inline
+                        // Twemoji images) rather than raw `Text`, which draws □ tofu on the web build.
+                        EmojiText(text = fragment.text, style = typography.sm, color = tokens.cardForeground)
+                    }
+                }
+            }
+        } else {
+            // REST history has no fragments — render the flat message string, which is where typed Unicode
+            // emoji land, through [EmojiText] so they show as images instead of □ tofu on the web build.
+            EmojiText(text = message.message, style = typography.sm, color = tokens.cardForeground)
+        }
+    }
+}
+
+// The per-message reply indicator (FFZ-style): a compact "↩ Replying to @author" line above a reply's body.
+// Hovering it reveals the parent inline (@author: body, truncated) via the DS Tooltip; clicking it expands the
+// full parent message below, clicking again collapses. Both the hover preview and the click-expand need the
+// parent body — the live hub carries author + body from EventSub, but REST scrollback persists only the parent
+// id, so there the indicator renders as a static, non-expandable line off the id alone.
+@Composable
+private fun ReplyIndicator(message: ChatMessage) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    val parentName: String? = message.replyParentUserName?.takeIf { it.isNotBlank() }
+    val parentBody: String? = message.replyParentMessageBody?.takeIf { it.isNotBlank() }
+
+    val indicatorText: String =
+        parentName?.let { stringResource(Res.string.chat_reply_indicator, it) }
+            ?: stringResource(Res.string.chat_reply_indicator_unknown)
+    val expandLabel: String = stringResource(Res.string.chat_reply_expand, parentName ?: indicatorText)
+
+    // The full parent line "@author: body"; the hover bubble shows a truncated form, the expansion the whole body.
+    val parentLine: String? =
+        parentBody?.let { body -> if (parentName != null) "@$parentName: $body" else body }
+    val tooltipText: String =
+        parentBody?.let { body ->
+            val short: String = truncateReplyBody(body)
+            if (parentName != null) "@$parentName: $short" else short
+        } ?: indicatorText
+
+    var expanded: Boolean by remember(message.id) { mutableStateOf(false) }
+
+    Column(verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
+        Tooltip(text = tooltipText) {
+            Row(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(tokens.radius.sm))
+                    .then(
+                        if (parentLine != null) Modifier.clickable { expanded = !expanded } else Modifier,
+                    )
+                    .semantics {
+                        contentDescription = if (parentLine != null) expandLabel else indicatorText
+                    },
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(spacing.s1),
+            ) {
+                Icon(
+                    imageVector = ReplyGlyph,
+                    contentDescription = null,
+                    tint = tokens.mutedForeground,
+                    modifier = Modifier.size(spacing.s3),
+                )
+                Text(
+                    text = indicatorText,
+                    style = typography.xs,
+                    color = tokens.mutedForeground,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+        // Click-to-expand: the full parent message inline (only when the body is available).
+        if (expanded && parentLine != null) {
+            Text(
+                text = parentLine,
+                style = typography.xs,
+                color = tokens.mutedForeground,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(tokens.radius.sm))
+                    .background(tokens.muted)
+                    .padding(horizontal = spacing.s2, vertical = spacing.s1),
+            )
+        }
+    }
+}
+
+// The composer's reply-mode banner: names who the next send will reply to, with a ✕ to leave reply mode. The
+// send routes through ChatController, which threads the parent id and clears reply mode on a successful send.
+@Composable
+private fun ReplyComposerBanner(target: ChatMessage, onCancel: () -> Unit) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    val name: String = chatterName(target)
+    val bannerText: String = stringResource(Res.string.chat_reply_indicator, name)
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(tokens.radius.md))
+            .background(tokens.muted)
+            .padding(start = spacing.s3, top = spacing.s1, bottom = spacing.s1, end = spacing.s1),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+    ) {
+        Icon(
+            imageVector = ReplyGlyph,
+            contentDescription = null,
+            tint = tokens.mutedForeground,
+            modifier = Modifier.size(spacing.s4),
+        )
+        Text(
+            text = bannerText,
+            style = typography.sm,
+            color = tokens.mutedForeground,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
+        GlyphButton(
+            imageVector = CloseGlyph,
+            label = stringResource(Res.string.chat_reply_cancel),
+            onClick = onCancel,
+        )
+    }
+}
+
+// Truncate a replied-to message body for the hover bubble so a long parent line stays a compact tooltip.
+private const val ReplyBodyMaxChars: Int = 140
+
+private fun truncateReplyBody(body: String): String =
+    if (body.length <= ReplyBodyMaxChars) body else body.take(ReplyBodyMaxChars).trimEnd() + "…"
+
+// The per-message action row: a Reply affordance (FFZ-style) beside the destructive moderation menu. Reply is a
+// send action, so it sits on the same Chat write floor as the mod menu and the composer's Send.
+@Composable
+private fun MessageActions(
+    message: ChatMessage,
+    name: String,
+    manage: ManageDecision,
+    onDelete: (messageId: String) -> Unit,
+    onTimeout: (userId: String) -> Unit,
+    onBan: (userId: String, scope: String, reason: String?) -> Unit,
+    onReply: () -> Unit,
+) {
+    val spacing = LocalSpacing.current
+    val replyLabel: String = stringResource(Res.string.chat_reply_action, name)
+
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(spacing.s1),
+    ) {
+        ManageGate(decision = manage) { enabled ->
+            GlyphButton(
+                imageVector = ReplyGlyph,
+                label = replyLabel,
+                onClick = onReply,
+                enabled = enabled,
+            )
+        }
+        ModerationMenu(
             message = message,
             name = name,
             manage = manage,
@@ -434,7 +643,7 @@ private fun MessageRow(
 // message, timeout the author). Both are destructive, so each routes through the shared ConfirmDialog before
 // it fires; the screen owns the pending-confirmation state here so the menu closes the instant one is chosen.
 @Composable
-private fun MessageActions(
+private fun ModerationMenu(
     message: ChatMessage,
     name: String,
     manage: ManageDecision,
@@ -633,6 +842,8 @@ private fun BanDialog(
 private fun SendBox(
     manage: ManageDecision,
     emotes: List<ChatEmoteCatalogue>,
+    replyTarget: ChatMessage?,
+    onCancelReply: () -> Unit,
     onSend: (message: String, senderIdentity: String) -> Unit,
 ) {
     val tokens = LocalTokens.current
@@ -679,6 +890,11 @@ private fun SendBox(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(spacing.s3),
     ) {
+        // Reply-mode banner: when a message has been chosen to reply to, name the parent with a ✕ to cancel. The
+        // send threads the parent id through ChatController.send, which clears reply mode on a successful send.
+        replyTarget?.let { target ->
+            ReplyComposerBanner(target = target, onCancel = onCancelReply)
+        }
         // The composed line mirrored WYSIWYG — recognised emote codes shown as their (animated) images. Rendered
         // only when the draft actually contains a catalogue emote, so an all-text draft shows no strip.
         if (hasEmotePreview) {

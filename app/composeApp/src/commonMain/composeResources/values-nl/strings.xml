@@ -1062,6 +1062,11 @@
     <string name="chat_timeout_message">%1$s een time-out geven? Diegene kan dan even niet chatten.</string>
     <string name="chat_timeout_confirm">Time-out</string>
     <string name="chat_timeout_dismiss">Annuleren</string>
+    <string name="chat_reply_action">Antwoord %1$s</string>
+    <string name="chat_reply_indicator">Antwoordt @%1$s</string>
+    <string name="chat_reply_indicator_unknown">Antwoordt op een bericht</string>
+    <string name="chat_reply_expand">Toon het bericht van %1$s waarop wordt geantwoord</string>
+    <string name="chat_reply_cancel">Antwoord annuleren</string>
 
     <!-- Quotes page. -->
     <string name="quotes_title">Quotes</string>
