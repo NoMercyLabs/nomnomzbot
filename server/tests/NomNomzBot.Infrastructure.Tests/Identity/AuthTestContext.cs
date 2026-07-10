@@ -261,7 +261,14 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
         b.Ignore<NomNomzBot.Domain.Tts.Entities.TtsCacheEntry>();
         b.Ignore<NomNomzBot.Domain.Identity.Entities.Pronoun>();
         b.Ignore<NomNomzBot.Domain.Platform.Entities.DeletionAuditLog>();
-        b.Ignore<NomNomzBot.Domain.Commands.Entities.Timer>();
+
+        // Timer: mapped scalar-only (navs ignored; Messages is a primitive collection that materializes
+        // on InMemory) so TimerService tests can drive the pipeline-dispatch + rotation fold through this
+        // harness.
+        b.Entity<NomNomzBot.Domain.Commands.Entities.Timer>().HasKey(e => e.Id);
+        b.Entity<NomNomzBot.Domain.Commands.Entities.Timer>()
+            .Ignore(e => e.Channel)
+            .Ignore(e => e.Pipeline);
         b.Ignore<NomNomzBot.Domain.Rewards.Entities.WatchStreak>();
 
         // EventResponse: mapped scalar-only (MetadataJson's jsonb column and both navs ignored) so
@@ -278,7 +285,14 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
         b.Entity<NomNomzBot.Domain.Commands.Entities.ChannelBuiltinCommand>().HasKey(e => e.Id);
         b.Entity<NomNomzBot.Domain.Commands.Entities.ChannelBuiltinCommand>()
             .Ignore(e => e.Channel);
-        b.Ignore<NomNomzBot.Domain.Commands.Entities.Pipeline>();
+
+        // Pipeline: mapped scalar-only (Steps + Channel navs ignored) so timer→pipeline dispatch tests
+        // can seed a GraphJsonCache through this harness.
+        b.Entity<NomNomzBot.Domain.Commands.Entities.Pipeline>().HasKey(e => e.Id);
+        b.Entity<NomNomzBot.Domain.Commands.Entities.Pipeline>()
+            .Ignore(e => e.Channel)
+            .Ignore(e => e.Steps);
+        b.Ignore<NomNomzBot.Domain.Commands.Entities.PipelineStep>();
         b.Ignore<NomNomzBot.Domain.EventStore.Entities.EventJournal>();
         b.Ignore<NomNomzBot.Domain.EventStore.Entities.TenantSequence>();
         b.Ignore<NomNomzBot.Domain.EventStore.Entities.ProjectionCheckpoint>();
@@ -352,13 +366,13 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
     public DbSet<NomNomzBot.Domain.Platform.Entities.DeletionAuditLog> DeletionAuditLogs =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Commands.Entities.Timer> Timers =>
-        throw new NotSupportedException();
+        Set<NomNomzBot.Domain.Commands.Entities.Timer>();
     public DbSet<NomNomzBot.Domain.Commands.Entities.EventResponse> EventResponses =>
         Set<NomNomzBot.Domain.Commands.Entities.EventResponse>();
     public DbSet<NomNomzBot.Domain.Rewards.Entities.WatchStreak> WatchStreaks =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Commands.Entities.Pipeline> Pipelines =>
-        throw new NotSupportedException();
+        Set<NomNomzBot.Domain.Commands.Entities.Pipeline>();
     public DbSet<NomNomzBot.Domain.Commands.Entities.PipelineStep> PipelineSteps =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Commands.Entities.PipelineStepCondition> PipelineStepConditions =>

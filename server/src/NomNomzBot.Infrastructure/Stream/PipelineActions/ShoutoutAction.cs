@@ -20,7 +20,9 @@ namespace NomNomzBot.Infrastructure.Stream.PipelineActions;
 /// Pipeline action that sends a Twitch shoutout via Helix POST /chat/shoutouts.
 ///
 /// Parameters:
-///   user_id  — Twitch user ID to shout out (required). Supports variable substitution.
+///   user_id  — Twitch user ID **or login/channel name** to shout out (required; a leading @ is
+///              tolerated, a login is resolved to its id via Helix Get Users). Supports variable
+///              substitution — e.g. "{timer.message}" for a rotating auto-shoutout list.
 ///   cooldown_minutes — Per-user cooldown in minutes (default: 60).
 ///   global_cooldown_minutes — Global shoutout cooldown in minutes (default: 2).
 ///
@@ -33,6 +35,7 @@ public sealed class ShoutoutAction : ICommandAction
     private static readonly TimeSpan DefaultGlobalCooldown = TimeSpan.FromMinutes(2);
 
     private readonly ITwitchChatApi _chat;
+    private readonly ITwitchUsersApi _users;
     private readonly IChannelRegistry _registry;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<ShoutoutAction> _logger;
@@ -41,12 +44,14 @@ public sealed class ShoutoutAction : ICommandAction
 
     public ShoutoutAction(
         ITwitchChatApi chat,
+        ITwitchUsersApi users,
         IChannelRegistry registry,
         TimeProvider timeProvider,
         ILogger<ShoutoutAction> logger
     )
     {
         _chat = chat;
+        _users = users;
         _registry = registry;
         _timeProvider = timeProvider;
         _logger = logger;
@@ -66,8 +71,24 @@ public sealed class ShoutoutAction : ICommandAction
             ctx.Variables.TryGetValue(key, out rawUserId!);
         }
 
+        rawUserId = rawUserId?.Trim().TrimStart('@') ?? string.Empty;
         if (string.IsNullOrWhiteSpace(rawUserId))
             return ActionResult.Failure("shoutout action requires a non-empty 'user_id'");
+
+        // A curated shoutout list holds channel NAMES; Helix wants the numeric id — resolve a login.
+        if (!rawUserId.All(char.IsAsciiDigit))
+        {
+            Result<IReadOnlyList<TwitchUser>> lookup = await _users.GetUsersByLoginsAsync(
+                [rawUserId.ToLowerInvariant()],
+                ctx.CancellationToken
+            );
+            string? resolvedId = lookup.IsSuccess ? lookup.Value.FirstOrDefault()?.Id : null;
+            if (string.IsNullOrEmpty(resolvedId))
+                return ActionResult.Failure(
+                    $"shoutout target '{rawUserId}' was not found on Twitch"
+                );
+            rawUserId = resolvedId;
+        }
 
         int perUserMinutes = action.GetInt("cooldown_minutes", 60);
         int globalMinutes = action.GetInt("global_cooldown_minutes", 2);
