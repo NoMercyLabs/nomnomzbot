@@ -71,6 +71,10 @@ public sealed class EndpointAuthorizationInvariantTests
             "self-scoped: the caller's own community standing on the tenant (subject = JWT sub)",
         ["RolesController.EffectiveMe"] =
             "self-scoped: the caller's own resolved access breakdown (subject = JWT sub)",
+        ["RenderManifestController.GetManifest"] =
+            "self-scoped shell bootstrap (like RolesController.EffectiveMe): Gate-1 self-introspection so a "
+            + "participant can boot; each aggregated section is disclosed in the body ONLY where the caller's own "
+            + "resolved HeldActionKeys clear that surface's Gate-2 floor (feature:read / integration:read / twitch:diagnostics:read)",
         ["PronounsController.GetMe"] =
             "self-scoped: the caller's own pronoun state (subject = JWT sub)",
         ["CurrencyController.GetMyAccount"] =

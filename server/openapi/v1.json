@@ -9282,7 +9282,7 @@
         "tags": [
           "Chat"
         ],
-        "summary": "Delete a chat message — a moderator's quick-action from the dashboard's chat page.",
+        "summary": "Delete a chat message — a moderator's quick-action from the dashboard's chat page, attributed to them.",
         "parameters": [
           {
             "name": "channelId",
@@ -30325,6 +30325,104 @@
         }
       }
     },
+    "/api/v{version}/channels/{channelId}/render-manifest": {
+      "get": {
+        "tags": [
+          "Render Manifest"
+        ],
+        "summary": "The full render manifest for the channel as seen by the authenticated caller.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfRenderManifestDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v{version}/channels/{channelId}/rewards": {
       "get": {
         "tags": [
@@ -41264,6 +41362,41 @@
         },
         "description": "Full channel detail for dashboard views."
       },
+      "ChannelIntegrationDto": {
+        "required": [
+          "id",
+          "name",
+          "category",
+          "description",
+          "connected",
+          "connectedAs"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "connected": {
+            "type": "boolean"
+          },
+          "connectedAs": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "description": "The channel-wide connection state of a single integration entry (Twitch, custom bot, Spotify,\r\nDiscord, YouTube, OBS) as shown on the integrations screen and the dashboard shell. Carries only\r\nthe persisted connection facts — the request-specific OAuth connect URL is layered on by the\r\nintegrations controller. Distinct from IntegrationStatusDto, which is the per-OAuth\r\nprovider view (scope sets / capabilities / re-auth)."
+      },
       "ChannelMembershipDto": {
         "required": [
           "id",
@@ -48184,6 +48317,36 @@
           }
         }
       },
+      "RenderManifestDto": {
+        "required": [
+          "access",
+          "features",
+          "integrations",
+          "scopes"
+        ],
+        "type": "object",
+        "properties": {
+          "access": {
+            "$ref": "#/components/schemas/ResolvedAccessDto"
+          },
+          "features": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FeatureStatusDto"
+            }
+          },
+          "integrations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChannelIntegrationDto"
+            }
+          },
+          "scopes": {
+            "$ref": "#/components/schemas/MissingScopesDto"
+          }
+        },
+        "description": "            Everything the dashboard shell needs to render for the active channel, aggregated into one\r\n            response so the client boots with a single request instead of four. Each section reuses the same\r\n            DTO its dedicated endpoint returns:\r\n            * ResolvedAccessDto RenderManifestDto.Access — the caller's resolved access (roles/effective/me).\r\n* IReadOnlyList&lt;FeatureStatusDto&gt; RenderManifestDto.Features — the channel's feature toggles (features).\r\n* IReadOnlyList&lt;ChannelIntegrationDto&gt; RenderManifestDto.Integrations — integration connection states (integrations).\r\n* MissingScopesDto RenderManifestDto.Scopes — outstanding Twitch scope gaps (twitch/diagnostics/missing-scopes).ResolvedAccessDto RenderManifestDto.Access is always resolved (self-introspection) and is load-bearing. The feature,\r\n            integration, and scope sections are each populated ONLY when the caller clears that surface's\r\n            Gate-2 read floor (per their IReadOnlyList&lt;string&gt; ResolvedAccessDto.HeldActionKeys) — a participant sees\r\n            them empty — so the aggregate never leaks data an individual endpoint would have withheld. Of the\r\n            entitled sections, features is load-bearing (a real failure fails the manifest); integrations and\r\n            scopes degrade to an empty section instead."
+      },
       "RepeatDto": {
         "required": [
           "mode"
@@ -51425,6 +51588,36 @@
               },
               {
                 "$ref": "#/components/schemas/RedeemInviteCodeResultDto"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
+      "StatusResponseDtoOfRenderManifestDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/RenderManifestDto"
               }
             ]
           },
@@ -55375,6 +55568,9 @@
     },
     {
       "name": "Quotes"
+    },
+    {
+      "name": "Render Manifest"
     },
     {
       "name": "Rewards"
