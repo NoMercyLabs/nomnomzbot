@@ -574,10 +574,12 @@ public sealed class OnboardingSeedHandlerTests
             .ToListAsync();
 
         seeded.Should().HaveCount(5);
+        // BARE keys — the canonical format the dashboard toggle UI queries by (item 24c: bang-prefixed
+        // seeded rows were orphaned from the toggle surface).
         seeded
             .Select(c => c.BuiltinKey)
             .Should()
-            .BeEquivalentTo(["!sr", "!skip", "!queue", "!volume", "!song"]);
+            .BeEquivalentTo(["sr", "skip", "queue", "volume", "song"]);
         seeded.Should().OnlyContain(c => c.IsEnabled);
     }
 

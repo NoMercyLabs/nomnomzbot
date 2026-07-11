@@ -32,7 +32,10 @@ public sealed class DefaultCommandsSeeder : ISeeder
 
     public int Order => 80;
 
-    private static readonly string[] DefaultKeys = ["!sr", "!skip", "!queue", "!volume", "!song"];
+    // BARE keys — the canonical ChannelBuiltinCommand format the dashboard/BuiltinCommandService write
+    // (item 24c: the seeder used to write bang-prefixed keys, orphaning seeded rows from the toggle UI;
+    // the NormalizeBuiltinKeys migration repaired the old rows).
+    private static readonly string[] DefaultKeys = ["sr", "skip", "queue", "volume", "song"];
 
     /// <summary>The startup <see cref="ISeeder"/> pass: seeds every channel.</summary>
     public Task SeedAsync(CancellationToken ct = default) => SeedAsync(broadcasterId: null, ct);

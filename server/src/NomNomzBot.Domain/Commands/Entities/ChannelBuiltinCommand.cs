@@ -25,8 +25,8 @@ public class ChannelBuiltinCommand : SoftDeletableEntity, ITenantScoped
     public Guid BroadcasterId { get; set; }
 
     /// <summary>
-    /// Stable registry key for the built-in (e.g. "!sr", "!song", "!points").
-    /// Unique per broadcaster.
+    /// Stable registry key for the built-in — the BARE builtin key (e.g. "sr", "song", "points"),
+    /// never bang-prefixed. Unique per broadcaster.
     /// </summary>
     [MaxLength(100)]
     public string BuiltinKey { get; set; } = null!;
