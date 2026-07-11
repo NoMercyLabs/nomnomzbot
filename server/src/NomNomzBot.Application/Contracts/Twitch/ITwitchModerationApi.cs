@@ -49,6 +49,21 @@ public interface ITwitchModerationApi
         CancellationToken ct = default
     );
 
+    /// <summary>
+    /// Unban User AS THE OPERATOR — lifts the ban on <paramref name="targetTwitchUserId"/> in
+    /// <paramref name="broadcasterTwitchId"/>'s chat using the logged-in operator's OWN token
+    /// (<c>moderator_id</c> = the operator), the reversal of <see cref="BanAsOperatorAsync"/>. Works in ANY channel
+    /// Twitch has made the operator a moderator of. <paramref name="broadcasterTwitchId"/> is a raw Twitch id, never
+    /// a tenant Guid. Requires the operator token to carry <c>moderator:manage:banned_users</c>; Twitch enforces the
+    /// operator actually moderates the channel, so there is no privilege escalation.
+    /// </summary>
+    Task<Result> UnbanAsOperatorAsync(
+        Guid operatorUserId,
+        string broadcasterTwitchId,
+        string targetTwitchUserId,
+        CancellationToken ct = default
+    );
+
     /// <summary>Timeout User — times out <paramref name="targetTwitchUserId"/> for <paramref name="durationSeconds"/>. Requires <c>moderator:manage:banned_users</c>.</summary>
     Task<Result<TwitchBanResult>> TimeoutUserAsync(
         Guid broadcasterId,

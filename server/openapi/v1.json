@@ -27467,6 +27467,124 @@
         }
       }
     },
+    "/api/v{version}/channels/{channelId}/moderation/actions/unban": {
+      "post": {
+        "tags": [
+          "Moderation"
+        ],
+        "summary": "Unban a viewer — in THIS channel or across EVERY channel the operator moderates (the reversal of the network\r\nban, `Scope = \"all_moderated\"`). Both scopes return a NetworkBanResultDto; `this_channel`\r\nis a one-row result. The `all_moderated` sweep is best-effort per channel and lifts each ban AS THE\r\nOPERATOR (their own token), so Twitch — not us — decides where it is permitted.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UnbanUserRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UnbanUserRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/UnbanUserRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfNetworkBanResultDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v{version}/channels/{channelId}/moderation/rules": {
       "get": {
         "tags": [
@@ -59856,6 +59974,22 @@
           }
         },
         "description": "One unban request in the channel's queue, read live from Twitch — the requesting viewer, their\r\n            appeal text, its status, and (once resolved) the moderator and resolution note."
+      },
+      "UnbanUserRequest": {
+        "required": [
+          "targetTwitchUserId"
+        ],
+        "type": "object",
+        "properties": {
+          "targetTwitchUserId": {
+            "type": "string"
+          },
+          "scope": {
+            "type": "string",
+            "default": "this_channel"
+          }
+        },
+        "description": "A dashboard unban request — the reversal of BanUserRequest. string UnbanUserRequest.Scope is\r\n`\"this_channel\"` (default) or `\"all_moderated\"`, which lifts the ban across every channel Twitch says\r\nthe operator moderates (the \"un-nuke\")."
       },
       "UpdateCatalogItemRequest": {
         "required": [

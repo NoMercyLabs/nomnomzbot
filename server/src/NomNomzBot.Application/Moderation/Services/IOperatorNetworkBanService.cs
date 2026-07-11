@@ -31,6 +31,17 @@ public interface IOperatorNetworkBanService
         string? reason,
         CancellationToken ct = default
     );
+
+    /// <summary>
+    /// The reversal of <see cref="BanAcrossModeratedAsync"/> — lifts the target's ban across every channel Twitch
+    /// says the operator moderates, AS THE OPERATOR, best-effort per channel (a channel that fails is recorded and
+    /// the sweep continues).
+    /// </summary>
+    Task<Result<NetworkBanResult>> UnbanAcrossModeratedAsync(
+        Guid operatorUserId,
+        string targetTwitchUserId,
+        CancellationToken ct = default
+    );
 }
 
 /// <summary>The outcome of a network ban: how many channels were attempted, how many succeeded, and per-channel detail.</summary>

@@ -116,6 +116,40 @@ public sealed class TwitchModerationApi(
         return await transport.SendWithResultAsync<TwitchBanResult>(request, ct);
     }
 
+    public async Task<Result> UnbanAsOperatorAsync(
+        Guid operatorUserId,
+        string broadcasterTwitchId,
+        string targetTwitchUserId,
+        CancellationToken ct = default
+    )
+    {
+        // Symmetric to BanAsOperatorAsync: the operator's OWN token signs the DELETE and their Twitch id is the
+        // moderator_id, so it lifts the ban in any channel Twitch has made them a moderator of. broadcasterTwitchId
+        // is a raw Twitch id, never a tenant Guid; Twitch enforces the operator actually moderates the channel.
+        string? operatorTwitchId = await identity.GetTwitchUserIdAsync(operatorUserId, ct);
+        if (string.IsNullOrEmpty(operatorTwitchId))
+            return Result.Failure(
+                "You have no linked Twitch identity to moderate as.",
+                TwitchErrorCodes.NoToken
+            );
+
+        TwitchHelixRequest request = new(
+            HttpMethod.Delete,
+            "moderation/bans",
+            TwitchHelixAuth.Operator,
+            Query:
+            [
+                new("broadcaster_id", broadcasterTwitchId),
+                new("moderator_id", operatorTwitchId),
+                new("user_id", targetTwitchUserId),
+            ],
+            Priority: TwitchCallPriority.UserInteractive,
+            OperatorUserId: operatorUserId
+        );
+
+        return await transport.SendAsync(request, ct);
+    }
+
     public async Task<Result> UnbanUserAsync(
         Guid broadcasterId,
         string targetTwitchUserId,

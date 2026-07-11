@@ -42,15 +42,63 @@ public sealed class OperatorNetworkBanService : IOperatorNetworkBanService
         _logger = logger;
     }
 
-    public async Task<Result<NetworkBanResult>> BanAcrossModeratedAsync(
+    public Task<Result<NetworkBanResult>> BanAcrossModeratedAsync(
         Guid operatorUserId,
         string targetTwitchUserId,
         string? reason,
         CancellationToken ct = default
+    ) =>
+        FanOutAsync(
+            operatorUserId,
+            "ban",
+            async channel =>
+            {
+                Result<TwitchBanResult> ban = await _moderation.BanAsOperatorAsync(
+                    operatorUserId,
+                    channel.BroadcasterId,
+                    targetTwitchUserId,
+                    reason,
+                    ct
+                );
+                return ban.IsSuccess
+                    ? Result.Success()
+                    : Result.Failure(
+                        ban.ErrorMessage ?? "Twitch rejected the ban.",
+                        ban.ErrorCode ?? "TWITCH_ERROR"
+                    );
+            },
+            ct
+        );
+
+    public Task<Result<NetworkBanResult>> UnbanAcrossModeratedAsync(
+        Guid operatorUserId,
+        string targetTwitchUserId,
+        CancellationToken ct = default
+    ) =>
+        FanOutAsync(
+            operatorUserId,
+            "unban",
+            channel =>
+                _moderation.UnbanAsOperatorAsync(
+                    operatorUserId,
+                    channel.BroadcasterId,
+                    targetTwitchUserId,
+                    ct
+                ),
+            ct
+        );
+
+    // The shared fan-out both directions ride: resolve the operator's Twitch-authoritative moderated-channel set
+    // (Get Moderated Channels, not the local DB), apply <paramref name="perChannel"/> to each AS THE OPERATOR, and
+    // aggregate — best-effort, so a channel that fails is recorded and the sweep continues. An operator who owns no
+    // channel moderates nothing; a failure to even LIST the channels surfaces (never a silent empty success).
+    private async Task<Result<NetworkBanResult>> FanOutAsync(
+        Guid operatorUserId,
+        string action,
+        Func<TwitchModeratedChannel, Task<Result>> perChannel,
+        CancellationToken ct
     )
     {
-        // The operator's own channel is the key the moderators sub-client turns into the operator's Twitch user id
-        // (mirrors ChannelsController.GetModeratedChannels). An operator who owns no channel moderates nothing here.
         Guid operatorChannelId = await _channelAccess.ResolveOwnChannelAsync(
             operatorUserId.ToString(),
             ct
@@ -66,29 +114,23 @@ public sealed class OperatorNetworkBanService : IOperatorNetworkBanService
         List<ChannelBanOutcome> outcomes = new(channels.Value.Count);
         foreach (TwitchModeratedChannel channel in channels.Value)
         {
-            Result<TwitchBanResult> ban = await _moderation.BanAsOperatorAsync(
-                operatorUserId,
-                channel.BroadcasterId,
-                targetTwitchUserId,
-                reason,
-                ct
-            );
+            Result outcome = await perChannel(channel);
 
             outcomes.Add(
                 new ChannelBanOutcome(
                     channel.BroadcasterLogin,
-                    ban.IsSuccess,
-                    ban.IsSuccess ? null : ban.ErrorMessage
+                    outcome.IsSuccess,
+                    outcome.IsSuccess ? null : outcome.ErrorMessage
                 )
             );
 
-            if (ban.IsFailure)
+            if (outcome.IsFailure)
                 _logger.LogWarning(
-                    "Network ban: operator {Operator} could not ban {Target} in {Channel}: {Error}",
+                    "Network {Action}: operator {Operator} could not act in {Channel}: {Error}",
+                    action,
                     operatorUserId,
-                    targetTwitchUserId,
                     channel.BroadcasterLogin,
-                    ban.ErrorMessage
+                    outcome.ErrorMessage
                 );
         }
 

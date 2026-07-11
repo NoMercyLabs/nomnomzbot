@@ -370,8 +370,13 @@ ONE substrate — a chat feed that **aggregates messages across a SET of channel
   (Update Suspicious User: active_monitoring / restricted / clear) — Gate-2 `moderation:warn`(Mod) /
   `moderation:suspicioususer:write`(LeadMod) already seeded; scopes `moderator:manage:warnings` +
   `moderator:manage:suspicious_users` added; honest degradation; openapi refreshed; 7 new tests; UI → handoff.
-  *Remaining:* network-nuke (partial `IOperatorNetworkBanService` exists), shared-ban trust,
-  viewer reports/evidence, per-user mod panel (notes/history/trust), escalation ladder.
+  **Network un-nuke** shipped (backend): `POST /moderation/actions/unban` with `scope=all_moderated` reverses a
+  mass ban across every channel Twitch says the operator moderates (new `ITwitchModerationApi.UnbanAsOperatorAsync`
+  + `IOperatorNetworkBanService.UnbanAcrossModeratedAsync`, DRY-shared fan-out with the ban side); Gate-2
+  `moderation:unban`(Mod); openapi refreshed; 1 new test; UI → handoff. *Remaining:* SuperMod platform
+  `moderation:nuke` (tenant-wide, distinct from the operator fan-out), shared-ban trust list + propagation,
+  viewer reports/evidence, per-user mod panel (notes/history/trust), escalation ladder — all need new
+  entities/migrations.
 - [ ] **16. TTS advanced** (`tts.md`) — mod approval queue, per-viewer voices, profanity filters, BYOK,
   usage ledger.
 - [x] **17. Live-ops schedule & markers — SHIPPED 2026-07-11** (`broadcaster-liveops.md`; dashboard

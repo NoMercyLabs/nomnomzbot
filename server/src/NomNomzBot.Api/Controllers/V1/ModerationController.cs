@@ -117,6 +117,53 @@ public class ModerationController : BaseController
         return Ok(new StatusResponseDto<NetworkBanResultDto> { Data = oneRow });
     }
 
+    /// <summary>
+    /// Unban a viewer — in THIS channel or across EVERY channel the operator moderates (the reversal of the network
+    /// ban, <c>Scope = "all_moderated"</c>). Both scopes return a <see cref="NetworkBanResultDto"/>; <c>this_channel</c>
+    /// is a one-row result. The <c>all_moderated</c> sweep is best-effort per channel and lifts each ban AS THE
+    /// OPERATOR (their own token), so Twitch — not us — decides where it is permitted.
+    /// </summary>
+    [RequireAction("moderation:unban")]
+    [HttpPost("actions/unban")]
+    [ProducesResponseType<StatusResponseDto<NetworkBanResultDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> UnbanUserScoped(
+        string channelId,
+        [FromBody] UnbanUserRequest request,
+        CancellationToken ct
+    )
+    {
+        if (request.Scope == "all_moderated")
+        {
+            if (!Guid.TryParse(_currentUser.UserId, out Guid operatorUserId))
+                return UnauthenticatedResponse();
+
+            Result<NetworkBanResult> fanOut = await _networkBan.UnbanAcrossModeratedAsync(
+                operatorUserId,
+                request.TargetTwitchUserId,
+                ct
+            );
+            if (fanOut.IsFailure)
+                return ResultResponse(fanOut);
+
+            return Ok(new StatusResponseDto<NetworkBanResultDto> { Data = ToDto(fanOut.Value) });
+        }
+
+        // this_channel — a single unban.
+        string actorId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "";
+        Result<ModerationActionResult> single = await _moderationService.UnbanAsync(
+            channelId,
+            request.TargetTwitchUserId,
+            actorId,
+            ct
+        );
+        if (single.IsFailure)
+            return ResultResponse(single);
+
+        string login = await ResolveChannelLoginAsync(channelId, ct);
+        NetworkBanResultDto oneRow = new(1, 1, [new ChannelBanOutcomeDto(login, true, null)]);
+        return Ok(new StatusResponseDto<NetworkBanResultDto> { Data = oneRow });
+    }
+
     private static NetworkBanResultDto ToDto(NetworkBanResult result) =>
         new(
             result.Attempted,

@@ -23,6 +23,13 @@ public sealed record BanUserRequest(
 );
 
 /// <summary>
+/// A dashboard unban request — the reversal of <see cref="BanUserRequest"/>. <see cref="Scope"/> is
+/// <c>"this_channel"</c> (default) or <c>"all_moderated"</c>, which lifts the ban across every channel Twitch says
+/// the operator moderates (the "un-nuke").
+/// </summary>
+public sealed record UnbanUserRequest(string TargetTwitchUserId, string Scope = "this_channel");
+
+/// <summary>
 /// The outcome of a ban for either scope. <c>this_channel</c> collapses to a one-row result; <c>all_moderated</c>
 /// carries one <see cref="ChannelBanOutcomeDto"/> per channel the fan-out touched.
 /// </summary>

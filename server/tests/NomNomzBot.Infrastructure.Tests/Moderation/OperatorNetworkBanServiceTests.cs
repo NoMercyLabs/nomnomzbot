@@ -165,4 +165,73 @@ public sealed class OperatorNetworkBanServiceTests
             .IsFailure.Should()
             .BeTrue("we must not silently report zero bans when we could not even list channels");
     }
+
+    [Fact]
+    public async Task Unbans_every_moderated_channel_as_the_operator_and_reports_per_channel_outcomes()
+    {
+        IChannelAccessService access = Substitute.For<IChannelAccessService>();
+        access
+            .ResolveOwnChannelAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(Guid.NewGuid());
+
+        ITwitchModeratorsApi moderators = Substitute.For<ITwitchModeratorsApi>();
+        moderators
+            .GetModeratedChannelsAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<TwitchPageRequest>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                Result.Success(
+                    new TwitchPage<TwitchModeratedChannel>(
+                        [
+                            new("b1", "alpha", "Alpha"),
+                            new("b2", "bravo", "Bravo"),
+                            new("b3", "charlie", "Charlie"),
+                        ],
+                        NextCursor: null,
+                        Total: 3
+                    )
+                )
+            );
+
+        ITwitchModerationApi moderation = Substitute.For<ITwitchModerationApi>();
+        // Default: every unban succeeds; then override the middle channel to fail.
+        moderation
+            .UnbanAsOperatorAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success());
+        moderation
+            .UnbanAsOperatorAsync(
+                Arg.Any<Guid>(),
+                "b2",
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Failure("You do not moderate that channel.", "FORBIDDEN"));
+
+        Result<NetworkBanResult> result = await Build(access, moderators, moderation)
+            .UnbanAcrossModeratedAsync(Operator, "target-99");
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Attempted.Should().Be(3);
+        result.Value.Succeeded.Should().Be(2, "the failed channel did not abort the sweep");
+        result.Value.Channels.Should().HaveCount(3);
+
+        ChannelBanOutcome bravo = result.Value.Channels.Single(c => c.BroadcasterLogin == "bravo");
+        bravo.Succeeded.Should().BeFalse();
+        bravo.Error.Should().Be("You do not moderate that channel.");
+
+        // Each channel was actually unbanned, as the operator, with the given target.
+        await moderation
+            .Received(1)
+            .UnbanAsOperatorAsync(Operator, "b1", "target-99", Arg.Any<CancellationToken>());
+        await moderation
+            .Received(1)
+            .UnbanAsOperatorAsync(Operator, "b3", "target-99", Arg.Any<CancellationToken>());
+    }
 }
