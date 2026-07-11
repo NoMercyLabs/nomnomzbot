@@ -39,3 +39,14 @@ public sealed record UpdateTtsConfigDto
     public bool? SkipBotMessages { get; init; }
     public bool? ReadUsernames { get; init; }
 }
+
+/// <summary>A viewer's assigned TTS voice within a channel (overrides the channel default when they speak).</summary>
+public sealed record UserTtsVoiceDto(string UserId, string VoiceId);
+
+/// <summary>Request to assign a specific TTS voice to a viewer.</summary>
+public sealed record SetUserVoiceDto
+{
+    [Required]
+    [MaxLength(255)]
+    public string VoiceId { get; init; } = null!;
+}

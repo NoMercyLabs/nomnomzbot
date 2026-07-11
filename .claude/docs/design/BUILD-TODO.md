@@ -435,7 +435,17 @@ ONE substrate — a chat feed that **aggregates messages across a SET of channel
   widget handler → handoff); `ITtsDispatchService` defines only `RequestSpeakAsync` now (Approve/Reject/
   GetPendingQueue extend it in the approval-queue slice); the action reads params directly (shipped-action
   convention, not the spec's separate config DTO); `RequestedByUserId` Guid unused this leg (self_host keys on
-  the Twitch string id, as `UserTtsVoice`/`TtsUsageRecord` do). **Follow-on slices (each still needed):**
+  the Twitch string id, as `UserTtsVoice`/`TtsUsageRecord` do).
+  **Per-viewer voice management SHIPPED 2026-07-12 (backend; dashboard voice-picker per viewer → handoff):**
+  the dispatch already RESOLVES `UserTtsVoice`, but nothing could WRITE it — now `ITtsConfigService` has
+  `GetUserVoiceAsync`/`SetUserVoiceAsync`/`ClearUserVoiceAsync` and `TtsConfigController` exposes
+  `GET/PUT/DELETE api/v1/channels/{channelId}/tts/users/{userId}/voice` (`UserTtsVoiceDto`/`SetUserVoiceDto`).
+  Truthful: a set is REJECTED (`NOT_FOUND`) unless the voice exists in the channel's synthesizable catalogue
+  (`GetVoicesAsync` — the same set the picker shows and the resolver hands the provider), so a stored voice
+  always plays; upsert on the unique `(BroadcasterId, UserId)` index (no dup rows); clear removes the row so the
+  viewer falls back to the channel default. GET gated `tts:voice:read`, PUT/DELETE `tts:uservoice:write` (both
+  already seeded — no new key, no migration). 7 tests (unknown-voice reject-without-store, known-voice persist,
+  upsert-updates-in-place, get/clear NOT_FOUND, clear removes). **Follow-on slices (each still needed):**
   `client_edge` mode (frontend widget), `TtsConfig` TABLE migration + config re-target, approval queue (P.1a
   entity + Approve/Reject/GetPendingQueue), profanity censor (§3.5), BYOK provider factory (§3.2), tier-cap
   resolution via `IBillingTierService`. **Below is the original assessment (still the map for the follow-ons):**

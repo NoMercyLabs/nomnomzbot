@@ -35,4 +35,26 @@ public interface ITtsConfigService
         TtsTestRequestDto request,
         CancellationToken cancellationToken = default
     );
+
+    /// <summary>Get a viewer's assigned voice for the channel, or NOT_FOUND when they use the channel default.</summary>
+    Task<Result<UserTtsVoiceDto>> GetUserVoiceAsync(
+        string broadcasterId,
+        string userId,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>Assign (or reassign) a viewer's voice; validated against the channel's synthesizable voices.</summary>
+    Task<Result<UserTtsVoiceDto>> SetUserVoiceAsync(
+        string broadcasterId,
+        string userId,
+        SetUserVoiceDto request,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>Remove a viewer's voice assignment so they fall back to the channel default.</summary>
+    Task<Result> ClearUserVoiceAsync(
+        string broadcasterId,
+        string userId,
+        CancellationToken cancellationToken = default
+    );
 }

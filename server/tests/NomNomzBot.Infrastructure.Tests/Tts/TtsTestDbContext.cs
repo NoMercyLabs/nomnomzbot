@@ -34,9 +34,10 @@ using RecordEntity = NomNomzBot.Domain.Platform.Entities.Record;
 namespace NomNomzBot.Infrastructure.Tests.Tts;
 
 /// <summary>
-/// A focused <see cref="IApplicationDbContext"/> over just the entities the TTS dispatch tests exercise — on the
-/// EF Core InMemory provider. Maps <see cref="UserTtsVoice"/> (per-viewer voice resolution) and
-/// <see cref="TtsUsageRecord"/> (the usage ledger); every other set throws, since no exercised path reaches it.
+/// A focused <see cref="IApplicationDbContext"/> over just the entities the TTS dispatch and per-viewer-voice tests
+/// exercise — on the EF Core InMemory provider. Maps <see cref="UserTtsVoice"/> (per-viewer voice resolution),
+/// <see cref="TtsUsageRecord"/> (the usage ledger), and <see cref="TtsVoice"/> (the synthesizable-voice catalogue
+/// used to validate an assignment); every other set throws, since no exercised path reaches it.
 /// </summary>
 internal sealed class TtsTestDbContext : DbContext, IApplicationDbContext
 {
@@ -52,17 +53,24 @@ internal sealed class TtsTestDbContext : DbContext, IApplicationDbContext
 
     public DbSet<UserTtsVoice> UserTtsVoices => Set<UserTtsVoice>();
     public DbSet<TtsUsageRecord> TtsUsageRecords => Set<TtsUsageRecord>();
+    public DbSet<TtsVoice> TtsVoices => Set<TtsVoice>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
         b.Entity<UserTtsVoice>(e => e.HasKey(v => v.Id));
         b.Entity<TtsUsageRecord>(e => e.HasKey(r => r.Id));
+        b.Entity<TtsVoice>(e => e.HasKey(v => v.Id));
 
         foreach (Type entity in UnmappedEntities)
             b.Ignore(entity);
     }
 
-    private static readonly HashSet<Type> Mapped = [typeof(UserTtsVoice), typeof(TtsUsageRecord)];
+    private static readonly HashSet<Type> Mapped =
+    [
+        typeof(UserTtsVoice),
+        typeof(TtsUsageRecord),
+        typeof(TtsVoice),
+    ];
 
     private static readonly IReadOnlyList<Type> UnmappedEntities = typeof(IApplicationDbContext)
         .GetProperties()
@@ -75,7 +83,6 @@ internal sealed class TtsTestDbContext : DbContext, IApplicationDbContext
         .ToList();
 
     // ── Unused IApplicationDbContext surface — never reached by these tests ──
-    public DbSet<TtsVoice> TtsVoices => throw new NotSupportedException();
     public DbSet<TtsCacheEntry> TtsCacheEntries => throw new NotSupportedException();
     public DbSet<Channel> Channels => throw new NotSupportedException();
     public DbSet<User> Users => throw new NotSupportedException();

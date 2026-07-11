@@ -176,6 +176,102 @@ public class TtsConfigService : ITtsConfigService
         }
     }
 
+    public async Task<Result<UserTtsVoiceDto>> GetUserVoiceAsync(
+        string broadcasterId,
+        string userId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (!Guid.TryParse(broadcasterId, out Guid tenantId))
+            return Errors
+                .ValidationFailed("A valid channel id is required.")
+                .ToTyped<UserTtsVoiceDto>();
+
+        UserTtsVoice? assignment = await _db.UserTtsVoices.FirstOrDefaultAsync(
+            v => v.BroadcasterId == tenantId && v.UserId == userId,
+            cancellationToken
+        );
+
+        if (assignment is null)
+            return Errors.NotFound<UserTtsVoiceDto>("TTS voice assignment", userId);
+
+        return Result.Success(new UserTtsVoiceDto(assignment.UserId, assignment.VoiceId));
+    }
+
+    public async Task<Result<UserTtsVoiceDto>> SetUserVoiceAsync(
+        string broadcasterId,
+        string userId,
+        SetUserVoiceDto request,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (!Guid.TryParse(broadcasterId, out Guid tenantId))
+            return Errors
+                .ValidationFailed("A valid channel id is required.")
+                .ToTyped<UserTtsVoiceDto>();
+
+        if (string.IsNullOrWhiteSpace(userId))
+            return Errors.ValidationFailed("A viewer id is required.").ToTyped<UserTtsVoiceDto>();
+
+        // Truthful: only accept a voice the channel can actually synthesize — the same set the picker shows and
+        // the dispatch resolver hands to the provider. A voice that could never play is rejected, not stored.
+        Result<IReadOnlyList<TtsVoiceDto>> voices = await GetVoicesAsync(cancellationToken);
+        if (voices.IsFailure)
+            return Result.Failure<UserTtsVoiceDto>(
+                voices.ErrorMessage,
+                voices.ErrorCode,
+                voices.ErrorDetail
+            );
+        if (!voices.Value.Any(v => v.Id == request.VoiceId))
+            return Errors.NotFound<UserTtsVoiceDto>("TTS voice", request.VoiceId);
+
+        UserTtsVoice? existing = await _db.UserTtsVoices.FirstOrDefaultAsync(
+            v => v.BroadcasterId == tenantId && v.UserId == userId,
+            cancellationToken
+        );
+
+        if (existing is not null)
+        {
+            existing.VoiceId = request.VoiceId;
+        }
+        else
+        {
+            _db.UserTtsVoices.Add(
+                new UserTtsVoice
+                {
+                    BroadcasterId = tenantId,
+                    UserId = userId,
+                    VoiceId = request.VoiceId,
+                }
+            );
+        }
+
+        await _db.SaveChangesAsync(cancellationToken);
+        return Result.Success(new UserTtsVoiceDto(userId, request.VoiceId));
+    }
+
+    public async Task<Result> ClearUserVoiceAsync(
+        string broadcasterId,
+        string userId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (!Guid.TryParse(broadcasterId, out Guid tenantId))
+            return Errors.ValidationFailed("A valid channel id is required.");
+
+        UserTtsVoice? existing = await _db.UserTtsVoices.FirstOrDefaultAsync(
+            v => v.BroadcasterId == tenantId && v.UserId == userId,
+            cancellationToken
+        );
+
+        if (existing is null)
+            return Result.Failure($"TTS voice assignment '{userId}' was not found.", "NOT_FOUND");
+
+        _db.UserTtsVoices.Remove(existing);
+        await _db.SaveChangesAsync(cancellationToken);
+        return Result.Success();
+    }
+
     private async Task<TtsConfigDto> LoadConfigAsync(
         string broadcasterId,
         CancellationToken cancellationToken

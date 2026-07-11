@@ -92,4 +92,56 @@ public class TtsConfigController : BaseController
             return ResultResponse(result);
         return Ok(new StatusResponseDto<TtsTestResultDto> { Data = result.Value });
     }
+
+    /// <summary>Get a viewer's assigned TTS voice (404 when they use the channel default).</summary>
+    [HttpGet("users/{userId}/voice")]
+    [RequireAction("tts:voice:read")]
+    [ProducesResponseType<StatusResponseDto<UserTtsVoiceDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetUserVoice(
+        string channelId,
+        string userId,
+        CancellationToken ct
+    )
+    {
+        Result<UserTtsVoiceDto> result = await _ttsConfigService.GetUserVoiceAsync(
+            channelId,
+            userId,
+            ct
+        );
+        return ResultResponse(result);
+    }
+
+    /// <summary>Assign a specific TTS voice to a viewer.</summary>
+    [HttpPut("users/{userId}/voice")]
+    [RequireAction("tts:uservoice:write")]
+    [ProducesResponseType<StatusResponseDto<UserTtsVoiceDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> SetUserVoice(
+        string channelId,
+        string userId,
+        [FromBody] SetUserVoiceDto request,
+        CancellationToken ct
+    )
+    {
+        Result<UserTtsVoiceDto> result = await _ttsConfigService.SetUserVoiceAsync(
+            channelId,
+            userId,
+            request,
+            ct
+        );
+        return ResultResponse(result);
+    }
+
+    /// <summary>Remove a viewer's voice assignment so they fall back to the channel default.</summary>
+    [HttpDelete("users/{userId}/voice")]
+    [RequireAction("tts:uservoice:write")]
+    [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> ClearUserVoice(
+        string channelId,
+        string userId,
+        CancellationToken ct
+    )
+    {
+        Result result = await _ttsConfigService.ClearUserVoiceAsync(channelId, userId, ct);
+        return ResultResponse(result);
+    }
 }
