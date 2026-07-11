@@ -295,7 +295,11 @@ ONE substrate — a chat feed that **aggregates messages across a SET of channel
   skips stay intact; single-account self-host still resolves per-channel). Whisper→channel routing
   stays out of scope until a bot-inbox surface exists. 5 new tests (platform subscribe wire shape,
   no-bot hard-fail, sentinel dispatch, unknown-channel skip intact, single-account attribution intact)
-  + catalogue-split guard.
+  + catalogue-split guard. **Follow-up `603cced2` (live 403 root cause):** `user:read:whispers` was only
+  on the STREAMER scope list — moved onto `AuthService.BotScopes` (bot identity owns the topic; streamer
+  grant stays as the single-account leg) + listed informational on the bot permission page. Live verify:
+  5 legacy per-channel rows retired on startup; platform row parked `failed` until the owner's next bot
+  re-grant carries the scope (then the reconcile self-heals it to enabled — no manual step beyond re-auth).
 - [ ] **24d. OWNER-GATED:** confirm authz key names (Plane-C + Gate-2 buckets) — cannot close
   autonomously.
 
