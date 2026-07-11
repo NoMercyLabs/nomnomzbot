@@ -69,6 +69,31 @@ public sealed class ModerationServiceTwitchReadsTests
             ExpiresAt: null
         );
 
+    private static TwitchUnbanRequest Unban(
+        string id,
+        string userName,
+        string status,
+        string moderatorName = "",
+        string resolutionText = ""
+    ) =>
+        new(
+            Id: id,
+            BroadcasterId: "1001",
+            BroadcasterLogin: "owner",
+            BroadcasterName: "Owner",
+            ModeratorId: moderatorName == "" ? "" : "9000",
+            ModeratorLogin: moderatorName.ToLowerInvariant(),
+            ModeratorName: moderatorName,
+            UserId: "500" + id,
+            UserLogin: userName.ToLowerInvariant(),
+            UserName: userName,
+            Text: "please unban me",
+            Status: status,
+            CreatedAt: new DateTimeOffset(2026, 7, 1, 12, 0, 0, TimeSpan.Zero),
+            ResolvedAt: null,
+            ResolutionText: resolutionText
+        );
+
     // ─── Banned users ─────────────────────────────────────────────────────────
 
     [Fact]
@@ -355,6 +380,150 @@ public sealed class ModerationServiceTwitchReadsTests
             .Returns(Result.Failure<TwitchShieldModeStatus>("Missing scope.", "missing_scope"));
 
         Result<bool> result = await NewService(moderation).SetShieldModeAsync(BroadcasterId, true);
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("missing_scope");
+    }
+
+    // ─── Unban requests ───────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task GetUnbanRequestsAsync_MapsThePendingQueueFromTwitch()
+    {
+        ITwitchModerationApi moderation = Substitute.For<ITwitchModerationApi>();
+        moderation
+            .GetUnbanRequestsAsync(
+                Tenant,
+                "pending",
+                Arg.Any<TwitchPageRequest>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                Result.Success(
+                    new TwitchPage<TwitchUnbanRequest>(
+                        [Unban("1", "Appealer", "pending"), Unban("2", "Sorry", "pending")],
+                        NextCursor: null,
+                        Total: 2
+                    )
+                )
+            );
+
+        Result<List<UnbanRequestDto>> result = await NewService(moderation)
+            .GetUnbanRequestsAsync(BroadcasterId, "pending");
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().HaveCount(2);
+        UnbanRequestDto first = result.Value[0];
+        first.Id.Should().Be("1");
+        first.UserName.Should().Be("Appealer");
+        first.Status.Should().Be("pending");
+        first.Text.Should().Be("please unban me");
+        first.ResolvedBy.Should().BeNull(); // unresolved → no moderator/note yet
+    }
+
+    [Fact]
+    public async Task GetUnbanRequestsAsync_RejectsAnUnknownStatus_WithoutCallingTwitch()
+    {
+        ITwitchModerationApi moderation = Substitute.For<ITwitchModerationApi>();
+
+        Result<List<UnbanRequestDto>> result = await NewService(moderation)
+            .GetUnbanRequestsAsync(BroadcasterId, "bogus");
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("VALIDATION_FAILED");
+        await moderation
+            .DidNotReceive()
+            .GetUnbanRequestsAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<TwitchPageRequest>(),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task ResolveUnbanRequestAsync_Approve_SendsApprovedToTwitch_AndReturnsResolved()
+    {
+        ITwitchModerationApi moderation = Substitute.For<ITwitchModerationApi>();
+        moderation
+            .ResolveUnbanRequestAsync(
+                Tenant,
+                "req-7",
+                "approved",
+                "welcome back",
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                Result.Success(
+                    Unban(
+                        "7",
+                        "Forgiven",
+                        "approved",
+                        moderatorName: "ModAlice",
+                        resolutionText: "welcome back"
+                    )
+                )
+            );
+
+        Result<UnbanRequestDto> result = await NewService(moderation)
+            .ResolveUnbanRequestAsync(BroadcasterId, "req-7", approve: true, note: "welcome back");
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Status.Should().Be("approved");
+        result.Value.ResolvedBy.Should().Be("ModAlice");
+        result.Value.ResolutionText.Should().Be("welcome back");
+        // The APPROVED status reached Twitch (not a local flag).
+        await moderation
+            .Received(1)
+            .ResolveUnbanRequestAsync(
+                Tenant,
+                "req-7",
+                "approved",
+                "welcome back",
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task ResolveUnbanRequestAsync_Deny_SendsDeniedToTwitch()
+    {
+        ITwitchModerationApi moderation = Substitute.For<ITwitchModerationApi>();
+        moderation
+            .ResolveUnbanRequestAsync(Tenant, "req-9", "denied", null, Arg.Any<CancellationToken>())
+            .Returns(Result.Success(Unban("9", "Nope", "denied", moderatorName: "ModBob")));
+
+        Result<UnbanRequestDto> result = await NewService(moderation)
+            .ResolveUnbanRequestAsync(BroadcasterId, "req-9", approve: false, note: null);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Status.Should().Be("denied");
+        await moderation
+            .Received(1)
+            .ResolveUnbanRequestAsync(
+                Tenant,
+                "req-9",
+                "denied",
+                null,
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task ResolveUnbanRequestAsync_WhenTwitchFails_SurfacesTheError()
+    {
+        ITwitchModerationApi moderation = Substitute.For<ITwitchModerationApi>();
+        moderation
+            .ResolveUnbanRequestAsync(
+                Tenant,
+                "req-1",
+                Arg.Any<string>(),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Failure<TwitchUnbanRequest>("Missing scope.", "missing_scope"));
+
+        Result<UnbanRequestDto> result = await NewService(moderation)
+            .ResolveUnbanRequestAsync(BroadcasterId, "req-1", approve: true, note: null);
 
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be("missing_scope");

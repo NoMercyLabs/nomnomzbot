@@ -114,6 +114,7 @@ public sealed class AuthService : IAuthService
         "moderator:read:shoutouts", // channel.shoutout.create / channel.shoutout.receive
         "moderator:read:suspicious_users", // channel.suspicious_user.message / channel.suspicious_user.update
         "moderator:read:unban_requests", // channel.unban_request.create / channel.unban_request.resolve, channel.moderate v2
+        "moderator:manage:unban_requests", // dashboard unban-request queue (Resolve Unban Request)
         "moderator:read:vips", // channel.moderate v2 (distinct from channel:read:vips above)
         "moderator:read:warnings", // channel.warning.acknowledge / channel.warning.send, channel.moderate v2
         // user.whisper.message rides the BOT identity (BotScopes below) — this streamer-side grant is the

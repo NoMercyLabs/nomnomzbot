@@ -28522,7 +28522,7 @@
         "tags": [
           "Moderation"
         ],
-        "summary": "Check whether the channel's Shield Mode setting is currently enabled.",
+        "summary": "Check whether the channel's Shield Mode is currently active, live from the Twitch moderation API.",
         "parameters": [
           {
             "name": "channelId",
@@ -28618,7 +28618,7 @@
         "tags": [
           "Moderation"
         ],
-        "summary": "Turn the channel's Shield Mode setting on or off and notify open dashboards of the change.",
+        "summary": "Turn the channel's Shield Mode on or off via the Twitch moderation API and notify open dashboards.",
         "parameters": [
           {
             "name": "channelId",
@@ -28736,7 +28736,7 @@
         "tags": [
           "Moderation"
         ],
-        "summary": "List the channel's blocked terms.",
+        "summary": "List the channel's blocked terms, live from the Twitch moderation API.",
         "parameters": [
           {
             "name": "channelId",
@@ -28832,7 +28832,7 @@
         "tags": [
           "Moderation"
         ],
-        "summary": "Add a term to the channel's blocked-terms list.",
+        "summary": "Add a term to the channel's blocked-terms list via the Twitch moderation API.",
         "parameters": [
           {
             "name": "channelId",
@@ -28950,7 +28950,7 @@
         "tags": [
           "Moderation"
         ],
-        "summary": "Remove a term from the channel's blocked-terms list.",
+        "summary": "Remove a term from the channel's blocked-terms list via the Twitch moderation API.",
         "parameters": [
           {
             "name": "channelId",
@@ -29044,6 +29044,237 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/StatusResponseDtoOfListOfstring"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/channels/{channelId}/moderation/unban-requests": {
+      "get": {
+        "tags": [
+          "Moderation"
+        ],
+        "summary": "List the channel's unban requests (default: the pending queue), live from the Twitch moderation API.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfListOfUnbanRequestDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/channels/{channelId}/moderation/unban-requests/{unbanRequestId}/resolve": {
+      "post": {
+        "tags": [
+          "Moderation"
+        ],
+        "summary": "Approve or deny an unban request via the Twitch moderation API.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "unbanRequestId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResolveUnbanRequestRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResolveUnbanRequestRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResolveUnbanRequestRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfUnbanRequestDto"
                 }
               }
             }
@@ -53382,6 +53613,24 @@
         },
         "description": "The full breakdown of a caller's resolved authorization for a channel (roles-permissions §4) — each\r\nplane's contributing level and the winning source — for the permissions UI and debugging.\r\n`EffectiveLevel` is `MAX(CommunityLevel, ManagementLevel, permit-role level)`.\r\nPermitCapabilities are the caller's per-USER capability grants only. HeldActionKeys is the\r\nbroader, UI-facing set: EVERY action key in the catalogue the caller actually CLEARS on this channel —\r\ntheir EffectiveLevel meets the action's channel-effective required level (which FOLDS IN the\r\nbroadcaster's ChannelActionOverride, unlike the per-plane level fields), OR they hold a direct\r\nper-user capability grant for it. The dashboard gates page/action visibility on this set."
       },
+      "ResolveUnbanRequestRequest": {
+        "required": [
+          "approve"
+        ],
+        "type": "object",
+        "properties": {
+          "approve": {
+            "type": "boolean"
+          },
+          "note": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "description": "Approve or deny a pending unban request, with an optional note the viewer sees."
+      },
       "RevokeFederationPeerRequest": {
         "required": [
           "reason",
@@ -56348,6 +56597,35 @@
           }
         }
       },
+      "StatusResponseDtoOfListOfUnbanRequestDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/UnbanRequestDto"
+            }
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
       "StatusResponseDtoOfListOfUserChannelAppearanceDto": {
         "type": "object",
         "properties": {
@@ -57577,6 +57855,36 @@
               },
               {
                 "$ref": "#/components/schemas/TwitchStreamMarker"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
+      "StatusResponseDtoOfUnbanRequestDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/UnbanRequestDto"
               }
             ]
           },
@@ -59073,6 +59381,65 @@
           }
         },
         "description": "The created marker returned by Create Stream Marker (its id, timestamp, offset and description)."
+      },
+      "UnbanRequestDto": {
+        "required": [
+          "id",
+          "userId",
+          "userLogin",
+          "userName",
+          "text",
+          "status",
+          "createdAt",
+          "resolvedAt",
+          "resolvedBy",
+          "resolutionText"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "string"
+          },
+          "userLogin": {
+            "type": "string"
+          },
+          "userName": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "resolvedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "resolvedBy": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "resolutionText": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "description": "One unban request in the channel's queue, read live from Twitch — the requesting viewer, their\r\n            appeal text, its status, and (once resolved) the moderator and resolution note."
       },
       "UpdateCatalogItemRequest": {
         "required": [

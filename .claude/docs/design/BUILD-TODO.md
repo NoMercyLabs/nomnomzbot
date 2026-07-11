@@ -358,8 +358,15 @@ ONE substrate — a chat feed that **aggregates messages across a SET of channel
   giveaways precedent); `!stats` composes `IViewerAnalyticsService`+wallet directly
   (`ICommunityService.GetViewerAsync` from the corpus was never built); @target resolution is
   local-users-only by design (stats/data about a never-seen viewer are all-zero — no remote lookup).
-- [ ] **15. Advanced moderation** (`moderation.md`) — network-nuke, shared-ban trust, reports/evidence,
-  per-user panel, unban queue, suspicious users, escalation ladder.
+- [~] **15. Advanced moderation** (`moderation.md`) — network-nuke, shared-ban trust, reports/evidence,
+  per-user panel, unban queue, suspicious users, escalation ladder. **STARTED:** the truthful-reads
+  foundation shipped `a6a4dd64` (bans/blocked-terms/shield now live Twitch state, not a local mirror), and
+  the **unban-request queue** shipped (backend) — `GET /moderation/unban-requests?status=` +
+  `POST /moderation/unban-requests/{id}/resolve` on the live Helix Get/Resolve Unban Request (Gate-2
+  `moderation:unbanrequest:read`(Mod)/`:resolve`(LeadMod), already seeded; scope
+  `moderator:manage:unban_requests` added; honest degradation; openapi refreshed; 5 new tests; dashboard UI →
+  handoff). *Remaining:* network-nuke (partial `IOperatorNetworkBanService` exists), shared-ban trust,
+  viewer reports/evidence, per-user mod panel, suspicious-users write, warnings, escalation ladder.
 - [ ] **16. TTS advanced** (`tts.md`) — mod approval queue, per-viewer voices, profanity filters, BYOK,
   usage ledger.
 - [x] **17. Live-ops schedule & markers — SHIPPED 2026-07-11** (`broadcaster-liveops.md`; dashboard

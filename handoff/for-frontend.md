@@ -16,6 +16,28 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
 
 ## Open
 
+### 2026-07-11 — Unban-request queue (moderation page) — new endpoints, build the UI
+- **From:** Stoney_Eagle (via Claude, backend track)
+- **What:** a **pending unban-request queue** on the moderation page. Two new endpoints (in
+  `server/openapi/v1.json`, tag "Moderation", under `/channels/{channelId}/moderation`):
+  `GET /unban-requests?status=pending` → `List<UnbanRequestDto>` (`id`, `userId`, `userLogin`, `userName`,
+  `text` = the viewer's appeal, `status`, `createdAt`, `resolvedAt?`, `resolvedBy?`, `resolutionText?`), and
+  `POST /unban-requests/{unbanRequestId}/resolve` with body `ResolveUnbanRequestRequest` (`approve` bool,
+  `note?` string) → the resolved `UnbanRequestDto`. Status filter accepts pending / approved / denied /
+  acknowledged / canceled (default pending — the actionable queue).
+- **Why:** item 15 (advanced moderation) — viewers can appeal a ban on Twitch; mods had no way to see or
+  action the queue in the dashboard. Reads/writes are LIVE Twitch (Get / Resolve Unban Request). Same honest
+  degradation as the rest of the moderation page: a missing scope / no broadcaster token → error, show the
+  regrant/unavailable state, not an empty queue.
+- **Where:** moderation page, a new "Unban requests" section/tab. Register `UnbanRequestDto` +
+  `ResolveUnbanRequestRequest` in `ApiContractTest` (v1.json already refreshed on the backend). Role gating:
+  read at Moderator (`moderation:unbanrequest:read`), approve/deny at Lead Moderator
+  (`moderation:unbanrequest:resolve`) — disable-with-reason below that floor. Approve/deny are consequential —
+  confirm deny; approve lifts the ban. New streamer scope `moderator:manage:unban_requests` is requested on
+  next re-grant (progressive, no logout).
+- **Done when:** the pending queue renders each appeal (viewer + text + when), approve lifts the ban and drops
+  it from the queue, deny resolves it; a missing-scope channel shows the regrant state; en + nl strings.
+
 ### 2026-07-11 — Moderation page now shows/controls REAL Twitch state — handle the regrant/error path
 - **From:** Stoney_Eagle (via Claude, backend track)
 - **What:** three moderation endpoints changed behaviour (NOT their contract — no `v1.json` change, no DTO

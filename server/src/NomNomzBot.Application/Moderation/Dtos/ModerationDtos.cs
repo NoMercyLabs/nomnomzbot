@@ -105,6 +105,30 @@ public sealed record BannedUserDto(
     DateTime BannedAt
 );
 
+// ─── Unban requests ────────────────────────────────────────────────────────────
+
+/// <summary>One unban request in the channel's queue, read live from Twitch — the requesting viewer, their
+/// appeal text, its status, and (once resolved) the moderator and resolution note.</summary>
+public sealed record UnbanRequestDto(
+    string Id,
+    string UserId,
+    string UserLogin,
+    string UserName,
+    string Text,
+    string Status,
+    DateTime CreatedAt,
+    DateTime? ResolvedAt,
+    string? ResolvedBy,
+    string? ResolutionText
+);
+
+/// <summary>Approve or deny a pending unban request, with an optional note the viewer sees.</summary>
+public sealed record ResolveUnbanRequestRequest
+{
+    public required bool Approve { get; init; }
+    public string? Note { get; init; }
+}
+
 // ─── Mod Log ─────────────────────────────────────────────────────────────────
 
 public sealed record ModLogEntryDto(

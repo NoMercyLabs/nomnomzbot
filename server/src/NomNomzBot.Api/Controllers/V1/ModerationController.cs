@@ -421,6 +421,49 @@ public class ModerationController : BaseController
 
     public record AddTermRequest(string Term);
 
+    // ─── Unban requests ───────────────────────────────────────────────────────
+
+    /// <summary>List the channel's unban requests (default: the pending queue), live from the Twitch moderation API.</summary>
+    [RequireAction("moderation:unbanrequest:read")]
+    [HttpGet("unban-requests")]
+    [ProducesResponseType<StatusResponseDto<List<UnbanRequestDto>>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetUnbanRequests(
+        string channelId,
+        [FromQuery] string status,
+        CancellationToken ct
+    )
+    {
+        Result<List<UnbanRequestDto>> result = await _moderationService.GetUnbanRequestsAsync(
+            channelId,
+            string.IsNullOrWhiteSpace(status) ? "pending" : status,
+            ct
+        );
+        return ResultResponse(result);
+    }
+
+    /// <summary>Approve or deny an unban request via the Twitch moderation API.</summary>
+    [RequireAction("moderation:unbanrequest:resolve")]
+    [HttpPost("unban-requests/{unbanRequestId}/resolve")]
+    [ProducesResponseType<StatusResponseDto<UnbanRequestDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> ResolveUnbanRequest(
+        string channelId,
+        string unbanRequestId,
+        [FromBody] ResolveUnbanRequestRequest request,
+        CancellationToken ct
+    )
+    {
+        Result<UnbanRequestDto> result = await _moderationService.ResolveUnbanRequestAsync(
+            channelId,
+            unbanRequestId,
+            request.Approve,
+            request.Note,
+            ct
+        );
+        if (result.IsFailure)
+            return ResultResponse(result);
+        return Ok(new StatusResponseDto<UnbanRequestDto> { Data = result.Value });
+    }
+
     // ─── Stats ────────────────────────────────────────────────────────────────
 
     /// <summary>

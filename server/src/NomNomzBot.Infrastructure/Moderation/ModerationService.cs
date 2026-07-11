@@ -897,6 +897,108 @@ public class ModerationService : IModerationService
         return Result.Success(updated.Value.IsActive);
     }
 
+    // The unban-request statuses Twitch's Get Unban Requests accepts; anything else 400s, so reject it locally
+    // with a clear message rather than forwarding a doomed request.
+    private static readonly HashSet<string> UnbanRequestStatuses = new(
+        StringComparer.OrdinalIgnoreCase
+    )
+    {
+        "pending",
+        "approved",
+        "denied",
+        "acknowledged",
+        "canceled",
+    };
+
+    public async Task<Result<List<UnbanRequestDto>>> GetUnbanRequestsAsync(
+        string broadcasterId,
+        string status,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (!Guid.TryParse(broadcasterId, out Guid tenantId))
+            return Errors.ChannelNotFound<List<UnbanRequestDto>>(broadcasterId);
+        if (!UnbanRequestStatuses.Contains(status))
+            return Result.Failure<List<UnbanRequestDto>>(
+                $"Unknown unban-request status '{status}'. Valid: {string.Join(", ", UnbanRequestStatuses)}.",
+                "VALIDATION_FAILED"
+            );
+
+        List<UnbanRequestDto> requests = [];
+        string? cursor = null;
+        int pageGuard = 0;
+        do
+        {
+            Result<TwitchPage<TwitchUnbanRequest>> page = await _moderation.GetUnbanRequestsAsync(
+                tenantId,
+                status,
+                new TwitchPageRequest(After: cursor),
+                cancellationToken
+            );
+            if (page.IsFailure)
+                return Result.Failure<List<UnbanRequestDto>>(
+                    page.ErrorMessage ?? "Twitch rejected the unban-requests read.",
+                    page.ErrorCode ?? "TWITCH_ERROR"
+                );
+
+            requests.AddRange(page.Value.Items.Select(ToDto));
+            cursor = page.Value.NextCursor;
+        } while (!string.IsNullOrEmpty(cursor) && ++pageGuard < 100);
+
+        return Result.Success(requests);
+    }
+
+    public async Task<Result<UnbanRequestDto>> ResolveUnbanRequestAsync(
+        string broadcasterId,
+        string unbanRequestId,
+        bool approve,
+        string? note,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (!Guid.TryParse(broadcasterId, out Guid tenantId))
+            return Errors.ChannelNotFound<UnbanRequestDto>(broadcasterId);
+
+        // Twitch's Resolve Unban Request takes the terminal status verbatim — approving lifts the ban, denying
+        // leaves it. The write actually happens on Twitch; we return the resolved request Twitch echoes back.
+        string resolvedStatus = approve ? "approved" : "denied";
+        Result<TwitchUnbanRequest> resolved = await _moderation.ResolveUnbanRequestAsync(
+            tenantId,
+            unbanRequestId,
+            resolvedStatus,
+            note,
+            cancellationToken
+        );
+        if (resolved.IsFailure)
+            return Result.Failure<UnbanRequestDto>(resolved.ErrorMessage!, resolved.ErrorCode!);
+
+        await PublishConfigChangedAsync(
+            tenantId,
+            "unban-requests",
+            unbanRequestId,
+            approve ? "approved" : "denied",
+            cancellationToken
+        );
+        return Result.Success(ToDto(resolved.Value));
+    }
+
+    private static UnbanRequestDto ToDto(TwitchUnbanRequest request) =>
+        new(
+            request.Id,
+            request.UserId,
+            request.UserLogin,
+            request.UserName,
+            request.Text,
+            request.Status,
+            request.CreatedAt.UtcDateTime,
+            request.ResolvedAt?.UtcDateTime,
+            // Twitch omits the resolving moderator + note until the request is resolved.
+            string.IsNullOrEmpty(request.ModeratorName)
+                ? null
+                : request.ModeratorName,
+            string.IsNullOrEmpty(request.ResolutionText) ? null : request.ResolutionText
+        );
+
     /// <summary>
     /// Reads every page of the channel's Twitch blocked-term list, short-circuiting to an honest failure on the
     /// first Helix error rather than returning a partial list. Bounded by a page guard against a pathological

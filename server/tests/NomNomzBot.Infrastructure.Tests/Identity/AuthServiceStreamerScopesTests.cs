@@ -131,6 +131,25 @@ public sealed class AuthServiceStreamerScopesTests
         result.Value.Should().Contain(Uri.EscapeDataString("moderator:manage:shield_mode"));
     }
 
+    /// <summary>
+    /// Proves the dashboard unban-request queue's RESOLVE action requests the Helix manage scope it needs
+    /// (<c>moderator:manage:unban_requests</c>) — the read scope is already granted; without the manage scope
+    /// approving/denying a request would 403.
+    /// </summary>
+    [Fact]
+    public async Task GetTwitchOAuthUrl_RequestsTheUnbanRequestManageScope()
+    {
+        AuthService service = Build(ConfigWith(clientId: "public-id", secret: "shh"));
+
+        Result<string> result = await service.GetTwitchOAuthUrl(
+            state: "nonce",
+            baseUrl: "https://api.example.test"
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().Contain(Uri.EscapeDataString("moderator:manage:unban_requests"));
+    }
+
     // ─── scaffolding (mirrors AuthServiceBotDeviceTests.Build/ConfigWith) ──────────────────────────────
 
     private static AuthService Build(IConfiguration config)

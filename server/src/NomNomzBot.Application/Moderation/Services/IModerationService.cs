@@ -132,4 +132,23 @@ public interface IModerationService
         bool isActive,
         CancellationToken cancellationToken = default
     );
+
+    /// <summary>
+    /// List the channel's unban requests filtered by <paramref name="status"/> (pending / approved / denied /
+    /// acknowledged / canceled), read live from the Twitch moderation API.
+    /// </summary>
+    Task<Result<List<UnbanRequestDto>>> GetUnbanRequestsAsync(
+        string broadcasterId,
+        string status,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>Approve or deny an unban request on Twitch, returning the resolved request.</summary>
+    Task<Result<UnbanRequestDto>> ResolveUnbanRequestAsync(
+        string broadcasterId,
+        string unbanRequestId,
+        bool approve,
+        string? note,
+        CancellationToken cancellationToken = default
+    );
 }
