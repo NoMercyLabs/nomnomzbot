@@ -143,9 +143,16 @@ every broadcaster token already holds the full scope set (`channel:read:subscrip
   `GET /channels/moderated` lists them; tenant resolution (route/header/query channel target + Gate-2)
   lets an operator act on any channel they moderate with the bot never installed there. The shell's
   channel switcher consumes it (frontend ledger). `ChannelsControllerModeratedTests` cover it.
-- [ ] **5. Render-manifest endpoint** (tier-gated features + integration states + scopes + effective
-  role in one call) + `FeaturesController` tier-gating (`IFeatureFlagService`) + dashboard event-class
-  subscriptions (chat/activity/liveops/music/moderation + always-on core).
+- [x] **5. Render manifest + tier gating + event classes — DONE** (first two were stale checkboxes,
+  verified shipped: `GET channels/{id}/render-manifest` aggregates access + tier-gated features +
+  integrations + scope gaps behind per-section Gate-2 floors, `RenderManifestServiceTests`, in
+  `openapi/v1.json`; `FeatureService` consults `IFeatureFlagService.EvaluateAsync` — entitlement is
+  authoritative over opt-in). The remaining third SHIPPED 2026-07-11: dashboard push classes —
+  `JoinChannel` = all classes (unchanged client behavior), `JoinChannelClasses(channelId, classes[])`
+  subscribes a subset (`chat`/`activity`/`liveops`/`music`/`moderation`); the notifier routes each push
+  to its class group, core pushes (stream status / config / permission / reward invalidations / alerts)
+  stay always-on; leave/rejoin/disconnect reconcile exactly the joined groups. Frontend adoption
+  (per-page class sets) → handoff.
 
 ### 💬 Combined / multi-source chat (owner-specced 2026-07-10)
 ONE substrate — a chat feed that **aggregates messages across a SET of channels**, each line tagged by source

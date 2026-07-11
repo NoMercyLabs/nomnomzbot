@@ -16,6 +16,25 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
 
 ## Open
 
+### 2026-07-11 — Optional: adopt render-manifest + hub event classes for a lighter dashboard
+- **From:** Stoney_Eagle (via Claude, backend track)
+- **What:** two backend surfaces exist that the client can adopt when convenient (both optional —
+  nothing breaks if you don't):
+  1. `GET /api/v1/channels/{channelId}/render-manifest` returns access (effective role +
+     heldActionKeys) + tier-gated features + integration states + missing-scope gaps in ONE call —
+     replaces the current 4-endpoint boot fan-out.
+  2. The dashboard hub now supports **push classes**: `JoinChannelClasses(channelId, classes)` with
+     classes ⊂ `["chat","activity","liveops","music","moderation"]` subscribes only those pushes for
+     that channel (core pushes — stream status, config/permission/reward invalidations, alerts — are
+     always on). Plain `JoinChannel` still subscribes everything, so the current client keeps working
+     unchanged. For multi-watch chat panes, `JoinChannelClasses(id, ["chat","moderation"])` cuts the
+     per-channel push volume substantially.
+- **Why:** faster boot (one request), less hub traffic per watched channel.
+- **Where:** `core/network` (manifest DTO + endpoint), `core/realtime` (hub method), shell boot +
+  multi-watch panes. Manifest is in `server/openapi/v1.json`.
+- **Done when:** (whenever adopted) the shell boots off the manifest and chat panes join with class
+  sets — both verified live.
+
 ### 2026-07-11 — Cross-platform chat: YouTube messages now flow — tag the feed by channel provider
 - **From:** Stoney_Eagle (via Claude, backend track)
 - **What:** the chat feed (and the coming multi-watch UI) should tag each message's SOURCE by the
