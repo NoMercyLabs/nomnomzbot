@@ -150,6 +150,27 @@ public sealed class AuthServiceStreamerScopesTests
         result.Value.Should().Contain(Uri.EscapeDataString("moderator:manage:unban_requests"));
     }
 
+    /// <summary>
+    /// Proves the dashboard per-user enforcement actions request the Helix manage scopes they need —
+    /// <c>moderator:manage:warnings</c> (Warn Chat User) and <c>moderator:manage:suspicious_users</c>
+    /// (Update Suspicious User). Only the read variants shipped before; without the manage scopes both actions
+    /// would 403.
+    /// </summary>
+    [Fact]
+    public async Task GetTwitchOAuthUrl_RequestsTheWarningsAndSuspiciousUsersManageScopes()
+    {
+        AuthService service = Build(ConfigWith(clientId: "public-id", secret: "shh"));
+
+        Result<string> result = await service.GetTwitchOAuthUrl(
+            state: "nonce",
+            baseUrl: "https://api.example.test"
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().Contain(Uri.EscapeDataString("moderator:manage:warnings"));
+        result.Value.Should().Contain(Uri.EscapeDataString("moderator:manage:suspicious_users"));
+    }
+
     // ─── scaffolding (mirrors AuthServiceBotDeviceTests.Build/ConfigWith) ──────────────────────────────
 
     private static AuthService Build(IConfiguration config)

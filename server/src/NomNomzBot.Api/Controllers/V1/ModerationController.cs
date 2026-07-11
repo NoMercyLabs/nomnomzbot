@@ -464,6 +464,72 @@ public class ModerationController : BaseController
         return Ok(new StatusResponseDto<UnbanRequestDto> { Data = result.Value });
     }
 
+    // ─── Per-user enforcement (warn / suspicious) ─────────────────────────────
+
+    /// <summary>Warn a chatter via the Twitch moderation API — they must acknowledge it before chatting again.</summary>
+    [RequireAction("moderation:warn")]
+    [HttpPost("warn")]
+    [ProducesResponseType<StatusResponseDto<ModerationActionResult>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> WarnUser(
+        string channelId,
+        [FromBody] WarnUserRequest request,
+        CancellationToken ct
+    )
+    {
+        string actorId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "";
+        Result<ModerationActionResult> result = await _moderationService.WarnUserAsync(
+            channelId,
+            request.TargetUserId,
+            request.Reason,
+            actorId,
+            ct
+        );
+        if (result.IsFailure)
+            return ResultResponse(result);
+        return Ok(new StatusResponseDto<ModerationActionResult> { Data = result.Value });
+    }
+
+    /// <summary>Flag a chatter as suspicious (active_monitoring or restricted) via the Twitch moderation API.</summary>
+    [RequireAction("moderation:suspicioususer:write")]
+    [HttpPost("suspicious")]
+    [ProducesResponseType<StatusResponseDto<SuspiciousStatusDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> SetSuspiciousStatus(
+        string channelId,
+        [FromBody] SetSuspiciousStatusRequest request,
+        CancellationToken ct
+    )
+    {
+        Result<SuspiciousStatusDto> result = await _moderationService.SetSuspiciousStatusAsync(
+            channelId,
+            request.TargetUserId,
+            request.Status,
+            ct
+        );
+        if (result.IsFailure)
+            return ResultResponse(result);
+        return Ok(new StatusResponseDto<SuspiciousStatusDto> { Data = result.Value });
+    }
+
+    /// <summary>Clear a chatter's suspicious-user flag via the Twitch moderation API.</summary>
+    [RequireAction("moderation:suspicioususer:write")]
+    [HttpDelete("suspicious/{userId}")]
+    [ProducesResponseType<StatusResponseDto<SuspiciousStatusDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> ClearSuspiciousStatus(
+        string channelId,
+        string userId,
+        CancellationToken ct
+    )
+    {
+        Result<SuspiciousStatusDto> result = await _moderationService.ClearSuspiciousStatusAsync(
+            channelId,
+            userId,
+            ct
+        );
+        if (result.IsFailure)
+            return ResultResponse(result);
+        return Ok(new StatusResponseDto<SuspiciousStatusDto> { Data = result.Value });
+    }
+
     // ─── Stats ────────────────────────────────────────────────────────────────
 
     /// <summary>

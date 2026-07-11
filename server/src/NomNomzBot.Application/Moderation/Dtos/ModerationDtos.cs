@@ -129,6 +129,30 @@ public sealed record ResolveUnbanRequestRequest
     public string? Note { get; init; }
 }
 
+// ─── Per-user enforcement (warn / suspicious) ──────────────────────────────────
+
+/// <summary>Issue a warning to a chatter — they must acknowledge it before chatting again (Twitch Warn Chat User).</summary>
+public sealed record WarnUserRequest
+{
+    public required string TargetUserId { get; init; }
+    public required string Reason { get; init; }
+}
+
+/// <summary>Flag a chatter as suspicious — <c>active_monitoring</c> (watch) or <c>restricted</c> (their messages are held).</summary>
+public sealed record SetSuspiciousStatusRequest
+{
+    public required string TargetUserId { get; init; }
+    public required string Status { get; init; }
+}
+
+/// <summary>A chatter's suspicious-user status after an add/clear, read back from Twitch — the resulting status and any monitoring types.</summary>
+public sealed record SuspiciousStatusDto(
+    string UserId,
+    string Status,
+    IReadOnlyList<string> Types,
+    DateTime UpdatedAt
+);
+
 // ─── Mod Log ─────────────────────────────────────────────────────────────────
 
 public sealed record ModLogEntryDto(

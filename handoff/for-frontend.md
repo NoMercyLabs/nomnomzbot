@@ -16,6 +16,26 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
 
 ## Open
 
+### 2026-07-11 — Per-user enforcement: warn + suspicious status (moderation) — new endpoints
+- **From:** Stoney_Eagle (via Claude, backend track)
+- **What:** three new per-user mod actions (in `server/openapi/v1.json`, tag "Moderation", under
+  `/channels/{channelId}/moderation`): `POST /warn` (`WarnUserRequest` = `targetUserId`, `reason`) → issues a
+  Twitch warning the viewer must acknowledge before chatting again, returns `ModerationActionResult`;
+  `POST /suspicious` (`SetSuspiciousStatusRequest` = `targetUserId`, `status` ∈ `active_monitoring` |
+  `restricted`) → flags them, returns `SuspiciousStatusDto` (`userId`, `status`, `types`, `updatedAt`);
+  `DELETE /suspicious/{userId}` → clears the flag, returns `SuspiciousStatusDto`.
+- **Why:** item 15 — completes the Twitch per-user enforcement set alongside ban/timeout/unban. Warn = a soft
+  escalation step; suspicious = watch (`active_monitoring`) or hold-their-messages (`restricted`). All live
+  Twitch (Warn Chat User / Update Suspicious User), honest degradation on missing scope.
+- **Where:** best as row actions / a per-user mod panel (on the chat user popover, community page, or a future
+  user-context panel). Register `WarnUserRequest`, `SetSuspiciousStatusRequest`, `SuspiciousStatusDto` in
+  `ApiContractTest` (v1.json already refreshed). Role gating: warn at Moderator (`moderation:warn`), suspicious
+  at Lead Moderator (`moderation:suspicioususer:write`). Warn needs a non-empty reason (backend rejects blank);
+  confirm `restricted` (it holds all their messages). New scopes `moderator:manage:warnings` +
+  `moderator:manage:suspicious_users` requested on next re-grant (progressive, no logout).
+- **Done when:** warn posts + shows an ack-pending state; set/clear suspicious round-trips and reflects the
+  returned status; blank-reason + unknown-status show the backend validation error; en + nl strings.
+
 ### 2026-07-11 — Unban-request queue (moderation page) — new endpoints, build the UI
 - **From:** Stoney_Eagle (via Claude, backend track)
 - **What:** a **pending unban-request queue** on the moderation page. Two new endpoints (in

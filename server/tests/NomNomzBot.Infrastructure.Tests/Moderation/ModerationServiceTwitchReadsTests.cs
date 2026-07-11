@@ -9,13 +9,16 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Moderation.Dtos;
+using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Moderation;
 using NSubstitute;
+using Record = NomNomzBot.Domain.Platform.Entities.Record;
 
 namespace NomNomzBot.Infrastructure.Tests.Moderation;
 
@@ -527,5 +530,184 @@ public sealed class ModerationServiceTwitchReadsTests
 
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be("missing_scope");
+    }
+
+    // ─── Warn ─────────────────────────────────────────────────────────────────
+
+    private static async Task<(
+        ModerationService Service,
+        ModerationServiceTestDbContext Db
+    )> NewServiceWithChannelAsync(ITwitchModerationApi moderation)
+    {
+        ModerationServiceTestDbContext db = ModerationServiceTestDbContext.New();
+        db.Channels.Add(
+            new Channel
+            {
+                Id = Tenant,
+                TwitchChannelId = "1001",
+                OwnerUserId = Guid.NewGuid(),
+                Name = "c",
+                NameNormalized = "c",
+            }
+        );
+        await db.SaveChangesAsync();
+        return (
+            new ModerationService(
+                db,
+                moderation,
+                NullLogger<ModerationService>.Instance,
+                Substitute.For<IEventBus>()
+            ),
+            db
+        );
+    }
+
+    [Fact]
+    public async Task WarnUserAsync_WhenTwitchWarns_RecordsTheActionForTheModLog()
+    {
+        ITwitchModerationApi moderation = Substitute.For<ITwitchModerationApi>();
+        moderation
+            .WarnChatUserAsync(Tenant, "5005", "be nice", Arg.Any<CancellationToken>())
+            .Returns(Result.Success(new TwitchWarningResult("1001", "5005", "1001", "be nice")));
+        (ModerationService service, ModerationServiceTestDbContext db) =
+            await NewServiceWithChannelAsync(moderation);
+
+        Result<ModerationActionResult> result = await service.WarnUserAsync(
+            BroadcasterId,
+            "5005",
+            "be nice"
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        // Twitch actually issued the warning…
+        await moderation
+            .Received(1)
+            .WarnChatUserAsync(Tenant, "5005", "be nice", Arg.Any<CancellationToken>());
+        // …and exactly one "warn" action was recorded to the mod log afterwards.
+        List<Record> records = await db.Records.Where(r => r.Data.Contains("warn")).ToListAsync();
+        records.Should().ContainSingle();
+        records[0].Data.Should().Contain("5005");
+    }
+
+    [Fact]
+    public async Task WarnUserAsync_WithNoReason_IsRejectedWithoutCallingTwitch()
+    {
+        ITwitchModerationApi moderation = Substitute.For<ITwitchModerationApi>();
+
+        Result<ModerationActionResult> result = await NewService(moderation)
+            .WarnUserAsync(BroadcasterId, "5005", "   ");
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("VALIDATION_FAILED");
+        await moderation
+            .DidNotReceive()
+            .WarnChatUserAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task WarnUserAsync_WhenTwitchRejects_SurfacesTheError_AndRecordsNothing()
+    {
+        ITwitchModerationApi moderation = Substitute.For<ITwitchModerationApi>();
+        moderation
+            .WarnChatUserAsync(Tenant, "5005", "be nice", Arg.Any<CancellationToken>())
+            .Returns(Result.Failure<TwitchWarningResult>("Missing scope.", "missing_scope"));
+        (ModerationService service, ModerationServiceTestDbContext db) =
+            await NewServiceWithChannelAsync(moderation);
+
+        Result<ModerationActionResult> result = await service.WarnUserAsync(
+            BroadcasterId,
+            "5005",
+            "be nice"
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("missing_scope");
+        (await db.Records.CountAsync()).Should().Be(0);
+    }
+
+    // ─── Suspicious status ────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task SetSuspiciousStatusAsync_SendsTheLowercasedStatusToTwitch_AndMapsTheResult()
+    {
+        ITwitchModerationApi moderation = Substitute.For<ITwitchModerationApi>();
+        moderation
+            .AddSuspiciousStatusAsync(Tenant, "5005", "restricted", Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Success(
+                    new TwitchSuspiciousUserStatus(
+                        "5005",
+                        "1001",
+                        "1001",
+                        new DateTimeOffset(2026, 7, 1, 0, 0, 0, TimeSpan.Zero),
+                        "restricted",
+                        ["ban_evader"]
+                    )
+                )
+            );
+
+        Result<SuspiciousStatusDto> result = await NewService(moderation)
+            .SetSuspiciousStatusAsync(BroadcasterId, "5005", "RESTRICTED");
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Status.Should().Be("restricted");
+        result.Value.Types.Should().ContainSingle().Which.Should().Be("ban_evader");
+        await moderation
+            .Received(1)
+            .AddSuspiciousStatusAsync(Tenant, "5005", "restricted", Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task SetSuspiciousStatusAsync_RejectsAnUnknownStatus_WithoutCallingTwitch()
+    {
+        ITwitchModerationApi moderation = Substitute.For<ITwitchModerationApi>();
+
+        Result<SuspiciousStatusDto> result = await NewService(moderation)
+            .SetSuspiciousStatusAsync(BroadcasterId, "5005", "banned");
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("VALIDATION_FAILED");
+        await moderation
+            .DidNotReceive()
+            .AddSuspiciousStatusAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task ClearSuspiciousStatusAsync_ClearsOnTwitch_AndMapsTheResult()
+    {
+        ITwitchModerationApi moderation = Substitute.For<ITwitchModerationApi>();
+        moderation
+            .RemoveSuspiciousStatusAsync(Tenant, "5005", Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Success(
+                    new TwitchSuspiciousUserStatus(
+                        "5005",
+                        "1001",
+                        "1001",
+                        new DateTimeOffset(2026, 7, 1, 0, 0, 0, TimeSpan.Zero),
+                        "none",
+                        []
+                    )
+                )
+            );
+
+        Result<SuspiciousStatusDto> result = await NewService(moderation)
+            .ClearSuspiciousStatusAsync(BroadcasterId, "5005");
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Status.Should().Be("none");
+        await moderation
+            .Received(1)
+            .RemoveSuspiciousStatusAsync(Tenant, "5005", Arg.Any<CancellationToken>());
     }
 }

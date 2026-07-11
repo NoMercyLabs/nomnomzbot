@@ -999,6 +999,106 @@ public class ModerationService : IModerationService
             string.IsNullOrEmpty(request.ResolutionText) ? null : request.ResolutionText
         );
 
+    public async Task<Result<ModerationActionResult>> WarnUserAsync(
+        string broadcasterId,
+        string targetUserId,
+        string reason,
+        string? moderatorId = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (!Guid.TryParse(broadcasterId, out Guid tenantId))
+            return Errors.ChannelNotFound<ModerationActionResult>(broadcasterId);
+        if (string.IsNullOrWhiteSpace(reason))
+            return Result.Failure<ModerationActionResult>(
+                "A warning needs a reason.",
+                "VALIDATION_FAILED"
+            );
+
+        // Warn on Twitch FIRST; only record it to the mod log once Twitch actually issued the warning — the same
+        // enforce-then-record discipline as ban/timeout, so a warning Twitch rejected never shows up as history.
+        Result<TwitchWarningResult> warned = await _moderation.WarnChatUserAsync(
+            tenantId,
+            targetUserId,
+            reason,
+            cancellationToken
+        );
+        if (warned.IsFailure)
+            return Result.Failure<ModerationActionResult>(
+                warned.ErrorMessage ?? "Twitch rejected the warning.",
+                warned.ErrorCode ?? "TWITCH_ERROR"
+            );
+
+        return await RecordActionAsync(
+            tenantId,
+            "warn",
+            targetUserId,
+            reason,
+            null,
+            moderatorId,
+            cancellationToken
+        );
+    }
+
+    // The suspicious-user statuses Twitch's Update Suspicious User accepts; a bad value 400s, so reject locally.
+    private static readonly HashSet<string> SuspiciousStatuses = new(
+        StringComparer.OrdinalIgnoreCase
+    )
+    {
+        "active_monitoring",
+        "restricted",
+    };
+
+    public async Task<Result<SuspiciousStatusDto>> SetSuspiciousStatusAsync(
+        string broadcasterId,
+        string targetUserId,
+        string status,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (!Guid.TryParse(broadcasterId, out Guid tenantId))
+            return Errors.ChannelNotFound<SuspiciousStatusDto>(broadcasterId);
+        if (!SuspiciousStatuses.Contains(status))
+            return Result.Failure<SuspiciousStatusDto>(
+                $"Unknown suspicious status '{status}'. Valid: active_monitoring, restricted.",
+                "VALIDATION_FAILED"
+            );
+
+        Result<TwitchSuspiciousUserStatus> applied = await _moderation.AddSuspiciousStatusAsync(
+            tenantId,
+            targetUserId,
+            status.ToLowerInvariant(),
+            cancellationToken
+        );
+        if (applied.IsFailure)
+            return Result.Failure<SuspiciousStatusDto>(applied.ErrorMessage!, applied.ErrorCode!);
+
+        return Result.Success(ToDto(applied.Value));
+    }
+
+    public async Task<Result<SuspiciousStatusDto>> ClearSuspiciousStatusAsync(
+        string broadcasterId,
+        string targetUserId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (!Guid.TryParse(broadcasterId, out Guid tenantId))
+            return Errors.ChannelNotFound<SuspiciousStatusDto>(broadcasterId);
+
+        Result<TwitchSuspiciousUserStatus> cleared = await _moderation.RemoveSuspiciousStatusAsync(
+            tenantId,
+            targetUserId,
+            cancellationToken
+        );
+        if (cleared.IsFailure)
+            return Result.Failure<SuspiciousStatusDto>(cleared.ErrorMessage!, cleared.ErrorCode!);
+
+        return Result.Success(ToDto(cleared.Value));
+    }
+
+    private static SuspiciousStatusDto ToDto(TwitchSuspiciousUserStatus status) =>
+        new(status.UserId, status.Status, status.Types, status.UpdatedAt.UtcDateTime);
+
     /// <summary>
     /// Reads every page of the channel's Twitch blocked-term list, short-circuiting to an honest failure on the
     /// first Helix error rather than returning a partial list. Bounded by a page guard against a pathological

@@ -365,8 +365,13 @@ ONE substrate — a chat feed that **aggregates messages across a SET of channel
   `POST /moderation/unban-requests/{id}/resolve` on the live Helix Get/Resolve Unban Request (Gate-2
   `moderation:unbanrequest:read`(Mod)/`:resolve`(LeadMod), already seeded; scope
   `moderator:manage:unban_requests` added; honest degradation; openapi refreshed; 5 new tests; dashboard UI →
-  handoff). *Remaining:* network-nuke (partial `IOperatorNetworkBanService` exists), shared-ban trust,
-  viewer reports/evidence, per-user mod panel, suspicious-users write, warnings, escalation ladder.
+  handoff). **Per-user enforcement** shipped (backend): `POST /moderation/warn` (Twitch Warn Chat User,
+  enforce-then-record to the mod log), `POST /moderation/suspicious` + `DELETE /moderation/suspicious/{userId}`
+  (Update Suspicious User: active_monitoring / restricted / clear) — Gate-2 `moderation:warn`(Mod) /
+  `moderation:suspicioususer:write`(LeadMod) already seeded; scopes `moderator:manage:warnings` +
+  `moderator:manage:suspicious_users` added; honest degradation; openapi refreshed; 7 new tests; UI → handoff.
+  *Remaining:* network-nuke (partial `IOperatorNetworkBanService` exists), shared-ban trust,
+  viewer reports/evidence, per-user mod panel (notes/history/trust), escalation ladder.
 - [ ] **16. TTS advanced** (`tts.md`) — mod approval queue, per-viewer voices, profanity filters, BYOK,
   usage ledger.
 - [x] **17. Live-ops schedule & markers — SHIPPED 2026-07-11** (`broadcaster-liveops.md`; dashboard

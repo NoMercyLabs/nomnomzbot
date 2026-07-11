@@ -151,4 +151,28 @@ public interface IModerationService
         string? note,
         CancellationToken cancellationToken = default
     );
+
+    /// <summary>Warn a chatter on Twitch (gating their chat until they acknowledge it) and record it to the mod log.</summary>
+    Task<Result<ModerationActionResult>> WarnUserAsync(
+        string broadcasterId,
+        string targetUserId,
+        string reason,
+        string? moderatorId = null,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>Flag a chatter as suspicious on Twitch (<c>active_monitoring</c> or <c>restricted</c>), returning the applied status.</summary>
+    Task<Result<SuspiciousStatusDto>> SetSuspiciousStatusAsync(
+        string broadcasterId,
+        string targetUserId,
+        string status,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>Clear a chatter's suspicious-user flag on Twitch, returning the resulting status.</summary>
+    Task<Result<SuspiciousStatusDto>> ClearSuspiciousStatusAsync(
+        string broadcasterId,
+        string targetUserId,
+        CancellationToken cancellationToken = default
+    );
 }
