@@ -455,6 +455,10 @@ internal sealed class GdprTestDbContext : DbContext, IApplicationDbContext
         Set<NomNomzBot.Domain.Engagement.Entities.EngagementConfig>();
     public DbSet<NomNomzBot.Domain.Engagement.Entities.ViewerEngagementState> ViewerEngagementStates =>
         Set<NomNomzBot.Domain.Engagement.Entities.ViewerEngagementState>();
+    public DbSet<NomNomzBot.Domain.MediaShare.Entities.MediaShareConfig> MediaShareConfigs =>
+        Set<NomNomzBot.Domain.MediaShare.Entities.MediaShareConfig>();
+    public DbSet<NomNomzBot.Domain.MediaShare.Entities.MediaShareRequest> MediaShareRequests =>
+        Set<NomNomzBot.Domain.MediaShare.Entities.MediaShareRequest>();
     public DbSet<CommandUsage> CommandUsages => Set<CommandUsage>();
     public DbSet<NomNomzBot.Domain.EventStore.Entities.EventJournal> EventJournals =>
         Set<NomNomzBot.Domain.EventStore.Entities.EventJournal>();

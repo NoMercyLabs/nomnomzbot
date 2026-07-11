@@ -289,7 +289,24 @@ ONE substrate — a chat feed that **aggregates messages across a SET of channel
   WebSocket stream. *(Streamer.bot core.)*
 - [ ] **9. OBS control** (`obs-control.md`) — scenes/inputs, ~20 pipeline actions, `obs_event`.
 - [ ] **10. VTube Studio** (`vtube-studio.md`) — connect/authorize/bridge, model control, `vts_event`.
-- [ ] **11. Media share** (`media-share.md`) — video request queue + overlay + `!media`.
+- [x] **11. Media share — BACKEND SHIPPED 2026-07-11** (`media-share.md`; dashboard queue/overlay UI →
+  handoff). The viewer clip/video queue — distinct from music song-requests, safe-by-default. Two entities
+  (`MediaShareConfig` L.10 one-per-channel, `MediaShareRequest` L.11, partial unique + play-order indexes,
+  migration pair `AddMediaShare` + 20-fake sweep), two `sealed class` events (submitted + playback-changed),
+  economy delta (`SpendMedia`/`RefundMedia` + `MediaShare` source). `IMediaShareService`: submit (resolve URL →
+  closed source set, duration cap, eligibility, per-user cooldown, max-queue, entry-cost debit against a
+  pre-allocated UUIDv7 id so a failed debit needs no compensation), approve/reject/skip/reorder (reject+skip
+  refund), FIFO queue read, GetNext (→ playing, doesn't skip past a playing item) + MarkPlayed (advance), config.
+  `IMediaSourceResolver` (isolated + independently tested): Twitch-clip + YouTube URL allowlist parsing (regex
+  over all the real URL shapes) + metadata — Twitch via `ITwitchClipsApi` Get Clips, YouTube via the app-level
+  `YouTube:ApiKey` videos.list (no OAuth; rejects live/upcoming + non-embeddable). `!media <url>` builtin +
+  `submit_media` pipeline action (redemption "redeem to submit a clip"). `MediaShareController` (§5 REST) +
+  Gate-2 `media:read`(Mod)/`media:moderate`(Mod)/`media:write`(Editor). openapi refreshed. 29 tests. **Deliberate
+  deltas:** the overlay `media_share` widget + its `IWidgetNotifier` push are the widgets-OOTB leg (same
+  follow-up as giveaways) — the service emits `MediaSharePlaybackChangedEvent` and the overlay drives via the
+  GetNext/MarkPlayed REST loop today; eligibility (`EligibilityJson`) enforces the truthfully-verifiable
+  `subOnly` rule and is dormant unless seeded (the §5 config DTO deliberately doesn't expose it, matching the
+  spec — no phantom control).
 - [x] **12. Giveaways — BACKEND SHIPPED 2026-07-11** (`giveaways.md`; dashboard page → handoff).
   Full campaign loop: entities G.6–G.10 (+ migration pair `AddGiveaways`, 18-fake sweep), economy delta
   (`SpendGiveaway`/`EarnGiveaway` + `Giveaway` source), `IGiveawayService` (CRUD, D2 single-active

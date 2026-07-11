@@ -16,6 +16,26 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
 
 ## Open
 
+### 2026-07-11 — Media-share page: mod queue + overlay widget (viewer clip/video queue)
+- **From:** Stoney_Eagle (via Claude, backend track)
+- **What:** two surfaces. (1) A **mod queue** page: list submissions (filter by status), approve/reject/
+  skip/reorder pending+approved items, edit the config. (2) A **`media_share` OBS overlay widget** that
+  plays the current clip and shows the upcoming queue. Endpoints (in `server/openapi/v1.json`, tag
+  "Media Share", under `/media-share`): `GET queue?status=`, `GET next` (the overlay pulls this — it flips
+  the item to *playing*), `POST {id}/approve|reject|skip|reorder|played`, `GET/PUT config`
+  (`UpdateMediaShareConfigRequest`). Submissions come from viewers via the `!media <url>` chat command and
+  a `submit_media` pipeline action (redeem-to-submit) — NOT from this page.
+- **Why:** parity item 11 (StreamElements media-share). Safe-by-default: approval on, Twitch-clip +
+  YouTube only, a hard duration cap. Items carry `title`, `durationSeconds`, `thumbnailUrl`, `sourceType`
+  (`twitch_clip`|`youtube`), `mediaRef` (clip slug / YouTube id) — render the embed from those.
+- **Where:** new `feature/mediaShare` page + the overlay widget (the overlay host already exists; drive it
+  off `GET next` → play the embed → `POST {id}/played` on completion). Register the DTOs in
+  `ApiContractTest`. Role gating: read + moderate the queue at Moderator (`media:read` / `media:moderate`);
+  config write at Editor (`media:write`). Destructive skip/reject confirm.
+- **Done when:** a submitted clip appears pending → approve → the overlay plays it → marks played →
+  advances; reject/skip refund shows; the config (enable, approval, sources, cap, cost, cooldown)
+  round-trips; en + nl strings.
+
 ### 2026-07-11 — Stream schedule + markers controls (completes the live-ops surface)
 - **From:** Stoney_Eagle (via Claude, backend track)
 - **What:** UI for the broadcaster's stream schedule (the weekly calendar of upcoming streams) and a

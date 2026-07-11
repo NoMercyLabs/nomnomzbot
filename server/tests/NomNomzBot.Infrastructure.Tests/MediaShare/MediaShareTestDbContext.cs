@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Domain.Analytics.Entities;
 using NomNomzBot.Domain.Billing.Entities;
@@ -22,66 +23,91 @@ using NomNomzBot.Domain.EventStore.Entities;
 using NomNomzBot.Domain.Federation.Entities;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Integrations.Entities;
+using NomNomzBot.Domain.MediaShare.Entities;
 using NomNomzBot.Domain.Platform.Entities;
-using NomNomzBot.Domain.Quotes.Entities;
 using NomNomzBot.Domain.Rewards.Entities;
 using NomNomzBot.Domain.Sound.Entities;
 using NomNomzBot.Domain.Tts.Entities;
 using NomNomzBot.Domain.Webhooks.Entities;
 using NomNomzBot.Domain.Widgets.Entities;
+using DomainStream = NomNomzBot.Domain.Stream.Entities.Stream;
+using DomainTimer = NomNomzBot.Domain.Commands.Entities.Timer;
+using RecordEntity = NomNomzBot.Domain.Platform.Entities.Record;
 
-namespace NomNomzBot.Api.Tests.Hubs;
+namespace NomNomzBot.Infrastructure.Tests.MediaShare;
 
 /// <summary>
-/// A focused <see cref="IApplicationDbContext"/> over only <see cref="User"/>, <see cref="Pronoun"/>, and
-/// <see cref="ChannelCommunityStanding"/> — on the EF Core InMemory provider — for
-/// <c>HubUserEnrichmentStoreTests</c>, which needs the pronoun-pair include and the standing lookup to actually
-/// query real data. Everything else throws, since those tests never reach it. Mirrors the same
-/// "declare every DbSet, auto-ignore the unmapped ones" shape as <c>Controllers/ApiTestDbContext.cs</c>.
+/// A focused <see cref="IApplicationDbContext"/> for the media-share queue — maps the config, the requests,
+/// the community standing (eligibility) and users, on the InMemory provider with the production soft-delete
+/// filter. Every other set throws.
 /// </summary>
-internal sealed class HubUserEnrichmentTestDbContext : DbContext, IApplicationDbContext
+internal sealed class MediaShareTestDbContext : DbContext, IApplicationDbContext
 {
-    private HubUserEnrichmentTestDbContext(DbContextOptions<HubUserEnrichmentTestDbContext> options)
+    private MediaShareTestDbContext(DbContextOptions<MediaShareTestDbContext> options)
         : base(options) { }
 
-    public static HubUserEnrichmentTestDbContext New() =>
+    public static MediaShareTestDbContext New() =>
         new(
-            new DbContextOptionsBuilder<HubUserEnrichmentTestDbContext>()
+            new DbContextOptionsBuilder<MediaShareTestDbContext>()
                 .UseInMemoryDatabase(Guid.NewGuid().ToString())
                 .Options
         );
 
-    public DbSet<User> Users => Set<User>();
-    public DbSet<UserIdentity> UserIdentities => throw new NotSupportedException();
-    public DbSet<Pronoun> Pronouns => Set<Pronoun>();
+    public DbSet<MediaShareConfig> MediaShareConfigs => Set<MediaShareConfig>();
+    public DbSet<MediaShareRequest> MediaShareRequests => Set<MediaShareRequest>();
     public DbSet<ChannelCommunityStanding> ChannelCommunityStandings =>
         Set<ChannelCommunityStanding>();
+    public DbSet<User> Users => Set<User>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
+        b.Entity<MediaShareConfig>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Ignore(x => x.Channel);
+            e.HasQueryFilter(x => x.DeletedAt == null);
+        });
+        b.Entity<MediaShareRequest>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Ignore(x => x.Channel);
+            e.Ignore(x => x.Requester);
+            e.HasQueryFilter(x => x.DeletedAt == null);
+        });
+        b.Entity<ChannelCommunityStanding>(e => e.HasKey(x => x.Id));
         b.Entity<User>(e =>
         {
-            e.HasKey(u => u.Id);
-            e.Ignore(u => u.Channel);
-            e.HasOne(u => u.Pronoun).WithMany().HasForeignKey(u => u.PronounId);
-            e.HasOne(u => u.AltPronoun).WithMany().HasForeignKey(u => u.AltPronounId);
+            e.HasKey(x => x.Id);
+            e.Ignore(x => x.Channel);
+            e.Ignore(x => x.Pronoun);
+            e.Ignore(x => x.AltPronoun);
         });
 
-        b.Entity<Pronoun>().HasKey(p => p.Id);
-
-        b.Entity<ChannelCommunityStanding>().HasKey(s => s.Id);
-
-        // EF discovers entity types from the DbSet<T> property declarations regardless of the throwing getter
-        // bodies; ignore every entity these tests do not exercise so the model stays minimal + provider-agnostic.
         foreach (Type entity in UnmappedEntities)
             b.Ignore(entity);
     }
 
+    public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        DateTime now = DateTime.UtcNow;
+        foreach (
+            EntityEntry<NomNomzBot.Domain.Platform.BaseEntity> entry in ChangeTracker.Entries<NomNomzBot.Domain.Platform.BaseEntity>()
+        )
+        {
+            if (entry.State == EntityState.Added && entry.Entity.CreatedAt == default)
+                entry.Entity.CreatedAt = now;
+            if (entry.State is EntityState.Added or EntityState.Modified)
+                entry.Entity.UpdatedAt = now;
+        }
+        return base.SaveChangesAsync(cancellationToken);
+    }
+
     private static readonly HashSet<Type> Mapped =
     [
-        typeof(User),
-        typeof(Pronoun),
+        typeof(MediaShareConfig),
+        typeof(MediaShareRequest),
         typeof(ChannelCommunityStanding),
+        typeof(User),
     ];
 
     private static readonly IReadOnlyList<Type> UnmappedEntities = typeof(IApplicationDbContext)
@@ -95,8 +121,7 @@ internal sealed class HubUserEnrichmentTestDbContext : DbContext, IApplicationDb
         .ToList();
 
     // ── Unused IApplicationDbContext surface — never reached by these tests ──
-    public DbSet<NomNomzBot.Domain.Platform.Entities.Configuration> Configurations =>
-        throw new NotSupportedException();
+    public DbSet<UserIdentity> UserIdentities => throw new NotSupportedException();
     public DbSet<ConsentRecord> ConsentRecords => throw new NotSupportedException();
     public DbSet<Channel> Channels => throw new NotSupportedException();
     public DbSet<ChannelModerator> ChannelModerators => throw new NotSupportedException();
@@ -104,16 +129,8 @@ internal sealed class HubUserEnrichmentTestDbContext : DbContext, IApplicationDb
     public DbSet<Command> Commands => throw new NotSupportedException();
     public DbSet<Reward> Rewards => throw new NotSupportedException();
     public DbSet<Redemption> Redemptions => throw new NotSupportedException();
-    public DbSet<Quote> Quotes => throw new NotSupportedException();
-    public DbSet<Widget> Widgets => throw new NotSupportedException();
-    public DbSet<DiscordGuildConnection> DiscordGuildConnections =>
+    public DbSet<NomNomzBot.Domain.Quotes.Entities.Quote> Quotes =>
         throw new NotSupportedException();
-    public DbSet<EventSubSubscription> EventSubSubscriptions => throw new NotSupportedException();
-    public DbSet<EventSubConduit> EventSubConduits => throw new NotSupportedException();
-    public DbSet<EventSubConduitShard> EventSubConduitShards => throw new NotSupportedException();
-    public DbSet<IdempotencyKey> IdempotencyKeys => throw new NotSupportedException();
-    public DbSet<ChatMessage> ChatMessages => throw new NotSupportedException();
-    public DbSet<YouTubeLiveChatBan> YouTubeLiveChatBans => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Giveaways.Entities.Giveaway> Giveaways =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Giveaways.Entities.GiveawayEntry> GiveawayEntries =>
@@ -124,12 +141,19 @@ internal sealed class HubUserEnrichmentTestDbContext : DbContext, IApplicationDb
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Giveaways.Entities.GiveawayCode> GiveawayCodes =>
         throw new NotSupportedException();
+    public DbSet<Widget> Widgets => throw new NotSupportedException();
+    public DbSet<EventSubSubscription> EventSubSubscriptions => throw new NotSupportedException();
+    public DbSet<EventSubConduit> EventSubConduits => throw new NotSupportedException();
+    public DbSet<EventSubConduitShard> EventSubConduitShards => throw new NotSupportedException();
+    public DbSet<IdempotencyKey> IdempotencyKeys => throw new NotSupportedException();
+    public DbSet<ChatMessage> ChatMessages => throw new NotSupportedException();
+    public DbSet<YouTubeLiveChatBan> YouTubeLiveChatBans => throw new NotSupportedException();
     public DbSet<ChannelEvent> ChannelEvents => throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Stream.Entities.Stream> Streams =>
+    public DbSet<DomainStream> Streams => throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Platform.Entities.Configuration> Configurations =>
         throw new NotSupportedException();
     public DbSet<Storage> Storages => throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Platform.Entities.Record> Records =>
-        throw new NotSupportedException();
+    public DbSet<RecordEntity> Records => throw new NotSupportedException();
     public DbSet<Permission> Permissions => throw new NotSupportedException();
     public DbSet<ChannelFeature> ChannelFeatures => throw new NotSupportedException();
     public DbSet<ChannelBotAuthorization> ChannelBotAuthorizations =>
@@ -141,6 +165,8 @@ internal sealed class HubUserEnrichmentTestDbContext : DbContext, IApplicationDb
     public DbSet<IntegrationConnection> IntegrationConnections => throw new NotSupportedException();
     public DbSet<IntegrationToken> IntegrationTokens => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Identity.Entities.CryptoKey> CryptoKeys =>
+        throw new NotSupportedException();
+    public DbSet<DiscordGuildConnection> DiscordGuildConnections =>
         throw new NotSupportedException();
     public DbSet<DiscordNotificationConfig> DiscordNotificationConfigs =>
         throw new NotSupportedException();
@@ -154,37 +180,26 @@ internal sealed class HubUserEnrichmentTestDbContext : DbContext, IApplicationDb
     public DbSet<UserTtsVoice> UserTtsVoices => throw new NotSupportedException();
     public DbSet<TtsUsageRecord> TtsUsageRecords => throw new NotSupportedException();
     public DbSet<TtsCacheEntry> TtsCacheEntries => throw new NotSupportedException();
+    public DbSet<Pronoun> Pronouns => throw new NotSupportedException();
     public DbSet<DeletionAuditLog> DeletionAuditLogs => throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Commands.Entities.Timer> Timers =>
-        throw new NotSupportedException();
+    public DbSet<DomainTimer> Timers => throw new NotSupportedException();
     public DbSet<EventResponse> EventResponses => throw new NotSupportedException();
     public DbSet<WatchStreak> WatchStreaks => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Commands.Entities.Pipeline> Pipelines =>
         throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Commands.Entities.PipelineStep> PipelineSteps =>
-        throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Commands.Entities.PipelineStepCondition> PipelineStepConditions =>
-        throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Commands.Entities.PipelineExecution> PipelineExecutions =>
-        throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Commands.Entities.ChannelBuiltinCommand> ChannelBuiltinCommands =>
-        throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Commands.Entities.CommandCooldownState> CommandCooldownStates =>
-        throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Commands.Entities.NamedCounter> NamedCounters =>
-        throw new NotSupportedException();
+    public DbSet<PipelineStep> PipelineSteps => throw new NotSupportedException();
+    public DbSet<PipelineStepCondition> PipelineStepConditions => throw new NotSupportedException();
+    public DbSet<PipelineExecution> PipelineExecutions => throw new NotSupportedException();
+    public DbSet<ChannelBuiltinCommand> ChannelBuiltinCommands => throw new NotSupportedException();
+    public DbSet<CommandCooldownState> CommandCooldownStates => throw new NotSupportedException();
+    public DbSet<NamedCounter> NamedCounters => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.ViewerData.Entities.ViewerDatum> ViewerData =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Engagement.Entities.EngagementConfig> EngagementConfigs =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Engagement.Entities.ViewerEngagementState> ViewerEngagementStates =>
         throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.MediaShare.Entities.MediaShareConfig> MediaShareConfigs =>
-        throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.MediaShare.Entities.MediaShareRequest> MediaShareRequests =>
-        throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Commands.Entities.CommandUsage> CommandUsages =>
-        throw new NotSupportedException();
+    public DbSet<CommandUsage> CommandUsages => throw new NotSupportedException();
     public DbSet<EventJournal> EventJournals => throw new NotSupportedException();
     public DbSet<TenantSequence> TenantSequences => throw new NotSupportedException();
     public DbSet<ProjectionCheckpoint> ProjectionCheckpoints => throw new NotSupportedException();

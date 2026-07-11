@@ -55,6 +55,10 @@ internal sealed class EngagementTestDbContext : DbContext, IApplicationDbContext
 
     public DbSet<EngagementConfig> EngagementConfigs => Set<EngagementConfig>();
     public DbSet<ViewerEngagementState> ViewerEngagementStates => Set<ViewerEngagementState>();
+    public DbSet<NomNomzBot.Domain.MediaShare.Entities.MediaShareConfig> MediaShareConfigs =>
+        Set<NomNomzBot.Domain.MediaShare.Entities.MediaShareConfig>();
+    public DbSet<NomNomzBot.Domain.MediaShare.Entities.MediaShareRequest> MediaShareRequests =>
+        Set<NomNomzBot.Domain.MediaShare.Entities.MediaShareRequest>();
     public DbSet<DomainStream> Streams => Set<DomainStream>();
     public DbSet<User> Users => Set<User>();
 

@@ -363,6 +363,12 @@ public sealed class ActionDefinitionSeeder : ISeeder
         M("engagement:read", Mod);
         M("engagement:write", Editor);
 
+        // Media share (media-share.md §5) — the viewer clip/video queue. Reading + moderating the queue
+        // (approve/reject/skip/reorder) is Moderator work; changing the config (enable/cost/caps) is Editor.
+        M("media:read", Mod);
+        M("media:moderate", Mod);
+        M("media:write", Editor);
+
         // Sound clips (sound-system.md §5) — audio clip library for pipeline SendSound actions. Read
         // (including preview playback, non-mutating) DEFAULTS to Moderator, floor Vip (broadcaster may open it
         // to a VIP); write (upload/update/delete) at Editor.

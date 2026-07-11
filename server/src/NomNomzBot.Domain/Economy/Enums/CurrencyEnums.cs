@@ -53,6 +53,10 @@ public enum CurrencyEntryType
     // Giveaways (giveaways.md D9): the entry-cost debit and the currency-prize / pot-payout credit.
     SpendGiveaway,
     EarnGiveaway,
+
+    // Media share (media-share.md D7): the entry-cost debit and its reject/skip refund.
+    SpendMedia,
+    RefundMedia,
 }
 
 /// <summary>
@@ -69,4 +73,5 @@ public enum CurrencyLedgerSourceType
     Pipeline,
     Transfer,
     Giveaway,
+    MediaShare,
 }

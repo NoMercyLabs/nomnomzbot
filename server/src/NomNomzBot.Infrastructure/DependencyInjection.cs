@@ -700,6 +700,11 @@ public static class DependencyInjection
             IBuiltinCommand,
             NomNomzBot.Infrastructure.ViewerData.Builtins.ProfileBuiltin
         >();
+        // Media share (!media <url>) — submits a clip/video for the caller.
+        services.AddScoped<
+            IBuiltinCommand,
+            NomNomzBot.Infrastructure.MediaShare.Builtins.MediaBuiltin
+        >();
         services.AddScoped<IBuiltinCommandCatalog, BuiltinCommandCatalog>();
         // Per-channel enable/disable toggle management.
         services.AddScoped<IBuiltinCommandService, BuiltinCommandService>();
@@ -947,6 +952,13 @@ public static class DependencyInjection
         // I<X>Service convention; the per-winner fulfillment seam is registered explicitly (scoped:
         // DbContext + ledger + pipeline engine + whisper + protector).
         services.AddScoped<Giveaways.IGiveawayFulfillment, Giveaways.GiveawayFulfillment>();
+
+        // Media share (media-share.md §6): IMediaShareService binds by the I<X>Service convention; the
+        // source resolver (URL parse + Twitch/YouTube metadata) is not an I<X>Service, so it's explicit.
+        services.AddScoped<
+            Application.MediaShare.Services.IMediaSourceResolver,
+            MediaShare.MediaSourceResolver
+        >();
 
         // Channel-ops seam (slice 3b — the IPlatformApi third of the platform trio): stream-metadata
         // writes route by Channel.Provider exactly like chat. Same scoping rationale as above.

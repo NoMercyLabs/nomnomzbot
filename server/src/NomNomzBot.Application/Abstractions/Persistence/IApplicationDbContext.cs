@@ -98,6 +98,8 @@ public interface IApplicationDbContext
     DbSet<NomNomzBot.Domain.ViewerData.Entities.ViewerDatum> ViewerData { get; }
     DbSet<NomNomzBot.Domain.Engagement.Entities.EngagementConfig> EngagementConfigs { get; }
     DbSet<NomNomzBot.Domain.Engagement.Entities.ViewerEngagementState> ViewerEngagementStates { get; }
+    DbSet<NomNomzBot.Domain.MediaShare.Entities.MediaShareConfig> MediaShareConfigs { get; }
+    DbSet<NomNomzBot.Domain.MediaShare.Entities.MediaShareRequest> MediaShareRequests { get; }
     DbSet<CommandUsage> CommandUsages { get; }
 
     // Event store (append-only journal + per-tenant sequences + projection checkpoints)
