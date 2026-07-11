@@ -133,8 +133,19 @@ every broadcaster token already holds the full scope set (`channel:read:subscrip
   deploy: **1339 duplicate rows → 0 dup groups**.
 
 ### 🌐 Multi-platform auth
-- [ ] **3. Chat + platform-API seams** — `IChatPlatform` + `IPlatformApi` abstracting send/read/
-  channel-ops off Twitch-welded code.
+- [x] **3a. Chat seam — SHIPPED 2026-07-11.** `IChatPlatform : IChatProvider` (+ `Provider` key);
+  `HelixChatProvider` = the Twitch platform, `YouTubeChatPlatform` = sends via
+  `liveChatMessages.insert` on the streamer's own token into the ACTIVE chat
+  (`IYouTubeLiveChatSessionRegistry`, written by the poll worker on go-live/offline; offline sends fail
+  honestly; replies degrade to plain sends — no threading on the Live Chat API).
+  `ChatPlatformRouter` IS the registered `IChatProvider`, routing by `Channel.Provider` with a Twitch
+  fallback — commands, pipelines, timers, dashboard all platform-route with zero call-site changes, and
+  the `ChatMessageHandler` command gate is REMOVED: **commands now execute and reply in YouTube chat**
+  (closes item 6's "bot replies on YouTube"). Read seam = the canonical `ChatMessageReceivedEvent`
+  ingest (item 6).
+- [ ] **3b. Remainder** — `IPlatformApi` (channel-ops: title/game/etc. per platform); a Kick
+  `IChatPlatform` + chat read (Kick's API); YouTube moderation surface (`liveChatBans` insert/delete,
+  `liveChatMessages.delete`) — the platform's moderation members are logged no-ops today.
 
 ### 🔀 Act on any channel — no install required
 - [x] **4. Moderated-channels resolution + switching — SHIPPED** (stale checkbox; verified live in code +
