@@ -243,6 +243,8 @@ public sealed class SeedTestDbContext : DbContext, IApplicationDbContext
         Set<NomNomzBot.Domain.Sound.Entities.SoundClip>();
     public DbSet<NomNomzBot.Domain.CustomEvents.Entities.CustomDataSource> CustomDataSources =>
         Set<NomNomzBot.Domain.CustomEvents.Entities.CustomDataSource>();
+    public DbSet<NomNomzBot.Domain.Moderation.Entities.ViewerReport> ViewerReports =>
+        throw new NotSupportedException();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

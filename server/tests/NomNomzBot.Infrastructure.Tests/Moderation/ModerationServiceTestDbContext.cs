@@ -61,6 +61,8 @@ internal sealed class ModerationServiceTestDbContext : DbContext, IApplicationDb
     // and recording a successful action resolves the target's username via Users.
     public DbSet<Channel> Channels => Set<Channel>();
     public DbSet<User> Users => Set<User>();
+    public DbSet<NomNomzBot.Domain.Moderation.Entities.ViewerReport> ViewerReports =>
+        Set<NomNomzBot.Domain.Moderation.Entities.ViewerReport>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -87,6 +89,13 @@ internal sealed class ModerationServiceTestDbContext : DbContext, IApplicationDb
             e.Ignore(u => u.Channel);
         });
 
+        b.Entity<NomNomzBot.Domain.Moderation.Entities.ViewerReport>(e =>
+        {
+            e.HasKey(r => r.Id);
+            e.Ignore(r => r.Channel);
+            e.Ignore(r => r.ReportedUser);
+        });
+
         // EF discovers entity types from the DbSet<T> property declarations regardless of the throwing getter
         // bodies; ignore every entity these tests do not exercise so the model stays minimal + provider-agnostic.
         foreach (Type entity in UnmappedEntities)
@@ -98,6 +107,7 @@ internal sealed class ModerationServiceTestDbContext : DbContext, IApplicationDb
         typeof(RecordEntity),
         typeof(Channel),
         typeof(User),
+        typeof(NomNomzBot.Domain.Moderation.Entities.ViewerReport),
     ];
 
     private static readonly IReadOnlyList<Type> UnmappedEntities = typeof(IApplicationDbContext)

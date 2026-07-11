@@ -153,6 +153,8 @@ public class AppDbContext : DbContext, IApplicationDbContext
         Set<Domain.ViewerData.Entities.ViewerDatum>();
     public DbSet<Domain.Engagement.Entities.EngagementConfig> EngagementConfigs =>
         Set<Domain.Engagement.Entities.EngagementConfig>();
+    public DbSet<Domain.Moderation.Entities.ViewerReport> ViewerReports =>
+        Set<Domain.Moderation.Entities.ViewerReport>();
     public DbSet<Domain.Engagement.Entities.ViewerEngagementState> ViewerEngagementStates =>
         Set<Domain.Engagement.Entities.ViewerEngagementState>();
     public DbSet<Domain.MediaShare.Entities.MediaShareConfig> MediaShareConfigs =>

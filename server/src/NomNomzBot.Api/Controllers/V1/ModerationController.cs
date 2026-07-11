@@ -37,6 +37,7 @@ public class ModerationController : BaseController
 {
     private readonly IModerationService _moderationService;
     private readonly IOperatorNetworkBanService _networkBan;
+    private readonly IViewerReportService _reports;
     private readonly ICurrentUserService _currentUser;
     private readonly IApplicationDbContext _db;
     private readonly TimeProvider _timeProvider;
@@ -45,6 +46,7 @@ public class ModerationController : BaseController
     public ModerationController(
         IModerationService moderationService,
         IOperatorNetworkBanService networkBan,
+        IViewerReportService reports,
         ICurrentUserService currentUser,
         IApplicationDbContext db,
         TimeProvider timeProvider,
@@ -53,6 +55,7 @@ public class ModerationController : BaseController
     {
         _moderationService = moderationService;
         _networkBan = networkBan;
+        _reports = reports;
         _currentUser = currentUser;
         _db = db;
         _timeProvider = timeProvider;
@@ -678,6 +681,72 @@ public class ModerationController : BaseController
         if (result.IsFailure)
             return ResultResponse(result);
         return NoContent();
+    }
+
+    // ─── Viewer reports ───────────────────────────────────────────────────────
+
+    /// <summary>File a report about a chatter (any viewer in the channel). Enters the moderator triage queue.</summary>
+    [RequireAction("moderation:report:file")]
+    [HttpPost("reports")]
+    [ProducesResponseType<StatusResponseDto<ViewerReportDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> FileReport(
+        string channelId,
+        [FromBody] FileViewerReportRequest request,
+        CancellationToken ct
+    )
+    {
+        string actorId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "";
+        Result<ViewerReportDto> result = await _reports.FileReportAsync(
+            channelId,
+            request,
+            actorId,
+            ct
+        );
+        if (result.IsFailure)
+            return ResultResponse(result);
+        return Ok(new StatusResponseDto<ViewerReportDto> { Data = result.Value });
+    }
+
+    /// <summary>List the channel's viewer reports (default: the open queue).</summary>
+    [RequireAction("moderation:report:read")]
+    [HttpGet("reports")]
+    [ProducesResponseType<StatusResponseDto<List<ViewerReportDto>>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> ListReports(
+        string channelId,
+        [FromQuery] string status,
+        CancellationToken ct
+    )
+    {
+        Result<List<ViewerReportDto>> result = await _reports.ListReportsAsync(
+            channelId,
+            string.IsNullOrWhiteSpace(status) ? "open" : status,
+            ct
+        );
+        return ResultResponse(result);
+    }
+
+    /// <summary>Resolve a viewer report — <c>dismiss</c> or <c>escalate</c> — recording the acting moderator.</summary>
+    [RequireAction("moderation:report:triage")]
+    [HttpPatch("reports/{reportId:guid}")]
+    [ProducesResponseType<StatusResponseDto<ViewerReportDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> ResolveReport(
+        string channelId,
+        Guid reportId,
+        [FromBody] ResolveViewerReportRequest request,
+        CancellationToken ct
+    )
+    {
+        string actorId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "";
+        Result<ViewerReportDto> result = await _reports.ResolveReportAsync(
+            channelId,
+            reportId,
+            request.Action,
+            actorId,
+            ct
+        );
+        if (result.IsFailure)
+            return ResultResponse(result);
+        return Ok(new StatusResponseDto<ViewerReportDto> { Data = result.Value });
     }
 
     // ─── Stats ────────────────────────────────────────────────────────────────

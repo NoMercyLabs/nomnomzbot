@@ -384,9 +384,18 @@ ONE substrate — a chat feed that **aggregates messages across a SET of channel
   same pattern moderation rules/actions already use, so NO new entity/migration/fake-sweep); Gate-2
   `moderation:note:write`(Mod) + `moderation:usercontext:read`(Mod); openapi refreshed; 2 new tests; UI → handoff.
   The per-user panel (history read + notes write + warn/suspicious/ban actions) is now complete.
-  *Remaining (all need new entities + 24-fake sweep + dual migrations):* SuperMod platform `moderation:nuke`
-  (tenant-wide, distinct from the operator fan-out), shared-ban trust list + propagation (J.9/J.9a), viewer
-  reports/evidence (J.8/J.8a), escalation ladder (J.10/J.11), and the J.4/J.5 history+trust projections.
+  **Viewer reports** shipped (backend — the first ENTITY leg): `POST /moderation/reports` (viewer files, Gate-1
+  `moderation:report:file`), `GET /moderation/reports?status=` (mod queue, `moderation:report:read`),
+  `PATCH /moderation/reports/{id}` (dismiss/escalate, `moderation:report:triage`). New `ViewerReport` entity
+  (J.8) + config + **dual migration pair** `AddViewerReports` (Postgres + Sqlite, applied clean on boot) + the
+  **21-fake IApplicationDbContext sweep** (via subagent). `IViewerReportService` get-or-creates the reported
+  chatter (viewers ARE users), truthful — ESCALATE doesn't auto-punish (the mod then acts via ban/timeout, no
+  phantom enforcement). openapi refreshed (+506); 5 new tests. *Deliberate deltas:* skipped J.8a
+  `ViewerReportEvidence` join + J.1 `ModerationQueueItem` unification (report is a standalone queue row);
+  Guid PK (UUIDv7) not J.8's bigint (matches the recent-entity precedent). UI → handoff.
+  *Remaining (entity legs):* SuperMod platform `moderation:nuke` (tenant-wide, distinct from the operator
+  fan-out), shared-ban trust list + propagation (J.9/J.9a), escalation ladder (J.10/J.11), and the J.4/J.5
+  history+trust projections.
 - [ ] **16. TTS advanced** (`tts.md`) — mod approval queue, per-viewer voices, profanity filters, BYOK,
   usage ledger.
 - [x] **17. Live-ops schedule & markers — SHIPPED 2026-07-11** (`broadcaster-liveops.md`; dashboard

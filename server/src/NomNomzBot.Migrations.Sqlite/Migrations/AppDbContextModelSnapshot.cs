@@ -5261,6 +5261,62 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.ToTable("MediaShareRequests");
                 });
 
+            modelBuilder.Entity("NomNomzBot.Domain.Moderation.Entities.ViewerReport", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("BroadcasterId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ReportedTwitchUserId")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("ReportedUserId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("ReporterUserId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("ResolvedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("ResolvedByUserId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ReportedUserId");
+
+                    b.HasIndex("BroadcasterId", "ReportedUserId");
+
+                    b.HasIndex("BroadcasterId", "Status");
+
+                    b.ToTable("ViewerReports");
+                });
+
             modelBuilder.Entity("NomNomzBot.Domain.Platform.Entities.ChannelFeature", b =>
                 {
                     b.Property<int>("Id")
@@ -7341,6 +7397,25 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.Navigation("Channel");
 
                     b.Navigation("Requester");
+                });
+
+            modelBuilder.Entity("NomNomzBot.Domain.Moderation.Entities.ViewerReport", b =>
+                {
+                    b.HasOne("NomNomzBot.Domain.Identity.Entities.Channel", "Channel")
+                        .WithMany()
+                        .HasForeignKey("BroadcasterId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("NomNomzBot.Domain.Identity.Entities.User", "ReportedUser")
+                        .WithMany()
+                        .HasForeignKey("ReportedUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Channel");
+
+                    b.Navigation("ReportedUser");
                 });
 
             modelBuilder.Entity("NomNomzBot.Domain.Platform.Entities.ChannelFeature", b =>
