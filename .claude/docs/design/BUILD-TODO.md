@@ -418,8 +418,41 @@ ONE substrate — a chat feed that **aggregates messages across a SET of channel
   *Remaining (entity legs):* SuperMod platform `moderation:nuke` (tenant-wide, distinct from the operator
   fan-out), shared-ban trust list + propagation (J.9/J.9a), escalation ladder (J.10/J.11), and the J.4/J.5
   history+trust projections.
-- [ ] **16. TTS advanced** (`tts.md`) — mod approval queue, per-viewer voices, profanity filters, BYOK,
-  usage ledger.
+- [~] **16. TTS advanced** (`tts.md`) — mod approval queue, per-viewer voices, profanity filters, BYOK,
+  usage ledger. **STARTED — "TTS actually plays" slice SHIPPED 2026-07-11 (backend; pipeline-builder block +
+  client_edge widget → handoff).** Before this, base TTS was synthesis-only (`ITtsService.SynthesizeAsync` +
+  Azure/Edge/ElevenLabs) and **never played** — no action, no dispatch, no overlay push. Now the self_host
+  play loop is live: `play_tts` pipeline action (Type `play_tts`, resolves the `text` template + optional
+  `voice`) → `ITtsDispatchService.RequestSpeakAsync` (self_host leg): gate on `TtsConfig.IsEnabled` + the config
+  char cap (reject `disabled`/`too_long`/`empty` with a truthful reason event, no synth/charge) → resolve voice
+  (override → per-viewer `UserTtsVoice` → channel default → first available) → `ITtsService.SynthesizeAsync`
+  (mp3) → store via the EXISTING `ISoundClipStore` → push via the EXISTING `ISoundClipOverlayNotifier`
+  (SR2's overlay audio bus plays the URL — zero new frontend) → append `TtsUsageRecord` → emit
+  dispatched/rejected events. NO migration (config stays on the blob this slice), no new endpoint (pipeline
+  action only). 8 tests (gate rejects, synth→store→push→ledger→event happy path, per-viewer voice wins,
+  synthesis-failure rejects; action resolves+dispatches+surfaces-reason). **Deliberate deltas:** self_host
+  dispatch only (the spec DEFAULT `client_edge` = `OverlayHub.TtsSpeak` → browser speech synth needs a FRONTEND
+  widget handler → handoff); `ITtsDispatchService` defines only `RequestSpeakAsync` now (Approve/Reject/
+  GetPendingQueue extend it in the approval-queue slice); the action reads params directly (shipped-action
+  convention, not the spec's separate config DTO); `RequestedByUserId` Guid unused this leg (self_host keys on
+  the Twitch string id, as `UserTtsVoice`/`TtsUsageRecord` do). **Follow-on slices (each still needed):**
+  `client_edge` mode (frontend widget), `TtsConfig` TABLE migration + config re-target, approval queue (P.1a
+  entity + Approve/Reject/GetPendingQueue), profanity censor (§3.5), BYOK provider factory (§3.2), tier-cap
+  resolution via `IBillingTierService`. **Below is the original assessment (still the map for the follow-ons):**
+  **Next slice = "TTS actually plays" (self_host dispatch path, backend-only):**
+  `play_tts` action (§6, Type `play_tts`, Category `tts`, `PlayTtsActionConfig(Text, VoiceId?, BypassQueue)`) →
+  `ITtsDispatchService.RequestSpeakAsync(TtsSpeakRequest)` (§3.4) implementing the self_host leg — gate on
+  `TtsConfig.IsEnabled` + the tier-resolved char cap → resolve voice (`UserTtsVoice(BroadcasterId,UserId)` →
+  `TtsConfig.DefaultVoiceId` → first available) → `ITtsService.SynthesizeAsync` (providers output mp3) → store the
+  bytes via the EXISTING `ISoundClipStore.PutAsync`→`GetPlaybackUrlAsync` → push via the EXISTING
+  `ISoundClipOverlayNotifier.PlaySoundAsync(SoundPlaybackDto(Guid.Empty, url, volume, durationMs))` (SR2's overlay
+  audio bus already plays a URL) → append `TtsUsageRecord` (exists) → emit dispatched/rejected events. NO migration
+  (config stays on the blob for this slice; the spec's `TtsConfig` TABLE + `TtsApprovalQueueEntry` P.1a are the
+  approval-queue slice). **Follow-on slices:** `client_edge` mode (default — `OverlayHub.TtsSpeak` → browser
+  speech synthesis, needs a FRONTEND widget handler → handoff), the `TtsConfig` table migration + config re-target,
+  approval queue (P.1a entity + Approve/Reject/GetPendingQueue), profanity censor (§3.5), BYOK provider factory
+  (§3.2, vaulted keys), tier-cap resolution via `IBillingTierService`. Gate-2 keys already seeded
+  (`tts:config:*`, `tts:voice:*`, `tts:uservoice:write`, `tts:queue:review`).
 - [x] **17. Live-ops schedule & markers — SHIPPED 2026-07-11** (`broadcaster-liveops.md`; dashboard
   schedule/marker controls → handoff). The last gap in the live-ops surface: stream SCHEDULE (segments +
   vacation) and stream MARKERS. Added as thin actions on the existing `LiveOpsController` over the
