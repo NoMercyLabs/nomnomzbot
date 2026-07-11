@@ -49,6 +49,10 @@ public enum CurrencyEntryType
     JarContribute,
     JarWithdraw,
     JarPayout,
+
+    // Giveaways (giveaways.md D9): the entry-cost debit and the currency-prize / pot-payout credit.
+    SpendGiveaway,
+    EarnGiveaway,
 }
 
 /// <summary>
@@ -64,4 +68,5 @@ public enum CurrencyLedgerSourceType
     SavingsJar,
     Pipeline,
     Transfer,
+    Giveaway,
 }

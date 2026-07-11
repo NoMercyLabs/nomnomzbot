@@ -331,6 +331,16 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
         Set<NomNomzBot.Domain.Chat.Entities.ChatMessage>();
     public DbSet<NomNomzBot.Domain.Chat.Entities.YouTubeLiveChatBan> YouTubeLiveChatBans =>
         Set<NomNomzBot.Domain.Chat.Entities.YouTubeLiveChatBan>();
+    public DbSet<NomNomzBot.Domain.Giveaways.Entities.Giveaway> Giveaways =>
+        Set<NomNomzBot.Domain.Giveaways.Entities.Giveaway>();
+    public DbSet<NomNomzBot.Domain.Giveaways.Entities.GiveawayEntry> GiveawayEntries =>
+        Set<NomNomzBot.Domain.Giveaways.Entities.GiveawayEntry>();
+    public DbSet<NomNomzBot.Domain.Giveaways.Entities.GiveawayWinner> GiveawayWinners =>
+        Set<NomNomzBot.Domain.Giveaways.Entities.GiveawayWinner>();
+    public DbSet<NomNomzBot.Domain.Giveaways.Entities.GiveawayCodePool> GiveawayCodePools =>
+        Set<NomNomzBot.Domain.Giveaways.Entities.GiveawayCodePool>();
+    public DbSet<NomNomzBot.Domain.Giveaways.Entities.GiveawayCode> GiveawayCodes =>
+        Set<NomNomzBot.Domain.Giveaways.Entities.GiveawayCode>();
     public DbSet<NomNomzBot.Domain.Identity.Entities.ChannelEvent> ChannelEvents =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Stream.Entities.Stream> Streams =>

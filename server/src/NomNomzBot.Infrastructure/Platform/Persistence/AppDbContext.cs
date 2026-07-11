@@ -56,6 +56,19 @@ public class AppDbContext : DbContext, IApplicationDbContext
     public DbSet<Reward> Rewards => Set<Reward>();
     public DbSet<Redemption> Redemptions => Set<Redemption>();
     public DbSet<Domain.Quotes.Entities.Quote> Quotes => Set<Domain.Quotes.Entities.Quote>();
+
+    // Giveaways (giveaways.md G.6–G.10): campaign, entries, append-only winner history, secret-safe
+    // code pools + AEAD-encrypted codes.
+    public DbSet<Domain.Giveaways.Entities.Giveaway> Giveaways =>
+        Set<Domain.Giveaways.Entities.Giveaway>();
+    public DbSet<Domain.Giveaways.Entities.GiveawayEntry> GiveawayEntries =>
+        Set<Domain.Giveaways.Entities.GiveawayEntry>();
+    public DbSet<Domain.Giveaways.Entities.GiveawayWinner> GiveawayWinners =>
+        Set<Domain.Giveaways.Entities.GiveawayWinner>();
+    public DbSet<Domain.Giveaways.Entities.GiveawayCodePool> GiveawayCodePools =>
+        Set<Domain.Giveaways.Entities.GiveawayCodePool>();
+    public DbSet<Domain.Giveaways.Entities.GiveawayCode> GiveawayCodes =>
+        Set<Domain.Giveaways.Entities.GiveawayCode>();
     public DbSet<Widget> Widgets => Set<Widget>();
 
     // EventSub — per-tenant subscription registry (F.7), app-global conduit + shards (F.8/F.9),

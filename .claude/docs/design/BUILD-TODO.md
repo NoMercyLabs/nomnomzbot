@@ -290,7 +290,23 @@ ONE substrate — a chat feed that **aggregates messages across a SET of channel
 - [ ] **9. OBS control** (`obs-control.md`) — scenes/inputs, ~20 pipeline actions, `obs_event`.
 - [ ] **10. VTube Studio** (`vtube-studio.md`) — connect/authorize/bridge, model control, `vts_event`.
 - [ ] **11. Media share** (`media-share.md`) — video request queue + overlay + `!media`.
-- [ ] **12. Giveaways** (`giveaways.md`) — CRUD, open/close, draw/redraw, masked code pools.
+- [x] **12. Giveaways — BACKEND SHIPPED 2026-07-11** (`giveaways.md`; dashboard page → handoff).
+  Full campaign loop: entities G.6–G.10 (+ migration pair `AddGiveaways`, 18-fake sweep), economy delta
+  (`SpendGiveaway`/`EarnGiveaway` + `Giveaway` source), `IGiveawayService` (CRUD, D2 single-active
+  open/close, entry w/ eligibility+dedupe+cost debit+sub-luck tickets, CSPRNG weighted draw excluding
+  broadcaster/mods, append-only winners, redraw excluding ALL priors), `IGiveawayFulfillment` (currency
+  fixed/pot — pot = Σ paid entry costs, remainder to first winner; pipeline per winner via LAZY
+  IPipelineEngine — ctor injection closes a DI cycle through the action scan, caught by startup
+  validation; code claim + whisper w/ D6 assigned-on-failure), `IGiveawayCodePoolService` (ITokenProtector
+  sealed custody, masked reads, broadcaster-only reveal), `GiveawayKeywordListener` (canonical-chat-fact
+  keyword entry + claim-window marking — cross-platform for free), `GiveawayClaimSweepWorker`
+  (IRunOnceGuard, 1-min forfeit sweep), 3 pipeline actions (`open_giveaway`/`draw_giveaway`/
+  `enter_giveaway`), 2 controllers per the §6 REST table, Gate-2 keys seeded (`giveaways:read`/`write` =
+  Mod, `giveaways:codes:write` = Broadcaster floor), openapi snapshot refreshed. 23 tests covering every
+  §8 behavior. **Deliberate deltas:** `require_follower` eligibility REJECTED at config (no follower
+  standing + no single-user Helix follow check yet — never silently ignored); watch-minutes = Σ per-day
+  presence spans from ChannelChatterDays (shared `ChatterIdentityHash`); the §6 overlay `giveaway`
+  widget events are NOT yet emitted (needs the widgets OOTB catalogue leg — small follow-up).
 - [ ] **13. Supporter events** (`supporter-events.md`) — Ko-fi/Patreon/tips + `supporter.*` triggers.
 - [ ] **14. Per-viewer data store** (`per-viewer-data.md`) — KV browse/set/delete + pipeline actions +
   template helpers.

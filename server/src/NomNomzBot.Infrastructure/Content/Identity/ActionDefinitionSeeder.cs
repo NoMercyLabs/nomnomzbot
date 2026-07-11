@@ -341,6 +341,13 @@ public sealed class ActionDefinitionSeeder : ISeeder
         MFloor("quotes:write", Mod, Vip);
         M("quotes:delete", Mod);
 
+        // Giveaways (giveaways.md §6) — running a giveaway (open/close/draw/redraw) is live-ops work, so
+        // read + write sit at Moderator. The code pools hold VALUABLE SECRETS (game keys), so
+        // giveaways:codes:write is Broadcaster with a Broadcaster floor — never delegable below the owner.
+        M("giveaways:read", Mod);
+        M("giveaways:write", Mod);
+        M("giveaways:codes:write", Broadcaster);
+
         // Custom data sources (custom-events.md §5) — the pipeline-facing external data feeds (HypeRate,
         // Pulsoid, webhooks). Read at Moderator, write (create/update/delete/test) at Editor.
         M("customdata:read", Mod);

@@ -43,6 +43,11 @@ public interface IApplicationDbContext
     DbSet<Reward> Rewards { get; }
     DbSet<Redemption> Redemptions { get; }
     DbSet<Quote> Quotes { get; }
+    DbSet<NomNomzBot.Domain.Giveaways.Entities.Giveaway> Giveaways { get; }
+    DbSet<NomNomzBot.Domain.Giveaways.Entities.GiveawayEntry> GiveawayEntries { get; }
+    DbSet<NomNomzBot.Domain.Giveaways.Entities.GiveawayWinner> GiveawayWinners { get; }
+    DbSet<NomNomzBot.Domain.Giveaways.Entities.GiveawayCodePool> GiveawayCodePools { get; }
+    DbSet<NomNomzBot.Domain.Giveaways.Entities.GiveawayCode> GiveawayCodes { get; }
     DbSet<Widget> Widgets { get; }
     DbSet<EventSubSubscription> EventSubSubscriptions { get; }
     DbSet<EventSubConduit> EventSubConduits { get; }

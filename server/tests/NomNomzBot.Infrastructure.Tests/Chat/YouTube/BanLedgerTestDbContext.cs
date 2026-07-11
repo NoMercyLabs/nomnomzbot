@@ -56,6 +56,16 @@ internal sealed class BanLedgerTestDbContext : DbContext, IApplicationDbContext
         );
 
     public DbSet<YouTubeLiveChatBan> YouTubeLiveChatBans => Set<YouTubeLiveChatBan>();
+    public DbSet<NomNomzBot.Domain.Giveaways.Entities.Giveaway> Giveaways =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Giveaways.Entities.GiveawayEntry> GiveawayEntries =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Giveaways.Entities.GiveawayWinner> GiveawayWinners =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Giveaways.Entities.GiveawayCodePool> GiveawayCodePools =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Giveaways.Entities.GiveawayCode> GiveawayCodes =>
+        throw new NotSupportedException();
     public DbSet<EventSubSubscription> EventSubSubscriptions => throw new NotSupportedException();
 
     protected override void OnModelCreating(ModelBuilder b)

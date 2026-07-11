@@ -3166,6 +3166,291 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.ToTable("FederationPeerKeys");
                 });
 
+            modelBuilder.Entity("NomNomzBot.Domain.Giveaways.Entities.Giveaway", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BroadcasterId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int?>("ClaimWindowMinutes")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("ClosesAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("ConfigSchemaVersion")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("DrawnAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("EligibilityJson")
+                        .HasColumnType("text");
+
+                    b.Property<long?>("EntryCost")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("EntryMode")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<bool>("ExcludeModerators")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Keyword")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<int>("MaxEntriesPerUser")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("OpenedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("PrizeCodePoolId")
+                        .HasColumnType("uuid");
+
+                    b.Property<long?>("PrizeCurrencyAmount")
+                        .HasColumnType("bigint");
+
+                    b.Property<bool>("PrizeFromPot")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("PrizeMode")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<Guid?>("PrizePipelineId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(140)
+                        .HasColumnType("character varying(140)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("WeightingJson")
+                        .HasColumnType("text");
+
+                    b.Property<int>("WinnerCount")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BroadcasterId", "Status")
+                        .HasDatabaseName("IX_Giveaway_Broadcaster_Status");
+
+                    b.ToTable("Giveaways");
+                });
+
+            modelBuilder.Entity("NomNomzBot.Domain.Giveaways.Entities.GiveawayCode", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("AssignedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("AssignedWinnerId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BroadcasterId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CodeCipher")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("CodePoolId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Label")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CodePoolId", "Status")
+                        .HasDatabaseName("IX_GiveawayCode_Pool_Status");
+
+                    b.ToTable("GiveawayCodes");
+                });
+
+            modelBuilder.Entity("NomNomzBot.Domain.Giveaways.Entities.GiveawayCodePool", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BroadcasterId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BroadcasterId")
+                        .HasDatabaseName("IX_GiveawayCodePool_Broadcaster");
+
+                    b.ToTable("GiveawayCodePools");
+                });
+
+            modelBuilder.Entity("NomNomzBot.Domain.Giveaways.Entities.GiveawayEntry", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BroadcasterId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("EnteredAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long?>("EntryCostLedgerEntryId")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid>("GiveawayId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("TicketCount")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ViewerTwitchUserId")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<Guid>("ViewerUserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BroadcasterId")
+                        .HasDatabaseName("IX_GiveawayEntry_Broadcaster");
+
+                    b.HasIndex("GiveawayId", "ViewerUserId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_GiveawayEntry_Giveaway_Viewer");
+
+                    b.ToTable("GiveawayEntries");
+                });
+
+            modelBuilder.Entity("NomNomzBot.Domain.Giveaways.Entities.GiveawayWinner", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("AssignedCodeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BroadcasterId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("DrawnAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long?>("FulfillmentLedgerEntryId")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid>("GiveawayId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsRedraw")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ViewerTwitchUserId")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<Guid>("ViewerUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool?>("WhisperDelivered")
+                        .HasColumnType("boolean");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GiveawayId")
+                        .HasDatabaseName("IX_GiveawayWinner_Giveaway");
+
+                    b.HasIndex("BroadcasterId", "DrawnAt")
+                        .HasDatabaseName("IX_GiveawayWinner_Broadcaster_DrawnAt");
+
+                    b.ToTable("GiveawayWinners");
+                });
+
             modelBuilder.Entity("NomNomzBot.Domain.Identity.Entities.ActionDefinition", b =>
                 {
                     b.Property<Guid>("Id")

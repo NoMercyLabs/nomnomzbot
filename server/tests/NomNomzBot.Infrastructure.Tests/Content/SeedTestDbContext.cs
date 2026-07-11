@@ -66,6 +66,16 @@ public sealed class SeedTestDbContext : DbContext, IApplicationDbContext
     public DbSet<IdempotencyKey> IdempotencyKeys => Set<IdempotencyKey>();
     public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
     public DbSet<YouTubeLiveChatBan> YouTubeLiveChatBans => Set<YouTubeLiveChatBan>();
+    public DbSet<NomNomzBot.Domain.Giveaways.Entities.Giveaway> Giveaways =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Giveaways.Entities.GiveawayEntry> GiveawayEntries =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Giveaways.Entities.GiveawayWinner> GiveawayWinners =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Giveaways.Entities.GiveawayCodePool> GiveawayCodePools =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Giveaways.Entities.GiveawayCode> GiveawayCodes =>
+        throw new NotSupportedException();
     public DbSet<ChannelEvent> ChannelEvents => Set<ChannelEvent>();
     public DbSet<global::NomNomzBot.Domain.Stream.Entities.Stream> Streams =>
         Set<global::NomNomzBot.Domain.Stream.Entities.Stream>();

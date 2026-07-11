@@ -16,6 +16,27 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
 
 ## Open
 
+### 2026-07-11 — Giveaways page (new backend module, full REST surface live)
+- **From:** Stoney_Eagle (via Claude, backend track)
+- **What:** a Giveaways management page. The backend module is complete: campaign CRUD +
+  open/close/draw/redraw lifecycle, live entry counts, append-only winner history, and secret-safe
+  code pools. Endpoints (all in `server/openapi/v1.json`, tag "Giveaways"):
+  `GET/POST /giveaways`, `GET/PUT/DELETE /giveaways/{id}`, `POST /giveaways/{id}/open|close|draw`,
+  `POST /giveaways/{id}/winners/{winnerId}/redraw`, `GET /giveaways/{id}/winners`,
+  `GET /giveaways/{id}/winners/{winnerId}/code` (broadcaster-only code reveal), and
+  `GET/POST /giveaways/code-pools`, `GET/DELETE /giveaways/code-pools/{poolId}`,
+  `POST /giveaways/code-pools/{poolId}/codes`.
+- **Why:** parity item 12 (StreamElements/Streamer.bot baseline). Viewers already enter via the chat
+  keyword or the `enter_giveaway` pipeline action; the streamer needs the management surface.
+- **Where:** new `feature/giveaways`; register the DTOs in `ApiContractTest`. Role gating:
+  read/write floors at Moderator (`giveaways:read`/`giveaways:write`); the code-pool routes + code
+  reveal are Broadcaster-only (`giveaways:codes:write`) — hide/disable per frontend-ia §7. Code pool
+  reads are MASKED by design (label + status; never the code) — do not add a "show code" affordance
+  outside the winner-reveal flow.
+- **Done when:** create → open → (viewers enter) → draw → winner list renders end-to-end against a
+  real channel; a code-pool giveaway shows delivery state (whispered vs needs-manual-reveal) and the
+  reveal works; destructive actions confirm; en + nl strings.
+
 ### 2026-07-11 — Kick integration: connect tile + chat feed provider tag
 - **From:** Stoney_Eagle (via Claude, backend track)
 - **What:** Kick is now a full chat platform on the backend. Two frontend touches:

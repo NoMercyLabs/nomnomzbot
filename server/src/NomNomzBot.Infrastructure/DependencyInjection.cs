@@ -934,6 +934,11 @@ public static class DependencyInjection
         services.AddSingleton<IKickWebhookVerifier, KickWebhookVerifier>();
         services.AddScoped<IKickWebhookIngest, KickWebhookIngest>();
 
+        // Giveaways (giveaways.md §7): IGiveawayService / IGiveawayCodePoolService bind by the
+        // I<X>Service convention; the per-winner fulfillment seam is registered explicitly (scoped:
+        // DbContext + ledger + pipeline engine + whisper + protector).
+        services.AddScoped<Giveaways.IGiveawayFulfillment, Giveaways.GiveawayFulfillment>();
+
         // Channel-ops seam (slice 3b — the IPlatformApi third of the platform trio): stream-metadata
         // writes route by Channel.Provider exactly like chat. Same scoping rationale as above.
         services.AddScoped<IPlatformApi, TwitchPlatformApi>();

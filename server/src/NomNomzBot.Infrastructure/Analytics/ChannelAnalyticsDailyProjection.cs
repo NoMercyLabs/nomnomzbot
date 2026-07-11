@@ -220,11 +220,10 @@ public sealed class ChannelAnalyticsDailyProjection(
         }
     }
 
-    /// <summary>SHA-256 hex of <c>{provider}:{externalUserId}</c> — stable distinctness, no stored identity.</summary>
+    /// <summary>The shared <see cref="ChatterIdentityHash"/> — one hash, every consumer (giveaway
+    /// watch-time eligibility looks these rows back up with it).</summary>
     private static string ChatterHash(string provider, string externalUserId) =>
-        Convert.ToHexStringLower(
-            SHA256.HashData(Encoding.UTF8.GetBytes($"{provider}:{externalUserId}"))
-        );
+        ChatterIdentityHash.Compute(provider, externalUserId);
 
     private async Task<ChannelAnalyticsDaily> GetOrCreateAsync(
         Guid broadcasterId,
