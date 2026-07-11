@@ -252,9 +252,17 @@ ONE substrate — a chat feed that **aggregates messages across a SET of channel
   the invoker is gated on `permit:issue` exactly like the pipeline actions + HTTP surface, and
   `IPermitService` re-asserts no-escalation + `IsGrantableViaPermit`. Role-token parsing shared with
   the pipeline actions (`PermitCommandSupport.TryParseManagementRole`). 6 tests.
-- [ ] **24c.** pipeline `user.role` badge-only fix; builtin key-format (bare keys + repair migration);
-  twitch-helix spec/code drift; credential-component DRY; user-plane topic attribution — each needs its
-  own verification pass (several may be stale like 24a).
+- [x] **24c-1. pipeline `user.role` badge-only — FIXED 2026-07-11.** The pipeline's `user.role` variable
+  now carries the EFFECTIVE role (`ResolveEffectiveRoleTokenAsync`: MAX of badge and the resolver leg —
+  memberships/permits/standing; broadcaster-badge short-circuit; fail-closed to badge) so `user_role`
+  conditions honor badge-less Editors and `!permit` elevations exactly like the command gate.
+  `AuthorizationLadder.FromLevelValue` added (round-trip tested). **BONUS bug found+fixed in the same
+  audit:** `!skip`/`!volume` builtin floors were `2` ("mod+" comment) — on the unified ladder 2 =
+  SUBSCRIBER, so any sub could skip tracks; both now floor at 10 (Moderator), and the new permit
+  builtins shipped with the correct floor.
+- [ ] **24c-2.** builtin key-format (bare keys + repair migration); twitch-helix spec/code drift;
+  credential-component DRY; user-plane topic attribution — each needs its own verification pass
+  (several may be stale like 24a).
 - [ ] **24d. OWNER-GATED:** confirm authz key names (Plane-C + Gate-2 buckets) — cannot close
   autonomously.
 
