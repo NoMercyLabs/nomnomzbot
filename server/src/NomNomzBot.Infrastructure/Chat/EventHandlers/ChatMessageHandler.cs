@@ -250,6 +250,15 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
         {
             if (command.Tier == "pipeline" && !string.IsNullOrEmpty(command.PipelineGraphJson))
             {
+                // Pipelines gate on `user.role` via SYNCHRONOUS conditions, so the variable must carry
+                // the EFFECTIVE role up front — a badge-less Editor or a !permit elevation would
+                // otherwise fail user_role conditions it rightfully clears (item 24c).
+                Dictionary<string, string> variables = BuildInitialVariables(@event, args);
+                variables["user.role"] = await ResolveEffectiveRoleTokenAsync(
+                    @event,
+                    cancellationToken
+                );
+
                 PipelineRequest request = new()
                 {
                     BroadcasterId = @event.BroadcasterId,
@@ -258,7 +267,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
                     TriggeredByDisplayName = @event.UserDisplayName,
                     MessageId = @event.MessageId,
                     RawMessage = @event.Message ?? string.Empty,
-                    InitialVariables = BuildInitialVariables(@event, args),
+                    InitialVariables = variables,
                 };
 
                 PipelineExecutionResult pipelineResult = await _pipeline.ExecuteAsync(
@@ -423,21 +432,37 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
         if (badge.ToLevelValue() >= minPermissionLevel)
             return true;
 
+        // badge < floor here, so MAX(badge, resolved) >= floor reduces to resolved >= floor.
+        int? resolved = await TryResolveEffectiveLevelAsync(@event, ct);
+        return resolved is int level && level >= minPermissionLevel;
+    }
+
+    /// <summary>
+    /// The resolver leg of the ladder (community standing, bot-granted memberships, active permits) —
+    /// null when the chatter/resolver cannot resolve, so every caller fails CLOSED to the badge level
+    /// (a resolver error must never elevate).
+    /// </summary>
+    private async Task<int?> TryResolveEffectiveLevelAsync(
+        ChatMessageReceivedEvent @event,
+        CancellationToken ct
+    )
+    {
         try
         {
             using IServiceScope scope = _scopeFactory.CreateScope();
 
-            // The event carries the TWITCH user id; the resolver needs the internal User id. A chatter IS a
-            // (possibly not-set-up) User row — the same get-or-create seam every chat-ingest handler uses.
+            // The event carries the platform user id; the resolver needs the internal User id. A chatter IS
+            // a (possibly not-set-up) User row — the same get-or-create seam every chat-ingest handler uses.
             IUserService users = scope.ServiceProvider.GetRequiredService<IUserService>();
             Result<UserDto> user = await users.GetOrCreateAsync(
                 @event.UserId,
                 @event.UserLogin,
                 @event.UserDisplayName,
-                cancellationToken: ct
+                @event.Provider,
+                ct
             );
             if (user.IsFailure || !Guid.TryParse(user.Value.Id, out Guid viewerUserId))
-                return false;
+                return null;
 
             IRoleResolver roleResolver = scope.ServiceProvider.GetRequiredService<IRoleResolver>();
             Result<int> resolved = await roleResolver.ResolveEffectiveLevelAsync(
@@ -445,8 +470,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
                 @event.BroadcasterId,
                 ct
             );
-            // badge < floor here, so MAX(badge, resolved) >= floor reduces to resolved >= floor.
-            return resolved.IsSuccess && resolved.Value >= minPermissionLevel;
+            return resolved.IsSuccess ? resolved.Value : null;
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
@@ -454,15 +478,42 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
         }
         catch (Exception ex)
         {
-            // Fail closed: a resolver error must never elevate; the badge already said "not enough".
             _logger.LogWarning(
                 ex,
-                "Effective-level resolution failed for {User} in {Channel}; denying on badge level alone",
+                "Effective-level resolution failed for {User} in {Channel}; falling back to badge level",
                 @event.UserLogin,
                 @event.BroadcasterId
             );
-            return false;
+            return null;
         }
+    }
+
+    /// <summary>
+    /// The EFFECTIVE role token for the pipeline's <c>user.role</c> variable (item 24c): a badge-less
+    /// Editor, a bot-granted membership, or an active <c>!permit</c> elevation must clear a
+    /// <c>user_role</c> condition exactly like they clear the command gate — the badge alone lies about
+    /// them. Short-circuits on a broadcaster badge (nothing outranks it); degrades to the badge role
+    /// when the resolver cannot answer.
+    /// </summary>
+    private async Task<string> ResolveEffectiveRoleTokenAsync(
+        ChatMessageReceivedEvent @event,
+        CancellationToken ct
+    )
+    {
+        PermissionLevel badge = ChatRole.Resolve(
+            @event.IsBroadcaster,
+            @event.IsModerator,
+            @event.IsVip,
+            @event.IsSubscriber,
+            @event.Badges
+        );
+        if (badge == PermissionLevel.Broadcaster)
+            return ChatRole.ToToken(badge);
+
+        int badgeLevel = badge.ToLevelValue();
+        int? resolved = await TryResolveEffectiveLevelAsync(@event, ct);
+        int effective = Math.Max(badgeLevel, resolved ?? badgeLevel);
+        return ChatRole.ToToken(AuthorizationLadder.FromLevelValue(effective));
     }
 
     private static string PickResponse(string[] responses)

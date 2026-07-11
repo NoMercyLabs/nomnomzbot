@@ -40,6 +40,33 @@ public class AuthorizationLadderTests
         level.ToLevelValue().Should().Be(expected);
     }
 
+    [Theory]
+    [InlineData(0, PermissionLevel.Everyone)]
+    [InlineData(1, PermissionLevel.Everyone)] // off-rung → fail closed to the rung actually cleared
+    [InlineData(2, PermissionLevel.Subscriber)]
+    [InlineData(4, PermissionLevel.Vip)]
+    [InlineData(6, PermissionLevel.Artist)]
+    [InlineData(10, PermissionLevel.Moderator)]
+    [InlineData(15, PermissionLevel.Moderator)]
+    [InlineData(20, PermissionLevel.LeadModerator)]
+    [InlineData(30, PermissionLevel.Editor)]
+    [InlineData(40, PermissionLevel.Broadcaster)]
+    [InlineData(99, PermissionLevel.Broadcaster)]
+    public void FromLevelValue_maps_to_the_highest_rung_at_or_below(
+        int levelValue,
+        PermissionLevel expected
+    )
+    {
+        AuthorizationLadder.FromLevelValue(levelValue).Should().Be(expected);
+    }
+
+    [Fact]
+    public void FromLevelValue_round_trips_every_rung()
+    {
+        foreach (PermissionLevel level in Enum.GetValues<PermissionLevel>())
+            AuthorizationLadder.FromLevelValue(level.ToLevelValue()).Should().Be(level);
+    }
+
     [Fact]
     public void Unified_ladder_is_strictly_increasing_across_all_eight_rungs()
     {

@@ -56,4 +56,22 @@ public static class AuthorizationLadder
             CommunityStanding.Moderator => 10,
             _ => 0,
         };
+
+    /// <summary>
+    /// The highest <see cref="PermissionLevel"/> rung AT OR BELOW a unified-ladder value — the inverse of
+    /// <see cref="ToLevelValue"/> for resolved effective levels (which are always exact rung values, but an
+    /// off-rung input still maps fail-closed to the rung it actually clears, never a higher one).
+    /// </summary>
+    public static PermissionLevel FromLevelValue(int levelValue) =>
+        levelValue switch
+        {
+            >= 40 => PermissionLevel.Broadcaster,
+            >= 30 => PermissionLevel.Editor,
+            >= 20 => PermissionLevel.LeadModerator,
+            >= 10 => PermissionLevel.Moderator,
+            >= 6 => PermissionLevel.Artist,
+            >= 4 => PermissionLevel.Vip,
+            >= 2 => PermissionLevel.Subscriber,
+            _ => PermissionLevel.Everyone,
+        };
 }

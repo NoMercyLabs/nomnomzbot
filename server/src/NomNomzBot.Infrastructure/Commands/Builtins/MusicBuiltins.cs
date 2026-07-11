@@ -19,7 +19,10 @@ public sealed class SkipBuiltin(IMusicService music) : IBuiltinCommand
 {
     public string BuiltinKey => "skip";
     public int DefaultCooldownSeconds => 5;
-    public int DefaultMinPermissionLevel => 2; // mod+
+
+    // Moderator on the UNIFIED ladder (0/2/4/6/10/…) — the old value 2 was Subscriber, silently
+    // letting any sub skip tracks while the comment claimed mod+ (found in the item-24c audit).
+    public int DefaultMinPermissionLevel => 10; // mod+
 
     public async Task<Result<string>> ExecuteAsync(
         BuiltinCommandContext context,
@@ -64,7 +67,9 @@ public sealed class VolumeBuiltin(IMusicService music) : IBuiltinCommand
 {
     public string BuiltinKey => "volume";
     public int DefaultCooldownSeconds => 5;
-    public int DefaultMinPermissionLevel => 2; // mod+
+
+    // Moderator on the UNIFIED ladder — see SkipBuiltin; 2 was Subscriber, not mod.
+    public int DefaultMinPermissionLevel => 10; // mod+
 
     public async Task<Result<string>> ExecuteAsync(
         BuiltinCommandContext context,

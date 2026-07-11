@@ -195,6 +195,99 @@ public sealed class ChatMessageHandlerTests
             );
     }
 
+    [Fact]
+    public async Task A_permit_elevated_viewer_pipeline_sees_the_effective_role_not_the_badge()
+    {
+        // Item 24c: pipeline user_role conditions read the SYNC `user.role` variable, so it must carry
+        // the effective role — a badge-less viewer holding an Editor grant would otherwise fail
+        // conditions the command gate itself honors.
+        ChannelContext ctx = NewChannelContext();
+        ctx.Commands["staffonly"] = new CachedCommand
+        {
+            Name = "staffonly",
+            TemplateResponses = [],
+            GlobalCooldown = 0,
+            UserCooldown = 0,
+            MinPermissionLevel = 0,
+            Tier = "pipeline",
+            PipelineGraphJson = "{\"steps\":[]}",
+        };
+
+        IChannelRegistry registry = Substitute.For<IChannelRegistry>();
+        registry.Get(Broadcaster).Returns(ctx);
+
+        // A scope factory that really resolves the elevation seam: the badge-less viewer maps to a User
+        // whose effective level resolves to Editor (30 on the unified ladder).
+        Guid viewerUser = Guid.CreateVersion7();
+        NomNomzBot.Application.Identity.Services.IUserService users =
+            Substitute.For<NomNomzBot.Application.Identity.Services.IUserService>();
+        users
+            .GetOrCreateAsync(
+                "tw-viewer-1",
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                Result.Success(
+                    new NomNomzBot.Application.Identity.Dtos.UserDto(
+                        viewerUser.ToString(),
+                        "viewer",
+                        "Viewer",
+                        null,
+                        null,
+                        DateTime.UnixEpoch,
+                        DateTime.UnixEpoch
+                    )
+                )
+            );
+        NomNomzBot.Application.Contracts.Authorization.IRoleResolver resolver =
+            Substitute.For<NomNomzBot.Application.Contracts.Authorization.IRoleResolver>();
+        resolver
+            .ResolveEffectiveLevelAsync(viewerUser, Broadcaster, Arg.Any<CancellationToken>())
+            .Returns(Result.Success(30)); // Editor
+
+        ServiceCollection services = new();
+        services.AddSingleton(users);
+        services.AddSingleton(resolver);
+        ServiceProvider provider = services.BuildServiceProvider();
+
+        IPipelineEngine pipeline = Substitute.For<IPipelineEngine>();
+        PipelineRequest? captured = null;
+        pipeline
+            .ExecuteAsync(Arg.Do<PipelineRequest>(r => captured = r), Arg.Any<CancellationToken>())
+            .Returns(
+                new PipelineExecutionResult
+                {
+                    ExecutionId = "exec-1",
+                    Outcome = PipelineOutcome.Completed,
+                    Duration = TimeSpan.Zero,
+                }
+            );
+
+        ChatMessageHandler sut = new(
+            registry,
+            provider.GetRequiredService<IServiceScopeFactory>(),
+            Substitute.For<ICooldownManager>(),
+            Substitute.For<IChatProvider>(),
+            pipeline,
+            Substitute.For<IBuiltinCommandCatalog>(),
+            Substitute.For<ITemplateResolver>(),
+            Substitute.For<IEventBus>(),
+            TimeProvider.System,
+            NullLogger<ChatMessageHandler>.Instance
+        );
+
+        await sut.HandleAsync(MessageEvent("!staffonly"), CancellationToken.None);
+
+        captured.Should().NotBeNull();
+        captured!
+            .InitialVariables["user.role"]
+            .Should()
+            .Be("editor", "the pipeline variable must carry the RESOLVED effective role");
+    }
+
     // ── shared scaffolding ──────────────────────────────────────────────────
 
     private static ChannelContext NewChannelContext() =>
