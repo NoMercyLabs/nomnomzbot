@@ -106,26 +106,6 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
   (panes or merged, each line clearly tagged with its channel), add/remove a channel without dropping the
   others, and scrollback loads per channel.
 
-### 2026-07-10 — Activity feed: show the actor name on follow/sub/cheer/raid events
-- **From:** Stoney_Eagle (via Claude, backend track)
-- **What:** the dashboard activity feed (Home) shows non-chat events without WHO did them (no follower/
-  cheerer/subscriber name). The backend now genuinely delivers these events live (EventSub multi-tenant
-  fix — sub/cheer/follow/ban/raid are enabled on every channel), so this is now visible.
-- **Why:** the backend pushes these as a `ChannelEvent` hub invocation via `NotifyChannelAsync`, which
-  puts the typed alert (e.g. `FollowAlertDto { userDisplayName, userLogin, … }`, `CheerAlertDto { … }`)
-  in the invocation's nested **`data`** field, and leaves the top-level `userId`/`userDisplayName` null.
-  The Kotlin `HubChannelEvent` DTO (`core/realtime/HubEvent.kt`) doesn't model `data`, so `HomeController`
-  maps `username = userDisplayName` = null → the feed row has no actor.
-- **Where:** `app/.../core/realtime/HubEvent.kt` (`HubChannelEvent`), `feature/home/state/HomeController.kt`
-  (`subscribeToHub` → `ChannelEvent` mapping). Backend: `NomNomzBot.Api/Hubs/DashboardNotifier.cs`
-  (`NotifyChannelAsync` → `ChannelEvent(new(method, broadcasterId, null, null, data, ts))`), the alert DTOs
-  in `NomNomzBot.Api/Hubs/Dtos/`.
-- **Options:** (a) frontend parses the `data` object per event `type` (follow/cheer/sub/raid) to pull the
-  actor; or (b) ask backend to lift a top-level `actorDisplayName` onto the ChannelEvent contract (small
-  server change + `v1.json` refresh). (b) is cleaner if you'd rather not model each alert shape.
-- **Done when:** the activity feed renders the actor's name (and, where relevant, bits/tier) for
-  follow / subscribe / cheer / raid events.
-
 ### 2026-07-05 — Standing rule: users never see numeric permission levels (names only)
 - **From:** Stoney_Eagle (via Claude, backend track)
 - **What:** owner rule — **no user-facing surface ever renders the numeric ladder value** of a role.
@@ -285,6 +265,13 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
 ## Done
 
 _(completed entries move here, with their commit hashes)_
+
+### 2026-07-10 — Activity feed: show the actor name on follow/sub/cheer/raid events — DONE (backend, option b)
+- Resolved backend-side: `NotifyChannelAsync` was hardcoding the top-level `userId`/`userDisplayName`
+  to null; the actor-bearing broadcasters (follow, subscription/resub/gift, cheer, raid, shoutouts,
+  moderator/VIP role changes) now pass the actor through, and the Kotlin `HubChannelEvent` already
+  parsed those fields — the feed renders names with **zero frontend work**. Anonymous gifts/cheers
+  arrive as "Anonymous". No `v1.json` change (hub-only contract).
 
 ### 2026-07-10 — i18n string bundle re-fetched ~30× on boot — DONE `b6dbfbb1`
 - Done by the backend track directly (owner directed the UI work). `core/i18n/BundleCachingResourceReader.kt`

@@ -109,11 +109,11 @@ every broadcaster token already holds the full scope set (`channel:read:subscrip
 - [x] **B. Dashboard stuck "live"** — DONE. `stream.offline` now subscribes (broadcaster token, cost-0) so the
   offline transition arrives; the existing `StreamStatusPollingService` (2-min Helix poll) is the backstop.
   Verified `stream.online`/`stream.offline` = enabled on the live deploy.
-- [ ] **C. Non-chat events render with full detail** *(frontend follow-up — `app/`)* — backend broadcast handlers
-  DO push follow/sub/cheer/raid as `ChannelEvent` (`NotifyChannelAsync`), but the follower/cheerer name rides in
-  the nested `data` payload the Kotlin `HubChannelEvent` DTO doesn't parse (top-level `userDisplayName` is null),
-  so the activity feed shows the event without the actor. Either parse `data` on the frontend or add a top-level
-  actor field to the ChannelEvent contract. Logged to `handoff/for-frontend.md`.
+- [x] **C. Non-chat events render with full detail** — DONE (backend). Root cause was server-side after all:
+  `NotifyChannelAsync` hardcoded the ChannelEvent's top-level `userId`/`userDisplayName` to null. The
+  actor-bearing broadcasters (follow, sub/resub/gift, cheer, raid, shoutouts, mod/VIP role changes) now pass
+  the actor through; the Kotlin `HubChannelEvent` already parsed those fields, so the activity feed shows
+  names with zero frontend work. Handoff entry moved to Done.
 - [x] **D. Title edit 403 (`channel:title:write`) — PERMISSION ELEVATION** DONE. Owner overruled the earlier
   premise ("a mod stays a mod, 403 is correct"): the whole point of the bot is that a broadcaster can delegate an
   action our system controls — even one Twitch's mod role can't do — and the bot performs it **on the broadcaster's
@@ -137,10 +137,12 @@ every broadcaster token already holds the full scope set (`channel:read:subscrip
   channel-ops off Twitch-welded code.
 
 ### 🔀 Act on any channel — no install required
-- [ ] **4. Moderated-channels resolution + switching** — Helix *Get Moderated Channels*
-  (`user:read:moderated_channels`); operate any moderated channel via the caller's own token with the
-  bot never installed on it. *(Unblocks the moderated-channels list in the auth UI **and the multi-channel
-  chat picker, item 7**.)*
+- [x] **4. Moderated-channels resolution + switching — SHIPPED** (stale checkbox; verified live in code +
+  tests 2026-07-11). `GET /channels` resolves the caller's moderated channels via Helix *Get Moderated
+  Channels* and auto-grants Moderator memberships (`EnsureModeratorMembershipsAsync`);
+  `GET /channels/moderated` lists them; tenant resolution (route/header/query channel target + Gate-2)
+  lets an operator act on any channel they moderate with the bot never installed there. The shell's
+  channel switcher consumes it (frontend ledger). `ChannelsControllerModeratedTests` cover it.
 - [ ] **5. Render-manifest endpoint** (tier-gated features + integration states + scopes + effective
   role in one call) + `FeaturesController` tier-gating (`IFeatureFlagService`) + dashboard event-class
   subscriptions (chat/activity/liveops/music/moderation + always-on core).
@@ -181,16 +183,22 @@ ONE substrate — a chat feed that **aggregates messages across a SET of channel
   `/overlay?widgetId={id}&token={overlayToken}` (the URL shape the widgets API always returned) — hand-rolled
   SignalR JSON client + the PlaySound/StopSound audio bus. Sub→sound = EventResponse(channel.subscribe)=
   pipeline with `play_sound`; reward→sound = that reward's `PipelineJson`. Config UX → handoff.
-- [ ] **SR3. Overlay management remainder** — widget CRUD + hub push + settings-on-join all exist; the host
-  page logs `WidgetEvent` but doesn't RENDER yet. Next slice: render 2–3 built-in widget types (alerts,
-  now-playing) in the host page. The compiled-bundle/gallery/import pipeline (widgets-overlays.md) stays the
-  later big phase. Also parked: 36 scope-blocked EventSub topics (33 = qtkitte's older grant — her re-grant
-  self-heals; 1×4 = `user.whisper.message` needs bot-token `user:read:whispers`).
+- [x] **SR3. Built-in widget rendering — SHIPPED** `bd793eee`. The host page now RENDERS what the server
+  pushes: transient alert cards (follow/subscription/resub/gift/cheer/raid, queued one at a time), the
+  standing now-playing pill, and the hype-train meter; widget settings (`accentColor`, `durationMs`) apply
+  on join + live. Payload text renders as text nodes only (no markup injection). The compiled-bundle/
+  gallery/import pipeline (widgets-overlays.md) stays the later big phase. Also parked: 36 scope-blocked
+  EventSub topics (33 = qtkitte's older grant — her re-grant self-heals; 1×4 = `user.whisper.message`
+  needs bot-token `user:read:whispers`).
 
-### 📊 Analytics writers still missing (from the 2026-07-11 audit)
-- [ ] **Peak viewers / unique chatters / watch seconds / trends columns** — need a viewer-count sampler
-  (Helix Get Streams poll while live → fold max into `PeakViewers`) and distinct-chatter folding; the daily
-  trends table renders these as 0/— today.
+### 📊 Analytics writers — SHIPPED (2026-07-11)
+- [x] **Peak viewers / unique chatters / watch seconds** — the last three dead M.8 columns now have real
+  writers. `StreamStatusPollingService` publishes a journaled `StreamViewerCountSampledEvent` per live
+  2-min poll (a per-stream viewer time series; PeakViewers folds the daily max).
+  `ChannelAnalyticsDailyProjection` owns a new `ChannelChatterDays` anchor table (hashed viewer key, no
+  PII, resets with the aggregate): first chat of the day → `UniqueChatters`; consecutive presence
+  (chat/command/redemption) inside the SAME live stream → `TotalWatchSeconds` (per-stream first→last
+  span, M.2 semantics). Migration pair (Postgres + Sqlite) + 17 test-fake sweep.
 
 ## 🤖 StreamElements / Streamer.bot parity (each = backend + dashboard page)
 - [ ] **8. Automation API** (`automation-api.md`) — external tokens, event catalog, data plane,
