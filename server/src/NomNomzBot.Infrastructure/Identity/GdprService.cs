@@ -185,6 +185,14 @@ public sealed class GdprService : IGdprService
             .ToListAsync(cancellationToken);
         _db.Records.RemoveRange(records);
 
+        // Hard delete: per-viewer custom data (G.14) across every channel — erasure ignores the
+        // soft-delete filter so already-soft-deleted rows are scrubbed too.
+        List<Domain.ViewerData.Entities.ViewerDatum> viewerData = await _db
+            .ViewerData.IgnoreQueryFilters()
+            .Where(d => d.ViewerUserId == userGuid)
+            .ToListAsync(cancellationToken);
+        _db.ViewerData.RemoveRange(viewerData);
+
         // Hard delete: legacy service tokens (orphaned for Twitch, still live for Discord/Spotify).
         // Service.UserId stores the external Twitch user id, so match by the user's TwitchUserId.
         string? twitchUserId = user.TwitchUserId;
@@ -229,11 +237,17 @@ public sealed class GdprService : IGdprService
                 [
                     "ChatMessages",
                     "Records",
+                    "ViewerData",
                     "Services",
                     "IntegrationConnections",
                     "Users",
                 ],
-                RowsDeleted = messages.Count + records.Count + services.Count + connectionIds.Count,
+                RowsDeleted =
+                    messages.Count
+                    + records.Count
+                    + viewerData.Count
+                    + services.Count
+                    + connectionIds.Count,
                 CreatedAt = _timeProvider.GetUtcNow().UtcDateTime,
                 CompletedAt = _timeProvider.GetUtcNow().UtcDateTime,
             }

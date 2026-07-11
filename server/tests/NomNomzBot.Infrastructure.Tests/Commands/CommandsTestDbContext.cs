@@ -183,6 +183,8 @@ internal sealed class CommandsTestDbContext : DbContext, IApplicationDbContext
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Commands.Entities.NamedCounter> NamedCounters =>
         throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.ViewerData.Entities.ViewerDatum> ViewerData =>
+        throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Commands.Entities.CommandUsage> CommandUsages =>
         throw new NotSupportedException();
     public DbSet<EventJournal> EventJournals => throw new NotSupportedException();

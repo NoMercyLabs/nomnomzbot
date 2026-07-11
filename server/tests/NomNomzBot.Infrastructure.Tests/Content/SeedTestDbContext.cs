@@ -120,6 +120,8 @@ public sealed class SeedTestDbContext : DbContext, IApplicationDbContext
     public DbSet<ChannelBuiltinCommand> ChannelBuiltinCommands => Set<ChannelBuiltinCommand>();
     public DbSet<CommandCooldownState> CommandCooldownStates => Set<CommandCooldownState>();
     public DbSet<NamedCounter> NamedCounters => Set<NamedCounter>();
+    public DbSet<NomNomzBot.Domain.ViewerData.Entities.ViewerDatum> ViewerData =>
+        Set<NomNomzBot.Domain.ViewerData.Entities.ViewerDatum>();
     public DbSet<CommandUsage> CommandUsages => Set<CommandUsage>();
     public DbSet<NomNomzBot.Domain.EventStore.Entities.EventJournal> EventJournals =>
         Set<NomNomzBot.Domain.EventStore.Entities.EventJournal>();

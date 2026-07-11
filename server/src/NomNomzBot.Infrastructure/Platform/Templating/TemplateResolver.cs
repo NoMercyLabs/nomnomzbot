@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Globalization;
 using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -15,6 +16,10 @@ using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Abstractions.Transport;
+using NomNomzBot.Application.Commands.Services;
+using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Analytics;
+using NomNomzBot.Application.ViewerData.Services;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Platform.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
@@ -33,6 +38,11 @@ namespace NomNomzBot.Infrastructure.Platform.Templating;
 ///   {time.*}         — current time
 ///   {random.*}       — random helpers
 ///   {botname}        — bot display name
+///   {count.*}        — per-channel named counters (G.4; unset renders 0)
+///   {viewer.data.*}  — per-viewer key/value store for the triggering viewer (G.14; unset renders empty)
+///   {target.data.*}  — per-viewer key/value store for the @mention target
+///   {viewer.*}       — M.1 stat helpers for the triggering viewer (messages, watchtime, firstseen,
+///                      redemptions, songrequests) — {target.*} mirrors for the @mention
 ///
 /// Seed variables from the caller always take precedence over auto-resolved values.
 /// DB lookups only happen when the template actually contains those variables (lazy resolution).
@@ -268,6 +278,25 @@ public sealed partial class TemplateResolver : ITemplateResolver
                 await ResolveTargetAsync(vars, targetName, ct);
             }
         }
+
+        // ── Named counters {count.<key>} ───────────────────────────────────
+        List<string> countKeys = needed
+            .Where(n =>
+                n.StartsWith("count.", StringComparison.OrdinalIgnoreCase)
+                && n.Length > "count.".Length
+                && !vars.ContainsKey(n)
+            )
+            .ToList();
+        if (countKeys.Count > 0 && broadcasterId is not null)
+        {
+            await ResolveCountersAsync(vars, countKeys, broadcasterId.Value, ct);
+        }
+
+        // ── Per-viewer data + stats ({viewer.data.*}/{target.data.*}/{viewer.*}/{target.*}) ──
+        if (broadcasterId is not null)
+        {
+            await ResolveViewerDataAsync(vars, needed, broadcasterId.Value, ct);
+        }
     }
 
     // ─── DB helpers ───────────────────────────────────────────────────────────
@@ -345,6 +374,267 @@ public sealed partial class TemplateResolver : ITemplateResolver
         {
             _logger.LogDebug(ex, "Failed to resolve target {TargetName}", targetName);
         }
+    }
+
+    /// <summary>Referenced counters resolve in one round-trip; unset counters render as 0.</summary>
+    private async Task ResolveCountersAsync(
+        Dictionary<string, string> vars,
+        List<string> countKeys,
+        Guid broadcasterId,
+        CancellationToken ct
+    )
+    {
+        try
+        {
+            using IServiceScope scope = _scopeFactory.CreateScope();
+            INamedCounterService counters =
+                scope.ServiceProvider.GetRequiredService<INamedCounterService>();
+
+            List<string> bare = countKeys.Select(k => k["count.".Length..]).ToList();
+            Result<IReadOnlyDictionary<string, long>> loaded = await counters.LoadKeysAsync(
+                broadcasterId,
+                bare,
+                ct
+            );
+            foreach (string key in countKeys)
+            {
+                string bareKey = key["count.".Length..];
+                long value =
+                    loaded.IsSuccess && loaded.Value.TryGetValue(bareKey, out long found)
+                        ? found
+                        : 0L;
+                vars[key] = value.ToString(CultureInfo.InvariantCulture);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(
+                ex,
+                "Failed to resolve counters for tenant {BroadcasterId}",
+                broadcasterId
+            );
+        }
+    }
+
+    /// <summary>
+    /// Per-viewer data ({viewer.data.*}/{target.data.*}) and M.1 stat helpers ({viewer.*}/{target.*}) for
+    /// the triggering viewer and the @mention target — one scope, one bulk read per side, referenced keys
+    /// only. Unset data keys render empty; stats for a never-seen viewer render as honest zeros.
+    /// </summary>
+    private async Task ResolveViewerDataAsync(
+        Dictionary<string, string> vars,
+        HashSet<string> needed,
+        Guid broadcasterId,
+        CancellationToken ct
+    )
+    {
+        List<string> viewerDataKeys = needed
+            .Where(n =>
+                n.StartsWith("viewer.data.", StringComparison.OrdinalIgnoreCase)
+                && n.Length > "viewer.data.".Length
+                && !vars.ContainsKey(n)
+            )
+            .ToList();
+        List<string> targetDataKeys = needed
+            .Where(n =>
+                n.StartsWith("target.data.", StringComparison.OrdinalIgnoreCase)
+                && n.Length > "target.data.".Length
+                && !vars.ContainsKey(n)
+            )
+            .ToList();
+        bool viewerStats = NeedsAny(
+            needed,
+            "viewer.messages",
+            "viewer.watchtime",
+            "viewer.firstseen",
+            "viewer.redemptions",
+            "viewer.songrequests"
+        );
+        bool targetStats = NeedsAny(
+            needed,
+            "target.messages",
+            "target.watchtime",
+            "target.firstseen",
+            "target.redemptions",
+            "target.songrequests"
+        );
+
+        if (viewerDataKeys.Count == 0 && targetDataKeys.Count == 0 && !viewerStats && !targetStats)
+            return;
+
+        try
+        {
+            using IServiceScope scope = _scopeFactory.CreateScope();
+            IApplicationDbContext db =
+                scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+
+            if (viewerDataKeys.Count > 0 || viewerStats)
+            {
+                Guid? viewerId = await ResolveViewerGuidAsync(
+                    db,
+                    vars.GetValueOrDefault("user.id"),
+                    vars.GetValueOrDefault("user.provider"),
+                    ct
+                );
+                await ResolveOneViewerSideAsync(
+                    scope,
+                    vars,
+                    broadcasterId,
+                    viewerId,
+                    "viewer",
+                    viewerDataKeys,
+                    viewerStats,
+                    ct
+                );
+            }
+
+            if (targetDataKeys.Count > 0 || targetStats)
+            {
+                Guid? targetId = await ResolveTargetGuidAsync(
+                    db,
+                    vars.GetValueOrDefault("target"),
+                    ct
+                );
+                await ResolveOneViewerSideAsync(
+                    scope,
+                    vars,
+                    broadcasterId,
+                    targetId,
+                    "target",
+                    targetDataKeys,
+                    targetStats,
+                    ct
+                );
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(
+                ex,
+                "Failed to resolve viewer data for tenant {BroadcasterId}",
+                broadcasterId
+            );
+        }
+    }
+
+    private static async Task ResolveOneViewerSideAsync(
+        IServiceScope scope,
+        Dictionary<string, string> vars,
+        Guid broadcasterId,
+        Guid? viewerId,
+        string prefix,
+        List<string> dataKeys,
+        bool wantsStats,
+        CancellationToken ct
+    )
+    {
+        if (dataKeys.Count > 0)
+        {
+            IReadOnlyDictionary<string, string> data = new Dictionary<string, string>();
+            if (viewerId is not null)
+            {
+                IViewerDataService viewerData =
+                    scope.ServiceProvider.GetRequiredService<IViewerDataService>();
+                Result<IReadOnlyDictionary<string, string>> loaded = await viewerData.LoadKeysAsync(
+                    broadcasterId,
+                    viewerId.Value,
+                    dataKeys.Select(k => k[(prefix.Length + ".data.".Length)..]).ToList(),
+                    ct
+                );
+                if (loaded.IsSuccess)
+                    data = loaded.Value;
+            }
+            foreach (string key in dataKeys)
+            {
+                string bareKey = key[(prefix.Length + ".data.".Length)..];
+                vars[key] = data.TryGetValue(bareKey, out string? value) ? value : string.Empty;
+            }
+        }
+
+        if (wantsStats)
+        {
+            ViewerProfileDto? profile = null;
+            if (viewerId is not null)
+            {
+                IViewerAnalyticsService analytics =
+                    scope.ServiceProvider.GetRequiredService<IViewerAnalyticsService>();
+                Result<ViewerProfileDto> loaded = await analytics.GetProfileAsync(
+                    broadcasterId,
+                    viewerId.Value,
+                    ct
+                );
+                if (loaded.IsSuccess)
+                    profile = loaded.Value;
+            }
+            vars.TryAdd($"{prefix}.messages", (profile?.TotalMessages ?? 0).ToString());
+            vars.TryAdd($"{prefix}.watchtime", FormatWatchTime(profile?.TotalWatchSeconds ?? 0));
+            vars.TryAdd(
+                $"{prefix}.firstseen",
+                profile?.FirstSeenAt?.ToString("yyyy-MM-dd") ?? "unknown"
+            );
+            vars.TryAdd($"{prefix}.redemptions", (profile?.TotalRedemptions ?? 0).ToString());
+            vars.TryAdd($"{prefix}.songrequests", (profile?.TotalSongRequests ?? 0).ToString());
+        }
+    }
+
+    /// <summary>
+    /// The triggering viewer's platform user Guid: redemption paths seed the Guid directly; chat paths
+    /// seed the provider's external id, resolved identity-first (provider + external id), then via the
+    /// legacy Twitch-id projection.
+    /// </summary>
+    private static async Task<Guid?> ResolveViewerGuidAsync(
+        IApplicationDbContext db,
+        string? externalUserId,
+        string? provider,
+        CancellationToken ct
+    )
+    {
+        if (string.IsNullOrEmpty(externalUserId))
+            return null;
+        if (Guid.TryParse(externalUserId, out Guid direct))
+            return direct;
+
+        if (!string.IsNullOrEmpty(provider))
+        {
+            Guid viaIdentity = await db
+                .UserIdentities.AsNoTracking()
+                .Where(i => i.Provider == provider && i.ProviderUserId == externalUserId)
+                .Select(i => i.UserId)
+                .FirstOrDefaultAsync(ct);
+            if (viaIdentity != Guid.Empty)
+                return viaIdentity;
+        }
+
+        Guid viaTwitchId = await db
+            .Users.AsNoTracking()
+            .Where(u => u.TwitchUserId == externalUserId)
+            .Select(u => u.Id)
+            .FirstOrDefaultAsync(ct);
+        return viaTwitchId == Guid.Empty ? null : viaTwitchId;
+    }
+
+    private static async Task<Guid?> ResolveTargetGuidAsync(
+        IApplicationDbContext db,
+        string? targetName,
+        CancellationToken ct
+    )
+    {
+        if (string.IsNullOrEmpty(targetName))
+            return null;
+        string login = targetName.ToLowerInvariant();
+        Guid id = await db
+            .Users.AsNoTracking()
+            .Where(u => u.Username == login)
+            .Select(u => u.Id)
+            .FirstOrDefaultAsync(ct);
+        return id == Guid.Empty ? null : id;
+    }
+
+    private static string FormatWatchTime(long totalSeconds)
+    {
+        long hours = totalSeconds / 3600;
+        long minutes = totalSeconds % 3600 / 60;
+        return hours > 0 ? $"{hours}h {minutes}m" : $"{minutes}m";
     }
 
     private async Task<string?> ResolveTwitchChannelIdAsync(

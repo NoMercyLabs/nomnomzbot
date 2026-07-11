@@ -691,6 +691,15 @@ public static class DependencyInjection
             IBuiltinCommand,
             NomNomzBot.Infrastructure.Identity.Builtins.UnpermitBuiltin
         >();
+        // Viewer stats (!stats + legacy-parity alias !profile) — composes existing read-models.
+        services.AddScoped<
+            IBuiltinCommand,
+            NomNomzBot.Infrastructure.ViewerData.Builtins.StatsBuiltin
+        >();
+        services.AddScoped<
+            IBuiltinCommand,
+            NomNomzBot.Infrastructure.ViewerData.Builtins.ProfileBuiltin
+        >();
         services.AddScoped<IBuiltinCommandCatalog, BuiltinCommandCatalog>();
         // Per-channel enable/disable toggle management.
         services.AddScoped<IBuiltinCommandService, BuiltinCommandService>();

@@ -308,8 +308,29 @@ ONE substrate — a chat feed that **aggregates messages across a SET of channel
   presence spans from ChannelChatterDays (shared `ChatterIdentityHash`); the §6 overlay `giveaway`
   widget events are NOT yet emitted (needs the widgets OOTB catalogue leg — small follow-up).
 - [ ] **13. Supporter events** (`supporter-events.md`) — Ko-fi/Patreon/tips + `supporter.*` triggers.
-- [ ] **14. Per-viewer data store** (`per-viewer-data.md`) — KV browse/set/delete + pipeline actions +
-  template helpers.
+- [x] **14. Per-viewer data store — BACKEND SHIPPED 2026-07-11** (`per-viewer-data.md`; dashboard
+  browse UI → handoff). `ViewerDatum` (G.14, partial unique `(BroadcasterId,ViewerUserId,Key)`,
+  migration pair `AddViewerData` + 18-fake sweep), `IViewerDataService` (slug-normalized keys,
+  D5 caps: ≤500-char values + ≤100 live keys/viewer — rejected never truncated; adjust = optimistic
+  concurrency token on `Value` + bounded retries so concurrent increments SUM), pipeline actions
+  `set_viewer_data`/`adjust_viewer_data` (target = `{variable}` ref / @login of a known local user /
+  platform Guid; value template-resolves; fresh value published into `{viewer.data.<key>}`), template
+  groups `{viewer.data.*}`/`{target.data.*}` + M.1 stat helpers `{viewer.messages|watchtime|firstseen|
+  redemptions|songrequests}` (+ `{target.*}` mirrors) resolved lazily needed-gated with one bulk read
+  per side — identity-first (`user.provider` now dispatcher-seeded) so YouTube/Kick chatters resolve —
+  `!stats`/`!profile` builtins (compose M.1 profile + M.3 streak + wallet + REAL rank = 1 + richer
+  wallets; honest degradation for never-seen viewers; custom template gets `{stats.*}` vars),
+  `ViewerDataController` (GET map / PUT / DELETE per §5), Gate-2 seeds `viewerdata:read`(Mod)/
+  `viewerdata:write`(Editor), GDPR erasure hard-deletes the subject's rows (audit `ViewerData`),
+  openapi snapshot refreshed. 29 new tests. **BONUS gap closed in the same train:** G.4 `NamedCounter`
+  was schema-only since slice 1 — `INamedCounterService` + `set_counter`/`adjust_counter` actions +
+  `{count.*}` resolution (unset renders 0) now exist, with the same concurrency-token adjust semantics.
+  **Deliberate deltas vs spec:** shipped template syntax is SINGLE-brace `{…}` (the resolver's
+  platform-wide reality — the spec's `{{…}}` is a corpus-wide notation drift, not per-viewer-data
+  specific); no `ViewerDatumRepository` layer (services ride `IApplicationDbContext`, the shipped
+  giveaways precedent); `!stats` composes `IViewerAnalyticsService`+wallet directly
+  (`ICommunityService.GetViewerAsync` from the corpus was never built); @target resolution is
+  local-users-only by design (stats/data about a never-seen viewer are all-zero — no remote lookup).
 - [ ] **15. Advanced moderation** (`moderation.md`) — network-nuke, shared-ban trust, reports/evidence,
   per-user panel, unban queue, suspicious users, escalation ladder.
 - [ ] **16. TTS advanced** (`tts.md`) — mod approval queue, per-viewer voices, profanity filters, BYOK,

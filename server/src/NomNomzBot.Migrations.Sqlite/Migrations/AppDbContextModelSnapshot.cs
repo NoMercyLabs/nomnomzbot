@@ -1157,6 +1157,7 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<long>("Value")
+                        .IsConcurrencyToken()
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER")
                         .HasDefaultValue(0L);
@@ -6209,6 +6210,52 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.ToTable("UserTtsVoices");
                 });
 
+            modelBuilder.Entity("NomNomzBot.Domain.ViewerData.Entities.ViewerDatum", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("BroadcasterId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Key")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Value")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("ViewerUserId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ViewerUserId");
+
+                    b.HasIndex("BroadcasterId", "ViewerUserId");
+
+                    b.HasIndex("BroadcasterId", "ViewerUserId", "Key")
+                        .IsUnique()
+                        .HasDatabaseName("IX_ViewerDatum_BroadcasterId_ViewerUserId_Key")
+                        .HasFilter("\"DeletedAt\" IS NULL");
+
+                    b.ToTable("ViewerData");
+                });
+
             modelBuilder.Entity("NomNomzBot.Domain.Webhooks.Entities.InboundWebhookEndpoint", b =>
                 {
                     b.Property<Guid>("Id")
@@ -7099,6 +7146,25 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                         .IsRequired();
 
                     b.Navigation("Channel");
+                });
+
+            modelBuilder.Entity("NomNomzBot.Domain.ViewerData.Entities.ViewerDatum", b =>
+                {
+                    b.HasOne("NomNomzBot.Domain.Identity.Entities.Channel", "Channel")
+                        .WithMany()
+                        .HasForeignKey("BroadcasterId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("NomNomzBot.Domain.Identity.Entities.User", "Viewer")
+                        .WithMany()
+                        .HasForeignKey("ViewerUserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Channel");
+
+                    b.Navigation("Viewer");
                 });
 
             modelBuilder.Entity("NomNomzBot.Domain.Widgets.Entities.Widget", b =>

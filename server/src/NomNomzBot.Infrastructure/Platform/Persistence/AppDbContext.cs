@@ -149,6 +149,8 @@ public class AppDbContext : DbContext, IApplicationDbContext
     public DbSet<ChannelBuiltinCommand> ChannelBuiltinCommands => Set<ChannelBuiltinCommand>();
     public DbSet<CommandCooldownState> CommandCooldownStates => Set<CommandCooldownState>();
     public DbSet<NamedCounter> NamedCounters => Set<NamedCounter>();
+    public DbSet<Domain.ViewerData.Entities.ViewerDatum> ViewerData =>
+        Set<Domain.ViewerData.Entities.ViewerDatum>();
     public DbSet<CommandUsage> CommandUsages => Set<CommandUsage>();
 
     // Event store — append-only journal (O.1), per-tenant sequences (Q.3), projection checkpoints (O.3)

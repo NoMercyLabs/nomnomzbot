@@ -10,27 +10,37 @@
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using NomNomzBot.Domain.Commands.Entities;
+using NomNomzBot.Domain.ViewerData.Entities;
 
-namespace NomNomzBot.Infrastructure.Commands.Persistence;
+namespace NomNomzBot.Infrastructure.ViewerData.Persistence;
 
-public class NamedCounterConfiguration : IEntityTypeConfiguration<NamedCounter>
+public class ViewerDatumConfiguration : IEntityTypeConfiguration<ViewerDatum>
 {
-    public void Configure(EntityTypeBuilder<NamedCounter> builder)
+    public void Configure(EntityTypeBuilder<ViewerDatum> builder)
     {
         builder.HasKey(e => e.Id);
 
         builder.Property(e => e.BroadcasterId).IsRequired();
+        builder.Property(e => e.ViewerUserId).IsRequired();
         builder.Property(e => e.Key).IsRequired().HasMaxLength(50);
-        builder.Property(e => e.Value).IsRequired().HasDefaultValue(0L);
+        builder.Property(e => e.Value).IsRequired().HasMaxLength(500);
 
-        // Concurrency token: adjust_counter's read-modify-write retries on a lost race instead of
+        // Concurrency token: adjust_viewer_data's read-modify-write retries on a lost race instead of
         // silently overwriting a concurrent increment (final value must equal the sum of all deltas).
         builder.Property(e => e.Value).IsConcurrencyToken();
 
+        // Partial so a soft-deleted row never blocks re-creating the same key (soft-delete world).
         builder
-            .HasIndex(e => new { e.BroadcasterId, e.Key })
+            .HasIndex(e => new
+            {
+                e.BroadcasterId,
+                e.ViewerUserId,
+                e.Key,
+            })
             .IsUnique()
-            .HasDatabaseName("IX_NamedCounter_BroadcasterId_Key");
+            .HasDatabaseName("IX_ViewerDatum_BroadcasterId_ViewerUserId_Key")
+            .HasFilter("\"DeletedAt\" IS NULL");
+
+        builder.HasIndex(e => new { e.BroadcasterId, e.ViewerUserId });
     }
 }

@@ -455,6 +455,8 @@ public sealed class IdentityRekeyBehaviorTests
         public DbSet<CommandCooldownState> CommandCooldownStates =>
             throw new NotSupportedException();
         public DbSet<NamedCounter> NamedCounters => throw new NotSupportedException();
+        public DbSet<NomNomzBot.Domain.ViewerData.Entities.ViewerDatum> ViewerData =>
+            throw new NotSupportedException();
         public DbSet<CommandUsage> CommandUsages => throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.EventStore.Entities.EventJournal> EventJournals =>
             throw new NotSupportedException();

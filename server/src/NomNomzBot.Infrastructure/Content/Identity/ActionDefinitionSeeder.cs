@@ -353,6 +353,11 @@ public sealed class ActionDefinitionSeeder : ISeeder
         M("customdata:read", Mod);
         M("customdata:write", Editor);
 
+        // Per-viewer data store (per-viewer-data.md §5) — a viewer's custom key/values (death counters,
+        // quest flags). Browsing is mod work; hand-editing what pipelines wrote sits at Editor.
+        M("viewerdata:read", Mod);
+        M("viewerdata:write", Editor);
+
         // Sound clips (sound-system.md §5) — audio clip library for pipeline SendSound actions. Read
         // (including preview playback, non-mutating) DEFAULTS to Moderator, floor Vip (broadcaster may open it
         // to a VIP); write (upload/update/delete) at Editor.

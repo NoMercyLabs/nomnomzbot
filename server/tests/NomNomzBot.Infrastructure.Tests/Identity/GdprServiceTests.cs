@@ -202,6 +202,71 @@ public sealed class GdprServiceTests
         (await db.Users.SingleAsync(u => u.Id == SubjectUser)).Enabled.Should().BeFalse();
     }
 
+    [Fact]
+    public async Task DeleteUserData_ScrubsTheSubjectsViewerData_AcrossChannels_AndLeavesOthers()
+    {
+        (GdprService sut, _, GdprTestDbContext db) = Build();
+        db.Users.Add(
+            new User
+            {
+                Id = SubjectUser,
+                TwitchUserId = "tw-subject",
+                Username = "subject",
+                UsernameNormalized = "subject",
+                DisplayName = "Subject",
+            }
+        );
+        db.Users.Add(
+            new User
+            {
+                Id = OtherUser,
+                TwitchUserId = "tw-other",
+                Username = "other",
+                UsernameNormalized = "other",
+                DisplayName = "Other",
+            }
+        );
+        // Two channels' worth of subject data — one row already soft-deleted — plus another viewer's row.
+        db.ViewerData.AddRange(
+            new NomNomzBot.Domain.ViewerData.Entities.ViewerDatum
+            {
+                BroadcasterId = SubjectChannel,
+                ViewerUserId = SubjectUser,
+                Key = "deaths",
+                Value = "12",
+            },
+            new NomNomzBot.Domain.ViewerData.Entities.ViewerDatum
+            {
+                BroadcasterId = OtherChannel,
+                ViewerUserId = SubjectUser,
+                Key = "quest",
+                Value = "done",
+                DeletedAt = DateTime.UtcNow,
+            },
+            new NomNomzBot.Domain.ViewerData.Entities.ViewerDatum
+            {
+                BroadcasterId = SubjectChannel,
+                ViewerUserId = OtherUser,
+                Key = "deaths",
+                Value = "3",
+            }
+        );
+        await db.SaveChangesAsync();
+
+        Result result = await sut.DeleteUserDataAsync(SubjectUser.ToString());
+
+        result.IsSuccess.Should().BeTrue();
+        // Erasure is a HARD delete — even the already-soft-deleted row is gone; the other viewer keeps theirs.
+        List<NomNomzBot.Domain.ViewerData.Entities.ViewerDatum> remaining = await db
+            .ViewerData.IgnoreQueryFilters()
+            .ToListAsync();
+        remaining.Should().ContainSingle().Which.ViewerUserId.Should().Be(OtherUser);
+
+        DeletionAuditLog audit = await db.DeletionAuditLogs.SingleAsync();
+        audit.TablesAffected.Should().Contain("ViewerData");
+        audit.RowsDeleted.Should().BeGreaterThanOrEqualTo(2);
+    }
+
     /// <summary>A passthrough scope-grant so the vault's reconcile call is a no-op for these tests.</summary>
     private sealed class NoopScopeGrant : IScopeGrantService
     {
@@ -384,6 +449,8 @@ internal sealed class GdprTestDbContext : DbContext, IApplicationDbContext
     public DbSet<ChannelBuiltinCommand> ChannelBuiltinCommands => Set<ChannelBuiltinCommand>();
     public DbSet<CommandCooldownState> CommandCooldownStates => Set<CommandCooldownState>();
     public DbSet<NamedCounter> NamedCounters => Set<NamedCounter>();
+    public DbSet<NomNomzBot.Domain.ViewerData.Entities.ViewerDatum> ViewerData =>
+        Set<NomNomzBot.Domain.ViewerData.Entities.ViewerDatum>();
     public DbSet<CommandUsage> CommandUsages => Set<CommandUsage>();
     public DbSet<NomNomzBot.Domain.EventStore.Entities.EventJournal> EventJournals =>
         Set<NomNomzBot.Domain.EventStore.Entities.EventJournal>();

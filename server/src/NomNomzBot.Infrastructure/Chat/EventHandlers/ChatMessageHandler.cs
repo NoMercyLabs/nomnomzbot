@@ -538,6 +538,9 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
             ["user"] = @event.UserDisplayName,
             ["user.id"] = @event.UserId,
             ["user.name"] = @event.UserLogin,
+            // Which platform user.id belongs to — lets the template layer resolve the viewer
+            // identity-correctly for non-Twitch chatters ({viewer.data.*}, {viewer.*} stats).
+            ["user.provider"] = @event.Provider,
             ["user.role"] = GetUserRole(@event),
             ["target"] = target,
             ["args"] = args,

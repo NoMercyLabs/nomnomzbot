@@ -95,6 +95,7 @@ public interface IApplicationDbContext
     DbSet<ChannelBuiltinCommand> ChannelBuiltinCommands { get; }
     DbSet<CommandCooldownState> CommandCooldownStates { get; }
     DbSet<NamedCounter> NamedCounters { get; }
+    DbSet<NomNomzBot.Domain.ViewerData.Entities.ViewerDatum> ViewerData { get; }
     DbSet<CommandUsage> CommandUsages { get; }
 
     // Event store (append-only journal + per-tenant sequences + projection checkpoints)

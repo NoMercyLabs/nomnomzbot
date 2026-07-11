@@ -405,6 +405,8 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Commands.Entities.NamedCounter> NamedCounters =>
         throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.ViewerData.Entities.ViewerDatum> ViewerData =>
+        throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Commands.Entities.CommandUsage> CommandUsages =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.EventStore.Entities.EventJournal> EventJournals =>
