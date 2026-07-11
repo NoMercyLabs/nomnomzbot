@@ -335,7 +335,21 @@ ONE substrate — a chat feed that **aggregates messages across a SET of channel
   per-user panel, unban queue, suspicious users, escalation ladder.
 - [ ] **16. TTS advanced** (`tts.md`) — mod approval queue, per-viewer voices, profanity filters, BYOK,
   usage ledger.
-- [ ] **17. Live-ops schedule & markers** (`broadcaster-liveops.md`) — schedule CRUD + vacation; markers.
+- [x] **17. Live-ops schedule & markers — SHIPPED 2026-07-11** (`broadcaster-liveops.md`; dashboard
+  schedule/marker controls → handoff). The last gap in the live-ops surface: stream SCHEDULE (segments +
+  vacation) and stream MARKERS. Added as thin actions on the existing `LiveOpsController` over the
+  already-shipped, already-wire-tested Helix sub-clients (`ITwitchScheduleApi` + `ITwitchStreamsApi`
+  marker) — matching the shipped thin-forward pattern of the sibling polls/predictions/raids/ads/clips
+  actions. Routes: `GET schedule` (+ `GET schedule/icalendar` text/calendar), `POST/PATCH/DELETE
+  schedule/segment[/{id}]`, `PUT schedule/settings` (vacation), `POST markers`. Gate-2 keys
+  `live-ops:schedule:read`(Mod)/`live-ops:schedule:write`(Editor)/`live-ops:marker:create`(Mod) were
+  already seeded — now consumed. Stateless — no service, no domain events, no table, no migration
+  (schedule is Helix read-through per §9.4; the §2 events have no consumer and the sibling ops don't emit
+  them either — deliberate consistency delta). openapi refreshed (+1138). **No new unit tests by design:**
+  the behavior lives in the wire-tested `TwitchScheduleApiTests`/`TwitchStreamsApiTests`; the controller is
+  a verified thin forward (build + DI boot + openapi + live 401 smoke), exactly like every sibling
+  live-ops action (which also carry zero controller tests). The whole `broadcaster-liveops.md` surface —
+  polls, predictions, raids, ads, clips, schedule, markers — is now complete.
 - [x] **18. Engagement triggers — BACKEND SHIPPED 2026-07-11** (`engagement.md`; dashboard config UI →
   handoff). The auto-greet / loyalty-recognition detect→act layer. Two entities (`EngagementConfig` G.11
   one-per-channel, `ViewerEngagementState` G.12 one-per-channel+viewer, partial unique indexes, migration

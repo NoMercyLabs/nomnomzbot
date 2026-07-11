@@ -30,13 +30,17 @@ public class LiveOpsController : BaseController
     private readonly ITwitchRaidsApi _raids;
     private readonly ITwitchAdsApi _ads;
     private readonly ITwitchClipsApi _clips;
+    private readonly ITwitchScheduleApi _schedule;
+    private readonly ITwitchStreamsApi _streams;
 
     public LiveOpsController(
         ITwitchPollsApi polls,
         ITwitchPredictionsApi predictions,
         ITwitchRaidsApi raids,
         ITwitchAdsApi ads,
-        ITwitchClipsApi clips
+        ITwitchClipsApi clips,
+        ITwitchScheduleApi schedule,
+        ITwitchStreamsApi streams
     )
     {
         _polls = polls;
@@ -44,6 +48,8 @@ public class LiveOpsController : BaseController
         _raids = raids;
         _ads = ads;
         _clips = clips;
+        _schedule = schedule;
+        _streams = streams;
     }
 
     // ─── Polls ────────────────────────────────────────────────────────────────
@@ -353,6 +359,191 @@ public class LiveOpsController : BaseController
                 {
                     Data = result.Value,
                     Message = "Clip created.",
+                }
+            );
+    }
+
+    // ─── Stream schedule ────────────────────────────────────────────────────────
+    // Helix "Schedule" category (broadcaster-liveops.md §3.5). Read-through — no local table; each write is
+    // a Helix mutation. Segment CRUD + the vacation window; the iCalendar feed is served verbatim.
+
+    /// <summary>Toggle a vacation and/or (re)schedule its window (Helix PATCH /schedule/settings).</summary>
+    public record UpdateScheduleSettingsDto(
+        bool? IsVacationEnabled,
+        DateTimeOffset? VacationStartTime,
+        DateTimeOffset? VacationEndTime,
+        string? Timezone
+    );
+
+    /// <summary>Create a stream marker at the current live position (Helix POST /streams/markers).</summary>
+    public record CreateMarkerDto(string? Description = null);
+
+    /// <summary>Get the channel's stream schedule (segments + active vacation window) from Twitch.</summary>
+    [RequireAction("live-ops:schedule:read")]
+    [HttpGet("schedule")]
+    [ProducesResponseType<StatusResponseDto<TwitchSchedule>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetSchedule(
+        string channelId,
+        [FromQuery] string? after,
+        [FromQuery] int pageSize,
+        CancellationToken ct
+    )
+    {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
+
+        Result<TwitchSchedule> result = await _schedule.GetScheduleAsync(
+            broadcasterId,
+            new TwitchPageRequest(after, pageSize <= 0 ? 100 : pageSize),
+            ct
+        );
+        return result.IsFailure
+            ? TwitchResultResponse(result)
+            : Ok(new StatusResponseDto<TwitchSchedule> { Data = result.Value });
+    }
+
+    /// <summary>Get the channel's schedule as an iCalendar feed (RFC 5545, text/calendar).</summary>
+    [RequireAction("live-ops:schedule:read")]
+    [HttpGet("schedule/icalendar")]
+    [Produces("text/calendar")]
+    public async Task<IActionResult> GetScheduleICalendar(string channelId, CancellationToken ct)
+    {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
+
+        Result<string> result = await _schedule.GetICalendarAsync(broadcasterId, ct);
+        return result.IsFailure
+            ? TwitchResultResponse(result)
+            : Content(result.Value, "text/calendar");
+    }
+
+    /// <summary>Add a single or recurring broadcast segment to the schedule (Helix POST /schedule/segment).</summary>
+    [RequireAction("live-ops:schedule:write")]
+    [HttpPost("schedule/segment")]
+    [ProducesResponseType<StatusResponseDto<TwitchSchedule>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> CreateScheduleSegment(
+        string channelId,
+        [FromBody] CreateScheduleSegmentRequest request,
+        CancellationToken ct
+    )
+    {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
+
+        Result<TwitchSchedule> result = await _schedule.CreateSegmentAsync(
+            broadcasterId,
+            request,
+            ct
+        );
+        return result.IsFailure
+            ? TwitchResultResponse(result)
+            : Ok(new StatusResponseDto<TwitchSchedule> { Data = result.Value });
+    }
+
+    /// <summary>Edit a scheduled segment (Helix PATCH /schedule/segment).</summary>
+    [RequireAction("live-ops:schedule:write")]
+    [HttpPatch("schedule/segment/{segmentId}")]
+    [ProducesResponseType<StatusResponseDto<TwitchSchedule>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> UpdateScheduleSegment(
+        string channelId,
+        string segmentId,
+        [FromBody] UpdateScheduleSegmentRequest request,
+        CancellationToken ct
+    )
+    {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
+
+        Result<TwitchSchedule> result = await _schedule.UpdateSegmentAsync(
+            broadcasterId,
+            segmentId,
+            request,
+            ct
+        );
+        return result.IsFailure
+            ? TwitchResultResponse(result)
+            : Ok(new StatusResponseDto<TwitchSchedule> { Data = result.Value });
+    }
+
+    /// <summary>Remove a segment from the schedule (Helix DELETE /schedule/segment).</summary>
+    [RequireAction("live-ops:schedule:write")]
+    [HttpDelete("schedule/segment/{segmentId}")]
+    [ProducesResponseType<StatusResponseDto<bool>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> DeleteScheduleSegment(
+        string channelId,
+        string segmentId,
+        CancellationToken ct
+    )
+    {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
+
+        Result result = await _schedule.DeleteSegmentAsync(broadcasterId, segmentId, ct);
+        return result.IsFailure
+            ? TwitchResultResponse(result)
+            : Ok(
+                new StatusResponseDto<bool> { Data = true, Message = "Schedule segment deleted." }
+            );
+    }
+
+    /// <summary>Toggle or schedule the broadcaster's vacation window (Helix PATCH /schedule/settings).</summary>
+    [RequireAction("live-ops:schedule:write")]
+    [HttpPut("schedule/settings")]
+    [ProducesResponseType<StatusResponseDto<bool>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> UpdateScheduleSettings(
+        string channelId,
+        [FromBody] UpdateScheduleSettingsDto dto,
+        CancellationToken ct
+    )
+    {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
+
+        Result result = await _schedule.UpdateScheduleSettingsAsync(
+            broadcasterId,
+            dto.IsVacationEnabled,
+            dto.VacationStartTime,
+            dto.VacationEndTime,
+            dto.Timezone,
+            ct
+        );
+        return result.IsFailure
+            ? TwitchResultResponse(result)
+            : Ok(
+                new StatusResponseDto<bool> { Data = true, Message = "Schedule settings updated." }
+            );
+    }
+
+    // ─── Stream markers ───────────────────────────────────────────────────────
+    // Helix "Streams" marker endpoint (broadcaster-liveops.md §3.6). Stateless — a marker on the current
+    // live VOD position. Twitch rejects the call when the channel is offline (surfaced as the Twitch error).
+
+    /// <summary>Mark the current live position for later VOD review (Helix POST /streams/markers).</summary>
+    [RequireAction("live-ops:marker:create")]
+    [HttpPost("markers")]
+    [ProducesResponseType<StatusResponseDto<TwitchStreamMarker>>(StatusCodes.Status201Created)]
+    public async Task<IActionResult> CreateStreamMarker(
+        string channelId,
+        [FromBody] CreateMarkerDto dto,
+        CancellationToken ct
+    )
+    {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
+
+        Result<TwitchStreamMarker> result = await _streams.CreateStreamMarkerAsync(
+            broadcasterId,
+            dto.Description,
+            ct
+        );
+        return result.IsFailure
+            ? TwitchResultResponse(result)
+            : StatusCode(
+                StatusCodes.Status201Created,
+                new StatusResponseDto<TwitchStreamMarker>
+                {
+                    Data = result.Value,
+                    Message = "Stream marker created.",
                 }
             );
     }
