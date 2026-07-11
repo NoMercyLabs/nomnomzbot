@@ -16,8 +16,9 @@ namespace NomNomzBot.Api.Tests.Controllers;
 
 /// <summary>
 /// Proves the overlay host shell serves at the exact URL shape the widgets API hands out and carries the
-/// load-bearing wiring: the hub path, the token gate, the audio-bus targets, and the SignalR framing —
-/// the pieces that make walk-in sounds audible in an OBS browser source.
+/// load-bearing wiring: the hub path, the token gate, the audio-bus targets, the SignalR framing, and the
+/// built-in widget renderers (alerts / now-playing / hype-train) fed by <c>WidgetAlertHandlers</c> — the
+/// pieces that make walk-in sounds audible and alerts visible in an OBS browser source.
 /// </summary>
 public sealed class OverlayHostControllerTests
 {
@@ -41,5 +42,29 @@ public sealed class OverlayHostControllerTests
                 "String.fromCharCode(30)",
                 "SignalR JSON-protocol frames are record-separator delimited"
             );
+    }
+
+    [Fact]
+    public void Renders_every_built_in_widget_surface_the_server_pushes()
+    {
+        OverlayHostController sut = new();
+
+        ContentResult content = sut.Get().Should().BeOfType<ContentResult>().Subject;
+
+        // One marker per server-pushed event family (WidgetAlertHandlers) — a renderer the page
+        // silently drops would make the dashboard's widget config a lie.
+        content
+            .Content.Should()
+            .Contain("renderWidgetEvent", "WidgetEvent must render, not just log")
+            .And.Contain("\"follow\"", "follow alerts")
+            .And.Contain("\"subscription\"", "subscription alerts")
+            .And.Contain("\"resub\"", "resub alerts")
+            .And.Contain("\"gift\"", "gift alerts")
+            .And.Contain("\"cheer\"", "cheer alerts")
+            .And.Contain("\"raid\"", "raid alerts")
+            .And.Contain("now_playing", "the standing now-playing pill")
+            .And.Contain("hype_train", "the standing hype-train meter")
+            .And.Contain("textContent", "payload text must be inserted as text nodes, never markup")
+            .And.Contain("applySettings", "widget settings apply on join and on live change");
     }
 }
