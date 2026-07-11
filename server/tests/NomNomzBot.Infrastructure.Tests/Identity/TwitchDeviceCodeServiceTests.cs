@@ -213,6 +213,49 @@ public sealed class TwitchDeviceCodeServiceTests
         wire.CallCount.Should().Be(1); // only the first poll hit Twitch
     }
 
+    [Fact]
+    public async Task Poll_ReSendsTheScopesTheCodeWasRequestedWith_NotWhateverTheCallerPasses()
+    {
+        // The scope-regrant bug: RequestDeviceCodeAsync was called with the WIDENED set (granted ∪ missing),
+        // but the poll re-sent only the base login scopes, so Twitch never issued the extra scopes and the
+        // "permissions needed" banner never cleared. The poll must re-send exactly what the code authorized.
+        AuthDbContext context = AuthTestBuilder.NewContext();
+        ITokenProtector protector = AuthTestBuilder.RealTokenProtector(context, out _);
+        RoutingHandler wire = new(DeviceResponseJson, TokenResponseJson);
+        TwitchDeviceCodeService service = new(
+            AuthTestBuilder.CredentialsProvider(
+                context,
+                protector,
+                ConfigWith("nomnomz-public-id")
+            ),
+            new DeviceCodePollThrottle(TimeProvider.System),
+            new SingleClientFactory(wire),
+            NullLogger<TwitchDeviceCodeService>.Instance,
+            TimeProvider.System
+        );
+        string[] widened =
+        [
+            "user:read:chat",
+            "user:write:chat",
+            "channel:manage:vips",
+            "user:read:emotes",
+        ];
+
+        DeviceCodeResult? code = await service.RequestDeviceCodeAsync(widened);
+        code!.DeviceCode.Should().Be("DEV-ABC-123");
+
+        // Poll with only the BASE set — the service must ignore it and re-send the widened set it stored.
+        DevicePollOutcome outcome = await service.PollOnceAsync(
+            "DEV-ABC-123",
+            ["user:read:chat", "user:write:chat"]
+        );
+
+        outcome.Status.Should().Be(DevicePollStatus.Authorized);
+        string pollBody = WebUtility.UrlDecode(wire.LastTokenBody!);
+        pollBody.Should().Contain("channel:manage:vips");
+        pollBody.Should().Contain("user:read:emotes");
+    }
+
     // ── harness ────────────────────────────────────────────────────────────────
 
     private static IConfiguration ConfigWith(string clientId) =>
@@ -274,5 +317,31 @@ public sealed class TwitchDeviceCodeServiceTests
     private sealed class SingleClientFactory(HttpMessageHandler handler) : IHttpClientFactory
     {
         public HttpClient CreateClient(string name) => new(handler, disposeHandler: false);
+    }
+
+    /// <summary>Routes by endpoint: the device-authorization URL gets the device JSON, the token URL the token
+    /// JSON — so one instance can serve a full request→poll flow and capture the poll body.</summary>
+    private sealed class RoutingHandler(string deviceJson, string tokenJson) : HttpMessageHandler
+    {
+        public string? LastTokenBody { get; private set; }
+
+        protected override async Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken
+        )
+        {
+            bool isToken = request.RequestUri!.AbsolutePath.EndsWith("/token");
+            if (isToken && request.Content is not null)
+                LastTokenBody = await request.Content.ReadAsStringAsync(cancellationToken);
+
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(
+                    isToken ? tokenJson : deviceJson,
+                    Encoding.UTF8,
+                    "application/json"
+                ),
+            };
+        }
     }
 }

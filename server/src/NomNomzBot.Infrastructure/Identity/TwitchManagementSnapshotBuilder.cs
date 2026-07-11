@@ -41,15 +41,36 @@ public sealed class TwitchManagementSnapshotBuilder(
         Dictionary<Guid, TwitchManagementMember> byUser = [];
         HashSet<MembershipSource> authoritative = [];
 
-        Result<TwitchPage<TwitchModerator>> modsResult = await moderators.GetModeratorsAsync(
-            broadcasterId,
-            new TwitchPageRequest(),
-            ct
-        );
-        if (modsResult.IsSuccess)
+        // ── Moderators (TwitchBadge) ──────────────────────────────────────────
+        // A source is authoritative FOR PRUNING only when its snapshot is PROVABLY COMPLETE: every page read
+        // AND every member resolved to a local user. A partial snapshot — a failed page, a channel with more
+        // than one page (>100) of moderators, or a transient get-or-create miss — must NOT prune, or the
+        // reconcile silently strips a real moderator's role (they lose every mod tool; every
+        // `[RequireAction("moderation:*")]` then 403s and their dashboard goes blank). Better to keep a stale
+        // grant one extra cycle than to wrongly revoke a live one.
+        bool modsComplete = true;
+        string? cursor = null;
+        int pageGuard = 0;
+        do
         {
-            authoritative.Add(MembershipSource.TwitchBadge);
-            foreach (TwitchModerator mod in modsResult.Value.Items)
+            Result<TwitchPage<TwitchModerator>> page = await moderators.GetModeratorsAsync(
+                broadcasterId,
+                new TwitchPageRequest(After: cursor),
+                ct
+            );
+            if (page.IsFailure)
+            {
+                logger.LogWarning(
+                    "Management snapshot: reading moderators for {BroadcasterId} failed: {Error} ({Code}) — moderator roles left intact (not pruned this run)",
+                    broadcasterId,
+                    page.ErrorMessage,
+                    page.ErrorCode
+                );
+                modsComplete = false;
+                break;
+            }
+
+            foreach (TwitchModerator mod in page.Value.Items)
             {
                 Guid? userId = await ResolveUserIdAsync(
                     mod.UserId,
@@ -64,23 +85,29 @@ public sealed class TwitchManagementSnapshotBuilder(
                         ManagementRole.Moderator,
                         MembershipSource.TwitchBadge
                     );
+                else
+                    // An unresolved member means the snapshot doesn't fully represent the channel's mods;
+                    // do not treat it as authoritative for pruning this run.
+                    modsComplete = false;
             }
-        }
-        else
-        {
-            logger.LogWarning(
-                "Management snapshot: reading moderators for {BroadcasterId} failed: {Error} ({Code}) — moderator roles left intact (not pruned this run)",
-                broadcasterId,
-                modsResult.ErrorMessage,
-                modsResult.ErrorCode
-            );
-        }
 
+            cursor = page.Value.NextCursor;
+        } while (!string.IsNullOrEmpty(cursor) && ++pageGuard < 100);
+
+        if (modsComplete)
+            authoritative.Add(MembershipSource.TwitchBadge);
+        else
+            logger.LogWarning(
+                "Management snapshot: moderator snapshot for {BroadcasterId} was incomplete (a failed page or unresolved member) — moderator roles left intact (not pruned this run)",
+                broadcasterId
+            );
+
+        // ── Channel editors (HelixEditors) ────────────────────────────────────
         Result<IReadOnlyList<TwitchChannelEditor>> editorsResult =
             await channels.GetChannelEditorsAsync(broadcasterId, ct);
         if (editorsResult.IsSuccess)
         {
-            authoritative.Add(MembershipSource.HelixEditors);
+            bool editorsComplete = true;
             foreach (TwitchChannelEditor editor in editorsResult.Value)
             {
                 // Editors expose only the Twitch user id + display name (no login); fall back to the display
@@ -98,7 +125,17 @@ public sealed class TwitchManagementSnapshotBuilder(
                         ManagementRole.Editor,
                         MembershipSource.HelixEditors
                     );
+                else
+                    editorsComplete = false;
             }
+
+            if (editorsComplete)
+                authoritative.Add(MembershipSource.HelixEditors);
+            else
+                logger.LogWarning(
+                    "Management snapshot: editor snapshot for {BroadcasterId} was incomplete (an unresolved editor) — editor roles left intact (not pruned this run)",
+                    broadcasterId
+                );
         }
         else
         {

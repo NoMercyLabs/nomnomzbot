@@ -42,6 +42,20 @@ public sealed class TwitchAuthService : ITwitchAuthService
     private const string RevokeEndpoint = "https://id.twitch.tv/oauth2/revoke";
     private const string TwitchProvider = AuthEnums.IntegrationProvider.Twitch;
 
+    // The bot's own Twitch connection uses the "<twitch>_bot" provider key. Both ride the SAME Twitch OAuth
+    // app, so both refresh through this service; every OTHER provider (spotify/discord/youtube/…) has its own
+    // token endpoint + credentials and MUST NOT be sent here.
+    private const string TwitchBotProvider = AuthEnums.IntegrationProvider.Twitch + "_bot";
+
+    /// <summary>
+    /// This service speaks ONLY to Twitch's token endpoint with Twitch credentials, so it can refresh only
+    /// Twitch-family connections. A non-Twitch refresh token posted to Twitch always fails — which is how a
+    /// Spotify/Discord token got dragged into <see cref="MarkRefreshFailureAsync"/> and flipped to
+    /// needs_reauth. Guard every path with this.
+    /// </summary>
+    private static bool IsTwitchFamily(string provider) =>
+        provider == TwitchProvider || provider == TwitchBotProvider;
+
     public TwitchAuthService(
         IApplicationDbContext db,
         IIntegrationTokenVault vault,
@@ -119,6 +133,18 @@ public sealed class TwitchAuthService : ITwitchAuthService
         CancellationToken ct = default
     )
     {
+        // Hard guard (defense in depth): this method ALWAYS posts to Twitch with Twitch credentials, so a
+        // non-Twitch provider handed to it would fail every time and wrongly march its connection to
+        // needs_reauth. Non-Twitch providers refresh through their own services; never here.
+        if (!IsTwitchFamily(provider))
+        {
+            _logger.LogDebug(
+                "TwitchAuthService.RefreshTokenAsync ignoring non-Twitch provider {Provider}",
+                provider
+            );
+            return null;
+        }
+
         IntegrationConnection? connection = await ResolveConnectionAsync(
             broadcasterId,
             provider,
@@ -224,6 +250,9 @@ public sealed class TwitchAuthService : ITwitchAuthService
     {
         DateTime threshold = _timeProvider.GetUtcNow().UtcDateTime.AddMinutes(30);
 
+        // ONLY Twitch-family tokens: this service refreshes against Twitch's endpoint. Without this filter
+        // the loop dragged every provider's expiring token (spotify/discord/youtube) through the Twitch
+        // refresh, which always failed and flipped those connections to needs_reauth after 3 cycles.
         var expiring = await _db
             .IntegrationTokens.IgnoreQueryFilters()
             .Where(t =>
@@ -232,6 +261,10 @@ public sealed class TwitchAuthService : ITwitchAuthService
                 && t.ExpiresAt != null
                 && t.ExpiresAt < threshold
                 && t.BroadcasterId != null
+                && (
+                    t.Connection.Provider == TwitchProvider
+                    || t.Connection.Provider == TwitchBotProvider
+                )
             )
             .Select(t => new { t.BroadcasterId, t.Connection.Provider })
             .ToListAsync(ct);

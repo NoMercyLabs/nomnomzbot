@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Collections.Concurrent;
 using System.Net.Http.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.Logging;
@@ -39,6 +40,13 @@ public sealed class TwitchDeviceCodeService : ITwitchDeviceCodeService
 
     // Twitch's device-flow poll interval is 5s; never forward a poll to Twitch faster than this per code.
     private static readonly TimeSpan MinPollInterval = TimeSpan.FromSeconds(5);
+
+    // The scopes each device code was REQUESTED with, so the token poll re-sends EXACTLY the same set. Twitch's
+    // device token endpoint takes a `scopes` field; polling with a set narrower than the authorization (which is
+    // what happened when a scope RE-GRANT — requesting granted∪missing — was polled with only the base login
+    // scopes) meant the widened scopes were never issued and the "permissions needed" banner could never clear.
+    // Same single-instance assumption as the poll throttle (both keyed by device code).
+    private readonly ConcurrentDictionary<string, string[]> _requestedScopes = new();
 
     public TwitchDeviceCodeService(
         ISystemCredentialsProvider credentials,
@@ -87,6 +95,9 @@ public sealed class TwitchDeviceCodeService : ITwitchDeviceCodeService
         if (json is null)
             return null;
 
+        // Remember what THIS code was authorized for, so the poll re-sends the same set (widened for a regrant).
+        _requestedScopes[json.DeviceCode] = [.. scopes];
+
         return new DeviceCodeResult(
             json.DeviceCode,
             json.UserCode,
@@ -112,11 +123,17 @@ public sealed class TwitchDeviceCodeService : ITwitchDeviceCodeService
         if (string.IsNullOrWhiteSpace(clientId))
             return new DevicePollOutcome(DevicePollStatus.Error);
 
+        // Re-send the scopes the code was REQUESTED with — not whatever the caller passed. A regrant's widened
+        // set lives here; polling with the narrower base set is what stopped the extra scopes from ever landing.
+        string[] pollScopes = _requestedScopes.TryGetValue(deviceCode, out string[]? stored)
+            ? stored
+            : [.. scopes];
+
         FormUrlEncodedContent form = new(
             new Dictionary<string, string>
             {
                 ["client_id"] = clientId,
-                ["scopes"] = string.Join(' ', scopes),
+                ["scopes"] = string.Join(' ', pollScopes),
                 ["device_code"] = deviceCode,
                 ["grant_type"] = DeviceCodeGrant,
             }
@@ -131,6 +148,7 @@ public sealed class TwitchDeviceCodeService : ITwitchDeviceCodeService
             if (json is null)
                 return new DevicePollOutcome(DevicePollStatus.Error);
 
+            _requestedScopes.TryRemove(deviceCode, out _);
             TokenResult tokens = new(
                 json.AccessToken,
                 json.RefreshToken,
@@ -144,7 +162,12 @@ public sealed class TwitchDeviceCodeService : ITwitchDeviceCodeService
         // carries it in `message` (sometimes `error`), so match on the raw body to tolerate either shaping —
         // the reason tokens are disjoint substrings, so a contains-check can't misclassify.
         string body = await resp.Content.ReadAsStringAsync(ct);
-        return ClassifyPendingBody(body);
+        DevicePollOutcome outcome = ClassifyPendingBody(body);
+        // Drop the remembered scopes once the flow reaches a terminal state (declined/expired) so abandoned
+        // codes don't accumulate; a still-pending poll keeps them for the next attempt.
+        if (outcome.Status is not DevicePollStatus.Pending)
+            _requestedScopes.TryRemove(deviceCode, out _);
+        return outcome;
     }
 
     private DevicePollOutcome ClassifyPendingBody(string body)

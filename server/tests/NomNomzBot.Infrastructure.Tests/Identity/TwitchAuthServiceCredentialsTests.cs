@@ -155,6 +155,28 @@ public sealed class TwitchAuthServiceCredentialsTests
         wire.CallCount.Should().Be(0);
     }
 
+    [Theory]
+    [InlineData("spotify")]
+    [InlineData("discord")]
+    [InlineData("youtube")]
+    public async Task RefreshTokenAsync_ForANonTwitchProvider_IsANoOp_AndNeverPostsToTwitch(
+        string provider
+    )
+    {
+        // The scheduled refresh loop once handed EVERY provider's expiring token to this Twitch-only method,
+        // which POSTed the non-Twitch refresh token to Twitch's endpoint — a guaranteed failure that flipped
+        // Spotify/Discord/YouTube connections to needs_reauth after 3 cycles. The provider guard must skip
+        // them outright: null result, and NOT a single request to Twitch.
+        (TwitchAuthService service, RecordingTokenHandler wire) = Build(
+            new ConfigurationBuilder().Build()
+        );
+
+        TokenResult? result = await service.RefreshTokenAsync(Guid.NewGuid(), provider);
+
+        result.Should().BeNull();
+        wire.CallCount.Should().Be(0);
+    }
+
     // ── doubles ──────────────────────────────────────────────────────────────
 
     /// <summary>Records the token-endpoint request body and returns a canned successful token response.</summary>

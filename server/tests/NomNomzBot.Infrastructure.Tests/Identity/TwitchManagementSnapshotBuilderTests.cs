@@ -212,6 +212,159 @@ public sealed class TwitchManagementSnapshotBuilderTests
         snapshot.Members.Should().ContainSingle().Which.Role.Should().Be(ManagementRole.Editor);
     }
 
+    [Fact]
+    public async Task Paginates_all_moderator_pages_before_pruning()
+    {
+        (
+            TwitchManagementSnapshotBuilder sut,
+            ITwitchModeratorsApi mods,
+            ITwitchChannelsApi channels,
+            IUserService users
+        ) = Build();
+        Guid secondModGuid = Guid.Parse("0192a000-0000-7000-8000-00000000c012");
+        users
+            .GetOrCreateAsync(
+                "tw-mod2",
+                "mod2login",
+                "Mod2Name",
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(UserResult(secondModGuid, "mod2login", "Mod2Name"));
+
+        // Page 1 carries a NextCursor; page 2 exhausts it. A single-page reader would drop mod2 and then
+        // prune them — the exact churn this closes.
+        mods.GetModeratorsAsync(
+                Broadcaster,
+                Arg.Is<TwitchPageRequest>(p => p.After == null),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                Result.Success(
+                    new TwitchPage<TwitchModerator>(
+                        [new TwitchModerator("tw-mod", "modlogin", "ModName")],
+                        "cursor-1",
+                        2
+                    )
+                )
+            );
+        mods.GetModeratorsAsync(
+                Broadcaster,
+                Arg.Is<TwitchPageRequest>(p => p.After == "cursor-1"),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                Result.Success(
+                    new TwitchPage<TwitchModerator>(
+                        [new TwitchModerator("tw-mod2", "mod2login", "Mod2Name")],
+                        null,
+                        2
+                    )
+                )
+            );
+        channels
+            .GetChannelEditorsAsync(Broadcaster, Arg.Any<CancellationToken>())
+            .Returns(Result.Success<IReadOnlyList<TwitchChannelEditor>>([]));
+
+        ManagementSnapshot snapshot = await sut.BuildAsync(Broadcaster);
+
+        // Both mods across both pages are in the snapshot, and the source is authoritative (complete read).
+        snapshot.Members.Select(m => m.UserId).Should().BeEquivalentTo([ModGuid, secondModGuid]);
+        snapshot.AuthoritativeSources.Should().Contain(MembershipSource.TwitchBadge);
+    }
+
+    [Fact]
+    public async Task An_unresolved_moderator_makes_the_snapshot_incomplete_and_not_authoritative()
+    {
+        (
+            TwitchManagementSnapshotBuilder sut,
+            ITwitchModeratorsApi mods,
+            ITwitchChannelsApi channels,
+            IUserService users
+        ) = Build();
+        // One mod resolves; a second mod's get-or-create fails (transient). The read SUCCEEDED but the
+        // snapshot doesn't fully represent the channel — so TwitchBadge must NOT be authoritative for pruning,
+        // or the reconcile would strip a real moderator's role (their dashboard goes blank).
+        users
+            .GetOrCreateAsync(
+                "tw-flaky",
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Failure<UserDto>("transient DB error", "SERVICE_UNAVAILABLE"));
+        mods.GetModeratorsAsync(
+                Broadcaster,
+                Arg.Any<TwitchPageRequest>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                Result.Success(
+                    new TwitchPage<TwitchModerator>(
+                        [
+                            new TwitchModerator("tw-mod", "modlogin", "ModName"),
+                            new TwitchModerator("tw-flaky", "flakylogin", "FlakyName"),
+                        ],
+                        null,
+                        2
+                    )
+                )
+            );
+        channels
+            .GetChannelEditorsAsync(Broadcaster, Arg.Any<CancellationToken>())
+            .Returns(Result.Success<IReadOnlyList<TwitchChannelEditor>>([]));
+
+        ManagementSnapshot snapshot = await sut.BuildAsync(Broadcaster);
+
+        // The resolved mod is still recorded (so inserts work), but pruning is disabled this run.
+        snapshot.Members.Should().ContainSingle().Which.UserId.Should().Be(ModGuid);
+        snapshot.AuthoritativeSources.Should().NotContain(MembershipSource.TwitchBadge);
+    }
+
+    [Fact]
+    public async Task A_failed_second_page_disables_pruning_even_though_page_one_succeeded()
+    {
+        (
+            TwitchManagementSnapshotBuilder sut,
+            ITwitchModeratorsApi mods,
+            ITwitchChannelsApi channels,
+            _
+        ) = Build();
+        mods.GetModeratorsAsync(
+                Broadcaster,
+                Arg.Is<TwitchPageRequest>(p => p.After == null),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                Result.Success(
+                    new TwitchPage<TwitchModerator>(
+                        [new TwitchModerator("tw-mod", "modlogin", "ModName")],
+                        "cursor-1",
+                        2
+                    )
+                )
+            );
+        mods.GetModeratorsAsync(
+                Broadcaster,
+                Arg.Is<TwitchPageRequest>(p => p.After == "cursor-1"),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                Result.Failure<TwitchPage<TwitchModerator>>(
+                    "Twitch 503",
+                    TwitchErrorCodes.TwitchError
+                )
+            );
+        channels
+            .GetChannelEditorsAsync(Broadcaster, Arg.Any<CancellationToken>())
+            .Returns(Result.Success<IReadOnlyList<TwitchChannelEditor>>([]));
+
+        ManagementSnapshot snapshot = await sut.BuildAsync(Broadcaster);
+
+        snapshot.AuthoritativeSources.Should().NotContain(MembershipSource.TwitchBadge);
+    }
+
     private static Result<UserDto> UserResult(Guid id, string username, string displayName) =>
         Result.Success(
             new UserDto(
