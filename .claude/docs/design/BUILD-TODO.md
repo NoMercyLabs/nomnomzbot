@@ -143,9 +143,13 @@ every broadcaster token already holds the full scope set (`channel:read:subscrip
   the `ChatMessageHandler` command gate is REMOVED: **commands now execute and reply in YouTube chat**
   (closes item 6's "bot replies on YouTube"). Read seam = the canonical `ChatMessageReceivedEvent`
   ingest (item 6).
-- [ ] **3b. Remainder** — `IPlatformApi` (channel-ops: title/game/etc. per platform); a Kick
-  `IChatPlatform` + chat read (Kick's API); YouTube moderation surface (`liveChatBans` insert/delete,
-  `liveChatMessages.delete`) — the platform's moderation members are logged no-ops today.
+- [x] **3b-1. YouTube moderation surface — SHIPPED 2026-07-11.** Timeout = TEMPORARY live-chat ban
+  (`liveChat/bans` with `banDurationSeconds`), ban = permanent, delete = `liveChat/messages` delete —
+  all on the streamer's own token against the active session, offline/token-less = honest logged no-op.
+  Unban stays a logged no-op until ban-id bookkeeping exists (`liveChatBans.delete` needs the
+  insert-returned id).
+- [ ] **3b-2. Remainder** — `IPlatformApi` (channel-ops: title/game/etc. per platform); a Kick
+  `IChatPlatform` + chat read (Kick's API); YouTube unban ban-id bookkeeping.
 
 ### 🔀 Act on any channel — no install required
 - [x] **4. Moderated-channels resolution + switching — SHIPPED** (stale checkbox; verified live in code +
