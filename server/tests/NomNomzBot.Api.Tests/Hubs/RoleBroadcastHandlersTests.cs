@@ -51,7 +51,9 @@ public sealed class RoleBroadcastHandlersTests
                     && ((RoleChangedAlertDto)data).UserDisplayName == "UserOne"
                     && ((RoleChangedAlertDto)data).UserLogin == "userone"
                 ),
-                Arg.Any<CancellationToken>()
+                Arg.Any<CancellationToken>(),
+                userId: "u1",
+                userDisplayName: "UserOne"
             );
     }
 
@@ -81,7 +83,9 @@ public sealed class RoleBroadcastHandlersTests
                 Arg.Is<object>(data =>
                     data is RoleChangedAlertDto && ((RoleChangedAlertDto)data).UserId == "u1"
                 ),
-                Arg.Any<CancellationToken>()
+                Arg.Any<CancellationToken>(),
+                userId: "u1",
+                userDisplayName: "UserOne"
             );
     }
 
@@ -114,7 +118,9 @@ public sealed class RoleBroadcastHandlersTests
                     && ((RoleChangedAlertDto)data).UserDisplayName == "UserTwo"
                     && ((RoleChangedAlertDto)data).UserLogin == "usertwo"
                 ),
-                Arg.Any<CancellationToken>()
+                Arg.Any<CancellationToken>(),
+                userId: "u2",
+                userDisplayName: "UserTwo"
             );
     }
 
@@ -144,7 +150,9 @@ public sealed class RoleBroadcastHandlersTests
                 Arg.Is<object>(data =>
                     data is RoleChangedAlertDto && ((RoleChangedAlertDto)data).UserId == "u2"
                 ),
-                Arg.Any<CancellationToken>()
+                Arg.Any<CancellationToken>(),
+                userId: "u2",
+                userDisplayName: "UserTwo"
             );
     }
 
@@ -171,7 +179,9 @@ public sealed class RoleBroadcastHandlersTests
                 Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<object>(),
-                Arg.Any<CancellationToken>()
+                Arg.Any<CancellationToken>(),
+                userId: Arg.Any<string?>(),
+                userDisplayName: Arg.Any<string?>()
             );
     }
 
@@ -209,7 +219,9 @@ public sealed class RoleBroadcastHandlersTests
                     && ((RoleChangedAlertDto)data).Pronouns == "he/him"
                     && ((RoleChangedAlertDto)data).CommunityStanding == "Moderator"
                 ),
-                Arg.Any<CancellationToken>()
+                Arg.Any<CancellationToken>(),
+                userId: "u1",
+                userDisplayName: "UserOne"
             );
     }
 }

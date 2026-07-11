@@ -16,11 +16,18 @@ namespace NomNomzBot.Api.Hubs;
 
 public interface IDashboardNotifier
 {
+    /// <summary>
+    /// Pushes a generic <c>ChannelEvent</c> to the channel group. Handlers whose event HAS an acting
+    /// viewer (follow/sub/cheer/raid/…) pass <paramref name="userId"/>/<paramref name="userDisplayName"/>
+    /// so the activity feed can render WHO without digging into the per-event <paramref name="data"/>.
+    /// </summary>
     Task NotifyChannelAsync(
         string broadcasterId,
         string method,
         object data,
-        CancellationToken ct = default
+        CancellationToken ct = default,
+        string? userId = null,
+        string? userDisplayName = null
     );
     Task SendChatMessageAsync(
         string broadcasterId,
@@ -89,7 +96,9 @@ public class DashboardNotifier : IDashboardNotifier
         string broadcasterId,
         string method,
         object data,
-        CancellationToken ct = default
+        CancellationToken ct = default,
+        string? userId = null,
+        string? userDisplayName = null
     ) =>
         _hub
             .Clients.Group($"channel-{broadcasterId}")
@@ -97,8 +106,8 @@ public class DashboardNotifier : IDashboardNotifier
                 new(
                     method,
                     broadcasterId,
-                    null,
-                    null,
+                    userId,
+                    userDisplayName,
                     data,
                     _timeProvider.GetUtcNow().ToString("O")
                 )

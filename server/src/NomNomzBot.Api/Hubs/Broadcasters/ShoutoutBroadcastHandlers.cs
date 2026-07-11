@@ -33,7 +33,9 @@ public sealed class ShoutoutSentBroadcastHandler : IEventHandler<ShoutoutSentEve
             @event.BroadcasterId.ToString(),
             "shoutout_sent",
             new ShoutoutSentAlertDto(@event.ToUserId, @event.ToDisplayName),
-            ct
+            ct,
+            userId: @event.ToUserId,
+            userDisplayName: @event.ToDisplayName
         );
     }
 }
@@ -76,7 +78,9 @@ public sealed class ShoutoutReceivedBroadcastHandler : IEventHandler<ShoutoutRec
                 enrichment?.Pronouns,
                 enrichment?.CommunityStanding
             ),
-            ct
+            ct,
+            userId: @event.FromBroadcasterId,
+            userDisplayName: @event.FromBroadcasterDisplayName
         );
     }
 }

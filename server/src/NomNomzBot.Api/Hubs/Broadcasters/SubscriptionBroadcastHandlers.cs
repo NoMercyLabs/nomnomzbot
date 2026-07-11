@@ -30,7 +30,9 @@ public sealed class NewSubscriptionBroadcastHandler : IEventHandler<NewSubscript
             @event.BroadcasterId.ToString(),
             "subscription",
             new SubscriptionAlertDto(@event.UserId, @event.UserDisplayName, @event.Tier),
-            ct
+            ct,
+            userId: @event.UserId,
+            userDisplayName: @event.UserDisplayName
         );
     }
 }
@@ -58,7 +60,9 @@ public sealed class ResubscriptionBroadcastHandler : IEventHandler<Resubscriptio
                 @event.StreakMonths,
                 @event.Message
             ),
-            ct
+            ct,
+            userId: @event.UserId,
+            userDisplayName: @event.UserDisplayName
         );
     }
 }
@@ -85,7 +89,9 @@ public sealed class GiftSubscriptionBroadcastHandler : IEventHandler<GiftSubscri
                 @event.GiftCount,
                 @event.IsAnonymous
             ),
-            ct
+            ct,
+            userId: @event.IsAnonymous ? null : @event.GifterUserId,
+            userDisplayName: @event.IsAnonymous ? "Anonymous" : @event.GifterDisplayName
         );
     }
 }

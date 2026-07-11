@@ -49,7 +49,9 @@ public sealed class ShoutoutBroadcastHandlersTests
                     && ((ShoutoutSentAlertDto)data).ToUserId == "target-1"
                     && ((ShoutoutSentAlertDto)data).ToDisplayName == "TargetStreamer"
                 ),
-                Arg.Any<CancellationToken>()
+                Arg.Any<CancellationToken>(),
+                userId: "target-1",
+                userDisplayName: "TargetStreamer"
             );
     }
 
@@ -85,7 +87,9 @@ public sealed class ShoutoutBroadcastHandlersTests
                     && ((ShoutoutReceivedAlertDto)data).FromBroadcasterLogin == "sourcestreamer"
                     && ((ShoutoutReceivedAlertDto)data).ViewerCount == 42
                 ),
-                Arg.Any<CancellationToken>()
+                Arg.Any<CancellationToken>(),
+                userId: "source-1",
+                userDisplayName: "SourceStreamer"
             );
     }
 
@@ -122,7 +126,9 @@ public sealed class ShoutoutBroadcastHandlersTests
                     && ((ShoutoutReceivedAlertDto)data).Pronouns == null
                     && ((ShoutoutReceivedAlertDto)data).CommunityStanding == null
                 ),
-                Arg.Any<CancellationToken>()
+                Arg.Any<CancellationToken>(),
+                userId: "source-1",
+                userDisplayName: "SourceStreamer"
             );
     }
 

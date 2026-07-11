@@ -36,7 +36,9 @@ public sealed class CheerBroadcastHandler : IEventHandler<CheerEvent>
                 @event.Message,
                 @event.IsAnonymous
             ),
-            ct
+            ct,
+            userId: @event.IsAnonymous ? null : @event.UserId,
+            userDisplayName: @event.IsAnonymous ? "Anonymous" : @event.UserDisplayName
         );
     }
 }

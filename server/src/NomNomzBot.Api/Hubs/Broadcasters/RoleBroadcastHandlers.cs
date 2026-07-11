@@ -48,7 +48,9 @@ public sealed class ModeratorAddedBroadcastHandler : IEventHandler<ModeratorAdde
                 enrichment?.Pronouns,
                 enrichment?.CommunityStanding
             ),
-            ct
+            ct,
+            userId: @event.UserId,
+            userDisplayName: @event.UserDisplayName
         );
     }
 }
@@ -87,7 +89,9 @@ public sealed class ModeratorRemovedBroadcastHandler : IEventHandler<ModeratorRe
                 enrichment?.Pronouns,
                 enrichment?.CommunityStanding
             ),
-            ct
+            ct,
+            userId: @event.UserId,
+            userDisplayName: @event.UserDisplayName
         );
     }
 }
@@ -126,7 +130,9 @@ public sealed class VipAddedBroadcastHandler : IEventHandler<VipAddedEvent>
                 enrichment?.Pronouns,
                 enrichment?.CommunityStanding
             ),
-            ct
+            ct,
+            userId: @event.UserId,
+            userDisplayName: @event.UserDisplayName
         );
     }
 }
@@ -165,7 +171,9 @@ public sealed class VipRemovedBroadcastHandler : IEventHandler<VipRemovedEvent>
                 enrichment?.Pronouns,
                 enrichment?.CommunityStanding
             ),
-            ct
+            ct,
+            userId: @event.UserId,
+            userDisplayName: @event.UserDisplayName
         );
     }
 }

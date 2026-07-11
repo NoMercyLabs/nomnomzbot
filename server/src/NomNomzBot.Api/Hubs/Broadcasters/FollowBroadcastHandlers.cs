@@ -49,7 +49,9 @@ public sealed class FollowBroadcastHandler : IEventHandler<FollowEvent>
                 enrichment?.Pronouns,
                 enrichment?.CommunityStanding
             ),
-            ct
+            ct,
+            userId: @event.UserId,
+            userDisplayName: @event.UserDisplayName
         );
     }
 }

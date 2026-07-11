@@ -58,7 +58,11 @@ public sealed class FollowBroadcastHandlerTests
                     && ((FollowAlertDto)data).Pronouns == "they/them"
                     && ((FollowAlertDto)data).CommunityStanding == "Subscriber"
                 ),
-                Arg.Any<CancellationToken>()
+                Arg.Any<CancellationToken>(),
+                // The actor rides TOP-LEVEL on the ChannelEvent so the activity feed shows WHO
+                // without parsing the per-event data payload.
+                userId: "u1",
+                userDisplayName: "Stoney"
             );
     }
 
@@ -95,7 +99,9 @@ public sealed class FollowBroadcastHandlerTests
                     && ((FollowAlertDto)data).Pronouns == null
                     && ((FollowAlertDto)data).CommunityStanding == null
                 ),
-                Arg.Any<CancellationToken>()
+                Arg.Any<CancellationToken>(),
+                userId: Arg.Any<string?>(),
+                userDisplayName: Arg.Any<string?>()
             );
     }
 }

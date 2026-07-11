@@ -35,7 +35,9 @@ public sealed class RaidBroadcastHandler : IEventHandler<RaidEvent>
                 @event.FromLogin,
                 @event.ViewerCount
             ),
-            ct
+            ct,
+            userId: @event.FromUserId,
+            userDisplayName: @event.FromDisplayName
         );
     }
 }
