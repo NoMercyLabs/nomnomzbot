@@ -167,9 +167,23 @@ every broadcaster token already holds the full scope set (`channel:read:subscrip
   StreamController write routes (PUT + PATCH title/game/tags) now platform-route; no API contract change.
   11 new tests (Twitch resolve/wire/failure, YouTube retitle/offline/reject/token, router routing +
   twitch fallback, client GET-then-PUT wire + carried start time + caps).
-- [ ] **3b-2c. Kick `IChatPlatform` + chat read** — Kick's public API (OAuth 2.1 at id.kick.com; chat
-  send `POST /public/v1/chat`; events are WEBHOOK-delivered — needs a public-URL story for self-host).
-  Verify live docs before building (fast-moving surface); owner may need to register a Kick app.
+- [ ] **3b-2c. Kick `IChatPlatform` + chat read — RESEARCHED 2026-07-11 (live docs.kick.com), build next.**
+  Verified wire facts: send = `POST api.kick.com/public/v1/chat` (user token, scope `chat:write`,
+  500-char cap, native replies via `reply_to_message_id`, `type: user|bot`, `broadcaster_user_id` for
+  user tokens); delete = `DELETE /public/v1/chat/{message_id}` (`moderation:chat_message:manage`);
+  ban/timeout/unban ALL on `/public/v1/moderation/bans` (`moderation:ban`) — POST with `duration`
+  (MINUTES 1–10080) = timeout, POST without = ban, DELETE `{broadcaster_user_id, user_id}` = unban
+  (**direct — no ban-id ledger needed, unlike YouTube**; seam passes seconds → convert+clamp). Chat READ
+  is WEBHOOK-ONLY (`POST /public/v1/events/subscriptions`, `method:"webhook"` enum, scope
+  `events:subscribe`; callback URL configured PER APP in the Kick dev dashboard; must be public —
+  localhost needs a tunnel; signature verify via Kick's public key). Existing plumbing:
+  `KickLoginProvider` (PKCE, vaults tokens via `IIntegrationTokenVault`) but LOGIN-only scope
+  `user:read` — the streamer connect flow must request the chat/moderation/events scopes. Kick user ids
+  are INTEGERS (seam strings → parse). Build order: (1) Kick token provider + `KickChatPlatform`
+  (send/reply/moderation — works without any public URL), (2) webhook ingest controller at
+  `{App:BaseUrl}/api/v1/webhooks/kick` (signature-verified) + subscription reconcile → canonical
+  `ChatMessageReceivedEvent(Provider=kick)`; self-host without a public URL = send-only Kick with an
+  honest degradation notice (same URL the OAuth redirect already needs, so most deployments have one).
 
 ### 🔀 Act on any channel — no install required
 - [x] **4. Moderated-channels resolution + switching — SHIPPED** (stale checkbox; verified live in code +
