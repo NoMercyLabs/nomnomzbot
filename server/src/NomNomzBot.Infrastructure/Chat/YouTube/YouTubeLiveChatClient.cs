@@ -199,7 +199,7 @@ public sealed class YouTubeLiveChatClient : IYouTubeLiveChatClient
         return await SendWriteAsync(request, $"send to chat {liveChatId}", cancellationToken);
     }
 
-    public async Task<Result> BanUserAsync(
+    public async Task<Result<string>> BanUserAsync(
         string accessToken,
         string liveChatId,
         string bannedChannelId,
@@ -234,7 +234,39 @@ public sealed class YouTubeLiveChatClient : IYouTubeLiveChatClient
                     }
         );
 
-        return await SendWriteAsync(request, $"ban in chat {liveChatId}", cancellationToken);
+        // The insert response's resource id is the ONLY key liveChatBans.delete accepts — surface it so
+        // the platform can ledger it for a later unban.
+        Result<LiveChatBanResource> created = await SendWriteForBodyAsync<LiveChatBanResource>(
+            request,
+            $"ban in chat {liveChatId}",
+            cancellationToken
+        );
+        if (created.IsFailure)
+            return Result.Failure<string>(
+                created.ErrorMessage!,
+                created.ErrorCode,
+                created.ErrorDetail
+            );
+        if (string.IsNullOrEmpty(created.Value.Id))
+            return Result.Failure<string>(
+                "YouTube returned a ban without a resource id.",
+                "SERVICE_UNAVAILABLE"
+            );
+
+        return Result.Success(created.Value.Id!);
+    }
+
+    public async Task<Result> UnbanUserAsync(
+        string accessToken,
+        string banId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        string url = $"{YouTubeApiBase}/liveChat/bans?id={Uri.EscapeDataString(banId)}";
+        HttpRequestMessage request = new(HttpMethod.Delete, url);
+        request.Headers.Authorization = new("Bearer", accessToken);
+
+        return await SendWriteAsync(request, $"unban {banId}", cancellationToken);
     }
 
     public async Task<Result> DeleteMessageAsync(
@@ -277,6 +309,55 @@ public sealed class YouTubeLiveChatClient : IYouTubeLiveChatClient
         {
             _logger.LogError(ex, "YouTube live-chat write threw for {Operation}", operation);
             return Result.Failure("YouTube is temporarily unavailable.", "SERVICE_UNAVAILABLE");
+        }
+    }
+
+    /// <summary>The <see cref="SendWriteAsync"/> variant for writes whose RESPONSE BODY the caller needs
+    /// (the ban insert returns the deletable resource) — same outcome mapping, plus body deserialization
+    /// (an unreadable body on a 2xx degrades to SERVICE_UNAVAILABLE, never throws).</summary>
+    private async Task<Result<TBody>> SendWriteForBodyAsync<TBody>(
+        HttpRequestMessage request,
+        string operation,
+        CancellationToken cancellationToken
+    )
+        where TBody : class
+    {
+        try
+        {
+            HttpResponseMessage response = await _http.SendAsync(request, cancellationToken);
+            if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
+                return Result.Failure<TBody>(
+                    "The YouTube connection is missing the required scope.",
+                    "MISSING_SCOPE"
+                );
+            if (response.StatusCode == HttpStatusCode.NotFound)
+                return Result.Failure<TBody>(
+                    "The YouTube live chat is no longer available.",
+                    "NOT_FOUND"
+                );
+            if (!response.IsSuccessStatusCode)
+                return Result.Failure<TBody>(
+                    "YouTube is temporarily unavailable.",
+                    "SERVICE_UNAVAILABLE"
+                );
+
+            TBody? body = await response.Content.ReadFromJsonAsync<TBody>(
+                cancellationToken: cancellationToken
+            );
+            return body is null
+                ? Result.Failure<TBody>(
+                    "YouTube is temporarily unavailable.",
+                    "SERVICE_UNAVAILABLE"
+                )
+                : Result.Success(body);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogError(ex, "YouTube live-chat write threw for {Operation}", operation);
+            return Result.Failure<TBody>(
+                "YouTube is temporarily unavailable.",
+                "SERVICE_UNAVAILABLE"
+            );
         }
     }
 
@@ -406,6 +487,13 @@ public sealed class YouTubeLiveChatClient : IYouTubeLiveChatClient
 
         [JsonPropertyName("isChatSponsor")]
         public bool IsChatSponsor { get; set; }
+    }
+
+    // The liveChatBans.insert response — only the resource id matters (the liveChatBans.delete key).
+    private sealed class LiveChatBanResource
+    {
+        [JsonPropertyName("id")]
+        public string? Id { get; set; }
     }
 
     private sealed class ChannelListResponse

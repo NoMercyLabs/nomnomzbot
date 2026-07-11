@@ -208,6 +208,8 @@ internal sealed class ReadModelRebuildDbContext : DbContext, IApplicationDbConte
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Chat.Entities.ChatMessage> ChatMessages =>
         throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Chat.Entities.YouTubeLiveChatBan> YouTubeLiveChatBans =>
+        throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Stream.Entities.Stream> Streams =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Platform.Entities.Configuration> Configurations =>

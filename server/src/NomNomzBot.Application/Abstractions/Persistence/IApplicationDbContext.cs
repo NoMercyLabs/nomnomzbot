@@ -49,6 +49,7 @@ public interface IApplicationDbContext
     DbSet<EventSubConduitShard> EventSubConduitShards { get; }
     DbSet<IdempotencyKey> IdempotencyKeys { get; }
     DbSet<ChatMessage> ChatMessages { get; }
+    DbSet<YouTubeLiveChatBan> YouTubeLiveChatBans { get; }
     DbSet<ChannelEvent> ChannelEvents { get; }
     DbSet<NomNomzBot.Domain.Stream.Entities.Stream> Streams { get; }
     DbSet<NomNomzBot.Domain.Platform.Entities.Configuration> Configurations { get; }

@@ -23,26 +23,30 @@ namespace NomNomzBot.Infrastructure.Chat.YouTube;
 /// honestly returns <c>false</c>. YouTube live chat has no reply threading; a reply degrades to a plain
 /// send (the message text itself usually carries the @mention). Moderation: timeout = TEMPORARY
 /// live-chat ban, ban = permanent (<c>liveChat/bans</c>), delete = <c>liveChat/messages</c> delete;
-/// unban stays an honest logged no-op until ban-id bookkeeping exists (liveChatBans.delete needs the
-/// insert-returned id).
+/// unban = <c>liveChatBans.delete</c> with the ledgered ban id (every ban the bot issues records its
+/// insert-returned id in <see cref="IYouTubeLiveChatBanLedger"/>; a viewer the bot never banned is an
+/// honest logged no-op).
 /// </summary>
 public sealed class YouTubeChatPlatform : IChatPlatform
 {
     private readonly IYouTubeLiveChatSessionRegistry _sessions;
     private readonly IYouTubeAccessTokenProvider _tokens;
     private readonly IYouTubeLiveChatClient _client;
+    private readonly IYouTubeLiveChatBanLedger _bans;
     private readonly ILogger<YouTubeChatPlatform> _logger;
 
     public YouTubeChatPlatform(
         IYouTubeLiveChatSessionRegistry sessions,
         IYouTubeAccessTokenProvider tokens,
         IYouTubeLiveChatClient client,
+        IYouTubeLiveChatBanLedger bans,
         ILogger<YouTubeChatPlatform> logger
     )
     {
         _sessions = sessions;
         _tokens = tokens;
         _client = client;
+        _bans = bans;
         _logger = logger;
     }
 
@@ -104,20 +108,57 @@ public sealed class YouTubeChatPlatform : IChatPlatform
         CancellationToken cancellationToken = default
     ) => BanCoreAsync(broadcasterId, userId, durationSeconds: null, "ban", cancellationToken);
 
-    public Task UnbanUserAsync(
+    public async Task UnbanUserAsync(
         Guid broadcasterId,
         string userId,
         CancellationToken cancellationToken = default
     )
     {
-        // liveChatBans.delete needs the BAN id from the insert response, which nothing stores yet —
-        // honest no-op until ban-id bookkeeping exists (tracked with the 3b remainder).
-        _logger.LogWarning(
-            "YouTube unban needs ban-id bookkeeping — no action taken for {UserId} on {BroadcasterId}",
+        // The ledger holds the insert-returned ban id (the only key liveChatBans.delete accepts). No record
+        // = the bot never banned this viewer (or already unbanned them) — an honest logged no-op. Consuming
+        // before the delete is safe either way: a NOT_FOUND means YouTube no longer has the ban.
+        YouTubeConsumedBan? ban = await _bans.ConsumeLatestAsync(
+            broadcasterId,
             userId,
-            broadcasterId
+            cancellationToken
         );
-        return Task.CompletedTask;
+        if (ban is null)
+        {
+            _logger.LogWarning(
+                "YouTube unban skipped for {UserId} on {BroadcasterId}: no recorded ban to lift",
+                userId,
+                broadcasterId
+            );
+            return;
+        }
+
+        // An unban must work while OFFLINE too (a permanent ban outlives the session), so it does not go
+        // through ResolveWriteAuthAsync: the ledger recorded which PRIMARY channel's token issued the ban,
+        // and that token alone is enough — no active live chat required.
+        string? accessToken = await _tokens.GetAccessTokenAsync(
+            ban.PrimaryBroadcasterId,
+            cancellationToken
+        );
+        if (accessToken is null)
+        {
+            _logger.LogWarning(
+                "YouTube unban failed for {UserId} on {BroadcasterId}: no usable token on primary channel {Primary}",
+                userId,
+                broadcasterId,
+                ban.PrimaryBroadcasterId
+            );
+            return;
+        }
+
+        Result unbanned = await _client.UnbanUserAsync(accessToken, ban.BanId, cancellationToken);
+        if (unbanned.IsFailure && unbanned.ErrorCode != "NOT_FOUND")
+            _logger.LogWarning(
+                "YouTube unban failed for {UserId} on {BroadcasterId}: {Error} ({Code})",
+                userId,
+                broadcasterId,
+                unbanned.ErrorMessage,
+                unbanned.ErrorCode
+            );
     }
 
     public async Task DeleteMessageAsync(
@@ -164,7 +205,7 @@ public sealed class YouTubeChatPlatform : IChatPlatform
         if (auth is null)
             return;
 
-        Result banned = await _client.BanUserAsync(
+        Result<string> banned = await _client.BanUserAsync(
             auth.Value.Token,
             auth.Value.Session.LiveChatId,
             bannedChannelId,
@@ -172,6 +213,7 @@ public sealed class YouTubeChatPlatform : IChatPlatform
             ct
         );
         if (banned.IsFailure)
+        {
             _logger.LogWarning(
                 "YouTube {Verb} failed for {UserId} on {BroadcasterId}: {Error} ({Code})",
                 verb,
@@ -180,6 +222,19 @@ public sealed class YouTubeChatPlatform : IChatPlatform
                 banned.ErrorMessage,
                 banned.ErrorCode
             );
+            return;
+        }
+
+        // Ledger the insert-returned ban id — the only key a later unban (liveChatBans.delete) accepts.
+        await _bans.RecordAsync(
+            broadcasterId,
+            auth.Value.Session.PrimaryBroadcasterId,
+            auth.Value.Session.LiveChatId,
+            bannedChannelId,
+            banned.Value,
+            durationSeconds,
+            ct
+        );
     }
 
     /// <summary>The write-auth pair every moderation call needs: the ACTIVE session + a usable token —

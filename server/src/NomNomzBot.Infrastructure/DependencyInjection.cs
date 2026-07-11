@@ -726,6 +726,10 @@ public static class DependencyInjection
         // refresh) — shared by the music manage surface and the live-chat poller. Scoped: DbContext.
         services.AddScoped<IYouTubeAccessTokenProvider, YouTubeAccessTokenProvider>();
 
+        // Ban-id bookkeeping behind YouTube unban (slice 3b): liveChatBans.delete only accepts the
+        // insert-returned resource id, so the platform ledgers every ban it issues. Scoped: DbContext.
+        services.AddScoped<IYouTubeLiveChatBanLedger, YouTubeLiveChatBanLedger>();
+
         // ── Discord (discord.md §7) — guild link, notification rules, dispatch + dedupe ──
         // IDiscordGuildService / IDiscordNotificationConfigService / IDiscordNotificationRoleService follow the
         // I<X>Service convention and are bound scoped by AddServicesByConvention above. The dispatcher + gateway

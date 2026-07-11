@@ -78,13 +78,26 @@ public interface IYouTubeLiveChatClient
     /// Bans a viewer from a live chat (<c>POST liveChat/bans?part=snippet</c>) — permanent when
     /// <paramref name="durationSeconds"/> is null, else a temporary ban (the Twitch-timeout analogue;
     /// YouTube clamps the duration server-side). <paramref name="bannedChannelId"/> is the viewer's
-    /// YouTube channel id. Same failure mapping as the other write calls.
+    /// YouTube channel id. Returns the created BAN resource id — the only key
+    /// <c>liveChatBans.delete</c> (unban) accepts, so the caller must record it. Same failure mapping
+    /// as the other write calls.
     /// </summary>
-    Task<Result> BanUserAsync(
+    Task<Result<string>> BanUserAsync(
         string accessToken,
         string liveChatId,
         string bannedChannelId,
         int? durationSeconds,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>
+    /// Lifts a ban (<c>DELETE liveChat/bans?id=</c>). <paramref name="banId"/> is the resource id the
+    /// matching <see cref="BanUserAsync"/> returned. A <c>NOT_FOUND</c> means YouTube no longer has the
+    /// ban (expired timeout, ended chat) — for the caller that outcome IS an unbanned user.
+    /// </summary>
+    Task<Result> UnbanUserAsync(
+        string accessToken,
+        string banId,
         CancellationToken cancellationToken = default
     );
 

@@ -236,14 +236,16 @@ public sealed class YouTubeLiveChatClientTests
     }
 
     [Fact]
-    public async Task BanUser_with_a_duration_posts_a_temporary_ban_for_the_channel()
+    public async Task BanUser_with_a_duration_posts_a_temporary_ban_and_returns_the_ban_id()
     {
         StubHttpMessageHandler handler = new((HttpStatusCode.OK, """{"id":"ban-1"}"""));
         YouTubeLiveChatClient sut = Build(handler);
 
-        Result result = await sut.BanUserAsync(Token, "chat123", "UCbad", 600);
+        Result<string> result = await sut.BanUserAsync(Token, "chat123", "UCbad", 600);
 
         result.IsSuccess.Should().BeTrue();
+        // The returned resource id is the ONLY key liveChatBans.delete accepts — it must survive the parse.
+        result.Value.Should().Be("ban-1");
         handler.LastRequest!.RequestUri!.ToString().Should().Contain("liveChat/bans");
         string body = await handler.LastRequest.Content!.ReadAsStringAsync();
         body.Should()
@@ -259,11 +261,53 @@ public sealed class YouTubeLiveChatClientTests
         StubHttpMessageHandler handler = new((HttpStatusCode.OK, """{"id":"ban-2"}"""));
         YouTubeLiveChatClient sut = Build(handler);
 
-        Result result = await sut.BanUserAsync(Token, "chat123", "UCworse", null);
+        Result<string> result = await sut.BanUserAsync(Token, "chat123", "UCworse", null);
 
         result.IsSuccess.Should().BeTrue();
+        result.Value.Should().Be("ban-2");
         string body = await handler.LastRequest!.Content!.ReadAsStringAsync();
         body.Should().Contain("permanent").And.NotContain("banDurationSeconds");
+    }
+
+    [Fact]
+    public async Task BanUser_with_an_id_less_response_fails_instead_of_returning_an_unusable_ban()
+    {
+        // A 2xx without a resource id would ledger an empty key and make the later unban a silent lie.
+        StubHttpMessageHandler handler = new((HttpStatusCode.OK, "{}"));
+        YouTubeLiveChatClient sut = Build(handler);
+
+        Result<string> result = await sut.BanUserAsync(Token, "chat123", "UCbad", null);
+
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("SERVICE_UNAVAILABLE");
+    }
+
+    [Fact]
+    public async Task UnbanUser_deletes_the_ban_resource_by_its_id()
+    {
+        StubHttpMessageHandler handler = new((HttpStatusCode.NoContent, "{}"));
+        YouTubeLiveChatClient sut = Build(handler);
+
+        Result result = await sut.UnbanUserAsync(Token, "ban-1");
+
+        result.IsSuccess.Should().BeTrue();
+        handler.LastRequest!.Method.Should().Be(HttpMethod.Delete);
+        handler.LastRequest.RequestUri!.ToString().Should().Contain("liveChat/bans?id=ban-1");
+        handler.LastRequest.Headers.Authorization!.Parameter.Should().Be(Token);
+    }
+
+    [Fact]
+    public async Task UnbanUser_maps_a_gone_ban_to_not_found()
+    {
+        // An expired timeout or ended chat: YouTube no longer has the ban — the platform treats NOT_FOUND
+        // as "already unbanned", so the mapping must hold.
+        StubHttpMessageHandler handler = new((HttpStatusCode.NotFound, "{}"));
+        YouTubeLiveChatClient sut = Build(handler);
+
+        Result result = await sut.UnbanUserAsync(Token, "ban-gone");
+
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("NOT_FOUND");
     }
 
     [Fact]

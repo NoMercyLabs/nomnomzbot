@@ -329,6 +329,8 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Chat.Entities.ChatMessage> ChatMessages =>
         Set<NomNomzBot.Domain.Chat.Entities.ChatMessage>();
+    public DbSet<NomNomzBot.Domain.Chat.Entities.YouTubeLiveChatBan> YouTubeLiveChatBans =>
+        Set<NomNomzBot.Domain.Chat.Entities.YouTubeLiveChatBan>();
     public DbSet<NomNomzBot.Domain.Identity.Entities.ChannelEvent> ChannelEvents =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Stream.Entities.Stream> Streams =>

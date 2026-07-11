@@ -377,11 +377,17 @@ public sealed class YouTubeLiveChatPollWorkerTests
             CancellationToken cancellationToken = default
         ) => Task.FromResult(Result.Success());
 
-        public Task<Result> BanUserAsync(
+        public Task<Result<string>> BanUserAsync(
             string accessToken,
             string liveChatId,
             string bannedChannelId,
             int? durationSeconds,
+            CancellationToken cancellationToken = default
+        ) => Task.FromResult(Result.Success("ban-1"));
+
+        public Task<Result> UnbanUserAsync(
+            string accessToken,
+            string banId,
             CancellationToken cancellationToken = default
         ) => Task.FromResult(Result.Success());
 

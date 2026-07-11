@@ -237,6 +237,7 @@ internal sealed class GdprTestDbContext : DbContext, IApplicationDbContext
     public DbSet<Redemption> Redemptions => Set<Redemption>();
     public DbSet<ConsentRecord> ConsentRecords => Set<ConsentRecord>();
     public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
+    public DbSet<YouTubeLiveChatBan> YouTubeLiveChatBans => Set<YouTubeLiveChatBan>();
     public DbSet<Record> Records => Set<Record>();
     public DbSet<Service> Services => Set<Service>();
     public DbSet<DeletionAuditLog> DeletionAuditLogs => Set<DeletionAuditLog>();

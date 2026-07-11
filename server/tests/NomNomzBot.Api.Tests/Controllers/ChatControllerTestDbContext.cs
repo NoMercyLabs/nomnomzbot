@@ -57,6 +57,7 @@ internal sealed class ChatControllerTestDbContext : DbContext, IApplicationDbCon
         );
 
     public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
+    public DbSet<YouTubeLiveChatBan> YouTubeLiveChatBans => Set<YouTubeLiveChatBan>();
     public DbSet<Channel> Channels => Set<Channel>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)

@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Domain.Analytics.Entities;
 using NomNomzBot.Domain.Billing.Entities;
@@ -23,54 +24,44 @@ using NomNomzBot.Domain.Federation.Entities;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Integrations.Entities;
 using NomNomzBot.Domain.Platform.Entities;
-using NomNomzBot.Domain.Quotes.Entities;
 using NomNomzBot.Domain.Rewards.Entities;
 using NomNomzBot.Domain.Sound.Entities;
 using NomNomzBot.Domain.Tts.Entities;
 using NomNomzBot.Domain.Webhooks.Entities;
 using NomNomzBot.Domain.Widgets.Entities;
-using NomNomzBot.Infrastructure.Platform.Persistence.Converters;
+using DomainTimer = NomNomzBot.Domain.Commands.Entities.Timer;
+using RecordEntity = NomNomzBot.Domain.Platform.Entities.Record;
 
-namespace NomNomzBot.Api.Tests.Hubs;
+namespace NomNomzBot.Infrastructure.Tests.Chat.YouTube;
 
 /// <summary>
-/// A focused <see cref="IApplicationDbContext"/> over only <see cref="Widget"/> — on the EF Core InMemory
-/// provider — for the overlay Widget*AlertHandler tests that need the shared <c>WidgetAlertDispatch.RouteAsync</c>
-/// helper to actually query configured widgets. Everything else throws, since those tests never reach it. Mirrors
-/// the same "declare every DbSet, auto-ignore the unmapped ones" shape as <c>Controllers/ApiTestDbContext.cs</c>,
-/// just with <see cref="Widget"/> as the one live entity instead.
+/// A focused <see cref="IApplicationDbContext"/> over ONLY the <see cref="YouTubeLiveChatBan"/> ledger, on
+/// the EF Core InMemory provider — the production <c>AppDbContext</c> is Npgsql-bound (jsonb complex types)
+/// and cannot host a test provider. Every other <see cref="IApplicationDbContext"/> set throws, since the
+/// ledger tests never reach it; mirrors the "declare every DbSet, auto-ignore the unmapped ones by
+/// reflection" shape of <c>Platform/Eventing/EventSubTestDbContext.cs</c>. Stamps
+/// <c>CreatedAt</c>/<c>UpdatedAt</c> on save (production's <c>AuditableEntityInterceptor</c> is absent
+/// here) — the ledger's latest-wins consume orders on <c>CreatedAt</c>.
 /// </summary>
-internal sealed class WidgetTestDbContext : DbContext, IApplicationDbContext
+internal sealed class BanLedgerTestDbContext : DbContext, IApplicationDbContext
 {
-    private WidgetTestDbContext(DbContextOptions<WidgetTestDbContext> options)
+    private BanLedgerTestDbContext(DbContextOptions<BanLedgerTestDbContext> options)
         : base(options) { }
 
-    public static WidgetTestDbContext New() =>
+    public static BanLedgerTestDbContext New() =>
         new(
-            new DbContextOptionsBuilder<WidgetTestDbContext>()
+            new DbContextOptionsBuilder<BanLedgerTestDbContext>()
                 .UseInMemoryDatabase(Guid.NewGuid().ToString())
                 .Options
         );
 
-    public DbSet<Widget> Widgets => Set<Widget>();
+    public DbSet<YouTubeLiveChatBan> YouTubeLiveChatBans => Set<YouTubeLiveChatBan>();
+    public DbSet<EventSubSubscription> EventSubSubscriptions => throw new NotSupportedException();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
-        b.Entity<Widget>(e =>
-        {
-            e.HasKey(w => w.Id);
-            e.Ignore(w => w.Channel);
-            e.Property(w => w.EventSubscriptions)
-                .HasConversion(
-                    JsonValueConverter.Converter<List<string>>(),
-                    JsonValueConverter.Comparer<List<string>>()
-                );
-            e.Property(w => w.Settings)
-                .HasConversion(
-                    JsonValueConverter.Converter<Dictionary<string, object>>(),
-                    JsonValueConverter.Comparer<Dictionary<string, object>>()
-                );
-        });
+        // All-scalar entity — the real configuration adds only lengths/indexes, which InMemory ignores.
+        b.Entity<YouTubeLiveChatBan>(e => e.HasKey(x => x.Id));
 
         // EF discovers entity types from the DbSet<T> property declarations regardless of the throwing getter
         // bodies; ignore every entity these tests do not exercise so the model stays minimal + provider-agnostic.
@@ -78,7 +69,23 @@ internal sealed class WidgetTestDbContext : DbContext, IApplicationDbContext
             b.Ignore(entity);
     }
 
-    private static readonly HashSet<Type> Mapped = [typeof(Widget)];
+    public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        DateTime now = DateTime.UtcNow;
+        foreach (
+            EntityEntry<NomNomzBot.Domain.Platform.BaseEntity> entry in ChangeTracker.Entries<NomNomzBot.Domain.Platform.BaseEntity>()
+        )
+        {
+            if (entry.State == EntityState.Added && entry.Entity.CreatedAt == default)
+                entry.Entity.CreatedAt = now;
+            if (entry.State is EntityState.Added or EntityState.Modified)
+                entry.Entity.UpdatedAt = now;
+        }
+
+        return base.SaveChangesAsync(cancellationToken);
+    }
+
+    private static readonly HashSet<Type> Mapped = [typeof(YouTubeLiveChatBan)];
 
     private static readonly IReadOnlyList<Type> UnmappedEntities = typeof(IApplicationDbContext)
         .GetProperties()
@@ -97,24 +104,25 @@ internal sealed class WidgetTestDbContext : DbContext, IApplicationDbContext
     public DbSet<Channel> Channels => throw new NotSupportedException();
     public DbSet<ChannelModerator> ChannelModerators => throw new NotSupportedException();
     public DbSet<Service> Services => throw new NotSupportedException();
-    public DbSet<Command> Commands => throw new NotSupportedException();
     public DbSet<Reward> Rewards => throw new NotSupportedException();
     public DbSet<Redemption> Redemptions => throw new NotSupportedException();
-    public DbSet<Quote> Quotes => throw new NotSupportedException();
-    public DbSet<EventSubSubscription> EventSubSubscriptions => throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Quotes.Entities.Quote> Quotes =>
+        throw new NotSupportedException();
+    public DbSet<Widget> Widgets => throw new NotSupportedException();
+    public DbSet<RecordEntity> Records => throw new NotSupportedException();
+    public DbSet<IntegrationConnection> IntegrationConnections => throw new NotSupportedException();
     public DbSet<EventSubConduit> EventSubConduits => throw new NotSupportedException();
     public DbSet<EventSubConduitShard> EventSubConduitShards => throw new NotSupportedException();
     public DbSet<IdempotencyKey> IdempotencyKeys => throw new NotSupportedException();
     public DbSet<ChatMessage> ChatMessages => throw new NotSupportedException();
-    public DbSet<YouTubeLiveChatBan> YouTubeLiveChatBans => throw new NotSupportedException();
     public DbSet<ChannelEvent> ChannelEvents => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Stream.Entities.Stream> Streams =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Platform.Entities.Configuration> Configurations =>
         throw new NotSupportedException();
     public DbSet<Storage> Storages => throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Platform.Entities.Record> Records =>
-        throw new NotSupportedException();
+    public DbSet<Command> Commands => throw new NotSupportedException();
+    public DbSet<DomainTimer> Timers => throw new NotSupportedException();
     public DbSet<Permission> Permissions => throw new NotSupportedException();
     public DbSet<ChannelFeature> ChannelFeatures => throw new NotSupportedException();
     public DbSet<ChannelBotAuthorization> ChannelBotAuthorizations =>
@@ -123,7 +131,6 @@ internal sealed class WidgetTestDbContext : DbContext, IApplicationDbContext
     public DbSet<AuthSession> AuthSessions => throw new NotSupportedException();
     public DbSet<RefreshToken> RefreshTokens => throw new NotSupportedException();
     public DbSet<IpcDevModeKey> IpcDevModeKeys => throw new NotSupportedException();
-    public DbSet<IntegrationConnection> IntegrationConnections => throw new NotSupportedException();
     public DbSet<IntegrationToken> IntegrationTokens => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Identity.Entities.CryptoKey> CryptoKeys =>
         throw new NotSupportedException();
@@ -143,8 +150,6 @@ internal sealed class WidgetTestDbContext : DbContext, IApplicationDbContext
     public DbSet<TtsCacheEntry> TtsCacheEntries => throw new NotSupportedException();
     public DbSet<Pronoun> Pronouns => throw new NotSupportedException();
     public DbSet<DeletionAuditLog> DeletionAuditLogs => throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Commands.Entities.Timer> Timers =>
-        throw new NotSupportedException();
     public DbSet<EventResponse> EventResponses => throw new NotSupportedException();
     public DbSet<WatchStreak> WatchStreaks => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Commands.Entities.Pipeline> Pipelines =>

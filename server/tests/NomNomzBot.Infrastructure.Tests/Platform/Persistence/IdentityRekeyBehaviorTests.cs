@@ -372,6 +372,8 @@ public sealed class IdentityRekeyBehaviorTests
             throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.Chat.Entities.ChatMessage> ChatMessages =>
             throw new NotSupportedException();
+        public DbSet<NomNomzBot.Domain.Chat.Entities.YouTubeLiveChatBan> YouTubeLiveChatBans =>
+            throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.Identity.Entities.ChannelEvent> ChannelEvents =>
             throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.Stream.Entities.Stream> Streams =>

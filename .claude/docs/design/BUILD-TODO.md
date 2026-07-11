@@ -146,10 +146,16 @@ every broadcaster token already holds the full scope set (`channel:read:subscrip
 - [x] **3b-1. YouTube moderation surface — SHIPPED 2026-07-11.** Timeout = TEMPORARY live-chat ban
   (`liveChat/bans` with `banDurationSeconds`), ban = permanent, delete = `liveChat/messages` delete —
   all on the streamer's own token against the active session, offline/token-less = honest logged no-op.
-  Unban stays a logged no-op until ban-id bookkeeping exists (`liveChatBans.delete` needs the
-  insert-returned id).
-- [ ] **3b-2. Remainder** — `IPlatformApi` (channel-ops: title/game/etc. per platform); a Kick
-  `IChatPlatform` + chat read (Kick's API); YouTube unban ban-id bookkeeping.
+- [x] **3b-2a. YouTube unban ban-id bookkeeping — SHIPPED 2026-07-11.** `liveChatBans.delete` only
+  accepts the insert-returned resource id, so `BanUserAsync` now returns it (`Result<string>`; an id-less
+  2xx fails rather than ledger an unusable key) and every issued ban records into the persisted
+  `YouTubeLiveChatBans` ledger (`IYouTubeLiveChatBanLedger`; soft-delete on consume, latest-wins with a
+  UUIDv7 tie-break, migration pair `AddYouTubeLiveChatBans` + 17 test-fake sweep). Unban consumes the
+  newest record and deletes by ban id on the ledgered PRIMARY channel's token — so it works OFFLINE
+  (a permanent ban outlives the session); NOT_FOUND = already gone = fine; no record = honest logged
+  no-op. 12 new tests (client wire shape + id parse, ledger contract, platform record/consume/no-op).
+- [ ] **3b-2b. Remainder** — `IPlatformApi` (channel-ops: title/game/etc. per platform); a Kick
+  `IChatPlatform` + chat read (Kick's API).
 
 ### 🔀 Act on any channel — no install required
 - [x] **4. Moderated-channels resolution + switching — SHIPPED** (stale checkbox; verified live in code +

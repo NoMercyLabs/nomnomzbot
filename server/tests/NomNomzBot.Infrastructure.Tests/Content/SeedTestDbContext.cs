@@ -65,6 +65,7 @@ public sealed class SeedTestDbContext : DbContext, IApplicationDbContext
     public DbSet<EventSubConduitShard> EventSubConduitShards => Set<EventSubConduitShard>();
     public DbSet<IdempotencyKey> IdempotencyKeys => Set<IdempotencyKey>();
     public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
+    public DbSet<YouTubeLiveChatBan> YouTubeLiveChatBans => Set<YouTubeLiveChatBan>();
     public DbSet<ChannelEvent> ChannelEvents => Set<ChannelEvent>();
     public DbSet<global::NomNomzBot.Domain.Stream.Entities.Stream> Streams =>
         Set<global::NomNomzBot.Domain.Stream.Entities.Stream>();

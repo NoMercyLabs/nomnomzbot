@@ -771,6 +771,58 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.ToTable("ChatMessages");
                 });
 
+            modelBuilder.Entity("NomNomzBot.Domain.Chat.Entities.YouTubeLiveChatBan", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("BanId")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("BanType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("BannedChannelId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("BroadcasterId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("DurationSeconds")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("LiveChatId")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("PrimaryBroadcasterId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BroadcasterId", "BannedChannelId")
+                        .HasDatabaseName("IX_YouTubeLiveChatBan_Broadcaster_BannedChannel");
+
+                    b.ToTable("YouTubeLiveChatBans");
+                });
+
             modelBuilder.Entity("NomNomzBot.Domain.Commands.Entities.ChannelBuiltinCommand", b =>
                 {
                     b.Property<Guid>("Id")
