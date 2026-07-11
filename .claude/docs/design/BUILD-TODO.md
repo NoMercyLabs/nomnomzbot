@@ -148,11 +148,15 @@ every broadcaster token already holds the full scope set (`channel:read:subscrip
 ### 💬 Combined / multi-source chat (owner-specced 2026-07-10)
 ONE substrate — a chat feed that **aggregates messages across a SET of channels**, each line tagged by source
 (platform + channel), time-ordered — at two scopes mapped to two roles:
-- [ ] **6. Streamer cross-platform feed** — a streamer sees their chat from EVERY platform they stream on
-  (Twitch + YouTube + Kick …) merged into one feed. A streamer's platforms = the `Channel` rows they own
-  (one per `Channel.Provider`); merge their `ChatMessages`, tag by provider. **Blocked on slice 3** — needs
-  chat *read* on YouTube (Live Chat API) + Kick; only Twitch ingests chat today. Also needs a per-platform
-  chat-source per streamer (a `Channel` row per platform they broadcast on).
+- [x] **6. Streamer cross-platform feed — YouTube half SHIPPED** `6beaa12b`. `ChatMessageReceivedEvent` is now
+  THE canonical chat fact for every platform (`Provider` tag; Twitch-only consumers gate — commands/auto-mod/
+  pronouns/decoration; persistence + hub push + all six projections are provider-agnostic; identity resolution
+  threads the provider so YouTube chatters mint `youtube` identities). `YouTubeLiveChatPollWorker` polls each
+  YouTube-connected streamer (2-min liveness probe offline, API-directed interval live), provisions their
+  YouTube presence as its own tenant `Channel` row on go-live, and publishes live messages through the one
+  substrate. Shared `IYouTubeAccessTokenProvider` custody path (extracted from the music provider).
+  *Remaining: Kick chat read (needs slice 3's platform seams) + bot replies on YouTube (slice 3 send seam).
+  Frontend merged/tagged feed UI → handoff.*
 - [x] **7. Viewer+ multi-channel watch — BACKEND DONE** (frontend handed off). The picker data already exists
   (`GET /channels` returns owned + moderated; `GET /channels/moderated`; slice 4's *Get Moderated Channels* +
   auto-granted Moderator membership all shipped and tested). The one real backend gap was the hub: `DashboardHub`

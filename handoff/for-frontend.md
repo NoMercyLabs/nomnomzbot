@@ -16,6 +16,31 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
 
 ## Open
 
+### 2026-07-11 — Cross-platform chat: YouTube messages now flow — tag the feed by channel provider
+- **From:** Stoney_Eagle (via Claude, backend track)
+- **What:** the chat feed (and the coming multi-watch UI) should tag each message's SOURCE by the
+  channel it arrived on. When a streamer with a connected YouTube account goes live on YouTube, the
+  backend now provisions their YouTube presence as its **own channel** (`provider: "youtube"` in
+  `GET /api/v1/channels`) and pushes its live chat through the same hub as Twitch —
+  `DashboardChatMessageDto` with `channelId` = that YouTube channel. **No contract change**: routing
+  and tagging key off `channelId` → the channel's `provider` from the channels list. Notes:
+  - YouTube messages carry role flags (`isBroadcaster` = channel owner, `isModerator`,
+    `isSubscriber` = channel member) but **no badges, no color, no pronouns/avatar enrichment** —
+    render with the defaults; a small platform icon per line (from the channel's provider) is the
+    intended source tag.
+  - Chat history for the YouTube channel comes from the same `GET .../chat/messages` endpoint under
+    that channel id.
+  - Sending/replying into YouTube chat is NOT wired yet (slice 3) — hide or disable the composer for
+    `provider != "twitch"` channels with a "read-only for now" hint.
+- **Why:** combined-chat item 6 (backend `6beaa12b`): streamers see chat from every platform they
+  stream on in one place. The multi-watch UI you already have a handoff for is the natural home —
+  a YouTube channel is just one more channel in the picker.
+- **Where:** `feature/chat/` (+ the multi-watch surface), channel picker; provider comes from the
+  existing `ChannelDto.provider`. No `v1.json` change.
+- **Done when:** with a YouTube-connected account live on YouTube, its messages appear in the
+  dashboard feed under the YouTube channel, visually tagged as YouTube, and the composer is
+  read-only for that channel.
+
 ### 2026-07-11 — Streamer-requested features (qtkitte): config surfaces for auto-shoutouts + walk-in sounds + overlay URLs
 - **From:** Stoney_Eagle (via Claude, backend track)
 - **What:** three small dashboard affordances that turn freshly-shipped backend capabilities into
