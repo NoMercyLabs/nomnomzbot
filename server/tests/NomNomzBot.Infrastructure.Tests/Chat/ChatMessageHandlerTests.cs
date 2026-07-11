@@ -155,10 +155,11 @@ public sealed class ChatMessageHandlerTests
     }
 
     [Fact]
-    public async Task A_youtube_message_never_executes_commands_or_replies()
+    public async Task A_youtube_message_executes_commands_and_replies_through_the_platform_router()
     {
-        // Command replies ride IChatProvider (Helix) — until the per-platform send seam lands, a
-        // non-Twitch message must not execute a command, reply, or fabricate an execution fact.
+        // Since the slice-3 seam, IChatProvider IS the platform router — a YouTube chatter's command
+        // executes exactly like a Twitch one, the reply routes to the YouTube send path, and the
+        // execution fact publishes so analytics/use-counts fold for the YouTube tenant too.
         ChannelContext ctx = NewChannelContext();
 
         (ChatMessageHandler sut, IChatProvider chat, IEventBus bus) = BuildWithBus(ctx);
@@ -183,11 +184,14 @@ public sealed class ChatMessageHandlerTests
 
         await sut.HandleAsync(youtube, CancellationToken.None);
 
-        await chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!, default);
-        await bus.DidNotReceiveWithAnyArgs()
-            .PublishAsync<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(
-                default!,
-                default
+        await chat.Received(1)
+            .SendMessageAsync(Broadcaster, BuiltinResponse, Arg.Any<CancellationToken>());
+        await bus.Received(1)
+            .PublishAsync(
+                Arg.Is<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(e =>
+                    e.BroadcasterId == Broadcaster && e.CommandName == BuiltinKey && e.Succeeded
+                ),
+                Arg.Any<CancellationToken>()
             );
     }
 

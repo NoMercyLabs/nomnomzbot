@@ -87,11 +87,6 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
         if (@event.BroadcasterId == Guid.Empty)
             return;
 
-        // Command execution replies through IChatProvider (Helix) — Twitch-only until the per-platform
-        // send seam (slice 3) lands. Non-Twitch chat still persists/broadcasts via the other handlers.
-        if (@event.Provider != AuthEnums.Platform.Twitch)
-            return;
-
         // Cooldown manager is keyed by a string channel id; use the tenant Guid's string form.
         string cooldownChannelKey = @event.BroadcasterId.ToString();
 

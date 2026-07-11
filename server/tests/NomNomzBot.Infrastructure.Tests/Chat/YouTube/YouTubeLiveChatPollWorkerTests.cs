@@ -50,7 +50,8 @@ public sealed class YouTubeLiveChatPollWorkerTests
             ScriptedLiveChatClient client,
             RecordingEventBus bus,
             AuthDbContext db,
-            FakeTimeProvider time
+            FakeTimeProvider time,
+            YouTubeLiveChatSessionRegistry sessions
         ) = await BuildConnectedAsync();
 
         client.LivenessResults.Enqueue(
@@ -87,6 +88,13 @@ public sealed class YouTubeLiveChatPollWorkerTests
         tenant.ExternalChannelId.Should().Be("UCstreamer");
         tenant.TwitchChannelId.Should().BeNull();
 
+        // Going live also opens the SEND path: the session registry carries the active chat + the
+        // primary channel whose token authorizes writes (slice-3 YouTubeChatPlatform reads this).
+        YouTubeLiveChatSession? session = sessions.Get(tenant.Id);
+        session.Should().NotBeNull();
+        session!.LiveChatId.Should().Be("chat-1");
+        session.PrimaryBroadcasterId.Should().Be(Broadcaster);
+
         // Paging: bootstrap read with no token, the live read continues from the bootstrap cursor.
         client.PageTokensSeen.Should().Equal(null, "tok-1");
 
@@ -118,7 +126,8 @@ public sealed class YouTubeLiveChatPollWorkerTests
             ScriptedLiveChatClient client,
             RecordingEventBus bus,
             AuthDbContext db,
-            FakeTimeProvider time
+            FakeTimeProvider time,
+            _
         ) = await BuildConnectedAsync();
 
         // The overlap victim: m-1 already reached the ChatMessages table on an earlier page.
@@ -168,8 +177,9 @@ public sealed class YouTubeLiveChatPollWorkerTests
             YouTubeLiveChatPollWorker worker,
             ScriptedLiveChatClient client,
             RecordingEventBus bus,
-            _,
-            FakeTimeProvider time
+            AuthDbContext db,
+            FakeTimeProvider time,
+            YouTubeLiveChatSessionRegistry sessions
         ) = await BuildConnectedAsync();
 
         client.LivenessResults.Enqueue(
@@ -191,6 +201,11 @@ public sealed class YouTubeLiveChatPollWorkerTests
         client.LivenessCalls.Should().Be(2, "the ended chat must fall back to liveness probing");
         client.PageCalls.Should().Be(1);
         bus.Published.OfType<ChatMessageReceivedEvent>().Should().BeEmpty();
+        // The send path's session cleared with the chat — a send after the end must not target a dead id.
+        Channel tenant = await db
+            .Channels.IgnoreQueryFilters()
+            .SingleAsync(c => c.Provider == AuthEnums.Platform.YouTube);
+        sessions.Get(tenant.Id).Should().BeNull();
     }
 
     [Fact]
@@ -201,7 +216,8 @@ public sealed class YouTubeLiveChatPollWorkerTests
             ScriptedLiveChatClient client,
             _,
             _,
-            FakeTimeProvider time
+            FakeTimeProvider time,
+            _
         ) = await BuildConnectedAsync();
 
         client.LivenessResults.Enqueue(Result.Success<YouTubeActiveChat?>(null));
@@ -225,6 +241,7 @@ public sealed class YouTubeLiveChatPollWorkerTests
             ScriptedLiveChatClient client,
             RecordingEventBus bus,
             _,
+            _,
             _
         ) = await BuildConnectedAsync(accessToken: null);
 
@@ -242,7 +259,8 @@ public sealed class YouTubeLiveChatPollWorkerTests
         ScriptedLiveChatClient Client,
         RecordingEventBus Bus,
         AuthDbContext Db,
-        FakeTimeProvider Time
+        FakeTimeProvider Time,
+        YouTubeLiveChatSessionRegistry Sessions
     )> BuildConnectedAsync(string? accessToken = "bearer-token")
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
@@ -275,6 +293,7 @@ public sealed class YouTubeLiveChatPollWorkerTests
         ScriptedLiveChatClient client = new();
         RecordingEventBus bus = new();
         FakeTimeProvider time = new(Start);
+        YouTubeLiveChatSessionRegistry sessionRegistry = new();
 
         ServiceCollection services = new();
         services.AddSingleton<IApplicationDbContext>(db);
@@ -286,11 +305,12 @@ public sealed class YouTubeLiveChatPollWorkerTests
         YouTubeLiveChatPollWorker worker = new(
             provider.GetRequiredService<IServiceScopeFactory>(),
             client,
+            sessionRegistry,
             time,
             NullLogger<YouTubeLiveChatPollWorker>.Instance
         );
 
-        return (worker, client, bus, db, time);
+        return (worker, client, bus, db, time, sessionRegistry);
     }
 
     private static YouTubeLiveChatMessage Message(
@@ -349,6 +369,13 @@ public sealed class YouTubeLiveChatPollWorkerTests
             string accessToken,
             CancellationToken cancellationToken = default
         ) => Task.FromResult(Result.Success(new YouTubeOwnChannel("UCstreamer", "Streamer YT")));
+
+        public Task<Result> SendMessageAsync(
+            string accessToken,
+            string liveChatId,
+            string text,
+            CancellationToken cancellationToken = default
+        ) => Task.FromResult(Result.Success());
     }
 
     private sealed class FixedTokenProvider(string? token) : IYouTubeAccessTokenProvider

@@ -894,9 +894,16 @@ public static class DependencyInjection
         // (the invariant: Twitch never receives a Guid). Scoped: reads the per-request DbContext.
         services.AddScoped<ITwitchIdentityResolver, TwitchIdentityResolver>();
 
-        // Chat provider (Helix-first, used by pipeline actions and background services).
-        // IChatProvider is not an I<X>Service, so it is registered explicitly.
-        services.AddScoped<IChatProvider, HelixChatProvider>();
+        // Chat platforms (BUILD slice 3 — the thin multi-platform seam): every send site keeps talking
+        // to IChatProvider; the router selects the platform by the tenant channel's Channel.Provider.
+        // Multi-bound platforms + the router are all scoped (DbContext + per-tenant token resolution).
+        services.AddScoped<IChatPlatform, HelixChatProvider>();
+        services.AddScoped<IChatPlatform, YouTubeChatPlatform>();
+        services.AddScoped<IChatProvider, ChatPlatformRouter>();
+
+        // The live YouTube chat session per YouTube tenant — written by the poll worker on go-live/
+        // offline, read by the YouTube send path. Process-wide state, so a singleton.
+        services.AddSingleton<IYouTubeLiveChatSessionRegistry, YouTubeLiveChatSessionRegistry>();
 
         // ── Twitch EventSub (twitch-eventsub §7) ─────────────────────────────
         // Per-topic create facts (condition/version/token-owner) — pure, singleton.

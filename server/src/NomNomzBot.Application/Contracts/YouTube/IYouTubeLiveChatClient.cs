@@ -59,6 +59,20 @@ public interface IYouTubeLiveChatClient
         string accessToken,
         CancellationToken cancellationToken = default
     );
+
+    /// <summary>
+    /// Sends a text message into a live chat (<c>POST liveChatMessages?part=snippet</c>, scope
+    /// <c>youtube</c>/<c>youtube.force-ssl</c>) — the WRITE half of the seam (bot replies on YouTube,
+    /// combined-chat item 6). YouTube caps a message at 200 characters; longer input is rejected
+    /// <c>VALIDATION_FAILED</c> before any call. A token without the write scope maps to
+    /// <c>MISSING_SCOPE</c>; a dead/ended chat id to <c>NOT_FOUND</c>.
+    /// </summary>
+    Task<Result> SendMessageAsync(
+        string accessToken,
+        string liveChatId,
+        string text,
+        CancellationToken cancellationToken = default
+    );
 }
 
 /// <summary>The authenticated user's own YouTube channel identity.</summary>

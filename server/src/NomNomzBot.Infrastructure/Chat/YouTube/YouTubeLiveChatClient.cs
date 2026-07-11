@@ -164,6 +164,60 @@ public sealed class YouTubeLiveChatClient : IYouTubeLiveChatClient
         );
     }
 
+    public async Task<Result> SendMessageAsync(
+        string accessToken,
+        string liveChatId,
+        string text,
+        CancellationToken cancellationToken = default
+    )
+    {
+        // The Live Chat API rejects >200-char messages — fail closed locally with the precise reason
+        // instead of burning a quota-billed call on a guaranteed 400.
+        if (string.IsNullOrWhiteSpace(text))
+            return Result.Failure("The message is empty.", "VALIDATION_FAILED");
+        if (text.Length > 200)
+            return Result.Failure(
+                "YouTube live chat messages are capped at 200 characters.",
+                "VALIDATION_FAILED"
+            );
+
+        string url = $"{YouTubeApiBase}/liveChatMessages?part=snippet";
+        HttpRequestMessage request = new(HttpMethod.Post, url);
+        request.Headers.Authorization = new("Bearer", accessToken);
+        request.Content = JsonContent.Create(
+            new
+            {
+                snippet = new
+                {
+                    liveChatId,
+                    type = "textMessageEvent",
+                    textMessageDetails = new { messageText = text },
+                },
+            }
+        );
+
+        try
+        {
+            HttpResponseMessage response = await _http.SendAsync(request, cancellationToken);
+            if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
+                return Result.Failure(
+                    "The YouTube connection is missing the required scope.",
+                    "MISSING_SCOPE"
+                );
+            if (response.StatusCode == HttpStatusCode.NotFound)
+                return Result.Failure("The YouTube live chat is no longer available.", "NOT_FOUND");
+            if (!response.IsSuccessStatusCode)
+                return Result.Failure("YouTube is temporarily unavailable.", "SERVICE_UNAVAILABLE");
+
+            return Result.Success();
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogError(ex, "YouTube live-chat send threw for chat {LiveChatId}", liveChatId);
+            return Result.Failure("YouTube is temporarily unavailable.", "SERVICE_UNAVAILABLE");
+        }
+    }
+
     private static YouTubeLiveChatMessage MapMessage(LiveChatMessageItem item) =>
         new(
             item.Id ?? string.Empty,

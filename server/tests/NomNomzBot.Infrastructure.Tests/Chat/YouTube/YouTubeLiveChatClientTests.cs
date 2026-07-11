@@ -189,6 +189,52 @@ public sealed class YouTubeLiveChatClientTests
         result.ErrorCode.Should().Be("NOT_FOUND");
     }
 
+    [Fact]
+    public async Task SendMessage_posts_the_text_into_the_chat_with_the_bearer()
+    {
+        StubHttpMessageHandler handler = new((HttpStatusCode.OK, """{"id":"sent-1"}"""));
+        YouTubeLiveChatClient sut = Build(handler);
+
+        Result result = await sut.SendMessageAsync(Token, "chat123", "hello viewers");
+
+        result.IsSuccess.Should().BeTrue();
+        handler.LastRequest!.Method.Should().Be(HttpMethod.Post);
+        handler.LastRequest.RequestUri!.ToString().Should().Contain("liveChatMessages");
+        handler.LastRequest.Headers.Authorization!.Parameter.Should().Be(Token);
+        string body = await handler.LastRequest.Content!.ReadAsStringAsync();
+        body.Should()
+            .Contain("chat123")
+            .And.Contain("hello viewers")
+            .And.Contain("textMessageEvent");
+    }
+
+    [Fact]
+    public async Task SendMessage_rejects_an_over_200_char_message_before_any_call()
+    {
+        StubHttpMessageHandler handler = new((HttpStatusCode.OK, "{}"));
+        YouTubeLiveChatClient sut = Build(handler);
+
+        Result result = await sut.SendMessageAsync(Token, "chat123", new string('a', 201));
+
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("VALIDATION_FAILED");
+        handler.LastRequest.Should().BeNull("a guaranteed 400 must not burn a quota-billed call");
+    }
+
+    [Fact]
+    public async Task SendMessage_maps_a_403_to_missing_scope()
+    {
+        StubHttpMessageHandler handler = new(
+            (HttpStatusCode.Forbidden, """{"error":{"code":403}}""")
+        );
+        YouTubeLiveChatClient sut = Build(handler);
+
+        Result result = await sut.SendMessageAsync(Token, "chat123", "hi");
+
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("MISSING_SCOPE");
+    }
+
     private sealed class StubHttpMessageHandler(
         params (HttpStatusCode Status, string Json)[] responses
     ) : HttpMessageHandler

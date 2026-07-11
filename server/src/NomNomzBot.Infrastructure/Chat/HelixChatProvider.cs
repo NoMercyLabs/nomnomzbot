@@ -22,15 +22,16 @@ using NomNomzBot.Infrastructure.Platform;
 namespace NomNomzBot.Infrastructure.Chat;
 
 /// <summary>
-/// Primary <see cref="IChatProvider"/> implementation over the Twitch Helix API. Sending posts
+/// The Twitch <see cref="IChatPlatform"/> over the Helix API (reached through the platform-routing
+/// <see cref="IChatProvider"/> for twitch-provider channels). Sending posts
 /// <c>/helix/chat/messages</c> as the bot identity resolved PER BROADCASTER through <see cref="ITwitchHelixTransport"/>
 /// (this provider is the chat-send owner the moderation sub-client deliberately leaves the plain send to); chat
 /// enforcement delegates to <see cref="ITwitchModerationApi"/>, which resolves the tenant Guid → Twitch id internally.
 ///
-/// This is the sole chat path: chat is read via EventSub (<c>channel.chat.message</c>) and sent via Helix here
-/// — there is no IRC connection.
+/// This is the sole Twitch chat path: chat is read via EventSub (<c>channel.chat.message</c>) and sent via Helix
+/// here — there is no IRC connection.
 /// </summary>
-public sealed class HelixChatProvider : IChatProvider
+public sealed class HelixChatProvider : IChatPlatform
 {
     private const string BotProvider = AuthEnums.IntegrationProvider.Twitch + "_bot";
     private const string UserProvider = AuthEnums.IntegrationProvider.Twitch;
@@ -47,6 +48,8 @@ public sealed class HelixChatProvider : IChatProvider
     // cache is keyed by broadcaster. Scoped lifetime, so it lives for one request/pipeline run and spares
     // repeat sends to the same channel a DB round-trip.
     private readonly Dictionary<Guid, BotSenderIdentity> _senderByBroadcaster = new();
+
+    public string Provider => AuthEnums.Platform.Twitch;
 
     public HelixChatProvider(
         ITwitchHelixTransport transport,

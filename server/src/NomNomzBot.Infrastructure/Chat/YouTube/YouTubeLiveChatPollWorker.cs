@@ -48,6 +48,7 @@ public sealed class YouTubeLiveChatPollWorker : BackgroundService
 
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IYouTubeLiveChatClient _client;
+    private readonly IYouTubeLiveChatSessionRegistry _sessions;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<YouTubeLiveChatPollWorker> _logger;
 
@@ -57,12 +58,14 @@ public sealed class YouTubeLiveChatPollWorker : BackgroundService
     public YouTubeLiveChatPollWorker(
         IServiceScopeFactory scopeFactory,
         IYouTubeLiveChatClient client,
+        IYouTubeLiveChatSessionRegistry sessions,
         TimeProvider timeProvider,
         ILogger<YouTubeLiveChatPollWorker> logger
     )
     {
         _scopeFactory = scopeFactory;
         _client = client;
+        _sessions = sessions;
         _timeProvider = timeProvider;
         _logger = logger;
     }
@@ -107,7 +110,10 @@ public sealed class YouTubeLiveChatPollWorker : BackgroundService
             .ToListAsync(ct);
 
         foreach (Guid gone in _states.Keys.Where(id => !connected.Contains(id)).ToList())
-            _states.Remove(gone);
+        {
+            if (_states.Remove(gone, out PollState? removed) && removed.LiveChatId is not null)
+                _sessions.SetOffline(removed.TenantId);
+        }
 
         DateTime now = _timeProvider.GetUtcNow().UtcDateTime;
         foreach (Guid broadcasterId in connected)
@@ -152,7 +158,7 @@ public sealed class YouTubeLiveChatPollWorker : BackgroundService
         if (accessToken is null)
         {
             // No usable token (vault miss / failed refresh) — the integration status flow owns re-auth.
-            state.GoOffline(now + MissingScopeBackoff);
+            GoOffline(state, now + MissingScopeBackoff);
             return;
         }
 
@@ -227,6 +233,8 @@ public sealed class YouTubeLiveChatPollWorker : BackgroundService
 
         state.GoLive(active.Value.LiveChatId, tenantId, own.Value.ChannelId);
         state.NextDueUtc = now; // read the bootstrap page on the next due pass, immediately.
+        // The send path (YouTubeChatPlatform) can now write into this chat on the primary channel's token.
+        _sessions.SetLive(tenantId, broadcasterId, active.Value.LiveChatId);
 
         _logger.LogInformation(
             "YouTube live chat opened for {BroadcasterId} (tenant {TenantId}, chat {LiveChatId})",
@@ -260,11 +268,12 @@ public sealed class YouTubeLiveChatPollWorker : BackgroundService
                     "YouTube live chat closed for tenant {TenantId}",
                     state.TenantId
                 );
-                state.GoOffline(now + LivenessInterval);
+                GoOffline(state, now + LivenessInterval);
                 return;
             }
 
-            state.GoOffline(
+            GoOffline(
+                state,
                 now
                     + (
                         page.ErrorCode == "MISSING_SCOPE"
@@ -340,6 +349,14 @@ public sealed class YouTubeLiveChatPollWorker : BackgroundService
                 ct
             );
         }
+    }
+
+    /// <summary>Drops the poll state offline AND clears the send path's session in the same stroke.</summary>
+    private void GoOffline(PollState state, DateTime nextDueUtc)
+    {
+        if (state.LiveChatId is not null)
+            _sessions.SetOffline(state.TenantId);
+        state.GoOffline(nextDueUtc);
     }
 
     private static TimeSpan Max(TimeSpan a, TimeSpan b) => a >= b ? a : b;
