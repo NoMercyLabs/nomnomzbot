@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Text.Json;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -709,5 +710,68 @@ public sealed class ModerationServiceTwitchReadsTests
         await moderation
             .Received(1)
             .RemoveSuspiciousStatusAsync(Tenant, "5005", Arg.Any<CancellationToken>());
+    }
+
+    // ─── Per-user context ─────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task GetUserContextAsync_SummarizesTheBotsRecordedActionsForOnlyThatTarget()
+    {
+        ModerationServiceTestDbContext db = ModerationServiceTestDbContext.New();
+        DateTime t0 = new(2026, 7, 1, 12, 0, 0, DateTimeKind.Utc);
+
+        void Seed(string action, string target, string username, int minute)
+        {
+            db.Records.Add(
+                new Record
+                {
+                    BroadcasterId = Tenant,
+                    RecordType = "moderation_action",
+                    UserId = "mod-1",
+                    Data = JsonSerializer.Serialize(
+                        new
+                        {
+                            Action = action,
+                            TargetUserId = target,
+                            TargetUsername = username,
+                        }
+                    ),
+                    CreatedAt = t0.AddMinutes(minute),
+                }
+            );
+        }
+
+        Seed("unban", "5005", "Bad", 0);
+        Seed("warn", "5005", "Bad", 1);
+        Seed("timeout", "5005", "Bad", 2);
+        Seed("timeout", "5005", "Bad", 3);
+        Seed("ban", "5005", "Bad", 4); // most recent action FOR 5005
+        Seed("ban", "9999", "Other", 5); // a DIFFERENT target — must be excluded from 5005's context
+        await db.SaveChangesAsync();
+
+        ModerationService service = new(
+            db,
+            Substitute.For<ITwitchModerationApi>(),
+            NullLogger<ModerationService>.Instance,
+            Substitute.For<IEventBus>()
+        );
+
+        Result<UserModerationContextDto> result = await service.GetUserContextAsync(
+            BroadcasterId,
+            "5005"
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        UserModerationContextDto ctx = result.Value;
+        ctx.UserId.Should().Be("5005");
+        ctx.Username.Should().Be("Bad");
+        ctx.BanCount.Should().Be(1);
+        ctx.TimeoutCount.Should().Be(2);
+        ctx.WarnCount.Should().Be(1);
+        ctx.UnbanCount.Should().Be(1);
+        ctx.LastActionType.Should().Be("ban"); // the T+4 ban, NOT the other target's later ban
+        ctx.LastActionAt.Should().Be(t0.AddMinutes(4));
+        ctx.RecentActions.Should().HaveCount(5);
+        ctx.RecentActions.Should().OnlyContain(a => a.TargetUserId == "5005");
     }
 }

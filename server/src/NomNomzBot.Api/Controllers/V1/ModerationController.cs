@@ -577,6 +577,27 @@ public class ModerationController : BaseController
         return Ok(new StatusResponseDto<SuspiciousStatusDto> { Data = result.Value });
     }
 
+    /// <summary>
+    /// The per-user moderation summary for the mod panel — the bot's recorded actions against this viewer
+    /// (ban/timeout/warn/unban counts + recent actions). The bot's own history, not Twitch's complete record.
+    /// </summary>
+    [RequireAction("moderation:usercontext:read")]
+    [HttpGet("users/{userId}/context")]
+    [ProducesResponseType<StatusResponseDto<UserModerationContextDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetUserContext(
+        string channelId,
+        string userId,
+        CancellationToken ct
+    )
+    {
+        Result<UserModerationContextDto> result = await _moderationService.GetUserContextAsync(
+            channelId,
+            userId,
+            ct
+        );
+        return ResultResponse(result);
+    }
+
     // ─── Stats ────────────────────────────────────────────────────────────────
 
     /// <summary>

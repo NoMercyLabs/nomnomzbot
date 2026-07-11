@@ -373,10 +373,15 @@ ONE substrate — a chat feed that **aggregates messages across a SET of channel
   **Network un-nuke** shipped (backend): `POST /moderation/actions/unban` with `scope=all_moderated` reverses a
   mass ban across every channel Twitch says the operator moderates (new `ITwitchModerationApi.UnbanAsOperatorAsync`
   + `IOperatorNetworkBanService.UnbanAcrossModeratedAsync`, DRY-shared fan-out with the ban side); Gate-2
-  `moderation:unban`(Mod); openapi refreshed; 1 new test; UI → handoff. *Remaining:* SuperMod platform
-  `moderation:nuke` (tenant-wide, distinct from the operator fan-out), shared-ban trust list + propagation,
-  viewer reports/evidence, per-user mod panel (notes/history/trust), escalation ladder — all need new
-  entities/migrations.
+  `moderation:unban`(Mod); openapi refreshed; 1 new test; UI → handoff. **Per-user mod context** shipped
+  (backend, read side): `GET /moderation/users/{userId}/context` → `UserModerationContextDto` (ban/timeout/warn/
+  unban counts + last action + recent 20) aggregated read-through from the bot's recorded `moderation_action`
+  rows (deliberate delta vs the J.4 projection entity — truthful "bot's own actions", explicitly NOT Twitch's full
+  history); Gate-2 `moderation:usercontext:read`(Mod); openapi refreshed; 1 new test; UI → handoff.
+  *Remaining (all need new entities + 24-fake sweep + dual migrations):* `UserNote` panel (J.3 — the WRITE side of
+  the per-user panel), SuperMod platform `moderation:nuke` (tenant-wide, distinct from the operator fan-out),
+  shared-ban trust list + propagation (J.9/J.9a), viewer reports/evidence (J.8/J.8a), escalation ladder
+  (J.10/J.11), and the J.4/J.5 history+trust projections.
 - [ ] **16. TTS advanced** (`tts.md`) — mod approval queue, per-viewer voices, profanity filters, BYOK,
   usage ledger.
 - [x] **17. Live-ops schedule & markers — SHIPPED 2026-07-11** (`broadcaster-liveops.md`; dashboard

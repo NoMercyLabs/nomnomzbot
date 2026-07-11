@@ -1099,6 +1099,86 @@ public class ModerationService : IModerationService
     private static SuspiciousStatusDto ToDto(TwitchSuspiciousUserStatus status) =>
         new(status.UserId, status.Status, status.Types, status.UpdatedAt.UtcDateTime);
 
+    public async Task<Result<UserModerationContextDto>> GetUserContextAsync(
+        string broadcasterId,
+        string targetTwitchUserId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (!Guid.TryParse(broadcasterId, out Guid tenantId))
+            return Errors.ChannelNotFound<UserModerationContextDto>(broadcasterId);
+
+        List<Record> records = await _db
+            .Records.Where(r => r.BroadcasterId == tenantId && r.RecordType == ActionRecordType)
+            .OrderByDescending(r => r.CreatedAt)
+            .ToListAsync(cancellationToken);
+
+        // Filter (in memory) to the actions whose recorded target is this viewer. These are the bot's OWN recorded
+        // actions — not Twitch's complete history — and the DTO's doc is explicit about that distinction.
+        List<(Record Record, ModerationActionData Data)> forTarget = records
+            .Select(r =>
+                (
+                    Record: r,
+                    Data: JsonSerializer.Deserialize<ModerationActionData>(r.Data)
+                        ?? new ModerationActionData()
+                )
+            )
+            .Where(entry =>
+                string.Equals(
+                    entry.Data.TargetUserId,
+                    targetTwitchUserId,
+                    StringComparison.OrdinalIgnoreCase
+                )
+            )
+            .ToList();
+
+        Dictionary<string, string> moderatorNames = await ResolveUsernamesAsync(
+            forTarget.Select(entry => entry.Record.UserId),
+            cancellationToken
+        );
+
+        // Prefer the username the action snapshotted; fall back to the Users table by Twitch id.
+        string? username =
+            forTarget
+                .Select(entry => entry.Data.TargetUsername)
+                .FirstOrDefault(name => !string.IsNullOrEmpty(name))
+            ?? await _db
+                .Users.Where(u => u.TwitchUserId == targetTwitchUserId)
+                .Select(u => (string?)u.DisplayName)
+                .FirstOrDefaultAsync(cancellationToken);
+
+        int Count(string action) => forTarget.Count(entry => entry.Data.Action == action);
+
+        List<ModerationActionLog> recent = forTarget
+            .Take(20)
+            .Select(entry => new ModerationActionLog(
+                entry.Record.Id.ToString(),
+                entry.Data.Action,
+                entry.Record.UserId,
+                moderatorNames.GetValueOrDefault(entry.Record.UserId, entry.Record.UserId),
+                entry.Data.TargetUserId,
+                entry.Data.TargetUsername,
+                entry.Data.Reason,
+                entry.Data.DurationSeconds,
+                entry.Record.CreatedAt
+            ))
+            .ToList();
+
+        return Result.Success(
+            new UserModerationContextDto(
+                targetTwitchUserId,
+                username,
+                Count("ban"),
+                Count("timeout"),
+                Count("warn"),
+                Count("unban"),
+                forTarget.Count > 0 ? forTarget[0].Data.Action : null,
+                forTarget.Count > 0 ? forTarget[0].Record.CreatedAt : null,
+                recent
+            )
+        );
+    }
+
     /// <summary>
     /// Reads every page of the channel's Twitch blocked-term list, short-circuiting to an honest failure on the
     /// first Helix error rather than returning a partial list. Bounded by a page guard against a pathological

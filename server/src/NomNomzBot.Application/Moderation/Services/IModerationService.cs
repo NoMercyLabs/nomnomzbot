@@ -175,4 +175,14 @@ public interface IModerationService
         string targetUserId,
         CancellationToken cancellationToken = default
     );
+
+    /// <summary>
+    /// The per-user moderation summary for the mod panel — the bot's recorded actions against one viewer (counts +
+    /// the most recent). The bot's own history, NOT Twitch's complete record.
+    /// </summary>
+    Task<Result<UserModerationContextDto>> GetUserContextAsync(
+        string broadcasterId,
+        string targetTwitchUserId,
+        CancellationToken cancellationToken = default
+    );
 }

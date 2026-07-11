@@ -16,6 +16,23 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
 
 ## Open
 
+### 2026-07-11 — Per-user moderation context (mod panel read) — new endpoint
+- **From:** Stoney_Eagle (via Claude, backend track)
+- **What:** `GET /channels/{channelId}/moderation/users/{userId}/context` (userId = the target's Twitch id) →
+  `UserModerationContextDto`: `userId`, `username?`, `banCount`, `timeoutCount`, `warnCount`, `unbanCount`,
+  `lastActionType?`, `lastActionAt?`, and `recentActions` (the last 20, each a `ModerationActionLog` — already a
+  registered DTO). Powers a per-user mod panel: click a chatter → see their rap sheet, then act (warn / suspicious
+  / ban) with the endpoints from the sibling handoff entries.
+- **Why:** item 15 (§3.7 per-user panel, read side). **Important honesty caveat to surface in the UI:** this is
+  the bot's OWN recorded actions (dashboard/command/EventSub), NOT Twitch's complete history — actions taken via
+  Twitch's own UI or other tools aren't counted. Label it "actions by this bot" (or similar), don't imply it's the
+  full Twitch record.
+- **Where:** a per-user panel/popover (chat user click, community row, or a dedicated view). Register
+  `UserModerationContextDto` in `ApiContractTest` (`ModerationActionLog` already registered; v1.json refreshed).
+  Role gate: `moderation:usercontext:read` (Moderator). Read-only — no new scope.
+- **Done when:** opening a user shows their counts + recent actions (only that user's), an unmoderated user shows
+  all-zeros/empty, and the "bot's actions" framing is clear; en + nl strings.
+
 ### 2026-07-11 — Network un-nuke: reverse a mass ban across moderated channels — new endpoint
 - **From:** Stoney_Eagle (via Claude, backend track)
 - **What:** the reversal of the existing network ban. `POST /channels/{channelId}/moderation/actions/unban` with

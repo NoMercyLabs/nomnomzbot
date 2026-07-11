@@ -46,6 +46,23 @@ public sealed record ModerationActionLog(
     DateTime Timestamp
 );
 
+/// <summary>
+/// A per-user moderation summary for the mod panel — the bot's RECORDED actions against one viewer in a channel
+/// (bans / timeouts / warns / unbans, counts + the most recent). This is the bot's own action history, not Twitch's
+/// complete record: actions taken outside the bot (Twitch's UI, other tools) are not counted here.
+/// </summary>
+public sealed record UserModerationContextDto(
+    string UserId,
+    string? Username,
+    int BanCount,
+    int TimeoutCount,
+    int WarnCount,
+    int UnbanCount,
+    string? LastActionType,
+    DateTime? LastActionAt,
+    IReadOnlyList<ModerationActionLog> RecentActions
+);
+
 public sealed record CreateModerationRuleRequest
 {
     public required string Name { get; init; }

@@ -29742,6 +29742,112 @@
         }
       }
     },
+    "/api/v{version}/channels/{channelId}/moderation/users/{userId}/context": {
+      "get": {
+        "tags": [
+          "Moderation"
+        ],
+        "summary": "The per-user moderation summary for the mod panel — the bot's recorded actions against this viewer\r\n(ban/timeout/warn/unban counts + recent actions). The bot's own history, not Twitch's complete record.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfUserModerationContextDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v{version}/channels/{channelId}/moderation/stats": {
       "get": {
         "tags": [
@@ -51226,6 +51332,65 @@
           }
         }
       },
+      "ModerationActionLog": {
+        "required": [
+          "id",
+          "action",
+          "moderatorId",
+          "moderatorUsername",
+          "targetUserId",
+          "targetUsername",
+          "reason",
+          "durationSeconds",
+          "timestamp"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string"
+          },
+          "moderatorId": {
+            "type": "string"
+          },
+          "moderatorUsername": {
+            "type": "string"
+          },
+          "targetUserId": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "targetUsername": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "reason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "durationSeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
       "ModerationActionResult": {
         "required": [
           "success",
@@ -58468,6 +58633,36 @@
           }
         }
       },
+      "StatusResponseDtoOfUserModerationContextDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/UserModerationContextDto"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
       "StatusResponseDtoOfUserProfileDto": {
         "type": "object",
         "properties": {
@@ -61855,6 +62050,83 @@
           }
         },
         "description": "One external identity linked to the caller's account (platform-identity §4). Never carries tokens — those\r\nlive in the vault. Returned by `GET auth/identities`, primary first."
+      },
+      "UserModerationContextDto": {
+        "required": [
+          "userId",
+          "username",
+          "banCount",
+          "timeoutCount",
+          "warnCount",
+          "unbanCount",
+          "lastActionType",
+          "lastActionAt",
+          "recentActions"
+        ],
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string"
+          },
+          "username": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "banCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "timeoutCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "warnCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "unbanCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "lastActionType": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "lastActionAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "recentActions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ModerationActionLog"
+            }
+          }
+        },
+        "description": "A per-user moderation summary for the mod panel — the bot's RECORDED actions against one viewer in a channel\r\n(bans / timeouts / warns / unbans, counts + the most recent). This is the bot's own action history, not Twitch's\r\ncomplete record: actions taken outside the bot (Twitch's UI, other tools) are not counted here."
       },
       "UserProfileDto": {
         "required": [
