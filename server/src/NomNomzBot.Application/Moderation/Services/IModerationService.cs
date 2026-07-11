@@ -185,4 +185,35 @@ public interface IModerationService
         string targetTwitchUserId,
         CancellationToken cancellationToken = default
     );
+
+    /// <summary>List the moderator notes about a viewer, pinned notes first then most-recent.</summary>
+    Task<Result<List<UserNoteDto>>> ListUserNotesAsync(
+        string broadcasterId,
+        string subjectTwitchUserId,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>Add a moderator note about a viewer, attributed to the acting moderator.</summary>
+    Task<Result<UserNoteDto>> AddUserNoteAsync(
+        string broadcasterId,
+        string subjectTwitchUserId,
+        CreateUserNoteRequest request,
+        string? authorId = null,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>Edit a moderator note's text and/or pinned state.</summary>
+    Task<Result<UserNoteDto>> UpdateUserNoteAsync(
+        string broadcasterId,
+        int noteId,
+        UpdateUserNoteRequest request,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>Delete a moderator note.</summary>
+    Task<Result> DeleteUserNoteAsync(
+        string broadcasterId,
+        int noteId,
+        CancellationToken cancellationToken = default
+    );
 }

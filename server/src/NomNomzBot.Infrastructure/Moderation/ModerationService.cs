@@ -27,6 +27,8 @@ public class ModerationService : IModerationService
 {
     private const string RuleRecordType = "moderation_rule";
     private const string ActionRecordType = "moderation_action";
+    private const string NoteRecordType = "user_note";
+    private const int NoteMaxLength = 2000;
 
     private readonly IApplicationDbContext _db;
     private readonly ITwitchModerationApi _moderation;
@@ -1179,6 +1181,205 @@ public class ModerationService : IModerationService
         );
     }
 
+    // ─── User notes (mod panel) ────────────────────────────────────────────────
+    // Stored in the shared Record table under RecordType "user_note" — the same pattern moderation rules and
+    // actions already use — so notes need no dedicated entity/migration (a deliberate delta vs the J.3 UserNote
+    // schema entity, consistent with how this service already persists moderation records).
+
+    public async Task<Result<List<UserNoteDto>>> ListUserNotesAsync(
+        string broadcasterId,
+        string subjectTwitchUserId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (!Guid.TryParse(broadcasterId, out Guid tenantId))
+            return Errors.ChannelNotFound<List<UserNoteDto>>(broadcasterId);
+
+        List<Record> records = await _db
+            .Records.Where(r => r.BroadcasterId == tenantId && r.RecordType == NoteRecordType)
+            .ToListAsync(cancellationToken);
+
+        List<(Record Record, UserNoteData Data)> notes = records
+            .Select(r =>
+                (
+                    Record: r,
+                    Data: JsonSerializer.Deserialize<UserNoteData>(r.Data) ?? new UserNoteData()
+                )
+            )
+            .Where(entry =>
+                string.Equals(
+                    entry.Data.SubjectTwitchUserId,
+                    subjectTwitchUserId,
+                    StringComparison.OrdinalIgnoreCase
+                )
+            )
+            .ToList();
+
+        Dictionary<string, string> authorNames = await ResolveUsernamesAsync(
+            notes.Select(entry => entry.Record.UserId),
+            cancellationToken
+        );
+
+        List<UserNoteDto> dtos = notes
+            .OrderByDescending(entry => entry.Data.Pinned)
+            .ThenByDescending(entry => entry.Record.CreatedAt)
+            .Select(entry => ToDto(entry.Record, entry.Data, authorNames))
+            .ToList();
+
+        return Result.Success(dtos);
+    }
+
+    public async Task<Result<UserNoteDto>> AddUserNoteAsync(
+        string broadcasterId,
+        string subjectTwitchUserId,
+        CreateUserNoteRequest request,
+        string? authorId = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (!Guid.TryParse(broadcasterId, out Guid tenantId))
+            return Errors.ChannelNotFound<UserNoteDto>(broadcasterId);
+
+        Result<string> content = ValidateNoteContent(request.Content);
+        if (content.IsFailure)
+            return content.WithValue<UserNoteDto>(default!);
+
+        bool channelExists = await _db.Channels.AnyAsync(c => c.Id == tenantId, cancellationToken);
+        if (!channelExists)
+            return Errors.ChannelNotFound<UserNoteDto>(broadcasterId);
+
+        UserNoteData data = new()
+        {
+            SubjectTwitchUserId = subjectTwitchUserId,
+            Content = content.Value,
+            Pinned = request.Pinned,
+        };
+        Record record = new()
+        {
+            BroadcasterId = tenantId,
+            RecordType = NoteRecordType,
+            Data = JsonSerializer.Serialize(data),
+            UserId = authorId ?? tenantId.ToString(),
+        };
+        _db.Records.Add(record);
+        await _db.SaveChangesAsync(cancellationToken);
+        await PublishConfigChangedAsync(
+            tenantId,
+            "user-notes",
+            record.Id.ToString(),
+            "created",
+            cancellationToken
+        );
+
+        Dictionary<string, string> authorNames = await ResolveUsernamesAsync(
+            [record.UserId],
+            cancellationToken
+        );
+        return Result.Success(ToDto(record, data, authorNames));
+    }
+
+    public async Task<Result<UserNoteDto>> UpdateUserNoteAsync(
+        string broadcasterId,
+        int noteId,
+        UpdateUserNoteRequest request,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (!Guid.TryParse(broadcasterId, out Guid tenantId))
+            return Errors.NotFound<UserNoteDto>("User note", noteId.ToString());
+
+        Record? record = await _db.Records.FirstOrDefaultAsync(
+            r => r.Id == noteId && r.BroadcasterId == tenantId && r.RecordType == NoteRecordType,
+            cancellationToken
+        );
+        if (record is null)
+            return Errors.NotFound<UserNoteDto>("User note", noteId.ToString());
+
+        UserNoteData data =
+            JsonSerializer.Deserialize<UserNoteData>(record.Data) ?? new UserNoteData();
+        if (request.Content is not null)
+        {
+            Result<string> content = ValidateNoteContent(request.Content);
+            if (content.IsFailure)
+                return content.WithValue<UserNoteDto>(default!);
+            data.Content = content.Value;
+        }
+        if (request.Pinned.HasValue)
+            data.Pinned = request.Pinned.Value;
+
+        record.Data = JsonSerializer.Serialize(data);
+        await _db.SaveChangesAsync(cancellationToken);
+        await PublishConfigChangedAsync(
+            tenantId,
+            "user-notes",
+            record.Id.ToString(),
+            "updated",
+            cancellationToken
+        );
+
+        Dictionary<string, string> authorNames = await ResolveUsernamesAsync(
+            [record.UserId],
+            cancellationToken
+        );
+        return Result.Success(ToDto(record, data, authorNames));
+    }
+
+    public async Task<Result> DeleteUserNoteAsync(
+        string broadcasterId,
+        int noteId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (!Guid.TryParse(broadcasterId, out Guid tenantId))
+            return Result.Failure($"User note '{noteId}' was not found.", "NOT_FOUND");
+
+        Record? record = await _db.Records.FirstOrDefaultAsync(
+            r => r.Id == noteId && r.BroadcasterId == tenantId && r.RecordType == NoteRecordType,
+            cancellationToken
+        );
+        if (record is null)
+            return Result.Failure($"User note '{noteId}' was not found.", "NOT_FOUND");
+
+        _db.Records.Remove(record);
+        await _db.SaveChangesAsync(cancellationToken);
+        await PublishConfigChangedAsync(
+            tenantId,
+            "user-notes",
+            record.Id.ToString(),
+            "deleted",
+            cancellationToken
+        );
+        return Result.Success();
+    }
+
+    private static Result<string> ValidateNoteContent(string? content)
+    {
+        string trimmed = content?.Trim() ?? "";
+        if (trimmed.Length == 0)
+            return Result.Failure<string>("A note can't be empty.", "VALIDATION_FAILED");
+        if (trimmed.Length > NoteMaxLength)
+            return Result.Failure<string>(
+                $"A note can't exceed {NoteMaxLength} characters.",
+                "VALIDATION_FAILED"
+            );
+        return Result.Success(trimmed);
+    }
+
+    private static UserNoteDto ToDto(
+        Record record,
+        UserNoteData data,
+        Dictionary<string, string> authorNames
+    ) =>
+        new(
+            record.Id,
+            data.SubjectTwitchUserId,
+            data.Content,
+            data.Pinned,
+            authorNames.GetValueOrDefault(record.UserId),
+            record.CreatedAt,
+            record.UpdatedAt
+        );
+
     /// <summary>
     /// Reads every page of the channel's Twitch blocked-term list, short-circuiting to an honest failure on the
     /// first Helix error rather than returning a partial list. Bounded by a page guard against a pathological
@@ -1309,5 +1510,12 @@ public class ModerationService : IModerationService
         public string? TargetUsername { get; set; }
         public string? Reason { get; set; }
         public int? DurationSeconds { get; set; }
+    }
+
+    private sealed class UserNoteData
+    {
+        public string SubjectTwitchUserId { get; set; } = string.Empty;
+        public string Content { get; set; } = string.Empty;
+        public bool Pinned { get; set; }
     }
 }

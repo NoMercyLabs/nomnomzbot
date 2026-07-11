@@ -598,6 +598,88 @@ public class ModerationController : BaseController
         return ResultResponse(result);
     }
 
+    // ─── User notes (mod panel) ────────────────────────────────────────────────
+
+    /// <summary>List the moderator notes about a viewer (pinned first, then most recent).</summary>
+    [RequireAction("moderation:usercontext:read")]
+    [HttpGet("users/{userId}/notes")]
+    [ProducesResponseType<StatusResponseDto<List<UserNoteDto>>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> ListUserNotes(
+        string channelId,
+        string userId,
+        CancellationToken ct
+    )
+    {
+        Result<List<UserNoteDto>> result = await _moderationService.ListUserNotesAsync(
+            channelId,
+            userId,
+            ct
+        );
+        return ResultResponse(result);
+    }
+
+    /// <summary>Add a moderator note about a viewer, attributed to the acting moderator.</summary>
+    [RequireAction("moderation:note:write")]
+    [HttpPost("users/{userId}/notes")]
+    [ProducesResponseType<StatusResponseDto<UserNoteDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> AddUserNote(
+        string channelId,
+        string userId,
+        [FromBody] CreateUserNoteRequest request,
+        CancellationToken ct
+    )
+    {
+        string actorId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "";
+        Result<UserNoteDto> result = await _moderationService.AddUserNoteAsync(
+            channelId,
+            userId,
+            request,
+            actorId,
+            ct
+        );
+        if (result.IsFailure)
+            return ResultResponse(result);
+        return Ok(new StatusResponseDto<UserNoteDto> { Data = result.Value });
+    }
+
+    /// <summary>Edit a moderator note's text and/or pinned state.</summary>
+    [RequireAction("moderation:note:write")]
+    [HttpPut("notes/{noteId:int}")]
+    [ProducesResponseType<StatusResponseDto<UserNoteDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> UpdateUserNote(
+        string channelId,
+        int noteId,
+        [FromBody] UpdateUserNoteRequest request,
+        CancellationToken ct
+    )
+    {
+        Result<UserNoteDto> result = await _moderationService.UpdateUserNoteAsync(
+            channelId,
+            noteId,
+            request,
+            ct
+        );
+        if (result.IsFailure)
+            return ResultResponse(result);
+        return Ok(new StatusResponseDto<UserNoteDto> { Data = result.Value });
+    }
+
+    /// <summary>Delete a moderator note.</summary>
+    [RequireAction("moderation:note:write")]
+    [HttpDelete("notes/{noteId:int}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> DeleteUserNote(
+        string channelId,
+        int noteId,
+        CancellationToken ct
+    )
+    {
+        Result result = await _moderationService.DeleteUserNoteAsync(channelId, noteId, ct);
+        if (result.IsFailure)
+            return ResultResponse(result);
+        return NoContent();
+    }
+
     // ─── Stats ────────────────────────────────────────────────────────────────
 
     /// <summary>

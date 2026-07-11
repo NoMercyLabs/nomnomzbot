@@ -95,6 +95,33 @@ public sealed record PerformModerationActionRequest
 
 public sealed record ModerationActionResult(bool Success, string? Message);
 
+// ─── User notes (mod panel) ────────────────────────────────────────────────────
+
+/// <summary>One moderator note pinned to a viewer — free-text context the mod team shares about them.</summary>
+public sealed record UserNoteDto(
+    int Id,
+    string SubjectUserId,
+    string Content,
+    bool Pinned,
+    string? AuthorName,
+    DateTime CreatedAt,
+    DateTime UpdatedAt
+);
+
+/// <summary>Add a note about a viewer.</summary>
+public sealed record CreateUserNoteRequest
+{
+    public required string Content { get; init; }
+    public bool Pinned { get; init; }
+}
+
+/// <summary>Edit a note's text and/or pinned state (only the supplied fields change).</summary>
+public sealed record UpdateUserNoteRequest
+{
+    public string? Content { get; init; }
+    public bool? Pinned { get; init; }
+}
+
 // ─── AutoMod Config ──────────────────────────────────────────────────────────
 
 public sealed record AutomodLinkFilterDto(bool Enabled, List<string> Whitelist);

@@ -16,6 +16,23 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
 
 ## Open
 
+### 2026-07-11 — Moderator notes on a viewer (mod panel write side) — new endpoints
+- **From:** Stoney_Eagle (via Claude, backend track)
+- **What:** free-text notes the mod team shares about a viewer. `GET /channels/{channelId}/moderation/users/{userId}/notes`
+  → `List<UserNoteDto>` (`id`, `subjectUserId`, `content`, `pinned`, `authorName?`, `createdAt`, `updatedAt`; pinned
+  first then newest); `POST /channels/{channelId}/moderation/users/{userId}/notes` (`CreateUserNoteRequest` =
+  `content`, `pinned`) → the created `UserNoteDto`; `PUT /channels/{channelId}/moderation/notes/{noteId}`
+  (`UpdateUserNoteRequest` = `content?`, `pinned?`) → updated note; `DELETE /channels/{channelId}/moderation/notes/{noteId}`
+  → 204. Content trimmed, non-empty, ≤2000 chars (backend rejects otherwise).
+- **Why:** item 15 (§3.7 per-user panel, write side) — pairs with the per-user context (read side) from the sibling
+  entry. Notes + history + the warn/suspicious/ban actions = a complete per-user mod panel.
+- **Where:** the per-user panel — a notes list with add/edit/pin/delete. Register `UserNoteDto`,
+  `CreateUserNoteRequest`, `UpdateUserNoteRequest` in `ApiContractTest` (v1.json refreshed). Role gate: read at
+  Moderator (`moderation:usercontext:read`), write/edit/delete at Moderator (`moderation:note:write`). Confirm
+  delete. Pinned notes float to the top.
+- **Done when:** add a note → appears in the list; pin → floats to top; edit content persists; delete removes it;
+  empty/too-long content shows the validation error; en + nl strings.
+
 ### 2026-07-11 — Per-user moderation context (mod panel read) — new endpoint
 - **From:** Stoney_Eagle (via Claude, backend track)
 - **What:** `GET /channels/{channelId}/moderation/users/{userId}/context` (userId = the target's Twitch id) →

@@ -378,10 +378,15 @@ ONE substrate — a chat feed that **aggregates messages across a SET of channel
   unban counts + last action + recent 20) aggregated read-through from the bot's recorded `moderation_action`
   rows (deliberate delta vs the J.4 projection entity — truthful "bot's own actions", explicitly NOT Twitch's full
   history); Gate-2 `moderation:usercontext:read`(Mod); openapi refreshed; 1 new test; UI → handoff.
-  *Remaining (all need new entities + 24-fake sweep + dual migrations):* `UserNote` panel (J.3 — the WRITE side of
-  the per-user panel), SuperMod platform `moderation:nuke` (tenant-wide, distinct from the operator fan-out),
-  shared-ban trust list + propagation (J.9/J.9a), viewer reports/evidence (J.8/J.8a), escalation ladder
-  (J.10/J.11), and the J.4/J.5 history+trust projections.
+  **Moderator notes** shipped (backend, per-user panel WRITE side): `GET/POST /moderation/users/{userId}/notes`
+  + `PUT/DELETE /moderation/notes/{noteId}` — free-text notes (pinned-first, trimmed/non-empty/≤2000), stored in
+  the shared `Record` table under `RecordType="user_note"` (deliberate delta vs the J.3 `UserNote` entity — the
+  same pattern moderation rules/actions already use, so NO new entity/migration/fake-sweep); Gate-2
+  `moderation:note:write`(Mod) + `moderation:usercontext:read`(Mod); openapi refreshed; 2 new tests; UI → handoff.
+  The per-user panel (history read + notes write + warn/suspicious/ban actions) is now complete.
+  *Remaining (all need new entities + 24-fake sweep + dual migrations):* SuperMod platform `moderation:nuke`
+  (tenant-wide, distinct from the operator fan-out), shared-ban trust list + propagation (J.9/J.9a), viewer
+  reports/evidence (J.8/J.8a), escalation ladder (J.10/J.11), and the J.4/J.5 history+trust projections.
 - [ ] **16. TTS advanced** (`tts.md`) — mod approval queue, per-viewer voices, profanity filters, BYOK,
   usage ledger.
 - [x] **17. Live-ops schedule & markers — SHIPPED 2026-07-11** (`broadcaster-liveops.md`; dashboard

@@ -774,4 +774,76 @@ public sealed class ModerationServiceTwitchReadsTests
         ctx.RecentActions.Should().HaveCount(5);
         ctx.RecentActions.Should().OnlyContain(a => a.TargetUserId == "5005");
     }
+
+    // ─── User notes ───────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task UserNotes_Add_List_PinnedFirst_Update_Delete_RoundTrips()
+    {
+        (ModerationService service, ModerationServiceTestDbContext db) =
+            await NewServiceWithChannelAsync(Substitute.For<ITwitchModerationApi>());
+
+        Result<UserNoteDto> plain = await service.AddUserNoteAsync(
+            BroadcasterId,
+            "5005",
+            new CreateUserNoteRequest { Content = "  watch this one  " },
+            "mod-1"
+        );
+        Result<UserNoteDto> pinned = await service.AddUserNoteAsync(
+            BroadcasterId,
+            "5005",
+            new CreateUserNoteRequest { Content = "known ban evader", Pinned = true },
+            "mod-1"
+        );
+        await service.AddUserNoteAsync(
+            BroadcasterId,
+            "9999",
+            new CreateUserNoteRequest { Content = "a different viewer" },
+            "mod-1"
+        );
+
+        plain.IsSuccess.Should().BeTrue();
+        plain.Value.Content.Should().Be("watch this one"); // trimmed
+
+        // List for 5005 → the two 5005 notes only, pinned first.
+        Result<List<UserNoteDto>> list = await service.ListUserNotesAsync(BroadcasterId, "5005");
+        list.IsSuccess.Should().BeTrue();
+        list.Value.Should().HaveCount(2);
+        list.Value[0].Pinned.Should().BeTrue();
+        list.Value[0].Content.Should().Be("known ban evader");
+        list.Value.Should().OnlyContain(n => n.SubjectUserId == "5005");
+
+        // Edit the plain note: change content + pin it.
+        Result<UserNoteDto> updated = await service.UpdateUserNoteAsync(
+            BroadcasterId,
+            plain.Value.Id,
+            new UpdateUserNoteRequest { Content = "escalated to a ban", Pinned = true }
+        );
+        updated.IsSuccess.Should().BeTrue();
+        updated.Value.Content.Should().Be("escalated to a ban");
+        updated.Value.Pinned.Should().BeTrue();
+
+        // Delete the originally-pinned note; only the (now-edited) plain note remains for 5005.
+        Result del = await service.DeleteUserNoteAsync(BroadcasterId, pinned.Value.Id);
+        del.IsSuccess.Should().BeTrue();
+        Result<List<UserNoteDto>> after = await service.ListUserNotesAsync(BroadcasterId, "5005");
+        after.Value.Should().ContainSingle().Which.Id.Should().Be(plain.Value.Id);
+    }
+
+    [Fact]
+    public async Task AddUserNoteAsync_RejectsEmptyContent_WithoutWriting()
+    {
+        (ModerationService service, ModerationServiceTestDbContext db) =
+            await NewServiceWithChannelAsync(Substitute.For<ITwitchModerationApi>());
+
+        Result<UserNoteDto> result = await service.AddUserNoteAsync(
+            BroadcasterId,
+            "5005",
+            new CreateUserNoteRequest { Content = "   " }
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("VALIDATION_FAILED");
+        (await db.Records.CountAsync()).Should().Be(0);
+    }
 }
