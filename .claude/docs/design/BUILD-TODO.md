@@ -79,6 +79,16 @@ hashes and its granular bullets are removed — finished work is never left as a
   subscriptions were 403-broken (before 2026-07-10 ~18:30 UTC) never arrived — nothing to backfill from.*
 - [x] **!coinflip was dead air** — the game engine had NO chat wiring. `!coinflip|!dice|!slots <bet>` builtins
   → `PlayAsync` (opt-in: seeded disabled; replies "not enabled" until the streamer enables). `d6d63d3d`.
+- [x] **Moderation page was cosmetic (3 phantom controls) — FIXED `a6a4dd64`.** The banned-users list read only
+  the bans the bot itself recorded, and the blocked-terms + Shield-Mode controls read/wrote a local config Twitch
+  never saw (a switch that displayed nothing real and enforced nothing). Now `GetBannedUsers` reads the LIVE Twitch
+  banned list (Get Banned Users, paginated, permanent bans only — includes bans made outside the bot, with the real
+  reason/moderator); blocked terms GET/ADD/REMOVE go to Helix (remove resolves the shown text → its Twitch id);
+  Shield Mode GET/SET read/write Twitch (Get/Update Shield Mode Status). Added `moderator:manage:blocked_terms` +
+  `moderator:manage:shield_mode` to the streamer scope set (progressive re-grant, no logout). Every path degrades
+  honestly (missing scope / no broadcaster token → error, never a fake-empty list). 12 new tests. This is the
+  truthful-reads **foundation for item 15** (advanced moderation) — the unban queue / warnings / suspicious-users
+  surfaces build on the same Helix sub-client next. Frontend regrant/error handling → handoff.
 
 ### 🐛 Session QA fixes (2026-07-10, owner-reported live — not build slices)
 - Chat live-push restored: hub socket opens for every rung (`a1750141`), refreshes its own JWT, and the SignalR `{}` handshake is read as success (`440a4283`) — verified live (persistent socket, joins channel). Emotes: subscribed-channel emotes wired + case-sensitive dedup (`ccfe973e`). Delete-message attributed to the acting moderator, not the broadcaster (`5eaa894b`).
