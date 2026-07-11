@@ -305,7 +305,7 @@ namespace NomNomzBot.Application.Contracts.LiveOps;
 public interface IRaidService
 {
     // Start an outbound raid. Progressive scope channel:manage:raids. Helix POST /raids (from_broadcaster_id=
-    // tenant, to_broadcaster_id=target). Resolves the target login/id via ITwitchChannelsApi.GetUserAsync. Emits
+    // tenant, to_broadcaster_id=target). Resolves the target login/id via ITwitchUsersApi.GetUsersByLoginsAsync. Emits
     // RaidStartedEvent. NOT_FOUND if target unknown; TWITCH_COOLDOWN if Twitch rejects (90s outbound cooldown).
     Task<Result<RaidDto>> StartAsync(Guid broadcasterId, Guid? actorUserId, StartRaidRequest request, string source, CancellationToken ct = default);
 
@@ -664,8 +664,8 @@ service.
 
 | Need | Interface (owner) | Use here |
 |---|---|---|
-| Helix mutations (polls/predictions/raids/ads/schedule/markers/clips) | `ITwitchHelixClient` sub-clients (`twitch-helix.md`) | every service's Helix leg — **but the methods do not exist yet** (§8.2) |
-| Target user resolution (raid login→id) | `ITwitchChannelsApi.GetUserAsync` (`twitch-helix.md`, **exists**) | `IRaidService.StartAsync` |
+| Helix mutations (polls/predictions/raids/ads/schedule/markers/clips) | `ITwitchHelixClient` sub-clients (`twitch-helix.md`) — `Polls`/`Predictions`/`Raids`/`Ads`/`Schedule`/`Streams`/`Clips` | every service's Helix leg (**shipped** — §8.2 maps each call) |
+| Target user resolution (raid login→id) | `ITwitchUsersApi.GetUsersByLoginsAsync` (`twitch-helix.md`, **exists**) | `IRaidService.StartAsync` |
 | Read-side ingest events to reconcile against | `PollBeganEvent`/`PollEndedEvent`/`PredictionBeganEvent`/`PredictionLockedEvent`/`PredictionEndedEvent` + `INotificationDispatcher` (`twitch-eventsub.md` §2/§3.4, **exist**) | `ILiveOpsReconciler` |
 | Per-action authz gate | `IActionAuthorizationService` (`roles-permissions.md`) | every write controller route |
 | Progressive scope grant | `IScopeGrantService` (`identity-auth.md`) | feature-enable scope requests |
@@ -676,36 +676,34 @@ service.
 No **new** third-party dependency. App JSON for the `[VC:JSON]` mirror columns uses **Newtonsoft.Json** via
 hand-rolled converters (already in the stack).
 
-### 8.2 MISSING `twitch-helix.md` sub-client methods (reconciliation items — do NOT edit twitch-helix.md here)
+### 8.2 `twitch-helix.md` sub-client methods consumed (shipped — mapping table)
 
-The current `twitch-helix.md` sub-clients (`ITwitchChannelsApi`, `ITwitchModerationApi`,
-`ITwitchSubscriptionsApi`) expose **none** of the live-ops mutations. This spec codes against the following
-methods, which **must be added to `twitch-helix.md`** (suggested home: a **new `ITwitchLiveOpsApi` sub-client** on
-`ITwitchHelixClient`, since none of the three existing sub-clients is a natural fit). Each maps to a Helix
-endpoint + scope and should be idempotency-guarded per the existing `twitch-helix.md` §3.3 mutation convention.
+Every live-ops mutation this spec codes against is **shipped** on the granular `twitch-helix.md` category
+sub-clients (there is no `ITwitchLiveOpsApi` — the coarse bucket was deliberately split into its constituent
+category clients, `twitch-helix.md` §3.4a). Each maps to a Helix endpoint + scope:
 
-| Proposed method | Helix endpoint | Scope |
+| Method (sub-client) | Helix endpoint | Scope |
 |---|---|---|
-| `CreatePollAsync` | `POST /polls` | `channel:manage:polls` |
-| `EndPollAsync` | `PATCH /polls` | `channel:manage:polls` |
-| `CreatePredictionAsync` | `POST /predictions` | `channel:manage:predictions` |
-| `UpdatePredictionAsync` (lock/resolve/cancel) | `PATCH /predictions` | `channel:manage:predictions` |
-| `StartRaidAsync` | `POST /raids` | `channel:manage:raids` |
-| `CancelRaidAsync` | `DELETE /raids` | `channel:manage:raids` |
-| `StartCommercialAsync` | `POST /channels/commercial` | `channel:edit:commercial` |
-| `SnoozeNextAdAsync` | `POST /channels/ads/schedule/snooze` | `channel:manage:ads` |
-| `GetAdScheduleAsync` | `GET /channels/ads` | `channel:read:ads` |
-| `GetScheduleAsync` | `GET /schedule` | (read) |
-| `CreateScheduleSegmentAsync` | `POST /schedule/segment` | `channel:manage:schedule` |
-| `UpdateScheduleSegmentAsync` | `PATCH /schedule/segment` | `channel:manage:schedule` |
-| `DeleteScheduleSegmentAsync` | `DELETE /schedule/segment` | `channel:manage:schedule` |
-| `UpdateScheduleSettingsAsync` (vacation) | `PATCH /schedule/settings` | `channel:manage:schedule` |
-| `CreateStreamMarkerAsync` | `POST /streams/markers` | `channel:manage:broadcast` |
-| `CreateClipAsync` | `POST /clips` | `clips:edit` |
+| `Polls.CreatePollAsync` | `POST /polls` | `channel:manage:polls` |
+| `Polls.EndPollAsync` | `PATCH /polls` | `channel:manage:polls` |
+| `Predictions.CreatePredictionAsync` | `POST /predictions` | `channel:manage:predictions` |
+| `Predictions.EndPredictionAsync` (lock/resolve/cancel) | `PATCH /predictions` | `channel:manage:predictions` |
+| `Raids.StartRaidAsync` | `POST /raids` | `channel:manage:raids` |
+| `Raids.CancelRaidAsync` | `DELETE /raids` | `channel:manage:raids` |
+| `Ads.StartCommercialAsync` | `POST /channels/commercial` | `channel:edit:commercial` |
+| `Ads.SnoozeNextAdAsync` | `POST /channels/ads/schedule/snooze` | `channel:manage:ads` |
+| `Ads.GetAdScheduleAsync` | `GET /channels/ads` | `channel:read:ads` |
+| `Schedule.GetScheduleAsync` | `GET /schedule` | (read) |
+| `Schedule.CreateSegmentAsync` | `POST /schedule/segment` | `channel:manage:schedule` |
+| `Schedule.UpdateSegmentAsync` | `PATCH /schedule/segment` | `channel:manage:schedule` |
+| `Schedule.DeleteSegmentAsync` | `DELETE /schedule/segment` | `channel:manage:schedule` |
+| `Schedule.UpdateScheduleSettingsAsync` (vacation) | `PATCH /schedule/settings` | `channel:manage:schedule` |
+| `Streams.CreateStreamMarkerAsync` | `POST /streams/markers` | `channel:manage:broadcast` |
+| `Clips.CreateClipAsync` | `POST /clips` | `clips:edit` |
 
-> The wire DTOs (snake_case Helix request/response models) for these endpoints are generated/committed under
-> `twitch-helix.md`'s codegen convention (§4) — out of scope for this spec; listed here only so the missing surface
-> is unambiguous.
+> The request/response records for these endpoints are the **hand-written** per-category records in
+> `NomNomzBot.Application/Contracts/Twitch/Dtos/` (`twitch-helix.md` §4 — no codegen); listed here only so
+> the consumed surface is unambiguous.
 
 ### 8.3 Other cross-spec references to reconcile
 

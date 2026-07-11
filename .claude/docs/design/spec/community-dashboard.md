@@ -53,7 +53,7 @@ soft-delete filter is introduced here. The complete set of read dependencies (ne
 
 | Read dependency | Owner spec | What this subsystem reads from it |
 |---|---|---|
-| Live Helix chatters / followers / subscribers / VIPs / moderators | `twitch-helix.md` §3.2–3.4 | The community lists — `GetChattersAsync`, `GetFollowersAsync`, `GetSubscribersAsync`, `GetVipsAsync`, `GetModeratorsAsync` (real Twitch data; **no seed/fake list, ever**) |
+| Live Helix chatters / followers / subscribers / VIPs / moderators | `twitch-helix.md` §3.2–3.4 | The community lists — `ChatAssets.GetChattersAsync`, `Channels.GetChannelFollowersAsync`, `Subscriptions.GetBroadcasterSubscriptionsAsync`, `Moderators.GetVipsAsync`, `Moderators.GetModeratorsAsync` (real Twitch data; **no seed/fake list, ever**) |
 | Live channel/stream state | `twitch-helix.md` §3.2 | `GetChannelInformationAsync` / `GetStreamAsync` for the dashboard live-summary widget |
 | **M.1 `ViewerProfiles`** (per-viewer aggregate) | `analytics.md` §3.2 | `IViewerAnalyticsService.GetProfileAsync` — the viewer detail's lifetime totals, first/last seen, follower/sub flags |
 | **M.7 `ViewerEngagementDaily`** | `analytics.md` §3.2 | viewer-detail engagement series (optional drill-down range) |
@@ -145,7 +145,7 @@ public interface IDashboardService
 
 ### 3.3 Helix-cursor ↔ `PaginationParams` mapping (the one mechanical decision)
 
-Helix list reads (`GetChattersAsync`, `GetFollowersAsync`, `GetSubscribersAsync`) page by an **opaque cursor**
+Helix list reads (`GetChattersAsync`, `GetChannelFollowersAsync`, `GetBroadcasterSubscriptionsAsync`) page by an **opaque cursor**
 (`TwitchPageRequest.After`), not by `(page, pageSize)`. To keep the controller surface uniform with the locally
 paged endpoints, `ICommunityService` treats `PaginationParams.PageSize` as the Helix `first` and accepts the
 opaque Helix `After` cursor as the page token, surfacing the next cursor on the `PagedList` so the dashboard can
@@ -348,10 +348,10 @@ Both implementations constructor-inject the **already-registered** owner interfa
 
 ## 8. Dependencies (from the stack doc)
 
-- **`ITwitchHelixClient`** (`twitch-helix.md`) — `Channels.GetChattersAsync`/`GetFollowersAsync`/
-  `GetChannelInformationAsync`/`GetVipsAsync`, `Streams.GetStreamAsync`, `Moderation.GetModeratorsAsync`,
-  `Subscriptions.GetSubscribersAsync`/`GetSubscriberCountAsync`. Live Twitch reads (no seed data). Scope and
-  rate-limit failures propagate as `Result.Failure(ErrorCode)`.
+- **`ITwitchHelixClient`** (`twitch-helix.md`) — `ChatAssets.GetChattersAsync`, `Channels.GetChannelFollowersAsync`/
+  `GetChannelInformationAsync`, `Moderators.GetVipsAsync`/`GetModeratorsAsync`, `Streams.GetStreamAsync`,
+  `Subscriptions.GetBroadcasterSubscriptionsAsync`/`GetSubscriberCountAsync`. Live Twitch reads (no seed data).
+  Scope and rate-limit failures propagate as `Result.Failure(ErrorCode)`.
 - **`IViewerAnalyticsService` / `IChannelAnalyticsService`** (`analytics.md`) — `ViewerProfileDto` (M.1) for
   viewer detail; `ChannelAnalyticsSummaryDto` (M.8) and `TopViewerDto` for the dashboard today/top-viewer blocks.
 - **`ICommunityStandingService` / `IRoleResolver`** (`roles-permissions.md`) — `CommunityStanding` (B.2) and

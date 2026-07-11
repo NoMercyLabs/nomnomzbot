@@ -65,7 +65,7 @@ SignalR hub methods and pipeline actions excluded). `#PipeActions` = `ICommandAc
 | Integration OAuth (Spotify/YouTube) | `integrations-oauth.md` | — (connect flow; no schema — tokens via identity-auth) | 2 | 4 | 0 |
 | Community & Dashboard | `community-dashboard.md` | — (read-only aggregation; owns no schema) | 2 | ~9 | 0 |
 | Pronoun Provider | `pronouns.md` | A.1 `Users.AltPronounId` (col) | 3 | 3 | 0 |
-| Broadcaster Live-Ops | `broadcaster-liveops.md` | F.12 `ActivePolls`, F.13 `ActivePredictions` | 2 (+`ITwitchLiveOpsApi`) | ~16 | 5 |
+| Broadcaster Live-Ops | `broadcaster-liveops.md` | F.12 `ActivePolls`, F.13 `ActivePredictions` | 2 (+ the granular Helix category sub-clients, twitch-helix §3.4a) | ~16 | 5 |
 | Deployment & Distribution (rulebook) | `deployment-distribution.md` | — (ops: packaging/run, SaaS phasing, wasm hosting, mDNS; no schema) | 0 | 0 | 0 |
 
 Counts are nominal (some specs list extended-vs-new interfaces and inline supporting records); they are an

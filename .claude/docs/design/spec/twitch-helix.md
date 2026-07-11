@@ -18,8 +18,8 @@ This subsystem **reads from and writes to** locked-schema tables; it **owns none
 |---|---|---|---|
 | `Channels` | A.2 | Read tenant root; resolve `TwitchChannelId` ↔ `BroadcasterId (Guid)`; write `GameId`, `GameName`, `Title`, `Tags`, `Language`, `IsLive` on channel-info sync | `Id (guid PK)`, `TwitchChannelId (string50)`, `Title`, `GameId`, `GameName`, `Tags ([VC:JSON] List<string>)`, `Language`, `IsLive (bool)` |
 | `Streams` | F.1 | Read `IsLive`/current session for stream-info calls; written by EventSub (not here) | `Id`, `BroadcasterId`, `TwitchStreamId`, `Title`, `GameId`, `GameName`, `ViewerCountPeak`, `StartedAt`, `EndedAt` |
-| `TwitchSubscribers` | F.2 | Upserted from Helix `GET /subscriptions` sync; sub-count source | `Id`, `BroadcasterId`, `SubscriberUserId (guid)`, `SubscriberTwitchUserId`, `Tier`, `IsGift`, `IsActive` |
-| `TwitchFollowers` | F.3 | Upserted from Helix `GET /channels/followers` sync; follower-count source | `Id`, `BroadcasterId`, `FollowerUserId (guid)`, `FollowerTwitchUserId`, `FollowedAt` |
+| `TwitchSubscribers` | F.2 | Defined in the locked schema but **not built** — no subscriber mirror table/DbSet exists in code; sub lists/counts are served live from `GET /subscriptions` by consumers (the sub-clients are pure Helix I/O) | — |
+| `TwitchFollowers` | F.3 | Defined in the locked schema but **not built** — no follower mirror table/DbSet exists in code; follower lists/counts are served live from `GET /channels/followers` by consumers | — |
 | `Rewards` | F.5 | Read/mirror channel-point rewards from Helix `GET /channel_points/custom_rewards` | `Id`, `BroadcasterId`, `TwitchRewardId`, `Title`, `Cost`, `IsEnabled`, `IsPaused` |
 | `IntegrationConnections` | E.1 | **Read** granted `Scopes ([VC:JSON])`, `Status`, `ProviderAccountId` for scope pre-check; **write** `LastErrorAt`, `LastRefreshedAt`, `ConsecutiveFailureCount`, `Status` on Helix call outcomes | `Id`, `BroadcasterId (guid, Null=global)`, `Provider (=twitch)`, `ProviderAccountId`, `Status`, `Scopes ([VC:JSON] List<string>)`, `LastRefreshedAt`, `LastErrorAt`, `ConsecutiveFailureCount` |
 | `IntegrationTokens` | E.2 | **Read-only** — decrypted access token obtained via `ITwitchAuthService` (this subsystem never reads `CipherText` directly) | (via auth service) |
@@ -64,13 +64,13 @@ public sealed record TwitchHelixCircuitOpenedEvent(
 ) : DomainEventBase;
 ```
 
-> `TwitchSubscriber*` / `TwitchFollower*` add/remove events are **owned by the EventSub subsystem** (driven by `channel.subscribe` / `channel.follow`), not emitted here. This subsystem's sub/follower calls are **reconciliation reads**; they upsert rows but do not re-emit per-row events to avoid double-counting.
+> `TwitchSubscriber*` / `TwitchFollower*` add/remove events are **owned by the EventSub subsystem** (driven by `channel.subscribe` / `channel.follow`), not emitted here. This subsystem's sub/follower calls are **pure reads served straight from Twitch** — the sub-clients write no local rows (no subscriber/follower mirror table exists in the shipped code) and emit no per-row events.
 
 ---
 
 ## 3. Service interface(s)
 
-All in `NomNomzBot.Application.Contracts.Twitch`. `ITwitchHelixClient` is the top-level façade exposing the **category sub-clients** by name (§3.1; the built surface is the 26 granular clients, not four coarse buckets). The legacy `ITwitchApiService` has been **retired entirely** — there is no compatibility shim. Every caller (`DashboardController`, `StreamController`, `CommunityController`, `ChannelsController`, `ModerationService`, `RewardService`, the pipeline actions, the event handlers, `HelixChatProvider`) now targets the sub-clients directly (no-backwards-compat: the codebase has no external consumers yet, so the interface was deleted rather than shimmed). Every method returns `Task<Result<T>>` (or `Task<Result>` for void mutations). `Result.Failure` carries `ErrorCode` ∈ `{ "no_token", "missing_scope", "unauthorized", "rate_limited", "not_found", "twitch_error", "transport" }`.
+All in `NomNomzBot.Application.Contracts.Twitch`. `ITwitchHelixClient` is the top-level façade exposing the **category sub-clients** by name (§3.1; the built surface is the 26 granular clients, not four coarse buckets). The legacy `ITwitchApiService` has been **retired entirely** — there is no compatibility shim. Every caller (`DashboardController`, `StreamController`, `CommunityController`, `ChannelsController`, `ModerationService`, `RewardService`, the pipeline actions, the event handlers, `HelixChatProvider`) now targets the sub-clients directly (no-backwards-compat: the codebase has no external consumers yet, so the interface was deleted rather than shimmed). Every method returns `Task<Result<T>>` (or `Task<Result>` for void mutations). `Result.Failure` carries `ErrorCode` ∈ `{ "no_token", "missing_scope", "unauthorized", "rate_limited", "not_found", "conflict", "twitch_error", "transport" }` (the closed `TwitchErrorCodes` set).
 
 ### 3.1 `ITwitchHelixClient` — top-level façade
 
@@ -111,160 +111,459 @@ public interface ITwitchHelixClient
 
 > **Surface grouping (implemented):** the built surface is **26 granular per-category sub-clients** (one per Helix theme — the full channel-admin endpoint coverage), not the four coarse buckets (`Channels`/`Moderation`/`Subscriptions`/`LiveOps`) the early draft sketched. §3.2–§3.4a below remain accurate as the **behavioral catalogue** of the endpoints (scopes, state changes, events), organised by theme; the façade simply exposes each category sub-client by name. The deliberate `ITwitchLiveOpsApi` "live-ops writes" bucket (§3.4a) was split into its constituent category clients (`Polls`/`Predictions`/`Raids`/`Ads`/`Schedule`/`Clips`/…) so each stays a single-responsibility Helix I/O wrapper (deps: transport + identity + token only).
 
-### 3.2 `ITwitchChannelsApi` — channel info, followers, categories, stream, channel updates
+### 3.2 `ITwitchChannelsApi` — channel info, editors, follow relationships, channel updates
+
+Method order below mirrors the interface files exactly (names, parameter order, defaults).
 
 ```csharp
 namespace NomNomzBot.Application.Contracts.Twitch;
 
 public interface ITwitchChannelsApi
 {
-    // ─ Reads ─
-    // User lookup ships on the Users sub-client, not here: ITwitchUsersApi.GetUsersByIdsAsync /
-    // GetUsersByLoginsAsync (batch id=/login= params → IReadOnlyList<TwitchUser>).
     Task<Result<TwitchChannelInformation>> GetChannelInformationAsync(Guid broadcasterId, CancellationToken ct = default);
-    Task<Result<TwitchStream>> GetStreamAsync(Guid broadcasterId, CancellationToken ct = default);
-    Task<Result<int>> GetFollowerCountAsync(Guid broadcasterId, CancellationToken ct = default);
-    Task<Result<TwitchPage<TwitchChannelFollower>>> GetChannelFollowersAsync(Guid broadcasterId, TwitchPageRequest page, CancellationToken ct = default);
-    Task<Result<IReadOnlyList<TwitchCategoryDto>>> SearchCategoriesAsync(string query, int first = 10, CancellationToken ct = default);
-    Task<Result<IReadOnlyList<TwitchVipDto>>> GetVipsAsync(Guid broadcasterId, CancellationToken ct = default);
-    Task<Result<IReadOnlyList<TwitchChatterDto>>> GetChattersAsync(Guid broadcasterId, CancellationToken ct = default);
-
-    // ─ Writes ─
     Task<Result> ModifyChannelInformationAsync(Guid broadcasterId, ModifyChannelInformationRequest request, CancellationToken ct = default);
+    Task<Result<IReadOnlyList<TwitchChannelEditor>>> GetChannelEditorsAsync(Guid broadcasterId, CancellationToken ct = default);
+    Task<Result<TwitchPage<TwitchFollowedChannel>>> GetFollowedChannelsAsync(Guid broadcasterId, string? filterTwitchBroadcasterId, TwitchPageRequest page, CancellationToken ct = default);
+    Task<Result<TwitchPage<TwitchChannelFollower>>> GetChannelFollowersAsync(Guid broadcasterId, TwitchPageRequest page, CancellationToken ct = default);
+    Task<Result<int>> GetChannelFollowerCountAsync(Guid broadcasterId, CancellationToken ct = default);
 }
 ```
 
 | Method | Behavior (state change / events / side effects) |
 |---|---|
-| `GetUsersByIdsAsync` / `GetUsersByLoginsAsync` *(shipped on `ITwitchUsersApi`, not Channels)* | Read-only `GET /users` (batch `id=`/`login=` params → `IReadOnlyList<TwitchUser>`). App token; no scope; email never requested. Pure Helix I/O — no state change; unknown ids simply come back absent from the list (empty list = success, not `not_found`). |
 | `GetChannelInformationAsync` | Read-only `GET /channels` (app token first, user-token fallback; no scope). Pure Helix I/O — the sub-client holds no DB/event-bus dependency, writes nothing and emits nothing; mirroring is a consumer-service responsibility (`ChannelInfoSeedOnOnboardingHandler` seeds `Channels.Title/GameName/Language` on `ChannelOnboardedEvent`; `DashboardController`/`StreamController` read it live for display). Resolves `Guid broadcasterId`→`TwitchChannelId` first; `not_found` if channel unknown locally. |
-| `GetStreamAsync` | Read-only `GET /streams?user_id=`. Twitch lists a stream in `data[]` **only while live** — an empty `data[]` surfaces as a `Result` **failure** with `TwitchErrorCodes.NotFound` (`not_found`), which callers read as "offline" (`IsSuccess` = live). The sub-client itself writes nothing (pure Helix I/O); `StreamStatusPollingService.ApplyStreamState` maps `IsSuccess`/`IsFailure` onto `Channels.IsLive` (+ Title/GameName freshness). `Streams` lifecycle rows stay EventSub-owned. |
-| `GetFollowerCountAsync` | Read-only `GET /channels/followers?first=1`; returns `total`. Requires `moderator:read:followers` scope (pre-checked). No state change. |
-| `GetChannelFollowersAsync` | Read-only paged `GET /channels/followers`. Returns one page + cursor + total. Pure Helix I/O — writes nothing (no follower table exists and no shipped consumer mirrors follower rows today; `CommunityController`'s followers tab serves this page straight from Twitch, joining `Users`/`ChatMessages` in memory). Requires `moderator:read:followers`. |
-| `SearchCategoriesAsync` | Read-only `GET /search/categories`. App/bot token. No state change. |
-| `GetVipsAsync` | Read-only `GET /channels/vips?first=100`. Requires `channel:read:vips`. No state change. |
-| `GetChattersAsync` | Read-only paged `GET /chat/chatters?first=1000` (auto-follows cursor, all pages) — the present-viewer list. Uses the **bot/moderator** identity (the bot is a channel mod), matching the existing Helix auth pattern. Requires `moderator:read:chatters` — a **progressive** scope (requested only when a feature that needs the chatter list is enabled, e.g. the `{{random.chatter}}` token / chatter-driven actions), not part of the base grant. No state change; callers cache short-TTL (the `{{random.chatter}}` token is rendered from this cached set, per `commands-pipelines.md` §6.3). Returns `missing_scope` if not granted. |
 | `ModifyChannelInformationAsync` | `PATCH /channels` (title/game/language/delay/tags/content-classification-labels/branded — all fields optional, only the set ones are sent). Pure Helix I/O — pre-checks `channel:manage:broadcast`, pushes the patch, writes nothing locally, emits nothing, and carries no idempotency guard. Consumers own the local mirror: `StreamController` updates the in-memory `ChannelContext` (`CurrentTitle`/`CurrentGame`) on success; persisted `Channels.Title/GameName` reconcile via `StreamStatusPollingService.ApplyStreamState` while live. |
+| `GetChannelEditorsAsync` | Read-only `GET /channels/editors` — users with editor access. Requires `channel:read:editors`. Pure Helix I/O; no state change. |
+| `GetFollowedChannelsAsync` | Read-only paged `GET /channels/followed` — channels the tenant follows, newest first; `filterTwitchBroadcasterId` (raw Twitch id) narrows to one target channel to check a specific follow. Requires `user:read:follows`. Pure Helix I/O. |
+| `GetChannelFollowersAsync` | Read-only paged `GET /channels/followers`. Returns one page + cursor + total. Pure Helix I/O — writes nothing (no follower table exists and no shipped consumer mirrors follower rows today; `CommunityController`'s followers tab serves this page straight from Twitch, joining `Users`/`ChatMessages` in memory). Requires `moderator:read:followers`. |
+| `GetChannelFollowerCountAsync` | Read-only `GET /channels/followers?first=1`; returns `total`. Requires `moderator:read:followers` (pre-checked). No state change. |
 
-### 3.3 `ITwitchModerationApi` — bans, timeouts, unbans, moderators, message deletion, shoutouts, rewards
+### 3.2a `ITwitchUsersApi` — user lookups, profile description, block list, extensions
+
+```csharp
+public interface ITwitchUsersApi
+{
+    Task<Result<IReadOnlyList<TwitchUser>>> GetUsersByIdsAsync(IReadOnlyList<string> twitchUserIds, CancellationToken ct = default);
+    Task<Result<IReadOnlyList<TwitchUser>>> GetUsersByLoginsAsync(IReadOnlyList<string> logins, CancellationToken ct = default);
+    Task<Result<TwitchUser>> UpdateDescriptionAsync(Guid broadcasterId, string description, CancellationToken ct = default);
+    Task<Result<TwitchPage<TwitchBlockedUser>>> GetBlockListAsync(Guid broadcasterId, TwitchPageRequest page, CancellationToken ct = default);
+    Task<Result> BlockUserAsync(Guid broadcasterId, string targetTwitchUserId, string? sourceContext = null, string? reason = null, CancellationToken ct = default);
+    Task<Result> UnblockUserAsync(Guid broadcasterId, string targetTwitchUserId, CancellationToken ct = default);
+    Task<Result<IReadOnlyList<TwitchInstalledExtension>>> GetInstalledExtensionsAsync(Guid broadcasterId, CancellationToken ct = default);
+    Task<Result<TwitchActiveExtensions>> GetActiveExtensionsAsync(Guid broadcasterId, CancellationToken ct = default);
+    Task<Result<TwitchActiveExtensions>> UpdateActiveExtensionsAsync(Guid broadcasterId, UpdateUserExtensionsRequest request, CancellationToken ct = default);
+}
+```
+
+| Method | Behavior |
+|---|---|
+| `GetUsersByIdsAsync` / `GetUsersByLoginsAsync` | Read-only `GET /users` (batch `id=`/`login=` params → `IReadOnlyList<TwitchUser>`). App token; no scope; email never requested. Unknown ids simply come back absent from the list (empty list = success, not `not_found`). |
+| `UpdateDescriptionAsync` | `PUT /users?description=` — sets the tenant's own profile description; returns the updated user. Requires `user:edit`. |
+| `GetBlockListAsync` | Read paged `GET /users/blocks`. Requires `user:read:blocked_users`. |
+| `BlockUserAsync` / `UnblockUserAsync` | `PUT` / `DELETE /users/blocks`; block takes optional `source_context` (`chat`/`whisper`) and `reason` (`harassment`/`spam`/`other`). Status-only. Requires `user:manage:blocked_users`. |
+| `GetInstalledExtensionsAsync` | Read — every installed extension (active + inactive). Requires `user:read:broadcast` or `user:edit:broadcast` (Twitch only includes inactive ones with the latter). |
+| `GetActiveExtensionsAsync` | Read — activated extensions per slot type. App token with an explicit `user_id`; no scope. |
+| `UpdateActiveExtensionsAsync` | `PUT /users/extensions` — activates/deactivates/moves via the `data`-wrapped slot maps; returns the post-update state. Requires `user:edit:broadcast`. |
+
+### 3.2b `ITwitchSearchApi` — category & channel discovery
+
+```csharp
+public interface ITwitchSearchApi
+{
+    Task<Result<TwitchPage<TwitchSearchCategory>>> SearchCategoriesAsync(string query, TwitchPageRequest page, CancellationToken ct = default);
+    Task<Result<TwitchPage<TwitchSearchChannel>>> SearchChannelsAsync(string query, bool? liveOnly, TwitchPageRequest page, CancellationToken ct = default);
+}
+```
+
+| Method | Behavior |
+|---|---|
+| `SearchCategoriesAsync` | Read paged `GET /search/categories`. App token; no scope; keyed on the query string, no tenant. |
+| `SearchChannelsAsync` | Read paged `GET /search/channels` — channels that streamed within the past 6 months; `liveOnly` filters to currently-live. App token; no scope. |
+
+### 3.2c `ITwitchStreamsApi` — live streams, stream key, followed streams, markers
+
+```csharp
+public interface ITwitchStreamsApi
+{
+    Task<Result<TwitchPage<TwitchStream>>> GetStreamsAsync(TwitchStreamsFilter filter, TwitchPageRequest page, CancellationToken ct = default);
+    Task<Result<TwitchStream>> GetStreamAsync(Guid broadcasterId, CancellationToken ct = default);
+    Task<Result<string>> GetStreamKeyAsync(Guid broadcasterId, CancellationToken ct = default);
+    Task<Result<TwitchPage<TwitchStream>>> GetFollowedStreamsAsync(Guid broadcasterId, TwitchPageRequest page, CancellationToken ct = default);
+    Task<Result<TwitchStreamMarker>> CreateStreamMarkerAsync(Guid broadcasterId, string? description = null, CancellationToken ct = default);
+    Task<Result<TwitchPage<TwitchStreamMarkerGroup>>> GetStreamMarkersAsync(Guid broadcasterId, string? videoId, TwitchPageRequest page, CancellationToken ct = default);
+}
+```
+
+| Method | Behavior |
+|---|---|
+| `GetStreamsAsync` | Read paged `GET /streams` with repeated `user_id`/`user_login`/`game_id`/`language` + `type` filters (`TwitchStreamsFilter`). App token; no scope; subject-agnostic public read. |
+| `GetStreamAsync` | Read-only `GET /streams?user_id=`. Twitch lists a stream in `data[]` **only while live** — an empty `data[]` surfaces as a `Result` **failure** with `TwitchErrorCodes.NotFound` (`not_found`), which callers read as "offline" (`IsSuccess` = live). The sub-client itself writes nothing (pure Helix I/O); `StreamStatusPollingService.ApplyStreamState` maps `IsSuccess`/`IsFailure` onto `Channels.IsLive` (+ Title/GameName freshness). `Streams` lifecycle rows stay EventSub-owned. |
+| `GetStreamKeyAsync` | Read `GET /streams/key` — the channel's RTMP stream key string. Requires `channel:read:stream_key`. |
+| `GetFollowedStreamsAsync` | Read paged `GET /streams/followed` — the live streams the tenant follows. Requires `user:read:follows`. |
+| `CreateStreamMarkerAsync` | `POST /streams/markers` — marks the current live position, optional description; returns the created marker. Requires `channel:manage:broadcast`. |
+| `GetStreamMarkersAsync` | Read paged `GET /streams/markers` — markers from the most recent stream, or a specific VOD via `videoId`. The response nests `user → videos[] → markers[]`, so each page item is a `TwitchStreamMarkerGroup`. Requires `user:read:broadcast`. |
+
+### 3.3 `ITwitchModerationApi` — bans/timeouts, unban requests, blocked terms, message deletion, Shield Mode, warnings, suspicious users, AutoMod
+
+Moderator/VIP rosters live on §3.3a, rewards/redemptions on §3.3b, shoutouts/announcements on §3.3c, chatters/emotes/badges on §3.3d. All endpoints use the broadcaster's user token; endpoints needing both `broadcaster_id` and `moderator_id` send the single resolved Twitch id for both (the tenant moderates their own channel) — except the two `*AsOperatorAsync` methods, which run on the logged-in operator's OWN token against a raw Twitch channel id (chat-client.md §3.5).
 
 ```csharp
 namespace NomNomzBot.Application.Contracts.Twitch;
 
 public interface ITwitchModerationApi
 {
-    // ─ Reads ─
-    Task<Result<IReadOnlyList<TwitchBannedUserDto>>> GetBannedUsersAsync(Guid broadcasterId, CancellationToken ct = default);
-    Task<Result<IReadOnlyList<TwitchModeratorDto>>> GetModeratorsAsync(Guid broadcasterId, CancellationToken ct = default);
-    Task<Result<IReadOnlyList<TwitchModeratedChannelDto>>> GetModeratedChannelsAsync(string twitchUserId, CancellationToken ct = default);
-    Task<Result<IReadOnlyList<TwitchRewardDto>>> GetCustomRewardsAsync(Guid broadcasterId, CancellationToken ct = default);
-
-    // ─ Writes ─
-    Task<Result> BanUserAsync(Guid broadcasterId, BanUserRequest request, CancellationToken ct = default);
-    Task<Result> TimeoutUserAsync(Guid broadcasterId, TimeoutUserRequest request, CancellationToken ct = default);
+    // ─ Bans / timeouts ─
+    Task<Result<TwitchBanResult>> BanUserAsync(Guid broadcasterId, string targetTwitchUserId, string? reason, CancellationToken ct = default);
+    Task<Result<TwitchBanResult>> BanAsOperatorAsync(Guid operatorUserId, string broadcasterTwitchId, string targetTwitchUserId, string? reason, CancellationToken ct = default);
+    Task<Result<TwitchBanResult>> TimeoutUserAsync(Guid broadcasterId, string targetTwitchUserId, int durationSeconds, string? reason, CancellationToken ct = default);
     Task<Result> UnbanUserAsync(Guid broadcasterId, string targetTwitchUserId, CancellationToken ct = default);
-    Task<Result> AddModeratorAsync(Guid broadcasterId, string targetTwitchUserId, CancellationToken ct = default);
-    Task<Result> RemoveModeratorAsync(Guid broadcasterId, string targetTwitchUserId, CancellationToken ct = default);
-    Task<Result> AddVipAsync(Guid broadcasterId, string targetTwitchUserId, CancellationToken ct = default);
-    Task<Result> RemoveVipAsync(Guid broadcasterId, string targetTwitchUserId, CancellationToken ct = default);
-    Task<Result> DeleteChatMessageAsync(Guid broadcasterId, string messageId, CancellationToken ct = default);
-    Task<Result> WarnUserAsync(Guid broadcasterId, string targetTwitchUserId, string reason, CancellationToken ct = default);
-    Task<Result> ResolveAutoModMessageAsync(Guid broadcasterId, string messageId, bool approve, CancellationToken ct = default);
-    Task<Result<IReadOnlyList<TwitchBlockedTermDto>>> GetBlockedTermsAsync(Guid broadcasterId, CancellationToken ct = default);
-    Task<Result<TwitchBlockedTermDto>> AddBlockedTermAsync(Guid broadcasterId, string text, CancellationToken ct = default);
+    Task<Result<TwitchPage<TwitchBannedUser>>> GetBannedUsersAsync(Guid broadcasterId, TwitchPageRequest page, CancellationToken ct = default);
+
+    // ─ Unban requests ─
+    Task<Result<TwitchPage<TwitchUnbanRequest>>> GetUnbanRequestsAsync(Guid broadcasterId, string status, TwitchPageRequest page, CancellationToken ct = default);
+    Task<Result<TwitchUnbanRequest>> ResolveUnbanRequestAsync(Guid broadcasterId, string unbanRequestId, string status, string? resolutionText, CancellationToken ct = default);
+
+    // ─ Blocked terms ─
+    Task<Result<TwitchPage<TwitchBlockedTerm>>> GetBlockedTermsAsync(Guid broadcasterId, TwitchPageRequest page, CancellationToken ct = default);
+    Task<Result<TwitchBlockedTerm>> AddBlockedTermAsync(Guid broadcasterId, string text, CancellationToken ct = default);
     Task<Result> RemoveBlockedTermAsync(Guid broadcasterId, string blockedTermId, CancellationToken ct = default);
-    Task<Result> ShoutoutAsync(Guid broadcasterId, string toTwitchUserId, string moderatorTwitchUserId, CancellationToken ct = default);
-    Task<Result> UpdateRedemptionStatusAsync(Guid broadcasterId, UpdateRedemptionStatusRequest request, CancellationToken ct = default);
+
+    // ─ Chat message deletion ─
+    Task<Result> DeleteChatMessageAsync(Guid broadcasterId, string messageId, CancellationToken ct = default);
+    Task<Result> DeleteAllChatMessagesAsync(Guid broadcasterId, CancellationToken ct = default);
+    Task<Result> DeleteChatMessageAsOperatorAsync(Guid operatorUserId, string broadcasterTwitchId, string messageId, CancellationToken ct = default);
+
+    // ─ Shield Mode / warnings / suspicious users ─
+    Task<Result<TwitchShieldModeStatus>> GetShieldModeStatusAsync(Guid broadcasterId, CancellationToken ct = default);
+    Task<Result<TwitchShieldModeStatus>> UpdateShieldModeStatusAsync(Guid broadcasterId, bool isActive, CancellationToken ct = default);
+    Task<Result<TwitchWarningResult>> WarnChatUserAsync(Guid broadcasterId, string targetTwitchUserId, string reason, CancellationToken ct = default);
+    Task<Result<TwitchSuspiciousUserStatus>> AddSuspiciousStatusAsync(Guid broadcasterId, string targetTwitchUserId, string status, CancellationToken ct = default);
+    Task<Result<TwitchSuspiciousUserStatus>> RemoveSuspiciousStatusAsync(Guid broadcasterId, string targetTwitchUserId, CancellationToken ct = default);
+
+    // ─ AutoMod ─
+    Task<Result<IReadOnlyList<TwitchAutoModStatus>>> CheckAutoModStatusAsync(Guid broadcasterId, IReadOnlyList<(string MsgId, string MsgText)> messages, CancellationToken ct = default);
+    Task<Result> ManageHeldAutoModMessageAsync(Guid broadcasterId, string messageId, bool approve, CancellationToken ct = default);
+    Task<Result<TwitchAutoModSettings>> GetAutoModSettingsAsync(Guid broadcasterId, CancellationToken ct = default);
+    Task<Result<TwitchAutoModSettings>> UpdateAutoModSettingsAsync(Guid broadcasterId, UpdateAutoModSettingsRequest settings, CancellationToken ct = default);
 }
 ```
 
 | Method | Behavior |
 |---|---|
-| `GetBannedUsersAsync` | Read `GET /moderation/banned?first=100`. Requires `moderator:read:banned_users` (or manage). No state change. |
-| `GetModeratorsAsync` | Read `GET /moderation/moderators?first=100`. Requires `moderation:read`. No state change. |
-| `GetModeratedChannelsAsync` | Read paged `GET /moderation/channels` (auto-follows cursor, all pages). Requires `user:read:moderated_channels`. No state change. |
-| `GetCustomRewardsAsync` | Read `GET /channel_points/custom_rewards?only_manageable_rewards=true`. Requires `channel:read:redemptions`. Mirrors into `Rewards` (upsert by `TwitchRewardId`). |
-| `BanUserAsync` | `POST /moderation/bans` (permanent). Idempotency-guarded (`helix:mod:ban`). Requires `moderator:manage:banned_users`. **State:** Twitch ban applied; the local `ModerationActions`/`TwitchSubscribers` rows are written by the moderation subsystem reacting to the resulting EventSub `channel.ban`, not here. |
-| `TimeoutUserAsync` | `POST /moderation/bans` with `duration`. Idempotency-guarded. Same scope/side-effect note as ban. |
-| `UnbanUserAsync` | `DELETE /moderation/bans`. Idempotency-guarded. Requires `moderator:manage:banned_users`. |
-| `AddModeratorAsync` | `POST /moderation/moderators`. Requires `channel:manage:moderators`. |
-| `RemoveModeratorAsync` | `DELETE /moderation/moderators`. Requires `channel:manage:moderators`. |
-| `AddVipAsync` | `POST /channels/vips`. Requires `channel:manage:vips`. Surfaces `twitch_error` on Twitch's VIP-slot-limit 422. |
-| `RemoveVipAsync` | `DELETE /channels/vips`. Requires `channel:manage:vips`. |
-| `DeleteChatMessageAsync` | `DELETE /moderation/chat`. Requires `moderator:manage:chat_messages`. |
-| `WarnUserAsync` | `POST /moderation/warnings`. Requires `moderator:manage:warnings`. Twitch-native warn — the warned user must acknowledge before chatting again. |
-| `ResolveAutoModMessageAsync` | `POST /moderation/automod/message` with `action`=`ALLOW`/`DENY`. Requires `moderator:manage:automod`. Releases or drops a held AutoMod message. |
-| `GetBlockedTermsAsync` | Read paged `GET /moderation/blocked_terms?first=100` (auto-follows cursor). Requires `moderator:read:blocked_terms` (or manage). No state change. |
+| `BanUserAsync` | `POST /moderation/bans` (permanent). Requires `moderator:manage:banned_users`. Returns the applied `TwitchBanResult`. Pure Helix I/O — local `ModerationActions` rows are written by the moderation subsystem reacting to the resulting EventSub `channel.ban`, not here. |
+| `BanAsOperatorAsync` | Same endpoint on the **operator's own token** (`moderator_id` = the operator) against a raw Twitch `broadcasterTwitchId` — works in ANY channel Twitch has made the operator a moderator of, tenant or not. Twitch enforces the mod relationship; no privilege escalation. |
+| `TimeoutUserAsync` | `POST /moderation/bans` with `duration`. Same scope/side-effect note as ban; `TwitchBanResult.EndTime` carries the timeout end. |
+| `UnbanUserAsync` | `DELETE /moderation/bans`. Requires `moderator:manage:banned_users`. |
+| `GetBannedUsersAsync` | Read paged `GET /moderation/banned`. Requires `moderation:read`. No state change. |
+| `GetUnbanRequestsAsync` | Read paged `GET /moderation/unban_requests` filtered by `status` (pending / approved / denied / …). Requires `moderator:read:unban_requests`. |
+| `ResolveUnbanRequestAsync` | `PATCH /moderation/unban_requests` — approves or denies, optionally with resolution text. Requires `moderator:manage:unban_requests`. |
+| `GetBlockedTermsAsync` | Read paged `GET /moderation/blocked_terms`. Requires `moderator:read:blocked_terms` (or manage). |
 | `AddBlockedTermAsync` | `POST /moderation/blocked_terms`. Requires `moderator:manage:blocked_terms`. Returns the created term (Twitch assigns its id). |
 | `RemoveBlockedTermAsync` | `DELETE /moderation/blocked_terms`. Requires `moderator:manage:blocked_terms`. |
-| `ShoutoutAsync` | `POST /chat/shoutouts`. Requires `moderator:manage:shoutouts`. Honors Twitch's own shoutout cooldown (surfaces `twitch_error` on 429-cooldown). |
-| `UpdateRedemptionStatusAsync` | `PATCH /channel_points/custom_rewards/redemptions` to `FULFILLED`/`CANCELED`. Idempotency-guarded. Requires `channel:manage:redemptions`. Local `RewardRedemptions.Status` is updated by the rewards subsystem via EventSub, not here. |
+| `DeleteChatMessageAsync` | `DELETE /moderation/chat` for one `message_id`. Requires `moderator:manage:chat_messages`. |
+| `DeleteAllChatMessagesAsync` | `DELETE /moderation/chat` omitting `message_id` — clears the chat room. Requires `moderator:manage:chat_messages`. |
+| `DeleteChatMessageAsOperatorAsync` | Same endpoint on the operator's own token against a raw Twitch `broadcasterTwitchId` — a dashboard deletion is attributed to the acting moderator, not the broadcaster. |
+| `GetShieldModeStatusAsync` / `UpdateShieldModeStatusAsync` | `GET` / `PUT /moderation/shield_mode`. Requires `moderator:read:shield_mode` / `moderator:manage:shield_mode`; update returns the new status. |
+| `WarnChatUserAsync` | `POST /moderation/warnings`. Requires `moderator:manage:warnings`. Twitch-native warn — the warned user must acknowledge before chatting again. |
+| `AddSuspiciousStatusAsync` / `RemoveSuspiciousStatusAsync` | Flags a chatter `ACTIVE_MONITORING`/`RESTRICTED` or clears the flag. Requires `moderator:manage:suspicious_users`. |
+| `CheckAutoModStatusAsync` | `POST /moderation/enforcements/status` — tests whether each message would be held by AutoMod. Requires `moderation:read`. |
+| `ManageHeldAutoModMessageAsync` | `POST /moderation/automod/message` with `action`=`ALLOW`/`DENY`. Requires `moderator:manage:automod`. Releases or drops a held AutoMod message. |
+| `GetAutoModSettingsAsync` / `UpdateAutoModSettingsAsync` | `GET` / `PUT /moderation/automod/settings` — overall level or the nine per-category levels; update returns the applied settings. Requires `moderator:read:automod_settings` / `moderator:manage:automod_settings`. |
 
-### 3.4 `ITwitchSubscriptionsApi` — subscriber list/count
+### 3.3a `ITwitchModeratorsApi` — moderator & VIP rosters, moderated channels
+
+```csharp
+public interface ITwitchModeratorsApi
+{
+    Task<Result<TwitchPage<TwitchModerator>>> GetModeratorsAsync(Guid broadcasterId, TwitchPageRequest page, CancellationToken ct = default);
+    Task<Result> AddModeratorAsync(Guid broadcasterId, string targetTwitchUserId, CancellationToken ct = default);
+    Task<Result> RemoveModeratorAsync(Guid broadcasterId, string targetTwitchUserId, CancellationToken ct = default);
+    Task<Result<TwitchPage<TwitchVip>>> GetVipsAsync(Guid broadcasterId, TwitchPageRequest page, CancellationToken ct = default);
+    Task<Result> AddVipAsync(Guid broadcasterId, string targetTwitchUserId, CancellationToken ct = default);
+    Task<Result> RemoveVipAsync(Guid broadcasterId, string targetTwitchUserId, CancellationToken ct = default);
+    Task<Result<TwitchPage<TwitchModeratedChannel>>> GetModeratedChannelsAsync(Guid userId, TwitchPageRequest page, CancellationToken ct = default);
+}
+```
+
+| Method | Behavior |
+|---|---|
+| `GetModeratorsAsync` | Read paged `GET /moderation/moderators`. Requires `moderation:read`. |
+| `AddModeratorAsync` / `RemoveModeratorAsync` | `POST` / `DELETE /moderation/moderators`. Requires `channel:manage:moderators`. |
+| `GetVipsAsync` | Read paged `GET /channels/vips`. Requires `channel:read:vips`. |
+| `AddVipAsync` / `RemoveVipAsync` | `POST` / `DELETE /channels/vips`. Requires `channel:manage:vips`. Add surfaces `twitch_error` on Twitch's VIP-slot-limit 422. |
+| `GetModeratedChannelsAsync` | Read paged `GET /moderation/channels` — channels the **user** (`Guid userId`, resolved to its Twitch id internally) moderates. Requires `user:read:moderated_channels`. |
+
+### 3.3b `ITwitchChannelPointsApi` — custom-reward CRUD, redemptions
+
+The app that created a reward is the only app that may read (manageable-filtered), update, or delete it or its redemptions.
+
+```csharp
+public interface ITwitchChannelPointsApi
+{
+    Task<Result<TwitchCustomReward>> CreateCustomRewardAsync(Guid broadcasterId, CreateCustomRewardRequest request, CancellationToken ct = default);
+    Task<Result<TwitchCustomReward>> UpdateCustomRewardAsync(Guid broadcasterId, string rewardId, UpdateCustomRewardRequest request, CancellationToken ct = default);
+    Task<Result> DeleteCustomRewardAsync(Guid broadcasterId, string rewardId, CancellationToken ct = default);
+    Task<Result<IReadOnlyList<TwitchCustomReward>>> GetCustomRewardsAsync(Guid broadcasterId, IReadOnlyList<string>? rewardIds = null, bool onlyManageableRewards = false, CancellationToken ct = default);
+    Task<Result<TwitchPage<TwitchCustomRewardRedemption>>> GetCustomRewardRedemptionsAsync(Guid broadcasterId, string rewardId, string? status, IReadOnlyList<string>? redemptionIds, string? sort, TwitchPageRequest page, CancellationToken ct = default);
+    Task<Result<IReadOnlyList<TwitchCustomRewardRedemption>>> UpdateRedemptionStatusAsync(Guid broadcasterId, string rewardId, IReadOnlyList<string> redemptionIds, UpdateRedemptionStatusRequest request, CancellationToken ct = default);
+}
+```
+
+| Method | Behavior |
+|---|---|
+| `CreateCustomRewardAsync` / `UpdateCustomRewardAsync` / `DeleteCustomRewardAsync` | `POST` / `PATCH` / `DELETE /channel_points/custom_rewards`. Requires `channel:manage:redemptions`. Pure Helix I/O — mirroring into local `Rewards` is the rewards module's job (import / take-control flows), not this sub-client's. |
+| `GetCustomRewardsAsync` | Read `GET /channel_points/custom_rewards`, optionally filtered to specific reward ids and/or `only_manageable_rewards=true`. Requires `channel:read:redemptions`. No state change. |
+| `GetCustomRewardRedemptionsAsync` | Read paged `GET /channel_points/custom_rewards/redemptions` — by lifecycle `status` (`CANCELED`/`FULFILLED`/`UNFULFILLED`) or specific redemption ids, optional `OLDEST`/`NEWEST` sort. Requires `channel:read:redemptions`. |
+| `UpdateRedemptionStatusAsync` | `PATCH /channel_points/custom_rewards/redemptions` — moves the given UNFULFILLED redemptions to `FULFILLED`/`CANCELED`; returns the updated redemptions. Requires `channel:manage:redemptions`. Local `RewardRedemptions.Status` is updated by the rewards subsystem via EventSub, not here. |
+
+### 3.3c `ITwitchChatApi` — announcements, shoutouts, chat settings, name color, pinned messages
+
+Plain "Send Chat Message" is intentionally absent — it is owned by `HelixChatProvider` (§6).
+
+```csharp
+public interface ITwitchChatApi
+{
+    Task<Result> SendAnnouncementAsync(Guid broadcasterId, string message, string? color, CancellationToken ct = default);
+    Task<Result> SendShoutoutAsync(Guid broadcasterId, string toTwitchBroadcasterId, CancellationToken ct = default);
+    Task<Result<TwitchChatSettings>> GetChatSettingsAsync(Guid broadcasterId, CancellationToken ct = default);
+    Task<Result<TwitchChatSettings>> UpdateChatSettingsAsync(Guid broadcasterId, UpdateChatSettingsRequest request, CancellationToken ct = default);
+    Task<Result<TwitchUserChatColor>> GetUserChatColorAsync(Guid broadcasterId, CancellationToken ct = default);
+    Task<Result> UpdateUserChatColorAsync(Guid broadcasterId, string color, CancellationToken ct = default);
+    Task<Result<TwitchPinnedChatMessage>> GetPinnedMessagesAsync(Guid broadcasterId, CancellationToken ct = default);
+    Task<Result<TwitchPinnedChatMessage>> PinMessageAsync(Guid broadcasterId, string messageId, int? durationSeconds, CancellationToken ct = default);
+    Task<Result<TwitchPinnedChatMessage>> UpdatePinnedMessageAsync(Guid broadcasterId, int? durationSeconds, CancellationToken ct = default);
+    Task<Result> UnpinMessageAsync(Guid broadcasterId, CancellationToken ct = default);
+}
+```
+
+| Method | Behavior |
+|---|---|
+| `SendAnnouncementAsync` | `POST /chat/announcements`, optionally tinted. Requires `moderator:manage:announcements`. |
+| `SendShoutoutAsync` | `POST /chat/shoutouts`. Requires `moderator:manage:shoutouts`. Honors Twitch's own shoutout cooldown (surfaces `twitch_error` on 429-cooldown). |
+| `GetChatSettingsAsync` / `UpdateChatSettingsAsync` | `GET` / `PATCH /chat/settings` — emote / follower / slow / subscriber / unique-chat configuration; the patch sends only the supplied fields. Read: user token, no scope; update requires `moderator:manage:chat_settings`. |
+| `GetUserChatColorAsync` / `UpdateUserChatColorAsync` | `GET` / `PUT /chat/color` — the tenant's own name color (named color or hex). Update requires `user:manage:chat_color`. |
+| `GetPinnedMessagesAsync` / `PinMessageAsync` / `UpdatePinnedMessageAsync` / `UnpinMessageAsync` | The pinned-message lifecycle — read the current pin (`not_found` when none), pin for an optional duration, change the remaining duration, unpin. Mutations require `moderator:manage:chat_messages`. |
+
+### 3.3d `ITwitchChatAssetsApi` — chatters, emotes, badges, shared chat
+
+```csharp
+public interface ITwitchChatAssetsApi
+{
+    Task<Result<TwitchPage<TwitchChatter>>> GetChattersAsync(Guid broadcasterId, TwitchPageRequest page, CancellationToken ct = default);
+    Task<Result<IReadOnlyList<TwitchChannelEmote>>> GetChannelEmotesAsync(Guid broadcasterId, CancellationToken ct = default);
+    Task<Result<IReadOnlyList<TwitchGlobalEmote>>> GetGlobalEmotesAsync(CancellationToken ct = default);
+    Task<Result<IReadOnlyList<TwitchEmoteSetEmote>>> GetEmoteSetsAsync(IReadOnlyList<string> emoteSetIds, CancellationToken ct = default);
+    Task<Result<TwitchPage<TwitchUserEmote>>> GetUserEmotesAsync(Guid broadcasterId, string? afterCursor, CancellationToken ct = default);
+    Task<Result<TwitchPage<TwitchUserEmote>>> GetUserEmotesAsOperatorAsync(Guid operatorUserId, string? broadcasterTwitchId, string? afterCursor, CancellationToken ct = default);
+    Task<Result<IReadOnlyList<TwitchChatBadgeSet>>> GetChannelChatBadgesAsync(Guid broadcasterId, CancellationToken ct = default);
+    Task<Result<IReadOnlyList<TwitchChatBadgeSet>>> GetGlobalChatBadgesAsync(CancellationToken ct = default);
+    Task<Result<TwitchSharedChatSession>> GetSharedChatSessionAsync(Guid broadcasterId, CancellationToken ct = default);
+}
+```
+
+| Method | Behavior |
+|---|---|
+| `GetChattersAsync` | Read paged `GET /chat/chatters` — the present-viewer list (one page per call, caller follows the cursor); the moderator is the tenant itself (resolved internally). Requires `moderator:read:chatters` — a **progressive** scope (requested only when a chatter-list feature is enabled, e.g. the `{{random.chatter}}` token / chatter-driven actions), not part of the base grant; returns `missing_scope` if not granted. No state change; callers cache short-TTL (per `commands-pipelines.md` §6.3). |
+| `GetChannelEmotesAsync` / `GetGlobalEmotesAsync` / `GetEmoteSetsAsync` | Read — channel custom emotes, Twitch's global emotes, and the emotes in one or more emote sets (repeated `emote_set_id`). App token; no scope. |
+| `GetUserEmotesAsync` | Read cursor-paged (no `total`) — the emotes available to the **tenant** across all channels. Requires `user:read:emotes`. |
+| `GetUserEmotesAsOperatorAsync` | Same read on the **logged-in operator's own token** (`TwitchHelixAuth.Operator` via `OperatorUserId`) — a moderator sees THEIR personal emotes regardless of whose channel is active (chat-client.md §3.2). Optional `broadcasterTwitchId` (raw Twitch id — the channel may not be a tenant, so it is NEVER resolved from a Guid) guarantees that channel's follower emotes are included. Requires `user:read:emotes` on the operator's grant — enforced by Twitch, never a local tenant-token pre-check; a missing scope surfaces as a typed failure the caller degrades to empty. |
+| `GetChannelChatBadgesAsync` / `GetGlobalChatBadgesAsync` | Read — channel / global chat-badge sets. App token; no scope. |
+| `GetSharedChatSessionAsync` | Read — the channel's active shared chat session, or `not_found` when not in one (empty `data[]`). App token; no scope. |
+
+### 3.4 `ITwitchSubscriptionsApi` — subscriber list, single-user check, count
 
 ```csharp
 namespace NomNomzBot.Application.Contracts.Twitch;
 
 public interface ITwitchSubscriptionsApi
 {
+    Task<Result<TwitchPage<TwitchBroadcasterSubscription>>> GetBroadcasterSubscriptionsAsync(Guid broadcasterId, IReadOnlyList<string>? filterTwitchUserIds, TwitchPageRequest page, CancellationToken ct = default);
+    Task<Result<TwitchUserSubscription>> CheckUserSubscriptionAsync(Guid broadcasterId, string targetTwitchUserId, CancellationToken ct = default);
     Task<Result<int>> GetSubscriberCountAsync(Guid broadcasterId, CancellationToken ct = default);
-    Task<Result<TwitchPage<TwitchSubscriberDto>>> GetSubscribersAsync(Guid broadcasterId, TwitchPageRequest page, CancellationToken ct = default);
 }
 ```
 
 | Method | Behavior |
 |---|---|
+| `GetBroadcasterSubscriptionsAsync` | Read paged `GET /subscriptions`, optionally filtered to specific target users (raw Twitch ids). Returns page + cursor + total. Pure Helix I/O — writes nothing locally (no subscriber mirror table exists; consumers serve the list straight from Twitch). Requires `channel:read:subscriptions`. |
+| `CheckUserSubscriptionAsync` | Read `GET /subscriptions/user` — whether a target user (raw Twitch id) subscribes to the channel; an empty response (`not_found`) means "not subscribed". Requires `user:read:subscriptions`. |
 | `GetSubscriberCountAsync` | Read `GET /subscriptions?first=1`; returns `total`. Requires `channel:read:subscriptions` (pre-checked — closes the "subscriber count always 0" known issue by returning `missing_scope` instead of a silent 0). No state change. |
-| `GetSubscribersAsync` | Read paged `GET /subscriptions`. Returns page + cursor + total. **Upserts** `TwitchSubscribers` (reconciliation; no per-row event). Requires `channel:read:subscriptions`. |
 
-### 3.4a `ITwitchLiveOpsApi` — broadcaster live-ops writes (polls, predictions, raids, ads, schedule, markers, clips)
+### 3.4a Live-ops, engagement & discovery sub-clients (the remaining 16 categories)
 
-Consumed by `broadcaster-liveops.md` (which owns the controllers/services/scopes/state). This sub-client is the thin Helix transport for those writes; full endpoint + progressive-scope mapping is in `broadcaster-liveops.md` §8.2. All `Task<Result<T>>`, idempotency-guarded for the mutating calls.
+The early draft's coarse `ITwitchLiveOpsApi` bucket was **split into its constituent category clients** — each a single-responsibility Helix I/O wrapper (deps: transport + identity + token only). `broadcaster-liveops.md` owns the consuming controllers/services/scopes/state; the full endpoint + progressive-scope mapping is in `broadcaster-liveops.md` §8.2. Signatures below are the shipped interfaces verbatim (single-line form); `// scope` comments are the required grant.
 
 ```csharp
-public interface ITwitchLiveOpsApi
+namespace NomNomzBot.Application.Contracts.Twitch;
+
+// ── Polls — channel:read:polls (read) / channel:manage:polls (create/end; status TERMINATED|ARCHIVED) ──
+public interface ITwitchPollsApi
 {
-    // Polls (channel:manage:polls)
-    Task<Result<TwitchPollDto>> CreatePollAsync(Guid broadcasterId, CreateTwitchPollRequest req, CancellationToken ct = default);
-    Task<Result<TwitchPollDto>> EndPollAsync(Guid broadcasterId, string pollId, string status, CancellationToken ct = default);
-    // Predictions (channel:manage:predictions)
-    Task<Result<TwitchPredictionDto>> CreatePredictionAsync(Guid broadcasterId, CreateTwitchPredictionRequest req, CancellationToken ct = default);
-    Task<Result<TwitchPredictionDto>> UpdatePredictionAsync(Guid broadcasterId, UpdateTwitchPredictionRequest req, CancellationToken ct = default);
-    // Raids (channel:manage:raids)
-    Task<Result<TwitchRaidDto>> StartRaidAsync(Guid broadcasterId, string toBroadcasterId, CancellationToken ct = default);
+    Task<Result<TwitchPage<TwitchPoll>>> GetPollsAsync(Guid broadcasterId, IReadOnlyList<string>? pollIds, TwitchPageRequest page, CancellationToken ct = default);
+    Task<Result<TwitchPoll>> CreatePollAsync(Guid broadcasterId, CreatePollRequest request, CancellationToken ct = default);
+    Task<Result<TwitchPoll>> EndPollAsync(Guid broadcasterId, string pollId, string status, CancellationToken ct = default);
+}
+
+// ── Predictions — channel:read:predictions / channel:manage:predictions
+//    (EndPredictionAsync: status RESOLVED|CANCELED|LOCKED; winningOutcomeId required for RESOLVED) ──
+public interface ITwitchPredictionsApi
+{
+    Task<Result<TwitchPage<TwitchPrediction>>> GetPredictionsAsync(Guid broadcasterId, IReadOnlyList<string>? predictionIds, TwitchPageRequest page, CancellationToken ct = default);
+    Task<Result<TwitchPrediction>> CreatePredictionAsync(Guid broadcasterId, CreatePredictionRequest request, CancellationToken ct = default);
+    Task<Result<TwitchPrediction>> EndPredictionAsync(Guid broadcasterId, string predictionId, string status, string? winningOutcomeId, CancellationToken ct = default);
+}
+
+// ── Raids — channel:manage:raids (target = raw Twitch broadcaster id) ──
+public interface ITwitchRaidsApi
+{
+    Task<Result<TwitchRaid>> StartRaidAsync(Guid broadcasterId, string toTwitchBroadcasterId, CancellationToken ct = default);
     Task<Result> CancelRaidAsync(Guid broadcasterId, CancellationToken ct = default);
-    // Ads (channel:edit:commercial + channel:read:ads)
-    Task<Result<TwitchCommercialDto>> StartCommercialAsync(Guid broadcasterId, int lengthSeconds, CancellationToken ct = default);
-    Task<Result<TwitchAdScheduleDto>> SnoozeNextAdAsync(Guid broadcasterId, CancellationToken ct = default);
-    Task<Result<TwitchAdScheduleDto>> GetAdScheduleAsync(Guid broadcasterId, CancellationToken ct = default);
-    // Stream schedule (channel:manage:schedule)
-    Task<Result<TwitchScheduleDto>> GetScheduleAsync(Guid broadcasterId, CancellationToken ct = default);
-    Task<Result<TwitchScheduleSegmentDto>> CreateScheduleSegmentAsync(Guid broadcasterId, CreateScheduleSegmentRequest req, CancellationToken ct = default);
-    Task<Result<TwitchScheduleSegmentDto>> UpdateScheduleSegmentAsync(Guid broadcasterId, string segmentId, UpdateScheduleSegmentRequest req, CancellationToken ct = default);
-    Task<Result> DeleteScheduleSegmentAsync(Guid broadcasterId, string segmentId, CancellationToken ct = default);
-    Task<Result> UpdateScheduleSettingsAsync(Guid broadcasterId, UpdateScheduleSettingsRequest req, CancellationToken ct = default);
-    // Markers (channel:manage:broadcast) + Clips (clips:edit)
-    Task<Result<TwitchStreamMarkerDto>> CreateStreamMarkerAsync(Guid broadcasterId, string? description, CancellationToken ct = default);
-    Task<Result<TwitchClipDto>> CreateClipAsync(Guid broadcasterId, bool hasDelay, CancellationToken ct = default);
+}
+
+// ── Ads — channel:edit:commercial (start) / channel:read:ads (schedule) / channel:manage:ads (snooze) ──
+public interface ITwitchAdsApi
+{
+    Task<Result<TwitchCommercial>> StartCommercialAsync(Guid broadcasterId, int lengthSeconds, CancellationToken ct = default);
+    Task<Result<TwitchAdSchedule>> GetAdScheduleAsync(Guid broadcasterId, CancellationToken ct = default);
+    Task<Result<TwitchAdSnooze>> SnoozeNextAdAsync(Guid broadcasterId, CancellationToken ct = default);
+}
+
+// ── Schedule — reads app-token/no-scope; mutations channel:manage:schedule.
+//    GetICalendarAsync returns raw RFC 5545 text verbatim (Twitch needs no auth; rides the app-token
+//    pipeline for uniform rate limiting). Segment create/update return the updated TwitchSchedule. ──
+public interface ITwitchScheduleApi
+{
+    Task<Result<TwitchSchedule>> GetScheduleAsync(Guid broadcasterId, TwitchPageRequest page, CancellationToken ct = default);
+    Task<Result<string>> GetICalendarAsync(Guid broadcasterId, CancellationToken ct = default);
+    Task<Result> UpdateScheduleSettingsAsync(Guid broadcasterId, bool? isVacationEnabled, DateTimeOffset? vacationStartTime, DateTimeOffset? vacationEndTime, string? timezone, CancellationToken ct = default);
+    Task<Result<TwitchSchedule>> CreateSegmentAsync(Guid broadcasterId, CreateScheduleSegmentRequest request, CancellationToken ct = default);
+    Task<Result<TwitchSchedule>> UpdateSegmentAsync(Guid broadcasterId, string segmentId, UpdateScheduleSegmentRequest request, CancellationToken ct = default);
+    Task<Result> DeleteSegmentAsync(Guid broadcasterId, string segmentId, CancellationToken ct = default);
+}
+
+// ── Clips — creates clips:edit (VOD/downloads: editor:manage:clips, broadcaster alternatively
+//    channel:manage:clips); reads app-token/no-scope. CreateClipAsync returns id + edit URL (TwitchClipStub). ──
+public interface ITwitchClipsApi
+{
+    Task<Result<TwitchClipStub>> CreateClipAsync(Guid broadcasterId, bool? hasDelay, CancellationToken ct = default);
+    Task<Result<TwitchClipStub>> CreateClipFromVodAsync(Guid broadcasterId, CreateClipFromVodRequest request, CancellationToken ct = default);
+    Task<Result<TwitchPage<TwitchClip>>> GetClipsByBroadcasterAsync(Guid broadcasterId, TwitchPageRequest page, CancellationToken ct = default);
+    Task<Result<IReadOnlyList<TwitchClip>>> GetClipsByIdsAsync(IReadOnlyList<string> clipIds, CancellationToken ct = default);
+    Task<Result<IReadOnlyList<TwitchClipDownload>>> GetClipDownloadUrlsAsync(Guid broadcasterId, string editorId, IReadOnlyList<string> clipIds, CancellationToken ct = default);
+}
+
+// ── Videos — reads app-token/no-scope (type all|archive|highlight|upload; period all|day|week|month;
+//    sort time|trending|views); delete channel:manage:videos (max 5, returns the ids Twitch confirmed). ──
+public interface ITwitchVideosApi
+{
+    Task<Result<TwitchPage<TwitchVideo>>> GetVideosByBroadcasterAsync(Guid broadcasterId, string? type, string? period, string? sort, TwitchPageRequest page, CancellationToken ct = default);
+    Task<Result<IReadOnlyList<TwitchVideo>>> GetVideosByIdsAsync(IReadOnlyList<string> videoIds, CancellationToken ct = default);
+    Task<Result<IReadOnlyList<string>>> DeleteVideosAsync(Guid broadcasterId, IReadOnlyList<string> videoIds, CancellationToken ct = default);
+}
+
+// ── Bits — leaderboard + power-ups bits:read; cheermotes no scope (null broadcasterId = global set only).
+//    Leaderboard: broadcaster comes from the user token (no broadcaster_id param); count 1–100 default 10;
+//    period day|week|month|year|all. NOTE: the generic list envelope surfaces only data[] — the response's
+//    date_range and total are not exposed (transport gap). ──
+public interface ITwitchBitsApi
+{
+    Task<Result<IReadOnlyList<TwitchBitsLeaderboardEntry>>> GetBitsLeaderboardAsync(Guid broadcasterId, int? count, string? period, DateTimeOffset? startedAt, string? userId, CancellationToken ct = default);
+    Task<Result<IReadOnlyList<TwitchCheermote>>> GetCheermotesAsync(Guid? broadcasterId, CancellationToken ct = default);
+    Task<Result<IReadOnlyList<TwitchCustomPowerUp>>> GetCustomPowerUpsAsync(Guid broadcasterId, IReadOnlyList<string>? ids, CancellationToken ct = default);
+}
+
+// ── Goals — channel:read:goals ──
+public interface ITwitchGoalsApi
+{
+    Task<Result<IReadOnlyList<TwitchCreatorGoal>>> GetCreatorGoalsAsync(Guid broadcasterId, CancellationToken ct = default);
+}
+
+// ── Charity — channel:read:charity (campaign read is not_found when none is active) ──
+public interface ITwitchCharityApi
+{
+    Task<Result<TwitchCharityCampaign>> GetCharityCampaignAsync(Guid broadcasterId, CancellationToken ct = default);
+    Task<Result<TwitchPage<TwitchCharityDonation>>> GetCharityCampaignDonationsAsync(Guid broadcasterId, TwitchPageRequest page, CancellationToken ct = default);
+}
+
+// ── Hype Train — channel:read:hype_train (not_found when the channel has no Hype Train activity) ──
+public interface ITwitchHypeTrainApi
+{
+    Task<Result<TwitchHypeTrainStatus>> GetHypeTrainStatusAsync(Guid broadcasterId, CancellationToken ct = default);
+}
+
+// ── Teams — app token, no scope; GetTeamsAsync is keyed on team name OR id (provide one), no tenant ──
+public interface ITwitchTeamsApi
+{
+    Task<Result<IReadOnlyList<TwitchChannelTeam>>> GetChannelTeamsAsync(Guid broadcasterId, CancellationToken ct = default);
+    Task<Result<TwitchTeam>> GetTeamsAsync(string? name, string? teamId, CancellationToken ct = default);
+}
+
+// ── Games — app token, no scope, no tenant (at least one identifier across ids/names/igdbIds required) ──
+public interface ITwitchGamesApi
+{
+    Task<Result<IReadOnlyList<TwitchGame>>> GetGamesAsync(IReadOnlyList<string>? ids, IReadOnlyList<string>? names, IReadOnlyList<string>? igdbIds, CancellationToken ct = default);
+    Task<Result<TwitchPage<TwitchGame>>> GetTopGamesAsync(TwitchPageRequest page, CancellationToken ct = default);
+}
+
+// ── Content Classification Labels — app token, no scope, no tenant (locale defaults to en-US when null) ──
+public interface ITwitchContentClassificationApi
+{
+    Task<Result<IReadOnlyList<TwitchContentClassificationLabel>>> GetContentClassificationLabelsAsync(string? locale, CancellationToken ct = default);
+}
+
+// ── Whispers — user:manage:whispers (sender = tenant Guid resolved to from_user_id; recipient = raw id) ──
+public interface ITwitchWhispersApi
+{
+    Task<Result> SendWhisperAsync(Guid fromUserId, string toTwitchUserId, string message, CancellationToken ct = default);
+}
+
+// ── Guest Star (BETA) — channel:read:guest_star (reads) / channel:manage:guest_star (mutations).
+//    Reads carrying moderator_id and every slot/invite mutation send the single resolved Twitch id for
+//    both broadcaster_id and moderator_id — the same convention as the moderation sub-client. ──
+public interface ITwitchGuestStarApi
+{
+    Task<Result<TwitchGuestStarChannelSettings>> GetChannelSettingsAsync(Guid broadcasterId, CancellationToken ct = default);
+    Task<Result> UpdateChannelSettingsAsync(Guid broadcasterId, UpdateGuestStarSettingsRequest request, CancellationToken ct = default);
+    Task<Result<TwitchGuestStarSession>> GetSessionAsync(Guid broadcasterId, CancellationToken ct = default);
+    Task<Result<TwitchGuestStarSession>> CreateSessionAsync(Guid broadcasterId, CancellationToken ct = default);
+    Task<Result<TwitchGuestStarSession>> EndSessionAsync(Guid broadcasterId, string sessionId, CancellationToken ct = default);
+    Task<Result<IReadOnlyList<TwitchGuestStarInvite>>> GetInvitesAsync(Guid broadcasterId, string sessionId, CancellationToken ct = default);
+    Task<Result> SendInviteAsync(Guid broadcasterId, string sessionId, string guestTwitchUserId, CancellationToken ct = default);
+    Task<Result> DeleteInviteAsync(Guid broadcasterId, string sessionId, string guestTwitchUserId, CancellationToken ct = default);
+    Task<Result> AssignSlotAsync(Guid broadcasterId, string sessionId, string guestTwitchUserId, string slotId, CancellationToken ct = default);
+    Task<Result> UpdateSlotAsync(Guid broadcasterId, string sessionId, string sourceSlotId, string? destinationSlotId, CancellationToken ct = default);
+    Task<Result> DeleteSlotAsync(Guid broadcasterId, string sessionId, string guestTwitchUserId, string slotId, bool? shouldReinviteGuest, CancellationToken ct = default);
+    Task<Result> UpdateSlotSettingsAsync(Guid broadcasterId, string sessionId, string slotId, bool? isAudioEnabled, bool? isVideoEnabled, bool? isLive, int? volume, CancellationToken ct = default);
 }
 ```
 
-The request/response DTOs (`CreateTwitchPollRequest`, `TwitchPollDto`, …) are the codegen'd Helix wire models mapped to app DTOs per §4; `broadcaster-liveops.md` §4 owns the app-facing shapes.
+The request/response records (`CreatePollRequest`, `TwitchPoll`, …) are the **hand-written** per-category records in `Dtos/Twitch{Category}Dtos.cs` (§4 — no codegen); `broadcaster-liveops.md` §4 owns the app-facing shapes.
 
 ### 3.5 Supporting interfaces (Infrastructure-internal, registered in DI)
 
 ```csharp
 namespace NomNomzBot.Application.Contracts.Twitch;
 
-/// Resolves a usable, decrypted Helix bearer token for a call, choosing the bot app token
-/// or the broadcaster's user token, and exposes scope state for pre-checks.
+/// Resolves a usable, decrypted Helix bearer token for a call — the bot/app token, the broadcaster's
+/// user token, or the logged-in operator's own token — and exposes scope state for pre-checks.
 public interface ITwitchTokenResolver
 {
-    // Returns the bot/app token (Service/Connection "twitch_bot"); null-result Failure if absent.
+    // Returns the bot account token (service "twitch_bot", no broadcaster); no_token Failure if absent.
     Task<Result<TwitchAccessContext>> GetBotTokenAsync(CancellationToken ct = default);
 
-    // Returns the broadcaster's user token ("twitch"); falls back to bot token only for read scopes.
+    // Returns the broadcaster's user token ("twitch"); falls back to the bot token when no user token
+    // exists. Fails with no_token when neither is present.
     Task<Result<TwitchAccessContext>> GetBroadcasterTokenAsync(Guid broadcasterId, CancellationToken ct = default);
+
+    // Returns the logged-in operator's OWN Twitch user token — to act AS the operator in channels they
+    // moderate, independent of the active tenant (chat-client.md §3.1). no_token when the user has no
+    // Twitch identity or connection.
+    Task<Result<TwitchAccessContext>> GetUserTokenAsync(Guid userId, CancellationToken ct = default);
+
+    // Forces a single token refresh for the identity behind the context via the auth layer and returns
+    // the refreshed context. Called by the transport on a 401 (refresh-and-retry once). Fails when no
+    // refresh is possible (e.g. the app/bot token, or the refresh itself failed).
+    Task<Result<TwitchAccessContext>> RefreshAsync(TwitchAccessContext context, CancellationToken ct = default);
 
     // True if the connection backing the resolved token has been granted the scope.
     Task<bool> HasScopeAsync(Guid broadcasterId, string scope, CancellationToken ct = default);
@@ -277,8 +576,9 @@ public interface ITwitchRateLimiter
     // Awaits a permit for the bucket; returns the lease to dispose after the request completes.
     Task<ITwitchRateLease> AcquireAsync(string tokenBucketKey, TwitchCallPriority priority, CancellationToken ct = default);
 
-    // Feeds observed response headers back so the limiter adapts the bucket's remaining/reset.
-    void Observe(string tokenBucketKey, int? limit, int? remaining, DateTimeOffset? resetsAt);
+    // Feeds observed response headers back so the limiter adapts the bucket's remaining/reset;
+    // wasHardLimited = true (a real 429) hard-blocks the bucket until resetsAt.
+    void Observe(string tokenBucketKey, int? limit, int? remaining, DateTimeOffset? resetsAt, bool wasHardLimited = false);
 }
 
 public interface ITwitchRateLease : IAsyncDisposable;
@@ -294,7 +594,7 @@ public sealed record TwitchAccessContext(
 );
 ```
 
-*Behavior notes:* `ITwitchTokenResolver` reads `IntegrationConnections` + `IntegrationTokens` (decrypting via the auth/crypto layer, never the raw vault); on 401 it triggers `ITwitchAuthService.RefreshTokenAsync` exactly once. `HasScopeAsync` reads `IntegrationConnections.Scopes ([VC:JSON])`; a missing scope short-circuits the call with `missing_scope` + emits `TwitchHelixReauthRequiredEvent`. `ITwitchRateLimiter` is a singleton; on self-host it wraps `System.Threading.RateLimiter` per bucket, on SaaS it delegates to the distributed `IRateLimiter` (`scaling-qos.md` §4.2). `Observe` is called by the rate-limit `DelegatingHandler` after every response.
+*Behavior notes:* `ITwitchTokenResolver` reads `IntegrationConnections` + `IntegrationTokens` (decrypting via the auth/crypto layer, never the raw vault); on 401 the transport calls `ITwitchTokenResolver.RefreshAsync` exactly once (refresh-and-retry), which delegates the actual refresh to the auth layer. `HasScopeAsync` reads `IntegrationConnections.Scopes ([VC:JSON])`; a missing scope short-circuits the call with `missing_scope` + emits `TwitchHelixReauthRequiredEvent`. `ITwitchRateLimiter` is a singleton; on self-host it wraps `System.Threading.RateLimiter` per bucket, on SaaS it delegates to the distributed `IRateLimiter` (`scaling-qos.md` §4.2). `Observe` is called by the rate-limit `DelegatingHandler` after every response.
 
 ---
 
@@ -321,16 +621,21 @@ public sealed record ModifyChannelInformationRequest(
     bool? IsBrandedContent = null
 );
 
-public sealed record BanUserRequest(string TargetTwitchUserId, string? Reason = null);
-
-public sealed record TimeoutUserRequest(string TargetTwitchUserId, int DurationSeconds, string? Reason = null);
-
-public sealed record UpdateRedemptionStatusRequest(
-    string TwitchRewardId,
-    string TwitchRedemptionId,
-    string Status            // "FULFILLED" | "CANCELED"
-);
+// Body carries only the target status ("FULFILLED" | "CANCELED"); the reward id and redemption ids
+// are method arguments on ITwitchChannelPointsApi.UpdateRedemptionStatusAsync, never body fields.
+public sealed record UpdateRedemptionStatusRequest(string Status);
 ```
+
+Ban/timeout carry **no request record** — `ITwitchModerationApi.BanUserAsync`/`TimeoutUserAsync` take inline
+parameters (`targetTwitchUserId`, `durationSeconds`, `reason`). (The `BanUserRequest` in
+`NomNomzBot.Application.Moderation.Dtos` is the moderation module's app-level DTO, unrelated to this contract.)
+The remaining request records ship beside their categories in `Dtos/Twitch{Category}Dtos.cs`:
+`CreateCustomRewardRequest`, `UpdateCustomRewardRequest`, `UpdateAutoModSettingsRequest`,
+`SuspiciousUserStatusRequest`, `UpdateChatSettingsRequest`, `CreatePollRequest`, `CreatePredictionRequest`,
+`CreateScheduleSegmentRequest`, `UpdateScheduleSegmentRequest`, `CreateClipFromVodRequest`,
+`CreateStreamMarkerRequest`, `TwitchStreamsFilter`, `UpdateGuestStarSettingsRequest`,
+`UpdateUserExtensionsRequest`. (`TwitchPageRequest`/`TwitchPage<T>` live in `TwitchPage.cs`, beside the
+contracts, not under `Dtos/`.)
 
 ### 4.2 Response records
 
@@ -339,8 +644,10 @@ namespace NomNomzBot.Application.Contracts.Twitch;
 
 public sealed record TwitchPage<T>(IReadOnlyList<T> Items, string? NextCursor, int Total);
 
-public sealed record TwitchUserDto(
-    string Id, string Login, string DisplayName, string? ProfileImageUrl, string BroadcasterType);
+public sealed record TwitchUser(
+    string Id, string Login, string DisplayName, string Type, string BroadcasterType,
+    string Description, string ProfileImageUrl, string OfflineImageUrl, int ViewCount,
+    DateTimeOffset CreatedAt);   // email deliberately not modelled (needs user:read:email)
 
 public sealed record TwitchChannelInformation(
     string BroadcasterId, string BroadcasterLogin, string BroadcasterName, string BroadcasterLanguage,
@@ -355,30 +662,51 @@ public sealed record TwitchStream(
 public sealed record TwitchChannelFollower(
     string UserId, string UserLogin, string UserName, DateTimeOffset FollowedAt);
 
-public sealed record TwitchSubscriberDto(
-    string UserId, string UserLogin, string UserName, string Tier, bool IsGift,
-    string? GifterUserId, string PlanName);
+public sealed record TwitchBroadcasterSubscription(
+    string BroadcasterId, string BroadcasterLogin, string BroadcasterName,
+    string GifterId, string GifterLogin, string GifterName, bool IsGift,
+    string PlanName, string Tier, string UserId, string UserLogin, string UserName);
 
-public sealed record TwitchCategoryDto(string Id, string Name, string? BoxArtUrl);
+public sealed record TwitchUserSubscription(
+    string BroadcasterId, string BroadcasterLogin, string BroadcasterName, bool IsGift, string Tier,
+    string? GifterId = null, string? GifterLogin = null, string? GifterName = null);
 
-public sealed record TwitchBannedUserDto(
-    string UserId, string UserLogin, string UserName, string Reason, DateTime? ExpiresAt);
+public sealed record TwitchSearchCategory(string Id, string Name, string BoxArtUrl);
 
-public sealed record TwitchModeratorDto(string UserId, string UserLogin, string UserName);
+public sealed record TwitchBannedUser(
+    string UserId, string UserLogin, string UserName, DateTimeOffset? ExpiresAt,
+    DateTimeOffset CreatedAt, string Reason, string ModeratorId, string ModeratorLogin,
+    string ModeratorName);
 
-public sealed record TwitchVipDto(string UserId, string UserLogin, string UserName);
+public sealed record TwitchModerator(string UserId, string UserLogin, string UserName);
 
-public sealed record TwitchChatterDto(string UserId, string UserLogin, string UserName);
+public sealed record TwitchVip(string UserId, string UserName, string UserLogin);
 
-public sealed record TwitchModeratedChannelDto(
+public sealed record TwitchChatter(string UserId, string UserLogin, string UserName);
+
+public sealed record TwitchModeratedChannel(
     string BroadcasterId, string BroadcasterLogin, string BroadcasterName);
 
-public sealed record TwitchBlockedTermDto(string Id, string Text, DateTime CreatedAt, DateTime? ExpiresAt);
+public sealed record TwitchBlockedTerm(
+    string BroadcasterId, string ModeratorId, string Id, string Text,
+    DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt, DateTimeOffset? ExpiresAt);
 
-public sealed record TwitchRewardDto(
-    string Id, string Title, int Cost, bool IsEnabled, bool IsPaused,
-    string? Prompt, bool UserInputRequired);
+public sealed record TwitchCustomReward(
+    string BroadcasterId, string BroadcasterLogin, string BroadcasterName,
+    string Id, string Title, string Prompt, int Cost,
+    TwitchCustomRewardImage? Image, TwitchCustomRewardImage DefaultImage, string BackgroundColor,
+    bool IsEnabled, bool IsUserInputRequired,
+    TwitchCustomRewardMaxPerStreamSetting MaxPerStreamSetting,
+    TwitchCustomRewardMaxPerUserPerStreamSetting MaxPerUserPerStreamSetting,
+    TwitchCustomRewardGlobalCooldownSetting GlobalCooldownSetting,
+    bool IsPaused, bool IsInStock, bool ShouldRedemptionsSkipRequestQueue,
+    int? RedemptionsRedeemedCurrentStream, DateTimeOffset? CooldownExpiresAt);
 ```
+
+The full response-record set (~one file per category: emotes, badges, polls, predictions, raids, ads,
+schedule, clips, videos, bits, charity, goals, hype train, teams, games, CCLs, guest star, extensions, …)
+lives in `Dtos/Twitch{Category}Dtos.cs` beside these; the §3 signatures name every record they return.
+Timestamps are `DateTimeOffset` throughout (never bare `DateTime`).
 
 > These supersede the loosely-named `TwitchUserInfo`/`TwitchChannelInfo`/`TwitchRewardInfo`/etc. that were inlined in the retired `ITwitchApiService.cs`; the new records carry the missing `IsPaused`/`PlanName`/`Language` fields the schema needs.
 
@@ -460,11 +788,16 @@ services.AddTransient<TwitchAuthHeaderHandler>();
 // ── Token resolver: scoped (reads IntegrationConnections via scoped DbContext) ──
 services.AddScoped<ITwitchTokenResolver, TwitchTokenResolver>();
 
-// ── Sub-clients: scoped ──
+// ── Sub-clients: scoped — one registration per category, 26 total (representative sample; impls
+//    live in Platform/Transport/Helix/SubClients) ──
 services.AddScoped<ITwitchChannelsApi, TwitchChannelsApi>();
 services.AddScoped<ITwitchModerationApi, TwitchModerationApi>();
 services.AddScoped<ITwitchSubscriptionsApi, TwitchSubscriptionsApi>();
-services.AddScoped<ITwitchLiveOpsApi, TwitchLiveOpsApi>();
+// … + ITwitchUsersApi, ITwitchSearchApi, ITwitchStreamsApi, ITwitchChannelPointsApi, ITwitchModeratorsApi,
+//     ITwitchPollsApi, ITwitchPredictionsApi, ITwitchRaidsApi, ITwitchChatApi, ITwitchChatAssetsApi,
+//     ITwitchBitsApi, ITwitchClipsApi, ITwitchVideosApi, ITwitchScheduleApi, ITwitchAdsApi, ITwitchCharityApi,
+//     ITwitchGoalsApi, ITwitchHypeTrainApi, ITwitchTeamsApi, ITwitchGamesApi, ITwitchContentClassificationApi,
+//     ITwitchWhispersApi, ITwitchGuestStarApi — same pattern.
 
 // ── Façade: scoped (composes the sub-clients) ──
 services.AddScoped<ITwitchHelixClient, TwitchHelixClient>();
@@ -496,8 +829,8 @@ Stack-doc libs used by this subsystem (all 2nd-party / in-box except none 3rd-pa
 | `System.Net.Http` + `IHttpClientFactory` (in-box .NET 10) | 1st | The Helix `HttpClient`, named `"twitch-helix"`. |
 | `Microsoft.Extensions.Http.Resilience` 10.7.0 (+ transitive Polly 8.7.0) | 2nd | Retry / circuit-breaker / timeout pipeline — the existing `AddTwitchResilienceHandler`. **No hand-rolled breaker.** |
 | `System.Threading.RateLimiter` (in-box .NET 10 BCL) | 1st | Per-token adaptive buckets in `TwitchRateLimiter`. |
-| `Newtonsoft.Json` | (app-JSON convention) | App-side `[VC:JSON]` (`IntegrationConnections.Scopes`, `Channels.Tags`) read/write via the EF `ValueConverter`. **Wire DTOs use `System.Text.Json`** to match Twitch `snake_case` + the codegen'd models. |
-| NSwag / NJsonSchema | 3rd, **dev-time only** | Generate the committed Helix wire DTOs from the Twitch OpenAPI spec; not a runtime dep, not Roslyn. |
+| `Newtonsoft.Json` | (app-JSON convention) | App-side `[VC:JSON]` (`IntegrationConnections.Scopes`, `Channels.Tags`) read/write via the EF `ValueConverter`. **The Helix records deserialize via the transport's `snake_case` naming policy** (no per-property annotations, no codegen). |
+| _(none — no codegen)_ | — | The Helix records are **hand-written** per category in `Dtos/Twitch{Category}Dtos.cs` (§4); there is no NSwag/NJsonSchema step and no separate wire-DTO layer. |
 | EF Core 10 + provider (Npgsql / SQLite via DI adapter) | 2nd / 3rd | `IntegrationConnections`, `Channels`, `TwitchSubscribers`, `TwitchFollowers`, `Rewards`, `IdempotencyKey` access through `IUnitOfWork` + repositories. |
 | `Microsoft.Extensions.Logging` `ILogger` + `[LoggerMessage]` | 2nd | Structured logs; **token/PII scrubbed** (PII discipline, logging decision). |
 | `NomNomzBot.Domain.Interfaces.IEventBus` (in-process) | 1st | Emits the §2 domain events. |
@@ -523,7 +856,7 @@ Two implementation conventions are fixed here so the owner codes first-try:
 
 A consumer test (followage, subscriber count, chatters, send-message, a pipeline action) substitutes a hand-written fake at the public interface so it runs with **zero network**. The fakes return canned app-facing domain objects (the §4 DTOs, with `Guid BroadcasterId`), letting a test assert the consumer's resulting **state change / emitted events / side effects** rather than Twitch I/O.
 
-- Per-sub-client fakes (`FakeTwitchChannelsApi : ITwitchChannelsApi`, etc. — one per consumed sub-client, §3) — each method returns a pre-seeded `Result<T>` (success canned-DTO or a specific `Result.Failure(ErrorCode)` from `{ "no_token", "missing_scope", "unauthorized", "rate_limited", "not_found", "twitch_error", "transport" }`) so consumers can be tested against both happy-path and every failure mode.
+- Per-sub-client fakes (`FakeTwitchChannelsApi : ITwitchChannelsApi`, etc. — one per consumed sub-client, §3) — each method returns a pre-seeded `Result<T>` (success canned-DTO or a specific `Result.Failure(ErrorCode)` from `{ "no_token", "missing_scope", "unauthorized", "rate_limited", "not_found", "conflict", "twitch_error", "transport" }`) so consumers can be tested against both happy-path and every failure mode.
 - A fake `IChatProvider` (`HelixChatProvider` seam, `scaling-qos.md` §6 / `commands-pipelines.md` §6) — records outbound sends and yields canned inbound messages, so chat-send actions and `{{random.chatter}}`-style reads are verified without a socket.
 
 ```csharp
@@ -543,7 +876,7 @@ These never reference `HttpClient` or `ITwitchRateLimiter`; they replace the who
 To exercise the **actual** sub-client deserialization (wire DTO → §4 app DTO mapping) **and** the adaptive `ITwitchRateLimiter` reading `Ratelimit-*` headers, committed sample Helix JSON responses are replayed through a stub `HttpMessageHandler` / `DelegatingHandler` injected into `HttpClient("twitch-helix")`. No live call, fully deterministic.
 
 - **Fixture location:** `tests/Fixtures/Helix/` — one JSON file per Helix shape, named after the endpoint (e.g. `get-users.json`, `get-channels.json`, `get-subscriptions.json`, `get-channels-followers.json`, `get-chatters.json`).
-- **Provenance:** captured from the **Twitch Helix OpenAPI examples** (the same spec NSwag generates the wire DTOs from, §4/§8) or from real responses, with **all tokens, client-ids, and secrets scrubbed** before commit — fixtures carry only public-shape sample data, no live credentials and no real-viewer PII (consistent with "no fake/seed community data" — these are response-shape fixtures for client parsing, not seeded application data).
+- **Provenance:** captured from the **Twitch Helix reference examples** or from real responses (the records themselves are hand-written, §4 — no codegen), with **all tokens, client-ids, and secrets scrubbed** before commit — fixtures carry only public-shape sample data, no live credentials and no real-viewer PII (consistent with "no fake/seed community data" — these are response-shape fixtures for client parsing, not seeded application data).
 - **Rate-limit replay:** the stub handler attaches synthetic `Ratelimit-Limit` / `Ratelimit-Remaining` / `Ratelimit-Reset` response headers (and, for the throttle path, a `429` with `Retry-After`) so a test can assert `TwitchRateLimitHandler` → `ITwitchRateLimiter.Observe(...)` adapts the bucket and that a `TwitchHelixRateLimitedEvent` (§2) is emitted on a hard `429`. Pairs with the `TwitchAuthHeaderHandler` (§7) for the `401` → single refresh-and-retry → `TwitchHelixReauthRequiredEvent` path.
 
 ```csharp
