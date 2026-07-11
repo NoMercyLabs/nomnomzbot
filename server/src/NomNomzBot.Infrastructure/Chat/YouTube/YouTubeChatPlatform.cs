@@ -21,8 +21,10 @@ namespace NomNomzBot.Infrastructure.Chat.YouTube;
 /// <c>liveChatMessages.insert</c> on the streamer's own OAuth token against the ACTIVE live chat from
 /// <see cref="IYouTubeLiveChatSessionRegistry"/> — offline, there is no chat to write into, so a send
 /// honestly returns <c>false</c>. YouTube live chat has no reply threading; a reply degrades to a plain
-/// send (the message text itself usually carries the @mention). Moderation members are logged no-ops
-/// for now — the Live Chat API's ban/delete surface is a follow-up (auto-mod is Twitch-gated anyway).
+/// send (the message text itself usually carries the @mention). Moderation: timeout = TEMPORARY
+/// live-chat ban, ban = permanent (<c>liveChat/bans</c>), delete = <c>liveChat/messages</c> delete;
+/// unban stays an honest logged no-op until ban-id bookkeeping exists (liveChatBans.delete needs the
+/// insert-returned id).
 /// </summary>
 public sealed class YouTubeChatPlatform : IChatPlatform
 {
@@ -52,33 +54,17 @@ public sealed class YouTubeChatPlatform : IChatPlatform
         CancellationToken cancellationToken = default
     )
     {
-        YouTubeLiveChatSession? session = _sessions.Get(broadcasterId);
-        if (session is null)
-        {
-            _logger.LogDebug(
-                "YouTube send skipped for {BroadcasterId}: channel is not live",
-                broadcasterId
-            );
-            return false;
-        }
-
-        string? accessToken = await _tokens.GetAccessTokenAsync(
-            session.PrimaryBroadcasterId,
+        (YouTubeLiveChatSession Session, string Token)? auth = await ResolveWriteAuthAsync(
+            broadcasterId,
+            "send",
             cancellationToken
         );
-        if (accessToken is null)
-        {
-            _logger.LogWarning(
-                "YouTube send failed for {BroadcasterId}: no usable token on primary channel {Primary}",
-                broadcasterId,
-                session.PrimaryBroadcasterId
-            );
+        if (auth is null)
             return false;
-        }
 
         Result sent = await _client.SendMessageAsync(
-            accessToken,
-            session.LiveChatId,
+            auth.Value.Token,
+            auth.Value.Session.LiveChatId,
             message,
             cancellationToken
         );
@@ -107,30 +93,16 @@ public sealed class YouTubeChatPlatform : IChatPlatform
         int durationSeconds,
         string? reason = null,
         CancellationToken cancellationToken = default
-    )
-    {
-        _logger.LogWarning(
-            "YouTube moderation (timeout) is not wired yet — no action taken for {UserId} on {BroadcasterId}",
-            userId,
-            broadcasterId
-        );
-        return Task.CompletedTask;
-    }
+    ) =>
+        // The Twitch-timeout analogue: a TEMPORARY live-chat ban for the given duration.
+        BanCoreAsync(broadcasterId, userId, durationSeconds, "timeout", cancellationToken);
 
     public Task BanUserAsync(
         Guid broadcasterId,
         string userId,
         string? reason = null,
         CancellationToken cancellationToken = default
-    )
-    {
-        _logger.LogWarning(
-            "YouTube moderation (ban) is not wired yet — no action taken for {UserId} on {BroadcasterId}",
-            userId,
-            broadcasterId
-        );
-        return Task.CompletedTask;
-    }
+    ) => BanCoreAsync(broadcasterId, userId, durationSeconds: null, "ban", cancellationToken);
 
     public Task UnbanUserAsync(
         Guid broadcasterId,
@@ -138,25 +110,109 @@ public sealed class YouTubeChatPlatform : IChatPlatform
         CancellationToken cancellationToken = default
     )
     {
+        // liveChatBans.delete needs the BAN id from the insert response, which nothing stores yet —
+        // honest no-op until ban-id bookkeeping exists (tracked with the 3b remainder).
         _logger.LogWarning(
-            "YouTube moderation (unban) is not wired yet — no action taken for {UserId} on {BroadcasterId}",
+            "YouTube unban needs ban-id bookkeeping — no action taken for {UserId} on {BroadcasterId}",
             userId,
             broadcasterId
         );
         return Task.CompletedTask;
     }
 
-    public Task DeleteMessageAsync(
+    public async Task DeleteMessageAsync(
         Guid broadcasterId,
         string messageId,
         CancellationToken cancellationToken = default
     )
     {
-        _logger.LogWarning(
-            "YouTube moderation (delete message) is not wired yet — no action taken for {MessageId} on {BroadcasterId}",
-            messageId,
-            broadcasterId
+        (YouTubeLiveChatSession Session, string Token)? auth = await ResolveWriteAuthAsync(
+            broadcasterId,
+            "delete message",
+            cancellationToken
         );
-        return Task.CompletedTask;
+        if (auth is null)
+            return;
+
+        Result deleted = await _client.DeleteMessageAsync(
+            auth.Value.Token,
+            messageId,
+            cancellationToken
+        );
+        if (deleted.IsFailure)
+            _logger.LogWarning(
+                "YouTube message delete failed for {BroadcasterId}: {Error} ({Code})",
+                broadcasterId,
+                deleted.ErrorMessage,
+                deleted.ErrorCode
+            );
+    }
+
+    private async Task BanCoreAsync(
+        Guid broadcasterId,
+        string bannedChannelId,
+        int? durationSeconds,
+        string verb,
+        CancellationToken ct
+    )
+    {
+        (YouTubeLiveChatSession Session, string Token)? auth = await ResolveWriteAuthAsync(
+            broadcasterId,
+            verb,
+            ct
+        );
+        if (auth is null)
+            return;
+
+        Result banned = await _client.BanUserAsync(
+            auth.Value.Token,
+            auth.Value.Session.LiveChatId,
+            bannedChannelId,
+            durationSeconds,
+            ct
+        );
+        if (banned.IsFailure)
+            _logger.LogWarning(
+                "YouTube {Verb} failed for {UserId} on {BroadcasterId}: {Error} ({Code})",
+                verb,
+                bannedChannelId,
+                broadcasterId,
+                banned.ErrorMessage,
+                banned.ErrorCode
+            );
+    }
+
+    /// <summary>The write-auth pair every moderation call needs: the ACTIVE session + a usable token —
+    /// null (with a log) when the channel is offline or the token cannot be resolved.</summary>
+    private async Task<(YouTubeLiveChatSession Session, string Token)?> ResolveWriteAuthAsync(
+        Guid broadcasterId,
+        string verb,
+        CancellationToken ct
+    )
+    {
+        YouTubeLiveChatSession? session = _sessions.Get(broadcasterId);
+        if (session is null)
+        {
+            _logger.LogDebug(
+                "YouTube {Verb} skipped for {BroadcasterId}: channel is not live",
+                verb,
+                broadcasterId
+            );
+            return null;
+        }
+
+        string? accessToken = await _tokens.GetAccessTokenAsync(session.PrimaryBroadcasterId, ct);
+        if (accessToken is null)
+        {
+            _logger.LogWarning(
+                "YouTube {Verb} failed for {BroadcasterId}: no usable token on primary channel {Primary}",
+                verb,
+                broadcasterId,
+                session.PrimaryBroadcasterId
+            );
+            return null;
+        }
+
+        return (session, accessToken);
     }
 }

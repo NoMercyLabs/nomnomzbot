@@ -73,6 +73,30 @@ public interface IYouTubeLiveChatClient
         string text,
         CancellationToken cancellationToken = default
     );
+
+    /// <summary>
+    /// Bans a viewer from a live chat (<c>POST liveChat/bans?part=snippet</c>) — permanent when
+    /// <paramref name="durationSeconds"/> is null, else a temporary ban (the Twitch-timeout analogue;
+    /// YouTube clamps the duration server-side). <paramref name="bannedChannelId"/> is the viewer's
+    /// YouTube channel id. Same failure mapping as the other write calls.
+    /// </summary>
+    Task<Result> BanUserAsync(
+        string accessToken,
+        string liveChatId,
+        string bannedChannelId,
+        int? durationSeconds,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>
+    /// Deletes a single live-chat message (<c>DELETE liveChat/messages?id=</c>) — the message id is the
+    /// one the read seam surfaced (and the dashboard's delete button sends back).
+    /// </summary>
+    Task<Result> DeleteMessageAsync(
+        string accessToken,
+        string messageId,
+        CancellationToken cancellationToken = default
+    );
 }
 
 /// <summary>The authenticated user's own YouTube channel identity.</summary>

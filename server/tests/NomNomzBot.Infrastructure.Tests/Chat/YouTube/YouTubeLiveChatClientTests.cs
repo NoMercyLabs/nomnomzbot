@@ -235,6 +235,51 @@ public sealed class YouTubeLiveChatClientTests
         result.ErrorCode.Should().Be("MISSING_SCOPE");
     }
 
+    [Fact]
+    public async Task BanUser_with_a_duration_posts_a_temporary_ban_for_the_channel()
+    {
+        StubHttpMessageHandler handler = new((HttpStatusCode.OK, """{"id":"ban-1"}"""));
+        YouTubeLiveChatClient sut = Build(handler);
+
+        Result result = await sut.BanUserAsync(Token, "chat123", "UCbad", 600);
+
+        result.IsSuccess.Should().BeTrue();
+        handler.LastRequest!.RequestUri!.ToString().Should().Contain("liveChat/bans");
+        string body = await handler.LastRequest.Content!.ReadAsStringAsync();
+        body.Should()
+            .Contain("temporary")
+            .And.Contain("600")
+            .And.Contain("UCbad")
+            .And.Contain("chat123");
+    }
+
+    [Fact]
+    public async Task BanUser_without_a_duration_posts_a_permanent_ban()
+    {
+        StubHttpMessageHandler handler = new((HttpStatusCode.OK, """{"id":"ban-2"}"""));
+        YouTubeLiveChatClient sut = Build(handler);
+
+        Result result = await sut.BanUserAsync(Token, "chat123", "UCworse", null);
+
+        result.IsSuccess.Should().BeTrue();
+        string body = await handler.LastRequest!.Content!.ReadAsStringAsync();
+        body.Should().Contain("permanent").And.NotContain("banDurationSeconds");
+    }
+
+    [Fact]
+    public async Task DeleteMessage_deletes_by_the_message_id_with_the_bearer()
+    {
+        StubHttpMessageHandler handler = new((HttpStatusCode.NoContent, "{}"));
+        YouTubeLiveChatClient sut = Build(handler);
+
+        Result result = await sut.DeleteMessageAsync(Token, "msg-9");
+
+        result.IsSuccess.Should().BeTrue();
+        handler.LastRequest!.Method.Should().Be(HttpMethod.Delete);
+        handler.LastRequest.RequestUri!.ToString().Should().Contain("liveChat/messages?id=msg-9");
+        handler.LastRequest.Headers.Authorization!.Parameter.Should().Be(Token);
+    }
+
     private sealed class StubHttpMessageHandler(
         params (HttpStatusCode Status, string Json)[] responses
     ) : HttpMessageHandler

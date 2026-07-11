@@ -133,6 +133,63 @@ public sealed class YouTubeChatPlatformTests
     }
 
     [Fact]
+    public async Task A_timeout_is_a_temporary_ban_and_a_ban_is_permanent()
+    {
+        (
+            YouTubeChatPlatform platform,
+            YouTubeLiveChatSessionRegistry sessions,
+            _,
+            IYouTubeLiveChatClient client
+        ) = Build();
+        sessions.SetLive(Tenant, Primary, "chat-42");
+        client
+            .BanUserAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<int?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success());
+
+        await platform.TimeoutUserAsync(Tenant, "UCbad", 600, "spam");
+        await platform.BanUserAsync(Tenant, "UCworse", "worse spam");
+
+        await client
+            .Received(1)
+            .BanUserAsync("bearer-1", "chat-42", "UCbad", 600, Arg.Any<CancellationToken>());
+        await client
+            .Received(1)
+            .BanUserAsync("bearer-1", "chat-42", "UCworse", null, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task A_message_delete_rides_the_primary_token_and_offline_moderation_is_a_no_op()
+    {
+        (
+            YouTubeChatPlatform platform,
+            YouTubeLiveChatSessionRegistry sessions,
+            _,
+            IYouTubeLiveChatClient client
+        ) = Build();
+        client
+            .DeleteMessageAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success());
+
+        // Offline: nothing to moderate — no API call.
+        await platform.DeleteMessageAsync(Tenant, "m-1");
+        await client
+            .DidNotReceiveWithAnyArgs()
+            .DeleteMessageAsync(default!, default!, Arg.Any<CancellationToken>());
+
+        sessions.SetLive(Tenant, Primary, "chat-42");
+        await platform.DeleteMessageAsync(Tenant, "m-1");
+        await client
+            .Received(1)
+            .DeleteMessageAsync("bearer-1", "m-1", Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task A_reply_degrades_to_a_plain_send_and_the_session_clears_on_offline()
     {
         (

@@ -196,6 +196,68 @@ public sealed class YouTubeLiveChatClient : IYouTubeLiveChatClient
             }
         );
 
+        return await SendWriteAsync(request, $"send to chat {liveChatId}", cancellationToken);
+    }
+
+    public async Task<Result> BanUserAsync(
+        string accessToken,
+        string liveChatId,
+        string bannedChannelId,
+        int? durationSeconds,
+        CancellationToken cancellationToken = default
+    )
+    {
+        string url = $"{YouTubeApiBase}/liveChat/bans?part=snippet";
+        HttpRequestMessage request = new(HttpMethod.Post, url);
+        request.Headers.Authorization = new("Bearer", accessToken);
+        request.Content = JsonContent.Create(
+            durationSeconds is int seconds
+                ? new
+                {
+                    snippet = new
+                    {
+                        liveChatId,
+                        type = "temporary",
+                        banDurationSeconds = seconds,
+                        bannedUserDetails = new { channelId = bannedChannelId },
+                    },
+                }
+                : (object)
+                    new
+                    {
+                        snippet = new
+                        {
+                            liveChatId,
+                            type = "permanent",
+                            bannedUserDetails = new { channelId = bannedChannelId },
+                        },
+                    }
+        );
+
+        return await SendWriteAsync(request, $"ban in chat {liveChatId}", cancellationToken);
+    }
+
+    public async Task<Result> DeleteMessageAsync(
+        string accessToken,
+        string messageId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        string url = $"{YouTubeApiBase}/liveChat/messages?id={Uri.EscapeDataString(messageId)}";
+        HttpRequestMessage request = new(HttpMethod.Delete, url);
+        request.Headers.Authorization = new("Bearer", accessToken);
+
+        return await SendWriteAsync(request, $"delete message {messageId}", cancellationToken);
+    }
+
+    /// <summary>Shared write-call outcome mapping: 401/403 → MISSING_SCOPE, 404 → NOT_FOUND, other
+    /// non-success → SERVICE_UNAVAILABLE; transport exceptions degrade the same way (never throw).</summary>
+    private async Task<Result> SendWriteAsync(
+        HttpRequestMessage request,
+        string operation,
+        CancellationToken cancellationToken
+    )
+    {
         try
         {
             HttpResponseMessage response = await _http.SendAsync(request, cancellationToken);
@@ -213,7 +275,7 @@ public sealed class YouTubeLiveChatClient : IYouTubeLiveChatClient
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            _logger.LogError(ex, "YouTube live-chat send threw for chat {LiveChatId}", liveChatId);
+            _logger.LogError(ex, "YouTube live-chat write threw for {Operation}", operation);
             return Result.Failure("YouTube is temporarily unavailable.", "SERVICE_UNAVAILABLE");
         }
     }

@@ -376,6 +376,20 @@ public sealed class YouTubeLiveChatPollWorkerTests
             string text,
             CancellationToken cancellationToken = default
         ) => Task.FromResult(Result.Success());
+
+        public Task<Result> BanUserAsync(
+            string accessToken,
+            string liveChatId,
+            string bannedChannelId,
+            int? durationSeconds,
+            CancellationToken cancellationToken = default
+        ) => Task.FromResult(Result.Success());
+
+        public Task<Result> DeleteMessageAsync(
+            string accessToken,
+            string messageId,
+            CancellationToken cancellationToken = default
+        ) => Task.FromResult(Result.Success());
     }
 
     private sealed class FixedTokenProvider(string? token) : IYouTubeAccessTokenProvider
