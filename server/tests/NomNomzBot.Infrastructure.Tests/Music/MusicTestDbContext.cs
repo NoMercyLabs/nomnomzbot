@@ -151,6 +151,10 @@ internal sealed class MusicTestDbContext : DbContext, IApplicationDbContext
     public DbSet<NamedCounter> NamedCounters => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.ViewerData.Entities.ViewerDatum> ViewerData =>
         throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Engagement.Entities.EngagementConfig> EngagementConfigs =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Engagement.Entities.ViewerEngagementState> ViewerEngagementStates =>
+        throw new NotSupportedException();
     public DbSet<CommandUsage> CommandUsages => throw new NotSupportedException();
     public DbSet<EventJournal> EventJournals => throw new NotSupportedException();
     public DbSet<TenantSequence> TenantSequences => throw new NotSupportedException();

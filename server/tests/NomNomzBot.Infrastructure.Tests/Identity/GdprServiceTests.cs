@@ -451,6 +451,10 @@ internal sealed class GdprTestDbContext : DbContext, IApplicationDbContext
     public DbSet<NamedCounter> NamedCounters => Set<NamedCounter>();
     public DbSet<NomNomzBot.Domain.ViewerData.Entities.ViewerDatum> ViewerData =>
         Set<NomNomzBot.Domain.ViewerData.Entities.ViewerDatum>();
+    public DbSet<NomNomzBot.Domain.Engagement.Entities.EngagementConfig> EngagementConfigs =>
+        Set<NomNomzBot.Domain.Engagement.Entities.EngagementConfig>();
+    public DbSet<NomNomzBot.Domain.Engagement.Entities.ViewerEngagementState> ViewerEngagementStates =>
+        Set<NomNomzBot.Domain.Engagement.Entities.ViewerEngagementState>();
     public DbSet<CommandUsage> CommandUsages => Set<CommandUsage>();
     public DbSet<NomNomzBot.Domain.EventStore.Entities.EventJournal> EventJournals =>
         Set<NomNomzBot.Domain.EventStore.Entities.EventJournal>();

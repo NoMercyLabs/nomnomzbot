@@ -56,6 +56,10 @@ internal sealed class ViewerDataTestDbContext : DbContext, IApplicationDbContext
         );
 
     public DbSet<ViewerDatum> ViewerData => Set<ViewerDatum>();
+    public DbSet<NomNomzBot.Domain.Engagement.Entities.EngagementConfig> EngagementConfigs =>
+        Set<NomNomzBot.Domain.Engagement.Entities.EngagementConfig>();
+    public DbSet<NomNomzBot.Domain.Engagement.Entities.ViewerEngagementState> ViewerEngagementStates =>
+        Set<NomNomzBot.Domain.Engagement.Entities.ViewerEngagementState>();
     public DbSet<NamedCounter> NamedCounters => Set<NamedCounter>();
     public DbSet<User> Users => Set<User>();
     public DbSet<UserIdentity> UserIdentities => Set<UserIdentity>();

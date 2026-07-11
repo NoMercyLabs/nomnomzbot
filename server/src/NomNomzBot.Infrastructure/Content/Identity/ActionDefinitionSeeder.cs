@@ -358,6 +358,11 @@ public sealed class ActionDefinitionSeeder : ISeeder
         M("viewerdata:read", Mod);
         M("viewerdata:write", Editor);
 
+        // Engagement triggers (engagement.md §5) — auto-greet/loyalty config. Read at Moderator, toggling
+        // the triggers (write) at Editor.
+        M("engagement:read", Mod);
+        M("engagement:write", Editor);
+
         // Sound clips (sound-system.md §5) — audio clip library for pipeline SendSound actions. Read
         // (including preview playback, non-mutating) DEFAULTS to Moderator, floor Vip (broadcaster may open it
         // to a VIP); write (upload/update/delete) at Editor.

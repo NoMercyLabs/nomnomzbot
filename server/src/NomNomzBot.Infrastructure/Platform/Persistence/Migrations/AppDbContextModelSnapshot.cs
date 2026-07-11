@@ -2833,6 +2833,111 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.ToTable("ViewerAgeConsents");
                 });
 
+            modelBuilder.Entity("NomNomzBot.Domain.Engagement.Entities.EngagementConfig", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BroadcasterId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("ConfigSchemaVersion")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1);
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("FirstTimeChatterEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("GreetCooldownSeconds")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(5);
+
+                    b.Property<bool>("ReturningChatterEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("StreakMilestonesJson")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("WatchStreakEnabled")
+                        .HasColumnType("boolean");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BroadcasterId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_EngagementConfig_BroadcasterId")
+                        .HasFilter("\"DeletedAt\" IS NULL");
+
+                    b.ToTable("EngagementConfigs");
+                });
+
+            modelBuilder.Entity("NomNomzBot.Domain.Engagement.Entities.ViewerEngagementState", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BroadcasterId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("ConsecutiveStreams")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("FirstChatAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("LastChatAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastGreetedStreamSessionId")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("LastSeenStreamSessionId")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ViewerTwitchUserId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<Guid>("ViewerUserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ViewerUserId");
+
+                    b.HasIndex("BroadcasterId", "ViewerUserId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_ViewerEngagementState_BroadcasterId_ViewerUserId")
+                        .HasFilter("\"DeletedAt\" IS NULL");
+
+                    b.ToTable("ViewerEngagementStates");
+                });
+
             modelBuilder.Entity("NomNomzBot.Domain.EventStore.Entities.EventJournal", b =>
                 {
                     b.Property<long>("Id")
@@ -6912,6 +7017,36 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.Navigation("Channel");
 
                     b.Navigation("GuildConnection");
+                });
+
+            modelBuilder.Entity("NomNomzBot.Domain.Engagement.Entities.EngagementConfig", b =>
+                {
+                    b.HasOne("NomNomzBot.Domain.Identity.Entities.Channel", "Channel")
+                        .WithMany()
+                        .HasForeignKey("BroadcasterId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Channel");
+                });
+
+            modelBuilder.Entity("NomNomzBot.Domain.Engagement.Entities.ViewerEngagementState", b =>
+                {
+                    b.HasOne("NomNomzBot.Domain.Identity.Entities.Channel", "Channel")
+                        .WithMany()
+                        .HasForeignKey("BroadcasterId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("NomNomzBot.Domain.Identity.Entities.User", "Viewer")
+                        .WithMany()
+                        .HasForeignKey("ViewerUserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Channel");
+
+                    b.Navigation("Viewer");
                 });
 
             modelBuilder.Entity("NomNomzBot.Domain.Identity.Entities.AuthSession", b =>

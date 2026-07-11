@@ -457,6 +457,10 @@ public sealed class IdentityRekeyBehaviorTests
         public DbSet<NamedCounter> NamedCounters => throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.ViewerData.Entities.ViewerDatum> ViewerData =>
             throw new NotSupportedException();
+        public DbSet<NomNomzBot.Domain.Engagement.Entities.EngagementConfig> EngagementConfigs =>
+            throw new NotSupportedException();
+        public DbSet<NomNomzBot.Domain.Engagement.Entities.ViewerEngagementState> ViewerEngagementStates =>
+            throw new NotSupportedException();
         public DbSet<CommandUsage> CommandUsages => throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.EventStore.Entities.EventJournal> EventJournals =>
             throw new NotSupportedException();

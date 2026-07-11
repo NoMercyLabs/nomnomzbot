@@ -407,6 +407,10 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.ViewerData.Entities.ViewerDatum> ViewerData =>
         throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Engagement.Entities.EngagementConfig> EngagementConfigs =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Engagement.Entities.ViewerEngagementState> ViewerEngagementStates =>
+        throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Commands.Entities.CommandUsage> CommandUsages =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.EventStore.Entities.EventJournal> EventJournals =>

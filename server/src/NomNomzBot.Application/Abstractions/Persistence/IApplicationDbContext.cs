@@ -96,6 +96,8 @@ public interface IApplicationDbContext
     DbSet<CommandCooldownState> CommandCooldownStates { get; }
     DbSet<NamedCounter> NamedCounters { get; }
     DbSet<NomNomzBot.Domain.ViewerData.Entities.ViewerDatum> ViewerData { get; }
+    DbSet<NomNomzBot.Domain.Engagement.Entities.EngagementConfig> EngagementConfigs { get; }
+    DbSet<NomNomzBot.Domain.Engagement.Entities.ViewerEngagementState> ViewerEngagementStates { get; }
     DbSet<CommandUsage> CommandUsages { get; }
 
     // Event store (append-only journal + per-tenant sequences + projection checkpoints)

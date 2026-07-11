@@ -43,6 +43,11 @@ public class EventResponseService : IEventResponseService
         "channel.channel_points_custom_reward_redemption.add",
         "stream.online",
         "stream.offline",
+        // Engagement triggers (engagement.md §4) — detected from the chat stream, bound like any other
+        // event response. Seeded disabled; the detector itself is separately opted in via EngagementConfig.
+        "engagement.first_time_chatter",
+        "engagement.returning_chatter",
+        "engagement.watch_streak",
     ];
 
     public async Task<Result<PagedList<EventResponseListItem>>> ListAsync(

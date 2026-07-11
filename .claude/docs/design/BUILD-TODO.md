@@ -336,7 +336,27 @@ ONE substrate — a chat feed that **aggregates messages across a SET of channel
 - [ ] **16. TTS advanced** (`tts.md`) — mod approval queue, per-viewer voices, profanity filters, BYOK,
   usage ledger.
 - [ ] **17. Live-ops schedule & markers** (`broadcaster-liveops.md`) — schedule CRUD + vacation; markers.
-- [ ] **18. Engagement triggers** (`engagement.md`) — config + 3 auto-engagement triggers.
+- [x] **18. Engagement triggers — BACKEND SHIPPED 2026-07-11** (`engagement.md`; dashboard config UI →
+  handoff). The auto-greet / loyalty-recognition detect→act layer. Two entities (`EngagementConfig` G.11
+  one-per-channel, `ViewerEngagementState` G.12 one-per-channel+viewer, partial unique indexes, migration
+  pair `AddEngagement` + 18-fake sweep), three `sealed class : DomainEventBase` events
+  (first_time/returning/watch_streak), `IEngagementService.OnChatActivityAsync` = the detect→fire state
+  machine (D1/D3/D4: first-ever → FirstTime; new-stream → Returning + streak update via the
+  immediately-previous-session check against `Stream` order; milestone → WatchStreak; same-stream/on-cooldown
+  → state only; **typed publish closure** so the bus dispatches by concrete `typeof(TEvent)`; event published
+  only AFTER the state save commits — no phantom greeting). Chat hook =
+  `EngagementChatActivityHandler : IEventHandler<ChatMessageReceivedEvent>` — provider-agnostic (works on
+  Twitch/YouTube/Kick free), fast-path returns after ONE indexed config read on a disabled channel, live-only
+  (`ILiveWindowResolver`), own DB scope. Three trigger sources reuse `TwitchAlertHandlerBase` (like
+  `FollowEventHandler`) → bound `EventResponse`/pipeline runs with `{viewer.name}`/`{engagement.streak}`/
+  `{engagement.daysSinceLastSeen}`; the 3 `engagement.*` event types seeded (disabled) in
+  `EventResponseService`. Per-channel greet burst limit via `ICooldownManager` (D4). `EngagementController`
+  (GET/PUT `/config`) + Gate-2 `engagement:read`(Mod)/`engagement:write`(Editor); openapi refreshed. 13 tests.
+  **Deliberate deltas:** stream-session ids are the string `Stream.Id` (spec's `Guid?` doesn't match the
+  shipped Twitch-stream-id type); events namespaced `Domain.Engagement.Events` (repo module-first convention,
+  not the spec's `Domain.Events`); `sealed class` not `record` (DomainEventBase is a class); the greet-cooldown
+  is an in-memory `ICooldownManager` bucket (no schema field for a channel last-greet timestamp — honest, not
+  a durable claim across restarts).
 - [ ] **19. Live overlay games** (`live-games.md`) — session lifecycle + game catalog/manifest.
 - [ ] **20. Widget gallery + overlay manifest** (`widgets-overlays.md`) — gallery, `OverlayController`
   manifest, widget versions/build.

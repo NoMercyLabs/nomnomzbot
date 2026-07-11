@@ -175,6 +175,10 @@ internal sealed class HubUserEnrichmentTestDbContext : DbContext, IApplicationDb
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.ViewerData.Entities.ViewerDatum> ViewerData =>
         throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Engagement.Entities.EngagementConfig> EngagementConfigs =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Engagement.Entities.ViewerEngagementState> ViewerEngagementStates =>
+        throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Commands.Entities.CommandUsage> CommandUsages =>
         throw new NotSupportedException();
     public DbSet<EventJournal> EventJournals => throw new NotSupportedException();
