@@ -167,7 +167,17 @@ every broadcaster token already holds the full scope set (`channel:read:subscrip
   StreamController write routes (PUT + PATCH title/game/tags) now platform-route; no API contract change.
   11 new tests (Twitch resolve/wire/failure, YouTube retitle/offline/reject/token, router routing +
   twitch fallback, client GET-then-PUT wire + carried start time + caps).
-- [ ] **3b-2c. Kick `IChatPlatform` + chat read — RESEARCHED 2026-07-11 (live docs.kick.com), build next.**
+- [x] **3b-2c-1. Kick `IChatPlatform` (send + moderation) — SHIPPED 2026-07-11.** `KickApiClient`
+  (api.kick.com/public/v1: send w/ NATIVE `reply_to_message_id`, delete, timeout/ban/unban on
+  `/moderation/bans`; 500-char + 100-char caps enforced locally; 401/403→MISSING_SCOPE),
+  `KickAccessTokenProvider` (tenant Channel.ExternalChannelId = numeric Kick account id → vaulted login
+  connection; OAuth 2.1 refresh with ROTATED refresh-token re-vaulting; failures →
+  `MarkRefreshFailureAsync` reauth surface), `KickChatPlatform` registered in the chat router (seconds→
+  minutes ceiling-clamped 1–10080; non-numeric target = honest no-op; token-less = honest no-op).
+  Works with ZERO public URL. 19 tests. **Caveat:** the login grant is `user:read` only — chat/moderation
+  work once the streamer's Kick grant carries `chat:write`/`moderation:*` (scope expansion is part of
+  3b-2c-2's connect surface); until then calls fail honestly as MISSING_SCOPE.
+- [ ] **3b-2c-2. Kick chat READ (webhook ingest) + streamer scope expansion — research banked below.**
   Verified wire facts: send = `POST api.kick.com/public/v1/chat` (user token, scope `chat:write`,
   500-char cap, native replies via `reply_to_message_id`, `type: user|bot`, `broadcaster_user_id` for
   user tokens); delete = `DELETE /public/v1/chat/{message_id}` (`moderation:chat_message:manage`);

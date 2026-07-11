@@ -24,6 +24,7 @@ using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
+using NomNomzBot.Application.Contracts.Kick;
 using NomNomzBot.Application.Contracts.Platform;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Contracts.YouTube;
@@ -36,8 +37,10 @@ using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Tts.Interfaces;
 using NomNomzBot.Infrastructure.BackgroundServices;
 using NomNomzBot.Infrastructure.Chat;
+using NomNomzBot.Infrastructure.Chat.Kick;
 using NomNomzBot.Infrastructure.Chat.YouTube;
 using NomNomzBot.Infrastructure.Commands;
+using NomNomzBot.Infrastructure.Integrations.Kick;
 using NomNomzBot.Infrastructure.Integrations.YouTube;
 using NomNomzBot.Infrastructure.Moderation;
 using NomNomzBot.Infrastructure.Music;
@@ -914,7 +917,15 @@ public static class DependencyInjection
         // Multi-bound platforms + the router are all scoped (DbContext + per-tenant token resolution).
         services.AddScoped<IChatPlatform, HelixChatProvider>();
         services.AddScoped<IChatPlatform, YouTubeChatPlatform>();
+        services.AddScoped<IChatPlatform, KickChatPlatform>();
         services.AddScoped<IChatProvider, ChatPlatformRouter>();
+
+        // Kick transport + token custody (slice 3b-2c): the client is stateless HTTP over api.kick.com
+        // (singleton); the token provider resolves the tenant's vaulted Kick connection and refreshes
+        // with OAuth 2.1 rotation (scoped: DbContext + vault).
+        services.AddHttpClient("kick");
+        services.AddSingleton<IKickApiClient, KickApiClient>();
+        services.AddScoped<IKickAccessTokenProvider, KickAccessTokenProvider>();
 
         // Channel-ops seam (slice 3b — the IPlatformApi third of the platform trio): stream-metadata
         // writes route by Channel.Provider exactly like chat. Same scoping rationale as above.
