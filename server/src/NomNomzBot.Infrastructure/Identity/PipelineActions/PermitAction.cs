@@ -85,7 +85,7 @@ public sealed class PermitAction : ICommandAction
         string targetLabel = PermitCommandSupport.TargetLabel(ctx);
 
         // A token that names a management role is a role grant; anything else is a capability (action-key) grant.
-        if (TryParseManagementRole(token, out ManagementRole role))
+        if (PermitCommandSupport.TryParseManagementRole(token, out ManagementRole role))
         {
             Result<PermitGrantDto> granted = await _permits.GrantRoleAsync(
                 ctx.BroadcasterId,
@@ -115,32 +115,5 @@ public sealed class PermitAction : ICommandAction
             : ActionResult.Failure(
                 grantedCapability.ErrorMessage ?? "permit: capability grant failed"
             );
-    }
-
-    // The management-role tokens a chat user might type: the enum names plus common chat aliases. Anything else is
-    // treated as an action-key capability (roles-permissions §3.6 — "role vs capability by what the token names").
-    private static bool TryParseManagementRole(string token, out ManagementRole role)
-    {
-        switch (token.ToLowerInvariant())
-        {
-            case "mod":
-            case "moderator":
-                role = ManagementRole.Moderator;
-                return true;
-            case "supermod":
-            case "leadmod":
-            case "leadmoderator":
-                role = ManagementRole.LeadModerator;
-                return true;
-            case "editor":
-                role = ManagementRole.Editor;
-                return true;
-            case "broadcaster":
-                role = ManagementRole.Broadcaster;
-                return true;
-            default:
-                role = default;
-                return false;
-        }
     }
 }

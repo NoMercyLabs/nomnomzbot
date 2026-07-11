@@ -677,6 +677,15 @@ public static class DependencyInjection
             IBuiltinCommand,
             NomNomzBot.Infrastructure.Commands.Builtins.SlotsBuiltin
         >();
+        // Temporary-delegation chat surface (!permit/!unpermit) — permit:issue-gated in-command.
+        services.AddScoped<
+            IBuiltinCommand,
+            NomNomzBot.Infrastructure.Identity.Builtins.PermitBuiltin
+        >();
+        services.AddScoped<
+            IBuiltinCommand,
+            NomNomzBot.Infrastructure.Identity.Builtins.UnpermitBuiltin
+        >();
         services.AddScoped<IBuiltinCommandCatalog, BuiltinCommandCatalog>();
         // Per-channel enable/disable toggle management.
         services.AddScoped<IBuiltinCommandService, BuiltinCommandService>();

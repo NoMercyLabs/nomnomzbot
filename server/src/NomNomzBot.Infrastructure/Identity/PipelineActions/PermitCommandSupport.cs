@@ -13,6 +13,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
+using NomNomzBot.Domain.Identity.Enums;
 
 namespace NomNomzBot.Infrastructure.Identity.PipelineActions;
 
@@ -25,6 +26,36 @@ namespace NomNomzBot.Infrastructure.Identity.PipelineActions;
 internal static class PermitCommandSupport
 {
     private const string PermitIssueActionKey = "permit:issue";
+
+    /// <summary>
+    /// The management-role tokens a chat user might type: the enum names plus common chat aliases. Anything
+    /// else is treated as an action-key capability (roles-permissions §3.6 — "role vs capability by what the
+    /// token names"). Shared by the pipeline actions and the <c>!permit</c>/<c>!unpermit</c> builtins.
+    /// </summary>
+    public static bool TryParseManagementRole(string token, out ManagementRole role)
+    {
+        switch (token.ToLowerInvariant())
+        {
+            case "mod":
+            case "moderator":
+                role = ManagementRole.Moderator;
+                return true;
+            case "supermod":
+            case "leadmod":
+            case "leadmoderator":
+                role = ManagementRole.LeadModerator;
+                return true;
+            case "editor":
+                role = ManagementRole.Editor;
+                return true;
+            case "broadcaster":
+                role = ManagementRole.Broadcaster;
+                return true;
+            default:
+                role = default;
+                return false;
+        }
+    }
 
     /// <summary>
     /// Resolve the invoking user and require the <c>permit:issue</c> capability. Returns the invoker's user Guid on
