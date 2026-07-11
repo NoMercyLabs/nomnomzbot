@@ -182,7 +182,7 @@ Seed `giveaways:read` (Moderator), `giveaways:write` (Moderator), `giveaways:cod
 
 ## 7. DI registration
 
-`NomNomzBot.Infrastructure/Giveaways/DependencyInjection.cs` (`AddGiveaways()`): `IGiveawayService` → `GiveawayService` (Scoped); `IGiveawayCodePoolService` → `GiveawayCodePoolService` (Scoped, depends on `IFieldCipher`); repositories (Scoped); a `GiveawayKeywordListener` (Singleton, subscribes to chat while a `keyword`-mode giveaway is open — one generic listener, like the live-games input dispatcher); the three pipeline actions (Transient). Code whisper via the existing `ITwitchWhispersApi.SendWhisperAsync` (Helix Send Whisper `user:manage:whispers` on the bot account; rate-limited — failures fall back to broadcaster reveal, D6).
+`NomNomzBot.Infrastructure/Giveaways/DependencyInjection.cs` (`AddGiveaways()`): `IGiveawayService` → `GiveawayService` (Scoped); `IGiveawayCodePoolService` → `GiveawayCodePoolService` (Scoped, depends on `IFieldCipher`); repositories (Scoped); a `GiveawayKeywordListener` (Singleton, subscribes to chat while a `keyword`-mode giveaway is open — one generic listener, like the live-games input dispatcher); the three pipeline actions (Transient). Code whisper via the existing `ITwitchWhispersApi.SendWhisperAsync(Guid fromUserId, string toTwitchUserId, string message)` (Helix Send Whisper — the sender is the tenant identity passed as `fromUserId`, resolved internally to `from_user_id` and sent on that identity's own user token with `user:manage:whispers` pre-checked; rate-limited — failures fall back to broadcaster reveal, D6).
 
 ---
 

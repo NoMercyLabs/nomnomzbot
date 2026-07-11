@@ -62,16 +62,6 @@ public sealed record TwitchHelixCircuitOpenedEvent(
     DateTimeOffset OpenedAt,
     TimeSpan BreakDuration
 ) : DomainEventBase;
-
-/// Raised after a successful channel-info read syncs new title/game/tags into Channels.
-public sealed record TwitchChannelInfoSyncedEvent(
-    string TwitchChannelId,
-    string Title,
-    string GameId,
-    string GameName,
-    IReadOnlyList<string> Tags,
-    string Language
-) : DomainEventBase;
 ```
 
 > `TwitchSubscriber*` / `TwitchFollower*` add/remove events are **owned by the EventSub subsystem** (driven by `channel.subscribe` / `channel.follow`), not emitted here. This subsystem's sub/follower calls are **reconciliation reads**; they upsert rows but do not re-emit per-row events to avoid double-counting.
@@ -129,11 +119,12 @@ namespace NomNomzBot.Application.Contracts.Twitch;
 public interface ITwitchChannelsApi
 {
     // ─ Reads ─
-    Task<Result<TwitchUserDto>> GetUserAsync(string twitchUserId, CancellationToken ct = default);
-    Task<Result<TwitchChannelInfoDto>> GetChannelInformationAsync(Guid broadcasterId, CancellationToken ct = default);
-    Task<Result<TwitchStreamInfoDto>> GetStreamAsync(Guid broadcasterId, CancellationToken ct = default);
+    // User lookup ships on the Users sub-client, not here: ITwitchUsersApi.GetUsersByIdsAsync /
+    // GetUsersByLoginsAsync (batch id=/login= params → IReadOnlyList<TwitchUser>).
+    Task<Result<TwitchChannelInformation>> GetChannelInformationAsync(Guid broadcasterId, CancellationToken ct = default);
+    Task<Result<TwitchStream>> GetStreamAsync(Guid broadcasterId, CancellationToken ct = default);
     Task<Result<int>> GetFollowerCountAsync(Guid broadcasterId, CancellationToken ct = default);
-    Task<Result<TwitchPage<TwitchFollowerDto>>> GetFollowersAsync(Guid broadcasterId, TwitchPageRequest page, CancellationToken ct = default);
+    Task<Result<TwitchPage<TwitchChannelFollower>>> GetChannelFollowersAsync(Guid broadcasterId, TwitchPageRequest page, CancellationToken ct = default);
     Task<Result<IReadOnlyList<TwitchCategoryDto>>> SearchCategoriesAsync(string query, int first = 10, CancellationToken ct = default);
     Task<Result<IReadOnlyList<TwitchVipDto>>> GetVipsAsync(Guid broadcasterId, CancellationToken ct = default);
     Task<Result<IReadOnlyList<TwitchChatterDto>>> GetChattersAsync(Guid broadcasterId, CancellationToken ct = default);
@@ -145,15 +136,15 @@ public interface ITwitchChannelsApi
 
 | Method | Behavior (state change / events / side effects) |
 |---|---|
-| `GetUserAsync` | Read-only `GET /users?id=`. Uses app/bot token. No state change. Returns `not_found` if user array empty. |
-| `GetChannelInformationAsync` | Read-only `GET /channels`. On success **upserts** `Channels.Title/GameId/GameName/Tags/Language` and emits `TwitchChannelInfoSyncedEvent`. Resolves `Guid broadcasterId`→`TwitchChannelId` first; `not_found` if channel unknown locally. |
-| `GetStreamAsync` | Read-only `GET /streams`. Empty array ⇒ returns a `TwitchStreamInfoDto` with `IsLive=false` (not a failure). Does **not** write `Streams` (EventSub owns lifecycle); may update `Channels.IsLive` for cheap UI freshness. |
+| `GetUsersByIdsAsync` / `GetUsersByLoginsAsync` *(shipped on `ITwitchUsersApi`, not Channels)* | Read-only `GET /users` (batch `id=`/`login=` params → `IReadOnlyList<TwitchUser>`). App token; no scope; email never requested. Pure Helix I/O — no state change; unknown ids simply come back absent from the list (empty list = success, not `not_found`). |
+| `GetChannelInformationAsync` | Read-only `GET /channels` (app token first, user-token fallback; no scope). Pure Helix I/O — the sub-client holds no DB/event-bus dependency, writes nothing and emits nothing; mirroring is a consumer-service responsibility (`ChannelInfoSeedOnOnboardingHandler` seeds `Channels.Title/GameName/Language` on `ChannelOnboardedEvent`; `DashboardController`/`StreamController` read it live for display). Resolves `Guid broadcasterId`→`TwitchChannelId` first; `not_found` if channel unknown locally. |
+| `GetStreamAsync` | Read-only `GET /streams?user_id=`. Twitch lists a stream in `data[]` **only while live** — an empty `data[]` surfaces as a `Result` **failure** with `TwitchErrorCodes.NotFound` (`not_found`), which callers read as "offline" (`IsSuccess` = live). The sub-client itself writes nothing (pure Helix I/O); `StreamStatusPollingService.ApplyStreamState` maps `IsSuccess`/`IsFailure` onto `Channels.IsLive` (+ Title/GameName freshness). `Streams` lifecycle rows stay EventSub-owned. |
 | `GetFollowerCountAsync` | Read-only `GET /channels/followers?first=1`; returns `total`. Requires `moderator:read:followers` scope (pre-checked). No state change. |
-| `GetFollowersAsync` | Read-only paged `GET /channels/followers`. Returns one page + cursor + total. **Upserts** `TwitchFollowers` rows for the page (reconciliation; no per-row event). Requires `moderator:read:followers`. |
+| `GetChannelFollowersAsync` | Read-only paged `GET /channels/followers`. Returns one page + cursor + total. Pure Helix I/O — writes nothing (no follower table exists and no shipped consumer mirrors follower rows today; `CommunityController`'s followers tab serves this page straight from Twitch, joining `Users`/`ChatMessages` in memory). Requires `moderator:read:followers`. |
 | `SearchCategoriesAsync` | Read-only `GET /search/categories`. App/bot token. No state change. |
 | `GetVipsAsync` | Read-only `GET /channels/vips?first=100`. Requires `channel:read:vips`. No state change. |
 | `GetChattersAsync` | Read-only paged `GET /chat/chatters?first=1000` (auto-follows cursor, all pages) — the present-viewer list. Uses the **bot/moderator** identity (the bot is a channel mod), matching the existing Helix auth pattern. Requires `moderator:read:chatters` — a **progressive** scope (requested only when a feature that needs the chatter list is enabled, e.g. the `{{random.chatter}}` token / chatter-driven actions), not part of the base grant. No state change; callers cache short-TTL (the `{{random.chatter}}` token is rendered from this cached set, per `commands-pipelines.md` §6.3). Returns `missing_scope` if not granted. |
-| `ModifyChannelInformationAsync` | `PATCH /channels` (title/game/tags). **Idempotency-guarded** (`IdempotencyKey` scope `helix:channel:update`). On success writes the new values to `Channels` and emits `TwitchChannelInfoSyncedEvent`. Requires `channel:manage:broadcast`. |
+| `ModifyChannelInformationAsync` | `PATCH /channels` (title/game/language/delay/tags/content-classification-labels/branded — all fields optional, only the set ones are sent). Pure Helix I/O — pre-checks `channel:manage:broadcast`, pushes the patch, writes nothing locally, emits nothing, and carries no idempotency guard. Consumers own the local mirror: `StreamController` updates the in-memory `ChannelContext` (`CurrentTitle`/`CurrentGame`) on success; persisted `Channels.Title/GameName` reconcile via `StreamStatusPollingService.ApplyStreamState` while live. |
 
 ### 3.3 `ITwitchModerationApi` — bans, timeouts, unbans, moderators, message deletion, shoutouts, rewards
 
@@ -309,7 +300,7 @@ public sealed record TwitchAccessContext(
 
 ## 4. DTOs / contracts
 
-All in `NomNomzBot.Application.Contracts.Twitch`. **App-facing DTOs use `Guid BroadcasterId`**; raw Twitch ids stay `string`. **Wire DTOs** (the codegen'd Helix request/response models with `snake_case` JSON) live separately under `NomNomzBot.Infrastructure.Twitch.Helix.{Domain}.Dtos` (NSwag-generated, committed, domain-foldered per twitch-rebuild §Codegen) and are mapped to these app DTOs inside the Infrastructure sub-clients — they are **not** part of this public contract.
+All in `NomNomzBot.Application.Contracts.Twitch` (hand-written, domain-grouped `Dtos/Twitch{Category}Dtos.cs` files). **There is no separate wire-DTO layer and no codegen**: these records deserialize straight from Twitch's `snake_case` JSON via the transport's naming policy (no per-property annotations) — the same record is both the wire shape and the public contract. Raw Twitch ids stay `string`; the owning tenant is always a `Guid` **method argument**, never a record field.
 
 ### 4.1 Request records
 
@@ -318,12 +309,15 @@ namespace NomNomzBot.Application.Contracts.Twitch;
 
 public sealed record TwitchPageRequest(string? After = null, int PageSize = 100);
 
+public sealed record TwitchContentClassificationLabelChoice(string Id, bool IsEnabled);
+
 public sealed record ModifyChannelInformationRequest(
     string? Title = null,
     string? GameId = null,
+    string? BroadcasterLanguage = null,
+    int? Delay = null,
     IReadOnlyList<string>? Tags = null,
-    string? Language = null,
-    IReadOnlyList<string>? ContentLabels = null,
+    IReadOnlyList<TwitchContentClassificationLabelChoice>? ContentClassificationLabels = null,
     bool? IsBrandedContent = null
 );
 
@@ -348,16 +342,18 @@ public sealed record TwitchPage<T>(IReadOnlyList<T> Items, string? NextCursor, i
 public sealed record TwitchUserDto(
     string Id, string Login, string DisplayName, string? ProfileImageUrl, string BroadcasterType);
 
-public sealed record TwitchChannelInfoDto(
-    string TwitchChannelId, string Title, string GameId, string GameName,
-    IReadOnlyList<string> Tags, string Language);
+public sealed record TwitchChannelInformation(
+    string BroadcasterId, string BroadcasterLogin, string BroadcasterName, string BroadcasterLanguage,
+    string GameId, string GameName, string Title, int Delay, IReadOnlyList<string> Tags,
+    IReadOnlyList<string> ContentClassificationLabels, bool IsBrandedContent);
 
-public sealed record TwitchStreamInfoDto(
-    string StreamId, string TwitchUserId, string? GameId, string? GameName,
-    string? Title, bool IsLive, int ViewerCount, DateTime? StartedAt);
+public sealed record TwitchStream(
+    string Id, string UserId, string UserLogin, string UserName, string GameId, string GameName,
+    string Type, string Title, IReadOnlyList<string> Tags, int ViewerCount,
+    DateTimeOffset StartedAt, string Language, string ThumbnailUrl, bool IsMature);
 
-public sealed record TwitchFollowerDto(
-    string UserId, string UserLogin, string UserName, DateTime FollowedAt);
+public sealed record TwitchChannelFollower(
+    string UserId, string UserLogin, string UserName, DateTimeOffset FollowedAt);
 
 public sealed record TwitchSubscriberDto(
     string UserId, string UserLogin, string UserName, string Tier, bool IsGift,
@@ -515,7 +511,7 @@ Stack-doc libs used by this subsystem (all 2nd-party / in-box except none 3rd-pa
 Two implementation conventions are fixed here so the owner codes first-try:
 
 1. **Required-scope map location.** The per-method scope requirements (e.g. `GetSubscriberCountAsync` → `channel:read:subscriptions`, `GetChattersAsync` → `moderator:read:chatters`) are codified as a static `TwitchScopes` constants class + a `TwitchScopeRequirements` lookup in `NomNomzBot.Infrastructure.Twitch`, consulted by both `HasScopeAsync` and the §5 diagnostics endpoint. Single source of truth; no per-call string literals. Each entry carries a **progressive** flag: base-grant scopes are requested at connect; progressive scopes (e.g. `moderator:read:chatters`) are requested only when the dependent feature is enabled — the diagnostics matrix surfaces a missing progressive scope as "feature-gated", not an error.
-2. **`Guid` ↔ `TwitchChannelId` resolution.** Public methods take `Guid broadcasterId`; the sub-clients resolve to `TwitchChannelId` via `Channels` (cached through `ICacheService`) before building the Helix URL. `GetUserAsync`/`SearchCategoriesAsync`/`GetModeratedChannelsAsync` take raw Twitch ids because their subject is not necessarily a local tenant. This split is intentional and matches the schema's "Twitch ids are indexed attributes, `BroadcasterId` is `Guid`" rule.
+2. **`Guid` ↔ `TwitchChannelId` resolution.** Public methods take `Guid broadcasterId`; the sub-clients resolve to `TwitchChannelId` via `Channels` (cached through `ICacheService`) before building the Helix URL. `GetUsersByIdsAsync`/`GetUsersByLoginsAsync`/`SearchCategoriesAsync`/`GetModeratedChannelsAsync` take raw Twitch ids because their subject is not necessarily a local tenant. This split is intentional and matches the schema's "Twitch ids are indexed attributes, `BroadcasterId` is `Guid`" rule.
 
 ---
 

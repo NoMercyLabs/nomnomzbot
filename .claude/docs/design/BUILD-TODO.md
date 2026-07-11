@@ -260,9 +260,28 @@ ONE substrate — a chat feed that **aggregates messages across a SET of channel
   audit:** `!skip`/`!volume` builtin floors were `2` ("mod+" comment) — on the unified ladder 2 =
   SUBSCRIBER, so any sub could skip tracks; both now floor at 10 (Moderator), and the new permit
   builtins shipped with the correct floor.
-- [ ] **24c-2.** builtin key-format (bare keys + repair migration); twitch-helix spec/code drift;
-  credential-component DRY; user-plane topic attribution — each needs its own verification pass
-  (several may be stale like 24a).
+- [x] **24c-2a. builtin key-format — SHIPPED 2026-07-11.** `DefaultCommandsSeeder` now writes BARE keys
+  (`sr` not `!sr`, matching the dashboard/`BuiltinCommandService`); `NormalizeBuiltinKeys` migration
+  pair repairs existing rows (bang rows with a live bare twin are soft-deleted — the dashboard-written
+  twin wins; the rest are renamed). Runtime TrimStart tolerance stays as defense in depth.
+- [x] **24c-2b. twitch-helix spec/code drift — ALIGNED 2026-07-11** (three spec-editor rounds, all
+  verified against shipped code): DTO names (`TwitchChannelInformation`/`TwitchStream`/
+  `TwitchChannelFollower`), empty `GET /streams` = `not_found` failure semantics,
+  `ModifyChannelInformationRequest` seven-field shape, whisper from-identity = caller-passed tenant
+  Guid (`giveaways.md` + `commands-pipelines.md` send_whisper), sub-clients documented as pure Helix
+  I/O (false upsert/event/idempotency claims removed; real consumers named), no-NSwag DTO reality,
+  orphaned `TwitchChannelInfoSyncedEvent` removed, `GetChannelFollowersAsync` signature + Users-sub-client
+  placement fixed. *Deferred to its own catalogue pass:* full §3.x/§4 signature realignment across all
+  26 sub-clients + cross-spec stale names (`broadcaster-liveops.md` 308/668, `community-dashboard.md`
+  56/148/351, `TwitchUserDto` in §4.2, §2 blockquote upsert claim).
+- [→] **24c-2c. credential-component DRY** — frontend track; handed off (`handoff/for-frontend.md`
+  2026-07-11 entry).
+- [ ] **24c-2d. user-plane topic attribution — DECIDED, implementation pending.** Decision (bounded):
+  user-plane topics (`user.update`, `user.whisper.message` on the bot identity) subscribe ONCE per bot
+  user (not per channel — kills the harmless-but-noisy 409s) and attribute to the PLATFORM sentinel
+  (`Guid.Empty`), never a first-channel winner; whisper routing to channels stays out of scope until a
+  bot-inbox surface exists. Implement in `TwitchEventSubHostedService`'s reconcile in its own focused
+  slice (delicate eventing core — not a tail-of-session change).
 - [ ] **24d. OWNER-GATED:** confirm authz key names (Plane-C + Gate-2 buckets) — cannot close
   autonomously.
 
