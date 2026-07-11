@@ -81,6 +81,9 @@ public class ChannelBotController : BaseController
     //    chat path never exercises them (IRC is fully retired, scaling-qos.md §6). They are listed for
     //    transparency but are NOT required — so a self-host bot chatting as the streamer's own account
     //    (which holds the Helix scopes but not the IRC ones) still reads as complete.
+    //  - user:read:whispers feeds the bot's whisper inbox (the platform-plane user.whisper.message topic).
+    //    Not required: its absence 403s only that one topic, and no whisper-consuming surface exists yet —
+    //    it flips to required when the bot-inbox feature ships.
     private static readonly (
         string Scope,
         string Name,
@@ -109,6 +112,13 @@ public class ChannelBotController : BaseController
             "Send Chat (legacy IRC)",
             "Legacy IRC chat send — superseded by the Helix chat path and no longer used",
             "Chat",
+            false
+        ),
+        (
+            "user:read:whispers",
+            "Read Whispers",
+            "Receive whispers sent to the bot account (the bot's whisper inbox)",
+            "Whispers",
             false
         ),
     ];

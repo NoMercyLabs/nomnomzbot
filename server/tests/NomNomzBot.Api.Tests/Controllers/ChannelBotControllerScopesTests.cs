@@ -42,6 +42,7 @@ public sealed class ChannelBotControllerScopesTests
     private const string HelixWrite = "user:write:chat";
     private const string LegacyIrcRead = "chat:read";
     private const string LegacyIrcEdit = "chat:edit";
+    private const string WhisperRead = "user:read:whispers";
 
     [Fact]
     public async Task GetScopes_CompletedBotGrant_ReadsHundredPercentAndClearsPrompt()
@@ -115,6 +116,37 @@ public sealed class ChannelBotControllerScopesTests
             .ContainSingle(p => p.Scope == LegacyIrcRead)
             .Which.Should()
             .BeEquivalentTo(new { Granted = false, Required = false });
+    }
+
+    [Fact]
+    public async Task GetScopes_WhisperScope_IsListedButNeverGatesThePrompt()
+    {
+        // The bot's whisper inbox (user:read:whispers → the platform-plane user.whisper.message topic) is
+        // surfaced on the permission page so its absence is visible, but it must not flip the bot to
+        // "action required": a pre-whisper bot grant (the four chat scopes only) still reads complete, and
+        // the scope reads granted once a re-auth carries it.
+        ChannelBotController controller = Build(
+            Conn("twitch_bot", HelixRead, HelixWrite, LegacyIrcRead, LegacyIrcEdit)
+        );
+
+        ChannelBotController.ScopesResponseDto data = await GetScopesData(controller);
+
+        data.GrantedCount.Should()
+            .Be(data.TotalCount, "a missing whisper scope must not reopen the prompt");
+        data.Permissions.Should()
+            .ContainSingle(p => p.Scope == WhisperRead)
+            .Which.Should()
+            .BeEquivalentTo(new { Granted = false, Required = false });
+
+        ChannelBotController regranted = Build(
+            Conn("twitch_bot", HelixRead, HelixWrite, LegacyIrcRead, LegacyIrcEdit, WhisperRead)
+        );
+        ChannelBotController.ScopesResponseDto after = await GetScopesData(regranted);
+        after
+            .Permissions.Should()
+            .ContainSingle(p => p.Scope == WhisperRead)
+            .Which.Granted.Should()
+            .BeTrue();
     }
 
     [Fact]

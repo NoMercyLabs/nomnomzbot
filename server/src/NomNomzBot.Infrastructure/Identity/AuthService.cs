@@ -114,7 +114,9 @@ public sealed class AuthService : IAuthService
         "moderator:read:unban_requests", // channel.unban_request.create / channel.unban_request.resolve, channel.moderate v2
         "moderator:read:vips", // channel.moderate v2 (distinct from channel:read:vips above)
         "moderator:read:warnings", // channel.warning.acknowledge / channel.warning.send, channel.moderate v2
-        "user:read:whispers", // user.whisper.message
+        // user.whisper.message rides the BOT identity (BotScopes below) — this streamer-side grant is the
+        // single-account self-host leg, where the streamer's own account IS the bot.
+        "user:read:whispers", // user.whisper.message (single-account fallback)
         // Guest Star ingest (ROADMAP "Small decided items" — restored 2026-07-04; Twitch has not deprecated
         // the API, live docs still list all four beta topics). Read variants suffice for ingest-only —
         // channel:read:guest_star covers the broadcaster's own sessions, moderator:read:guest_star covers
@@ -130,6 +132,10 @@ public sealed class AuthService : IAuthService
         "user:write:chat",
         "chat:read",
         "chat:edit",
+        // The bot's own whisper inbox: user.whisper.message is a bot-owned EventSub topic riding the bot's
+        // token, so the scope must be granted on THIS identity — the streamer-side grant above only covers
+        // the single-account self-host. Without it the platform-plane subscribe 403s (that one topic only).
+        "user:read:whispers",
     ];
 
     public AuthService(
