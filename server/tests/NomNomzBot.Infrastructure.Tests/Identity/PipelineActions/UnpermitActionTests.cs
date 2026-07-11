@@ -121,12 +121,14 @@ public sealed class UnpermitActionTests
                     InvokerTwitchId,
                     Arg.Any<string>(),
                     Arg.Any<string>(),
+                    Arg.Any<string>(),
                     Arg.Any<CancellationToken>()
                 )
                 .Returns(Result.Success(UserDtoFor(InvokerGuid)));
             Users
                 .GetOrCreateAsync(
                     TargetTwitchId,
+                    Arg.Any<string>(),
                     Arg.Any<string>(),
                     Arg.Any<string>(),
                     Arg.Any<CancellationToken>()

@@ -42,14 +42,15 @@ public sealed class MessageActivityDailyProjection(
     {
         if (@event.BroadcasterId is not Guid broadcasterId)
             return Result.Success();
-        (string TwitchUserId, string Login, string Display)? identity =
+        (string Provider, string ExternalUserId, string Login, string Display)? identity =
             ViewerResolver.ParseIdentity(@event.PayloadJson);
         if (identity is null)
             return Result.Success();
 
         ViewerProfile? profile = await resolver.ResolveAsync(
             broadcasterId,
-            identity.Value.TwitchUserId,
+            identity.Value.Provider,
+            identity.Value.ExternalUserId,
             identity.Value.Login,
             identity.Value.Display,
             cancellationToken

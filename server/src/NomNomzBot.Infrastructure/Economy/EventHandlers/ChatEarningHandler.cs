@@ -38,11 +38,13 @@ public sealed class ChatEarningHandler(IServiceScopeFactory scopeFactory, IUserS
         if (@event.BroadcasterId == Guid.Empty || string.IsNullOrEmpty(@event.UserId))
             return;
 
-        // Resolve or create the viewer's internal User row — uses its own DB scope internally.
+        // Resolve or create the viewer's internal User row — uses its own DB scope internally. The
+        // event's Provider keys the identity namespace, so a YouTube chatter mints a youtube identity.
         Result<UserDto> userResult = await userService.GetOrCreateAsync(
             @event.UserId,
             @event.UserLogin,
             @event.UserDisplayName,
+            @event.Provider,
             cancellationToken
         );
         if (userResult.IsFailure || !Guid.TryParse(userResult.Value.Id, out Guid viewerUserId))

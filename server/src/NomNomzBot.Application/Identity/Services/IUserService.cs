@@ -10,6 +10,7 @@
 
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Identity.Dtos;
+using NomNomzBot.Domain.Identity.Enums;
 
 namespace NomNomzBot.Application.Identity.Services;
 
@@ -21,11 +22,16 @@ public interface IUserService
     /// <summary>Get the currently authenticated user from the request context.</summary>
     Task<Result<CurrentUserDto>> GetCurrentUserAsync(CancellationToken cancellationToken = default);
 
-    /// <summary>Get or create a user by their platform ID. Used when a user is first seen in chat.</summary>
+    /// <summary>
+    /// Get or create a user by their platform ID. Used when a user is first seen in chat.
+    /// <paramref name="provider"/> names the platform the id belongs to (<see cref="AuthEnums.Platform"/>
+    /// key) so a YouTube chatter resolves under a <c>youtube</c> identity, never a fake Twitch one.
+    /// </summary>
     Task<Result<UserDto>> GetOrCreateAsync(
         string platformUserId,
         string username,
         string displayName,
+        string provider = AuthEnums.Platform.Twitch,
         CancellationToken cancellationToken = default
     );
 

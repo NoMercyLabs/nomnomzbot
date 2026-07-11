@@ -128,6 +128,42 @@ public sealed class YouTubeLiveChatClient : IYouTubeLiveChatClient
         );
     }
 
+    public async Task<Result<YouTubeOwnChannel>> GetOwnChannelAsync(
+        string accessToken,
+        CancellationToken cancellationToken = default
+    )
+    {
+        string url = $"{YouTubeApiBase}/channels?part=snippet&mine=true&maxResults=1";
+
+        (HttpStatusCode? status, ChannelListResponse? body) = await GetAsync<ChannelListResponse>(
+            url,
+            accessToken,
+            cancellationToken
+        );
+
+        if (status is null)
+            return Result.Failure<YouTubeOwnChannel>(
+                "YouTube is temporarily unavailable.",
+                "SERVICE_UNAVAILABLE"
+            );
+        if (status is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
+            return Result.Failure<YouTubeOwnChannel>(
+                "The YouTube connection is missing the required scope.",
+                "MISSING_SCOPE"
+            );
+
+        ChannelItem? channel = body?.Items?.FirstOrDefault(c => !string.IsNullOrEmpty(c.Id));
+        if (channel is null)
+            return Result.Failure<YouTubeOwnChannel>(
+                "The Google account has no YouTube channel.",
+                "NOT_FOUND"
+            );
+
+        return Result.Success(
+            new YouTubeOwnChannel(channel.Id!, channel.Snippet?.Title ?? string.Empty)
+        );
+    }
+
     private static YouTubeLiveChatMessage MapMessage(LiveChatMessageItem item) =>
         new(
             item.Id ?? string.Empty,
@@ -254,5 +290,26 @@ public sealed class YouTubeLiveChatClient : IYouTubeLiveChatClient
 
         [JsonPropertyName("isChatSponsor")]
         public bool IsChatSponsor { get; set; }
+    }
+
+    private sealed class ChannelListResponse
+    {
+        [JsonPropertyName("items")]
+        public List<ChannelItem>? Items { get; set; }
+    }
+
+    private sealed class ChannelItem
+    {
+        [JsonPropertyName("id")]
+        public string? Id { get; set; }
+
+        [JsonPropertyName("snippet")]
+        public ChannelSnippet? Snippet { get; set; }
+    }
+
+    private sealed class ChannelSnippet
+    {
+        [JsonPropertyName("title")]
+        public string? Title { get; set; }
     }
 }

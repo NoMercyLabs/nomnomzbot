@@ -86,6 +86,31 @@ public sealed class UserServiceGetOrCreateTests
     }
 
     [Fact]
+    public async Task GetOrCreateAsync_with_a_youtube_provider_mints_a_youtube_identity_not_a_twitch_one()
+    {
+        (IUserService svc, AuthDbContext db) = Build();
+
+        Result<UserDto> result = await svc.GetOrCreateAsync(
+            "UCabc123",
+            "viewer",
+            "Viewer",
+            provider: "youtube"
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        Guid userId = Guid.Parse(result.Value.Id);
+
+        // The identity lives in the youtube namespace — the id must never masquerade as a Twitch id.
+        UserIdentity identity = await db.UserIdentities.SingleAsync(i =>
+            i.ProviderUserId == "UCabc123"
+        );
+        identity.Provider.Should().Be("youtube");
+        identity.UserId.Should().Be(userId);
+        identity.IsPrimary.Should().BeTrue();
+        (await db.Users.SingleAsync(u => u.Id == userId)).TwitchUserId.Should().BeNull();
+    }
+
+    [Fact]
     public async Task GetOrCreateAsync_reuses_a_pre_identity_user_and_backfills_its_identity()
     {
         (IUserService svc, AuthDbContext db) = Build();

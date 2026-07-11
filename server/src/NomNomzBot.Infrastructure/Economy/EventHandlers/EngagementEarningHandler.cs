@@ -136,7 +136,7 @@ public sealed class EngagementEarningHandler(
             twitchUserId,
             login,
             displayName,
-            ct
+            cancellationToken: ct
         );
         if (result.IsFailure || !Guid.TryParse(result.Value.Id, out Guid id))
             return null;

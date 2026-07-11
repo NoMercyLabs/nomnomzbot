@@ -37,6 +37,7 @@ using NomNomzBot.Infrastructure.BackgroundServices;
 using NomNomzBot.Infrastructure.Chat;
 using NomNomzBot.Infrastructure.Chat.YouTube;
 using NomNomzBot.Infrastructure.Commands;
+using NomNomzBot.Infrastructure.Integrations.YouTube;
 using NomNomzBot.Infrastructure.Moderation;
 using NomNomzBot.Infrastructure.Music;
 using NomNomzBot.Infrastructure.Platform;
@@ -711,6 +712,10 @@ public static class DependencyInjection
         // YouTube live-chat READ transport (cross-platform combined chat, item 6). Stateless over the "youtube"
         // client + the broadcaster's youtube.readonly bearer, so a singleton the future poll worker can inject.
         services.AddSingleton<IYouTubeLiveChatClient, YouTubeLiveChatClient>();
+
+        // The ONE custody path for the broadcaster's YouTube OAuth bearer (vault lookup + transparent
+        // refresh) — shared by the music manage surface and the live-chat poller. Scoped: DbContext.
+        services.AddScoped<IYouTubeAccessTokenProvider, YouTubeAccessTokenProvider>();
 
         // ── Discord (discord.md §7) — guild link, notification rules, dispatch + dedupe ──
         // IDiscordGuildService / IDiscordNotificationConfigService / IDiscordNotificationRoleService follow the

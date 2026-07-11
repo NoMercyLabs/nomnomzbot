@@ -236,7 +236,15 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
         b.Ignore<NomNomzBot.Domain.Platform.Entities.EventSubConduit>();
         b.Ignore<NomNomzBot.Domain.Platform.Entities.EventSubConduitShard>();
         b.Ignore<NomNomzBot.Domain.Platform.Entities.IdempotencyKey>();
-        b.Ignore<NomNomzBot.Domain.Chat.Entities.ChatMessage>();
+
+        // ChatMessage: mapped scalar-only (navs + jsonb fragment/badge collections ignored) so the
+        // YouTube live-chat poll worker tests can prove the persisted-message dedupe through this harness.
+        b.Entity<NomNomzBot.Domain.Chat.Entities.ChatMessage>().HasKey(e => e.Id);
+        b.Entity<NomNomzBot.Domain.Chat.Entities.ChatMessage>()
+            .Ignore(e => e.Channel)
+            .Ignore(e => e.Stream)
+            .Ignore(e => e.Fragments)
+            .Ignore(e => e.Badges);
         b.Ignore<NomNomzBot.Domain.Identity.Entities.ChannelEvent>();
         b.Ignore<NomNomzBot.Domain.Stream.Entities.Stream>();
         b.Ignore<NomNomzBot.Domain.Platform.Entities.Storage>();
@@ -320,7 +328,7 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
     public DbSet<NomNomzBot.Domain.Platform.Entities.IdempotencyKey> IdempotencyKeys =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Chat.Entities.ChatMessage> ChatMessages =>
-        throw new NotSupportedException();
+        Set<NomNomzBot.Domain.Chat.Entities.ChatMessage>();
     public DbSet<NomNomzBot.Domain.Identity.Entities.ChannelEvent> ChannelEvents =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Stream.Entities.Stream> Streams =>

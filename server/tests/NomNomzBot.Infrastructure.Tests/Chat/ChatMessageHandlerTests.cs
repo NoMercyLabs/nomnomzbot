@@ -18,6 +18,7 @@ using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Chat.Interfaces;
+using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Chat.EventHandlers;
 using NSubstitute;
@@ -146,6 +147,43 @@ public sealed class ChatMessageHandlerTests
 
         await sut.HandleAsync(MessageEvent($"!{BuiltinKey}"), CancellationToken.None);
 
+        await bus.DidNotReceiveWithAnyArgs()
+            .PublishAsync<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(
+                default!,
+                default
+            );
+    }
+
+    [Fact]
+    public async Task A_youtube_message_never_executes_commands_or_replies()
+    {
+        // Command replies ride IChatProvider (Helix) — until the per-platform send seam lands, a
+        // non-Twitch message must not execute a command, reply, or fabricate an execution fact.
+        ChannelContext ctx = NewChannelContext();
+
+        (ChatMessageHandler sut, IChatProvider chat, IEventBus bus) = BuildWithBus(ctx);
+
+        ChatMessageReceivedEvent youtube = new()
+        {
+            BroadcasterId = Broadcaster,
+            Provider = AuthEnums.Platform.YouTube,
+            MessageId = "yt-msg-1",
+            TwitchBroadcasterId = "UCstreamer",
+            UserId = "UCviewer",
+            UserDisplayName = "Viewer",
+            UserLogin = "viewer",
+            Message = $"!{BuiltinKey}",
+            Fragments = [],
+            Badges = [],
+            IsSubscriber = false,
+            IsVip = false,
+            IsModerator = false,
+            IsBroadcaster = false,
+        };
+
+        await sut.HandleAsync(youtube, CancellationToken.None);
+
+        await chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!, default);
         await bus.DidNotReceiveWithAnyArgs()
             .PublishAsync<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(
                 default!,

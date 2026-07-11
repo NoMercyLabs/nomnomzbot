@@ -53,14 +53,15 @@ public sealed class ViewerProfileProjection(IApplicationDbContext db, ViewerReso
         JObject? payload = ViewerResolver.TryParse(@event.PayloadJson);
         if (payload is null)
             return Result.Success();
-        (string TwitchUserId, string Login, string Display)? identity =
+        (string Provider, string ExternalUserId, string Login, string Display)? identity =
             ViewerResolver.ParseIdentity(payload);
         if (identity is null)
             return Result.Success();
 
         ViewerProfile? profile = await resolver.ResolveAsync(
             broadcasterId,
-            identity.Value.TwitchUserId,
+            identity.Value.Provider,
+            identity.Value.ExternalUserId,
             identity.Value.Login,
             identity.Value.Display,
             cancellationToken

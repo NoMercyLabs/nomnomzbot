@@ -114,7 +114,7 @@ internal static class PermitCommandSupport
             platformUserId,
             username,
             displayName,
-            ct
+            cancellationToken: ct
         );
         if (user.IsFailure)
             return Result.Failure<Guid>(user.ErrorMessage ?? failureMessage, user.ErrorCode);

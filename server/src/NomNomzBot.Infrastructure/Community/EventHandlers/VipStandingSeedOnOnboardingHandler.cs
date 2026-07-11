@@ -70,7 +70,7 @@ public sealed class VipStandingSeedOnOnboardingHandler(
                     vip.UserId,
                     vip.UserLogin,
                     vip.UserName ?? vip.UserLogin,
-                    ct
+                    cancellationToken: ct
                 );
                 if (userResult.IsFailure)
                 {

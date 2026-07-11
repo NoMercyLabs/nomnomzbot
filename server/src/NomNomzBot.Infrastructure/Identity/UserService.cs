@@ -76,15 +76,16 @@ public class UserService : IUserService
         string platformUserId,
         string username,
         string displayName,
+        string provider = AuthEnums.Platform.Twitch,
         CancellationToken cancellationToken = default
     )
     {
         // Resolve through the platform-agnostic identity table (get-or-create by provider + external id), not a
         // Twitch-only Users lookup — so a chatter on any platform maps to the right User and always gets a
-        // UserIdentity row (viewer-identity rule, platform-identity §3.1). Chat is Twitch today, so the provider
-        // is fixed here; the resolver reuses a pre-identity Twitch user and mints the primary identity when unseen.
+        // UserIdentity row (viewer-identity rule, platform-identity §3.1). The caller's provider names the id's
+        // namespace; the resolver reuses a pre-identity user and mints the primary identity when unseen.
         Result<Guid> resolved = await _identities.ResolveUserAsync(
-            AuthEnums.Platform.Twitch,
+            provider,
             platformUserId,
             getOrCreate: true,
             cancellationToken
@@ -117,7 +118,7 @@ public class UserService : IUserService
             db,
             _clock,
             userId,
-            AuthEnums.Platform.Twitch,
+            provider,
             platformUserId,
             username,
             displayName,

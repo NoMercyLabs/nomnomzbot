@@ -44,10 +44,22 @@ public sealed class TwitchManagementSnapshotBuilderTests
         ITwitchModeratorsApi mods = Substitute.For<ITwitchModeratorsApi>();
         ITwitchChannelsApi channels = Substitute.For<ITwitchChannelsApi>();
         users
-            .GetOrCreateAsync("tw-mod", "modlogin", "ModName", Arg.Any<CancellationToken>())
+            .GetOrCreateAsync(
+                "tw-mod",
+                "modlogin",
+                "ModName",
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
             .Returns(UserResult(ModGuid, "modlogin", "ModName"));
         users
-            .GetOrCreateAsync("tw-editor", "EditorName", "EditorName", Arg.Any<CancellationToken>())
+            .GetOrCreateAsync(
+                "tw-editor",
+                "EditorName",
+                "EditorName",
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
             .Returns(UserResult(EditorGuid, "EditorName", "EditorName"));
         TwitchManagementSnapshotBuilder sut = new(
             users,
@@ -167,6 +179,7 @@ public sealed class TwitchManagementSnapshotBuilderTests
         users
             .GetOrCreateAsync(
                 "tw-both",
+                Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<CancellationToken>()

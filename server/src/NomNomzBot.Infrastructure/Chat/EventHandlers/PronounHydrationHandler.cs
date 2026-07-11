@@ -13,6 +13,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Chat.Events;
+using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform.Interfaces;
 
 namespace NomNomzBot.Infrastructure.Chat.EventHandlers;
@@ -42,13 +43,17 @@ public sealed class PronounHydrationHandler(
         if (@event.BroadcasterId == Guid.Empty || string.IsNullOrEmpty(@event.UserId))
             return;
 
+        // Pronoun lookups ride alejo.io, which is keyed by Twitch logins — other platforms have no source.
+        if (@event.Provider != AuthEnums.Platform.Twitch)
+            return;
+
         try
         {
             Result<UserDto> userResult = await userService.GetOrCreateAsync(
                 @event.UserId,
                 @event.UserLogin,
                 @event.UserDisplayName,
-                cancellationToken
+                cancellationToken: cancellationToken
             );
             if (userResult.IsFailure || !Guid.TryParse(userResult.Value.Id, out Guid viewerUserId))
                 return;

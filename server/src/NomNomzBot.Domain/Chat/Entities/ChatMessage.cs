@@ -22,8 +22,9 @@ public class ChatMessage : SoftDeletableEntity, ITenantScoped
     public string Id { get; set; } = null!;
     public Guid BroadcasterId { get; set; }
 
-    // Twitch user id (string) of the chatter — a first-class indexed attribute, NOT an FK to Users.Id
-    // (chat is high-volume and carries the Twitch id + denormalized Username/DisplayName inline).
+    // Platform-native user id (string) of the chatter under the channel's provider (Twitch id on a Twitch
+    // channel, YouTube channel id on a YouTube channel) — a first-class indexed attribute, NOT an FK to
+    // Users.Id (chat is high-volume and carries the id + denormalized Username/DisplayName inline).
     [MaxLength(50)]
     public string UserId { get; set; } = null!;
 

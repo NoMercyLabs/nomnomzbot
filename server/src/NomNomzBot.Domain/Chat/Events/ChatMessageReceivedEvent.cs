@@ -9,20 +9,30 @@
 // -----------------------------------------------------------------------------
 
 using NomNomzBot.Domain.Chat.ValueObjects;
+using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform;
 
 namespace NomNomzBot.Domain.Chat.Events;
 
 /// <summary>
-/// Published for every chat message received via EventSub channel.chat.message.
-/// This is the HOT PATH event — handlers must be fast.
+/// THE canonical chat fact — published for every chat message the bot ingests on any platform: Twitch
+/// (EventSub channel.chat.message) and YouTube (Live Chat poller); <see cref="Provider"/> names the source.
+/// This is the HOT PATH event — handlers must be fast, and Twitch-only consumers (command replies,
+/// auto-mod enforcement, pronouns, decoration) gate on <see cref="Provider"/>.
 /// </summary>
 public sealed class ChatMessageReceivedEvent : DomainEventBase
 {
     public required string MessageId { get; init; }
 
-    // The tenant (channel) id is inherited from DomainEventBase as a Guid. The raw Twitch broadcaster
-    // string id is carried alongside for the Twitch send/reply boundary (handlers pass it to IChatProvider).
+    /// <summary>
+    /// The platform this message arrived on — <see cref="AuthEnums.Platform"/> key (the vocabulary shared
+    /// with <c>Channel.Provider</c> / <c>UserIdentity.Provider</c>). Defaults to Twitch, the dominant source.
+    /// </summary>
+    public string Provider { get; init; } = AuthEnums.Platform.Twitch;
+
+    // The tenant (channel) id is inherited from DomainEventBase as a Guid. The platform-native broadcaster
+    // string id is carried alongside for the send/reply boundary (Twitch: the Helix broadcaster id, passed
+    // to IChatProvider; YouTube: the channel id of the streamer's YouTube channel).
     public required string TwitchBroadcasterId { get; init; }
     public required string UserId { get; init; }
     public required string UserDisplayName { get; init; }

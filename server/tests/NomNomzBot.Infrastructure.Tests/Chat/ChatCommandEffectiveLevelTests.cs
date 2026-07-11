@@ -157,7 +157,7 @@ public sealed class ChatCommandEffectiveLevelTests
         // The short-circuit: the badge already met the floor, so the DB seam was never touched.
         await users
             .DidNotReceiveWithAnyArgs()
-            .GetOrCreateAsync(default!, default!, default!, default);
+            .GetOrCreateAsync(default!, default!, default!, default!, default);
         await resolver.DidNotReceiveWithAnyArgs().ResolveEffectiveLevelAsync(default, default);
     }
 
@@ -175,7 +175,7 @@ public sealed class ChatCommandEffectiveLevelTests
             .SendMessageAsync(Broadcaster, CommandResponse, Arg.Any<CancellationToken>());
         await users
             .DidNotReceiveWithAnyArgs()
-            .GetOrCreateAsync(default!, default!, default!, default);
+            .GetOrCreateAsync(default!, default!, default!, default!, default);
         await resolver.DidNotReceiveWithAnyArgs().ResolveEffectiveLevelAsync(default, default);
     }
 
@@ -218,6 +218,7 @@ public sealed class ChatCommandEffectiveLevelTests
         users
             .GetOrCreateAsync(
                 TwitchUserId,
+                Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<CancellationToken>()

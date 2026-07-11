@@ -16,6 +16,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Analytics.Entities;
+using NomNomzBot.Domain.Identity.Enums;
 
 namespace NomNomzBot.Infrastructure.Analytics;
 
@@ -30,13 +31,20 @@ public sealed class ViewerResolver(IApplicationDbContext db, IUserService userSe
 {
     public async Task<ViewerProfile?> ResolveAsync(
         Guid broadcasterId,
-        string twitchUserId,
+        string provider,
+        string externalUserId,
         string login,
         string display,
         CancellationToken ct = default
     )
     {
-        Result<UserDto> user = await userService.GetOrCreateAsync(twitchUserId, login, display, ct);
+        Result<UserDto> user = await userService.GetOrCreateAsync(
+            externalUserId,
+            login,
+            display,
+            provider,
+            ct
+        );
         if (user.IsFailure)
             return null;
         if (!Guid.TryParse(user.Value.Id, out Guid viewerUserId))
@@ -52,7 +60,9 @@ public sealed class ViewerResolver(IApplicationDbContext db, IUserService userSe
             {
                 BroadcasterId = broadcasterId,
                 ViewerUserId = viewerUserId,
-                ViewerTwitchUserId = twitchUserId,
+                // Holds the viewer's platform-native id under the tenant channel's provider (the column
+                // name predates multi-platform; for a YouTube tenant this is the YouTube channel id).
+                ViewerTwitchUserId = externalUserId,
             };
             db.ViewerProfiles.Add(profile);
         }
@@ -63,34 +73,43 @@ public sealed class ViewerResolver(IApplicationDbContext db, IUserService userSe
     /// Extracts a viewer's identity from an activity event payload, tolerating each event's field naming (chat:
     /// UserLogin/UserDisplayName; command: Username; reward: UserDisplayName). Username is the normalized display
     /// name (the Twitch login IS that); when no login field is present it is derived from the display, never the
-    /// numeric Twitch id. Returns null when the payload is unparseable or carries no Twitch user id.
+    /// platform-native id. <c>Provider</c> is read from the payload when the event carries one (the canonical
+    /// chat fact does) and defaults to Twitch for the single-platform events. Returns null when the payload is
+    /// unparseable or carries no user id.
     /// </summary>
-    public static (string TwitchUserId, string Login, string Display)? ParseIdentity(
-        string payloadJson
-    )
+    public static (
+        string Provider,
+        string ExternalUserId,
+        string Login,
+        string Display
+    )? ParseIdentity(string payloadJson)
     {
         JObject? payload = TryParse(payloadJson);
         return payload is null ? null : ParseIdentity(payload);
     }
 
-    public static (string TwitchUserId, string Login, string Display)? ParseIdentity(
-        JObject payload
-    )
+    public static (
+        string Provider,
+        string ExternalUserId,
+        string Login,
+        string Display
+    )? ParseIdentity(JObject payload)
     {
-        string? twitchUserId = payload["UserId"]?.Value<string>();
-        if (string.IsNullOrEmpty(twitchUserId))
+        string? externalUserId = payload["UserId"]?.Value<string>();
+        if (string.IsNullOrEmpty(externalUserId))
             return null;
 
+        string provider = payload["Provider"]?.Value<string>() ?? AuthEnums.Platform.Twitch;
         string display =
             payload["UserDisplayName"]?.Value<string>()
             ?? payload["UserLogin"]?.Value<string>()
             ?? payload["Username"]?.Value<string>()
-            ?? twitchUserId;
+            ?? externalUserId;
         string login =
             payload["UserLogin"]?.Value<string>()
             ?? payload["Username"]?.Value<string>()
             ?? display.ToLowerInvariant();
-        return (twitchUserId, login, display);
+        return (provider, externalUserId, login, display);
     }
 
     public static JObject? TryParse(string payloadJson)

@@ -66,6 +66,11 @@ public sealed partial class AutoModerationHandler : IEventHandler<ChatMessageRec
         if (@event.IsModerator || @event.IsBroadcaster)
             return;
 
+        // Enforcement rides Helix (timeout/ban/delete) — Twitch-only until a per-platform moderation
+        // seam exists. Flagging without the ability to act would be a lie, so non-Twitch skips entirely.
+        if (@event.Provider != AuthEnums.Platform.Twitch)
+            return;
+
         Guid broadcasterId = @event.BroadcasterId;
         if (broadcasterId == Guid.Empty || string.IsNullOrEmpty(@event.Message))
             return;

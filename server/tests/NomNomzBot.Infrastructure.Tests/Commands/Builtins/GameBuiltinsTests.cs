@@ -76,7 +76,13 @@ public sealed class GameBuiltinsTests
 
         IUserService users = Substitute.For<IUserService>();
         users
-            .GetOrCreateAsync("tw-1", "viewer", "Viewer", Arg.Any<CancellationToken>())
+            .GetOrCreateAsync(
+                "tw-1",
+                "viewer",
+                "Viewer",
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
             .Returns(
                 Result.Success(
                     new UserDto(

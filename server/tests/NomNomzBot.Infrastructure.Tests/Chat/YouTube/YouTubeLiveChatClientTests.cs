@@ -157,6 +157,38 @@ public sealed class YouTubeLiveChatClientTests
         result.ErrorCode.Should().Be("NOT_FOUND");
     }
 
+    [Fact]
+    public async Task GetOwnChannel_maps_the_channel_id_and_title_and_sends_the_bearer()
+    {
+        StubHttpMessageHandler handler = new(
+            (
+                HttpStatusCode.OK,
+                """{"items":[{"id":"UCstreamer","snippet":{"title":"Streamer YT"}}]}"""
+            )
+        );
+        YouTubeLiveChatClient sut = Build(handler);
+
+        Result<YouTubeOwnChannel> result = await sut.GetOwnChannelAsync(Token);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.ChannelId.Should().Be("UCstreamer");
+        result.Value.Title.Should().Be("Streamer YT");
+        handler.LastRequest!.RequestUri!.ToString().Should().Contain("mine=true");
+        handler.LastRequest.Headers.Authorization!.Parameter.Should().Be(Token);
+    }
+
+    [Fact]
+    public async Task GetOwnChannel_maps_a_google_account_without_a_channel_to_not_found()
+    {
+        StubHttpMessageHandler handler = new((HttpStatusCode.OK, """{"items":[]}"""));
+        YouTubeLiveChatClient sut = Build(handler);
+
+        Result<YouTubeOwnChannel> result = await sut.GetOwnChannelAsync(Token);
+
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("NOT_FOUND");
+    }
+
     private sealed class StubHttpMessageHandler(
         params (HttpStatusCode Status, string Json)[] responses
     ) : HttpMessageHandler

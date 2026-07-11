@@ -49,7 +49,20 @@ public interface IYouTubeLiveChatClient
         string? pageToken,
         CancellationToken cancellationToken = default
     );
+
+    /// <summary>
+    /// Resolves the caller's own YouTube channel (<c>GET channels?part=snippet&amp;mine=true</c>) — the
+    /// stable external id the poller provisions the platform <c>Channel</c> tenant under, plus the display
+    /// title. A token whose Google account has no YouTube channel yields <c>NOT_FOUND</c>.
+    /// </summary>
+    Task<Result<YouTubeOwnChannel>> GetOwnChannelAsync(
+        string accessToken,
+        CancellationToken cancellationToken = default
+    );
 }
+
+/// <summary>The authenticated user's own YouTube channel identity.</summary>
+public sealed record YouTubeOwnChannel(string ChannelId, string Title);
 
 /// <summary>The caller's active broadcast and its live-chat id.</summary>
 public sealed record YouTubeActiveChat(string BroadcastId, string LiveChatId, string? Title);

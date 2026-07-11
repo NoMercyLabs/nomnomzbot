@@ -124,7 +124,7 @@ public sealed class TwitchManagementSnapshotBuilder(
             twitchUserId,
             username,
             displayName,
-            ct
+            cancellationToken: ct
         );
         if (user.IsFailure)
         {

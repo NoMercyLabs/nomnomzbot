@@ -80,7 +80,12 @@ public sealed class SubscriberStandingSeedOnOnboardingHandler(
                         continue;
 
                     Result<Application.Identity.Dtos.UserDto> userResult =
-                        await users.GetOrCreateAsync(sub.UserId, sub.UserLogin, sub.UserName, ct);
+                        await users.GetOrCreateAsync(
+                            sub.UserId,
+                            sub.UserLogin,
+                            sub.UserName,
+                            cancellationToken: ct
+                        );
                     if (userResult.IsFailure)
                     {
                         logger.LogWarning(

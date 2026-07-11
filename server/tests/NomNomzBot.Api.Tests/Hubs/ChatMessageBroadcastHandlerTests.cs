@@ -14,6 +14,8 @@ using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Application.Chat.Decoration;
 using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Domain.Chat.Events;
+using NomNomzBot.Domain.Chat.ValueObjects;
+using NomNomzBot.Domain.Identity.Enums;
 using NSubstitute;
 
 namespace NomNomzBot.Api.Tests.Hubs;
@@ -93,6 +95,65 @@ public sealed class ChatMessageBroadcastHandlerTests
                 ),
                 Arg.Any<CancellationToken>()
             );
+    }
+
+    [Fact]
+    public async Task A_youtube_message_broadcasts_raw_fragments_without_twitch_decoration_or_enrichment()
+    {
+        IDashboardNotifier notifier = Substitute.For<IDashboardNotifier>();
+        IChatMessageDecorator decorator = Substitute.For<IChatMessageDecorator>();
+        IHubUserEnricher enricher = Substitute.For<IHubUserEnricher>();
+        Guid channel = Guid.CreateVersion7();
+
+        ChatMessageBroadcastHandler handler = new(
+            notifier,
+            decorator,
+            enricher,
+            TimeProvider.System
+        );
+
+        ChatMessageReceivedEvent evt = new()
+        {
+            BroadcasterId = channel,
+            Provider = AuthEnums.Platform.YouTube,
+            MessageId = "yt-m1",
+            TwitchBroadcasterId = "UCstreamer",
+            UserId = "UCviewer",
+            UserDisplayName = "Viewer",
+            UserLogin = "viewer",
+            Message = "hello from youtube",
+            Fragments = [new ChatMessageFragment { Type = "text", Text = "hello from youtube" }],
+            Badges = [],
+            IsSubscriber = false,
+            IsVip = false,
+            IsModerator = true,
+            IsBroadcaster = false,
+        };
+
+        await handler.HandleAsync(evt);
+
+        // The message reaches the channel group with its raw text fragment and role flags intact…
+        await notifier
+            .Received(1)
+            .SendChatMessageAsync(
+                channel.ToString(),
+                Arg.Is<DashboardChatMessageDto>(dto =>
+                    dto.Id == "yt-m1"
+                    && dto.Message == "hello from youtube"
+                    && dto.Fragments.Count == 1
+                    && dto.Fragments[0].Text == "hello from youtube"
+                    && dto.IsModerator
+                    && dto.Badges.Count == 0
+                ),
+                Arg.Any<CancellationToken>()
+            );
+        // …and no Twitch-keyed adapter ran against the YouTube ids.
+        await decorator
+            .DidNotReceiveWithAnyArgs()
+            .DecorateAsync(default!, Arg.Any<CancellationToken>());
+        await enricher
+            .DidNotReceiveWithAnyArgs()
+            .EnrichAsync(default, default!, Arg.Any<CancellationToken>());
     }
 
     private static ChatMessageReceivedEvent Event(Guid channel) =>

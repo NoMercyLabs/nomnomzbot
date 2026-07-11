@@ -36,7 +36,13 @@ public sealed class PronounHydrationHandlerTests
         IPronounResolutionService pronouns = Substitute.For<IPronounResolutionService>();
         Guid viewerUserId = Guid.CreateVersion7();
         userService
-            .GetOrCreateAsync("u1", "stoney_eagle", "Stoney", Arg.Any<CancellationToken>())
+            .GetOrCreateAsync(
+                "u1",
+                "stoney_eagle",
+                "Stoney",
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
             .Returns(Result.Success(Dto(viewerUserId)));
 
         PronounHydrationHandler handler = new(
@@ -59,7 +65,13 @@ public sealed class PronounHydrationHandlerTests
         IPronounResolutionService pronouns = Substitute.For<IPronounResolutionService>();
         Guid viewerUserId = Guid.CreateVersion7();
         userService
-            .GetOrCreateAsync("u1", "stoney_eagle", "Stoney", Arg.Any<CancellationToken>())
+            .GetOrCreateAsync(
+                "u1",
+                "stoney_eagle",
+                "Stoney",
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
             .Returns(Result.Success(Dto(viewerUserId)));
         pronouns
             .ResolveAndApplyAsync(viewerUserId, "stoney_eagle", Arg.Any<CancellationToken>())
@@ -82,7 +94,13 @@ public sealed class PronounHydrationHandlerTests
         IUserService userService = Substitute.For<IUserService>();
         IPronounResolutionService pronouns = Substitute.For<IPronounResolutionService>();
         userService
-            .GetOrCreateAsync("u1", "stoney_eagle", "Stoney", Arg.Any<CancellationToken>())
+            .GetOrCreateAsync(
+                "u1",
+                "stoney_eagle",
+                "Stoney",
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
             .Returns(Result.Failure<UserDto>("boom"));
 
         PronounHydrationHandler handler = new(
@@ -114,6 +132,7 @@ public sealed class PronounHydrationHandlerTests
         await userService
             .DidNotReceive()
             .GetOrCreateAsync(
+                Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<string>(),

@@ -59,7 +59,7 @@ public abstract class GamePlayBuiltinBase : IBuiltinCommand
             context.TriggeringUserId,
             context.TriggeringUserLogin,
             context.TriggeringUserDisplayName,
-            ct
+            cancellationToken: ct
         );
         if (user.IsFailure || !Guid.TryParse(user.Value.Id, out Guid playerUserId))
             return Result.Success($"{mention} Could not resolve your account — try again.");

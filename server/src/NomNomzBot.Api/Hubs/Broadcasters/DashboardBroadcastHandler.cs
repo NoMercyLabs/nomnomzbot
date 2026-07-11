@@ -13,6 +13,7 @@ using NomNomzBot.Application.Chat.Decoration;
 using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Identity;
+using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform.Interfaces;
 
 namespace NomNomzBot.Api.Hubs.Broadcasters;
@@ -55,12 +56,28 @@ public sealed class ChatMessageBroadcastHandler : IEventHandler<ChatMessageRecei
             )
         );
 
-        DecoratedChatMessage decorated = await _decorator.DecorateAsync(evt, ct);
-        HubUserEnrichment? enrichment = await _enricher.EnrichAsync(
-            evt.BroadcasterId,
-            evt.UserId,
-            ct
-        );
+        // Decoration (Twitch/BTTV/FFZ/7TV emote + badge lookups) and enrichment (avatar/pronouns) are
+        // keyed by Twitch ids — for other platforms the raw fragments already ARE the render shape, and
+        // running the adapters would fire lookups against foreign ids for nothing.
+        bool isTwitch = evt.Provider == AuthEnums.Platform.Twitch;
+
+        IReadOnlyList<ChatFragmentDto> fragments;
+        IReadOnlyList<ChatBadgeDto> badges;
+        HubUserEnrichment? enrichment = null;
+        if (isTwitch)
+        {
+            DecoratedChatMessage decorated = await _decorator.DecorateAsync(evt, ct);
+            enrichment = await _enricher.EnrichAsync(evt.BroadcasterId, evt.UserId, ct);
+            fragments = decorated.Fragments.Select(ChatFragmentMapper.MapFragment).ToList();
+            badges = decorated.Badges.Select(ChatFragmentMapper.MapBadge).ToList();
+        }
+        else
+        {
+            // Badge images resolve from the cached Helix badge sets — no non-Twitch source exists, and the
+            // role flags below already carry the chatter's standing (owner/mod/member) to the UI.
+            fragments = evt.Fragments.Select(ChatFragmentMapper.MapFragment).ToList();
+            badges = [];
+        }
 
         DashboardChatMessageDto dto = new(
             Id: evt.MessageId,
@@ -69,7 +86,7 @@ public sealed class ChatMessageBroadcastHandler : IEventHandler<ChatMessageRecei
             DisplayName: evt.UserDisplayName,
             Username: evt.UserLogin,
             Message: evt.Message,
-            Fragments: decorated.Fragments.Select(ChatFragmentMapper.MapFragment).ToList(),
+            Fragments: fragments,
             UserType: userType,
             IsSubscriber: evt.IsSubscriber,
             IsVip: evt.IsVip,
@@ -77,7 +94,7 @@ public sealed class ChatMessageBroadcastHandler : IEventHandler<ChatMessageRecei
             IsBroadcaster: evt.IsBroadcaster,
             IsCheer: evt.Bits > 0,
             IsCommand: false,
-            Badges: decorated.Badges.Select(ChatFragmentMapper.MapBadge).ToList(),
+            Badges: badges,
             BitsAmount: evt.Bits,
             Color: evt.ColorHex,
             MessageType: evt.MessageType,

@@ -15,6 +15,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
+using NomNomzBot.Infrastructure.Integrations.YouTube;
 using NomNomzBot.Infrastructure.Music;
 
 namespace NomNomzBot.Infrastructure.Tests.Music;
@@ -125,12 +126,20 @@ internal static class YouTubeProviderFactory
                     .Options
             );
 
-        return new YouTubeMusicProvider(
-            factory,
-            configuration,
+        // The REAL shared custody path over the same db/handler — manage-surface tests keep proving the
+        // Service-row lookup + refresh behavior end to end, now through the extracted provider.
+        YouTubeAccessTokenProvider accessTokens = new(
             database,
             new PassthroughProtector(),
             TimeProvider.System,
+            factory,
+            NullLogger<YouTubeAccessTokenProvider>.Instance
+        );
+
+        return new YouTubeMusicProvider(
+            factory,
+            configuration,
+            accessTokens,
             NullLogger<YouTubeMusicProvider>.Instance
         );
     }
