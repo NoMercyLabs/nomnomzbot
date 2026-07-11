@@ -207,6 +207,10 @@ internal sealed class ModerationServiceTestDbContext : DbContext, IApplicationDb
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.MediaShare.Entities.MediaShareRequest> MediaShareRequests =>
         throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Supporters.Entities.SupporterConnection> SupporterConnections =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Supporters.Entities.SupporterEvent> SupporterEvents =>
+        throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Commands.Entities.CommandUsage> CommandUsages =>
         throw new NotSupportedException();
     public DbSet<EventJournal> EventJournals => throw new NotSupportedException();

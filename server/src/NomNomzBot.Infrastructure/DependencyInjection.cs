@@ -366,6 +366,12 @@ public static class DependencyInjection
             ServiceLifetime.Transient
         );
 
+        // Supporter provider adapters (supporter-events.md D2 — transient, stateless, auto-discovered).
+        services.AddImplementationsOf<Application.Supporters.Services.ISupporterSource>(
+            infrastructure,
+            ServiceLifetime.Transient
+        );
+
         // The single SSRF-hardened egress client (sandbox + outbound webhooks): resolve-then-pin + https-only.
         services
             .AddHttpClient(NomNomzBot.Infrastructure.Sandbox.EgressHttpClient.Name)

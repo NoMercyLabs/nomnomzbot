@@ -101,6 +101,8 @@ public interface IApplicationDbContext
     DbSet<NomNomzBot.Domain.Moderation.Entities.ViewerReport> ViewerReports { get; }
     DbSet<NomNomzBot.Domain.MediaShare.Entities.MediaShareConfig> MediaShareConfigs { get; }
     DbSet<NomNomzBot.Domain.MediaShare.Entities.MediaShareRequest> MediaShareRequests { get; }
+    DbSet<NomNomzBot.Domain.Supporters.Entities.SupporterConnection> SupporterConnections { get; }
+    DbSet<NomNomzBot.Domain.Supporters.Entities.SupporterEvent> SupporterEvents { get; }
     DbSet<CommandUsage> CommandUsages { get; }
 
     // Event store (append-only journal + per-tenant sequences + projection checkpoints)

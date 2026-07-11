@@ -48,6 +48,13 @@ public class EventResponseService : IEventResponseService
         "engagement.first_time_chatter",
         "engagement.returning_chatter",
         "engagement.watch_streak",
+        // Supporter triggers (supporter-events.md §4) — a monetization event fires the specific kind plus the
+        // catch-all. Seeded disabled; the provider itself is separately opted in via a SupporterConnection.
+        "supporter.tip",
+        "supporter.membership",
+        "supporter.merch",
+        "supporter.charity",
+        "supporter.any",
     ];
 
     public async Task<Result<PagedList<EventResponseListItem>>> ListAsync(

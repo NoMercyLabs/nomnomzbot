@@ -369,6 +369,12 @@ public sealed class ActionDefinitionSeeder : ISeeder
         M("media:moderate", Mod);
         M("media:write", Editor);
 
+        // Supporter events (supporter-events.md §5) — monetization ingest (tips/memberships/merch/charity).
+        // Reading connections + recorded events is Moderator work; connecting a payout/identity-bearing money
+        // source is Broadcaster-only, Critical, and NOT permit-delegable.
+        M("supporters:read", Mod);
+        M("supporters:config:write", Broadcaster, DangerTier.Critical, grant: false);
+
         // Sound clips (sound-system.md §5) — audio clip library for pipeline SendSound actions. Read
         // (including preview playback, non-mutating) DEFAULTS to Moderator, floor Vip (broadcaster may open it
         // to a VIP); write (upload/update/delete) at Editor.

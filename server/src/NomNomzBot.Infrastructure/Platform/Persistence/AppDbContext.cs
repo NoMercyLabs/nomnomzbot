@@ -161,6 +161,10 @@ public class AppDbContext : DbContext, IApplicationDbContext
         Set<Domain.MediaShare.Entities.MediaShareConfig>();
     public DbSet<Domain.MediaShare.Entities.MediaShareRequest> MediaShareRequests =>
         Set<Domain.MediaShare.Entities.MediaShareRequest>();
+    public DbSet<Domain.Supporters.Entities.SupporterConnection> SupporterConnections =>
+        Set<Domain.Supporters.Entities.SupporterConnection>();
+    public DbSet<Domain.Supporters.Entities.SupporterEvent> SupporterEvents =>
+        Set<Domain.Supporters.Entities.SupporterEvent>();
     public DbSet<CommandUsage> CommandUsages => Set<CommandUsage>();
 
     // Event store — append-only journal (O.1), per-tenant sequences (Q.3), projection checkpoints (O.3)

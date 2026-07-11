@@ -16,6 +16,36 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
 
 ## Open
 
+### 2026-07-11 — Supporter events (monetization) — new page + endpoints (item 13, slice 13a)
+- **From:** Stoney_Eagle (via Claude, backend track)
+- **What:** a **Supporters** page (Integrations/monetization area) with two parts. (1) **Connections** — enable a
+  provider. `GET /api/v1/supporters/connections` → `List<SupporterConnectionDto>` (`sourceKey`, `connectionMode`,
+  `hasSecret`, `isEnabled`, `status`, `lastEventAt?`); `PUT /api/v1/supporters/connections`
+  (`UpsertSupporterConnectionRequest` = `sourceKey`, `connectionMode`, `authSecret?`, `integrationConnectionId?`,
+  `isEnabled`) → `SupporterConnectionDto`; `DELETE /api/v1/supporters/connections/{sourceKey}`. **Only `kofi`
+  (`connectionMode:"webhook"`) is live this slice** — the other providers land in follow-on slices, so render only
+  what `GET /connections` + the adapter set supports (don't hardcode a full provider grid yet). For a webhook
+  provider DO NOT send `authSecret` (backend rejects it — the Ko-fi verification token is set on the **inbound
+  webhook endpoint**, the existing Webhooks page; the two pages pair up). (2) **Events** — a supporter feed:
+  `GET /api/v1/supporters/events?page=&take=&kind=&sourceKey=` → `PaginatedResponse<SupporterEventDto>`
+  (`id`, `sourceKey`, `kind` tip|membership|merch|charity, `supporterDisplayName`, `amountMinor?`, `currency?`,
+  `tier?`, `quantity?`, `messageText?`, `isRecurring`, `receivedAt`). Amount is **minor units (cents)** — divide by
+  100 for display.
+- **Why:** item 13 (`supporter-events.md`). A connected provider's webhooks become `supporter.<kind>` +
+  `supporter.any` pipeline/event-response triggers (bind them on the existing Event Responses / pipeline editor —
+  the 5 `supporter.*` types are seeded disabled) with vars `{supporter.name|kind|amount|currency|tier|quantity|
+  message}`, and the event lands on the activity feed. Truthful: a connection is an *enforced enable-toggle* (ingest
+  is gated on it), NOT cosmetic.
+- **Where:** new `feature/supporters` (or under Integrations). Register `SupporterConnectionDto`,
+  `UpsertSupporterConnectionRequest`, `SupporterEventDto` in `ApiContractTest` (`server/openapi/v1.json` refreshed,
+  tag "Supporters"). Role gate: read = `supporters:read` (Moderator); connect/disconnect = `supporters:config:write`
+  (**Broadcaster only, Critical** — disable, don't hide, for non-broadcasters, with a reason tooltip). Confirm
+  disconnect (removes a money source). The Ko-fi setup flow: create a Ko-fi inbound endpoint on the Webhooks page
+  (gets the URL + sets the verification token) → paste the URL into Ko-fi → enable the Ko-fi supporter connection here.
+- **Done when:** enable Ko-fi → `GET /connections` shows it enabled; a Ko-fi test webhook (via the webhooks endpoint)
+  produces a row in `GET /events` with the right kind/amount, and fires a bound `supporter.tip`/`supporter.any`
+  response; disconnect confirms + removes it; amounts render as major units; en + nl strings.
+
 ### 2026-07-11 — Viewer reports + moderator triage queue — new endpoints
 - **From:** Stoney_Eagle (via Claude, backend track)
 - **What:** viewers report a chatter; mods triage. Three endpoints (in `server/openapi/v1.json`, tag "Moderation",

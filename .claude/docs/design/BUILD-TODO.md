@@ -334,7 +334,29 @@ ONE substrate — a chat feed that **aggregates messages across a SET of channel
   standing + no single-user Helix follow check yet — never silently ignored); watch-minutes = Σ per-day
   presence spans from ChannelChatterDays (shared `ChatterIdentityHash`); the §6 overlay `giveaway`
   widget events are NOT yet emitted (needs the widgets OOTB catalogue leg — small follow-up).
-- [ ] **13. Supporter events** (`supporter-events.md`) — Ko-fi/Patreon/tips + `supporter.*` triggers.
+- [~] **13. Supporter events** (`supporter-events.md`) — Ko-fi/Patreon/tips + `supporter.*` triggers.
+  **STARTED — slice 13a (Ko-fi tip webhook ingest, end-to-end) SHIPPED 2026-07-11 (backend; dashboard
+  page → handoff).** The full generic-adapter substrate + the first live ingress: two entities `SupporterConnection`
+  (P.15) + `SupporterEvent` (P.16, dedup unique `(BroadcasterId,SourceKey,ProviderTransactionId)`), migration pair
+  `AddSupporterEvents` + 20-fake sweep, `SupporterEventReceived` domain event. `ISupporterSource` (auto-discovered
+  adapter) + `KofiSupporterSource` maps Ko-fi's four types → our four kinds (Donation/Commission→tip,
+  Subscription→membership, Shop Order→merch; major→minor amount; tier/recurring/quantity). `ISupporterIngestService`
+  = the single ingest path (resolve adapter → default-deny enabled-connection gate → normalize → dedup → persist →
+  publish once). `SupporterWebhookBridge` (`IEventHandler<InboundWebhookReceivedEvent>`) routes a verified Ko-fi
+  webhook (existing inbound plane) into ingest — reusing the plane's HMAC verify + journal dedup. `SupporterTriggerSource`
+  fires the bound response for BOTH `supporter.<kind>` and `supporter.any` (+ activity-feed ChannelEvent); the 5
+  `supporter.*` event types seeded (disabled) in `EventResponseService`; template vars `{supporter.name|kind|amount|
+  currency|tier|quantity|message}`. `ISupporterConnectionService` + `SupportersController` (§5 REST: GET/PUT/DELETE
+  `/connections`, GET `/events`) + Gate-2 `supporters:read`(Mod)/`supporters:config:write`(Broadcaster, **Critical**,
+  not permit-grantable). openapi refreshed (+693). 17 new tests (adapter mapping incl. composite-id + malformed;
+  ingest persist/dedup/default-deny/unknown-source; connection upsert/validation/reconnect-single-row/events-filter;
+  trigger two-key dispatch + activity log). **Deliberate deltas:** truthful — a webhook connection is an *enforced
+  enable-toggle* (ingest is gated on it), and its verification secret lives on the inbound webhook endpoint (rejected
+  on the connection — no phantom secret); `SupporterUserId` left null for Ko-fi (identifies by name/email, no reliable
+  viewer match — no fabricated identity); event namespaced `Domain.Supporters.Events` (module-first) + `sealed class`
+  (DomainEventBase). *Remaining (follow-on slices):* the other 9 adapters (streamelements/streamlabs/patreon/fourthwall/
+  tipeee/treatstream/donordrive/pally/shopify), socket/ws/poll ingress hosted services, OAuth-vault providers,
+  one-step endpoint provisioning on connect, and the opt-in economy reward.
 - [x] **14. Per-viewer data store — BACKEND SHIPPED 2026-07-11** (`per-viewer-data.md`; dashboard
   browse UI → handoff). `ViewerDatum` (G.14, partial unique `(BroadcasterId,ViewerUserId,Key)`,
   migration pair `AddViewerData` + 18-fake sweep), `IViewerDataService` (slug-normalized keys,
