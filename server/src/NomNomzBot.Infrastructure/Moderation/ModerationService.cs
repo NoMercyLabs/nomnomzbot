@@ -705,51 +705,229 @@ public class ModerationService : IModerationService
         if (!Guid.TryParse(broadcasterId, out Guid tenantId))
             return Errors.ChannelNotFound<List<BannedUserDto>>(broadcasterId);
 
-        List<Record> actions = await _db
-            .Records.Where(r =>
-                r.BroadcasterId == tenantId
-                && r.RecordType == ActionRecordType
-                && (r.Data.Contains("\"ban\"") || r.Data.Contains("\"unban\""))
-            )
-            .OrderByDescending(r => r.CreatedAt)
-            .ToListAsync(cancellationToken);
+        // Read the LIVE banned list from Twitch, not just the bans the bot itself recorded — a viewer banned
+        // through Twitch's own UI or by another moderator must appear here too, and Twitch's payload carries the
+        // real reason, moderator and timestamp. A failure (missing scope / no broadcaster token for a channel we
+        // don't manage) surfaces as an honest error, never a silently-empty "no bans" list.
+        List<BannedUserDto> banned = [];
+        string? cursor = null;
+        int pageGuard = 0;
+        do
+        {
+            Result<TwitchPage<TwitchBannedUser>> page = await _moderation.GetBannedUsersAsync(
+                tenantId,
+                new TwitchPageRequest(After: cursor),
+                cancellationToken
+            );
+            if (page.IsFailure)
+                return Result.Failure<List<BannedUserDto>>(
+                    page.ErrorMessage ?? "Twitch rejected the banned-users read.",
+                    page.ErrorCode ?? "TWITCH_ERROR"
+                );
 
-        // The moderator's Twitch user id (Record.UserId) → display name via Users.TwitchUserId.
-        Dictionary<string, string> moderatorNames = await ResolveUsernamesAsync(
-            actions.Select(r => r.UserId),
+            foreach (TwitchBannedUser user in page.Value.Items)
+            {
+                // Get Banned Users returns permanent bans AND active timeouts (timeouts carry ExpiresAt). The
+                // dashboard's banned-users list is permanent bans only; transient timeouts live in the action log.
+                if (user.ExpiresAt is not null)
+                    continue;
+
+                banned.Add(
+                    new BannedUserDto(
+                        user.UserId,
+                        string.IsNullOrEmpty(user.UserName) ? user.UserLogin : user.UserName,
+                        string.IsNullOrEmpty(user.Reason) ? null : user.Reason,
+                        string.IsNullOrEmpty(user.ModeratorName)
+                            ? user.ModeratorLogin
+                            : user.ModeratorName,
+                        user.CreatedAt.UtcDateTime
+                    )
+                );
+            }
+
+            cursor = page.Value.NextCursor;
+        } while (!string.IsNullOrEmpty(cursor) && ++pageGuard < 100);
+
+        return Result.Success(banned.OrderByDescending(b => b.BannedAt).ToList());
+    }
+
+    public async Task<Result<List<string>>> GetBlockedTermsAsync(
+        string broadcasterId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (!Guid.TryParse(broadcasterId, out Guid tenantId))
+            return Errors.ChannelNotFound<List<string>>(broadcasterId);
+
+        Result<List<TwitchBlockedTerm>> terms = await ReadAllBlockedTermsAsync(
+            tenantId,
             cancellationToken
         );
+        if (terms.IsFailure)
+            return Result.Failure<List<string>>(terms.ErrorMessage!, terms.ErrorCode!);
 
-        // Build the latest action per target user
-        Dictionary<
-            string,
-            (string action, Record record, ModerationActionData data)
-        > latestByTarget = new(StringComparer.OrdinalIgnoreCase);
+        return Result.Success(terms.Value.Select(term => term.Text).ToList());
+    }
 
-        foreach (Record r in actions)
-        {
-            ModerationActionData d =
-                JsonSerializer.Deserialize<ModerationActionData>(r.Data)
-                ?? new ModerationActionData();
-            if (d.TargetUserId is null)
-                continue;
-            if (!latestByTarget.ContainsKey(d.TargetUserId))
-                latestByTarget[d.TargetUserId] = (d.Action, r, d);
-        }
+    public async Task<Result<List<string>>> AddBlockedTermAsync(
+        string broadcasterId,
+        string text,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (!Guid.TryParse(broadcasterId, out Guid tenantId))
+            return Errors.ChannelNotFound<List<string>>(broadcasterId);
+        if (string.IsNullOrWhiteSpace(text))
+            return Result.Failure<List<string>>(
+                "A blocked term can't be empty.",
+                "VALIDATION_FAILED"
+            );
 
-        List<BannedUserDto> banned = latestByTarget
-            .Values.Where(e => e.action == "ban")
-            .Select(e => new BannedUserDto(
-                e.data.TargetUserId!,
-                e.data.TargetUsername ?? e.data.TargetUserId!,
-                e.data.Reason,
-                moderatorNames.GetValueOrDefault(e.record.UserId, e.record.UserId),
-                e.record.CreatedAt
-            ))
-            .OrderByDescending(b => b.BannedAt)
+        // Add the term ON TWITCH — the block list is Twitch's, so a dashboard-added term that never reached
+        // Helix would be a phantom control. Twitch owns validation (length, wildcard rules) and reports it back.
+        Result<TwitchBlockedTerm> added = await _moderation.AddBlockedTermAsync(
+            tenantId,
+            text.Trim(),
+            cancellationToken
+        );
+        if (added.IsFailure)
+            return Result.Failure<List<string>>(added.ErrorMessage!, added.ErrorCode!);
+
+        await PublishConfigChangedAsync(
+            tenantId,
+            "blocked-terms",
+            added.Value.Id,
+            "created",
+            cancellationToken
+        );
+        return await GetBlockedTermsAsync(broadcasterId, cancellationToken);
+    }
+
+    public async Task<Result<List<string>>> RemoveBlockedTermAsync(
+        string broadcasterId,
+        string text,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (!Guid.TryParse(broadcasterId, out Guid tenantId))
+            return Errors.ChannelNotFound<List<string>>(broadcasterId);
+
+        // Helix removes a blocked term by its id, but the dashboard only knows the text the moderator sees.
+        // Resolve the current list, then delete every entry whose text matches (Twitch permits duplicates).
+        Result<List<TwitchBlockedTerm>> current = await ReadAllBlockedTermsAsync(
+            tenantId,
+            cancellationToken
+        );
+        if (current.IsFailure)
+            return Result.Failure<List<string>>(current.ErrorMessage!, current.ErrorCode!);
+
+        List<TwitchBlockedTerm> matches = current
+            .Value.Where(term => string.Equals(term.Text, text, StringComparison.OrdinalIgnoreCase))
             .ToList();
 
-        return Result.Success(banned);
+        // Already absent → idempotent success returning the unchanged list (no needless Helix round-trip).
+        if (matches.Count == 0)
+            return Result.Success(current.Value.Select(term => term.Text).ToList());
+
+        foreach (TwitchBlockedTerm term in matches)
+        {
+            Result removal = await _moderation.RemoveBlockedTermAsync(
+                tenantId,
+                term.Id,
+                cancellationToken
+            );
+            if (removal.IsFailure)
+                return Result.Failure<List<string>>(removal.ErrorMessage!, removal.ErrorCode!);
+        }
+
+        await PublishConfigChangedAsync(
+            tenantId,
+            "blocked-terms",
+            text,
+            "deleted",
+            cancellationToken
+        );
+        return await GetBlockedTermsAsync(broadcasterId, cancellationToken);
+    }
+
+    public async Task<Result<bool>> GetShieldModeAsync(
+        string broadcasterId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (!Guid.TryParse(broadcasterId, out Guid tenantId))
+            return Errors.ChannelNotFound<bool>(broadcasterId);
+
+        Result<TwitchShieldModeStatus> status = await _moderation.GetShieldModeStatusAsync(
+            tenantId,
+            cancellationToken
+        );
+        if (status.IsFailure)
+            return Result.Failure<bool>(status.ErrorMessage!, status.ErrorCode!);
+
+        return Result.Success(status.Value.IsActive);
+    }
+
+    public async Task<Result<bool>> SetShieldModeAsync(
+        string broadcasterId,
+        bool isActive,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (!Guid.TryParse(broadcasterId, out Guid tenantId))
+            return Errors.ChannelNotFound<bool>(broadcasterId);
+
+        // Toggle Shield Mode ON TWITCH — storing the flag locally without calling Helix (the previous behavior)
+        // was a cosmetic switch that never armed the real protection. Twitch returns the applied state.
+        Result<TwitchShieldModeStatus> updated = await _moderation.UpdateShieldModeStatusAsync(
+            tenantId,
+            isActive,
+            cancellationToken
+        );
+        if (updated.IsFailure)
+            return Result.Failure<bool>(updated.ErrorMessage!, updated.ErrorCode!);
+
+        await PublishConfigChangedAsync(
+            tenantId,
+            "moderation-rules",
+            "shield-mode",
+            "updated",
+            cancellationToken
+        );
+        return Result.Success(updated.Value.IsActive);
+    }
+
+    /// <summary>
+    /// Reads every page of the channel's Twitch blocked-term list, short-circuiting to an honest failure on the
+    /// first Helix error rather than returning a partial list. Bounded by a page guard against a pathological
+    /// cursor loop.
+    /// </summary>
+    private async Task<Result<List<TwitchBlockedTerm>>> ReadAllBlockedTermsAsync(
+        Guid tenantId,
+        CancellationToken cancellationToken
+    )
+    {
+        List<TwitchBlockedTerm> all = [];
+        string? cursor = null;
+        int pageGuard = 0;
+        do
+        {
+            Result<TwitchPage<TwitchBlockedTerm>> page = await _moderation.GetBlockedTermsAsync(
+                tenantId,
+                new TwitchPageRequest(After: cursor),
+                cancellationToken
+            );
+            if (page.IsFailure)
+                return Result.Failure<List<TwitchBlockedTerm>>(
+                    page.ErrorMessage ?? "Twitch rejected the blocked-terms read.",
+                    page.ErrorCode ?? "TWITCH_ERROR"
+                );
+
+            all.AddRange(page.Value.Items);
+            cursor = page.Value.NextCursor;
+        } while (!string.IsNullOrEmpty(cursor) && ++pageGuard < 100);
+
+        return Result.Success(all);
     }
 
     /// <summary>

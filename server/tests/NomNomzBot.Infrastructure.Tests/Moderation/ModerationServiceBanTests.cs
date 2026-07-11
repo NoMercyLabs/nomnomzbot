@@ -131,7 +131,7 @@ public sealed class ModerationServiceBanTests
     // ─── (2) Twitch-first success: record written only after Helix applied it ──
 
     [Fact]
-    public async Task BanAsync_WhenTwitchApplies_RecordsExactlyOneActionAndListsTheBannedViewer()
+    public async Task BanAsync_WhenTwitchApplies_RecordsExactlyOneActionForTheModLog()
     {
         await using ModerationServiceTestDbContext db = ModerationServiceTestDbContext.New();
         await SeedChannelAsync(db);
@@ -156,7 +156,9 @@ public sealed class ModerationServiceBanTests
             .Received(1)
             .BanUserAsync(Tenant, ViewerTwitchId, "spam", Arg.Any<CancellationToken>());
 
-        // Exactly one action record, of the right type, naming the ban and the target id.
+        // Exactly one action record, of the right type, naming the ban and the target id — this feeds the mod
+        // action log. (The dashboard's *banned-users* list is read live from Twitch, not from these rows; that
+        // is covered by ModerationServiceTwitchReadsTests.)
         List<Record> records = await db
             .Records.Where(r => r.RecordType == ActionRecordType)
             .ToListAsync();
@@ -165,12 +167,6 @@ public sealed class ModerationServiceBanTests
         record.BroadcasterId.Should().Be(Tenant);
         record.Data.Should().Contain("ban");
         record.Data.Should().Contain(ViewerTwitchId);
-
-        // The recorded ban surfaces in the banned-viewers list the dashboard reads from these rows.
-        Result<List<BannedUserDto>> banned = await NewService(db, moderation)
-            .GetBannedUsersAsync(BroadcasterId);
-        banned.IsSuccess.Should().BeTrue();
-        banned.Value.Should().ContainSingle(b => b.UserId == ViewerTwitchId);
     }
 
     // ─── (2) No fake record when Twitch rejects the ban ───────────────────────

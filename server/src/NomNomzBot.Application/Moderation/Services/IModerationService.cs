@@ -94,9 +94,42 @@ public interface IModerationService
         CancellationToken cancellationToken = default
     );
 
-    /// <summary>List users currently banned in a channel.</summary>
+    /// <summary>List users permanently banned in a channel, read live from the Twitch moderation API.</summary>
     Task<Result<List<BannedUserDto>>> GetBannedUsersAsync(
         string broadcasterId,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>List the channel's blocked terms (text only), read live from the Twitch moderation API.</summary>
+    Task<Result<List<string>>> GetBlockedTermsAsync(
+        string broadcasterId,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>Add a blocked term on Twitch and return the refreshed list.</summary>
+    Task<Result<List<string>>> AddBlockedTermAsync(
+        string broadcasterId,
+        string text,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>Remove a blocked term (matched by its text) on Twitch and return the refreshed list.</summary>
+    Task<Result<List<string>>> RemoveBlockedTermAsync(
+        string broadcasterId,
+        string text,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>The channel's current Shield Mode activation, read live from the Twitch moderation API.</summary>
+    Task<Result<bool>> GetShieldModeAsync(
+        string broadcasterId,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>Activate or deactivate Shield Mode on Twitch and return the applied state.</summary>
+    Task<Result<bool>> SetShieldModeAsync(
+        string broadcasterId,
+        bool isActive,
         CancellationToken cancellationToken = default
     );
 }

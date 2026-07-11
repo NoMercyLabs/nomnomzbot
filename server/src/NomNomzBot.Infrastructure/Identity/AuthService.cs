@@ -106,9 +106,11 @@ public sealed class AuthService : IAuthService
         "moderator:manage:automod", // automod.message.hold/update, automod.terms.update
         "moderator:read:automod_settings", // automod.settings.update
         "moderator:read:blocked_terms", // channel.moderate v2
+        "moderator:manage:blocked_terms", // dashboard blocked-terms editor (Add/Remove Blocked Term)
         "moderator:read:chat_settings", // channel.moderate v2
         "moderator:read:moderators", // channel.moderate v2
         "moderator:read:shield_mode", // channel.shield_mode.begin / channel.shield_mode.end
+        "moderator:manage:shield_mode", // dashboard Shield Mode toggle (Update Shield Mode Status)
         "moderator:read:shoutouts", // channel.shoutout.create / channel.shoutout.receive
         "moderator:read:suspicious_users", // channel.suspicious_user.message / channel.suspicious_user.update
         "moderator:read:unban_requests", // channel.unban_request.create / channel.unban_request.resolve, channel.moderate v2

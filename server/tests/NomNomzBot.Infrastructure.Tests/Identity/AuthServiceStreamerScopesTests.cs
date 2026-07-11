@@ -110,6 +110,27 @@ public sealed class AuthServiceStreamerScopesTests
         result.Value.Should().Contain(Uri.EscapeDataString("moderator:read:guest_star"));
     }
 
+    /// <summary>
+    /// Proves the dashboard moderation page's WRITE controls request the two Helix manage scopes they need —
+    /// <c>moderator:manage:blocked_terms</c> (Add/Remove Blocked Term) and <c>moderator:manage:shield_mode</c>
+    /// (Update Shield Mode Status). Without them those controls fell back to a local config Twitch never saw
+    /// (cosmetic switches); a scope silently dropped here would resurrect that phantom behaviour.
+    /// </summary>
+    [Fact]
+    public async Task GetTwitchOAuthUrl_RequestsTheBlockedTermsAndShieldModeManageScopes()
+    {
+        AuthService service = Build(ConfigWith(clientId: "public-id", secret: "shh"));
+
+        Result<string> result = await service.GetTwitchOAuthUrl(
+            state: "nonce",
+            baseUrl: "https://api.example.test"
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().Contain(Uri.EscapeDataString("moderator:manage:blocked_terms"));
+        result.Value.Should().Contain(Uri.EscapeDataString("moderator:manage:shield_mode"));
+    }
+
     // ─── scaffolding (mirrors AuthServiceBotDeviceTests.Build/ConfigWith) ──────────────────────────────
 
     private static AuthService Build(IConfiguration config)

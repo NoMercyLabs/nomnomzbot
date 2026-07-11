@@ -9,7 +9,6 @@
 // -----------------------------------------------------------------------------
 
 using System.Security.Claims;
-using System.Text.Json;
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -22,9 +21,6 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Moderation.Dtos;
 using NomNomzBot.Application.Moderation.Services;
-using NomNomzBot.Domain.Platform.Events;
-using NomNomzBot.Domain.Platform.Interfaces;
-using ConfigEntity = NomNomzBot.Domain.Platform.Entities.Configuration;
 
 namespace NomNomzBot.Api.Controllers.V1;
 
@@ -45,7 +41,6 @@ public class ModerationController : BaseController
     private readonly IApplicationDbContext _db;
     private readonly TimeProvider _timeProvider;
     private readonly ITwitchChatApi _chatApi;
-    private readonly IEventBus _eventBus;
 
     public ModerationController(
         IModerationService moderationService,
@@ -53,8 +48,7 @@ public class ModerationController : BaseController
         ICurrentUserService currentUser,
         IApplicationDbContext db,
         TimeProvider timeProvider,
-        ITwitchChatApi chatApi,
-        IEventBus eventBus
+        ITwitchChatApi chatApi
     )
     {
         _moderationService = moderationService;
@@ -63,7 +57,6 @@ public class ModerationController : BaseController
         _db = db;
         _timeProvider = timeProvider;
         _chatApi = chatApi;
-        _eventBus = eventBus;
     }
 
     // ─── Ban (this channel, or every channel the operator moderates) ───────────
@@ -344,24 +337,19 @@ public class ModerationController : BaseController
 
     // ─── Shield Mode ─────────────────────────────────────────────────────────
 
-    /// <summary>Check whether the channel's Shield Mode setting is currently enabled.</summary>
+    /// <summary>Check whether the channel's Shield Mode is currently active, live from the Twitch moderation API.</summary>
     [RequireAction("moderation:shieldmode:read")]
     [HttpGet("shield")]
     [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetShieldMode(string channelId, CancellationToken ct)
     {
-        Guid? broadcasterId = Guid.TryParse(channelId, out Guid g) ? g : null;
-
-        ConfigEntity? cfg = await _db.Configurations.FirstOrDefaultAsync(
-            c => c.BroadcasterId == broadcasterId && c.Key == "shield.mode",
-            ct
-        );
-
-        bool enabled = cfg?.Value is not null && bool.TryParse(cfg.Value, out bool v) && v;
-        return Ok(new StatusResponseDto<object> { Data = new { enabled } });
+        Result<bool> result = await _moderationService.GetShieldModeAsync(channelId, ct);
+        if (result.IsFailure)
+            return ResultResponse(result);
+        return Ok(new StatusResponseDto<object> { Data = new { enabled = result.Value } });
     }
 
-    /// <summary>Turn the channel's Shield Mode setting on or off and notify open dashboards of the change.</summary>
+    /// <summary>Turn the channel's Shield Mode on or off via the Twitch moderation API and notify open dashboards.</summary>
     [RequireAction("moderation:shieldmode:write")]
     [HttpPatch("shield")]
     [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
@@ -371,64 +359,31 @@ public class ModerationController : BaseController
         CancellationToken ct
     )
     {
-        Guid? broadcasterId = Guid.TryParse(channelId, out Guid g) ? g : null;
-
-        ConfigEntity? cfg = await _db.Configurations.FirstOrDefaultAsync(
-            c => c.BroadcasterId == broadcasterId && c.Key == "shield.mode",
+        Result<bool> result = await _moderationService.SetShieldModeAsync(
+            channelId,
+            request.Enabled,
             ct
         );
-
-        if (cfg is null)
-        {
-            cfg = new ConfigEntity
-            {
-                BroadcasterId = broadcasterId,
-                Key = "shield.mode",
-                Value = request.Enabled.ToString(),
-            };
-            _db.Configurations.Add(cfg);
-        }
-        else
-        {
-            cfg.Value = request.Enabled.ToString();
-        }
-
-        await _db.SaveChangesAsync(ct);
-        await PublishConfigChangedAsync(
-            broadcasterId ?? Guid.Empty,
-            "moderation-rules",
-            "shield-mode",
-            "updated",
-            ct
-        );
-        return Ok(new StatusResponseDto<object> { Data = new { enabled = request.Enabled } });
+        if (result.IsFailure)
+            return ResultResponse(result);
+        return Ok(new StatusResponseDto<object> { Data = new { enabled = result.Value } });
     }
 
     public record SetShieldRequest(bool Enabled);
 
     // ─── Blocked Terms ────────────────────────────────────────────────────────
 
-    /// <summary>List the channel's blocked terms.</summary>
+    /// <summary>List the channel's blocked terms, live from the Twitch moderation API.</summary>
     [RequireAction("moderation:filter:read")]
     [HttpGet("blocked-terms")]
     [ProducesResponseType<StatusResponseDto<List<string>>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetBlockedTerms(string channelId, CancellationToken ct)
     {
-        Guid? broadcasterId = Guid.TryParse(channelId, out Guid g) ? g : null;
-
-        ConfigEntity? cfg = await _db.Configurations.FirstOrDefaultAsync(
-            c => c.BroadcasterId == broadcasterId && c.Key == "blocked-terms",
-            ct
-        );
-
-        List<string> terms = cfg?.Value is not null
-            ? JsonSerializer.Deserialize<List<string>>(cfg.Value) ?? []
-            : [];
-
-        return Ok(new StatusResponseDto<List<string>> { Data = terms });
+        Result<List<string>> result = await _moderationService.GetBlockedTermsAsync(channelId, ct);
+        return ResultResponse(result);
     }
 
-    /// <summary>Add a term to the channel's blocked-terms list.</summary>
+    /// <summary>Add a term to the channel's blocked-terms list via the Twitch moderation API.</summary>
     [RequireAction("moderation:blocklist:write")]
     [HttpPost("blocked-terms")]
     [ProducesResponseType<StatusResponseDto<List<string>>>(StatusCodes.Status200OK)]
@@ -438,47 +393,15 @@ public class ModerationController : BaseController
         CancellationToken ct
     )
     {
-        Guid? broadcasterId = Guid.TryParse(channelId, out Guid g) ? g : null;
-
-        ConfigEntity? cfg = await _db.Configurations.FirstOrDefaultAsync(
-            c => c.BroadcasterId == broadcasterId && c.Key == "blocked-terms",
-            ct
-        );
-
-        List<string> terms = cfg?.Value is not null
-            ? JsonSerializer.Deserialize<List<string>>(cfg.Value) ?? []
-            : [];
-
-        if (!terms.Contains(request.Term, StringComparer.OrdinalIgnoreCase))
-            terms.Add(request.Term);
-
-        if (cfg is null)
-        {
-            cfg = new ConfigEntity
-            {
-                BroadcasterId = broadcasterId,
-                Key = "blocked-terms",
-                Value = JsonSerializer.Serialize(terms),
-            };
-            _db.Configurations.Add(cfg);
-        }
-        else
-        {
-            cfg.Value = JsonSerializer.Serialize(terms);
-        }
-
-        await _db.SaveChangesAsync(ct);
-        await PublishConfigChangedAsync(
-            broadcasterId ?? Guid.Empty,
-            "blocked-terms",
+        Result<List<string>> result = await _moderationService.AddBlockedTermAsync(
+            channelId,
             request.Term,
-            "created",
             ct
         );
-        return Ok(new StatusResponseDto<List<string>> { Data = terms });
+        return ResultResponse(result);
     }
 
-    /// <summary>Remove a term from the channel's blocked-terms list.</summary>
+    /// <summary>Remove a term from the channel's blocked-terms list via the Twitch moderation API.</summary>
     [RequireAction("moderation:blocklist:write")]
     [HttpDelete("blocked-terms/{term}")]
     [ProducesResponseType<StatusResponseDto<List<string>>>(StatusCodes.Status200OK)]
@@ -488,28 +411,12 @@ public class ModerationController : BaseController
         CancellationToken ct
     )
     {
-        Guid? broadcasterId = Guid.TryParse(channelId, out Guid g) ? g : null;
-
-        ConfigEntity? cfg = await _db.Configurations.FirstOrDefaultAsync(
-            c => c.BroadcasterId == broadcasterId && c.Key == "blocked-terms",
-            ct
-        );
-
-        if (cfg is null)
-            return Ok(new StatusResponseDto<List<string>> { Data = [] });
-
-        List<string> terms = JsonSerializer.Deserialize<List<string>>(cfg.Value ?? "[]") ?? [];
-        terms.RemoveAll(t => string.Equals(t, term, StringComparison.OrdinalIgnoreCase));
-        cfg.Value = JsonSerializer.Serialize(terms);
-        await _db.SaveChangesAsync(ct);
-        await PublishConfigChangedAsync(
-            broadcasterId ?? Guid.Empty,
-            "blocked-terms",
+        Result<List<string>> result = await _moderationService.RemoveBlockedTermAsync(
+            channelId,
             term,
-            "deleted",
             ct
         );
-        return Ok(new StatusResponseDto<List<string>> { Data = terms });
+        return ResultResponse(result);
     }
 
     public record AddTermRequest(string Term);
@@ -653,27 +560,4 @@ public class ModerationController : BaseController
         );
         return result.IsFailure ? TwitchResultResponse(result) : NoContent();
     }
-
-    /// <summary>
-    /// E5 dashboard live-sync: shield mode and blocked terms have no dedicated service (their CRUD lives here),
-    /// so this is the one place in the controller layer that publishes — everywhere else the publish happens in
-    /// the service layer. Fired after every successful write so other open dashboards refetch.
-    /// </summary>
-    private Task PublishConfigChangedAsync(
-        Guid broadcasterId,
-        string domain,
-        string? entityId,
-        string action,
-        CancellationToken ct
-    ) =>
-        _eventBus.PublishAsync(
-            new ChannelConfigChangedEvent
-            {
-                BroadcasterId = broadcasterId,
-                Domain = domain,
-                EntityId = entityId,
-                Action = action,
-            },
-            ct
-        );
 }
