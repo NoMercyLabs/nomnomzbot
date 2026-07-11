@@ -189,4 +189,30 @@ public sealed class StreamStatusPollingServiceTests
             .BeFalse("only the transient viewer count moved — nothing persisted changed");
         ctx.ViewerCount.Should().Be(152);
     }
+
+    [Fact]
+    public void A_live_poll_builds_a_journalable_viewer_count_sample()
+    {
+        Guid broadcaster = Guid.NewGuid();
+
+        NomNomzBot.Domain.Stream.Events.StreamViewerCountSampledEvent? sample =
+            StreamStatusPollingService.BuildViewerCountSample(
+                broadcaster,
+                Live("Speedrun night", "Celeste", viewerCount: 152)
+            );
+
+        sample.Should().NotBeNull("every live poll is a viewer-count fact for the analytics fold");
+        sample!.BroadcasterId.Should().Be(broadcaster);
+        sample.ViewerCount.Should().Be(152);
+        sample.StreamId.Should().Be("stream-1");
+    }
+
+    [Fact]
+    public void An_offline_poll_builds_no_sample_so_the_journal_stays_quiet()
+    {
+        NomNomzBot.Domain.Stream.Events.StreamViewerCountSampledEvent? sample =
+            StreamStatusPollingService.BuildViewerCountSample(Guid.NewGuid(), Offline());
+
+        sample.Should().BeNull("no stream, no sample — offline polls must not journal noise");
+    }
 }

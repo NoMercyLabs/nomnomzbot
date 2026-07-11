@@ -61,6 +61,11 @@ public sealed class LegacyImportLiveDbVerification
         CopyDatabase(LiveDb, work);
         Environment.SetEnvironmentVariable("NOMNOMZ_LEGACY_DB", LegacyDb);
 
+        // Bring the copied schema current exactly as the API does on startup — the live file predates
+        // whatever migrations landed since the deployed build wrote it.
+        await using (AppDbContext db = OpenLive(work))
+            await db.Database.MigrateAsync();
+
         try
         {
             // ── before ──
@@ -239,7 +244,7 @@ public sealed class LegacyImportLiveDbVerification
         List<IProjection> projections =
         [
             new TwitchChannelEventLogProjection(db),
-            new ChannelAnalyticsDailyProjection(db),
+            new ChannelAnalyticsDailyProjection(db, liveWindow),
             new MessageActivityDailyProjection(db, resolver),
             new ViewerEngagementDailyProjection(db, resolver),
             new ViewerProfileProjection(db, resolver),
@@ -272,7 +277,10 @@ public sealed class LegacyImportLiveDbVerification
     {
         FakeTimeProvider clock = new(new DateTimeOffset(2026, 6, 24, 12, 0, 0, TimeSpan.Zero));
         DbContextOptions<AppDbContext> options = new DbContextOptionsBuilder<AppDbContext>()
-            .UseSqlite($"Data Source={path}")
+            .UseSqlite(
+                $"Data Source={path}",
+                sqlite => sqlite.MigrationsAssembly("NomNomzBot.Migrations.Sqlite")
+            )
             .AddInterceptors(
                 new NomNomzBot.Infrastructure.Platform.Persistence.Interceptors.AuditableEntityInterceptor(
                     clock

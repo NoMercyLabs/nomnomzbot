@@ -500,6 +500,8 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
         Set<NomNomzBot.Domain.Analytics.Entities.ViewerEngagementDaily>();
     public DbSet<NomNomzBot.Domain.Analytics.Entities.ChannelAnalyticsDaily> ChannelAnalyticsDailies =>
         Set<NomNomzBot.Domain.Analytics.Entities.ChannelAnalyticsDaily>();
+    public DbSet<NomNomzBot.Domain.Analytics.Entities.ChannelChatterDay> ChannelChatterDays =>
+        Set<NomNomzBot.Domain.Analytics.Entities.ChannelChatterDay>();
     public DbSet<NomNomzBot.Domain.Platform.Entities.FeatureFlag> FeatureFlags =>
         Set<NomNomzBot.Domain.Platform.Entities.FeatureFlag>();
     public DbSet<NomNomzBot.Domain.Platform.Entities.FeatureFlagOverride> FeatureFlagOverrides =>

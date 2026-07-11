@@ -196,7 +196,7 @@ public sealed class ReadModelRebuildFromJournalTests
 
         return
         [
-            new ChannelAnalyticsDailyProjection(db),
+            new ChannelAnalyticsDailyProjection(db, liveWindow),
             new MessageActivityDailyProjection(db, resolver),
             new ViewerEngagementDailyProjection(db, resolver),
             new ViewerProfileProjection(db, resolver),

@@ -45,6 +45,7 @@ internal sealed class ReadModelRebuildDbContext : DbContext, IApplicationDbConte
     public DbSet<MessageActivityDaily> MessageActivityDailies => Set<MessageActivityDaily>();
     public DbSet<ViewerEngagementDaily> ViewerEngagementDailies => Set<ViewerEngagementDaily>();
     public DbSet<ChannelAnalyticsDaily> ChannelAnalyticsDailies => Set<ChannelAnalyticsDaily>();
+    public DbSet<ChannelChatterDay> ChannelChatterDays => Set<ChannelChatterDay>();
     public DbSet<User> Users => Set<User>();
     public DbSet<UserIdentity> UserIdentities => Set<UserIdentity>();
     public DbSet<ChannelEvent> ChannelEvents => Set<ChannelEvent>();

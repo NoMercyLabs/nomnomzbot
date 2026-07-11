@@ -227,6 +227,8 @@ public class AppDbContext : DbContext, IApplicationDbContext
         Set<Domain.Analytics.Entities.ViewerEngagementDaily>();
     public DbSet<Domain.Analytics.Entities.ChannelAnalyticsDaily> ChannelAnalyticsDailies =>
         Set<Domain.Analytics.Entities.ChannelAnalyticsDaily>();
+    public DbSet<Domain.Analytics.Entities.ChannelChatterDay> ChannelChatterDays =>
+        Set<Domain.Analytics.Entities.ChannelChatterDay>();
     public DbSet<DeploymentProfile> DeploymentProfiles => Set<DeploymentProfile>();
     public DbSet<FeatureFlag> FeatureFlags => Set<FeatureFlag>();
     public DbSet<FeatureFlagOverride> FeatureFlagOverrides => Set<FeatureFlagOverride>();

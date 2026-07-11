@@ -267,6 +267,8 @@ internal sealed class QuoteTestDbContext : DbContext, IApplicationDbContext
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Analytics.Entities.ChannelAnalyticsDaily> ChannelAnalyticsDailies =>
         throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Analytics.Entities.ChannelChatterDay> ChannelChatterDays =>
+        throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Platform.Entities.FeatureFlag> FeatureFlags =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Platform.Entities.FeatureFlagOverride> FeatureFlagOverrides =>

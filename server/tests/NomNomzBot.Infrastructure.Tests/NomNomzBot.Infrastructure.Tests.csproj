@@ -31,5 +31,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\NomNomzBot.Infrastructure\NomNomzBot.Infrastructure.csproj" />
+    <!-- The live-db import verification opens a copy of the owner's SQLite database and must bring its
+         schema current exactly as the API does on startup — via the SQLite migration set. -->
+    <ProjectReference Include="..\..\src\NomNomzBot.Migrations.Sqlite\NomNomzBot.Migrations.Sqlite.csproj" />
   </ItemGroup>
 </Project>

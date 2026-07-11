@@ -150,6 +150,7 @@ public interface IApplicationDbContext
     DbSet<MessageActivityDaily> MessageActivityDailies { get; }
     DbSet<ViewerEngagementDaily> ViewerEngagementDailies { get; }
     DbSet<ChannelAnalyticsDaily> ChannelAnalyticsDailies { get; }
+    DbSet<ChannelChatterDay> ChannelChatterDays { get; }
     DbSet<FeatureFlag> FeatureFlags { get; }
     DbSet<FeatureFlagOverride> FeatureFlagOverrides { get; }
     DbSet<CodeScript> CodeScripts { get; }

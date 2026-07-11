@@ -16,6 +16,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
+using NomNomzBot.Domain.Stream.Events;
 
 namespace NomNomzBot.Infrastructure.Stream.Jobs;
 
@@ -104,6 +105,7 @@ public sealed class StreamStatusPollingService : BackgroundService
                 scope.ServiceProvider.GetRequiredService<ITwitchStreamsApi>();
             IApplicationDbContext db =
                 scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+            IEventBus eventBus = scope.ServiceProvider.GetRequiredService<IEventBus>();
 
             int changed = 0;
             foreach (ChannelContext ctx in channels)
@@ -120,6 +122,15 @@ public sealed class StreamStatusPollingService : BackgroundService
                     );
                     if (ApplyStreamState(ctx, dbChannel, result))
                         changed++;
+
+                    // Each live poll doubles as a viewer-count sample: journaled, it becomes the
+                    // per-stream viewer time series the daily PeakViewers aggregate folds from.
+                    StreamViewerCountSampledEvent? sample = BuildViewerCountSample(
+                        ctx.BroadcasterId,
+                        result
+                    );
+                    if (sample is not null)
+                        await eventBus.PublishAsync(sample, ct);
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException)
                 {
@@ -145,6 +156,23 @@ public sealed class StreamStatusPollingService : BackgroundService
             );
         }
     }
+
+    /// <summary>
+    /// A journalable viewer-count sample for a LIVE Get Streams read — null while offline (no samples,
+    /// no journal noise) or when the payload carries no stream id to attribute the sample to.
+    /// </summary>
+    internal static StreamViewerCountSampledEvent? BuildViewerCountSample(
+        Guid broadcasterId,
+        Result<TwitchStream> result
+    ) =>
+        result.IsSuccess && !string.IsNullOrEmpty(result.Value.Id)
+            ? new StreamViewerCountSampledEvent
+            {
+                BroadcasterId = broadcasterId,
+                ViewerCount = result.Value.ViewerCount,
+                StreamId = result.Value.Id,
+            }
+            : null;
 
     /// <summary>
     /// Reconciles one channel's live state from a Helix Get Streams result into both the in-memory

@@ -239,6 +239,7 @@ internal sealed class ApiTestDbContext : DbContext, IApplicationDbContext
         throw new NotSupportedException();
     public DbSet<ChannelAnalyticsDaily> ChannelAnalyticsDailies =>
         throw new NotSupportedException();
+    public DbSet<ChannelChatterDay> ChannelChatterDays => throw new NotSupportedException();
     public DbSet<FeatureFlag> FeatureFlags => throw new NotSupportedException();
     public DbSet<FeatureFlagOverride> FeatureFlagOverrides => throw new NotSupportedException();
     public DbSet<CodeScript> CodeScripts => throw new NotSupportedException();

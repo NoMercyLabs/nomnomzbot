@@ -76,6 +76,44 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.ToTable("ChannelAnalyticsDailies");
                 });
 
+            modelBuilder.Entity("NomNomzBot.Domain.Analytics.Entities.ChannelChatterDay", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateOnly>("ActivityDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("BroadcasterId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("Chatted")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ChatterHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("FirstSeenAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("LastSeenAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("LastStreamId")
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BroadcasterId", "ActivityDate", "ChatterHash")
+                        .IsUnique();
+
+                    b.ToTable("ChannelChatterDays");
+                });
+
             modelBuilder.Entity("NomNomzBot.Domain.Analytics.Entities.MessageActivityDaily", b =>
                 {
                     b.Property<long>("Id")
