@@ -77,4 +77,34 @@ public interface IKickApiClient
         long userId,
         CancellationToken cancellationToken = default
     );
+
+    /// <summary>
+    /// Lists the caller's event subscriptions (<c>GET /public/v1/events/subscriptions</c>, scope
+    /// <c>events:subscribe</c>) — what the reconcile checks before creating.
+    /// </summary>
+    Task<Result<IReadOnlyList<KickEventSubscription>>> ListEventSubscriptionsAsync(
+        string accessToken,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>
+    /// Subscribes the token owner's channel to <c>chat.message.sent</c> v1 over the webhook transport
+    /// (<c>POST /public/v1/events/subscriptions</c>; a USER token subscribes its own channel —
+    /// <c>broadcaster_user_id</c> is ignored). The webhook callback URL itself is configured PER APP in
+    /// the Kick developer dashboard, not per subscription. A per-event <c>error</c> in the response is
+    /// surfaced as a failure.
+    /// </summary>
+    Task<Result> SubscribeToChatAsync(
+        string accessToken,
+        CancellationToken cancellationToken = default
+    );
 }
+
+/// <summary>One registered Kick event subscription (the GET list item shape).</summary>
+public sealed record KickEventSubscription(
+    string Id,
+    string Event,
+    int Version,
+    string Method,
+    long BroadcasterUserId
+);

@@ -927,6 +927,13 @@ public static class DependencyInjection
         services.AddSingleton<IKickApiClient, KickApiClient>();
         services.AddScoped<IKickAccessTokenProvider, KickAccessTokenProvider>();
 
+        // Kick chat READ (slice 3b-2c-2): the webhook signature verifier caches Kick's RSA key
+        // process-wide (singleton); the ingest translates a verified chat.message.sent into the
+        // canonical ChatMessageReceivedEvent (scoped: DbContext + bus). The subscription reconcile
+        // worker (KickEventSubscriptionWorker) rides the AddHostedWorkers assembly scan.
+        services.AddSingleton<IKickWebhookVerifier, KickWebhookVerifier>();
+        services.AddScoped<IKickWebhookIngest, KickWebhookIngest>();
+
         // Channel-ops seam (slice 3b — the IPlatformApi third of the platform trio): stream-metadata
         // writes route by Channel.Provider exactly like chat. Same scoping rationale as above.
         services.AddScoped<IPlatformApi, TwitchPlatformApi>();

@@ -12,6 +12,7 @@ using System.Net;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Kick;
 using NomNomzBot.Infrastructure.Chat.Kick;
 using NSubstitute;
 
@@ -142,6 +143,73 @@ public sealed class KickApiClientTests
         result.IsSuccess.Should().BeTrue();
         handler.LastRequest!.Method.Should().Be(HttpMethod.Delete);
         handler.LastRequest.RequestUri!.ToString().Should().EndWith("/public/v1/chat/m-9");
+    }
+
+    [Fact]
+    public async Task List_subscriptions_parses_the_data_items()
+    {
+        StubHttpMessageHandler handler = new(
+            (
+                HttpStatusCode.OK,
+                """{"data":[{"id":"s1","event":"chat.message.sent","version":1,"method":"webhook","broadcaster_user_id":12345}]}"""
+            )
+        );
+        KickApiClient sut = Build(handler);
+
+        Result<IReadOnlyList<KickEventSubscription>> result = await sut.ListEventSubscriptionsAsync(
+            Token
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        result
+            .Value.Should()
+            .ContainSingle()
+            .Which.Should()
+            .Be(new KickEventSubscription("s1", "chat.message.sent", 1, "webhook", 12345));
+        handler
+            .LastRequest!.RequestUri!.ToString()
+            .Should()
+            .EndWith("/public/v1/events/subscriptions");
+    }
+
+    [Fact]
+    public async Task Subscribe_posts_the_chat_event_over_the_webhook_transport()
+    {
+        StubHttpMessageHandler handler = new(
+            (
+                HttpStatusCode.OK,
+                """{"data":[{"name":"chat.message.sent","version":1,"subscription_id":"s1","error":""}]}"""
+            )
+        );
+        KickApiClient sut = Build(handler);
+
+        Result result = await sut.SubscribeToChatAsync(Token);
+
+        result.IsSuccess.Should().BeTrue();
+        string body = await handler.LastRequest!.Content!.ReadAsStringAsync();
+        body.Should()
+            .Contain("chat.message.sent")
+            .And.Contain("\"version\":1")
+            .And.Contain("webhook");
+    }
+
+    [Fact]
+    public async Task Subscribe_surfaces_a_per_item_error_instead_of_pretending()
+    {
+        // Kick's create is per-event: a 200 can still carry an item error (limits) — a caller believing
+        // the subscription exists would wait forever for webhooks that never come.
+        StubHttpMessageHandler handler = new(
+            (
+                HttpStatusCode.OK,
+                """{"data":[{"name":"chat.message.sent","version":1,"error":"subscription limit reached"}]}"""
+            )
+        );
+        KickApiClient sut = Build(handler);
+
+        Result result = await sut.SubscribeToChatAsync(Token);
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorMessage.Should().Contain("subscription limit reached");
     }
 
     [Fact]

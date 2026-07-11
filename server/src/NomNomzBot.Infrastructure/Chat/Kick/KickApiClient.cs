@@ -152,6 +152,74 @@ public sealed class KickApiClient : IKickApiClient
         );
     }
 
+    public async Task<Result<IReadOnlyList<KickEventSubscription>>> ListEventSubscriptionsAsync(
+        string accessToken,
+        CancellationToken cancellationToken = default
+    )
+    {
+        HttpRequestMessage request = new(HttpMethod.Get, $"{KickApiBase}/events/subscriptions");
+        request.Headers.Authorization = new("Bearer", accessToken);
+
+        Result<EventSubscriptionListResponse> listed =
+            await SendForBodyAsync<EventSubscriptionListResponse>(
+                request,
+                "list event subscriptions",
+                cancellationToken
+            );
+        if (listed.IsFailure)
+            return Result.Failure<IReadOnlyList<KickEventSubscription>>(
+                listed.ErrorMessage!,
+                listed.ErrorCode,
+                listed.ErrorDetail
+            );
+
+        IReadOnlyList<KickEventSubscription> subscriptions =
+        [
+            .. (listed.Value.Data ?? []).Select(item => new KickEventSubscription(
+                item.Id ?? string.Empty,
+                item.Event ?? string.Empty,
+                item.Version,
+                item.Method ?? string.Empty,
+                item.BroadcasterUserId
+            )),
+        ];
+        return Result.Success(subscriptions);
+    }
+
+    public async Task<Result> SubscribeToChatAsync(
+        string accessToken,
+        CancellationToken cancellationToken = default
+    )
+    {
+        HttpRequestMessage request = new(HttpMethod.Post, $"{KickApiBase}/events/subscriptions");
+        request.Headers.Authorization = new("Bearer", accessToken);
+        request.Content = JsonContent.Create(
+            new
+            {
+                events = new[] { new { name = "chat.message.sent", version = 1 } },
+                method = "webhook",
+            }
+        );
+
+        Result<EventSubscriptionCreateResponse> created =
+            await SendForBodyAsync<EventSubscriptionCreateResponse>(
+                request,
+                "subscribe to chat.message.sent",
+                cancellationToken
+            );
+        if (created.IsFailure)
+            return Result.Failure(created.ErrorMessage!, created.ErrorCode, created.ErrorDetail);
+
+        // The create is per-event: a 200 can still carry a per-item error (limits, duplicates) —
+        // surface it instead of pretending the subscription exists.
+        string? itemError = created
+            .Value.Data?.Select(item => item.Error)
+            .FirstOrDefault(error => !string.IsNullOrEmpty(error));
+        return itemError is null
+            ? Result.Success()
+            : Result.Failure($"Kick rejected the subscription: {itemError}", "SERVICE_UNAVAILABLE");
+    }
+
     private async Task<Result> PostBanAsync(
         string accessToken,
         object body,
@@ -248,5 +316,47 @@ public sealed class KickApiClient : IKickApiClient
     {
         [JsonPropertyName("message_id")]
         public string? MessageId { get; set; }
+    }
+
+    private sealed class EventSubscriptionListResponse
+    {
+        [JsonPropertyName("data")]
+        public List<EventSubscriptionItem>? Data { get; set; }
+    }
+
+    private sealed class EventSubscriptionItem
+    {
+        [JsonPropertyName("id")]
+        public string? Id { get; set; }
+
+        [JsonPropertyName("event")]
+        public string? Event { get; set; }
+
+        [JsonPropertyName("version")]
+        public int Version { get; set; }
+
+        [JsonPropertyName("method")]
+        public string? Method { get; set; }
+
+        [JsonPropertyName("broadcaster_user_id")]
+        public long BroadcasterUserId { get; set; }
+    }
+
+    private sealed class EventSubscriptionCreateResponse
+    {
+        [JsonPropertyName("data")]
+        public List<EventSubscriptionCreateItem>? Data { get; set; }
+    }
+
+    private sealed class EventSubscriptionCreateItem
+    {
+        [JsonPropertyName("name")]
+        public string? Name { get; set; }
+
+        [JsonPropertyName("subscription_id")]
+        public string? SubscriptionId { get; set; }
+
+        [JsonPropertyName("error")]
+        public string? Error { get; set; }
     }
 }

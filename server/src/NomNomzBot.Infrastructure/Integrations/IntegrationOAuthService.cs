@@ -11,6 +11,7 @@
 using System.Net.Http.Json;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -440,10 +441,25 @@ public sealed class IntegrationOAuthService : IIntegrationOAuthService
             if (!response.IsSuccessStatusCode)
                 return (null, null);
 
-            ProviderIdentity? identity = await response.Content.ReadFromJsonAsync<ProviderIdentity>(
-                cancellationToken: cancellationToken
+            // Providers disagree on the identity envelope: Spotify/Google return a flat object
+            // (id/sub + display_name/name); Kick wraps the caller in a data ARRAY with a numeric
+            // user_id. Probe both shapes generically instead of branching per provider.
+            using JsonDocument doc = JsonDocument.Parse(
+                await response.Content.ReadAsStringAsync(cancellationToken)
             );
-            return (identity?.Id ?? identity?.Sub, identity?.DisplayName ?? identity?.Name);
+            JsonElement root = doc.RootElement;
+            JsonElement subject =
+                root.ValueKind == JsonValueKind.Object
+                && root.TryGetProperty("data", out JsonElement data)
+                && data.ValueKind == JsonValueKind.Array
+                && data.GetArrayLength() > 0
+                    ? data[0]
+                    : root;
+
+            return (
+                ReadIdentityValue(subject, "id", "sub", "user_id"),
+                ReadIdentityValue(subject, "display_name", "name", "username")
+            );
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -454,6 +470,30 @@ public sealed class IntegrationOAuthService : IIntegrationOAuthService
             );
             return (null, null);
         }
+    }
+
+    /// <summary>The first present property among <paramref name="names"/>, stringified — numbers (Kick's
+    /// numeric user_id) become their invariant string form so the connection key stays a string.</summary>
+    private static string? ReadIdentityValue(JsonElement subject, params string[] names)
+    {
+        if (subject.ValueKind != JsonValueKind.Object)
+            return null;
+
+        foreach (string name in names)
+        {
+            if (!subject.TryGetProperty(name, out JsonElement value))
+                continue;
+            string? read = value.ValueKind switch
+            {
+                JsonValueKind.String => value.GetString(),
+                JsonValueKind.Number => value.GetRawText(),
+                _ => null,
+            };
+            if (!string.IsNullOrEmpty(read))
+                return read;
+        }
+
+        return null;
     }
 
     /// <summary>The scope-set keys whose every scope is present in the granted set (a narrower grant is surfaced).</summary>
@@ -509,20 +549,5 @@ public sealed class IntegrationOAuthService : IIntegrationOAuthService
 
         [JsonPropertyName("scope")]
         public string? Scope { get; set; }
-    }
-
-    private sealed class ProviderIdentity
-    {
-        [JsonPropertyName("id")]
-        public string? Id { get; set; }
-
-        [JsonPropertyName("sub")]
-        public string? Sub { get; set; }
-
-        [JsonPropertyName("display_name")]
-        public string? DisplayName { get; set; }
-
-        [JsonPropertyName("name")]
-        public string? Name { get; set; }
     }
 }

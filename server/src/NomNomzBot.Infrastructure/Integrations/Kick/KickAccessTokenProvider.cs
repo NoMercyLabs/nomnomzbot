@@ -87,18 +87,20 @@ public sealed class KickAccessTokenProvider : IKickAccessTokenProvider
             return null;
         }
 
-        // The login flow vaults the connection identity-plane (BroadcasterId null), keyed by the numeric
-        // Kick account id — list the global connections and match on it.
-        Result<IReadOnlyList<IntegrationConnectionDto>> connections =
-            await _vault.ListConnectionsAsync(null, cancellationToken);
-        IntegrationConnectionDto? connection = connections.IsSuccess
-            ? connections.Value.FirstOrDefault(c =>
-                c.Provider == AuthEnums.LoginProvider.Kick
+        // Two possible custody rows for the same Kick account, both keyed by the numeric account id:
+        // the streamer-plane integration connect (tenant-scoped, carries the chat/moderation/events
+        // scopes) and the identity-plane login connection (BroadcasterId null, user:read only). Prefer
+        // the scoped one — it is the grant the chat surface actually needs.
+        var connectionRow = await _db
+            .IntegrationConnections.Where(c =>
+                c.Provider == AuthEnums.IntegrationProvider.Kick
                 && c.ProviderAccountId == externalId
                 && c.Status != "revoked"
             )
-            : null;
-        if (connection is null)
+            .OrderByDescending(c => c.BroadcasterId != null)
+            .Select(c => new { c.Id })
+            .FirstOrDefaultAsync(cancellationToken);
+        if (connectionRow is null)
         {
             _logger.LogDebug(
                 "No Kick connection vaulted for account {KickUserId} (broadcaster {BroadcasterId})",
@@ -107,9 +109,10 @@ public sealed class KickAccessTokenProvider : IKickAccessTokenProvider
             );
             return null;
         }
+        Guid connectionId = connectionRow.Id;
 
         Result<DecryptedTokenDto> access = await _vault.GetAccessTokenAsync(
-            connection.Id,
+            connectionId,
             cancellationToken
         );
         if (access.IsFailure)
@@ -124,16 +127,13 @@ public sealed class KickAccessTokenProvider : IKickAccessTokenProvider
         if (!expiring)
             return new KickAccess(access.Value.Value, kickUserId);
 
-        string? refreshed = await RefreshAsync(connection, cancellationToken);
+        string? refreshed = await RefreshAsync(connectionId, cancellationToken);
         return refreshed is null ? null : new KickAccess(refreshed, kickUserId);
     }
 
-    private async Task<string?> RefreshAsync(
-        IntegrationConnectionDto connection,
-        CancellationToken ct
-    )
+    private async Task<string?> RefreshAsync(Guid connectionId, CancellationToken ct)
     {
-        Result<DecryptedTokenDto> refresh = await _vault.GetRefreshTokenAsync(connection.Id, ct);
+        Result<DecryptedTokenDto> refresh = await _vault.GetRefreshTokenAsync(connectionId, ct);
         if (refresh.IsFailure)
             return null;
 
@@ -160,7 +160,7 @@ public sealed class KickAccessTokenProvider : IKickAccessTokenProvider
             if (!response.IsSuccessStatusCode)
             {
                 await _vault.MarkRefreshFailureAsync(
-                    connection.Id,
+                    connectionId,
                     $"Kick refresh failed ({(int)response.StatusCode})",
                     ct
                 );
@@ -173,7 +173,7 @@ public sealed class KickAccessTokenProvider : IKickAccessTokenProvider
             if (token is null || string.IsNullOrEmpty(token.AccessToken))
             {
                 await _vault.MarkRefreshFailureAsync(
-                    connection.Id,
+                    connectionId,
                     "Kick refresh returned an unexpected body",
                     ct
                 );
@@ -182,7 +182,7 @@ public sealed class KickAccessTokenProvider : IKickAccessTokenProvider
 
             // OAuth 2.1 rotation: the OLD refresh token is now dead — vault the NEW pair atomically.
             await _vault.StoreTokensAsync(
-                connection.Id,
+                connectionId,
                 new StoreTokensDto(
                     token.AccessToken,
                     token.RefreshToken,
@@ -195,7 +195,7 @@ public sealed class KickAccessTokenProvider : IKickAccessTokenProvider
 
             _logger.LogInformation(
                 "Refreshed Kick token for connection {ConnectionId}",
-                connection.Id
+                connectionId
             );
             return token.AccessToken;
         }
@@ -204,7 +204,7 @@ public sealed class KickAccessTokenProvider : IKickAccessTokenProvider
             _logger.LogError(
                 ex,
                 "Kick token refresh threw for connection {ConnectionId}",
-                connection.Id
+                connectionId
             );
             return null;
         }

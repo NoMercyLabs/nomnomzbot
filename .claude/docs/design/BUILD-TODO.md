@@ -177,7 +177,25 @@ every broadcaster token already holds the full scope set (`channel:read:subscrip
   Works with ZERO public URL. 19 tests. **Caveat:** the login grant is `user:read` only — chat/moderation
   work once the streamer's Kick grant carries `chat:write`/`moderation:*` (scope expansion is part of
   3b-2c-2's connect surface); until then calls fail honestly as MISSING_SCOPE.
-- [ ] **3b-2c-2. Kick chat READ (webhook ingest) + streamer scope expansion — research banked below.**
+- [x] **3b-2c-2. Kick chat READ + streamer connect — SHIPPED 2026-07-11.** The full loop:
+  (1) **Connect surface** = one `Kick()` descriptor in `OAuthProviderRegistry` (scope-set `kick.chat` =
+  user:read + chat:write + moderation:ban + moderation:chat_message:manage + events:subscribe) — the
+  generic descriptor-driven connect/callback/status surface does the rest; the identity probe now reads
+  Kick's `data[]` envelope + numeric ids generically. `KickAccessTokenProvider` prefers the tenant-scoped
+  connect over the login-plane connection. (2) **Reconcile** = `KickEventSubscriptionWorker` (5-min tick,
+  auto-registered hosted worker): tenant-scoped kick connections (the deliberate opt-in — login-plane
+  NEVER drives work) provision the Kick presence as its own tenant Channel BEFORE subscribing, ensure the
+  `chat.message.sent` v1 webhook subscription (adopt-if-exists; per-item create errors surfaced;
+  MISSING_SCOPE → 30-min backoff, self-heals on re-grant). (3) **Ingest** =
+  `POST /api/v1/webhooks/kick` (anonymous): RSA SHA-256/PKCS#1v1.5 signature over
+  `{message-id}.{timestamp}.{body}` against Kick's cached public key (24h TTL + one forced refetch on
+  miss = key-rotation self-heal), ±10-min freshness window on the SIGNED timestamp (replay protection),
+  then `KickWebhookIngest` → canonical `ChatMessageReceivedEvent(Provider=kick)` (tenant by numeric
+  broadcaster id, redelivery dedupe vs ChatMessages, role flags from badge types, slug as login).
+  21 new tests (real-RSA verifier incl. rotation + cache count, ingest shape/dedupe/unknown-skip,
+  reconcile opt-in/adopt/backoff, client subscription wire, controller auth gate).
+  **OWNER STEP:** set the Kick app's webhook URL in the Kick developer dashboard to
+  `{App:BaseUrl}/api/v1/webhooks/kick` and enable webhooks — per app, not per subscription.
   Verified wire facts: send = `POST api.kick.com/public/v1/chat` (user token, scope `chat:write`,
   500-char cap, native replies via `reply_to_message_id`, `type: user|bot`, `broadcaster_user_id` for
   user tokens); delete = `DELETE /public/v1/chat/{message_id}` (`moderation:chat_message:manage`);

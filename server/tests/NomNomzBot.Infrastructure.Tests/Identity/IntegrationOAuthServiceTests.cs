@@ -356,7 +356,7 @@ public sealed class IntegrationOAuthServiceTests
     [Fact]
     public async Task GetStatus_NoDiscordConnection_ReportsDiscordDisconnected_AlongsideGenericProviders()
     {
-        // No Discord connection seeded; Spotify/YouTube also unconnected (vault empty).
+        // No Discord connection seeded; the generic providers also unconnected (vault empty).
         (IntegrationOAuthService service, _, _, _) = Build(
             new StubHandler(),
             new FakeDiscordGuildService()
@@ -367,12 +367,13 @@ public sealed class IntegrationOAuthServiceTests
         status.IsSuccess.Should().BeTrue();
         IReadOnlyList<IntegrationStatusDto> rows = status.Value;
 
-        // The one status surface carries every provider: the generic registry pair + Discord.
+        // The one status surface carries every provider: the generic registry set + Discord.
         rows.Select(r => r.Provider)
             .Should()
             .BeEquivalentTo([
                 AuthEnums.IntegrationProvider.Spotify,
                 AuthEnums.IntegrationProvider.YouTube,
+                AuthEnums.IntegrationProvider.Kick,
                 AuthEnums.IntegrationProvider.Discord,
             ]);
 

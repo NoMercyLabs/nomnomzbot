@@ -29,7 +29,11 @@ public sealed class OAuthProviderRegistry : IOAuthProviderRegistry
     public OAuthProviderRegistry(IConfiguration configuration) => _configuration = configuration;
 
     public IReadOnlyList<string> KnownProviders { get; } =
-    [AuthEnums.IntegrationProvider.Spotify, AuthEnums.IntegrationProvider.YouTube];
+    [
+        AuthEnums.IntegrationProvider.Spotify,
+        AuthEnums.IntegrationProvider.YouTube,
+        AuthEnums.IntegrationProvider.Kick,
+    ];
 
     public Result<OAuthProviderDescriptor> Resolve(string provider, Guid broadcasterId)
     {
@@ -38,6 +42,7 @@ public sealed class OAuthProviderRegistry : IOAuthProviderRegistry
         {
             AuthEnums.IntegrationProvider.Spotify => Result.Success(Spotify()),
             AuthEnums.IntegrationProvider.YouTube => Result.Success(YouTube()),
+            AuthEnums.IntegrationProvider.Kick => Result.Success(Kick()),
             _ => Result.Failure<OAuthProviderDescriptor>(
                 $"Unknown OAuth provider '{provider}'.",
                 "UNKNOWN_PROVIDER"
@@ -71,6 +76,30 @@ public sealed class OAuthProviderRegistry : IOAuthProviderRegistry
                 ],
             },
             IsByok: ResolveIsByok("Spotify")
+        );
+
+    private OAuthProviderDescriptor Kick() =>
+        new(
+            Provider: AuthEnums.IntegrationProvider.Kick,
+            AuthorizeEndpoint: "https://id.kick.com/oauth/authorize",
+            TokenEndpoint: "https://id.kick.com/oauth/token",
+            RevokeEndpoint: "https://id.kick.com/oauth/revoke",
+            AccountIdentityEndpoint: "https://api.kick.com/public/v1/users",
+            UsesPkce: true,
+            ScopeSets: new Dictionary<string, IReadOnlyList<string>>
+            {
+                // The streamer-plane grant the Kick chat platform needs (slice 3b-2c; live docs
+                // 2026-07-11): send + moderation + the webhook event subscription the chat READ rides.
+                ["kick.chat"] =
+                [
+                    "user:read",
+                    "chat:write",
+                    "moderation:ban",
+                    "moderation:chat_message:manage",
+                    "events:subscribe",
+                ],
+            },
+            IsByok: ResolveIsByok("Kick")
         );
 
     private OAuthProviderDescriptor YouTube() =>

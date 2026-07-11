@@ -16,6 +16,24 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
 
 ## Open
 
+### 2026-07-11 — Kick integration: connect tile + chat feed provider tag
+- **From:** Stoney_Eagle (via Claude, backend track)
+- **What:** Kick is now a full chat platform on the backend. Two frontend touches:
+  1. The integrations screen: Kick now appears in `GET /channels/{id}/integrations/status` (provider
+     `"kick"`) exactly like Spotify/YouTube — render its tile and wire the connect button to
+     `POST /channels/{id}/integrations/kick/connect` with `scopeSetKey: "kick.chat"` (the generic
+     connect flow the other tiles already use — no new plumbing).
+  2. Chat feed: messages can now arrive with provider `"kick"` (same canonical shape as twitch/youtube)
+     — include it wherever the feed tags messages by channel provider (same treatment as the earlier
+     YouTube entry below).
+- **Why:** slice 3b-2c shipped — Kick send + native replies + moderation + webhook chat read are live
+  on the backend; a streamer who connects Kick with the `kick.chat` scopes gets their Kick chat in the
+  combined feed and the bot replying/moderating there.
+- **Where:** `feature/integrations` (tile renders from the status read model — possibly zero work if
+  tiles are data-driven), chat feed provider tagging. No API contract change beyond the extra status row.
+- **Done when:** the Kick tile connects end-to-end against a real Kick account and a Kick chat message
+  renders in the feed with its provider tag.
+
 ### 2026-07-11 — Credential component DRY unification (item 24c hand-off)
 - **From:** Stoney_Eagle (via Claude, backend track)
 - **What:** the client-setup credential components (BYOC client-id/secret entry used by the setup

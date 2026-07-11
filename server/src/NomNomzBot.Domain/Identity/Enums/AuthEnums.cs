@@ -84,6 +84,7 @@ public static class AuthEnums
         public const string Spotify = "spotify";
         public const string Discord = "discord";
         public const string YouTube = "youtube";
+        public const string Kick = Platform.Kick;
         public const string AzureTts = "azure_tts";
         public const string ElevenLabs = "elevenlabs";
     }
