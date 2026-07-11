@@ -242,11 +242,21 @@ ONE substrate — a chat feed that **aggregates messages across a SET of channel
   browse/install/publish.
 - [ ] **23. GDPR/compliance + IPC dev-mode controllers** (`gdpr-crypto.md`, `stream-admin.md`).
 
-## 🔒 Security & small fixes (last)
-- [ ] **24.** Guest Star restore (4 beta topics + translators); `!permit`/`!unpermit` chat commands;
-  pipeline `user.role` badge-only fix; builtin key-format (bare keys + repair migration); twitch-helix
-  spec/code drift; credential-component DRY; user-plane topic attribution; **owner-confirm** authz key
-  names (Plane-C + Gate-2 buckets).
+## 🔒 Security & small fixes (last) — audited 2026-07-11
+- [x] **24a. Guest Star restore** — VERIFIED SHIPPED (stale bullet): the 4 beta topics are in the
+  subscription catalogue with `beta` versions (`EventSubConditionBuilder`), translators exist
+  (`GuestStarTranslators`), Helix sub-client (`TwitchGuestStarApi`) exists.
+- [x] **24b. `!permit`/`!unpermit` out-of-the-box — SHIPPED 2026-07-11.** `PermitBuiltin` /
+  `UnpermitBuiltin` (Identity/Builtins): `!permit @user <role|capability> [minutes]` and
+  `!unpermit @user [role|capability]` work with zero config — @mention resolves login→id via Helix,
+  the invoker is gated on `permit:issue` exactly like the pipeline actions + HTTP surface, and
+  `IPermitService` re-asserts no-escalation + `IsGrantableViaPermit`. Role-token parsing shared with
+  the pipeline actions (`PermitCommandSupport.TryParseManagementRole`). 6 tests.
+- [ ] **24c.** pipeline `user.role` badge-only fix; builtin key-format (bare keys + repair migration);
+  twitch-helix spec/code drift; credential-component DRY; user-plane topic attribution — each needs its
+  own verification pass (several may be stale like 24a).
+- [ ] **24d. OWNER-GATED:** confirm authz key names (Plane-C + Gate-2 buckets) — cannot close
+  autonomously.
 
 ## 🖌️ Designer reviews
 - [ ] Dashboard viewer count in the top card need to get removed (redundant with metrics row)
