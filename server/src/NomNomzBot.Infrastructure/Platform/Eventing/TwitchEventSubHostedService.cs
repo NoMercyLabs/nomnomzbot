@@ -246,12 +246,24 @@ public sealed class TwitchEventSubHostedService
         Guid? tenant = await resolver.GetBroadcasterIdAsync(twitchBroadcasterUserId, ct);
         if (tenant is null || tenant == Guid.Empty)
         {
-            _logger.LogDebug(
-                "EventSub notification {Type} for unknown Twitch channel {TwitchId} — skipping",
-                subscriptionType,
-                twitchBroadcasterUserId
-            );
-            return;
+            // user.whisper.message is a PLATFORM-plane fact: its wire id is the recipient (to_user_id) —
+            // the bot's own account, which is not a channel when a dedicated bot is configured. Attribute it
+            // to the platform sentinel (Guid.Empty) instead of dropping it, so the whisper is journaled
+            // truthfully; per-channel routing is deliberately not guessed (there is no channel on the wire).
+            // In a single-account self-host the bot IS a channel, so the resolver already attributed it above.
+            if (subscriptionType == "user.whisper.message")
+            {
+                tenant = Guid.Empty;
+            }
+            else
+            {
+                _logger.LogDebug(
+                    "EventSub notification {Type} for unknown Twitch channel {TwitchId} — skipping",
+                    subscriptionType,
+                    twitchBroadcasterUserId
+                );
+                return;
+            }
         }
 
         EventSubNotification notification = new()
@@ -427,8 +439,14 @@ public sealed class TwitchEventSubHostedService
         ITwitchIdentityResolver resolver =
             scope.ServiceProvider.GetRequiredService<ITwitchIdentityResolver>();
 
-        string? twitchId = await resolver.GetTwitchChannelIdAsync(broadcasterId, ct);
-        if (twitchId is null)
+        // Guid.Empty is the PLATFORM tenant — a topic owned by the bot identity itself (user.whisper.message:
+        // one inbox, one subscription, every channel). It has no Twitch channel id; its condition slot is
+        // filled by the bot's own user id below.
+        bool isPlatformTenant = broadcasterId == Guid.Empty;
+        string? twitchId = isPlatformTenant
+            ? null
+            : await resolver.GetTwitchChannelIdAsync(broadcasterId, ct);
+        if (twitchId is null && !isPlatformTenant)
             return Result.Failure<EventSubSubscriptionDto>(
                 "No Twitch channel id for the tenant.",
                 "NOT_FOUND"
@@ -460,6 +478,14 @@ public sealed class TwitchEventSubHostedService
             .Select(c => c.ProviderAccountId)
             .FirstOrDefaultAsync(ct);
 
+        // A platform-plane subscription IS the bot identity's — without a platform bot there is nothing to
+        // subscribe as (and no fallback: the broadcaster-id fallback below is a per-channel concept).
+        if (isPlatformTenant && botTwitchUserId is null)
+            return Result.Failure<EventSubSubscriptionDto>(
+                "No platform bot identity for a platform-plane subscription.",
+                "NOT_FOUND"
+            );
+
         // Idempotent upsert on (BroadcasterId, Provider, EventType, Version).
         EventSubSubscription? row = await db.EventSubSubscriptions.FirstOrDefaultAsync(
             s =>
@@ -471,9 +497,11 @@ public sealed class TwitchEventSubHostedService
         );
 
         bool isNew = row is null;
+        // For the platform tenant the broadcaster slot is the bot's own id (guarded non-null above) — its
+        // topics are UserOnly-shaped, so the value only ever lands in the user_id slot anyway.
         IReadOnlyDictionary<string, string> condition = _conditionBuilder.BuildCondition(
             eventType,
-            twitchId,
+            twitchId ?? botTwitchUserId!,
             botTwitchUserId
         );
 
@@ -546,7 +574,7 @@ public sealed class TwitchEventSubHostedService
         EventSubSubscriptionRequest request = new()
         {
             BroadcasterId = broadcasterId,
-            TwitchBroadcasterUserId = twitchId,
+            TwitchBroadcasterUserId = twitchId ?? botTwitchUserId!,
             EventType = eventType,
             Version = version,
             Condition = condition,

@@ -172,7 +172,9 @@ public sealed class UserUpdateTranslator(IEventBus bus, TimeProvider clock)
 
 /// <summary>
 /// Translates <c>user.whisper.message</c> into <see cref="WhisperReceivedEvent"/>. The body is nested under the
-/// <c>whisper</c> object's <c>text</c> field; the recipient (<c>to_user_id</c>) is the tenant.
+/// <c>whisper</c> object's <c>text</c> field. The recipient (<c>to_user_id</c>) is the bot's own account: when
+/// that account is itself a channel (single-account self-host) the tenant is that channel, otherwise the sink
+/// attributed the notification to the platform sentinel (<c>Guid.Empty</c>) — a whisper names no channel.
 /// </summary>
 public sealed class UserWhisperMessageTranslator(IEventBus bus, TimeProvider clock)
     : EventSubEventTranslator(bus, clock)

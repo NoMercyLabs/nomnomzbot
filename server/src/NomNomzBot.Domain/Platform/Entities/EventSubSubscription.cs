@@ -8,8 +8,6 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-using NomNomzBot.Domain.Identity.Entities;
-
 namespace NomNomzBot.Domain.Platform.Entities;
 
 /// <summary>
@@ -22,7 +20,13 @@ public class EventSubSubscription : SoftDeletableEntity, ITenantScoped
 {
     public Guid Id { get; set; } = Guid.CreateVersion7();
 
-    /// <summary>Owning tenant (FK→Channels). The tenant key.</summary>
+    /// <summary>
+    /// Owning tenant, or <see cref="Guid.Empty"/> for a PLATFORM-plane subscription — a topic that belongs
+    /// to the bot identity itself rather than any channel (<c>user.whisper.message</c>: one bot inbox, one
+    /// subscription, shared across every channel the bot serves). No FK to Channels for exactly that reason;
+    /// platform rows must only ever be created from background (tenant-less) scopes, or the tenant stamp
+    /// interceptor would re-home them onto the ambient tenant.
+    /// </summary>
     public Guid BroadcasterId { get; set; }
 
     /// <summary>The event provider — <c>twitch</c>.</summary>
@@ -66,6 +70,4 @@ public class EventSubSubscription : SoftDeletableEntity, ITenantScoped
 
     /// <summary>When Twitch reports the subscription expires (webhook verification window, etc.).</summary>
     public DateTime? ExpiresAt { get; set; }
-
-    public virtual Channel Channel { get; set; } = null!;
 }

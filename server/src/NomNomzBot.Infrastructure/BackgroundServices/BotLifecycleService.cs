@@ -115,11 +115,14 @@ public sealed class BotLifecycleService : BackgroundService
         // Shoutouts (sent and received).
         "channel.shoutout.create",
         "channel.shoutout.receive",
-        // Ad breaks, the unified Bits event, and the two user-plane (not channel-plane) topics.
+        // Ad breaks, the unified Bits event, and the broadcaster-owned user-plane topic. user.update rides
+        // the broadcaster's OWN token with their own user_id in the condition, so per-channel is exactly
+        // right; user.whisper.message is NOT here — it is the bot identity's inbox, subscribed once as a
+        // platform-plane topic (PlatformEventTypes), never per channel (identical bot-id conditions would
+        // 409 for every channel after the first).
         "channel.ad_break.begin",
         "channel.bits.use",
         "user.update",
-        "user.whisper.message",
         // Shared Chat session lifecycle.
         "channel.shared_chat.begin",
         "channel.shared_chat.update",
@@ -138,6 +141,12 @@ public sealed class BotLifecycleService : BackgroundService
         "channel.guest_star_guest.update",
         "channel.guest_star_settings.update",
     ];
+
+    // Platform-plane topics — owned by the bot identity itself, subscribed ONCE (tenant Guid.Empty), not per
+    // channel. user.whisper.message's condition is the bot's own user_id, identical for every channel, so a
+    // per-channel subscribe could only ever have one winner and a 409 for everyone else; inbound whispers carry
+    // no channel id and are attributed to the platform sentinel at ingest.
+    internal static readonly string[] PlatformEventTypes = ["user.whisper.message"];
 
     public BotLifecycleService(
         IServiceProvider serviceProvider,
@@ -194,6 +203,26 @@ public sealed class BotLifecycleService : BackgroundService
         {
             toSubscribe = activeIds.Except(_joinedChannels).ToHashSet();
             toUnsubscribe = _joinedChannels.Except(activeIds).ToHashSet();
+        }
+
+        // The bot identity's own platform-plane topics (whisper inbox) — reconciled once per tick, not per
+        // channel, and only while the bot actually serves someone. Legacy per-channel whisper rows are retired
+        // FIRST: the platform create shares their exact (type + condition) at Twitch, so a lingering winner
+        // would 409 the platform subscription forever.
+        if (activeChannels.Count > 0)
+        {
+            try
+            {
+                await RetireLegacyPerChannelWhisperSubsAsync(db, eventSub, ct);
+                await eventSub.EnsureSubscribedAsync(Guid.Empty, PlatformEventTypes, ct);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _logger.LogError(
+                    ex,
+                    "BotLifecycleService: Failed to reconcile platform-plane subscriptions"
+                );
+            }
         }
 
         // Reconcile EventSub subscriptions for EVERY active channel each tick (chat is read via
@@ -256,6 +285,41 @@ public sealed class BotLifecycleService : BackgroundService
                 );
             }
         }
+    }
+
+    // One-shot data repair that stays idempotent: user.whisper.message used to be in the per-channel
+    // catalogue, leaving one enabled winner row plus perpetually-409-pending rows for every other channel.
+    // Retire them all (delete at Twitch + revoke the registry row) so the single platform-plane subscription
+    // can claim the (type + condition) key. Finds nothing on every tick after the first.
+    private async Task RetireLegacyPerChannelWhisperSubsAsync(
+        IApplicationDbContext db,
+        ITwitchEventSubService eventSub,
+        CancellationToken ct
+    )
+    {
+        List<Guid> legacyIds = await db
+            .EventSubSubscriptions.Where(s =>
+                s.EventType == "user.whisper.message" && s.BroadcasterId != Guid.Empty
+            )
+            .Select(s => s.Id)
+            .ToListAsync(ct);
+
+        foreach (Guid subscriptionId in legacyIds)
+        {
+            Result retired = await eventSub.UnsubscribeAsync(subscriptionId, ct);
+            if (retired.IsFailure)
+                _logger.LogWarning(
+                    "BotLifecycleService: Failed to retire legacy per-channel whisper subscription {SubscriptionId}: {Error}",
+                    subscriptionId,
+                    retired.ErrorMessage
+                );
+        }
+
+        if (legacyIds.Count > 0)
+            _logger.LogInformation(
+                "BotLifecycleService: Retired {Count} legacy per-channel whisper subscription(s) in favor of the platform-plane one",
+                legacyIds.Count
+            );
     }
 
     // Poll Helix once to get the channel's current stream state when we first subscribe. EventSub only

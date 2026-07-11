@@ -280,12 +280,22 @@ ONE substrate — a chat feed that **aggregates messages across a SET of channel
   56/148/351, `TwitchUserDto` in §4.2, §2 blockquote upsert claim).
 - [→] **24c-2c. credential-component DRY** — frontend track; handed off (`handoff/for-frontend.md`
   2026-07-11 entry).
-- [ ] **24c-2d. user-plane topic attribution — DECIDED, implementation pending.** Decision (bounded):
-  user-plane topics (`user.update`, `user.whisper.message` on the bot identity) subscribe ONCE per bot
-  user (not per channel — kills the harmless-but-noisy 409s) and attribute to the PLATFORM sentinel
-  (`Guid.Empty`), never a first-channel winner; whisper routing to channels stays out of scope until a
-  bot-inbox surface exists. Implement in `TwitchEventSubHostedService`'s reconcile in its own focused
-  slice (delicate eventing core — not a tail-of-session change).
+- [x] **24c-2d. user-plane topic attribution — SHIPPED 2026-07-11.** Trace found the decision half-stale:
+  `user.update` was ALREADY per-channel-correct since item A (broadcaster's own token + own `user_id` in
+  the condition → distinct per channel, wire `user_id` = the broadcaster → resolver attributes right); it
+  stays in the per-channel catalogue. Only `user.whisper.message` was broken — bot-owned, identical
+  bot-id condition for every channel (first-channel winner + perpetual 409-pending rows), and its wire
+  id (`to_user_id` = the bot) resolved to NO tenant with a dedicated bot, so whispers were silently
+  DROPPED. Fix: `BotLifecycleService.PlatformEventTypes` subscribes it ONCE as tenant `Guid.Empty`
+  (legacy per-channel rows auto-retired first — same (type+condition) key at Twitch), the
+  `EventSubSubscriptions`→Channels FK is dropped (migration pair `DropEventSubSubscriptionChannelFk`;
+  soft-delete world, the cascade could never fire), `SubscribeAsync` handles the platform tenant (bot id
+  fills the condition; hard-fails without a platform bot), and `OnNotificationAsync` attributes an
+  unresolvable whisper to the platform sentinel instead of skipping (whisper-only — unknown-channel
+  skips stay intact; single-account self-host still resolves per-channel). Whisper→channel routing
+  stays out of scope until a bot-inbox surface exists. 5 new tests (platform subscribe wire shape,
+  no-bot hard-fail, sentinel dispatch, unknown-channel skip intact, single-account attribution intact)
+  + catalogue-split guard.
 - [ ] **24d. OWNER-GATED:** confirm authz key names (Plane-C + Gate-2 buckets) — cannot close
   autonomously.
 

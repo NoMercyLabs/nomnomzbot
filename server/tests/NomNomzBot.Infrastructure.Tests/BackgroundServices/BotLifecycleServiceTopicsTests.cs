@@ -45,7 +45,9 @@ public sealed class BotLifecycleServiceTopicsTests
         "channel.goal.end",
     ];
 
-    // The 45 topics added by E1 — every translator-backed subscription type that was live but never subscribed.
+    // The 44 per-channel topics added by E1 — every translator-backed subscription type that was live but
+    // never subscribed. E1 originally listed 45; user.whisper.message has since moved to the platform-plane
+    // catalogue (one subscription per bot identity, not per channel) and is asserted separately below.
     private static readonly string[] ExpectedE1Topics =
     [
         "channel.update",
@@ -84,7 +86,6 @@ public sealed class BotLifecycleServiceTopicsTests
         "channel.ad_break.begin",
         "channel.bits.use",
         "user.update",
-        "user.whisper.message",
         "channel.shared_chat.begin",
         "channel.shared_chat.update",
         "channel.shared_chat.end",
@@ -132,21 +133,35 @@ public sealed class BotLifecycleServiceTopicsTests
     }
 
     [Fact]
-    public void ChannelEventTypes_IncludesAllFortyFiveE1Topics()
+    public void ChannelEventTypes_IncludesAllFortyFourPerChannelE1Topics()
     {
         ExpectedE1Topics
             .Should()
-            .HaveCount(45, "the E1 brief enumerates exactly this many topics to add");
+            .HaveCount(
+                44,
+                "the E1 brief enumerated 45 topics; user.whisper.message moved to the platform-plane catalogue"
+            );
         BotLifecycleService.ChannelEventTypes.Should().Contain(ExpectedE1Topics);
     }
 
     [Fact]
-    public void ChannelEventTypes_HasExactlySeventyFourTopics()
+    public void ChannelEventTypes_HasExactlySeventyThreeTopics()
     {
-        // 25 pre-existing + 45 added by E1 + 4 restored Guest Star topics. A hard count catches a
+        // 25 pre-existing + 44 per-channel E1 topics + 4 restored Guest Star topics. A hard count catches a
         // silently-dropped or duplicated topic that the "Contain" assertions above would not (they only prove
         // a subset is present).
-        BotLifecycleService.ChannelEventTypes.Should().HaveCount(74);
+        BotLifecycleService.ChannelEventTypes.Should().HaveCount(73);
+    }
+
+    [Fact]
+    public void WhisperInbox_IsPlatformPlane_NeverPerChannel()
+    {
+        // user.whisper.message's condition is the bot's own user id — identical for every channel — so a
+        // per-channel subscribe could only 409 for every channel after the first. It must live exclusively in
+        // the platform catalogue (subscribed once, tenant Guid.Empty); reappearing in ChannelEventTypes would
+        // silently reintroduce the 409 parade and the first-channel-winner attribution.
+        BotLifecycleService.PlatformEventTypes.Should().Equal("user.whisper.message");
+        BotLifecycleService.ChannelEventTypes.Should().NotContain("user.whisper.message");
     }
 
     [Fact]

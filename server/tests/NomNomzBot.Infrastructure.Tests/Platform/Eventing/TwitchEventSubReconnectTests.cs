@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Text.Json;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -41,7 +42,11 @@ namespace NomNomzBot.Infrastructure.Tests.Platform.Eventing;
 ///   <item>reconcile deletes the tenant's stale subscription and reports it in the revoked count;</item>
 ///   <item>a missing-scope failure holds the topic (no re-POST) until the stored grant set actually
 ///   contains the scope, and a repeated identical failure journals no new status event — the fixes for
-///   the 403 retry storm (~84k no-op journal rows/day).</item>
+///   the 403 retry storm (~84k no-op journal rows/day);</item>
+///   <item>the platform tenant (Guid.Empty) subscribes the bot's whisper inbox once on the bot session with
+///   the bot's own id as the condition, and an inbound whisper that resolves to no channel is dispatched
+///   attributed to the platform sentinel — while unknown-channel skips and single-account per-channel
+///   attribution both stay intact.</item>
 /// </list>
 /// </summary>
 public sealed class TwitchEventSubReconnectTests
@@ -50,7 +55,8 @@ public sealed class TwitchEventSubReconnectTests
 
     private static (TwitchEventSubHostedService Service, EventSubTestDbContext Db) Build(
         IEventSubTransport transport,
-        IEventBus? eventBus = null
+        IEventBus? eventBus = null,
+        INotificationDispatcher? dispatcher = null
     )
     {
         EventSubTestDbContext db = EventSubTestDbContext.New();
@@ -69,6 +75,9 @@ public sealed class TwitchEventSubReconnectTests
             .AddSingleton<IApplicationDbContext>(db)
             .AddScoped<ITwitchIdentityResolver>(_ => resolver)
             .AddScoped<IPlatformBotReadinessGate>(_ => gate)
+            .AddScoped<INotificationDispatcher>(_ =>
+                dispatcher ?? Substitute.For<INotificationDispatcher>()
+            )
             .BuildServiceProvider();
 
         TwitchEventSubHostedService service = new(
@@ -379,7 +388,187 @@ public sealed class TwitchEventSubReconnectTests
             );
     }
 
+    [Fact]
+    public async Task SubscribeAsync_platform_tenant_subscribes_the_bot_whisper_inbox_once_on_the_bot_session()
+    {
+        // user.whisper.message is a PLATFORM-plane topic: tenant Guid.Empty, condition = the bot's own user id,
+        // riding the shared bot session. Prove the exact condition that went to Twitch and the persisted
+        // platform registry row — this is the subscribe-once replacement for the old per-channel 409 parade.
+        RecordingEventSubTransport transport = new();
+        (TwitchEventSubHostedService service, EventSubTestDbContext db) = Build(transport);
+        SeedPlatformBot(db, botTwitchUserId: "bot-999");
+
+        Result<EventSubSubscriptionDto> result = await service.SubscribeAsync(
+            Guid.Empty,
+            "user.whisper.message"
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Status.Should().Be("enabled");
+
+        EventSubSubscriptionRequest created = transport
+            .CreatedRequests.Should()
+            .ContainSingle()
+            .Subject;
+        created
+            .Condition.Should()
+            .Equal(new Dictionary<string, string> { ["user_id"] = "bot-999" });
+        transport.EnsuredOwners.Should().ContainSingle().Which.Should().Be(EventSubOwnerKeys.Bot);
+
+        EventSubSubscription row = await db.EventSubSubscriptions.SingleAsync();
+        row.BroadcasterId.Should().Be(Guid.Empty);
+        row.Status.Should().Be("enabled");
+    }
+
+    [Fact]
+    public async Task SubscribeAsync_platform_tenant_without_a_platform_bot_fails_without_hitting_twitch()
+    {
+        // No bot identity → nothing to subscribe AS. The per-channel broadcaster-id fallback must not kick in
+        // for the platform tenant (there is no broadcaster), and Twitch must not see a malformed create.
+        RecordingEventSubTransport transport = new();
+        (TwitchEventSubHostedService service, EventSubTestDbContext db) = Build(transport);
+
+        Result<EventSubSubscriptionDto> result = await service.SubscribeAsync(
+            Guid.Empty,
+            "user.whisper.message"
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("NOT_FOUND");
+        transport.CreatedTypes.Should().BeEmpty();
+        (await db.EventSubSubscriptions.AnyAsync()).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task OnNotification_attributes_an_unresolvable_whisper_to_the_platform_sentinel()
+    {
+        // A dedicated bot's inbound whisper carries only to_user_id = the bot's account, which is not a channel
+        // → the resolver misses. The fact must still be journaled/dispatched, attributed to Guid.Empty — never
+        // dropped and never guessed onto a first-channel winner.
+        INotificationDispatcher dispatcher = Substitute.For<INotificationDispatcher>();
+        EventSubNotification? dispatched = null;
+        dispatcher
+            .DispatchAsync(Arg.Any<EventSubNotification>(), Arg.Any<CancellationToken>())
+            .Returns(call =>
+            {
+                dispatched = call.Arg<EventSubNotification>();
+                return Result.Success(
+                    new NotificationDispatchResult(Guid.CreateVersion7(), 1, false)
+                );
+            });
+        (TwitchEventSubHostedService service, _) = Build(
+            new RecordingEventSubTransport(),
+            dispatcher: dispatcher
+        );
+
+        using JsonDocument payload = JsonDocument.Parse("""{"to_user_id":"bot-999"}""");
+        await service.OnNotificationAsync(
+            "msg-1",
+            DateTimeOffset.UtcNow,
+            "user.whisper.message",
+            "1",
+            "bot-999",
+            payload.RootElement,
+            CancellationToken.None
+        );
+
+        dispatched.Should().NotBeNull();
+        dispatched!.BroadcasterId.Should().Be(Guid.Empty);
+        dispatched.SubscriptionType.Should().Be("user.whisper.message");
+    }
+
+    [Fact]
+    public async Task OnNotification_still_skips_channel_plane_topics_for_unknown_channels()
+    {
+        // The sentinel is whisper-only: a channel-plane notification for a Twitch id we don't serve stays
+        // skipped (it genuinely belongs to no tenant of ours), so the unknown-channel guard is not weakened.
+        INotificationDispatcher dispatcher = Substitute.For<INotificationDispatcher>();
+        (TwitchEventSubHostedService service, _) = Build(
+            new RecordingEventSubTransport(),
+            dispatcher: dispatcher
+        );
+
+        using JsonDocument payload = JsonDocument.Parse("""{"broadcaster_user_id":"stranger"}""");
+        await service.OnNotificationAsync(
+            "msg-2",
+            DateTimeOffset.UtcNow,
+            "channel.follow",
+            "2",
+            "stranger",
+            payload.RootElement,
+            CancellationToken.None
+        );
+
+        await dispatcher
+            .DidNotReceive()
+            .DispatchAsync(Arg.Any<EventSubNotification>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task OnNotification_keeps_per_channel_attribution_when_the_whisper_recipient_is_a_channel()
+    {
+        // Single-account self-host: the bot IS the streamer, so the recipient resolves to that channel and the
+        // whisper stays channel-attributed — the sentinel only catches the genuinely unresolvable case.
+        Guid tenant = Guid.CreateVersion7();
+        INotificationDispatcher dispatcher = Substitute.For<INotificationDispatcher>();
+        EventSubNotification? dispatched = null;
+        dispatcher
+            .DispatchAsync(Arg.Any<EventSubNotification>(), Arg.Any<CancellationToken>())
+            .Returns(call =>
+            {
+                dispatched = call.Arg<EventSubNotification>();
+                return Result.Success(
+                    new NotificationDispatchResult(Guid.CreateVersion7(), 1, false)
+                );
+            });
+        EventSubTestDbContext db = EventSubTestDbContext.New();
+        ITwitchIdentityResolver resolver = Substitute.For<ITwitchIdentityResolver>();
+        resolver.GetBroadcasterIdAsync("streamer-1", Arg.Any<CancellationToken>()).Returns(tenant);
+        ServiceProvider provider = new ServiceCollection()
+            .AddSingleton<IApplicationDbContext>(db)
+            .AddScoped<ITwitchIdentityResolver>(_ => resolver)
+            .AddScoped<INotificationDispatcher>(_ => dispatcher)
+            .BuildServiceProvider();
+        TwitchEventSubHostedService service = new(
+            provider.GetRequiredService<IServiceScopeFactory>(),
+            new RecordingEventSubTransport(),
+            new EventSubConditionBuilder(),
+            Substitute.For<IEventBus>(),
+            TimeProvider.System,
+            NullLogger<TwitchEventSubHostedService>.Instance
+        );
+
+        using JsonDocument payload = JsonDocument.Parse("""{"to_user_id":"streamer-1"}""");
+        await service.OnNotificationAsync(
+            "msg-3",
+            DateTimeOffset.UtcNow,
+            "user.whisper.message",
+            "1",
+            "streamer-1",
+            payload.RootElement,
+            CancellationToken.None
+        );
+
+        dispatched.Should().NotBeNull();
+        dispatched!.BroadcasterId.Should().Be(tenant);
+    }
+
     // ── helpers ─────────────────────────────────────────────────────────────
+
+    private static void SeedPlatformBot(EventSubTestDbContext db, string botTwitchUserId)
+    {
+        db.IntegrationConnections.Add(
+            new IntegrationConnection
+            {
+                BroadcasterId = null,
+                Provider = "twitch_bot",
+                ProviderAccountId = botTwitchUserId,
+                Status = "connected",
+                Scopes = ["user:read:whispers"],
+            }
+        );
+        db.SaveChanges();
+    }
 
     private static void SeedConnection(
         EventSubTestDbContext db,
@@ -464,6 +653,9 @@ public sealed class TwitchEventSubReconnectTests
         /// <summary>Every create's event type, in issue order (proves the cost-0-first ordering).</summary>
         public List<string> CreatedTypes { get; } = [];
 
+        /// <summary>Every create request verbatim (proves the exact condition that went to Twitch).</summary>
+        public List<EventSubSubscriptionRequest> CreatedRequests { get; } = [];
+
         /// <summary>Every subscription id passed to delete (proves stale-session cleanup / reconcile pruning).</summary>
         public List<string> Deletes { get; } = [];
 
@@ -499,6 +691,7 @@ public sealed class TwitchEventSubReconnectTests
         )
         {
             CreatedTypes.Add(request.EventType);
+            CreatedRequests.Add(request);
             Result<TwitchSubscriptionResult> result = onCreate is not null
                 ? onCreate(request, handle)
                 : DefaultCreate(request, handle);

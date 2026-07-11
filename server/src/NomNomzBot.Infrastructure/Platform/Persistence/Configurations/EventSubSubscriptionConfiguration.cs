@@ -20,7 +20,9 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Configurations;
 /// key, the condition as a hand-rolled <c>[VC:JSON]</c> string column (no jsonb). Unique
 /// <c>(BroadcasterId, Provider, EventType, Version)</c> guarantees one desired row per topic. The composing
 /// tenant + soft-delete global filter is applied centrally (AppDbContext) — this configuration does not
-/// re-declare a query filter.
+/// re-declare a query filter. Deliberately no FK to Channels: platform-plane rows (the bot identity's own
+/// topics, <c>BroadcasterId == Guid.Empty</c>) have no owning channel, and the soft-delete convention means
+/// the cascade the FK carried could never fire anyway.
 /// </summary>
 public class EventSubSubscriptionConfiguration : IEntityTypeConfiguration<EventSubSubscription>
 {
@@ -65,11 +67,5 @@ public class EventSubSubscriptionConfiguration : IEntityTypeConfiguration<EventS
         builder
             .HasIndex(e => e.TwitchSubscriptionId)
             .HasDatabaseName("IX_EventSubSubscription_TwitchSubscriptionId");
-
-        builder
-            .HasOne(e => e.Channel)
-            .WithMany()
-            .HasForeignKey(e => e.BroadcasterId)
-            .OnDelete(DeleteBehavior.Cascade);
     }
 }

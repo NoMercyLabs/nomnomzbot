@@ -6670,17 +6670,6 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.Navigation("Conduit");
                 });
 
-            modelBuilder.Entity("NomNomzBot.Domain.Platform.Entities.EventSubSubscription", b =>
-                {
-                    b.HasOne("NomNomzBot.Domain.Identity.Entities.Channel", "Channel")
-                        .WithMany()
-                        .HasForeignKey("BroadcasterId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Channel");
-                });
-
             modelBuilder.Entity("NomNomzBot.Domain.Platform.Entities.Record", b =>
                 {
                     b.HasOne("NomNomzBot.Domain.Identity.Entities.Channel", "Channel")

@@ -67,7 +67,6 @@ internal sealed class EventSubTestDbContext : DbContext, IApplicationDbContext
         b.Entity<EventSubSubscription>(e =>
         {
             e.HasKey(x => x.Id);
-            e.Ignore(x => x.Channel);
             // Dictionary<string,string> has no InMemory mapping (production uses a jsonb value converter); the
             // tests never assert on it, so drop it from the model.
             e.Ignore(x => x.Condition);
