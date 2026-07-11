@@ -75,6 +75,8 @@ public class TtsConfigService : ITtsConfigService
             current.SkipBotMessages = request.SkipBotMessages.Value;
         if (request.ReadUsernames.HasValue)
             current.ReadUsernames = request.ReadUsernames.Value;
+        if (request.ProfanityCensorEnabled.HasValue)
+            current.ProfanityCensorEnabled = request.ProfanityCensorEnabled.Value;
 
         string json = JsonSerializer.Serialize(current);
 
@@ -298,7 +300,8 @@ public class TtsConfigService : ITtsConfigService
             d.MaxLength,
             d.MinPermission,
             d.SkipBotMessages,
-            d.ReadUsernames
+            d.ReadUsernames,
+            d.ProfanityCensorEnabled
         );
 
     private sealed class TtsConfigData
@@ -309,5 +312,8 @@ public class TtsConfigService : ITtsConfigService
         public string MinPermission { get; set; } = "everyone";
         public bool SkipBotMessages { get; set; } = true;
         public bool ReadUsernames { get; set; } = true;
+
+        // tts.md §3.6 binding new-channel default: opt-OUT light swear filter defaults ON.
+        public bool ProfanityCensorEnabled { get; set; } = true;
     }
 }

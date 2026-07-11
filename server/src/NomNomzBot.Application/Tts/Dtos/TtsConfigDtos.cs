@@ -19,7 +19,8 @@ public sealed record TtsConfigDto(
     int MaxLength,
     string MinPermission,
     bool SkipBotMessages,
-    bool ReadUsernames
+    bool ReadUsernames,
+    bool ProfanityCensorEnabled
 );
 
 /// <summary>Request to update TTS configuration.</summary>
@@ -38,6 +39,9 @@ public sealed record UpdateTtsConfigDto
 
     public bool? SkipBotMessages { get; init; }
     public bool? ReadUsernames { get; init; }
+
+    /// <summary>Opt-out light swear filter — masks mild profanity before the text is spoken.</summary>
+    public bool? ProfanityCensorEnabled { get; init; }
 }
 
 /// <summary>A viewer's assigned TTS voice within a channel (overrides the channel default when they speak).</summary>

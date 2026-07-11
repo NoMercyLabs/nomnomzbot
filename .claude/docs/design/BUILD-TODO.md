@@ -445,10 +445,23 @@ ONE substrate — a chat feed that **aggregates messages across a SET of channel
   always plays; upsert on the unique `(BroadcasterId, UserId)` index (no dup rows); clear removes the row so the
   viewer falls back to the channel default. GET gated `tts:voice:read`, PUT/DELETE `tts:uservoice:write` (both
   already seeded — no new key, no migration). 7 tests (unknown-voice reject-without-store, known-voice persist,
-  upsert-updates-in-place, get/clear NOT_FOUND, clear removes). **Follow-on slices (each still needed):**
-  `client_edge` mode (frontend widget), `TtsConfig` TABLE migration + config re-target, approval queue (P.1a
-  entity + Approve/Reject/GetPendingQueue), profanity censor (§3.5), BYOK provider factory (§3.2), tier-cap
-  resolution via `IBillingTierService`. **Below is the original assessment (still the map for the follow-ons):**
+  upsert-updates-in-place, get/clear NOT_FOUND, clear removes).
+  **Profanity censor (§3.5) SHIPPED 2026-07-12 (backend; dashboard needs a config toggle → handoff):**
+  `ITtsProfanityCensor.Censor(text) → TtsCensorResult(Text, WasCensored)` (Application/Contracts/Tts) + pure
+  `TtsProfanityCensor` impl (Infrastructure; singleton — doesn't end in "Service", registered explicitly). A light,
+  curated word list masked on WORD boundaries (case-insensitive) → first char + asterisks ("shit"→"s***"); whole-word
+  only, so substrings ("class", "cocktail") are untouched (no Scunthorpe). Wired into `TtsDispatchService` between
+  the char-cap gate and voice resolution: when `ProfanityCensorEnabled` (new `TtsConfigDto` field; opt-OUT, binding
+  default TRUE per §3.6; still on the blob this slice) the censored text is what gets synthesized/played/ledgered/
+  evented — the provider never sees the raw word; empty-after-censor → reject(`empty_after_censor`). 13 tests
+  (11 censor-unit: mask/case/substring-safety/clean/multi/empty; 2 dispatch-integration: masks-before-synth,
+  raw-when-disabled). NO migration, no new endpoint (`TtsConfigDto` gained a bool → openapi additive). **Deliberate
+  delta:** the `TtsUsageRecord.WasCensored` audit column rides with the `TtsConfig`-TABLE migration slice (blob has
+  no schema to add it to). **Follow-on slices (each still needed):**
+  `client_edge` mode (frontend widget), `TtsConfig` TABLE migration + config re-target (adds `WasCensored`/
+  `WasModApproved`/`StreamId`/`OccurredAt` to the ledger), approval queue (P.1a entity + Approve/Reject/
+  GetPendingQueue), BYOK provider factory (§3.2), tier-cap resolution via `IBillingTierService`.
+  **Below is the original assessment (still the map for the follow-ons):**
   **Next slice = "TTS actually plays" (self_host dispatch path, backend-only):**
   `play_tts` action (§6, Type `play_tts`, Category `tts`, `PlayTtsActionConfig(Text, VoiceId?, BypassQueue)`) →
   `ITtsDispatchService.RequestSpeakAsync(TtsSpeakRequest)` (§3.4) implementing the self_host leg — gate on
@@ -574,4 +587,6 @@ ONE substrate — a chat feed that **aggregates messages across a SET of channel
 - [ ] Channel point page header has overlapping top right buttons
 - [ ] Analytics metrics row should balance itslef when possible
 - [ ] Analytics could benefit from some charts
-- [ ] Discord server un-link icon should eb the trash icon not the minus icon
+- [ ] Discord server un-link icon should be the trash icon not the minus icon
+- [ ] Import things like quotes, timers, overlays from other providers (StreamElements, Streamer.bot, etc)
+- [ ] 

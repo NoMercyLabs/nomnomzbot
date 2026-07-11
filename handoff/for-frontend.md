@@ -61,6 +61,21 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
 - **Done when:** picking a voice for a viewer persists and survives reload; the picker only offers synthesizable
   voices; clearing returns the viewer to the default; picker disabled (not hidden) below the manage floor; en + nl.
 
+### 2026-07-12 — TTS "filter profanity" toggle (item 16)
+- **From:** Stoney_Eagle (via Claude, backend track)
+- **What:** on the TTS settings page, add a **"Filter profanity"** switch bound to the new
+  `profanityCensorEnabled` field. It's just a new boolean on the EXISTING TTS config DTOs — no new endpoint:
+  - `GET /api/v1/channels/{channelId}/tts/config` → `TtsConfigDto` now includes `profanityCensorEnabled: bool`.
+  - `PUT /api/v1/channels/{channelId}/tts/config` → `UpdateTtsConfigDto` now accepts `profanityCensorEnabled: bool?`
+    (partial update — omit to leave unchanged, like the other fields).
+- **Why:** item 16 §3.5. When on, mild swears in a spoken message are masked before the bot reads it aloud. It's an
+  **opt-OUT** setting — default ON for new channels — so surface it as ON unless the config says otherwise.
+- **Where:** TTS settings surface, next to the other toggles (skip-bot-messages, read-usernames). Same read/write
+  gates as the rest of the TTS config (`tts:config:read` / `tts:config:write`). Register the new DTO field in
+  `ApiContractTest`; the committed `server/openapi/v1.json` already carries it (additive). i18n: en + nl label +
+  helper text ("Masks mild swearing before it's read aloud").
+- **Done when:** toggling the switch persists and survives reload; a new channel shows it ON by default; en + nl.
+
 ### 2026-07-11 — Supporter events (monetization) — new page + endpoints (item 13, slice 13a)
 - **From:** Stoney_Eagle (via Claude, backend track)
 - **What:** a **Supporters** page (Integrations/monetization area) with two parts. (1) **Connections** — enable a

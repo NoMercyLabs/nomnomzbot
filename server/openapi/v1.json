@@ -61349,7 +61349,8 @@
           "maxLength",
           "minPermission",
           "skipBotMessages",
-          "readUsernames"
+          "readUsernames",
+          "profanityCensorEnabled"
         ],
         "type": "object",
         "properties": {
@@ -61374,6 +61375,9 @@
             "type": "boolean"
           },
           "readUsernames": {
+            "type": "boolean"
+          },
+          "profanityCensorEnabled": {
             "type": "boolean"
           }
         },
@@ -63251,6 +63255,13 @@
               "null",
               "boolean"
             ]
+          },
+          "profanityCensorEnabled": {
+            "type": [
+              "null",
+              "boolean"
+            ],
+            "description": "Opt-out light swear filter — masks mild profanity before the text is spoken."
           }
         },
         "description": "Request to update TTS configuration."

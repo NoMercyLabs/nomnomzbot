@@ -26,10 +26,11 @@ namespace NomNomzBot.Infrastructure.Tts;
 
 /// <summary>
 /// The TTS utterance orchestrator (tts.md §3.4), self-host dispatch leg. Gates a request on the channel's
-/// enabled flag + character cap, resolves the voice (per-viewer → channel default → first available), synthesizes
-/// the audio, stores it through the shared sound-clip store, pushes it to the overlay via the same audio bus the
-/// walk-in sounds use, and appends a truthful usage-ledger row. A rejected request synthesizes nothing and charges
-/// nothing. The approval queue / profanity censor / BYOK / client-edge mode are follow-on slices.
+/// enabled flag + character cap, applies the opt-out light profanity censor (§3.5), resolves the voice (per-viewer
+/// → channel default → first available), synthesizes the audio, stores it through the shared sound-clip store,
+/// pushes it to the overlay via the same audio bus the walk-in sounds use, and appends a truthful usage-ledger row.
+/// A rejected request synthesizes nothing and charges nothing. The approval queue / BYOK / client-edge mode are
+/// follow-on slices.
 /// </summary>
 public sealed class TtsDispatchService : ITtsDispatchService
 {
@@ -37,6 +38,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
 
     private readonly ITtsService _tts;
     private readonly ITtsConfigService _config;
+    private readonly ITtsProfanityCensor _censor;
     private readonly ISoundClipStore _audioStore;
     private readonly ISoundClipOverlayNotifier _overlay;
     private readonly IApplicationDbContext _db;
@@ -46,6 +48,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
     public TtsDispatchService(
         ITtsService tts,
         ITtsConfigService config,
+        ITtsProfanityCensor censor,
         ISoundClipStore audioStore,
         ISoundClipOverlayNotifier overlay,
         IApplicationDbContext db,
@@ -55,6 +58,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
     {
         _tts = tts;
         _config = config;
+        _censor = censor;
         _audioStore = audioStore;
         _overlay = overlay;
         _db = db;
@@ -100,6 +104,22 @@ public sealed class TtsDispatchService : ITtsDispatchService
                 "VALIDATION_FAILED",
                 ct
             );
+
+        // Opt-out light swear filter (§3.5): mask mild profanity before it is ever synthesized. If nothing survives
+        // (e.g. the whole message was filtered away), reject rather than speak silence.
+        if (config.ProfanityCensorEnabled)
+        {
+            TtsCensorResult censored = _censor.Censor(text);
+            text = censored.Text;
+            if (string.IsNullOrWhiteSpace(text))
+                return await RejectAsync(
+                    request,
+                    "empty_after_censor",
+                    "Nothing left to say after filtering.",
+                    "VALIDATION_FAILED",
+                    ct
+                );
+        }
 
         string? voiceId = await ResolveVoiceAsync(request, config, ct);
         if (string.IsNullOrWhiteSpace(voiceId))

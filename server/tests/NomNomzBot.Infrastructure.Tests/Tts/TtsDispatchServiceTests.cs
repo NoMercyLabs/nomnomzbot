@@ -30,7 +30,8 @@ namespace NomNomzBot.Infrastructure.Tests.Tts;
 /// Proves the TTS dispatch self-host leg (tts.md §3.4): a disabled channel / over-cap text is rejected with no
 /// synthesis, no play, and no ledger row (a reject event fires); an enabled valid request synthesizes, stores,
 /// pushes to the overlay, appends a usage-ledger row, and publishes a dispatched event; a per-viewer voice wins
-/// over the channel default; a synthesis failure rejects rather than playing silence. Assertions are on the
+/// over the channel default; the opt-out profanity censor masks the spoken text before synthesis when enabled (and
+/// leaves it raw when disabled); a synthesis failure rejects rather than playing silence. Assertions are on the
 /// collaborators actually driven + the persisted ledger.
 /// </summary>
 public sealed class TtsDispatchServiceTests
@@ -51,7 +52,8 @@ public sealed class TtsDispatchServiceTests
     private static Harness Build(
         bool enabled = true,
         int maxLength = 500,
-        string defaultVoice = "default-voice"
+        string defaultVoice = "default-voice",
+        bool censorEnabled = false
     )
     {
         TtsTestDbContext db = TtsTestDbContext.New();
@@ -61,7 +63,15 @@ public sealed class TtsDispatchServiceTests
             .GetConfigAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(
                 Result.Success(
-                    new TtsConfigDto(enabled, defaultVoice, maxLength, "everyone", false, false)
+                    new TtsConfigDto(
+                        enabled,
+                        defaultVoice,
+                        maxLength,
+                        "everyone",
+                        false,
+                        false,
+                        censorEnabled
+                    )
                 )
             );
 
@@ -95,6 +105,7 @@ public sealed class TtsDispatchServiceTests
         TtsDispatchService service = new(
             tts,
             config,
+            new TtsProfanityCensor(),
             store,
             overlay,
             db,
@@ -243,6 +254,43 @@ public sealed class TtsDispatchServiceTests
         await h
             .Tts.Received(1)
             .SynthesizeAsync("hi", "viewer-chosen-voice", Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task RequestSpeakAsync_CensorEnabled_SynthesizesMaskedText()
+    {
+        Harness h = Build(censorEnabled: true);
+
+        Result<TtsDispatchOutcome> result = await h.Service.RequestSpeakAsync(
+            Speak("you piece of shit")
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        // The mild swear is masked BEFORE synthesis — the provider (and thus the overlay) never gets the raw word.
+        await h
+            .Tts.Received(1)
+            .SynthesizeAsync("you piece of s***", "default-voice", Arg.Any<CancellationToken>());
+        await h
+            .Bus.Received(1)
+            .PublishAsync(
+                Arg.Is<TtsUtteranceDispatchedEvent>(e => e.Text == "you piece of s***"),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task RequestSpeakAsync_CensorDisabled_SpeaksRawText()
+    {
+        Harness h = Build(censorEnabled: false);
+
+        Result<TtsDispatchOutcome> result = await h.Service.RequestSpeakAsync(
+            Speak("this is crap")
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        await h
+            .Tts.Received(1)
+            .SynthesizeAsync("this is crap", "default-voice", Arg.Any<CancellationToken>());
     }
 
     [Fact]

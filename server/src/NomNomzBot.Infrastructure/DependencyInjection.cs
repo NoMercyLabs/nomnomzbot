@@ -734,6 +734,13 @@ public static class DependencyInjection
         ));
         services.AddSingleton<ITtsService, TtsService>();
 
+        // Light profanity mask for spoken TTS text (tts.md §3.5) — pure + stateless, so singleton. Does not end in
+        // "Service", so it is not picked up by AddServicesByConvention; registered explicitly here.
+        services.AddSingleton<
+            Application.Contracts.Tts.ITtsProfanityCensor,
+            Tts.TtsProfanityCensor
+        >();
+
         // Spotify HTTP clients with resilience (Music providers themselves are scanned by
         // IMusicProvider above; IMusicService is scanned by AddServicesByConvention).
         services.AddHttpClient("spotify").AddSpotifyResilienceHandler();
