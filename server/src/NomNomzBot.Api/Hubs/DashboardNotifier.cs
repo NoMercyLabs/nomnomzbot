@@ -92,6 +92,8 @@ public class DashboardNotifier : IDashboardNotifier
         _timeProvider = timeProvider;
     }
 
+    // ── Class-routed pushes (BUILD item 5): only connections subscribed to the class receive them ──
+
     public Task NotifyChannelAsync(
         string broadcasterId,
         string method,
@@ -101,7 +103,12 @@ public class DashboardNotifier : IDashboardNotifier
         string? userDisplayName = null
     ) =>
         _hub
-            .Clients.Group($"channel-{broadcasterId}")
+            .Clients.Group(
+                DashboardEventClasses.ClassGroup(
+                    broadcasterId,
+                    DashboardEventClasses.ClassForChannelEvent(method)
+                )
+            )
             .ChannelEvent(
                 new(
                     method,
@@ -117,65 +124,73 @@ public class DashboardNotifier : IDashboardNotifier
         string broadcasterId,
         DashboardChatMessageDto dto,
         CancellationToken ct = default
-    ) => _hub.Clients.Group($"channel-{broadcasterId}").ChatMessage(dto);
-
-    public Task SendStreamStatusAsync(
-        string broadcasterId,
-        StreamStatusDto dto,
-        CancellationToken ct = default
-    ) => _hub.Clients.Group($"channel-{broadcasterId}").StreamStatusChanged(dto);
+    ) => ClassGroup(broadcasterId, DashboardEventClasses.Chat).ChatMessage(dto);
 
     public Task SendCommandExecutedAsync(
         string broadcasterId,
         CommandExecutedDto dto,
         CancellationToken ct = default
-    ) => _hub.Clients.Group($"channel-{broadcasterId}").CommandExecuted(dto);
-
-    public Task SendAlertAsync(
-        string broadcasterId,
-        AlertDto dto,
-        CancellationToken ct = default
-    ) => _hub.Clients.Group($"channel-{broadcasterId}").AlertTriggered(dto);
+    ) => ClassGroup(broadcasterId, DashboardEventClasses.Activity).CommandExecuted(dto);
 
     public Task SendModActionAsync(
         string broadcasterId,
         ModActionDto dto,
         CancellationToken ct = default
-    ) => _hub.Clients.Group($"channel-{broadcasterId}").ModAction(dto);
+    ) => ClassGroup(broadcasterId, DashboardEventClasses.Moderation).ModAction(dto);
 
     public Task SendRewardRedeemedAsync(
         string broadcasterId,
         RewardRedeemedDto dto,
         CancellationToken ct = default
-    ) => _hub.Clients.Group($"channel-{broadcasterId}").RewardRedeemed(dto);
-
-    public Task SendPermissionChangedAsync(
-        string broadcasterId,
-        PermissionChangedDto dto,
-        CancellationToken ct = default
-    ) => _hub.Clients.Group($"channel-{broadcasterId}").PermissionChanged(dto);
+    ) => ClassGroup(broadcasterId, DashboardEventClasses.Activity).RewardRedeemed(dto);
 
     public Task SendMusicStateAsync(
         string broadcasterId,
         MusicStateDto dto,
         CancellationToken ct = default
-    ) => _hub.Clients.Group($"channel-{broadcasterId}").MusicStateChanged(dto);
+    ) => ClassGroup(broadcasterId, DashboardEventClasses.Music).MusicStateChanged(dto);
+
+    // ── Core pushes: always-on for every joined connection, regardless of its class set ──
+
+    public Task SendStreamStatusAsync(
+        string broadcasterId,
+        StreamStatusDto dto,
+        CancellationToken ct = default
+    ) => BaseGroup(broadcasterId).StreamStatusChanged(dto);
+
+    public Task SendAlertAsync(
+        string broadcasterId,
+        AlertDto dto,
+        CancellationToken ct = default
+    ) => BaseGroup(broadcasterId).AlertTriggered(dto);
+
+    public Task SendPermissionChangedAsync(
+        string broadcasterId,
+        PermissionChangedDto dto,
+        CancellationToken ct = default
+    ) => BaseGroup(broadcasterId).PermissionChanged(dto);
 
     public Task SendStreamInfoChangedAsync(
         string broadcasterId,
         StreamInfoChangedDto dto,
         CancellationToken ct = default
-    ) => _hub.Clients.Group($"channel-{broadcasterId}").StreamInfoChanged(dto);
+    ) => BaseGroup(broadcasterId).StreamInfoChanged(dto);
 
     public Task SendRewardChangedAsync(
         string broadcasterId,
         RewardChangedDto dto,
         CancellationToken ct = default
-    ) => _hub.Clients.Group($"channel-{broadcasterId}").RewardChanged(dto);
+    ) => BaseGroup(broadcasterId).RewardChanged(dto);
 
     public Task SendConfigChangedAsync(
         string broadcasterId,
         ConfigChangedDto dto,
         CancellationToken ct = default
-    ) => _hub.Clients.Group($"channel-{broadcasterId}").ConfigChanged(dto);
+    ) => BaseGroup(broadcasterId).ConfigChanged(dto);
+
+    private IDashboardClient BaseGroup(string broadcasterId) =>
+        _hub.Clients.Group(DashboardEventClasses.BaseGroup(broadcasterId));
+
+    private IDashboardClient ClassGroup(string broadcasterId, string eventClass) =>
+        _hub.Clients.Group(DashboardEventClasses.ClassGroup(broadcasterId, eventClass));
 }
