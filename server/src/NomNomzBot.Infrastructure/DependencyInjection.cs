@@ -24,6 +24,7 @@ using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
+using NomNomzBot.Application.Contracts.Platform;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Contracts.YouTube;
 using NomNomzBot.Application.Services;
@@ -43,6 +44,7 @@ using NomNomzBot.Infrastructure.Music;
 using NomNomzBot.Infrastructure.Platform;
 using NomNomzBot.Infrastructure.Platform.Auth;
 using NomNomzBot.Infrastructure.Platform.Caching;
+using NomNomzBot.Infrastructure.Platform.ChannelOps;
 using NomNomzBot.Infrastructure.Platform.Deployment;
 using NomNomzBot.Infrastructure.Platform.Eventing;
 using NomNomzBot.Infrastructure.Platform.Persistence;
@@ -913,6 +915,12 @@ public static class DependencyInjection
         services.AddScoped<IChatPlatform, HelixChatProvider>();
         services.AddScoped<IChatPlatform, YouTubeChatPlatform>();
         services.AddScoped<IChatProvider, ChatPlatformRouter>();
+
+        // Channel-ops seam (slice 3b — the IPlatformApi third of the platform trio): stream-metadata
+        // writes route by Channel.Provider exactly like chat. Same scoping rationale as above.
+        services.AddScoped<IPlatformApi, TwitchPlatformApi>();
+        services.AddScoped<IPlatformApi, YouTubePlatformApi>();
+        services.AddScoped<IPlatformChannelApi, PlatformApiRouter>();
 
         // The live YouTube chat session per YouTube tenant — written by the poll worker on go-live/
         // offline, read by the YouTube send path. Process-wide state, so a singleton.

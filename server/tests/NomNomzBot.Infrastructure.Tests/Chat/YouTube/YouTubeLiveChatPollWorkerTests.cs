@@ -391,6 +391,12 @@ public sealed class YouTubeLiveChatPollWorkerTests
             CancellationToken cancellationToken = default
         ) => Task.FromResult(Result.Success());
 
+        public Task<Result<string>> UpdateActiveBroadcastTitleAsync(
+            string accessToken,
+            string title,
+            CancellationToken cancellationToken = default
+        ) => Task.FromResult(Result.Success(title));
+
         public Task<Result> DeleteMessageAsync(
             string accessToken,
             string messageId,

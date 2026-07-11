@@ -282,6 +282,70 @@ public sealed class YouTubeLiveChatClient : IYouTubeLiveChatClient
         return await SendWriteAsync(request, $"delete message {messageId}", cancellationToken);
     }
 
+    public async Task<Result<string>> UpdateActiveBroadcastTitleAsync(
+        string accessToken,
+        string title,
+        CancellationToken cancellationToken = default
+    )
+    {
+        // YouTube caps a broadcast title at 100 characters — fail closed locally, same rationale as the
+        // 200-char chat-message cap (never burn a quota-billed call on a guaranteed 400).
+        if (string.IsNullOrWhiteSpace(title))
+            return Result.Failure<string>("The title is empty.", "VALIDATION_FAILED");
+        if (title.Length > 100)
+            return Result.Failure<string>(
+                "YouTube broadcast titles are capped at 100 characters.",
+                "VALIDATION_FAILED"
+            );
+
+        // The update REPLACES the snippet, so the current broadcast is fetched first: its id keys the PUT
+        // and its scheduledStartTime must be carried over (required by the API on a snippet update).
+        string getUrl =
+            $"{YouTubeApiBase}/liveBroadcasts?part=snippet&broadcastStatus=active&maxResults=1";
+        (HttpStatusCode? status, LiveBroadcastListResponse? body) =
+            await GetAsync<LiveBroadcastListResponse>(getUrl, accessToken, cancellationToken);
+
+        if (status is null)
+            return Result.Failure<string>(
+                "YouTube is temporarily unavailable.",
+                "SERVICE_UNAVAILABLE"
+            );
+        if (status is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
+            return Result.Failure<string>(
+                "The YouTube connection is missing the required scope.",
+                "MISSING_SCOPE"
+            );
+
+        LiveBroadcastItem? broadcast = body?.Items?.FirstOrDefault(b =>
+            !string.IsNullOrEmpty(b.Id)
+        );
+        if (broadcast?.Id is not { } broadcastId)
+            return Result.Failure<string>(
+                "The channel has no active YouTube broadcast to retitle.",
+                "NOT_FOUND"
+            );
+
+        string putUrl = $"{YouTubeApiBase}/liveBroadcasts?part=snippet";
+        HttpRequestMessage request = new(HttpMethod.Put, putUrl);
+        request.Headers.Authorization = new("Bearer", accessToken);
+        request.Content = JsonContent.Create(
+            new
+            {
+                id = broadcastId,
+                snippet = new { title, scheduledStartTime = broadcast.Snippet?.ScheduledStartTime },
+            }
+        );
+
+        Result updated = await SendWriteAsync(
+            request,
+            $"retitle broadcast {broadcastId}",
+            cancellationToken
+        );
+        return updated.IsFailure
+            ? Result.Failure<string>(updated.ErrorMessage!, updated.ErrorCode, updated.ErrorDetail)
+            : Result.Success(title);
+    }
+
     /// <summary>Shared write-call outcome mapping: 401/403 → MISSING_SCOPE, 404 → NOT_FOUND, other
     /// non-success → SERVICE_UNAVAILABLE; transport exceptions degrade the same way (never throw).</summary>
     private async Task<Result> SendWriteAsync(
@@ -436,6 +500,10 @@ public sealed class YouTubeLiveChatClient : IYouTubeLiveChatClient
 
         [JsonPropertyName("title")]
         public string? Title { get; set; }
+
+        // Carried over on a snippet update (the PUT replaces the snippet and the API requires it).
+        [JsonPropertyName("scheduledStartTime")]
+        public string? ScheduledStartTime { get; set; }
     }
 
     private sealed class LiveChatMessageListResponse

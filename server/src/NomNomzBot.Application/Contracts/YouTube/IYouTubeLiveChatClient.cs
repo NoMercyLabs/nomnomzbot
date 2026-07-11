@@ -110,6 +110,19 @@ public interface IYouTubeLiveChatClient
         string messageId,
         CancellationToken cancellationToken = default
     );
+
+    /// <summary>
+    /// Retitles the caller's ACTIVE broadcast (channel-ops seam): resolves the active broadcast, then
+    /// <c>PUT liveBroadcasts?part=snippet</c> with the new title — <c>snippet.scheduledStartTime</c> is
+    /// carried over because the update REPLACES the snippet and the API requires it. Offline (no active
+    /// broadcast) is <c>NOT_FOUND</c>: YouTube titles live on broadcasts, so there is nothing to retitle.
+    /// Returns the applied title.
+    /// </summary>
+    Task<Result<string>> UpdateActiveBroadcastTitleAsync(
+        string accessToken,
+        string title,
+        CancellationToken cancellationToken = default
+    );
 }
 
 /// <summary>The authenticated user's own YouTube channel identity.</summary>

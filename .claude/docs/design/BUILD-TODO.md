@@ -154,8 +154,22 @@ every broadcaster token already holds the full scope set (`channel:read:subscrip
   newest record and deletes by ban id on the ledgered PRIMARY channel's token — so it works OFFLINE
   (a permanent ban outlives the session); NOT_FOUND = already gone = fine; no record = honest logged
   no-op. 12 new tests (client wire shape + id parse, ledger contract, platform record/consume/no-op).
-- [ ] **3b-2b. Remainder** — `IPlatformApi` (channel-ops: title/game/etc. per platform); a Kick
-  `IChatPlatform` + chat read (Kick's API).
+- [x] **3b-2b. `IPlatformApi` channel-ops seam — SHIPPED 2026-07-11.** The spec's third platform seam
+  (2026-06-16-twitch-rebuild "thin seams"), deliberately WRITE-only + single-op per YAGNI — updating
+  stream info is the one channel op exercised cross-platform (reads already degrade honestly).
+  `IPlatformChannelApi.UpdateStreamInfoAsync` (Application/Contracts/Platform) + `IPlatformApi` per-platform
+  key; `TwitchPlatformApi` absorbs the search-resolve (exact-name beats fuzzy; unresolvable keeps the
+  user string, no game id) + Helix modify verbatim from `StreamController`; `YouTubePlatformApi` retitles
+  the ACTIVE broadcast (`liveBroadcasts.update`, scheduledStartTime carried over — the PUT replaces the
+  snippet; 100-char local cap) on the live session's primary token, offline = honest NOT_FOUND, and
+  REJECTS category/tags (`VALIDATION_FAILED` — YouTube has neither; never a silent half-apply);
+  `PlatformApiRouter` (ChatPlatformRouter twin) is THE registered `IPlatformChannelApi`. All four
+  StreamController write routes (PUT + PATCH title/game/tags) now platform-route; no API contract change.
+  11 new tests (Twitch resolve/wire/failure, YouTube retitle/offline/reject/token, router routing +
+  twitch fallback, client GET-then-PUT wire + carried start time + caps).
+- [ ] **3b-2c. Kick `IChatPlatform` + chat read** — Kick's public API (OAuth 2.1 at id.kick.com; chat
+  send `POST /public/v1/chat`; events are WEBHOOK-delivered — needs a public-URL story for self-host).
+  Verify live docs before building (fast-moving surface); owner may need to register a Kick app.
 
 ### 🔀 Act on any channel — no install required
 - [x] **4. Moderated-channels resolution + switching — SHIPPED** (stale checkbox; verified live in code +

@@ -311,6 +311,62 @@ public sealed class YouTubeLiveChatClientTests
     }
 
     [Fact]
+    public async Task UpdateActiveBroadcastTitle_puts_the_new_title_with_the_carried_over_start_time()
+    {
+        // The PUT replaces the snippet, so the client must fetch the active broadcast first and carry its
+        // scheduledStartTime over — dropping it would 400 (required on a snippet update).
+        StubHttpMessageHandler handler = new(
+            (
+                HttpStatusCode.OK,
+                """{"items":[{"id":"bcast-1","snippet":{"liveChatId":"chat123","title":"old","scheduledStartTime":"2026-07-11T18:00:00Z"}}]}"""
+            ),
+            (HttpStatusCode.OK, """{"id":"bcast-1"}""")
+        );
+        YouTubeLiveChatClient sut = Build(handler);
+
+        Result<string> result = await sut.UpdateActiveBroadcastTitleAsync(Token, "new title");
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().Be("new title");
+        handler.LastRequest!.Method.Should().Be(HttpMethod.Put);
+        handler.LastRequest.RequestUri!.ToString().Should().Contain("liveBroadcasts?part=snippet");
+        string body = await handler.LastRequest.Content!.ReadAsStringAsync();
+        body.Should()
+            .Contain("bcast-1")
+            .And.Contain("new title")
+            .And.Contain("2026-07-11T18:00:00Z");
+    }
+
+    [Fact]
+    public async Task UpdateActiveBroadcastTitle_offline_is_not_found_without_a_put()
+    {
+        StubHttpMessageHandler handler = new((HttpStatusCode.OK, """{"items":[]}"""));
+        YouTubeLiveChatClient sut = Build(handler);
+
+        Result<string> result = await sut.UpdateActiveBroadcastTitleAsync(Token, "t");
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("NOT_FOUND");
+        handler.LastRequest!.Method.Should().Be(HttpMethod.Get, "no PUT may follow a miss");
+    }
+
+    [Fact]
+    public async Task UpdateActiveBroadcastTitle_rejects_an_over_100_char_title_before_any_call()
+    {
+        StubHttpMessageHandler handler = new((HttpStatusCode.OK, "{}"));
+        YouTubeLiveChatClient sut = Build(handler);
+
+        Result<string> result = await sut.UpdateActiveBroadcastTitleAsync(
+            Token,
+            new string('t', 101)
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("VALIDATION_FAILED");
+        handler.LastRequest.Should().BeNull("a guaranteed 400 must not burn a quota-billed call");
+    }
+
+    [Fact]
     public async Task DeleteMessage_deletes_by_the_message_id_with_the_bearer()
     {
         StubHttpMessageHandler handler = new((HttpStatusCode.NoContent, "{}"));

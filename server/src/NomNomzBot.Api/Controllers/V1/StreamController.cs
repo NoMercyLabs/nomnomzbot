@@ -16,6 +16,7 @@ using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Platform;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
@@ -35,6 +36,7 @@ public class StreamController : BaseController
     private readonly ITwitchChannelsApi _channels;
     private readonly ITwitchStreamsApi _streams;
     private readonly ITwitchSearchApi _search;
+    private readonly IPlatformChannelApi _platformApi;
     private readonly IApplicationDbContext _db;
 
     public StreamController(
@@ -43,6 +45,7 @@ public class StreamController : BaseController
         ITwitchChannelsApi channels,
         ITwitchStreamsApi streams,
         ITwitchSearchApi search,
+        IPlatformChannelApi platformApi,
         IApplicationDbContext db
     )
     {
@@ -51,6 +54,7 @@ public class StreamController : BaseController
         _channels = channels;
         _streams = streams;
         _search = search;
+        _platformApi = platformApi;
         _db = db;
     }
 
@@ -205,43 +209,21 @@ public class StreamController : BaseController
         if (result.IsFailure)
             return ResultResponse(result);
 
-        // Resolve game name → game ID via Twitch search.
-        string? gameId = null;
-        string? resolvedGameName = request.GameName;
-        if (request.GameName is not null)
-        {
-            Result<TwitchPage<TwitchSearchCategory>> search = await _search.SearchCategoriesAsync(
-                request.GameName,
-                new TwitchPageRequest(),
-                ct
-            );
-            IReadOnlyList<TwitchSearchCategory> categories = search.IsSuccess
-                ? search.Value.Items
-                : [];
-            TwitchSearchCategory? match =
-                categories.FirstOrDefault(c =>
-                    string.Equals(c.Name, request.GameName, StringComparison.OrdinalIgnoreCase)
-                ) ?? categories.FirstOrDefault();
-
-            if (match is not null)
-            {
-                gameId = match.Id;
-                resolvedGameName = match.Name;
-            }
-        }
-
-        // Push changes to Twitch; surface a Helix failure (e.g. missing scope) rather than swallowing it.
-        Result update = await _channels.ModifyChannelInformationAsync(
+        // Route to the tenant channel's own platform (Twitch resolves the game name to its catalogue
+        // spelling; YouTube rejects fields it cannot represent); surface a platform failure (e.g. missing
+        // scope) rather than swallowing it.
+        Result<PlatformStreamInfoApplied> update = await _platformApi.UpdateStreamInfoAsync(
             tenantId,
-            new ModifyChannelInformationRequest(
+            new PlatformStreamInfoUpdate(
                 Title: request.Title,
-                GameId: gameId,
+                CategoryName: request.GameName,
                 Tags: request.Tags
             ),
             ct
         );
         if (update.IsFailure)
             return TwitchResultResponse(update);
+        string? resolvedGameName = update.Value.CategoryName;
 
         // Update in-memory context
         ChannelContext? ctx = _registry.Get(tenantId);
@@ -314,9 +296,9 @@ public class StreamController : BaseController
         if (!Guid.TryParse(channelId, out Guid tenantId))
             return BadRequestResponse("Invalid channel id.");
 
-        Result update = await _channels.ModifyChannelInformationAsync(
+        Result<PlatformStreamInfoApplied> update = await _platformApi.UpdateStreamInfoAsync(
             tenantId,
-            new ModifyChannelInformationRequest(Title: request.Title),
+            new PlatformStreamInfoUpdate(Title: request.Title),
             ct
         );
         if (update.IsFailure)
@@ -342,29 +324,10 @@ public class StreamController : BaseController
         if (!Guid.TryParse(channelId, out Guid tenantId))
             return BadRequestResponse("Invalid channel id.");
 
-        string? gameId = null;
-        string resolvedName = request.GameName;
-
-        Result<TwitchPage<TwitchSearchCategory>> search = await _search.SearchCategoriesAsync(
-            request.GameName,
-            new TwitchPageRequest(),
-            ct
-        );
-        IReadOnlyList<TwitchSearchCategory> results = search.IsSuccess ? search.Value.Items : [];
-        TwitchSearchCategory? match =
-            results.FirstOrDefault(c =>
-                string.Equals(c.Name, request.GameName, StringComparison.OrdinalIgnoreCase)
-            ) ?? results.FirstOrDefault();
-
-        if (match is not null)
-        {
-            gameId = match.Id;
-            resolvedName = match.Name;
-        }
-
-        Result update = await _channels.ModifyChannelInformationAsync(
+        // The platform canonicalizes the category (Twitch resolves the name against its catalogue).
+        Result<PlatformStreamInfoApplied> update = await _platformApi.UpdateStreamInfoAsync(
             tenantId,
-            new ModifyChannelInformationRequest(GameId: gameId),
+            new PlatformStreamInfoUpdate(CategoryName: request.GameName),
             ct
         );
         if (update.IsFailure)
@@ -372,7 +335,7 @@ public class StreamController : BaseController
 
         ChannelContext? ctx = _registry.Get(tenantId);
         if (ctx is not null)
-            ctx.CurrentGame = resolvedName;
+            ctx.CurrentGame = update.Value.CategoryName ?? request.GameName;
 
         return await GetStreamInfo(channelId, ct);
     }
@@ -390,9 +353,9 @@ public class StreamController : BaseController
         if (!Guid.TryParse(channelId, out Guid tenantId))
             return BadRequestResponse("Invalid channel id.");
 
-        Result update = await _channels.ModifyChannelInformationAsync(
+        Result<PlatformStreamInfoApplied> update = await _platformApi.UpdateStreamInfoAsync(
             tenantId,
-            new ModifyChannelInformationRequest(Tags: request.Tags),
+            new PlatformStreamInfoUpdate(Tags: request.Tags),
             ct
         );
         if (update.IsFailure)
