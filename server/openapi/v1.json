@@ -2492,7 +2492,7 @@
         "tags": [
           "Auth"
         ],
-        "summary": "The caller's own linked external identities (platform-identity §5), primary first. Self-scoped — no\r\ntenant, no Gate-2 key (same plane as `auth/me`): the JWT `sub` is the only input.",
+        "summary": "The caller's own linked external identities (platform-identity §5), primary first. Self-scoped — no\ntenant, no Gate-2 key (same plane as `auth/me`): the JWT `sub` is the only input.",
         "parameters": [
           {
             "name": "version",
@@ -2582,7 +2582,7 @@
         "tags": [
           "Auth"
         ],
-        "summary": "Begin linking another platform identity to the caller's account (platform-identity §4). Self-scoped —\r\nthe JWT `sub` is the target user. Auth-code + PKCE providers (kick / twitter) return the provider's\r\nauthorize URL; the shared `{provider}/callback` finishes the link because the server-side state\r\ncarries the caller's id. Device-grant providers (youtube) return the device start, then the client polls\r\n`identities/{provider}/link/poll` (authenticated). Twitch is the primary sign-in, not linkable here.",
+        "summary": "Begin linking another platform identity to the caller's account (platform-identity §4). Self-scoped —\nthe JWT `sub` is the target user. Auth-code + PKCE providers (kick / twitter) return the provider's\nauthorize URL; the shared `{provider}/callback` finishes the link because the server-side state\ncarries the caller's id. Device-grant providers (youtube) return the device start, then the client polls\n`identities/{provider}/link/poll` (authenticated). Twitch is the primary sign-in, not linkable here.",
         "parameters": [
           {
             "name": "provider",
@@ -2684,7 +2684,7 @@
         "tags": [
           "Auth"
         ],
-        "summary": "Poll a device-grant identity link once (platform-identity §4). Authenticated — the caller is the target\r\nuser (JWT `sub`), so no state nonce is needed. A pending grant surfaces as the loop status; an\r\napproved grant attaches the proven identity to the caller (never mints a session, unlike the login poll).",
+        "summary": "Poll a device-grant identity link once (platform-identity §4). Authenticated — the caller is the target\nuser (JWT `sub`), so no state nonce is needed. A pending grant surfaces as the loop status; an\napproved grant attaches the proven identity to the caller (never mints a session, unlike the login poll).",
         "parameters": [
           {
             "name": "provider",
@@ -2972,7 +2972,7 @@
         "tags": [
           "Auth"
         ],
-        "summary": "Start the Twitch OAuth flow. Redirects the browser to Twitch's authorization page.\r\nPass `redirect_uri` for mobile / desktop-loopback deep-link callbacks (e.g.\r\n`nomnomzbot://callback`). Pass `client=web` for the served-web dashboard: a full-page redirect\r\ncan't receive a JSON token body, so the callback returns the tokens in the URL fragment + an HttpOnly\r\ncookie instead.",
+        "summary": "Start the Twitch OAuth flow. Redirects the browser to Twitch's authorization page.\nPass `redirect_uri` for mobile / desktop-loopback deep-link callbacks (e.g.\n`nomnomzbot://callback`). Pass `client=web` for the served-web dashboard: a full-page redirect\ncan't receive a JSON token body, so the callback returns the tokens in the URL fragment + an HttpOnly\ncookie instead.",
         "parameters": [
           {
             "name": "redirect_uri",
@@ -3066,7 +3066,7 @@
         "tags": [
           "Auth"
         ],
-        "summary": "Handle the OAuth callback from Twitch. Exchanges the authorization code for\r\nplatform tokens. If a mobile `redirect_uri` was passed in the original\r\nrequest, the browser is redirected to the app's deep link with tokens in the\r\nquery string. Otherwise returns a JSON response (for web clients).",
+        "summary": "Handle the OAuth callback from Twitch. Exchanges the authorization code for\nplatform tokens. If a mobile `redirect_uri` was passed in the original\nrequest, the browser is redirected to the app's deep link with tokens in the\nquery string. Otherwise returns a JSON response (for web clients).",
         "parameters": [
           {
             "name": "code",
@@ -3158,7 +3158,7 @@
         "tags": [
           "Auth"
         ],
-        "summary": "Exchange an OAuth authorization code for platform tokens (mobile / SPA flow).\r\nThe client handles the Twitch redirect directly and sends the code + redirect_uri\r\nto this endpoint for server-side token exchange.",
+        "summary": "Exchange an OAuth authorization code for platform tokens (mobile / SPA flow).\nThe client handles the Twitch redirect directly and sends the code + redirect_uri\nto this endpoint for server-side token exchange.",
         "parameters": [
           {
             "name": "version",
@@ -3258,7 +3258,7 @@
         "tags": [
           "Auth"
         ],
-        "summary": "Begin the no-secret streamer login (Device Code Flow). Returns a short user code + the\r\ntwitch.tv/activate URL to show the operator, plus the device code the client polls with. No Twitch app\r\nregistration and no client secret — NomNomzBot's shipped public client id drives it.",
+        "summary": "Begin the no-secret streamer login (Device Code Flow). Returns a short user code + the\ntwitch.tv/activate URL to show the operator, plus the device code the client polls with. No Twitch app\nregistration and no client secret — NomNomzBot's shipped public client id drives it.",
         "parameters": [
           {
             "name": "version",
@@ -3348,7 +3348,7 @@
         "tags": [
           "Auth"
         ],
-        "summary": "Poll a streamer device login once. Until the operator approves, the status is `pending` /\r\n`slow_down`; on `authorized` the session is opened and the response carries the platform\r\ntokens + user, which the client establishes exactly as it would after the redirect callback.",
+        "summary": "Poll a streamer device login once. Until the operator approves, the status is `pending` /\n`slow_down`; on `authorized` the session is opened and the response carries the platform\ntokens + user, which the client establishes exactly as it would after the redirect callback.",
         "parameters": [
           {
             "name": "client",
@@ -3465,7 +3465,7 @@
         "tags": [
           "Auth"
         ],
-        "summary": "The login providers this deployment offers (platform-identity §5). Public — the login screen reads it\r\nbefore any auth. Each carries the handshake flows the client should run and whether it is currently\r\nenabled (a registered descriptor whose feature flag resolves true); disabled ones are returned so the\r\nclient can show \"coming soon\" rather than a dead button. Twitch is always enabled.",
+        "summary": "The login providers this deployment offers (platform-identity §5). Public — the login screen reads it\nbefore any auth. Each carries the handshake flows the client should run and whether it is currently\nenabled (a registered descriptor whose feature flag resolves true); disabled ones are returned so the\nclient can show \"coming soon\" rather than a dead button. Twitch is always enabled.",
         "parameters": [
           {
             "name": "version",
@@ -3555,7 +3555,7 @@
         "tags": [
           "Auth"
         ],
-        "summary": "Begin the no-secret device login for a provider (platform-identity §5). The literal `twitch/device`\r\nroute is the `provider=twitch` case (literal segments win in routing), so existing clients are\r\nunaffected; this handles every other enabled provider. 404 `UNKNOWN_PROVIDER` / 403\r\n`PROVIDER_DISABLED` gate it.",
+        "summary": "Begin the no-secret device login for a provider (platform-identity §5). The literal `twitch/device`\nroute is the `provider=twitch` case (literal segments win in routing), so existing clients are\nunaffected; this handles every other enabled provider. 404 `UNKNOWN_PROVIDER` / 403\n`PROVIDER_DISABLED` gate it.",
         "parameters": [
           {
             "name": "provider",
@@ -3653,7 +3653,7 @@
         "tags": [
           "Auth"
         ],
-        "summary": "Poll a provider device login once (platform-identity §5). Delegates the Twitch case to the established\r\nstreamer-session flow (incl. the web HttpOnly-cookie custody); other enabled providers plug in with\r\ntheir login seams.",
+        "summary": "Poll a provider device login once (platform-identity §5). Delegates the Twitch case to the established\nstreamer-session flow (incl. the web HttpOnly-cookie custody); other enabled providers plug in with\ntheir login seams.",
         "parameters": [
           {
             "name": "provider",
@@ -3778,7 +3778,7 @@
         "tags": [
           "Auth"
         ],
-        "summary": "Begin an auth-code + PKCE login for a provider (kick / twitter, platform-identity §10.3): generate the\r\nPKCE pair, stash the verifier + provider key server-side under a single-use state nonce, and 302 the\r\nwhole page to the provider's authorize URL. 404 `UNKNOWN_PROVIDER` / 403 `PROVIDER_DISABLED` gate it.",
+        "summary": "Begin an auth-code + PKCE login for a provider (kick / twitter, platform-identity §10.3): generate the\nPKCE pair, stash the verifier + provider key server-side under a single-use state nonce, and 302 the\nwhole page to the provider's authorize URL. 404 `UNKNOWN_PROVIDER` / 403 `PROVIDER_DISABLED` gate it.",
         "parameters": [
           {
             "name": "provider",
@@ -3880,7 +3880,7 @@
         "tags": [
           "Auth"
         ],
-        "summary": "The auth-code login callback (kick / twitter). The literal `twitch/callback` route wins for Twitch;\r\nthis handles every other provider, exchanging the code with the stored PKCE verifier into a session and\r\nresponding per the client class (mobile deep-link / served-web fragment+cookie / JSON).",
+        "summary": "The auth-code login callback (kick / twitter). The literal `twitch/callback` route wins for Twitch;\nthis handles every other provider, exchanging the code with the stored PKCE verifier into a session and\nresponding per the client class (mobile deep-link / served-web fragment+cookie / JSON).",
         "parameters": [
           {
             "name": "provider",
@@ -4269,7 +4269,7 @@
         "tags": [
           "Auth"
         ],
-        "summary": "Start the OAuth flow for the platform-shared bot account. This is a platform-level registration on top\r\nof the operator's account (not a login), so it is Plane-C gated (identity-auth §5,\r\n`platform · iam:manage` — the policy name is the IAM permission key verbatim, audited on SaaS).\r\nReturns the Twitch authorize URL for the client to open — the resulting token is stored globally (no\r\nper-channel binding). First-run setup uses the wizard's `system/setup/bot/oauth-url` instead\r\n(before an admin exists).",
+        "summary": "Start the OAuth flow for the platform-shared bot account. This is a platform-level registration on top\nof the operator's account (not a login), so it is Plane-C gated (identity-auth §5,\n`platform · iam:manage` — the policy name is the IAM permission key verbatim, audited on SaaS).\nReturns the Twitch authorize URL for the client to open — the resulting token is stored globally (no\nper-channel binding). First-run setup uses the wizard's `system/setup/bot/oauth-url` instead\n(before an admin exists).",
         "parameters": [
           {
             "name": "redirect_uri",
@@ -4514,7 +4514,7 @@
         "tags": [
           "Auth"
         ],
-        "summary": "Begin the bot-account device login (no secret). The operator approves the bot's own Twitch account at\r\ntwitch.tv/activate and the client polls until connected. Admin-gated — the streamer is already signed in\r\nwhen they add a bot account (Streamer.bot parity).",
+        "summary": "Begin the bot-account device login (no secret). The operator approves the bot's own Twitch account at\ntwitch.tv/activate and the client polls until connected. Admin-gated — the streamer is already signed in\nwhen they add a bot account (Streamer.bot parity).",
         "parameters": [
           {
             "name": "version",
@@ -7370,7 +7370,7 @@
         "tags": [
           "Channel Bot"
         ],
-        "summary": "Returns the white-label bot account's chat-permission status for this channel — the signal behind the\r\ndashboard's bot \"action required\" prompt. Reads the dedicated bot connection (`twitch_bot`, written\r\nby the bot OAuth flow), falling back to the streamer's own `twitch` connection for the self-host case\r\nwhere the bot chats as the streamer's own account until a custom bot is registered. Only the required\r\nscopes gate completion, so once the bot grant lands the prompt clears (100%).",
+        "summary": "Returns the white-label bot account's chat-permission status for this channel — the signal behind the\ndashboard's bot \"action required\" prompt. Reads the dedicated bot connection (`twitch_bot`, written\nby the bot OAuth flow), falling back to the streamer's own `twitch` connection for the self-host case\nwhere the bot chats as the streamer's own account until a custom bot is registered. Only the required\nscopes gate completion, so once the bot grant lands the prompt clears (100%).",
         "parameters": [
           {
             "name": "channelId",
@@ -7468,7 +7468,7 @@
         "tags": [
           "Channel Bot"
         ],
-        "summary": "Start Twitch OAuth for this channel's white-label bot — an additional bot-identity registration on top\r\nof the owner's account (not a login), handled like an integration connect. Gated owner-level\r\n(identity-auth §5, `management/Broadcaster · channelbot:connect`). Returns the Twitch authorize URL\r\n(force_verify) for the client to open; the callback completes via the unified, nonce-validated\r\n`/auth/twitch/callback`.",
+        "summary": "Start Twitch OAuth for this channel's white-label bot — an additional bot-identity registration on top\nof the owner's account (not a login), handled like an integration connect. Gated owner-level\n(identity-auth §5, `management/Broadcaster · channelbot:connect`). Returns the Twitch authorize URL\n(force_verify) for the client to open; the callback completes via the unified, nonce-validated\n`/auth/twitch/callback`.",
         "parameters": [
           {
             "name": "channelId",
@@ -8157,7 +8157,7 @@
         "tags": [
           "Channels"
         ],
-        "summary": "Onboards the caller's channel. Thin by design: Task&lt;Result&lt;ChannelDto&gt;&gt; IChannelService.OnboardAsync(string broadcasterId, CreateChannelRequest request, CancellationToken cancellationToken = default(CancellationToken)) owns every\r\nside effect, including publishing `ChannelOnboardedEvent` — the single onboarding path that fans\r\nout to the auto-discovered seed handlers (rewards, mods/VIPs/subs, channel info, owner profile, event\r\nresponses, banned-user import, bot mod-join, default builtin commands, EventSub subscribe). The former\r\ninline Twitch-data sync that used to live here has moved into those handlers, matching every other\r\ncontroller's validate → service → response shape.",
+        "summary": "Onboards the caller's channel. Thin by design: Task&lt;Result&lt;ChannelDto&gt;&gt; IChannelService.OnboardAsync(string broadcasterId, CreateChannelRequest request, CancellationToken cancellationToken = default(CancellationToken)) owns every\nside effect, including publishing `ChannelOnboardedEvent` — the single onboarding path that fans\nout to the auto-discovered seed handlers (rewards, mods/VIPs/subs, channel info, owner profile, event\nresponses, banned-user import, bot mod-join, default builtin commands, EventSub subscribe). The former\ninline Twitch-data sync that used to live here has moved into those handlers, matching every other\ncontroller's validate → service → response shape.",
         "parameters": [
           {
             "name": "version",
@@ -8653,6 +8653,220 @@
             "description": "No Content",
             "content": {
               "application/json": { }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/channels/{channelId}/settings/personality": {
+      "get": {
+        "tags": [
+          "Channels"
+        ],
+        "summary": "Get the channel's built-in-command personality tone. Moderator-floored like every dashboard read.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfChannelPersonalityDto"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Channels"
+        ],
+        "summary": "Set the channel's built-in-command personality tone (Informative, Friendly, Sassy, Hype, Chill).\nBroadcaster/Editor-gated like the other channel settings writes.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetChannelPersonalityRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetChannelPersonalityRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetChannelPersonalityRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfChannelPersonalityDto"
+                }
+              }
             }
           }
         }
@@ -9184,12 +9398,19 @@
         "tags": [
           "Chat"
         ],
-        "summary": "Get the emotes usable in this channel — Twitch global+channel, the operator's own emotes, and BTTV/FFZ/7TV — for the composer.",
+        "summary": "Get the emotes usable in this channel for the composer, scoped to the sender identity\n    (senderIdentity = \"you\"|\"bot\", matching the You/Bot toggle): \"you\" → Twitch\n    global+channel + the operator's own cross-channel emotes + BTTV/FFZ/7TV; \"bot\" → only what the bot can\n    genuinely send (Twitch global + BTTV/FFZ/7TV), so the picker never offers emotes the bot cannot use.",
         "parameters": [
           {
             "name": "channelId",
             "in": "path",
             "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "senderIdentity",
+            "in": "query",
             "schema": {
               "type": "string"
             }
@@ -13066,7 +13287,7 @@
         "tags": [
           "Economy — Currency"
         ],
-        "summary": "The caller's OWN wallet on this channel — the `self` arm of economy.md §5's\r\n`economy:account:read` \"self-or-Gate-2\". It binds the subject to the authenticated caller and can\r\nonly ever return that caller's account, so it carries no Gate-2 floor (community / Everyone): a\r\nparticipant reads their own balance here without the Moderator `economy:account:read` the keyed\r\n`accounts/{viewerUserId}` route demands. `me` is a literal, so it never shadows the guid route.",
+        "summary": "The caller's OWN wallet on this channel — the `self` arm of economy.md §5's\n`economy:account:read` \"self-or-Gate-2\". It binds the subject to the authenticated caller and can\nonly ever return that caller's account, so it carries no Gate-2 floor (community / Everyone): a\nparticipant reads their own balance here without the Moderator `economy:account:read` the keyed\n`accounts/{viewerUserId}` route demands. `me` is a literal, so it never shadows the guid route.",
         "parameters": [
           {
             "name": "channelId",
@@ -14528,7 +14749,7 @@
         "tags": [
           "Dashboard"
         ],
-        "summary": "Returns a live stats snapshot for the given channel.\r\nUses the in-memory ChannelContext when the bot is connected; falls back to DB otherwise.",
+        "summary": "Returns a live stats snapshot for the given channel.\nUses the in-memory ChannelContext when the bot is connected; falls back to DB otherwise.",
         "parameters": [
           {
             "name": "channelId",
@@ -17347,7 +17568,7 @@
         "tags": [
           "Integration OAuth"
         ],
-        "summary": "Start the Discord OAuth flow — redirects to Discord's authorization page with bot + guilds scopes.\r\nPass redirect_uri for the desktop client's loopback listener (RFC-8252): the callback\r\nthen redirects there with a success/error marker so the listener completes. The web/SPA client omits it\r\nand gets the frontend redirect instead.",
+        "summary": "Start the Discord OAuth flow — redirects to Discord's authorization page with bot + guilds scopes.\nPass redirect_uri for the desktop client's loopback listener (RFC-8252): the callback\nthen redirects there with a success/error marker so the listener completes. The web/SPA client omits it\nand gets the frontend redirect instead.",
         "parameters": [
           {
             "name": "channelId",
@@ -17442,7 +17663,7 @@
         "tags": [
           "Integration OAuth"
         ],
-        "summary": "Handle the Discord OAuth callback. Exchanges the authorization code for tokens, parses the response into\r\na DiscordGuildOAuthResult, and delegates persistence to IDiscordGuildService\r\n(which vaults the bot token and records the guild link). No persistence is done inline.",
+        "summary": "Handle the Discord OAuth callback. Exchanges the authorization code for tokens, parses the response into\na DiscordGuildOAuthResult, and delegates persistence to IDiscordGuildService\n(which vaults the bot token and records the guild link). No persistence is done inline.",
         "parameters": [
           {
             "name": "code",
@@ -18899,7 +19120,7 @@
         "tags": [
           "EventStore"
         ],
-        "summary": "Imports a JSONL journal export into the channel's stream — idempotent (duplicates by EventId are skipped),\r\nupcast on read, and atomic (all-or-nothing). Owner-only. Returns import/skip/upcast counts.",
+        "summary": "Imports a JSONL journal export into the channel's stream — idempotent (duplicates by EventId are skipped),\nupcast on read, and atomic (all-or-nothing). Owner-only. Returns import/skip/upcast counts.",
         "parameters": [
           {
             "name": "channelId",
@@ -19012,7 +19233,7 @@
         "tags": [
           "EventStore"
         ],
-        "summary": "Backfills the channel's history from the legacy NoMercy bot database into the journal — reads the legacy file\r\nREAD-ONLY, maps each channel event to its current domain event, and appends idempotently (a re-run imports\r\nnothing). Owner-only. Returns import/skip counts and the journal head before/after.",
+        "summary": "Backfills the channel's history from the legacy NoMercy bot database into the journal — reads the legacy file\nREAD-ONLY, maps each channel event to its current domain event, and appends idempotently (a re-run imports\nnothing). Owner-only. Returns import/skip counts and the journal head before/after.",
         "parameters": [
           {
             "name": "channelId",
@@ -19110,7 +19331,7 @@
         "tags": [
           "EventStore"
         ],
-        "summary": "Rebuilds every tenant-scoped read-model projection (channel event log, analytics dailies, viewer profiles, …)\r\nfrom the channel's journal — reset → replay from position 0. Owner-level. Run after a legacy import (or any\r\njournal backfill) so the new facts surface in the read models. Returns the per-projection applied-event counts.",
+        "summary": "Rebuilds every tenant-scoped read-model projection (channel event log, analytics dailies, viewer profiles, …)\nfrom the channel's journal — reset → replay from position 0. Owner-level. Run after a legacy import (or any\njournal backfill) so the new facts surface in the read models. Returns the per-projection applied-event counts.",
         "parameters": [
           {
             "name": "channelId",
@@ -22350,7 +22571,7 @@
         "tags": [
           "Giveaways"
         ],
-        "summary": "Reveal a winner's assigned code — the failed-whisper fallback, broadcaster-gated (D6).\r\n    Routed under /giveaways to match the spec's `GET /giveaways/{id}/winners/{winnerId}/code`.",
+        "summary": "Reveal a winner's assigned code — the failed-whisper fallback, broadcaster-gated (D6).\n    Routed under /giveaways to match the spec's `GET /giveaways/{id}/winners/{winnerId}/code`.",
         "parameters": [
           {
             "name": "id",
@@ -23679,7 +23900,7 @@
         "tags": [
           "Integration OAuth"
         ],
-        "summary": "Starts a provider connect: returns the authorize URL the client opens (the service builds the PKCE\r\nchallenge + signed single-use state). A connect carries a progressive scope-set key (e.g.\r\n`spotify.playback`); re-connecting with a wider set is an incremental re-auth.",
+        "summary": "Starts a provider connect: returns the authorize URL the client opens (the service builds the PKCE\nchallenge + signed single-use state). A connect carries a progressive scope-set key (e.g.\n`spotify.playback`); re-connecting with a wider set is an incremental re-auth.",
         "parameters": [
           {
             "name": "channelId",
@@ -23805,7 +24026,7 @@
         "tags": [
           "Integration OAuth"
         ],
-        "summary": "The provider redirect target. Anonymous — secured by the signed single-use `state`, not the JWT.\r\nValidates+consumes state, exchanges the code (with the PKCE verifier) for tokens, vaults them, then\r\nredirects the browser back to the connect's return URL. A failure redirects to the integrations screen\r\nwith an error marker rather than surfacing a raw API error to the browser.",
+        "summary": "The provider redirect target. Anonymous — secured by the signed single-use `state`, not the JWT.\nValidates+consumes state, exchanges the code (with the PKCE verifier) for tokens, vaults them, then\nredirects the browser back to the connect's return URL. A failure redirects to the integrations screen\nwith an error marker rather than surfacing a raw API error to the browser.",
         "parameters": [
           {
             "name": "provider",
@@ -27354,7 +27575,7 @@
         "tags": [
           "Moderation"
         ],
-        "summary": "Ban a viewer — in THIS channel (a permanent ban, or a timeout when `DurationSeconds` is set) or across\r\nEVERY channel the operator moderates (chat-client.md §3.5, `Scope = \"all_moderated\"`). Both scopes return\r\na NetworkBanResultDto; `this_channel` is a one-row result. The `all_moderated` sweep is\r\nbest-effort per channel and issues each ban AS THE OPERATOR (their own token), so Twitch — not us — decides\r\nwhere the ban is permitted.",
+        "summary": "Ban a viewer — in THIS channel (a permanent ban, or a timeout when `DurationSeconds` is set) or across\nEVERY channel the operator moderates (chat-client.md §3.5, `Scope = \"all_moderated\"`). Both scopes return\na NetworkBanResultDto; `this_channel` is a one-row result. The `all_moderated` sweep is\nbest-effort per channel and issues each ban AS THE OPERATOR (their own token), so Twitch — not us — decides\nwhere the ban is permitted.",
         "parameters": [
           {
             "name": "channelId",
@@ -27472,7 +27693,7 @@
         "tags": [
           "Moderation"
         ],
-        "summary": "Unban a viewer — in THIS channel or across EVERY channel the operator moderates (the reversal of the network\r\nban, `Scope = \"all_moderated\"`). Both scopes return a NetworkBanResultDto; `this_channel`\r\nis a one-row result. The `all_moderated` sweep is best-effort per channel and lifts each ban AS THE\r\nOPERATOR (their own token), so Twitch — not us — decides where it is permitted.",
+        "summary": "Unban a viewer — in THIS channel or across EVERY channel the operator moderates (the reversal of the network\nban, `Scope = \"all_moderated\"`). Both scopes return a NetworkBanResultDto; `this_channel`\nis a one-row result. The `all_moderated` sweep is best-effort per channel and lifts each ban AS THE\nOPERATOR (their own token), so Twitch — not us — decides where it is permitted.",
         "parameters": [
           {
             "name": "channelId",
@@ -29747,7 +29968,7 @@
         "tags": [
           "Moderation"
         ],
-        "summary": "The per-user moderation summary for the mod panel — the bot's recorded actions against this viewer\r\n(ban/timeout/warn/unban counts + recent actions). The bot's own history, not Twitch's complete record.",
+        "summary": "The per-user moderation summary for the mod panel — the bot's recorded actions against this viewer\n(ban/timeout/warn/unban counts + recent actions). The bot's own history, not Twitch's complete record.",
         "parameters": [
           {
             "name": "channelId",
@@ -30662,7 +30883,7 @@
         "tags": [
           "Moderation"
         ],
-        "summary": "Get today's moderation counts for the channel — bans, timeouts, deleted messages, and AutoMod actions —\r\nderived from the channel's event log.",
+        "summary": "Get today's moderation counts for the channel — bans, timeouts, deleted messages, and AutoMod actions —\nderived from the channel's event log.",
         "parameters": [
           {
             "name": "channelId",
@@ -34965,7 +35186,7 @@
         "tags": [
           "Pipelines"
         ],
-        "summary": "Validates a pipeline graph without persisting it. Returns a PipelineValidationResult\r\nso the editor can surface errors inline before the user hits Save.",
+        "summary": "Validates a pipeline graph without persisting it. Returns a PipelineValidationResult\nso the editor can surface errors inline before the user hits Save.",
         "parameters": [
           {
             "name": "channelId",
@@ -35553,7 +35774,7 @@
         "tags": [
           "PublicSongRequest"
         ],
-        "summary": "Submits a viewer song request through a public SR-page token. 404 on an unknown token, 409 when the channel\r\nis not accepting requests. The requester label is untrusted display text (anonymous page) — defaults to\r\n\"Anonymous\"; richer provenance/trust scoring rides on the persisted-queue migration (music-sr.md).",
+        "summary": "Submits a viewer song request through a public SR-page token. 404 on an unknown token, 409 when the channel\nis not accepting requests. The requester label is untrusted display text (anonymous page) — defaults to\n\"Anonymous\"; richer provenance/trust scoring rides on the persisted-queue migration (music-sr.md).",
         "parameters": [
           {
             "name": "token",
@@ -38191,7 +38412,7 @@
         "tags": [
           "Roles"
         ],
-        "summary": "The authenticated caller's own resolved access on this channel (roles-permissions §5.1). The shell calls\r\nthis on session establish to learn the caller's effective ManagementRole and drive the\r\nrole-correct sidebar + write affordances. Self-introspection, so it is gated by entry (Gate 1) only — a\r\npure viewer with no management role must be able to learn they have none (and so be routed to the\r\nparticipation-only surface), which a `roles:read` (Moderator) floor would forbid.",
+        "summary": "The authenticated caller's own resolved access on this channel (roles-permissions §5.1). The shell calls\nthis on session establish to learn the caller's effective ManagementRole and drive the\nrole-correct sidebar + write affordances. Self-introspection, so it is gated by entry (Gate 1) only — a\npure viewer with no management role must be able to learn they have none (and so be routed to the\nparticipation-only surface), which a `roles:read` (Moderator) floor would forbid.",
         "parameters": [
           {
             "name": "channelId",
@@ -38289,7 +38510,7 @@
         "tags": [
           "Roles"
         ],
-        "summary": "A channel member's resolved access (roles-permissions §5.1). Floors at `roles:read` (Moderator) —\r\ninspecting another user's access is a management read; Task&lt;IActionResult&gt; RolesController.EffectiveMe(string channelId, CancellationToken ct) is the unfloored\r\nself-introspection sibling.",
+        "summary": "A channel member's resolved access (roles-permissions §5.1). Floors at `roles:read` (Moderator) —\ninspecting another user's access is a management read; Task&lt;IActionResult&gt; RolesController.EffectiveMe(string channelId, CancellationToken ct) is the unfloored\nself-introspection sibling.",
         "parameters": [
           {
             "name": "channelId",
@@ -40244,7 +40465,7 @@
         "tags": [
           "Stream"
         ],
-        "summary": "Update the channel's stream metadata (title, game, tags) in a single call. Carries the same Editor\r\nfloor as the granular PATCH routes (`channel:title:write`) so a Moderator cannot use this combined\r\nroute to bypass the per-field `channel:*:write` gates (stream-admin §5; all three fields floor at\r\nEditor).",
+        "summary": "Update the channel's stream metadata (title, game, tags) in a single call. Carries the same Editor\nfloor as the granular PATCH routes (`channel:title:write`) so a Moderator cannot use this combined\nroute to bypass the per-field `channel:*:write` gates (stream-admin §5; all three fields floor at\nEditor).",
         "parameters": [
           {
             "name": "channelId",
@@ -41454,7 +41675,7 @@
         "tags": [
           "System"
         ],
-        "summary": "The self-describing onboarding wizard: the ordered steps, each with its copy, step-by-step instructions, the\r\nexact redirect URI to register, the API call that satisfies it, the input fields, and its live completion\r\nstate. A dashboard renders the entire first-time-setup flow from this single call.",
+        "summary": "The self-describing onboarding wizard: the ordered steps, each with its copy, step-by-step instructions, the\nexact redirect URI to register, the API call that satisfies it, the input fields, and its live completion\nstate. A dashboard renders the entire first-time-setup flow from this single call.",
         "parameters": [
           {
             "name": "version",
@@ -42164,7 +42385,7 @@
         "tags": [
           "System"
         ],
-        "summary": "Finalize first-run setup. Once called — or once the system is otherwise ready — the credential\r\nendpoints lock to platform admins, so anonymous callers can no longer repoint the platform's app\r\ncredentials. Callable anonymously only while setup is still open (the first-run window).",
+        "summary": "Finalize first-run setup. Once called — or once the system is otherwise ready — the credential\nendpoints lock to platform admins, so anonymous callers can no longer repoint the platform's app\ncredentials. Callable anonymously only while setup is still open (the first-run window).",
         "parameters": [
           {
             "name": "version",
@@ -42254,7 +42475,7 @@
         "tags": [
           "System"
         ],
-        "summary": "Returns the full pronoun catalogue. Anonymous — the participant Me screen shows pronouns before login\r\nand allows the user to pick their preferred pronoun without requiring authentication.",
+        "summary": "Returns the full pronoun catalogue. Anonymous — the participant Me screen shows pronouns before login\nand allows the user to pick their preferred pronoun without requiring authentication.",
         "parameters": [
           {
             "name": "version",
@@ -44151,7 +44372,7 @@
         "tags": [
           "Twitch Diagnostics"
         ],
-        "summary": "The current channel's Twitch scope/connection matrix: connection status, granted scopes, and the\r\nper-feature granted/missing requirement rows. `404` when this channel has no Twitch connection.",
+        "summary": "The current channel's Twitch scope/connection matrix: connection status, granted scopes, and the\nper-feature granted/missing requirement rows. `404` when this channel has no Twitch connection.",
         "parameters": [
           {
             "name": "version",
@@ -44241,7 +44462,7 @@
         "tags": [
           "Twitch Diagnostics"
         ],
-        "summary": "The channel's outstanding Twitch scope gaps — the deduplicated set of scopes the streamer token is missing\r\n(proactive feature-gated gaps ∪ reactive gaps a real Helix call surfaced), each with the feature(s) it\r\nblocks and whether the streamer was already told in chat. The dashboard renders the \"grant '&lt;scope&gt;'\"\r\nbanner from this. `404` when this channel has no Twitch connection.",
+        "summary": "The channel's outstanding Twitch scope gaps — the deduplicated set of scopes the streamer token is missing\n(proactive feature-gated gaps ∪ reactive gaps a real Helix call surfaced), each with the feature(s) it\nblocks and whether the streamer was already told in chat. The dashboard renders the \"grant '&lt;scope&gt;'\"\nbanner from this. `404` when this channel has no Twitch connection.",
         "parameters": [
           {
             "name": "version",
@@ -44331,7 +44552,7 @@
         "tags": [
           "Twitch Diagnostics"
         ],
-        "summary": "Start the one-click additive scope re-grant: a secret-free streamer Device Code Flow requesting\r\n`granted ∪ missing`, so the operator re-consents to the full set and the existing grant is never\r\ndropped. The client shows the user code + verification URL and polls the normal streamer device poll\r\n(`POST /auth/twitch/device/poll`); on approval the widened grant reconciles onto the connection and the\r\ngaps clear. `404` when there is no Twitch connection; `409` when nothing is missing.",
+        "summary": "Start the one-click additive scope re-grant: a secret-free streamer Device Code Flow requesting\n`granted ∪ missing`, so the operator re-consents to the full set and the existing grant is never\ndropped. The client shows the user code + verification URL and polls the normal streamer device poll\n(`POST /auth/twitch/device/poll`); on approval the widened grant reconciles onto the connection and the\ngaps clear. `404` when there is no Twitch connection; `409` when nothing is missing.",
         "parameters": [
           {
             "name": "version",
@@ -45071,7 +45292,7 @@
         "tags": [
           "Users"
         ],
-        "summary": "Export all personal data for the specified user (GDPR right of access).\r\nReturns a JSON file download containing all data we hold for this user.",
+        "summary": "Export all personal data for the specified user (GDPR right of access).\nReturns a JSON file download containing all data we hold for this user.",
         "parameters": [
           {
             "name": "userId",
@@ -45165,7 +45386,7 @@
         "tags": [
           "Users"
         ],
-        "summary": "Delete all personal data for the specified user (GDPR right to erasure).\r\nThis action is irreversible.",
+        "summary": "Delete all personal data for the specified user (GDPR right to erasure).\nThis action is irreversible.",
         "parameters": [
           {
             "name": "userId",
@@ -48365,7 +48586,7 @@
             "default": "this_channel"
           }
         },
-        "description": "A dashboard ban request (chat-client.md §3.5). string BanUserRequest.Scope is `\"this_channel\"` (default) or\r\n`\"all_moderated\"`. A int? BanUserRequest.DurationSeconds turns a `this_channel` action into a timeout;\r\n`all_moderated` is always a permanent ban across every channel Twitch says the operator moderates."
+        "description": "A dashboard ban request (chat-client.md §3.5). string BanUserRequest.Scope is `\"this_channel\"` (default) or\n`\"all_moderated\"`. A int? BanUserRequest.DurationSeconds turns a `this_channel` action into a timeout;\n`all_moderated` is always a permanent ban across every channel Twitch says the operator moderates."
       },
       "BillingPortalDto": {
         "required": [
@@ -48843,7 +49064,7 @@
             ]
           }
         },
-        "description": "The channel-wide connection state of a single integration entry (Twitch, custom bot, Spotify,\r\nDiscord, YouTube, OBS) as shown on the integrations screen and the dashboard shell. Carries only\r\nthe persisted connection facts — the request-specific OAuth connect URL is layered on by the\r\nintegrations controller. Distinct from IntegrationStatusDto, which is the per-OAuth\r\nprovider view (scope sets / capabilities / re-auth)."
+        "description": "The channel-wide connection state of a single integration entry (Twitch, custom bot, Spotify,\nDiscord, YouTube, OBS) as shown on the integrations screen and the dashboard shell. Carries only\nthe persisted connection facts — the request-specific OAuth connect URL is layered on by the\nintegrations controller. Distinct from IntegrationStatusDto, which is the per-OAuth\nprovider view (scope sets / capabilities / re-auth)."
       },
       "ChannelMembershipDto": {
         "required": [
@@ -48911,6 +49132,25 @@
         },
         "description": "A channel-management membership row for the dashboard roles screen (roles-permissions §4)."
       },
+      "ChannelPersonalityDto": {
+        "required": [
+          "personality",
+          "available"
+        ],
+        "type": "object",
+        "properties": {
+          "personality": {
+            "type": "string"
+          },
+          "available": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "description": "A channel's built-in-command personality tone. string ChannelPersonalityDto.Personality is the canonical tone token\n(`PersonalityTone.*`); IReadOnlyList&lt;string&gt; ChannelPersonalityDto.Available lists every selectable tone so a picker needs no\nsecond call."
+      },
       "ChatBadgeDto": {
         "required": [
           "setId",
@@ -48939,7 +49179,7 @@
             }
           }
         },
-        "description": "A chat badge (subscriber, moderator, etc.) resolved to its scale-keyed image urls (\"1\"/\"2\"/\"4\") from the cached\r\nHelix badge sets (chat-decoration spec §3.3). `Urls` is empty when the badge set is not yet warmed in cache."
+        "description": "A chat badge (subscriber, moderator, etc.) resolved to its scale-keyed image urls (\"1\"/\"2\"/\"4\") from the cached\nHelix badge sets (chat-decoration spec §3.3). `Urls` is empty when the badge set is not yet warmed in cache."
       },
       "ChatCheermoteDto": {
         "required": [
@@ -48990,7 +49230,7 @@
             ]
           }
         },
-        "description": "Cheermote fragment data — the raw prefix/bits/tier plus the resolved tier image (chat-decoration spec §3.4):\r\nscale-keyed `Urls`, whether animated, and the tier `ColorHex`. The image fields are null/empty until the\r\nchannel's cheermotes are warmed in cache."
+        "description": "Cheermote fragment data — the raw prefix/bits/tier plus the resolved tier image (chat-decoration spec §3.4):\nscale-keyed `Urls`, whether animated, and the tier `ColorHex`. The image fields are null/empty until the\nchannel's cheermotes are warmed in cache."
       },
       "ChatEmoteCatalogueDto": {
         "required": [
@@ -49069,7 +49309,7 @@
             "type": "boolean"
           }
         },
-        "description": "Emote fragment data — the unified, render-ready shape covering Twitch and third-party (BTTV/FFZ/7TV) emotes\r\n(chat-decoration spec §4). `Urls` is scale-keyed (\"1\"/\"2\"/\"3\"); `Provider` is the source network."
+        "description": "Emote fragment data — the unified, render-ready shape covering Twitch and third-party (BTTV/FFZ/7TV) emotes\n(chat-decoration spec §4). `Urls` is scale-keyed (\"1\"/\"2\"/\"3\"); `Provider` is the source network."
       },
       "ChatFragmentDto": {
         "required": [
@@ -49196,7 +49436,7 @@
             ]
           }
         },
-        "description": "Mention fragment data (@user) plus the mentioned user's last-seen chat colour as #RRGGBB (chat-decoration spec §3.1),\r\nor null when that user has not been seen recently."
+        "description": "Mention fragment data (@user) plus the mentioned user's last-seen chat colour as #RRGGBB (chat-decoration spec §3.1),\nor null when that user has not been seen recently."
       },
       "ChatSettingsDto": {
         "required": [
@@ -49264,7 +49504,7 @@
             ]
           }
         },
-        "description": "One readiness check. bool CheckItem.Ready means the area is <em>usable now</em>; bool CheckItem.Ok means the\r\n<em>full</em> credential set is present. For Twitch the two diverge: a client id alone makes the bot fully\r\nfunctional via the secret-free Device Code Flow (bool CheckItem.Ready = true), while a client secret is the\r\npure enhancement that <em>also</em> unlocks the one-tap redirect sign-in (bool CheckItem.Ok = true). For\r\nevery other area the two coincide. The frontend routes onboarding off these: bool CheckItem.Ready gates\r\nwhether the flow can start at all; bool CheckItem.Ok picks the smoother redirect login over device-code."
+        "description": "One readiness check. bool CheckItem.Ready means the area is <em>usable now</em>; bool CheckItem.Ok means the\n<em>full</em> credential set is present. For Twitch the two diverge: a client id alone makes the bot fully\nfunctional via the secret-free Device Code Flow (bool CheckItem.Ready = true), while a client secret is the\npure enhancement that <em>also</em> unlocks the one-tap redirect sign-in (bool CheckItem.Ok = true). For\nevery other area the two coincide. The frontend routes onboarding off these: bool CheckItem.Ready gates\nwhether the flow can start at all; bool CheckItem.Ok picks the smoother redirect login over device-code."
       },
       "CheckoutSessionDto": {
         "required": [
@@ -49576,7 +49816,7 @@
             "format": "ulid"
           }
         },
-        "description": "Lightweight command info for list views — includes the response text and pipeline id so the edit\r\n            form can pre-fill without a separate detail fetch."
+        "description": "Lightweight command info for list views — includes the response text and pipeline id so the edit\n            form can pre-fill without a separate detail fetch."
       },
       "CommunityStanding": {
         "type": "integer"
@@ -50537,7 +50777,7 @@
             ]
           }
         },
-        "description": "Create Channel Stream Schedule Segment request body. `StartTime` is the RFC3339 segment start,\r\n`Timezone` is the IANA zone the broadcast airs in, and `Duration` is the length in minutes\r\n(a string per Twitch). The remaining fields are optional; the transport omits nulls. The broadcaster\r\nis the Guid method argument, not part of this body."
+        "description": "Create Channel Stream Schedule Segment request body. `StartTime` is the RFC3339 segment start,\n`Timezone` is the IANA zone the broadcast airs in, and `Duration` is the length in minutes\n(a string per Twitch). The remaining fields are optional; the transport omits nulls. The broadcaster\nis the Guid method argument, not part of this body."
       },
       "CreateTimerDto": {
         "required": [
@@ -51082,7 +51322,7 @@
             ]
           }
         },
-        "description": "Rich chat message DTO sent to dashboard/overlay clients via SignalR. Includes structured fragments for\r\ninline emote, mention, and cheermote rendering; field names match the frontend ChatMessagePayload type\r\nexactly. `Message` is the raw plain-text fallback for clients that don't render fragments;\r\n`Fragments` are the structured text/emote/cheermote/mention pieces; `UserType` is the derived\r\nrole (broadcaster | moderator | vip | subscriber | viewer); `Color` is the user's chat color\r\n(#RRGGBB); `MessageType` is text | channel_points_highlighted | channel_points_sub_only | user_intro;\r\n`AvatarUrl` and `Pronouns` are additive hub-broadcast-layer enrichment (`IHubUserEnricher`),\r\nnull when unavailable."
+        "description": "Rich chat message DTO sent to dashboard/overlay clients via SignalR. Includes structured fragments for\ninline emote, mention, and cheermote rendering; field names match the frontend ChatMessagePayload type\nexactly. `Message` is the raw plain-text fallback for clients that don't render fragments;\n`Fragments` are the structured text/emote/cheermote/mention pieces; `UserType` is the derived\nrole (broadcaster | moderator | vip | subscriber | viewer); `Color` is the user's chat color\n(#RRGGBB); `MessageType` is text | channel_points_highlighted | channel_points_sub_only | user_intro;\n`AvatarUrl` and `Pronouns` are additive hub-broadcast-layer enrichment (`IHubUserEnricher`),\nnull when unavailable."
       },
       "DashboardStatsDto": {
         "type": "object",
@@ -51149,7 +51389,7 @@
             "format": "int64"
           }
         },
-        "description": "Snapshot of a channel's current state, returned by GET /api/v1/dashboard/{broadcasterId}/stats.\r\nLive fields come from the in-memory ChannelContext; counts are session totals since bot join."
+        "description": "Snapshot of a channel's current state, returned by GET /api/v1/dashboard/{broadcasterId}/stats.\nLive fields come from the in-memory ChannelContext; counts are session totals since bot join."
       },
       "DeviceBotPollDto": {
         "required": [
@@ -51209,7 +51449,7 @@
             "format": "int32"
           }
         },
-        "description": "A started Device Code Flow authorization (the no-secret login). The client shows string DeviceCodeStartDto.UserCode and\r\nsends the operator to string DeviceCodeStartDto.VerificationUri, then polls with string DeviceCodeStartDto.DeviceCode every\r\nint DeviceCodeStartDto.Interval seconds until int DeviceCodeStartDto.ExpiresIn elapses."
+        "description": "A started Device Code Flow authorization (the no-secret login). The client shows string DeviceCodeStartDto.UserCode and\nsends the operator to string DeviceCodeStartDto.VerificationUri, then polls with string DeviceCodeStartDto.DeviceCode every\nint DeviceCodeStartDto.Interval seconds until int DeviceCodeStartDto.ExpiresIn elapses."
       },
       "DeviceLoginPollDto": {
         "required": [
@@ -52019,7 +52259,7 @@
             "format": "int64"
           }
         },
-        "description": "The outcome of an import: how many lines the file held, how many events were newly appended, how many were\r\nskipped as already-present duplicates (idempotency), and how many were upcast from a stale shape on the way in."
+        "description": "The outcome of an import: how many lines the file held, how many events were newly appended, how many were\nskipped as already-present duplicates (idempotency), and how many were upcast from a stale shape on the way in."
       },
       "EventResponseDto": {
         "required": [
@@ -52286,7 +52526,7 @@
             ]
           }
         },
-        "description": "The enablement status of a single channel feature. Two independent axes the client must not conflate:\r\nbool FeatureStatusDto.IsEnabled is the channel's OWN opt-in choice (row on, or the catalogue default), while\r\nbool FeatureStatusDto.Entitled is whether the channel's tier / deployment / platform flag even ALLOWS the feature. A\r\nfeature is actually usable iff `Entitled &amp;&amp; IsEnabled`; a not-entitled feature can still read\r\nopt-in ON (legacy state), so the dashboard shows \"Upgrade to unlock\" (see string? FeatureStatusDto.RequiredTier) rather\r\nthan a toggle. An ungated feature is always bool FeatureStatusDto.Entitled."
+        "description": "The enablement status of a single channel feature. Two independent axes the client must not conflate:\nbool FeatureStatusDto.IsEnabled is the channel's OWN opt-in choice (row on, or the catalogue default), while\nbool FeatureStatusDto.Entitled is whether the channel's tier / deployment / platform flag even ALLOWS the feature. A\nfeature is actually usable iff `Entitled &amp;&amp; IsEnabled`; a not-entitled feature can still read\nopt-in ON (legacy state), so the dashboard shows \"Upgrade to unlock\" (see string? FeatureStatusDto.RequiredTier) rather\nthan a toggle. An ungated feature is always bool FeatureStatusDto.Entitled."
       },
       "FederationPeerDto": {
         "required": [
@@ -53614,7 +53854,7 @@
             }
           }
         },
-        "description": "The outcome of a legacy import, plus the journal head before/after so the caller can see the growth.\r\nIReadOnlyDictionary&lt;string, long&gt; LegacyImportResult.SkippedByLegacyType itemizes the unmapped skips by their legacy `Type` so the operator can\r\nverify every legacy row is accounted for (imported + duplicate + itemized skips = total read), with no silent drop."
+        "description": "The outcome of a legacy import, plus the journal head before/after so the caller can see the growth.\nIReadOnlyDictionary&lt;string, long&gt; LegacyImportResult.SkippedByLegacyType itemizes the unmapped skips by their legacy `Type` so the operator can\nverify every legacy row is accounted for (imported + duplicate + itemized skips = total read), with no silent drop."
       },
       "LoginProviderDto": {
         "required": [
@@ -53641,7 +53881,7 @@
             "type": "boolean"
           }
         },
-        "description": "A login provider the client may offer on the login screen (platform-identity §4). bool LoginProviderDto.Enabled is\r\nthe descriptor being registered AND its feature flag resolving true for this deployment — the login screen\r\nrenders only enabled providers, so there are never dead buttons. IReadOnlyList&lt;string&gt; LoginProviderDto.Flows are wire tokens\r\n(`device_code` | `auth_code_pkce` | `auth_code`) telling the client which handshake to run."
+        "description": "A login provider the client may offer on the login screen (platform-identity §4). bool LoginProviderDto.Enabled is\nthe descriptor being registered AND its feature flag resolving true for this deployment — the login screen\nrenders only enabled providers, so there are never dead buttons. IReadOnlyList&lt;string&gt; LoginProviderDto.Flows are wire tokens\n(`device_code` | `auth_code_pkce` | `auth_code`) telling the client which handshake to run."
       },
       "ManagementRole": {
         "type": "integer"
@@ -53842,7 +54082,7 @@
             "type": "boolean"
           }
         },
-        "description": "One missing-scope row: the absent scope, the feature(s) it blocks (human-grouped by the\r\n`FeatureScopeMap` key), whether a real Helix call already failed for it (bool MissingScopeDto.DetectedAtRuntime),\r\nand whether the streamer has already been told in chat (bool MissingScopeDto.ChatNotified). The dashboard renders\r\n\"the bot needs '&lt;scope&gt;' to &lt;features&gt;\" from this and the [Grant permission] button re-grants the union."
+        "description": "One missing-scope row: the absent scope, the feature(s) it blocks (human-grouped by the\n`FeatureScopeMap` key), whether a real Helix call already failed for it (bool MissingScopeDto.DetectedAtRuntime),\nand whether the streamer has already been told in chat (bool MissingScopeDto.ChatNotified). The dashboard renders\n\"the bot needs '&lt;scope&gt;' to &lt;features&gt;\" from this and the [Grant permission] button re-grants the union."
       },
       "MissingScopesDto": {
         "required": [
@@ -53861,7 +54101,7 @@
             }
           }
         },
-        "description": "The channel's outstanding Twitch scope gaps (identity-auth §3.4a) — the read model the dashboard banner\r\nrenders and the one-click re-grant acts on. IReadOnlyList&lt;MissingScopeDto&gt; MissingScopesDto.Scopes is the deduplicated set of scopes the\r\nstreamer token is missing (proactive feature-gated gaps the connection never held + reactive gaps a real\r\nHelix call surfaced); empty when the connection holds everything every offered feature needs."
+        "description": "The channel's outstanding Twitch scope gaps (identity-auth §3.4a) — the read model the dashboard banner\nrenders and the one-click re-grant acts on. IReadOnlyList&lt;MissingScopeDto&gt; MissingScopesDto.Scopes is the deduplicated set of scopes the\nstreamer token is missing (proactive feature-gated gaps the connection never held + reactive gaps a real\nHelix call surfaced); empty when the connection holds everything every offered feature needs."
       },
       "ModeratedChannelDto": {
         "required": [
@@ -54251,7 +54491,7 @@
             }
           }
         },
-        "description": "The outcome of a ban for either scope. `this_channel` collapses to a one-row result; `all_moderated`\r\ncarries one ChannelBanOutcomeDto per channel the fan-out touched."
+        "description": "The outcome of a ban for either scope. `this_channel` collapses to a one-row result; `all_moderated`\ncarries one ChannelBanOutcomeDto per channel the fan-out touched."
       },
       "NowPlayingDto": {
         "required": [
@@ -54351,7 +54591,7 @@
               "null",
               "string"
             ],
-            "description": "Custom redirect URI used by the client (e.g. `nomnomzbot://callback` for mobile).\r\nWhen provided, Twitch token exchange uses this instead of the server's configured URI."
+            "description": "Custom redirect URI used by the client (e.g. `nomnomzbot://callback` for mobile).\nWhen provided, Twitch token exchange uses this instead of the server's configured URI."
           }
         },
         "description": "OAuth callback data received from the Twitch redirect."
@@ -56723,7 +56963,7 @@
             "format": "date-time"
           }
         },
-        "description": "One entry in the channel-points redemption queue (rewards.md) — a redemption with its current\r\n            status (`unfulfilled` / `fulfilled` / `canceled`), folded from the journal."
+        "description": "One entry in the channel-points redemption queue (rewards.md) — a redemption with its current\n            status (`unfulfilled` / `fulfilled` / `canceled`), folded from the journal."
       },
       "RefreshTokenRequest": {
         "required": [
@@ -56738,7 +56978,7 @@
             ]
           }
         },
-        "description": "Token refresh request. The refresh token is optional in the body: the served-web dashboard sends none and\r\nrelies on the HttpOnly cookie the browser attaches automatically, while native clients send the token they\r\nhold in their own vault."
+        "description": "Token refresh request. The refresh token is optional in the body: the served-web dashboard sends none and\nrelies on the HttpOnly cookie the browser attaches automatically, while native clients send the token they\nhold in their own vault."
       },
       "RefundRequest": {
         "required": [
@@ -56827,7 +57067,7 @@
             "$ref": "#/components/schemas/MissingScopesDto"
           }
         },
-        "description": "            Everything the dashboard shell needs to render for the active channel, aggregated into one\r\n            response so the client boots with a single request instead of four. Each section reuses the same\r\n            DTO its dedicated endpoint returns:\r\n            * ResolvedAccessDto RenderManifestDto.Access — the caller's resolved access (roles/effective/me).\r\n* IReadOnlyList&lt;FeatureStatusDto&gt; RenderManifestDto.Features — the channel's feature toggles (features).\r\n* IReadOnlyList&lt;ChannelIntegrationDto&gt; RenderManifestDto.Integrations — integration connection states (integrations).\r\n* MissingScopesDto RenderManifestDto.Scopes — outstanding Twitch scope gaps (twitch/diagnostics/missing-scopes).ResolvedAccessDto RenderManifestDto.Access is always resolved (self-introspection) and is load-bearing. The feature,\r\n            integration, and scope sections are each populated ONLY when the caller clears that surface's\r\n            Gate-2 read floor (per their IReadOnlyList&lt;string&gt; ResolvedAccessDto.HeldActionKeys) — a participant sees\r\n            them empty — so the aggregate never leaks data an individual endpoint would have withheld. Of the\r\n            entitled sections, features is load-bearing (a real failure fails the manifest); integrations and\r\n            scopes degrade to an empty section instead."
+        "description": "            Everything the dashboard shell needs to render for the active channel, aggregated into one\n            response so the client boots with a single request instead of four. Each section reuses the same\n            DTO its dedicated endpoint returns:\n            * ResolvedAccessDto RenderManifestDto.Access — the caller's resolved access (roles/effective/me).\n* IReadOnlyList&lt;FeatureStatusDto&gt; RenderManifestDto.Features — the channel's feature toggles (features).\n* IReadOnlyList&lt;ChannelIntegrationDto&gt; RenderManifestDto.Integrations — integration connection states (integrations).\n* MissingScopesDto RenderManifestDto.Scopes — outstanding Twitch scope gaps (twitch/diagnostics/missing-scopes).ResolvedAccessDto RenderManifestDto.Access is always resolved (self-introspection) and is load-bearing. The feature,\n            integration, and scope sections are each populated ONLY when the caller clears that surface's\n            Gate-2 read floor (per their IReadOnlyList&lt;string&gt; ResolvedAccessDto.HeldActionKeys) — a participant sees\n            them empty — so the aggregate never leaks data an individual endpoint would have withheld. Of the\n            entitled sections, features is load-bearing (a real failure fails the manifest); integrations and\n            scopes degrade to an empty section instead."
       },
       "ReorderMediaRequest": {
         "required": [
@@ -56946,7 +57186,7 @@
             }
           }
         },
-        "description": "The full breakdown of a caller's resolved authorization for a channel (roles-permissions §4) — each\r\nplane's contributing level and the winning source — for the permissions UI and debugging.\r\n`EffectiveLevel` is `MAX(CommunityLevel, ManagementLevel, permit-role level)`.\r\nPermitCapabilities are the caller's per-USER capability grants only. HeldActionKeys is the\r\nbroader, UI-facing set: EVERY action key in the catalogue the caller actually CLEARS on this channel —\r\ntheir EffectiveLevel meets the action's channel-effective required level (which FOLDS IN the\r\nbroadcaster's ChannelActionOverride, unlike the per-plane level fields), OR they hold a direct\r\nper-user capability grant for it. The dashboard gates page/action visibility on this set."
+        "description": "The full breakdown of a caller's resolved authorization for a channel (roles-permissions §4) — each\nplane's contributing level and the winning source — for the permissions UI and debugging.\n`EffectiveLevel` is `MAX(CommunityLevel, ManagementLevel, permit-role level)`.\nPermitCapabilities are the caller's per-USER capability grants only. HeldActionKeys is the\nbroader, UI-facing set: EVERY action key in the catalogue the caller actually CLEARS on this channel —\ntheir EffectiveLevel meets the action's channel-effective required level (which FOLDS IN the\nbroadcaster's ChannelActionOverride, unlike the per-plane level fields), OR they hold a direct\nper-user capability grant for it. The dashboard gates page/action visibility on this set."
       },
       "ResolveUnbanRequestRequest": {
         "required": [
@@ -57219,7 +57459,7 @@
             }
           }
         },
-        "description": "A started re-grant device authorization (identity-auth §3.4a): the same secret-free Device Code Flow the\r\nstreamer login uses, but requesting `granted ∪ missing` so the existing grant is never dropped. The\r\nclient shows string ScopeRegrantStartDto.UserCode at string ScopeRegrantStartDto.VerificationUri and polls the normal streamer device\r\npoll with string ScopeRegrantStartDto.DeviceCode; on approval the token store reconciles the new scopes and the gap clears."
+        "description": "A started re-grant device authorization (identity-auth §3.4a): the same secret-free Device Code Flow the\nstreamer login uses, but requesting `granted ∪ missing` so the existing grant is never dropped. The\nclient shows string ScopeRegrantStartDto.UserCode at string ScopeRegrantStartDto.VerificationUri and polls the normal streamer device\npoll with string ScopeRegrantStartDto.DeviceCode; on approval the token store reconciles the new scopes and the gap clears."
       },
       "ScopesResponseDto": {
         "required": [
@@ -57383,6 +57623,19 @@
             "type": "boolean"
           }
         }
+      },
+      "SetChannelPersonalityRequest": {
+        "required": [
+          "personality"
+        ],
+        "type": "object",
+        "properties": {
+          "personality": {
+            "type": "string",
+            "description": "One of `PersonalityTone.All` (case-insensitive)."
+          }
+        },
+        "description": "Request to set a channel's built-in-command personality tone."
       },
       "SetCodeScriptEnabledRequest": {
         "required": [
@@ -57600,7 +57853,7 @@
             ]
           }
         },
-        "description": "How a UI completes a step. `Type` is `save_credentials` (POST/PUT the IReadOnlyList&lt;SetupFieldDto&gt; SetupStepDto.Fields\r\nto `Endpoint`) or `oauth_redirect` (GET `Endpoint` for a URL to send the browser to, then poll\r\n`PollEndpoint` for completion)."
+        "description": "How a UI completes a step. `Type` is `save_credentials` (POST/PUT the IReadOnlyList&lt;SetupFieldDto&gt; SetupStepDto.Fields\nto `Endpoint`) or `oauth_redirect` (GET `Endpoint` for a URL to send the browser to, then poll\n`PollEndpoint` for completion)."
       },
       "SetupFieldDto": {
         "required": [
@@ -57700,7 +57953,7 @@
             }
           }
         },
-        "description": "The self-describing first-time-setup contract a dashboard renders the onboarding flow from: an ordered list of\r\nsteps plus an overall bool SetupWizardDto.Complete flag. Each step carries everything the UI needs — copy, the exact\r\nredirect URI to register, the API call that satisfies it, the input fields, and its live completion state — so\r\nthe onboarding pages need no hardcoded knowledge of the steps."
+        "description": "The self-describing first-time-setup contract a dashboard renders the onboarding flow from: an ordered list of\nsteps plus an overall bool SetupWizardDto.Complete flag. Each step carries everything the UI needs — copy, the exact\nredirect URI to register, the API call that satisfies it, the input fields, and its live completion state — so\nthe onboarding pages need no hardcoded knowledge of the steps."
       },
       "SetUserVoiceDto": {
         "required": [
@@ -58069,6 +58322,36 @@
               },
               {
                 "$ref": "#/components/schemas/ChannelDto"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
+      "StatusResponseDtoOfChannelPersonalityDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ChannelPersonalityDto"
               }
             ]
           },
@@ -62668,7 +62951,7 @@
             "format": "int32"
           }
         },
-        "description": "The channel's ad schedule — next/last ad as unix seconds (0 when none), the current ad duration, the\r\nremaining pre-roll-free time, and the snooze allowance (count plus the unix refresh time)."
+        "description": "The channel's ad schedule — next/last ad as unix seconds (0 when none), the current ad duration, the\nremaining pre-roll-free time, and the snooze allowance (count plus the unix refresh time)."
       },
       "TwitchAdSnooze": {
         "required": [
@@ -62719,7 +63002,7 @@
             "type": "string"
           }
         },
-        "description": "The stub returned by a clip-create call (Create Clip, Create Clip From VOD): the new clip's id and the\r\nedit URL the broadcaster opens to trim and publish it within the 15-second editing window."
+        "description": "The stub returned by a clip-create call (Create Clip, Create Clip From VOD): the new clip's id and the\nedit URL the broadcaster opens to trim and publish it within the 15-second editing window."
       },
       "TwitchCommercial": {
         "required": [
@@ -62955,7 +63238,7 @@
             "format": "date-time"
           }
         },
-        "description": "A Channel Points Prediction. string? TwitchPrediction.WinningOutcomeId is empty until the prediction resolves;\r\nDateTimeOffset? TwitchPrediction.EndedAt and DateTimeOffset? TwitchPrediction.LockedAt are null until those transitions occur. Returned by\r\nGet / Create / End Prediction."
+        "description": "A Channel Points Prediction. string? TwitchPrediction.WinningOutcomeId is empty until the prediction resolves;\nDateTimeOffset? TwitchPrediction.EndedAt and DateTimeOffset? TwitchPrediction.LockedAt are null until those transitions occur. Returned by\nGet / Create / End Prediction."
       },
       "TwitchPredictionOutcome": {
         "required": [
@@ -63096,7 +63379,7 @@
             ]
           }
         },
-        "description": "Get Channel Stream Schedule — the broadcaster's streaming schedule: the segment list, the active\r\nvacation window (null when none), and the broadcaster's identity. The data is a single object, so the\r\ntransport's `data[]` envelope wraps exactly one of these."
+        "description": "Get Channel Stream Schedule — the broadcaster's streaming schedule: the segment list, the active\nvacation window (null when none), and the broadcaster's identity. The data is a single object, so the\ntransport's `data[]` envelope wraps exactly one of these."
       },
       "TwitchScheduleCategory": {
         "required": [
@@ -63205,7 +63488,7 @@
             }
           }
         },
-        "description": "The Twitch scope/connection health read model (twitch-helix.md §5): the connection status, the granted\r\nscope set, and the per-feature requirement matrix the dashboard renders so a missing scope is observable\r\n(it closes the \"subscriber count always 0\" / \"403 chat\" class of silent failures by surfacing the gap)."
+        "description": "The Twitch scope/connection health read model (twitch-helix.md §5): the connection status, the granted\nscope set, and the per-feature requirement matrix the dashboard renders so a missing scope is observable\n(it closes the \"subscriber count always 0\" / \"403 chat\" class of silent failures by surfacing the gap)."
       },
       "TwitchScopeRequirementDto": {
         "required": [
@@ -63236,7 +63519,7 @@
             ]
           }
         },
-        "description": "One row of the diagnostics matrix: a scope a feature needs, whether the connection currently holds it, and\r\n(because every entry here is a progressive, feature-gated scope) the feature that gates its request. A\r\nmissing progressive scope is \"feature-gated\", not an error — it is requested when the feature is enabled."
+        "description": "One row of the diagnostics matrix: a scope a feature needs, whether the connection currently holds it, and\n(because every entry here is a progressive, feature-gated scope) the feature that gates its request. A\nmissing progressive scope is \"feature-gated\", not an error — it is requested when the feature is enabled."
       },
       "TwitchStreamMarker": {
         "required": [
@@ -63325,7 +63608,7 @@
             ]
           }
         },
-        "description": "One unban request in the channel's queue, read live from Twitch — the requesting viewer, their\r\n            appeal text, its status, and (once resolved) the moderator and resolution note."
+        "description": "One unban request in the channel's queue, read live from Twitch — the requesting viewer, their\n            appeal text, its status, and (once resolved) the moderator and resolution note."
       },
       "UnbanUserRequest": {
         "required": [
@@ -63341,7 +63624,7 @@
             "default": "this_channel"
           }
         },
-        "description": "A dashboard unban request — the reversal of BanUserRequest. string UnbanUserRequest.Scope is\r\n`\"this_channel\"` (default) or `\"all_moderated\"`, which lifts the ban across every channel Twitch says\r\nthe operator moderates (the \"un-nuke\")."
+        "description": "A dashboard unban request — the reversal of BanUserRequest. string UnbanUserRequest.Scope is\n`\"this_channel\"` (default) or `\"all_moderated\"`, which lifts the ban across every channel Twitch says\nthe operator moderates (the \"un-nuke\")."
       },
       "UpdateCatalogItemRequest": {
         "required": [
@@ -64200,7 +64483,7 @@
             ]
           }
         },
-        "description": "Update Channel Stream Schedule Segment request body. All fields optional — only the ones set are sent\r\n(the transport omits nulls), matching Twitch's \"patch only what you provide\" semantics. The broadcaster\r\nand the segment id are method arguments, not part of this body."
+        "description": "Update Channel Stream Schedule Segment request body. All fields optional — only the ones set are sent\n(the transport omits nulls), matching Twitch's \"patch only what you provide\" semantics. The broadcaster\nand the segment id are method arguments, not part of this body."
       },
       "UpdateScheduleSettingsDto": {
         "required": [
@@ -65300,7 +65583,7 @@
             "format": "date-time"
           }
         },
-        "description": "One external identity linked to the caller's account (platform-identity §4). Never carries tokens — those\r\nlive in the vault. Returned by `GET auth/identities`, primary first."
+        "description": "One external identity linked to the caller's account (platform-identity §4). Never carries tokens — those\nlive in the vault. Returned by `GET auth/identities`, primary first."
       },
       "UserModerationContextDto": {
         "required": [
@@ -65377,7 +65660,7 @@
             }
           }
         },
-        "description": "A per-user moderation summary for the mod panel — the bot's RECORDED actions against one viewer in a channel\r\n(bans / timeouts / warns / unbans, counts + the most recent). This is the bot's own action history, not Twitch's\r\ncomplete record: actions taken outside the bot (Twitch's UI, other tools) are not counted here."
+        "description": "A per-user moderation summary for the mod panel — the bot's RECORDED actions against one viewer in a channel\n(bans / timeouts / warns / unbans, counts + the most recent). This is the bot's own action history, not Twitch's\ncomplete record: actions taken outside the bot (Twitch's UI, other tools) are not counted here."
       },
       "UserNoteDto": {
         "required": [
