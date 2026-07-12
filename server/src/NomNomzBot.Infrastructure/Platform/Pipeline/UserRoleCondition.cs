@@ -25,14 +25,14 @@ public sealed class UserRoleCondition : ICommandCondition
 {
     public string ConditionType => "user_role";
 
-    public bool Evaluate(PipelineExecutionContext ctx, ConditionDefinition condition)
+    public Task<bool> EvaluateAsync(PipelineExecutionContext ctx, ConditionDefinition condition)
     {
         string requiredRole = condition.Parameters is not null
             ? (GetParam(condition, "min_role") ?? GetParam(condition, "role") ?? "viewer")
             : "viewer";
 
         string userRole = ctx.Variables.GetValueOrDefault("user.role", "viewer");
-        return RoleLevel(userRole) >= RoleLevel(requiredRole);
+        return Task.FromResult(RoleLevel(userRole) >= RoleLevel(requiredRole));
     }
 
     private static string? GetParam(ConditionDefinition c, string key)

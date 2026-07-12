@@ -13,5 +13,5 @@ namespace NomNomzBot.Application.Abstractions.Pipeline;
 public interface ICommandCondition
 {
     string ConditionType { get; }
-    bool Evaluate(PipelineExecutionContext ctx, ConditionDefinition condition);
+    Task<bool> EvaluateAsync(PipelineExecutionContext ctx, ConditionDefinition condition);
 }

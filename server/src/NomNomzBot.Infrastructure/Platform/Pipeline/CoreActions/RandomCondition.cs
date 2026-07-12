@@ -22,7 +22,7 @@ public sealed class RandomCondition : ICommandCondition
 {
     public string ConditionType => "random";
 
-    public bool Evaluate(PipelineExecutionContext ctx, ConditionDefinition condition)
+    public Task<bool> EvaluateAsync(PipelineExecutionContext ctx, ConditionDefinition condition)
     {
         double threshold = 0.5;
 
@@ -44,6 +44,6 @@ public sealed class RandomCondition : ICommandCondition
             }
         }
 
-        return Random.Shared.NextDouble() < threshold;
+        return Task.FromResult(Random.Shared.NextDouble() < threshold);
     }
 }
