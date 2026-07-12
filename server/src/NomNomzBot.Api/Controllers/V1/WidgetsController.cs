@@ -11,7 +11,9 @@
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
 using NomNomzBot.Api.Authorization;
+using NomNomzBot.Api.Extensions;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Widgets.Dtos;
@@ -30,10 +32,40 @@ namespace NomNomzBot.Api.Controllers.V1;
 public class WidgetsController : BaseController
 {
     private readonly IWidgetService _widgetService;
+    private readonly IConfiguration _configuration;
 
-    public WidgetsController(IWidgetService widgetService)
+    public WidgetsController(IWidgetService widgetService, IConfiguration configuration)
     {
         _widgetService = widgetService;
+        _configuration = configuration;
+    }
+
+    /// <summary>
+    /// Rewrites the OBS browser-source URL to the origin the operator actually reached the dashboard on, so a
+    /// copied URL works in OBS instead of pointing at the bot's loopback bind (the bug where every URL read
+    /// <c>http://localhost:8080</c>). The overlay host page is served by THIS API, so its public origin is the
+    /// forwarded access origin — resolved identically to every OAuth <c>redirect_uri</c>
+    /// (<see cref="PublicOriginExtensions.ResolvePublicOrigin"/>). An operator who deliberately fronts overlays on
+    /// a different host still wins via an explicit <c>OverlayBaseUrl</c>. The widget's path + token query are kept
+    /// verbatim; only the scheme+host are swapped.
+    /// </summary>
+    private WidgetDetail WithOverlayOrigin(WidgetDetail widget)
+    {
+        if (
+            widget.OverlayUrl is null
+            || !Uri.TryCreate(widget.OverlayUrl, UriKind.Absolute, out Uri? current)
+        )
+            return widget;
+
+        string? explicitBase = _configuration["OverlayBaseUrl"];
+        string origin = string.IsNullOrWhiteSpace(explicitBase)
+            ? Request.ResolvePublicOrigin(_configuration)
+            : explicitBase.TrimEnd('/');
+
+        return widget with
+        {
+            OverlayUrl = $"{origin}{current.PathAndQuery}",
+        };
     }
 
     /// <summary>List a channel's overlay widgets, paginated.</summary>
@@ -54,7 +86,15 @@ public class WidgetsController : BaseController
         );
         if (result.IsFailure)
             return ResultResponse(result);
-        return GetPaginatedResponse(result.Value, request);
+
+        PagedList<WidgetDetail> page = result.Value;
+        PagedList<WidgetDetail> withOrigin = new(
+            page.Items.Select(WithOverlayOrigin).ToList(),
+            page.Page,
+            page.PageSize,
+            page.TotalCount
+        );
+        return GetPaginatedResponse(withOrigin, request);
     }
 
     /// <summary>Get a single overlay widget's configuration.</summary>
@@ -68,7 +108,9 @@ public class WidgetsController : BaseController
     )
     {
         Result<WidgetDetail> result = await _widgetService.GetAsync(channelId, widgetId, ct);
-        return ResultResponse(result);
+        if (result.IsFailure)
+            return ResultResponse(result);
+        return Ok(new StatusResponseDto<WidgetDetail> { Data = WithOverlayOrigin(result.Value) });
     }
 
     /// <summary>Create a new overlay widget for a channel.</summary>
@@ -90,7 +132,7 @@ public class WidgetsController : BaseController
             new { channelId, widgetId = result.Value.Id },
             new StatusResponseDto<WidgetDetail>
             {
-                Data = result.Value,
+                Data = WithOverlayOrigin(result.Value),
                 Message = "Widget created successfully.",
             }
         );
@@ -115,7 +157,7 @@ public class WidgetsController : BaseController
         );
         if (result.IsFailure)
             return ResultResponse(result);
-        return Ok(new StatusResponseDto<WidgetDetail> { Data = result.Value });
+        return Ok(new StatusResponseDto<WidgetDetail> { Data = WithOverlayOrigin(result.Value) });
     }
 
     /// <summary>Delete an overlay widget from a channel.</summary>
