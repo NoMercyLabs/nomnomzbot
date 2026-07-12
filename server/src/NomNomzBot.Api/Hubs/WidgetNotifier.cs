@@ -43,6 +43,13 @@ public interface IWidgetNotifier
         StopSoundPayload payload,
         CancellationToken ct = default
     );
+
+    /// <summary>Broadcasts one generic overlay-feed event to every overlay client for the given broadcaster.</summary>
+    Task BroadcastOverlayEventAsync(
+        string broadcasterId,
+        OverlayEventDto evt,
+        CancellationToken ct = default
+    );
 }
 
 public class WidgetNotifier : IWidgetNotifier
@@ -82,4 +89,10 @@ public class WidgetNotifier : IWidgetNotifier
         StopSoundPayload payload,
         CancellationToken ct = default
     ) => _hub.Clients.Group($"overlay-{broadcasterId}").StopSound(payload);
+
+    public Task BroadcastOverlayEventAsync(
+        string broadcasterId,
+        OverlayEventDto evt,
+        CancellationToken ct = default
+    ) => _hub.Clients.Group($"overlay-{broadcasterId}").Event(evt);
 }

@@ -126,6 +126,13 @@ public record ConfigChangedDto(
 
 public record WidgetEventDto(string WidgetId, string EventType, object? Data);
 
+/// <summary>
+/// One event on the generic overlay feed: the canonical <paramref name="Type"/> the overlay filters on, and the
+/// event's data as a raw JSON string (<paramref name="Payload"/>) the overlay parses. Kept as a string to stay
+/// serializer-agnostic on the wire — the client does a single <c>JSON.parse</c>.
+/// </summary>
+public record OverlayEventDto(string Type, string Payload);
+
 public record WidgetSettingsDto(string WidgetId, object Settings);
 
 public record OBSCommandDto(string RequestId, string Command, object? Params);

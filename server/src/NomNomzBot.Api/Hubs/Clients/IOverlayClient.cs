@@ -18,6 +18,13 @@ public interface IOverlayClient
     Task WidgetReload();
     Task WidgetSettingsChanged(WidgetSettingsDto settings);
 
+    /// <summary>
+    /// The generic overlay event feed (widgets-overlays.md): one channel-wide event, delivered to every overlay
+    /// connection so a custom overlay can listen and filter client-side. <see cref="OverlayEventDto.Payload"/> is
+    /// the event's data as a raw JSON string the overlay parses.
+    /// </summary>
+    Task Event(OverlayEventDto evt);
+
     /// <summary>Instructs the overlay's audio bus to start playing a clip (spec §4).</summary>
     Task PlaySound(PlaySoundPayload payload);
 

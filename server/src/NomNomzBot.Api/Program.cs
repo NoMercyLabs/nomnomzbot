@@ -172,6 +172,11 @@ try
         NomNomzBot.Application.Sound.Services.ISoundClipOverlayNotifier,
         NomNomzBot.Api.Hubs.SoundClipOverlayNotifierAdapter
     >();
+    // The generic overlay event feed — the hub-backed impl the OverlayEventFeedHook fans every event through.
+    builder.Services.AddScoped<
+        NomNomzBot.Application.Overlays.Services.IOverlayEventFeed,
+        NomNomzBot.Api.Hubs.OverlayEventFeedAdapter
+    >();
 
     // Hub broadcast-layer viewer enrichment (avatar/pronouns/community standing) — the store does the DB read,
     // the enricher cache-gates it so a burst of hub events for the same viewer is one DB read, not N.

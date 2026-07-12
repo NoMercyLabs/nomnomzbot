@@ -330,6 +330,12 @@ public static class DependencyInjection
             Application.Sound.Services.ISoundClipOverlayNotifier,
             Sound.NullSoundClipOverlayNotifier
         >();
+        // No-op fallback for the generic overlay event feed; the API host replaces it with the hub-backed adapter.
+        // The OverlayEventFeedHook that drives it is auto-registered by the IJournalPostCommitHook scan below.
+        services.AddScoped<
+            Application.Overlays.Services.IOverlayEventFeed,
+            Overlays.NullOverlayEventFeed
+        >();
         // play_sound + stop_sound auto-discovered via ICommandAction scan.
 
         // Custom data sources: management CRUD + the single ingest path + auto-discovered presets.
