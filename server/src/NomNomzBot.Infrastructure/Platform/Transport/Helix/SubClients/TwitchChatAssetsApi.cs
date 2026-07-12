@@ -87,6 +87,23 @@ public sealed class TwitchChatAssetsApi(
         return await transport.GetListAsync<TwitchChannelEmote>(request, ct);
     }
 
+    public async Task<Result<IReadOnlyList<TwitchChannelEmote>>> GetChannelEmotesByTwitchIdAsync(
+        string twitchBroadcasterId,
+        CancellationToken ct = default
+    )
+    {
+        // No Guid → Twitch-id resolution: the id is already the raw Twitch broadcaster id (the channel may not be
+        // a local tenant). Same App-token endpoint, same mapping as GetChannelEmotesAsync(Guid).
+        TwitchHelixRequest request = new(
+            HttpMethod.Get,
+            "chat/emotes",
+            TwitchHelixAuth.App,
+            Query: [new("broadcaster_id", twitchBroadcasterId)]
+        );
+
+        return await transport.GetListAsync<TwitchChannelEmote>(request, ct);
+    }
+
     public async Task<Result<IReadOnlyList<TwitchGlobalEmote>>> GetGlobalEmotesAsync(
         CancellationToken ct = default
     )

@@ -38,6 +38,17 @@ public interface ITwitchChatAssetsApi
         CancellationToken ct = default
     );
 
+    /// <summary>
+    /// Get Channel Emotes BY RAW TWITCH ID — the same App-token call as <see cref="GetChannelEmotesAsync"/> but
+    /// keyed off the channel's RAW Twitch broadcaster id, never resolved from a Guid. Used to reach a channel that
+    /// is NOT a local tenant (e.g. another streamer the operator follows) so its follower emotes can be surfaced.
+    /// App token; no scope.
+    /// </summary>
+    Task<Result<IReadOnlyList<TwitchChannelEmote>>> GetChannelEmotesByTwitchIdAsync(
+        string twitchBroadcasterId,
+        CancellationToken ct = default
+    );
+
     /// <summary>Get Global Emotes — Twitch's global emotes, available in every channel. App token; no scope; no params.</summary>
     Task<Result<IReadOnlyList<TwitchGlobalEmote>>> GetGlobalEmotesAsync(
         CancellationToken ct = default
