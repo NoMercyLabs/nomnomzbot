@@ -108,6 +108,7 @@ public sealed class SeedTestDbContext : DbContext, IApplicationDbContext
     public DbSet<UserTtsVoice> UserTtsVoices => Set<UserTtsVoice>();
     public DbSet<TtsUsageRecord> TtsUsageRecords => Set<TtsUsageRecord>();
     public DbSet<TtsCacheEntry> TtsCacheEntries => Set<TtsCacheEntry>();
+    public DbSet<TtsApprovalQueueEntry> TtsApprovalQueueEntries => Set<TtsApprovalQueueEntry>();
     public DbSet<DeletionAuditLog> DeletionAuditLogs => Set<DeletionAuditLog>();
     public DbSet<NomNomzBot.Domain.Commands.Entities.Timer> Timers =>
         Set<NomNomzBot.Domain.Commands.Entities.Timer>();

@@ -53,7 +53,8 @@ public sealed class TtsDispatchServiceTests
         bool enabled = true,
         int maxLength = 500,
         string defaultVoice = "default-voice",
-        bool censorEnabled = false
+        bool censorEnabled = false,
+        bool modApprovalRequired = false
     )
     {
         TtsTestDbContext db = TtsTestDbContext.New();
@@ -70,7 +71,8 @@ public sealed class TtsDispatchServiceTests
                         "everyone",
                         false,
                         false,
-                        censorEnabled
+                        censorEnabled,
+                        modApprovalRequired
                     )
                 )
             );
@@ -291,6 +293,201 @@ public sealed class TtsDispatchServiceTests
         await h
             .Tts.Received(1)
             .SynthesizeAsync("this is crap", "default-voice", Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task RequestSpeakAsync_ModApprovalRequired_QueuesInsteadOfPlaying()
+    {
+        Harness h = Build(modApprovalRequired: true);
+
+        Result<TtsDispatchOutcome> result = await h.Service.RequestSpeakAsync(Speak("hello there"));
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Disposition.Should().Be(TtsDispatchDisposition.Queued);
+
+        // Nothing is spoken, played, or ledgered while it waits for a moderator.
+        await h
+            .Tts.DidNotReceive()
+            .SynthesizeAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await h
+            .Overlay.DidNotReceive()
+            .PlaySoundAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<SoundPlaybackDto>(),
+                Arg.Any<CancellationToken>()
+            );
+        (await h.Db.TtsUsageRecords.CountAsync()).Should().Be(0);
+
+        TtsApprovalQueueEntry entry = await h.Db.TtsApprovalQueueEntries.SingleAsync();
+        entry.BroadcasterId.Should().Be(Tenant);
+        entry.Status.Should().Be("pending");
+        entry.OriginalText.Should().Be("hello there");
+        entry.RequestedByTwitchUserId.Should().Be(Viewer);
+        entry.ExpiresAt.Should().BeAfter(entry.CreatedAt);
+
+        await h
+            .Bus.Received(1)
+            .PublishAsync(
+                Arg.Is<TtsUtteranceQueuedEvent>(e =>
+                    e.QueueEntryId == entry.Id && e.OriginalText == "hello there"
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task RequestSpeakAsync_ModApprovalWithCensor_StoresBothTexts()
+    {
+        Harness h = Build(modApprovalRequired: true, censorEnabled: true);
+
+        await h.Service.RequestSpeakAsync(Speak("this is crap"));
+
+        TtsApprovalQueueEntry entry = await h.Db.TtsApprovalQueueEntries.SingleAsync();
+        entry.OriginalText.Should().Be("this is crap");
+        entry.CensoredText.Should().Be("this is c***");
+        entry.WasCensored.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ApproveAsync_SynthesizesCensoredText_PlaysAndMarksApproved()
+    {
+        Harness h = Build();
+        Guid reviewer = Guid.Parse("019f2a00-3333-7000-8000-000000000009");
+        TtsApprovalQueueEntry entry = SeedPending(
+            h,
+            original: "raw message",
+            censored: "raw m*****e",
+            voice: "queued-voice"
+        );
+
+        Result result = await h.Service.ApproveAsync(Tenant, entry.Id, reviewer);
+
+        result.IsSuccess.Should().BeTrue();
+        // The censored text (what the moderator reviewed) is what gets synthesized + played.
+        await h
+            .Tts.Received(1)
+            .SynthesizeAsync("raw m*****e", "queued-voice", Arg.Any<CancellationToken>());
+        await h
+            .Overlay.Received(1)
+            .PlaySoundAsync(Tenant, Arg.Any<SoundPlaybackDto>(), Arg.Any<CancellationToken>());
+        (await h.Db.TtsUsageRecords.CountAsync()).Should().Be(1);
+
+        TtsApprovalQueueEntry updated = await h.Db.TtsApprovalQueueEntries.SingleAsync();
+        updated.Status.Should().Be("approved");
+        updated.ReviewedByUserId.Should().Be(reviewer);
+        updated.ReviewedAt.Should().NotBeNull();
+
+        await h
+            .Bus.Received(1)
+            .PublishAsync(
+                Arg.Is<TtsUtteranceReviewedEvent>(e =>
+                    e.QueueEntryId == entry.Id && e.Decision == "approved"
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task ApproveAsync_NoPendingEntry_ReturnsNotFound()
+    {
+        Harness h = Build();
+
+        Result result = await h.Service.ApproveAsync(Tenant, Guid.NewGuid(), Guid.NewGuid());
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("NOT_FOUND");
+    }
+
+    [Fact]
+    public async Task RejectAsync_MarksRejected_WithoutSynthOrPlay()
+    {
+        Harness h = Build();
+        Guid reviewer = Guid.Parse("019f2a00-3333-7000-8000-00000000000a");
+        TtsApprovalQueueEntry entry = SeedPending(h, original: "nope", censored: null, voice: "v");
+
+        Result result = await h.Service.RejectAsync(Tenant, entry.Id, reviewer);
+
+        result.IsSuccess.Should().BeTrue();
+        await h
+            .Tts.DidNotReceive()
+            .SynthesizeAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await h
+            .Overlay.DidNotReceive()
+            .PlaySoundAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<SoundPlaybackDto>(),
+                Arg.Any<CancellationToken>()
+            );
+
+        TtsApprovalQueueEntry updated = await h.Db.TtsApprovalQueueEntries.SingleAsync();
+        updated.Status.Should().Be("rejected");
+        updated.ReviewedByUserId.Should().Be(reviewer);
+        await h
+            .Bus.Received(1)
+            .PublishAsync(
+                Arg.Is<TtsUtteranceReviewedEvent>(e =>
+                    e.QueueEntryId == entry.Id && e.Decision == "rejected"
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task GetPendingQueueAsync_ReturnsOnlyPending_NewestFirst()
+    {
+        Harness h = Build();
+        DateTime baseTime = new(2026, 7, 12, 0, 0, 0, DateTimeKind.Utc);
+        TtsApprovalQueueEntry older = SeedPending(h, "older", null, "v", createdAt: baseTime);
+        TtsApprovalQueueEntry newer = SeedPending(
+            h,
+            "newer",
+            null,
+            "v",
+            createdAt: baseTime.AddMinutes(5)
+        );
+        TtsApprovalQueueEntry approved = SeedPending(h, "already-approved", null, "v");
+        approved.Status = "approved";
+        await h.Db.SaveChangesAsync();
+
+        Result<PagedList<TtsQueueEntryDto>> result = await h.Service.GetPendingQueueAsync(
+            Tenant,
+            1,
+            25
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.TotalCount.Should().Be(2); // the approved one is excluded
+        result.Value.Items.Select(i => i.OriginalText).Should().ContainInOrder("newer", "older"); // newest-first
+        result.Value.Items[0].Id.Should().Be(newer.Id);
+    }
+
+    private static TtsApprovalQueueEntry SeedPending(
+        Harness h,
+        string original,
+        string? censored,
+        string voice,
+        DateTime createdAt = default
+    )
+    {
+        TtsApprovalQueueEntry entry = new()
+        {
+            Id = Guid.NewGuid(),
+            BroadcasterId = Tenant,
+            RequestedByUserId = Guid.Empty,
+            RequestedByTwitchUserId = Viewer,
+            RequestedByDisplayName = "Viewer",
+            OriginalText = original,
+            CensoredText = censored,
+            WasCensored = censored is not null,
+            VoiceId = voice,
+            Provider = "edge",
+            Status = "pending",
+            ExpiresAt = createdAt == default ? default : createdAt.AddMinutes(10),
+            CreatedAt = createdAt,
+        };
+        h.Db.TtsApprovalQueueEntries.Add(entry);
+        h.Db.SaveChanges();
+        return entry;
     }
 
     [Fact]

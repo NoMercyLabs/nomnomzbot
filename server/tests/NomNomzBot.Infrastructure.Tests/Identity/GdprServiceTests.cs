@@ -438,6 +438,8 @@ internal sealed class GdprTestDbContext : DbContext, IApplicationDbContext
         Set<NomNomzBot.Domain.Tts.Entities.TtsUsageRecord>();
     public DbSet<NomNomzBot.Domain.Tts.Entities.TtsCacheEntry> TtsCacheEntries =>
         Set<NomNomzBot.Domain.Tts.Entities.TtsCacheEntry>();
+    public DbSet<NomNomzBot.Domain.Tts.Entities.TtsApprovalQueueEntry> TtsApprovalQueueEntries =>
+        Set<NomNomzBot.Domain.Tts.Entities.TtsApprovalQueueEntry>();
     public DbSet<NomNomzBot.Domain.Commands.Entities.Timer> Timers =>
         Set<NomNomzBot.Domain.Commands.Entities.Timer>();
     public DbSet<EventResponse> EventResponses => Set<EventResponse>();

@@ -261,6 +261,8 @@ internal sealed class ReadModelRebuildDbContext : DbContext, IApplicationDbConte
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Tts.Entities.TtsCacheEntry> TtsCacheEntries =>
         throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Tts.Entities.TtsApprovalQueueEntry> TtsApprovalQueueEntries =>
+        throw new NotSupportedException();
     public DbSet<Pronoun> Pronouns => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Platform.Entities.DeletionAuditLog> DeletionAuditLogs =>
         throw new NotSupportedException();

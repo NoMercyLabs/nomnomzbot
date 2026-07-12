@@ -76,6 +76,25 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
   helper text ("Masks mild swearing before it's read aloud").
 - **Done when:** toggling the switch persists and survives reload; a new channel shows it ON by default; en + nl.
 
+### 2026-07-12 — TTS moderator approval queue (item 16)
+- **From:** Stoney_Eagle (via Claude, backend track)
+- **What:** (1) a **"Require moderator approval"** switch on the TTS settings page, bound to the new
+  `modApprovalRequired` field (same `GET/PUT .../tts/config` DTOs as the profanity toggle; opt-IN, default OFF).
+  (2) a **TTS approval queue** panel/page where a moderator reviews pending utterances and approves or rejects each:
+  - `GET  /api/v1/channels/{channelId}/tts/queue?page=1&pageSize=25` → `PaginatedResponse<TtsQueueEntryDto>`
+    (`id`, `requestedByTwitchUserId`, `requestedByDisplayName`, `originalText`, `censoredText`, `voiceId`,
+    `wasCensored`, `status`, `createdAt`, `expiresAt`, `sourceMessageId`) — pending only, newest-first.
+  - `POST /api/v1/channels/{channelId}/tts/queue/{entryId}/approve` → 200 (it's then synthesized + played).
+  - `POST /api/v1/channels/{channelId}/tts/queue/{entryId}/reject` → 200 (discarded, nothing plays).
+  Show `censoredText` (fall back to `originalText`) as the text that WILL be spoken; flag `wasCensored`; entries
+  auto-expire after ~10 min (show `expiresAt`). A live push for new entries is a later enhancement — poll for now.
+- **Why:** item 16 P.1a. A cautious streamer can gate every TTS message behind a mod's yes/no.
+- **Where:** TTS settings (the toggle) + a moderator queue surface (list + approve/reject buttons). All three queue
+  endpoints gate on `tts:queue:review` (Mod); the toggle uses the TTS config write gate. Register `TtsQueueEntryDto`
+  + the new config field in `ApiContractTest`; committed `server/openapi/v1.json` already carries them. i18n en + nl.
+- **Done when:** with approval on, a triggered TTS shows in the queue and does NOT play until approved; approve plays
+  it; reject discards it; the toggle persists across reload; en + nl.
+
 ### 2026-07-11 — Supporter events (monetization) — new page + endpoints (item 13, slice 13a)
 - **From:** Stoney_Eagle (via Claude, backend track)
 - **What:** a **Supporters** page (Integrations/monetization area) with two parts. (1) **Connections** — enable a

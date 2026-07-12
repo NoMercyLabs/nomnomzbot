@@ -77,6 +77,8 @@ public class TtsConfigService : ITtsConfigService
             current.ReadUsernames = request.ReadUsernames.Value;
         if (request.ProfanityCensorEnabled.HasValue)
             current.ProfanityCensorEnabled = request.ProfanityCensorEnabled.Value;
+        if (request.ModApprovalRequired.HasValue)
+            current.ModApprovalRequired = request.ModApprovalRequired.Value;
 
         string json = JsonSerializer.Serialize(current);
 
@@ -301,7 +303,8 @@ public class TtsConfigService : ITtsConfigService
             d.MinPermission,
             d.SkipBotMessages,
             d.ReadUsernames,
-            d.ProfanityCensorEnabled
+            d.ProfanityCensorEnabled,
+            d.ModApprovalRequired
         );
 
     private sealed class TtsConfigData
@@ -315,5 +318,8 @@ public class TtsConfigService : ITtsConfigService
 
         // tts.md §3.6 binding new-channel default: opt-OUT light swear filter defaults ON.
         public bool ProfanityCensorEnabled { get; set; } = true;
+
+        // tts.md §3.6 binding new-channel default: mod approval OFF (utterances play immediately).
+        public bool ModApprovalRequired { get; set; }
     }
 }

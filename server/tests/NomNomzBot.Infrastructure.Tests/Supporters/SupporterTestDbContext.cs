@@ -194,6 +194,8 @@ internal sealed class SupporterTestDbContext : DbContext, IApplicationDbContext
     public DbSet<UserTtsVoice> UserTtsVoices => throw new NotSupportedException();
     public DbSet<TtsUsageRecord> TtsUsageRecords => throw new NotSupportedException();
     public DbSet<TtsCacheEntry> TtsCacheEntries => throw new NotSupportedException();
+    public DbSet<TtsApprovalQueueEntry> TtsApprovalQueueEntries =>
+        throw new NotSupportedException();
     public DbSet<Pronoun> Pronouns => throw new NotSupportedException();
     public DbSet<DeletionAuditLog> DeletionAuditLogs => throw new NotSupportedException();
     public DbSet<WatchStreak> WatchStreaks => throw new NotSupportedException();

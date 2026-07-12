@@ -83,6 +83,7 @@ public interface IApplicationDbContext
     DbSet<UserTtsVoice> UserTtsVoices { get; }
     DbSet<TtsUsageRecord> TtsUsageRecords { get; }
     DbSet<TtsCacheEntry> TtsCacheEntries { get; }
+    DbSet<TtsApprovalQueueEntry> TtsApprovalQueueEntries { get; }
     DbSet<Pronoun> Pronouns { get; }
     DbSet<DeletionAuditLog> DeletionAuditLogs { get; }
     DbSet<NomNomzBot.Domain.Commands.Entities.Timer> Timers { get; }

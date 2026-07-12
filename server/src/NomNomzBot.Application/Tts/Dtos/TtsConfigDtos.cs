@@ -20,7 +20,8 @@ public sealed record TtsConfigDto(
     string MinPermission,
     bool SkipBotMessages,
     bool ReadUsernames,
-    bool ProfanityCensorEnabled
+    bool ProfanityCensorEnabled,
+    bool ModApprovalRequired
 );
 
 /// <summary>Request to update TTS configuration.</summary>
@@ -42,6 +43,9 @@ public sealed record UpdateTtsConfigDto
 
     /// <summary>Opt-out light swear filter — masks mild profanity before the text is spoken.</summary>
     public bool? ProfanityCensorEnabled { get; init; }
+
+    /// <summary>When true, utterances enter the moderator approval queue instead of playing immediately.</summary>
+    public bool? ModApprovalRequired { get; init; }
 }
 
 /// <summary>A viewer's assigned TTS voice within a channel (overrides the channel default when they speak).</summary>

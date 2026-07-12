@@ -457,11 +457,27 @@ ONE substrate — a chat feed that **aggregates messages across a SET of channel
   (11 censor-unit: mask/case/substring-safety/clean/multi/empty; 2 dispatch-integration: masks-before-synth,
   raw-when-disabled). NO migration, no new endpoint (`TtsConfigDto` gained a bool → openapi additive). **Deliberate
   delta:** the `TtsUsageRecord.WasCensored` audit column rides with the `TtsConfig`-TABLE migration slice (blob has
-  no schema to add it to). **Follow-on slices (each still needed):**
+  no schema to add it to).
+  **Mod approval queue (P.1a) SHIPPED 2026-07-12 (backend; dashboard queue UI + ModApprovalRequired toggle → handoff):**
+  the dispatch's `Queued` disposition could never be produced — now it can. New `TtsApprovalQueueEntry` entity
+  (soft-delete, tenant-scoped, `(BroadcasterId,Status,CreatedAt)` index) + dual migrations (`AddTtsApprovalQueue`) +
+  23-fake sweep. New `ModApprovalRequired` config field (blob, opt-IN, binding default FALSE). Dispatch flow is now
+  gate → censor → **queue-or-speak** → dispatch → ledger: when `ModApprovalRequired`, a passing (already-censored)
+  utterance is inserted `pending` (OriginalText + CensoredText + resolved voice, `ExpiresAt`=+10min) and
+  `TtsUtteranceQueuedEvent` fires — nothing synthesized/played/ledgered. `ITtsDispatchService` gained
+  `ApproveAsync`/`RejectAsync`/`GetPendingQueueAsync`: approve synthesizes the reviewed censored text via the SHARED
+  `SynthesizeStorePlayAsync` (extracted, reused by direct dispatch), plays, ledgers, marks `approved` + emits
+  reviewed+dispatched (a synth failure leaves it `pending` for retry); reject marks `rejected`, nothing spoken; list
+  is pending-only, newest-first, paged (`TtsQueueEntryDto`). New `TtsQueueController` at
+  `channels/{channelId}/tts/queue` (`GET` list, `POST {entryId}/approve|reject`), all gated `tts:queue:review`
+  (already seeded). New events `TtsUtteranceQueuedEvent`/`TtsUtteranceReviewedEvent`. 6 tests (queue-instead-of-play,
+  censored-text-stored, approve-plays+marks, approve/reject NOT_FOUND, reject-no-play, list-pending-newest-first).
+  **Deltas:** `RequestedByUserId`/`ReviewedByUserId` are bare guids (no Users FK) — a pipeline utterance carries
+  `Guid.Empty`, the truthful key is the snapshotted Twitch id (as `TtsUsageRecord`); the queue-entry `WasModApproved`
+  ledger flag rides with the `TtsConfig`-TABLE slice. **Follow-on slices (each still needed):**
   `client_edge` mode (frontend widget), `TtsConfig` TABLE migration + config re-target (adds `WasCensored`/
-  `WasModApproved`/`StreamId`/`OccurredAt` to the ledger), approval queue (P.1a entity + Approve/Reject/
-  GetPendingQueue), BYOK provider factory (§3.2), tier-cap resolution via `IBillingTierService`.
-  **Below is the original assessment (still the map for the follow-ons):**
+  `WasModApproved`/`StreamId`/`OccurredAt` to the ledger), BYOK provider factory (§3.2), tier-cap resolution via
+  `IBillingTierService`. **Below is the original assessment (still the map for the follow-ons):**
   **Next slice = "TTS actually plays" (self_host dispatch path, backend-only):**
   `play_tts` action (§6, Type `play_tts`, Category `tts`, `PlayTtsActionConfig(Text, VoiceId?, BypassQueue)`) →
   `ITtsDispatchService.RequestSpeakAsync(TtsSpeakRequest)` (§3.4) implementing the self_host leg — gate on

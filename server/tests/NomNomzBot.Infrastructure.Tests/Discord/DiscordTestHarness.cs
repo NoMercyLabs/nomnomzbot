@@ -179,6 +179,8 @@ internal sealed class DiscordTestDbContext : DbContext, IApplicationDbContext
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Tts.Entities.TtsCacheEntry> TtsCacheEntries =>
         throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Tts.Entities.TtsApprovalQueueEntry> TtsApprovalQueueEntries =>
+        throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Identity.Entities.Pronoun> Pronouns =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Platform.Entities.DeletionAuditLog> DeletionAuditLogs =>

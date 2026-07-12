@@ -6508,6 +6508,84 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.ToTable("SupporterEvents");
                 });
 
+            modelBuilder.Entity("NomNomzBot.Domain.Tts.Entities.TtsApprovalQueueEntry", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("BroadcasterId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CensoredText")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("OriginalText")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Provider")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RequestedByDisplayName")
+                        .HasMaxLength(255)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RequestedByTwitchUserId")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("RequestedByUserId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("ReviewedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("ReviewedByUserId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SourceMessageId")
+                        .HasMaxLength(255)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("StreamId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("VoiceId")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("WasCensored")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BroadcasterId", "Status", "CreatedAt");
+
+                    b.ToTable("TtsApprovalQueueEntries");
+                });
+
             modelBuilder.Entity("NomNomzBot.Domain.Tts.Entities.TtsCacheEntry", b =>
                 {
                     b.Property<int>("Id")
@@ -7714,6 +7792,17 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.Navigation("Channel");
 
                     b.Navigation("SupporterUser");
+                });
+
+            modelBuilder.Entity("NomNomzBot.Domain.Tts.Entities.TtsApprovalQueueEntry", b =>
+                {
+                    b.HasOne("NomNomzBot.Domain.Identity.Entities.Channel", "Channel")
+                        .WithMany()
+                        .HasForeignKey("BroadcasterId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Channel");
                 });
 
             modelBuilder.Entity("NomNomzBot.Domain.ViewerData.Entities.ViewerDatum", b =>

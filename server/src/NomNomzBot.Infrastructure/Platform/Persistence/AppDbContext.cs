@@ -123,6 +123,7 @@ public class AppDbContext : DbContext, IApplicationDbContext
     public DbSet<UserTtsVoice> UserTtsVoices => Set<UserTtsVoice>();
     public DbSet<TtsUsageRecord> TtsUsageRecords => Set<TtsUsageRecord>();
     public DbSet<TtsCacheEntry> TtsCacheEntries => Set<TtsCacheEntry>();
+    public DbSet<TtsApprovalQueueEntry> TtsApprovalQueueEntries => Set<TtsApprovalQueueEntry>();
 
     // Reference data
     public DbSet<Pronoun> Pronouns => Set<Pronoun>();
