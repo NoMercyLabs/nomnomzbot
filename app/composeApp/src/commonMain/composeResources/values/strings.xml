@@ -1017,6 +1017,9 @@
     <string name="feedback_quote_saved">Quote saved</string>
     <string name="feedback_quote_deleted">Quote deleted</string>
     <string name="feedback_quote_save_failed">Couldn't save the quote: %1$s</string>
+    <string name="feedback_picklist_saved">Pick list saved</string>
+    <string name="feedback_picklist_deleted">Pick list deleted</string>
+    <string name="feedback_picklist_save_failed">Couldn't save the pick list: %1$s</string>
     <string name="feedback_pipeline_saved">Pipeline saved</string>
     <string name="feedback_pipeline_deleted">Pipeline deleted</string>
     <string name="feedback_pipeline_save_failed">Couldn't save the pipeline: %1$s</string>
@@ -1024,6 +1027,7 @@
     <!-- Sidebar labels for the new pages and the Automation group. -->
     <string name="shell_nav_chat">Chat</string>
     <string name="shell_nav_quotes">Quotes</string>
+    <string name="shell_nav_pick_lists">Pick Lists</string>
     <string name="shell_nav_discord">Discord</string>
     <string name="shell_nav_roles">Roles &amp; permits</string>
     <string name="shell_nav_music">Music</string>
@@ -1099,6 +1103,35 @@
     <string name="quotes_dialog_cancel">Cancel</string>
     <string name="quotes_requires_write">Requires quote-editing permission</string>
     <string name="quotes_requires_delete">Requires quote-deletion permission</string>
+
+    <!-- Pick Lists page — the named lists behind the {list.pick.<name>} template variable. -->
+    <string name="picklists_loading">Loading pick lists…</string>
+    <string name="picklists_empty">No pick lists yet. Add the first one.</string>
+    <string name="picklists_error">Couldn't load pick lists: %1$s</string>
+    <string name="picklists_retry">Retry</string>
+    <string name="picklists_action_error">%1$s</string>
+    <string name="picklists_helper">Use {list.pick.&lt;name&gt;} in any command or response to pick a random entry.</string>
+    <string name="picklists_new_action">New pick list</string>
+    <string name="picklists_item_count">%1$d items</string>
+    <string name="picklists_edit_action">Edit %1$s</string>
+    <string name="picklists_delete_action">Delete %1$s</string>
+    <string name="picklists_delete_title">Delete pick list?</string>
+    <string name="picklists_delete_message">Delete the pick list '%1$s'? This can't be undone.</string>
+    <string name="picklists_delete_confirm">Delete</string>
+    <string name="picklists_delete_cancel">Cancel</string>
+    <string name="picklists_dialog_create_title">New pick list</string>
+    <string name="picklists_dialog_edit_title">Edit pick list</string>
+    <string name="picklists_dialog_name_label">Name</string>
+    <string name="picklists_dialog_description_label">Description (optional)</string>
+    <string name="picklists_dialog_items_label">Items</string>
+    <string name="picklists_dialog_item_placeholder">Entry</string>
+    <string name="picklists_dialog_add_item">Add item</string>
+    <string name="picklists_dialog_remove_item">Remove item</string>
+    <string name="picklists_dialog_create">Add</string>
+    <string name="picklists_dialog_save">Save</string>
+    <string name="picklists_dialog_cancel">Cancel</string>
+    <string name="picklists_requires_write">Requires pick-list-editing permission</string>
+    <string name="picklists_requires_delete">Requires pick-list-deletion permission</string>
 
     <!-- Discord page. -->
     <string name="discord_title">Discord</string>

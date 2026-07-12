@@ -47,6 +47,7 @@ import bot.nomnomz.dashboard.core.network.CodeScriptsApi
 import bot.nomnomz.dashboard.core.network.WebhooksApi
 import bot.nomnomz.dashboard.core.network.CustomEventsApi
 import bot.nomnomz.dashboard.core.network.RestCustomEventsApi
+import bot.nomnomz.dashboard.core.network.PickListsApi
 import bot.nomnomz.dashboard.core.network.QuotesApi
 import bot.nomnomz.dashboard.core.network.RestSoundApi
 import bot.nomnomz.dashboard.core.network.SoundApi
@@ -78,6 +79,7 @@ import bot.nomnomz.dashboard.core.network.BillingApi
 import bot.nomnomz.dashboard.core.network.RestBillingApi
 import bot.nomnomz.dashboard.core.network.RestCodeScriptsApi
 import bot.nomnomz.dashboard.core.network.RestWebhooksApi
+import bot.nomnomz.dashboard.core.network.RestPickListsApi
 import bot.nomnomz.dashboard.core.network.RestQuotesApi
 import bot.nomnomz.dashboard.core.network.RestRewardsApi
 import bot.nomnomz.dashboard.core.network.RestRolesApi
@@ -126,6 +128,7 @@ import bot.nomnomz.dashboard.feature.federation.state.FederationController
 import bot.nomnomz.dashboard.feature.codescripts.state.CodeScriptsController
 import bot.nomnomz.dashboard.feature.webhooks.state.WebhooksController
 import bot.nomnomz.dashboard.feature.customevents.state.CustomEventsController
+import bot.nomnomz.dashboard.feature.picklists.state.PickListsController
 import bot.nomnomz.dashboard.feature.quotes.state.QuotesController
 import bot.nomnomz.dashboard.feature.sound.state.SoundController
 import bot.nomnomz.dashboard.feature.rewards.state.RewardsController
@@ -246,6 +249,7 @@ class AppGraph {
     val eventStoreApi: EventStoreApi = RestEventStoreApi(apiClient)
     val chatApi: ChatApi = RestChatApi(apiClient)
     val quotesApi: QuotesApi = RestQuotesApi(apiClient)
+    val pickListsApi: PickListsApi = RestPickListsApi(apiClient)
     val soundApi: SoundApi = RestSoundApi(apiClient)
     val discordApi: DiscordApi = RestDiscordApi(apiClient)
     val rolesApi: RolesApi = RestRolesApi(apiClient)
@@ -393,6 +397,9 @@ class AppGraph {
 
     val quotesController: QuotesController =
         QuotesController(quotesApi = quotesApi, feedback = feedbackController)
+
+    val pickListsController: PickListsController =
+        PickListsController(pickListsApi = pickListsApi, feedback = feedbackController)
 
     val soundController: SoundController =
         SoundController(

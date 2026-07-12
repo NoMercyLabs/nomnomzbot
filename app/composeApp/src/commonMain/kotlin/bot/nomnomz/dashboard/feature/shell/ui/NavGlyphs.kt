@@ -111,6 +111,17 @@ val QuotesGlyph: ImageVector = navIcon("Quotes") {
         )
 }
 
+val PickListsGlyph: ImageVector = navIcon("PickLists") {
+        addPath(
+            pathData = addPathNodes("M8 6H21M8 12H21M8 18H21M3 6H3.01M3 12H3.01M3 18H3.01"),
+            stroke = SolidColor(Color.Black),
+            strokeLineWidth = SW,
+            strokeLineCap = StrokeCap.Round,
+            strokeLineJoin = StrokeJoin.Round,
+            fill = SolidColor(Color.Transparent),
+        )
+}
+
 val CodeScriptsGlyph: ImageVector = navIcon("CodeScripts") {
         addPath(
             pathData = addPathNodes("M7 8L9.72721 10.7272C10.2575 11.2575 10.5226 11.5226 10.5735 11.8436C10.5899 11.9472 10.5899 12.0528 10.5735 12.1564C10.5226 12.4774 10.2575 12.7425 9.72721 13.2728L7 16M13 16H18M21 8.4V15.6C21 17.8498 21 18.9748 20.4271 19.7634C20.242 20.018 20.018 20.242 19.7634 20.4271C18.9748 21 17.8498 21 15.6 21H8.4C6.15016 21 5.02524 21 4.23664 20.4271C3.98196 20.242 3.75799 20.018 3.57295 19.7634C3 18.9748 3 17.8498 3 15.6V8.4C3 6.15016 3 5.02524 3.57295 4.23664C3.75799 3.98196 3.98196 3.75799 4.23664 3.57295C5.02524 3 6.15016 3 8.4 3H15.6C17.8498 3 18.9748 3 19.7634 3.57295C20.018 3.75799 20.242 3.98196 20.4271 4.23664C21 5.02524 21 6.15016 21 8.4Z"),

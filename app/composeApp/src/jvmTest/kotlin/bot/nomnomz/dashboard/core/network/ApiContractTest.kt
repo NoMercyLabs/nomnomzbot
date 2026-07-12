@@ -97,6 +97,9 @@ class ApiContractTest {
             NetworkBanResult.serializer() to "NetworkBanResultDto",
             ChannelBanOutcome.serializer() to "ChannelBanOutcomeDto",
             ResolvedAccess.serializer() to "ResolvedAccessDto",
+            PickList.serializer() to "PickListDto",
+            CreatePickListBody.serializer() to "CreatePickListRequest",
+            UpdatePickListBody.serializer() to "UpdatePickListRequest",
         )
 
     @Test

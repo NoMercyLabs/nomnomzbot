@@ -1014,6 +1014,9 @@
     <string name="feedback_quote_saved">Quote opgeslagen</string>
     <string name="feedback_quote_deleted">Quote verwijderd</string>
     <string name="feedback_quote_save_failed">Quote opslaan mislukt: %1$s</string>
+    <string name="feedback_picklist_saved">Keuzelijst opgeslagen</string>
+    <string name="feedback_picklist_deleted">Keuzelijst verwijderd</string>
+    <string name="feedback_picklist_save_failed">Keuzelijst opslaan mislukt: %1$s</string>
     <string name="feedback_pipeline_saved">Pijplijn opgeslagen</string>
     <string name="feedback_pipeline_deleted">Pijplijn verwijderd</string>
     <string name="feedback_pipeline_save_failed">Pijplijn opslaan mislukt: %1$s</string>
@@ -1021,6 +1024,7 @@
     <!-- Sidebar labels for the new pages and the Automation group. -->
     <string name="shell_nav_chat">Chat</string>
     <string name="shell_nav_quotes">Quotes</string>
+    <string name="shell_nav_pick_lists">Keuzelijsten</string>
     <string name="shell_nav_discord">Discord</string>
     <string name="shell_nav_roles">Rollen &amp; permits</string>
     <string name="shell_nav_music">Muziek</string>
@@ -1096,6 +1100,35 @@
     <string name="quotes_dialog_cancel">Annuleren</string>
     <string name="quotes_requires_write">Vereist toestemming om quotes te bewerken</string>
     <string name="quotes_requires_delete">Vereist toestemming om quotes te verwijderen</string>
+
+    <!-- Pick Lists-pagina — de benoemde lijsten achter de {list.pick.<name>} sjabloonvariabele. -->
+    <string name="picklists_loading">Keuzelijsten laden…</string>
+    <string name="picklists_empty">Nog geen keuzelijsten. Voeg de eerste toe.</string>
+    <string name="picklists_error">Keuzelijsten laden mislukt: %1$s</string>
+    <string name="picklists_retry">Opnieuw</string>
+    <string name="picklists_action_error">%1$s</string>
+    <string name="picklists_helper">Gebruik {list.pick.&lt;naam&gt;} in een commando of reactie om een willekeurige vermelding te kiezen.</string>
+    <string name="picklists_new_action">Nieuwe keuzelijst</string>
+    <string name="picklists_item_count">%1$d items</string>
+    <string name="picklists_edit_action">%1$s bewerken</string>
+    <string name="picklists_delete_action">%1$s verwijderen</string>
+    <string name="picklists_delete_title">Keuzelijst verwijderen?</string>
+    <string name="picklists_delete_message">De keuzelijst '%1$s' verwijderen? Dit kan niet ongedaan worden gemaakt.</string>
+    <string name="picklists_delete_confirm">Verwijderen</string>
+    <string name="picklists_delete_cancel">Annuleren</string>
+    <string name="picklists_dialog_create_title">Nieuwe keuzelijst</string>
+    <string name="picklists_dialog_edit_title">Keuzelijst bewerken</string>
+    <string name="picklists_dialog_name_label">Naam</string>
+    <string name="picklists_dialog_description_label">Beschrijving (optioneel)</string>
+    <string name="picklists_dialog_items_label">Items</string>
+    <string name="picklists_dialog_item_placeholder">Vermelding</string>
+    <string name="picklists_dialog_add_item">Item toevoegen</string>
+    <string name="picklists_dialog_remove_item">Item verwijderen</string>
+    <string name="picklists_dialog_create">Toevoegen</string>
+    <string name="picklists_dialog_save">Opslaan</string>
+    <string name="picklists_dialog_cancel">Annuleren</string>
+    <string name="picklists_requires_write">Vereist toestemming om keuzelijsten te bewerken</string>
+    <string name="picklists_requires_delete">Vereist toestemming om keuzelijsten te verwijderen</string>
 
     <!-- Discord page. -->
     <string name="discord_title">Discord</string>

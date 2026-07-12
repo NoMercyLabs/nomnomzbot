@@ -100,6 +100,7 @@ import bot.nomnomz.dashboard.feature.integrations.ui.IntegrationsScreen
 import bot.nomnomz.dashboard.feature.moderation.ui.ModerationScreen
 import bot.nomnomz.dashboard.feature.music.ui.MusicScreen
 import bot.nomnomz.dashboard.feature.pipelines.ui.PipelinesScreen
+import bot.nomnomz.dashboard.feature.picklists.ui.PickListsScreen
 import bot.nomnomz.dashboard.feature.quotes.ui.QuotesScreen
 import bot.nomnomz.dashboard.feature.sound.ui.SoundScreen
 import bot.nomnomz.dashboard.feature.rewards.ui.RewardsScreen
@@ -157,6 +158,7 @@ import nomnomzbot.composeapp.generated.resources.shell_nav_music
 import nomnomzbot.composeapp.generated.resources.shell_nav_sound
 import nomnomzbot.composeapp.generated.resources.shell_nav_overlays
 import nomnomzbot.composeapp.generated.resources.shell_nav_pipelines
+import nomnomzbot.composeapp.generated.resources.shell_nav_pick_lists
 import nomnomzbot.composeapp.generated.resources.shell_nav_quotes
 import nomnomzbot.composeapp.generated.resources.shell_nav_rewards
 import nomnomzbot.composeapp.generated.resources.shell_nav_roles
@@ -467,6 +469,8 @@ private fun ShellContent(
                 )
             ShellRoute.EventResponses -> EventResponsesScreen(controller = graph.eventResponsesController, role = role)
             ShellRoute.Quotes -> QuotesScreen(controller = graph.quotesController, heldActionKeys = heldActionKeys)
+            ShellRoute.PickLists ->
+                PickListsScreen(controller = graph.pickListsController, heldActionKeys = heldActionKeys)
             ShellRoute.Timers -> TimersScreen(controller = graph.timersController, role = role)
             ShellRoute.Moderation ->
                 ModerationScreen(
@@ -1192,6 +1196,7 @@ private fun ShellRoute.icon(): ImageVector =
         ShellRoute.Pipelines -> PipelinesGlyph
         ShellRoute.Timers -> TimersGlyph
         ShellRoute.Quotes -> QuotesGlyph
+        ShellRoute.PickLists -> PickListsGlyph
         ShellRoute.CodeScripts -> CodeScriptsGlyph
         ShellRoute.Moderation -> ModerationGlyph
         ShellRoute.Rewards -> RewardsGlyph
@@ -1225,6 +1230,7 @@ private fun ShellRoute.label(): String =
             ShellRoute.Commands -> Res.string.shell_nav_commands
             ShellRoute.EventResponses -> Res.string.shell_nav_event_responses
             ShellRoute.Quotes -> Res.string.shell_nav_quotes
+            ShellRoute.PickLists -> Res.string.shell_nav_pick_lists
             ShellRoute.Timers -> Res.string.shell_nav_timers
             ShellRoute.Moderation -> Res.string.shell_nav_moderation
             ShellRoute.Rewards -> Res.string.shell_nav_rewards
