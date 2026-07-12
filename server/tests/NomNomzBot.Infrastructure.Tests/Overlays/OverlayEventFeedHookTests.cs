@@ -36,7 +36,7 @@ public sealed class OverlayEventFeedHookTests
 
     private static EventRecord Record(
         Guid? broadcasterId,
-        string eventType = "ChatMessageReceivedEvent",
+        string eventType = "FollowEvent",
         string payloadJson = "{\"message\":\"hi\"}",
         bool encrypted = false
     ) =>
@@ -67,15 +67,35 @@ public sealed class OverlayEventFeedHookTests
         (OverlayEventFeedHook hook, IOverlayEventFeed feed) = Build();
 
         Result result = await hook.OnCommittedAsync(
-            Record(Tenant, "ChatMessageReceivedEvent", "{\"message\":\"hello overlay\"}")
+            Record(Tenant, "FollowEvent", "{\"follower\":\"stoney\"}")
         );
 
         result.IsSuccess.Should().BeTrue();
         await feed.Received(1)
             .BroadcastEventAsync(
                 Tenant,
-                "ChatMessageReceivedEvent",
-                "{\"message\":\"hello overlay\"}",
+                "FollowEvent",
+                "{\"follower\":\"stoney\"}",
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task OnCommitted_ChatMessageEvent_IsNotForwarded_BecauseReBroadcastDecorated()
+    {
+        // The raw ChatMessageReceivedEvent has no render data; it reaches overlays instead as the decorated
+        // "ChatMessage" event (ChatMessageBroadcastHandler), so the generic feed must NOT forward the raw form
+        // (OverlayEventFilter drops it) — a widget would otherwise get a useless duplicate it can't render.
+        (OverlayEventFeedHook hook, IOverlayEventFeed feed) = Build();
+
+        Result result = await hook.OnCommittedAsync(Record(Tenant, "ChatMessageReceivedEvent"));
+
+        result.IsSuccess.Should().BeTrue();
+        await feed.DidNotReceive()
+            .BroadcastEventAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
                 Arg.Any<CancellationToken>()
             );
     }
