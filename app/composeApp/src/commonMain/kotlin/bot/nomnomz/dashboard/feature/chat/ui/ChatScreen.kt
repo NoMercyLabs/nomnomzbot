@@ -30,8 +30,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
@@ -42,6 +40,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -49,13 +48,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEvent
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.isShiftPressed
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
@@ -64,7 +68,6 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
-import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Badge
 import bot.nomnomz.dashboard.core.designsystem.component.TabsList
 import bot.nomnomz.dashboard.core.designsystem.component.TabsTrigger
@@ -81,7 +84,10 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.media.AnimatedNetworkImage
+import bot.nomnomz.dashboard.core.media.EmojiCatalog
+import bot.nomnomz.dashboard.core.media.EmojiEntry
 import bot.nomnomz.dashboard.core.media.EmojiText
+import bot.nomnomz.dashboard.core.media.searchEmoji
 import bot.nomnomz.dashboard.core.network.ChatEmoteCatalogue
 import bot.nomnomz.dashboard.core.network.ChatMessage
 import bot.nomnomz.dashboard.core.network.ChatSettings
@@ -145,7 +151,6 @@ import nomnomzbot.composeapp.generated.resources.chat_reply_indicator
 import nomnomzbot.composeapp.generated.resources.chat_reply_indicator_unknown
 import nomnomzbot.composeapp.generated.resources.chat_retry
 import nomnomzbot.composeapp.generated.resources.chat_row_actions
-import nomnomzbot.composeapp.generated.resources.chat_composer_preview_label
 import nomnomzbot.composeapp.generated.resources.chat_send_action
 import nomnomzbot.composeapp.generated.resources.chat_send_as_bot
 import nomnomzbot.composeapp.generated.resources.chat_send_as_you
@@ -835,9 +840,10 @@ private fun BanDialog(
 }
 
 // The send composer: an input that sends as the operator's own account by default or, via the identity selector,
-// as the bot (chat-client.md §3.1) — clearing on send, with emote autocomplete: typing a trailing ":prefix"
-// surfaces matching emotes from the channel catalogue, and picking one inserts its code. Empty / blank input is
-// ignored, matching the backend's empty-message rejection.
+// as the bot (chat-client.md §3.1) — clearing on send. Recognised emote codes and Unicode emoji render INLINE in
+// the field itself ([EmoteComposerField]); typing a trailing ":prefix" opens autocomplete over BOTH channel emotes
+// and standard emoji, Tab inserts the top hit, Enter sends. Empty / blank input is ignored, matching the backend's
+// empty-message rejection.
 @Composable
 private fun SendBox(
     manage: ManageDecision,
@@ -854,34 +860,70 @@ private fun SendBox(
     var identity: String by remember { mutableStateOf("you") }
     val canSend: Boolean = draft.isNotBlank()
 
-    // Emote autocomplete: a trailing ":token" (2+ word chars) filters the catalogue by SUBSTRING (see
-    // [emoteSuggestions]) — prefix matches ranked first — like the Twitch/7TV composer, so ":wa" surfaces
-    // verosWaving / aaoaWat / basedcodeWave, not only codes that literally start with "wa".
-    val query: String? =
-        remember(draft) { Regex(":([A-Za-z0-9_]{2,})$").find(draft)?.groupValues?.get(1) }
-    val suggestions: List<ChatEmoteCatalogue> =
-        remember(query, emotes) {
-            if (query == null) emptyList() else emoteSuggestions(emotes, query)
-        }
+    // The full Unicode-emoji catalogue, loaded once; the composer offers these alongside channel emotes.
+    val emojiEntries: List<EmojiEntry> by produceState<List<EmojiEntry>>(initialValue = emptyList()) {
+        value = EmojiCatalog.load()
+    }
 
-    // Live WYSIWYG preview: tokenize the draft against the catalogue (case-insensitive, whitespace-delimited) so
-    // completed emote codes can be mirrored as their images above the input. Both the lookup and the tokenization
-    // are memoized so they recompute only when the catalogue or the draft changes, not on every recomposition.
+    // Lookup for the inline field: a whitespace token matching a catalogue code renders as the emote image.
     val emoteByCode: Map<String, ChatEmoteCatalogue> =
         remember(emotes) { emotes.filter { it.code.isNotBlank() }.associateBy { it.code.lowercase() } }
-    val previewTokens: List<ComposerToken> =
-        remember(draft, emoteByCode) { tokenizeDraft(draft, emoteByCode) }
-    val hasEmotePreview: Boolean = previewTokens.any { it is ComposerToken.Emote }
+
+    // Autocomplete: a trailing ":token" (2+ word chars) searches channel emotes by SUBSTRING and emoji by
+    // shortcode/keyword — emotes first — so ":wa" surfaces verosWaving / :wave: and ":smi" surfaces :smile:.
+    val query: String? =
+        remember(draft) { Regex(":([A-Za-z0-9_]{2,})$").find(draft)?.groupValues?.get(1) }
+    val suggestions: List<ComposerSuggestion> =
+        remember(query, emotes, emojiEntries) {
+            if (query == null) {
+                emptyList()
+            } else {
+                val emoteHits: List<ComposerSuggestion> =
+                    emoteSuggestions(emotes, query).map { ComposerSuggestion.Emote(it) }
+                val emojiHits: List<ComposerSuggestion> =
+                    searchEmoji(emojiEntries, query).map { ComposerSuggestion.Emoji(it) }
+                (emoteHits + emojiHits).take(SuggestionLimit)
+            }
+        }
 
     fun submit() {
-        if (canSend) {
+        // The manage floor gates every send path — the visible button AND the Enter key — so a caller below the
+        // Chat write floor can neither click nor type-send.
+        if (canSend && manage.isAllowed) {
             onSend(draft, identity)
             draft = ""
         }
     }
 
-    fun insertEmote(emote: ChatEmoteCatalogue) {
-        draft = draft.replace(Regex(":[A-Za-z0-9_]{2,}$"), "${emote.code} ")
+    // Replace the trailing ":token" with the picked suggestion — a channel emote's code, or an emoji's glyph — plus
+    // a trailing space; the inline field then renders it as its image.
+    fun insert(suggestion: ComposerSuggestion) {
+        draft = Regex(":[A-Za-z0-9_]{2,}$").replace(draft) { "${suggestion.insertText} " }
+    }
+
+    // Tab inserts the top suggestion (like the Twitch composer); Enter sends, Shift+Enter adds a newline. Each is
+    // consumed before the field would type it, but only when it would actually do something.
+    val onPreviewKey: (KeyEvent) -> Boolean = key@{ event ->
+        if (event.type != KeyEventType.KeyDown) return@key false
+        when (event.key) {
+            Key.Tab -> {
+                val top: ComposerSuggestion? = suggestions.firstOrNull()
+                if (top != null) {
+                    insert(top)
+                    true
+                } else {
+                    false
+                }
+            }
+            Key.Enter, Key.NumPadEnter ->
+                if (event.isShiftPressed) {
+                    false
+                } else {
+                    submit()
+                    true
+                }
+            else -> false
+        }
     }
 
     val sendLabel: String = stringResource(Res.string.chat_send_action)
@@ -895,14 +937,9 @@ private fun SendBox(
         replyTarget?.let { target ->
             ReplyComposerBanner(target = target, onCancel = onCancelReply)
         }
-        // The composed line mirrored WYSIWYG — recognised emote codes shown as their (animated) images. Rendered
-        // only when the draft actually contains a catalogue emote, so an all-text draft shows no strip.
-        if (hasEmotePreview) {
-            EmoteComposerPreview(previewTokens = previewTokens)
-        }
         // Autocomplete suggestions float directly above the input, like the Twitch composer.
         if (suggestions.isNotEmpty()) {
-            EmoteSuggestions(suggestions = suggestions, onPick = { insertEmote(it) })
+            EmoteSuggestions(suggestions = suggestions, onPick = { insert(it) })
         }
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -911,18 +948,18 @@ private fun SendBox(
         ) {
             // Identity selector: send as the operator's own account ("You") or the channel bot ("Bot").
             SendIdentitySelector(identity = identity, onSelect = { identity = it })
-            AppTextField(
-                value = draft,
-                onValueChange = { draft = it },
-                label = "",
-                modifier = Modifier.weight(1f),
+            EmoteComposerField(
+                draft = draft,
+                onDraftChange = { draft = it },
+                emoteByCode = emoteByCode,
                 placeholder = stringResource(Res.string.chat_send_placeholder),
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
-                keyboardActions = KeyboardActions(onSend = { submit() }),
+                enabled = true,
+                onPreviewKey = onPreviewKey,
+                modifier = Modifier.weight(1f),
             )
             ManageGate(decision = manage) { gateEnabled ->
-                // Send is offered only when the gate allows it AND the draft is non-blank; the keyboard Send
-                // action above goes through the same `submit()` guard but the visible affordance reflects the floor.
+                // Send is offered only when the gate allows it AND the draft is non-blank; the Enter key goes
+                // through the same `submit()` guard, and the visible affordance reflects the floor.
                 val sendEnabled: Boolean = gateEnabled && canSend
                 TextButton(
                     onClick = { submit() },
@@ -939,6 +976,30 @@ private fun SendBox(
         }
     }
 }
+
+// One composer autocomplete row — a channel emote or a standard emoji — with a common image + label + insert text,
+// so the picker, Tab-insert, and inline field treat both uniformly.
+private sealed interface ComposerSuggestion {
+    val imageUrl: String?
+    val label: String
+    val insertText: String
+
+    data class Emote(val emote: ChatEmoteCatalogue) : ComposerSuggestion {
+        override val imageUrl: String?
+            get() = emote.urls["2"] ?: emote.urls["1"] ?: emote.urls.values.firstOrNull()
+        override val label: String get() = emote.code
+        override val insertText: String get() = emote.code
+    }
+
+    data class Emoji(val entry: EmojiEntry) : ComposerSuggestion {
+        override val imageUrl: String get() = entry.imageUrl
+        override val label: String get() = ":${entry.primaryShortcode}:"
+        override val insertText: String get() = entry.glyph
+    }
+}
+
+// The combined emote + emoji autocomplete is capped so the floating list stays compact.
+private const val SuggestionLimit: Int = 12
 
 // The send-identity selector (chat-client.md §3.1): two compact chips choosing who the composed line is sent as
 // — "You" (the operator's own account, default) or "Bot" (the channel bot). Selecting one only sets local state;
@@ -970,12 +1031,12 @@ private fun SendIdentitySelector(identity: String, onSelect: (String) -> Unit) {
     }
 }
 
-// The emote autocomplete list — matching catalogue emotes (image + code) shown above the composer input; a tap
-// inserts the emote code into the draft.
+// The emote/emoji autocomplete list — each matching suggestion (image + label) shown above the composer input; a
+// tap inserts it (a channel emote's code or an emoji's glyph) into the draft.
 @Composable
 private fun EmoteSuggestions(
-    suggestions: List<ChatEmoteCatalogue>,
-    onPick: (ChatEmoteCatalogue) -> Unit,
+    suggestions: List<ComposerSuggestion>,
+    onPick: (ComposerSuggestion) -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -989,90 +1050,27 @@ private fun EmoteSuggestions(
             .padding(spacing.s1),
         verticalArrangement = Arrangement.spacedBy(spacing.s1),
     ) {
-        suggestions.forEach { emote ->
+        suggestions.forEach { suggestion ->
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(4.dp))
-                    .clickable { onPick(emote) }
+                    .clickable { onPick(suggestion) }
                     .padding(horizontal = spacing.s2, vertical = spacing.s1),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(spacing.s2),
             ) {
-                val url: String? =
-                    emote.urls["2"] ?: emote.urls["1"] ?: emote.urls.values.firstOrNull()
-                if (url != null) {
+                suggestion.imageUrl?.let { url ->
                     AnimatedNetworkImage(
                         url = url,
                         contentDescription = null,
                         modifier = Modifier.size(24.dp),
                     )
                 }
-                Text(text = emote.code, style = typography.sm, color = tokens.cardForeground)
+                Text(text = suggestion.label, style = typography.sm, color = tokens.cardForeground)
             }
         }
     }
-}
-
-// The composer's live WYSIWYG preview: the draft mirrored with each recognised emote code rendered as its
-// (animated) image, updating as the streamer types. True inline emotes INSIDE the editable field aren't feasible
-// in Compose Multiplatform — a text field can't host composables mid-text (VisualTransformation only remaps text +
-// SpanStyle, never inline content), and the transparent-field-over-mirror trick desyncs the caret and selection
-// the moment an emote image's width differs from its code's text width. So the composed line is mirrored here
-// instead: WYSIWYG feedback without the caret jank. Rendered only when the draft contains a catalogue emote (see
-// [SendBox]); the whole strip is a single a11y node (the field is the editable source of truth) so the mirrored
-// images/words don't double-announce over it.
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun EmoteComposerPreview(previewTokens: List<ComposerToken>) {
-    val tokens = LocalTokens.current
-    val spacing = LocalSpacing.current
-    val typography = LocalTypography.current
-
-    val previewLabel: String = stringResource(Res.string.chat_composer_preview_label)
-
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp))
-            .background(tokens.card)
-            .padding(horizontal = spacing.s3, vertical = spacing.s2)
-            .clearAndSetSemantics { contentDescription = previewLabel },
-        verticalArrangement = Arrangement.spacedBy(spacing.s1),
-    ) {
-        Text(text = previewLabel, style = typography.xs, color = tokens.mutedForeground)
-        FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(spacing.s1),
-            verticalArrangement = Arrangement.Center,
-        ) {
-            previewTokens.forEach { token ->
-                when (token) {
-                    is ComposerToken.Emote -> {
-                        val url: String? =
-                            token.emote.urls["2"] ?: token.emote.urls["1"] ?: token.emote.urls.values.firstOrNull()
-                        if (url != null) {
-                            AnimatedNetworkImage(
-                                url = url,
-                                contentDescription = null,
-                                modifier = Modifier.size(24.dp).align(Alignment.CenterVertically),
-                            )
-                        } else {
-                            Text(text = token.emote.code, style = typography.sm, color = tokens.cardForeground)
-                        }
-                    }
-                    is ComposerToken.Word ->
-                        Text(text = token.text, style = typography.sm, color = tokens.cardForeground)
-                }
-            }
-        }
-    }
-}
-
-// A single token of the composer's live preview: a catalogue emote (rendered as its image) or a plain word.
-private sealed interface ComposerToken {
-    data class Emote(val emote: ChatEmoteCatalogue) : ComposerToken
-
-    data class Word(val text: String) : ComposerToken
 }
 
 // Filter the emote catalogue for the composer autocomplete: every emote whose code CONTAINS [query]
@@ -1094,22 +1092,6 @@ internal fun emoteSuggestions(
         )
         .take(limit)
         .toList()
-
-// Split the composer [draft] into preview tokens: each whitespace-delimited token that matches a catalogue emote
-// code (case-insensitive) becomes a [ComposerToken.Emote]; every other token stays a [ComposerToken.Word]. A blank
-// draft yields no tokens, so the preview strip stays hidden.
-private fun tokenizeDraft(
-    draft: String,
-    emoteByCode: Map<String, ChatEmoteCatalogue>,
-): List<ComposerToken> =
-    draft
-        .trim()
-        .split(Regex("\\s+"))
-        .filter { it.isNotEmpty() }
-        .map { token ->
-            val match: ChatEmoteCatalogue? = emoteByCode[token.lowercase()]
-            if (match != null) ComposerToken.Emote(match) else ComposerToken.Word(token)
-        }
 
 @Composable
 private fun ErrorContent(detail: String, onRetry: () -> Unit) {
