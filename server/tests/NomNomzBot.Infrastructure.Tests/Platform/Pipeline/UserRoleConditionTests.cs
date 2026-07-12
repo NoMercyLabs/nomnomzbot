@@ -39,25 +39,7 @@ public class UserRoleConditionTests
     [InlineData("broadcaster", "vip", true)]
     [InlineData("broadcaster", "subscriber", true)]
     [InlineData("broadcaster", "viewer", true)]
-    public void Evaluate_BroadcasterMeetsAllRoles(string userRole, string minRole, bool expected)
-    {
-        UserRoleCondition condition = new();
-        PipelineExecutionContext ctx = BuildCtx(userRole);
-        ConditionDefinition def = MakeCond(
-            $$$"""{"type":"user_role","min_role":"{{{minRole}}}"}"""
-        );
-
-        bool result = condition.Evaluate(ctx, def);
-        result.Should().Be(expected);
-    }
-
-    [Theory]
-    [InlineData("moderator", "broadcaster", false)]
-    [InlineData("moderator", "moderator", true)]
-    [InlineData("moderator", "vip", true)]
-    [InlineData("moderator", "subscriber", true)]
-    [InlineData("moderator", "viewer", true)]
-    public void Evaluate_ModeratorMeetsModeratorAndBelow(
+    public async Task Evaluate_BroadcasterMeetsAllRoles(
         string userRole,
         string minRole,
         bool expected
@@ -69,7 +51,29 @@ public class UserRoleConditionTests
             $$$"""{"type":"user_role","min_role":"{{{minRole}}}"}"""
         );
 
-        bool result = condition.Evaluate(ctx, def);
+        bool result = await condition.EvaluateAsync(ctx, def);
+        result.Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData("moderator", "broadcaster", false)]
+    [InlineData("moderator", "moderator", true)]
+    [InlineData("moderator", "vip", true)]
+    [InlineData("moderator", "subscriber", true)]
+    [InlineData("moderator", "viewer", true)]
+    public async Task Evaluate_ModeratorMeetsModeratorAndBelow(
+        string userRole,
+        string minRole,
+        bool expected
+    )
+    {
+        UserRoleCondition condition = new();
+        PipelineExecutionContext ctx = BuildCtx(userRole);
+        ConditionDefinition def = MakeCond(
+            $$$"""{"type":"user_role","min_role":"{{{minRole}}}"}"""
+        );
+
+        bool result = await condition.EvaluateAsync(ctx, def);
         result.Should().Be(expected);
     }
 
@@ -79,7 +83,7 @@ public class UserRoleConditionTests
     [InlineData("viewer", "vip", false)]
     [InlineData("viewer", "subscriber", false)]
     [InlineData("viewer", "viewer", true)]
-    public void Evaluate_ViewerOnlyMeetsViewer(string userRole, string minRole, bool expected)
+    public async Task Evaluate_ViewerOnlyMeetsViewer(string userRole, string minRole, bool expected)
     {
         UserRoleCondition condition = new();
         PipelineExecutionContext ctx = BuildCtx(userRole);
@@ -87,34 +91,34 @@ public class UserRoleConditionTests
             $$$"""{"type":"user_role","min_role":"{{{minRole}}}"}"""
         );
 
-        bool result = condition.Evaluate(ctx, def);
+        bool result = await condition.EvaluateAsync(ctx, def);
         result.Should().Be(expected);
     }
 
     [Fact]
-    public void Evaluate_ModAlias_Accepted()
+    public async Task Evaluate_ModAlias_Accepted()
     {
         UserRoleCondition condition = new();
         PipelineExecutionContext ctx = BuildCtx("moderator");
         ConditionDefinition def = MakeCond("""{"type":"user_role","min_role":"mod"}""");
 
-        bool result = condition.Evaluate(ctx, def);
+        bool result = await condition.EvaluateAsync(ctx, def);
         result.Should().BeTrue();
     }
 
     [Fact]
-    public void Evaluate_SubAlias_Accepted()
+    public async Task Evaluate_SubAlias_Accepted()
     {
         UserRoleCondition condition = new();
         PipelineExecutionContext ctx = BuildCtx("subscriber");
         ConditionDefinition def = MakeCond("""{"type":"user_role","min_role":"sub"}""");
 
-        bool result = condition.Evaluate(ctx, def);
+        bool result = await condition.EvaluateAsync(ctx, def);
         result.Should().BeTrue();
     }
 
     [Fact]
-    public void Evaluate_NoRoleVariable_DefaultsToViewer()
+    public async Task Evaluate_NoRoleVariable_DefaultsToViewer()
     {
         UserRoleCondition condition = new();
         PipelineExecutionContext ctx = new()
@@ -128,19 +132,19 @@ public class UserRoleConditionTests
         // No user.role variable — defaults to "viewer"
         ConditionDefinition def = MakeCond("""{"type":"user_role","min_role":"moderator"}""");
 
-        bool result = condition.Evaluate(ctx, def);
+        bool result = await condition.EvaluateAsync(ctx, def);
         result.Should().BeFalse();
     }
 
     [Fact]
-    public void Evaluate_NoParameters_DefaultsToViewer()
+    public async Task Evaluate_NoParameters_DefaultsToViewer()
     {
         UserRoleCondition condition = new();
         PipelineExecutionContext ctx = BuildCtx("broadcaster");
         ConditionDefinition def = MakeCond("""{"type":"user_role"}"""); // no min_role param
 
         // Should default min_role to "viewer", any user meets that
-        bool result = condition.Evaluate(ctx, def);
+        bool result = await condition.EvaluateAsync(ctx, def);
         result.Should().BeTrue();
     }
 

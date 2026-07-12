@@ -232,7 +232,7 @@ public sealed class PipelineEngine : IPipelineEngine
             DateTimeOffset stepStart = _timeProvider.GetUtcNow();
 
             // Evaluate condition (skip step if condition false)
-            if (step.Condition is not null && !EvaluateCondition(ctx, step.Condition))
+            if (step.Condition is not null && !await EvaluateConditionAsync(ctx, step.Condition))
             {
                 skipped++;
                 ctx.StepLogs.Add(
@@ -313,7 +313,10 @@ public sealed class PipelineEngine : IPipelineEngine
         };
     }
 
-    private bool EvaluateCondition(PipelineExecutionContext ctx, ConditionDefinition condition)
+    private async Task<bool> EvaluateConditionAsync(
+        PipelineExecutionContext ctx,
+        ConditionDefinition condition
+    )
     {
         ICommandCondition? evaluator = _conditions.FirstOrDefault(c =>
             string.Equals(c.ConditionType, condition.Type, StringComparison.OrdinalIgnoreCase)
@@ -328,7 +331,7 @@ public sealed class PipelineEngine : IPipelineEngine
             return true;
         }
 
-        return evaluator.Evaluate(ctx, condition);
+        return await evaluator.EvaluateAsync(ctx, condition);
     }
 
     private async Task<ActionResult> ExecuteActionAsync(

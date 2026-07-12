@@ -20,4 +20,14 @@ public sealed class ConditionDefinition
 
     [JsonExtensionData]
     public Dictionary<string, JsonElement>? Parameters { get; set; }
+
+    /// <summary>Gets a string parameter value by key.</summary>
+    public string? GetString(string key)
+    {
+        if (Parameters is null)
+            return null;
+        if (!Parameters.TryGetValue(key, out JsonElement elem))
+            return null;
+        return elem.ValueKind == JsonValueKind.String ? elem.GetString() : elem.ToString();
+    }
 }
