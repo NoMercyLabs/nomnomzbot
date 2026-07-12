@@ -33,6 +33,7 @@ public sealed class ChatMessageBroadcastHandlerTests
         IDashboardNotifier notifier = Substitute.For<IDashboardNotifier>();
         IChatMessageDecorator decorator = Substitute.For<IChatMessageDecorator>();
         IHubUserEnricher enricher = Substitute.For<IHubUserEnricher>();
+        IWidgetNotifier widgets = Substitute.For<IWidgetNotifier>();
         Guid channel = Guid.CreateVersion7();
 
         decorator
@@ -46,6 +47,7 @@ public sealed class ChatMessageBroadcastHandlerTests
             notifier,
             decorator,
             enricher,
+            widgets,
             TimeProvider.System
         );
 
@@ -68,6 +70,7 @@ public sealed class ChatMessageBroadcastHandlerTests
         IDashboardNotifier notifier = Substitute.For<IDashboardNotifier>();
         IChatMessageDecorator decorator = Substitute.For<IChatMessageDecorator>();
         IHubUserEnricher enricher = Substitute.For<IHubUserEnricher>();
+        IWidgetNotifier widgets = Substitute.For<IWidgetNotifier>();
         Guid channel = Guid.CreateVersion7();
 
         decorator
@@ -81,6 +84,7 @@ public sealed class ChatMessageBroadcastHandlerTests
             notifier,
             decorator,
             enricher,
+            widgets,
             TimeProvider.System
         );
 
@@ -103,12 +107,14 @@ public sealed class ChatMessageBroadcastHandlerTests
         IDashboardNotifier notifier = Substitute.For<IDashboardNotifier>();
         IChatMessageDecorator decorator = Substitute.For<IChatMessageDecorator>();
         IHubUserEnricher enricher = Substitute.For<IHubUserEnricher>();
+        IWidgetNotifier widgets = Substitute.For<IWidgetNotifier>();
         Guid channel = Guid.CreateVersion7();
 
         ChatMessageBroadcastHandler handler = new(
             notifier,
             decorator,
             enricher,
+            widgets,
             TimeProvider.System
         );
 
@@ -154,6 +160,49 @@ public sealed class ChatMessageBroadcastHandlerTests
         await enricher
             .DidNotReceiveWithAnyArgs()
             .EnrichAsync(default, default!, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Message_is_also_pushed_to_overlays_as_a_decorated_ChatMessage_event()
+    {
+        IDashboardNotifier notifier = Substitute.For<IDashboardNotifier>();
+        IChatMessageDecorator decorator = Substitute.For<IChatMessageDecorator>();
+        IHubUserEnricher enricher = Substitute.For<IHubUserEnricher>();
+        IWidgetNotifier widgets = Substitute.For<IWidgetNotifier>();
+        Guid channel = Guid.CreateVersion7();
+
+        decorator
+            .DecorateAsync(Arg.Any<ChatMessageReceivedEvent>(), Arg.Any<CancellationToken>())
+            .Returns(new DecoratedChatMessage { Fragments = [] });
+        enricher
+            .EnrichAsync(channel, "u1", Arg.Any<CancellationToken>())
+            .Returns(new HubUserEnrichment("Stoney", "https://cdn/avatar.png", "they/them", "Vip"));
+
+        ChatMessageBroadcastHandler handler = new(
+            notifier,
+            decorator,
+            enricher,
+            widgets,
+            TimeProvider.System
+        );
+
+        await handler.HandleAsync(Event(channel));
+
+        // Overlays get a DECORATED "ChatMessage" overlay event — NOT the raw domain event — whose camelCase JSON
+        // payload carries the same render-ready fields the dashboard receives, so a chat widget can build a
+        // fully-styled bubble (resolved avatar/pronouns/colour/fragments/badges), not just raw text.
+        await widgets
+            .Received(1)
+            .BroadcastOverlayEventAsync(
+                channel.ToString(),
+                Arg.Is<OverlayEventDto>(evt =>
+                    evt.Type == "ChatMessage"
+                    && evt.Payload.Contains("\"avatarUrl\":\"https://cdn/avatar.png\"")
+                    && evt.Payload.Contains("\"pronouns\":\"they/them\"")
+                    && evt.Payload.Contains("\"displayName\":\"Stoney\"")
+                ),
+                Arg.Any<CancellationToken>()
+            );
     }
 
     private static ChatMessageReceivedEvent Event(Guid channel) =>

@@ -8,6 +8,8 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Text.Json;
+using NomNomzBot.Api.Hubs;
 using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Application.Chat.Decoration;
 using NomNomzBot.Application.Chat.Services;
@@ -25,21 +27,32 @@ namespace NomNomzBot.Api.Hubs.Broadcasters;
 /// </summary>
 public sealed class ChatMessageBroadcastHandler : IEventHandler<ChatMessageReceivedEvent>
 {
+    // The decorated chat payload the OVERLAY feed carries is serialized here (a JSON string inside
+    // OverlayEventDto), camelCase so it byte-matches the frontend ChatMessagePayload shape the dashboard
+    // receives over SignalR — a chat widget then parses exactly the same render-ready fields.
+    private static readonly JsonSerializerOptions OverlayJson = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+    };
+
     private readonly IDashboardNotifier _notifier;
     private readonly IChatMessageDecorator _decorator;
     private readonly IHubUserEnricher _enricher;
+    private readonly IWidgetNotifier _widgets;
     private readonly TimeProvider _timeProvider;
 
     public ChatMessageBroadcastHandler(
         IDashboardNotifier notifier,
         IChatMessageDecorator decorator,
         IHubUserEnricher enricher,
+        IWidgetNotifier widgets,
         TimeProvider timeProvider
     )
     {
         _notifier = notifier;
         _decorator = decorator;
         _enricher = enricher;
+        _widgets = widgets;
         _timeProvider = timeProvider;
     }
 
@@ -107,5 +120,16 @@ public sealed class ChatMessageBroadcastHandler : IEventHandler<ChatMessageRecei
         );
 
         await _notifier.SendChatMessageAsync(evt.BroadcasterId.ToString(), dto, ct);
+
+        // Overlays (OBS browser sources) subscribe to the generic overlay feed, which otherwise carries the
+        // RAW journaled ChatMessageReceivedEvent — a receive-side event with none of the render data a chat
+        // widget needs (resolved emote/badge image urls, structured fragments, colour, avatar, pronouns). Push
+        // the SAME decorated dto the dashboard gets, as a clean "ChatMessage" overlay event, so a widget can
+        // build a fully-styled bubble. OverlayEventFilter drops the raw duplicate so the widget sees only this.
+        await _widgets.BroadcastOverlayEventAsync(
+            evt.BroadcasterId.ToString(),
+            new OverlayEventDto("ChatMessage", JsonSerializer.Serialize(dto, OverlayJson)),
+            ct
+        );
     }
 }

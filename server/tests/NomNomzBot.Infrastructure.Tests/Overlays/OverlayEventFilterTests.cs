@@ -21,7 +21,6 @@ namespace NomNomzBot.Infrastructure.Tests.Overlays;
 public sealed class OverlayEventFilterTests
 {
     [Theory]
-    [InlineData("ChatMessageReceivedEvent")]
     [InlineData("FollowEvent")]
     [InlineData("NewSubscriptionEvent")]
     [InlineData("CheerEvent")]
@@ -50,5 +49,15 @@ public sealed class OverlayEventFilterTests
     public void ShouldForward_InternalOrRawTopics_AreDropped(string eventType)
     {
         OverlayEventFilter.ShouldForward(eventType).Should().BeFalse();
+    }
+
+    [Fact]
+    public void ShouldForward_ChatMessage_IsDropped_BecauseReBroadcastDecorated()
+    {
+        // ChatMessageReceivedEvent is a receive-side event with no render data. It reaches overlays instead as
+        // the decorated "ChatMessage" overlay event (ChatMessageBroadcastHandler resolves emotes/badges/
+        // fragments/colour/avatar/pronouns), so the raw journaled form must NOT also ride the generic feed —
+        // a widget would otherwise get a useless duplicate it cannot build a bubble from.
+        OverlayEventFilter.ShouldForward("ChatMessageReceivedEvent").Should().BeFalse();
     }
 }

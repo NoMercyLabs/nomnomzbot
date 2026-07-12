@@ -30,9 +30,22 @@ public static class OverlayEventFilter
         "Authorization",
     ];
 
+    // Events that reach overlays in a RICHER, render-ready form via a dedicated broadcaster, so the raw
+    // journaled event must NOT also ride the generic feed (a widget would otherwise get a useless duplicate
+    // with none of the decoration). ChatMessageReceivedEvent → ChatMessageBroadcastHandler re-emits it as a
+    // decorated "ChatMessage" overlay event (resolved emotes/badges/fragments/colour/avatar/pronouns).
+    private static readonly HashSet<string> DecoratedElsewhere = new(StringComparer.Ordinal)
+    {
+        "ChatMessageReceivedEvent",
+    };
+
     public static bool ShouldForward(string eventType)
     {
         if (string.IsNullOrWhiteSpace(eventType))
+            return false;
+
+        // A decorated re-broadcast owns this event on the overlay wire; drop the raw journaled duplicate.
+        if (DecoratedElsewhere.Contains(eventType))
             return false;
 
         foreach (string prefix in InternalPrefixes)
