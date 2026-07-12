@@ -77,6 +77,70 @@ public sealed class OverlayHostController : ControllerBase
           #hype-train .ht-label { font-size: 14px; font-weight: 700; color: var(--accent); }
           #hype-train .ht-bar { height: 8px; margin-top: 6px; border-radius: 4px; background: rgba(255,255,255,.15); }
           #hype-train .ht-fill { height: 100%; width: 0; border-radius: 4px; background: var(--accent); transition: width .4s ease; }
+          /* ── Chat overlay — ported from the owner's twitch-chat-overlay widget ── */
+          /* Bottom-anchored column, newest at bottom, older lines clip off the top; ~100-line DOM cap. */
+          #chat {
+            position: fixed; left: 0; top: 0; bottom: 0; width: min(440px, 42vw);
+            display: flex; flex-direction: column; justify-content: flex-end;
+            gap: 12px; padding: 16px 12px 20px 16px; overflow: hidden; pointer-events: none;
+          }
+          /* Each message: banner + overlapping avatar + bubble, with a staggered slide-in entrance. */
+          .chat-msg {
+            display: flex; flex-direction: column; opacity: 1;
+            transform: translateX(120%);
+            transition: transform .5s ease-in-out, opacity .5s ease-in-out;
+          }
+          .chat-msg.active { transform: translateX(0); }
+          .chat-head { position: relative; padding-top: 12px; z-index: 2; }
+          .chat-shine {
+            position: relative; overflow: hidden; border-radius: 8px;
+            transform: translateX(120%); transition: transform .5s ease-out;
+          }
+          .chat-msg.active .chat-shine { transform: translateX(0); }
+          /* Banner background is a gradient derived from the chatter's colour (relative-colour syntax, as in the reference). */
+          .chat-banner {
+            position: relative; display: flex; align-items: center; gap: 4px;
+            height: 32px; padding: 0 48px 0 8px; border-radius: 8px; color: #fff;
+            background-color: var(--fallback, var(--accent));
+            background-image: linear-gradient(45deg, var(--c300), var(--c500) 23%, var(--c700));
+          }
+          .chat-banner.on-light { color: #000; }
+          .chat-banner.no-avatar { padding-right: 12px; }
+          .chat-badge { width: 20px; height: 20px; flex: none; }
+          .chat-name { font-weight: 700; font-size: 1.125rem; line-height: 1; }
+          .chat-pron { font-size: .8rem; font-weight: 600; font-family: ui-monospace, monospace; opacity: .85; white-space: nowrap; }
+          .chat-shine::after {
+            content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 1;
+            transform: translateX(100%);
+            background: linear-gradient(65deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0) 35%, rgba(255,255,255,.2) 50%, rgba(128,186,232,0) 65%, rgba(128,186,232,0) 100%);
+          }
+          .chat-msg.active .chat-shine::after { animation: chat-shine 12s forwards; }
+          @keyframes chat-shine { 1% { transform: translateX(100%); } 15%, 100% { transform: translateX(-100%); } }
+          .chat-avatar {
+            position: absolute; right: -4px; top: -8px; width: 56px; height: 56px;
+            border-radius: 50%; overflow: hidden; z-index: 3; background: #171717; border: 1px solid #171717;
+            transform: scale(0); transition: transform .3s ease-out; transition-delay: .3s;
+          }
+          .chat-msg.active .chat-avatar { transform: scale(1); }
+          .chat-avatar img { width: 100%; height: 100%; object-fit: cover; }
+          .chat-bubble {
+            position: relative; margin-top: -12px; margin-right: 16px; padding: 20px 12px 12px;
+            border-radius: 8px; background: rgba(10,10,14,.92); border: 1px solid rgba(255,255,255,.06);
+            overflow: clip; z-index: 1; transform: scaleY(0); transform-origin: top;
+            transition: transform .4s ease-out; transition-delay: .6s;
+          }
+          .chat-msg.active .chat-bubble { transform: scaleY(1); }
+          .chat-content {
+            font-size: 1.1rem; line-height: 1.6; font-weight: 500; color: #fff; word-break: break-word;
+            opacity: 0; transition: opacity .3s ease-out; transition-delay: .9s;
+          }
+          .chat-msg.active .chat-content { opacity: 1; }
+          .chat-content.emote-only { display: flex; align-items: center; gap: 4px; }
+          .chat-emote { height: 28px; width: auto; vertical-align: middle; margin: 0 2px; }
+          .chat-content.emote-only .chat-emote, .chat-emote-big { height: 72px; }
+          .chat-mention { font-weight: 700; }
+          .chat-cheer-bits { font-weight: 700; margin-left: 2px; }
+          .chat-link { color: var(--accent); text-decoration: underline; }
         </style>
         </head>
         <body>
@@ -84,6 +148,7 @@ public sealed class OverlayHostController : ControllerBase
         <div id="alert-box"><div class="alert-title"></div><div class="alert-detail"></div></div>
         <div id="now-playing"><span class="note">&#9835;</span><span class="np-track"></span></div>
         <div id="hype-train"><div class="ht-label"></div><div class="ht-bar"><div class="ht-fill"></div></div></div>
+        <div id="chat" aria-live="polite"></div>
         <script>
         (function () {
           "use strict";
@@ -189,6 +254,190 @@ public sealed class OverlayHostController : ControllerBase
             enqueueAlert(type, data);
           }
 
+          // ── Chat — ported from the owner's twitch-chat-overlay widget ──────
+          // Renders a DashboardChatMessageDto (camelCase): colour-derived name banner with badges,
+          // overlapping avatar, dark bubble with resolved emotes/mentions/cheermotes/links. Newest at
+          // bottom, ~100-line cap. All chatter-controlled strings go in via text nodes only (never markup);
+          // emote/badge/avatar images go in img.src; colours are hex-validated before use.
+          var CHAT_CAP = 100;
+          var chatBox = document.getElementById("chat");
+          var HEX = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
+
+          function safeColor(c) {
+            return (typeof c === "string" && HEX.test(c.trim())) ? c.trim() : null;
+          }
+
+          function luminance(hex) {
+            var h = hex.replace("#", "");
+            if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+            var r = parseInt(h.slice(0, 2), 16), g = parseInt(h.slice(2, 4), 16), b = parseInt(h.slice(4, 6), 16);
+            return 0.299 * r + 0.587 * g + 0.114 * b;
+          }
+
+          function firstUrl(urls, keys) {
+            if (!urls) return null;
+            for (var i = 0; i < keys.length; i++) if (urls[keys[i]]) return urls[keys[i]];
+            return null;
+          }
+
+          function isEmoteOnly(m) {
+            var f = m.fragments;
+            if (!f || !f.length) return false;
+            for (var i = 0; i < f.length; i++) {
+              if (f[i].type === "emote") continue;
+              if (f[i].type === "text" && (!f[i].text || !f[i].text.trim())) continue;
+              return false;
+            }
+            return true;
+          }
+
+          function appendImage(parent, url, alt, cls) {
+            var img = document.createElement("img");
+            img.className = cls;
+            img.src = url;
+            img.alt = alt || "";
+            parent.appendChild(img);
+          }
+
+          function appendEmote(parent, fr, big) {
+            var url = big
+              ? firstUrl(fr.emote && fr.emote.urls, ["3", "2", "1"])
+              : firstUrl(fr.emote && fr.emote.urls, ["2", "1", "3"]);
+            if (!url) { parent.appendChild(document.createTextNode(fr.text || "")); return; }
+            appendImage(parent, url, fr.text, big ? "chat-emote chat-emote-big" : "chat-emote");
+          }
+
+          function appendCheermote(parent, fr) {
+            var url = firstUrl(fr.cheermote && fr.cheermote.urls, ["2", "1", "3"]);
+            if (!url) { parent.appendChild(document.createTextNode(fr.text || "")); return; }
+            appendImage(parent, url, fr.text, "chat-emote");
+            var bits = document.createElement("span");
+            bits.className = "chat-cheer-bits";
+            var col = safeColor(fr.cheermote.colorHex);
+            if (col) bits.style.color = col;
+            bits.textContent = String(fr.cheermote.bits || 0);
+            parent.appendChild(bits);
+          }
+
+          function appendMention(parent, fr) {
+            var span = document.createElement("span");
+            span.className = "chat-mention";
+            var col = safeColor(fr.mention && fr.mention.color);
+            if (col) span.style.color = col;
+            span.textContent = fr.text || "";
+            parent.appendChild(span);
+          }
+
+          function appendLink(parent, fr) {
+            var url = fr.linkUrl || fr.text || "";
+            if (/^https?:\/\//i.test(url)) {
+              var a = document.createElement("a");
+              a.className = "chat-link";
+              a.setAttribute("href", url);
+              a.setAttribute("target", "_blank");
+              a.setAttribute("rel", "noopener noreferrer");
+              a.textContent = fr.text || url;
+              parent.appendChild(a);
+            } else {
+              parent.appendChild(document.createTextNode(fr.text || url));
+            }
+          }
+
+          function renderContent(m, content) {
+            var emoteOnly = isEmoteOnly(m);
+            if (emoteOnly) content.classList.add("emote-only");
+            if (m.fragments && m.fragments.length) {
+              m.fragments.forEach(function (fr) {
+                switch (fr.type) {
+                  case "emote": appendEmote(content, fr, emoteOnly); break;
+                  case "cheermote": appendCheermote(content, fr); break;
+                  case "mention": appendMention(content, fr); break;
+                  case "link": appendLink(content, fr); break;
+                  default: content.appendChild(document.createTextNode(fr.text || "")); break;
+                }
+              });
+            } else {
+              content.appendChild(document.createTextNode(m.message || ""));
+            }
+          }
+
+          function accentColor() {
+            var a = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim();
+            return a || "#9146ff";
+          }
+
+          function renderChat(m) {
+            if (!m || !chatBox) return;
+
+            var userColor = safeColor(m.color) || accentColor();
+            var light = luminance(userColor) > 140;
+
+            var msg = document.createElement("div");
+            msg.className = "chat-msg";
+
+            var head = document.createElement("div");
+            head.className = "chat-head";
+
+            var shine = document.createElement("div");
+            shine.className = "chat-shine";
+
+            var banner = document.createElement("div");
+            banner.className = "chat-banner" + (light ? " on-light" : "");
+            banner.style.setProperty("--fallback", userColor);
+            banner.style.setProperty("--c300", "hsl(from " + userColor + " h calc(s * .30) l)");
+            banner.style.setProperty("--c500", "hsl(from " + userColor + " h calc(s * .50) l)");
+            banner.style.setProperty("--c700", "hsl(from " + userColor + " h s calc(l * .70))");
+
+            (m.badges || []).forEach(function (b) {
+              var url = firstUrl(b.urls, ["2", "1", "4"]);
+              if (url) appendImage(banner, url, b.setId, "chat-badge");
+            });
+
+            var name = document.createElement("span");
+            name.className = "chat-name";
+            name.textContent = m.displayName || m.username || "";
+            banner.appendChild(name);
+
+            if (m.pronouns) {
+              var pron = document.createElement("span");
+              pron.className = "chat-pron";
+              pron.textContent = "(" + m.pronouns + ")";
+              banner.appendChild(pron);
+            }
+
+            shine.appendChild(banner);
+            head.appendChild(shine);
+
+            if (m.avatarUrl) {
+              var av = document.createElement("div");
+              av.className = "chat-avatar";
+              appendImage(av, m.avatarUrl, "", "");
+              head.appendChild(av);
+            } else {
+              banner.classList.add("no-avatar");
+            }
+
+            var bubble = document.createElement("div");
+            bubble.className = "chat-bubble";
+            var content = document.createElement("div");
+            content.className = "chat-content";
+            renderContent(m, content);
+            bubble.appendChild(content);
+
+            msg.appendChild(head);
+            msg.appendChild(bubble);
+            chatBox.appendChild(msg);
+
+            // Cap the DOM: drop oldest lines beyond the cap (already clipped off the top, so no visible pop).
+            while (chatBox.children.length > CHAT_CAP)
+              chatBox.removeChild(chatBox.firstChild);
+
+            // Kick off the staggered banner -> avatar -> bubble -> content entrance on the next frame.
+            requestAnimationFrame(function () {
+              requestAnimationFrame(function () { msg.classList.add("active"); });
+            });
+          }
+
           // ── Audio bus ─────────────────────────────────────────────────────
           // Keyed by handle so stop_sound can target a named clip; anonymous plays get unique keys.
           var playing = new Map();
@@ -263,7 +512,9 @@ public sealed class OverlayHostController : ControllerBase
 
                 if (msg.type === 1) dispatch(msg.target, msg.arguments || []);
                 else if (msg.type === 3 && msg.invocationId === "join" && msg.result)
-                  applySettings(msg.result.settings);
+                  // JoinWidgetResponse serializes as {success,error,initialState}; initialState IS the
+                  // saved Widget.Settings bag (accentColor/durationMs at top level) — not a .settings field.
+                  applySettings(msg.result.initialState);
               });
             };
 
@@ -281,6 +532,14 @@ public sealed class OverlayHostController : ControllerBase
               case "StopSound": stopSound(args[0] || {}); break;
               case "WidgetReload": location.reload(); break;
               case "WidgetEvent": renderWidgetEvent(args[0]); break;
+              case "Event": {
+                var oe = args[0];
+                if (oe && oe.type === "ChatMessage") {
+                  try { renderChat(JSON.parse(oe.payload)); }
+                  catch (e) { console.error("[overlay] bad chat payload", e); }
+                }
+                break;
+              }
               case "WidgetSettingsChanged": applySettings((args[0] || {}).settings); break;
               default: break;
             }
