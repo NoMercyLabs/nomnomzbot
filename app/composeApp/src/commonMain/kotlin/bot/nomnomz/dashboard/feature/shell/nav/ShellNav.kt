@@ -29,6 +29,7 @@ enum class ShellRoute {
     Rewards,
     Economy,
     Games,
+    Giveaways,
     SongRequests,
     Music,
     SoundClips,
@@ -108,6 +109,9 @@ object ShellNav {
             NavPage(ShellRoute.Rewards, NavGroup.Loyalty, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "reward:read"),
             NavPage(ShellRoute.Economy, NavGroup.Loyalty, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "economy:config:read"),
             NavPage(ShellRoute.Games, NavGroup.Loyalty, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "economy:games:read"),
+            // Giveaways read+write floor at Moderator (giveaways:read / giveaways:write); the code-pool tools and
+            // code reveal are Broadcaster-only, gated per-control inside the page on `giveaways:codes:write`.
+            NavPage(ShellRoute.Giveaways, NavGroup.Loyalty, ManagementRole.Moderator, ManagementRole.Moderator, readActionKey = "giveaways:read"),
             NavPage(ShellRoute.Music, NavGroup.Music, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "music:config:read"),
             NavPage(ShellRoute.SongRequests, NavGroup.Music, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = null),
             NavPage(ShellRoute.SoundClips, NavGroup.Music, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "sounds:read"),

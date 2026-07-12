@@ -100,6 +100,15 @@ class ApiContractTest {
             PickList.serializer() to "PickListDto",
             CreatePickListBody.serializer() to "CreatePickListRequest",
             UpdatePickListBody.serializer() to "UpdatePickListRequest",
+            Giveaway.serializer() to "GiveawayDto",
+            UpsertGiveawayBody.serializer() to "UpsertGiveawayRequest",
+            GiveawayWinner.serializer() to "GiveawayWinnerDto",
+            CodePool.serializer() to "CodePoolDto",
+            CodePoolDetail.serializer() to "CodePoolDetailDto",
+            MaskedCode.serializer() to "MaskedCodeDto",
+            CreateCodePoolBody.serializer() to "CreateCodePoolRequest",
+            AddCodesBody.serializer() to "AddCodesRequest",
+            CodeInput.serializer() to "CodeInput",
         )
 
     @Test

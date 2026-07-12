@@ -65,6 +65,8 @@ import bot.nomnomz.dashboard.core.network.EventResponsesApi
 import bot.nomnomz.dashboard.core.network.RestEventResponsesApi
 import bot.nomnomz.dashboard.core.network.GamesApi
 import bot.nomnomz.dashboard.core.network.RestGamesApi
+import bot.nomnomz.dashboard.core.network.GiveawaysApi
+import bot.nomnomz.dashboard.core.network.RestGiveawaysApi
 import bot.nomnomz.dashboard.core.network.RestModerationApi
 import bot.nomnomz.dashboard.core.network.RestMusicApi
 import bot.nomnomz.dashboard.core.network.RestParticipantApi
@@ -118,6 +120,7 @@ import bot.nomnomz.dashboard.feature.home.state.HomeController
 import bot.nomnomz.dashboard.feature.integrations.state.IntegrationsController
 import bot.nomnomz.dashboard.feature.eventresponses.state.EventResponsesController
 import bot.nomnomz.dashboard.feature.games.state.GamesController
+import bot.nomnomz.dashboard.feature.giveaways.state.GiveawaysController
 import bot.nomnomz.dashboard.feature.moderation.state.ModerationController
 import bot.nomnomz.dashboard.feature.music.state.MusicController
 import bot.nomnomz.dashboard.feature.participant.state.ParticipantController
@@ -250,6 +253,7 @@ class AppGraph {
     val chatApi: ChatApi = RestChatApi(apiClient)
     val quotesApi: QuotesApi = RestQuotesApi(apiClient)
     val pickListsApi: PickListsApi = RestPickListsApi(apiClient)
+    val giveawaysApi: GiveawaysApi = RestGiveawaysApi(apiClient)
     val soundApi: SoundApi = RestSoundApi(apiClient)
     val discordApi: DiscordApi = RestDiscordApi(apiClient)
     val rolesApi: RolesApi = RestRolesApi(apiClient)
@@ -400,6 +404,9 @@ class AppGraph {
 
     val pickListsController: PickListsController =
         PickListsController(pickListsApi = pickListsApi, feedback = feedbackController)
+
+    val giveawaysController: GiveawaysController =
+        GiveawaysController(giveawaysApi = giveawaysApi, feedback = feedbackController)
 
     val soundController: SoundController =
         SoundController(

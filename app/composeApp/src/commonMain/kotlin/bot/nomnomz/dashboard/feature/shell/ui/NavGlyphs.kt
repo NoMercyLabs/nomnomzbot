@@ -177,6 +177,17 @@ val GamesGlyph: ImageVector = navIcon("Games") {
         )
 }
 
+val GiveawaysGlyph: ImageVector = navIcon("Giveaways") {
+        addPath(
+            pathData = addPathNodes("M4 8H20A1 1 0 0 1 21 9V11A1 1 0 0 1 20 12H4A1 1 0 0 1 3 11V9A1 1 0 0 1 4 8ZM12 8V21M19 12V19A2 2 0 0 1 17 21H7A2 2 0 0 1 5 19V12M7.5 8A2.5 2.5 0 0 1 7.5 3A4.8 8 0 0 1 12 8A4.8 8 0 0 1 16.5 3A2.5 2.5 0 0 1 16.5 8"),
+            stroke = SolidColor(Color.Black),
+            strokeLineWidth = SW,
+            strokeLineCap = StrokeCap.Round,
+            strokeLineJoin = StrokeJoin.Round,
+            fill = SolidColor(Color.Transparent),
+        )
+}
+
 val MusicGlyph: ImageVector = navIcon("Music") {
         addPath(
             pathData = addPathNodes("M5 13V12C5 8.13401 8.13401 5 12 5C15.866 5 19 8.13401 19 12V13M5 13C5.89535 12.3285 7.18249 12.8687 7.33041 13.9781L7.82699 17.7024C7.9274 18.4555 7.47884 19.1737 6.75809 19.414C5.83497 19.7217 4.85531 19.1318 4.69534 18.172L4.2325 15.395C4.08659 14.5195 4.37244 13.6276 5 13ZM19 13C18.1047 12.3285 16.8175 12.8687 16.6696 13.9781L16.173 17.7024C16.0726 18.4555 16.5212 19.1737 17.2419 19.414C18.165 19.7217 19.1447 19.1318 19.3047 18.172L19.7675 15.395C19.9134 14.5195 19.6276 13.6276 19 13Z"),

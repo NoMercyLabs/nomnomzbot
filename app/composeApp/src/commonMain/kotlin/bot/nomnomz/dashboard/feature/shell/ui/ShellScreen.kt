@@ -95,6 +95,7 @@ import bot.nomnomz.dashboard.feature.eventresponses.ui.EventResponsesScreen
 import bot.nomnomz.dashboard.feature.discord.ui.DiscordScreen
 import bot.nomnomz.dashboard.feature.economy.ui.EconomyScreen
 import bot.nomnomz.dashboard.feature.games.ui.GamesScreen
+import bot.nomnomz.dashboard.feature.giveaways.ui.GiveawaysScreen
 import bot.nomnomz.dashboard.feature.home.ui.HomeScreen
 import bot.nomnomz.dashboard.feature.integrations.ui.IntegrationsScreen
 import bot.nomnomz.dashboard.feature.moderation.ui.ModerationScreen
@@ -151,6 +152,7 @@ import nomnomzbot.composeapp.generated.resources.shell_nav_dashboard
 import nomnomzbot.composeapp.generated.resources.shell_nav_discord
 import nomnomzbot.composeapp.generated.resources.shell_nav_economy
 import nomnomzbot.composeapp.generated.resources.shell_nav_games
+import nomnomzbot.composeapp.generated.resources.shell_nav_giveaways
 import nomnomzbot.composeapp.generated.resources.shell_nav_integrations
 import nomnomzbot.composeapp.generated.resources.shell_nav_menu_open
 import nomnomzbot.composeapp.generated.resources.shell_nav_moderation
@@ -501,6 +503,8 @@ private fun ShellContent(
                 SoundScreen(controller = graph.soundController, role = role)
             ShellRoute.Tts -> TtsScreen(controller = graph.ttsController, role = role)
             ShellRoute.Games -> GamesScreen(controller = graph.gamesController, role = role)
+            ShellRoute.Giveaways ->
+                GiveawaysScreen(controller = graph.giveawaysController, heldActionKeys = heldActionKeys)
             ShellRoute.Discord -> DiscordScreen(controller = graph.discordController, role = role)
             ShellRoute.Pipelines -> PipelinesScreen(controller = graph.pipelinesController, role = role)
             ShellRoute.Roles -> RolesScreen(controller = graph.rolesController, role = role)
@@ -1202,6 +1206,7 @@ private fun ShellRoute.icon(): ImageVector =
         ShellRoute.Rewards -> RewardsGlyph
         ShellRoute.Economy -> EconomyGlyph
         ShellRoute.Games -> GamesGlyph
+        ShellRoute.Giveaways -> GiveawaysGlyph
         ShellRoute.Music -> MusicGlyph
         ShellRoute.SongRequests -> SongRequestsGlyph
         ShellRoute.SoundClips -> SoundClipsGlyph
@@ -1236,6 +1241,7 @@ private fun ShellRoute.label(): String =
             ShellRoute.Rewards -> Res.string.shell_nav_rewards
             ShellRoute.Economy -> Res.string.shell_nav_economy
             ShellRoute.Games -> Res.string.shell_nav_games
+            ShellRoute.Giveaways -> Res.string.shell_nav_giveaways
             ShellRoute.SongRequests -> Res.string.shell_nav_song_requests
             ShellRoute.Music -> Res.string.shell_nav_music
             ShellRoute.SoundClips -> Res.string.shell_nav_sound
