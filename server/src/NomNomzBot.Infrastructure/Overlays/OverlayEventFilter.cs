@@ -52,9 +52,5 @@ public static class OverlayEventFilter
         eventType.Contains('.', StringComparison.Ordinal)
         && !eventType.StartsWith("custom.", StringComparison.OrdinalIgnoreCase)
         && !eventType.StartsWith("supporter.", StringComparison.OrdinalIgnoreCase)
-        && string.Equals(
-            eventType,
-            eventType.ToLowerInvariant(),
-            StringComparison.Ordinal
-        );
+        && string.Equals(eventType, eventType.ToLowerInvariant(), StringComparison.Ordinal);
 }
