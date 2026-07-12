@@ -11,6 +11,10 @@
 package bot.nomnomz.dashboard.feature.settings.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -38,6 +42,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.font.FontWeight
@@ -69,6 +74,8 @@ import bot.nomnomz.dashboard.feature.settings.state.ChannelBotController
 import bot.nomnomz.dashboard.feature.settings.state.ChannelBotState
 import bot.nomnomz.dashboard.feature.settings.state.JournalPortabilityController
 import bot.nomnomz.dashboard.feature.settings.state.JournalPortabilityState
+import bot.nomnomz.dashboard.feature.settings.state.PersonalityController
+import bot.nomnomz.dashboard.feature.settings.state.PersonalityState
 import bot.nomnomz.dashboard.feature.settings.state.SettingsController
 import bot.nomnomz.dashboard.feature.settings.state.SettingsState
 import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
@@ -177,6 +184,21 @@ import nomnomzbot.composeapp.generated.resources.settings_billing_subtitle
 import nomnomzbot.composeapp.generated.resources.settings_billing_title
 import nomnomzbot.composeapp.generated.resources.settings_billing_usage_of
 import nomnomzbot.composeapp.generated.resources.settings_billing_usage_title
+import nomnomzbot.composeapp.generated.resources.personality_section_title
+import nomnomzbot.composeapp.generated.resources.personality_section_subtitle
+import nomnomzbot.composeapp.generated.resources.personality_saved
+import nomnomzbot.composeapp.generated.resources.personality_load_error
+import nomnomzbot.composeapp.generated.resources.personality_save_error
+import nomnomzbot.composeapp.generated.resources.personality_tone_informative
+import nomnomzbot.composeapp.generated.resources.personality_tone_informative_desc
+import nomnomzbot.composeapp.generated.resources.personality_tone_friendly
+import nomnomzbot.composeapp.generated.resources.personality_tone_friendly_desc
+import nomnomzbot.composeapp.generated.resources.personality_tone_sassy
+import nomnomzbot.composeapp.generated.resources.personality_tone_sassy_desc
+import nomnomzbot.composeapp.generated.resources.personality_tone_hype
+import nomnomzbot.composeapp.generated.resources.personality_tone_hype_desc
+import nomnomzbot.composeapp.generated.resources.personality_tone_chill
+import nomnomzbot.composeapp.generated.resources.personality_tone_chill_desc
 import org.jetbrains.compose.resources.stringResource
 
 // The Settings page: an editable form over the channel's stream metadata — the live status plus the editable
@@ -191,6 +213,7 @@ fun SettingsScreen(
     journalController: JournalPortabilityController,
     channelBotController: ChannelBotController,
     billingController: BillingController,
+    personalityController: PersonalityController,
     role: ManagementRole?,
     onChannelDeleted: () -> Unit = {},
 ) {
@@ -243,6 +266,10 @@ fun SettingsScreen(
                     CenteredMessage(stringResource(Res.string.settings_loading))
             }
         }
+
+        // Bot personality — the built-in-command voice; readable to all, changeable at the Broadcaster
+        // floor (the backend gates the write at setup:write). Independent of the stream-info load state.
+        PersonalitySection(controller = personalityController, manage = ownerManage)
 
         // Channel management — join/leave/reset; Broadcaster floor (setup:write).
         if (state is SettingsState.Ready) {
@@ -677,6 +704,184 @@ private fun ChannelActionRow(
         }
     }
 }
+
+// The Bot personality card: a radio-style picker over the channel's built-in-command tone (from
+// [PersonalityController]). The section is visible to everyone who can open Settings (the tone is read-only
+// info at that floor), but the SELECTION gates at the Broadcaster floor — the backend gates the write at
+// setup:write, so below the floor the options render disabled with a reason. Selecting a tone persists
+// immediately and the card adopts the backend's echoed (canonical) tone, so a rejected write shows no change.
+@Composable
+private fun PersonalitySection(controller: PersonalityController, manage: ManageDecision) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+    val scope = rememberCoroutineScope()
+
+    val state: PersonalityState by controller.state.collectAsStateWithLifecycle()
+
+    LaunchedEffect(Unit) { controller.load() }
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(spacing.s4),
+            verticalArrangement = Arrangement.spacedBy(spacing.s3),
+        ) {
+            Text(
+                text = stringResource(Res.string.personality_section_title),
+                style = typography.xl,
+                color = tokens.cardForeground,
+            )
+            Text(
+                text = stringResource(Res.string.personality_section_subtitle),
+                style = typography.sm,
+                color = tokens.mutedForeground,
+            )
+
+            when (val current: PersonalityState = state) {
+                PersonalityState.Loading ->
+                    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                        Spinner(modifier = Modifier.size(spacing.s6))
+                    }
+
+                is PersonalityState.Error ->
+                    Text(
+                        text = stringResource(Res.string.personality_load_error, current.detail),
+                        style = typography.sm,
+                        color = tokens.destructive,
+                    )
+
+                is PersonalityState.Ready -> {
+                    // One gate for the whole radio group; below the floor every option disables with one reason.
+                    ManageGate(decision = manage) { enabled ->
+                        Column(
+                            modifier = Modifier.fillMaxWidth().selectableGroup(),
+                            verticalArrangement = Arrangement.spacedBy(spacing.s2),
+                        ) {
+                            current.available.forEach { tone: String ->
+                                ToneOption(
+                                    tone = tone,
+                                    selected = tone == current.current,
+                                    enabled = enabled && !current.saving,
+                                    onSelect = { scope.launch { controller.select(tone) } },
+                                )
+                            }
+                        }
+                    }
+
+                    // Feedback line: an error takes priority, then the transient "updated" confirmation.
+                    when {
+                        current.saveError != null ->
+                            Text(
+                                text =
+                                    stringResource(
+                                        Res.string.personality_save_error,
+                                        current.saveError,
+                                    ),
+                                style = typography.sm,
+                                color = tokens.destructive,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        current.justSaved ->
+                            Text(
+                                text = stringResource(Res.string.personality_saved),
+                                style = typography.sm,
+                                color = tokens.mutedForeground,
+                                maxLines = 1,
+                            )
+                    }
+                }
+            }
+        }
+    }
+}
+
+// One selectable tone row: a radio dot plus the tone's localized name and one-line description. The whole row is
+// the radio target (a11y: Role.RadioButton), outlined in the accent when selected, and inert below the manage
+// floor. Reads the tone's display name/description from the localized catalogue, falling back to the raw token.
+@Composable
+private fun ToneOption(tone: String, selected: Boolean, enabled: Boolean, onSelect: () -> Unit) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    val borderColor: Color = if (selected) tokens.primary else tokens.border
+    val nameColor: Color = if (enabled) tokens.cardForeground else tokens.mutedForeground
+
+    Row(
+        modifier =
+            Modifier.fillMaxWidth()
+                .clip(RoundedCornerShape(spacing.s2))
+                .selectable(
+                    selected = selected,
+                    enabled = enabled,
+                    role = Role.RadioButton,
+                    onClick = onSelect,
+                )
+                .border(spacing.s0_5, borderColor, RoundedCornerShape(spacing.s2))
+                .padding(spacing.s3),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(spacing.s3),
+    ) {
+        RadioDot(selected = selected, enabled = enabled)
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(spacing.s0_5)) {
+            Text(text = toneName(tone), style = typography.base, color = nameColor)
+            Text(text = toneDescription(tone), style = typography.sm, color = tokens.mutedForeground)
+        }
+    }
+}
+
+// A filled/outlined circle standing in for a radio button, drawn with catalogue tokens (no Material RadioButton,
+// which carries its own colors). The row's `selectable` owns the a11y role, so this dot is purely visual.
+@Composable
+private fun RadioDot(selected: Boolean, enabled: Boolean) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+
+    val ringColor: Color =
+        when {
+            !enabled -> tokens.mutedForeground
+            selected -> tokens.primary
+            else -> tokens.border
+        }
+    Box(
+        modifier = Modifier.size(spacing.s4).clip(CircleShape).border(spacing.s0_5, ringColor, CircleShape),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (selected) {
+            Box(
+                modifier =
+                    Modifier.size(spacing.s2)
+                        .clip(CircleShape)
+                        .background(if (enabled) tokens.primary else tokens.mutedForeground)
+            )
+        }
+    }
+}
+
+// Tone token → localized display name / description. The tokens are the backend's stable PersonalityTone.*
+// contract; an unknown token (a tone added server-side before this catalogue) degrades to the capitalized token.
+@Composable
+private fun toneName(tone: String): String =
+    when (tone) {
+        "informative" -> stringResource(Res.string.personality_tone_informative)
+        "friendly" -> stringResource(Res.string.personality_tone_friendly)
+        "sassy" -> stringResource(Res.string.personality_tone_sassy)
+        "hype" -> stringResource(Res.string.personality_tone_hype)
+        "chill" -> stringResource(Res.string.personality_tone_chill)
+        else -> tone.replaceFirstChar { it.uppercase() }
+    }
+
+@Composable
+private fun toneDescription(tone: String): String =
+    when (tone) {
+        "informative" -> stringResource(Res.string.personality_tone_informative_desc)
+        "friendly" -> stringResource(Res.string.personality_tone_friendly_desc)
+        "sassy" -> stringResource(Res.string.personality_tone_sassy_desc)
+        "hype" -> stringResource(Res.string.personality_tone_hype_desc)
+        "chill" -> stringResource(Res.string.personality_tone_chill_desc)
+        else -> ""
+    }
 
 // The channel white-label bot card: shows the bot connection status and lets a Broadcaster connect or
 // disconnect the channel's own dedicated bot account. Also surfaces the broadcaster-token scope list so

@@ -522,6 +522,7 @@ private fun ShellContent(
                     journalController = graph.journalPortabilityController,
                     channelBotController = graph.channelBotController,
                     billingController = graph.billingController,
+                    personalityController = graph.personalityController,
                     role = role,
                     onChannelDeleted = onChannelDeleted,
                 )

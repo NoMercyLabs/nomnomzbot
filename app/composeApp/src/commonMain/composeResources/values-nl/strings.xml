@@ -1976,4 +1976,20 @@
     <string name="custom_events_test_payload_label">Voorbeeld JSON-payload</string>
     <string name="custom_events_test_action">Test uitvoeren</string>
     <string name="custom_events_test_success">Testgebeurtenis verzonden — controleer uw pipeline-logboeken.</string>
+    <!-- Botpersoonlijkheid (Instellingen → Botpersoonlijkheid-kaart). -->
+    <string name="personality_section_title">Botpersoonlijkheid</string>
+    <string name="personality_section_subtitle">De toon waarin je bot antwoordt — dit geldt overal. Je kunt elk commando afzonderlijk aanpassen.</string>
+    <string name="personality_saved">Persoonlijkheid bijgewerkt</string>
+    <string name="personality_load_error">Kon persoonlijkheid niet laden: %1$s</string>
+    <string name="personality_save_error">Kon persoonlijkheid niet bijwerken: %1$s</string>
+    <string name="personality_tone_informative">Informatief</string>
+    <string name="personality_tone_informative_desc">Duidelijk, behulpzaam, beleefd. De standaardtoon.</string>
+    <string name="personality_tone_friendly">Vriendelijk</string>
+    <string name="personality_tone_friendly_desc">Warm, hartelijk en aanmoedigend.</string>
+    <string name="personality_tone_sassy">Brutaal</string>
+    <string name="personality_tone_sassy_desc">Gevat, plagerig, speels — nooit gemeen.</string>
+    <string name="personality_tone_hype">Hype</string>
+    <string name="personality_tone_hype_desc">Vol energie, hoofdletters en emotes.</string>
+    <string name="personality_tone_chill">Chill</string>
+    <string name="personality_tone_chill_desc">Ontspannen en minimalistisch.</string>
 </resources>

@@ -1990,4 +1990,20 @@
     <string name="custom_events_test_payload_label">Sample JSON payload</string>
     <string name="custom_events_test_action">Fire Test</string>
     <string name="custom_events_test_success">Test event fired — check your pipeline logs.</string>
+    <!-- Bot personality (Settings → Bot personality card). Tone tokens mirror PersonalityTone.* on the backend. -->
+    <string name="personality_section_title">Bot personality</string>
+    <string name="personality_section_subtitle">The voice the built-in commands answer in — it applies everywhere. You can still override any single command.</string>
+    <string name="personality_saved">Personality updated</string>
+    <string name="personality_load_error">Could not load personality: %1$s</string>
+    <string name="personality_save_error">Could not update personality: %1$s</string>
+    <string name="personality_tone_informative">Informative</string>
+    <string name="personality_tone_informative_desc">Clear, helpful, polite. The default voice.</string>
+    <string name="personality_tone_friendly">Friendly</string>
+    <string name="personality_tone_friendly_desc">Warm, wholesome, encouraging.</string>
+    <string name="personality_tone_sassy">Sassy</string>
+    <string name="personality_tone_sassy_desc">Witty, teasing, playful — never mean.</string>
+    <string name="personality_tone_hype">Hype</string>
+    <string name="personality_tone_hype_desc">High-energy, caps and emotes.</string>
+    <string name="personality_tone_chill">Chill</string>
+    <string name="personality_tone_chill_desc">Laid-back and minimal.</string>
 </resources>

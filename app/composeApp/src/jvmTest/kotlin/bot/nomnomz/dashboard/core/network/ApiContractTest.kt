@@ -112,6 +112,8 @@ class ApiContractTest {
             SupporterConnection.serializer() to "SupporterConnectionDto",
             UpsertSupporterConnectionBody.serializer() to "UpsertSupporterConnectionRequest",
             SupporterEvent.serializer() to "SupporterEventDto",
+            ChannelPersonality.serializer() to "ChannelPersonalityDto",
+            SetPersonalityBody.serializer() to "SetChannelPersonalityRequest",
         )
 
     @Test
