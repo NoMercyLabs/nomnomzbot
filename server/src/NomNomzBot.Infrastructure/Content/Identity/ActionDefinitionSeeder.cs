@@ -341,6 +341,14 @@ public sealed class ActionDefinitionSeeder : ISeeder
         MFloor("quotes:write", Mod, Vip);
         M("quotes:delete", Mod);
 
+        // Pick-lists (the generic {list.pick.<name>} primitive) — mirrors Quotes: reading + curating
+        // (create/edit) DEFAULT to Moderator but the broadcaster MAY lower them to Vip (floor Vip) so a trusted
+        // VIP can help build lists; deleting is low-but-real data loss, so picklists:delete stays Moderator with
+        // a Moderator floor. The DELETE route carries picklists:delete; POST/PUT carry picklists:write.
+        MFloor("picklists:read", Mod, Vip);
+        MFloor("picklists:write", Mod, Vip);
+        M("picklists:delete", Mod);
+
         // Giveaways (giveaways.md §6) — running a giveaway (open/close/draw/redraw) is live-ops work, so
         // read + write sit at Moderator. The code pools hold VALUABLE SECRETS (game keys), so
         // giveaways:codes:write is Broadcaster with a Broadcaster floor — never delegable below the owner.

@@ -21,6 +21,7 @@ using NomNomzBot.Domain.EventStore.Entities;
 using NomNomzBot.Domain.Federation.Entities;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Integrations.Entities;
+using NomNomzBot.Domain.PickLists.Entities;
 using NomNomzBot.Domain.Platform.Entities;
 using NomNomzBot.Domain.Quotes.Entities;
 using NomNomzBot.Domain.Rewards.Entities;
@@ -43,6 +44,7 @@ public interface IApplicationDbContext
     DbSet<Reward> Rewards { get; }
     DbSet<Redemption> Redemptions { get; }
     DbSet<Quote> Quotes { get; }
+    DbSet<PickList> PickLists { get; }
     DbSet<NomNomzBot.Domain.Giveaways.Entities.Giveaway> Giveaways { get; }
     DbSet<NomNomzBot.Domain.Giveaways.Entities.GiveawayEntry> GiveawayEntries { get; }
     DbSet<NomNomzBot.Domain.Giveaways.Entities.GiveawayWinner> GiveawayWinners { get; }

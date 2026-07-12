@@ -130,6 +130,8 @@ internal sealed class EventSubTestDbContext : DbContext, IApplicationDbContext
     public DbSet<Redemption> Redemptions => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Quotes.Entities.Quote> Quotes =>
         throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.PickLists.Entities.PickList> PickLists =>
+        throw new NotSupportedException();
     public DbSet<Widget> Widgets => throw new NotSupportedException();
     public DbSet<RecordEntity> Records => throw new NotSupportedException();
     public DbSet<EventSubConduit> EventSubConduits => throw new NotSupportedException();

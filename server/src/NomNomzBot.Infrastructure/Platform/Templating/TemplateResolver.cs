@@ -19,6 +19,7 @@ using NomNomzBot.Application.Abstractions.Transport;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Analytics;
+using NomNomzBot.Application.PickLists.Services;
 using NomNomzBot.Application.ViewerData.Services;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Platform.Entities;
@@ -100,6 +101,15 @@ public sealed partial class TemplateResolver : ITemplateResolver
         if (string.IsNullOrEmpty(template))
             return string.Empty;
 
+        // Expand {list.pick.<name>} FIRST — replace each with a random entry from the broadcaster's named
+        // pick-list, so any placeholders the picked entry itself carries ({user}, {target}, or another nested
+        // {list.pick.…}) flow through the normal resolution below. A missing/empty list expands to empty.
+        if (
+            broadcasterId is not null
+            && template.Contains("{list.pick.", StringComparison.OrdinalIgnoreCase)
+        )
+            template = await ExpandListPicksAsync(template, broadcasterId.Value, cancellationToken);
+
         // Build a merged variable bag: start with seeds, fill in auto-resolved on demand
         Dictionary<string, string> vars = new(seedVariables, StringComparer.OrdinalIgnoreCase);
 
@@ -126,6 +136,49 @@ public sealed partial class TemplateResolver : ITemplateResolver
                         : val;
                 }
             );
+    }
+
+    /// <summary>
+    /// Replaces every <c>{list.pick.&lt;name&gt;}</c> placeholder with a uniformly random entry from that broadcaster's
+    /// named pick-list (via <see cref="IPickListService.PickRandomAsync"/>). Runs before the main pass so the
+    /// picked entry's own placeholders resolve with everything else; a missing/empty list yields an empty string.
+    /// Depth-bounded so an entry that references another list (or itself) can never loop forever.
+    /// </summary>
+    private async Task<string> ExpandListPicksAsync(
+        string template,
+        Guid broadcasterId,
+        CancellationToken ct
+    )
+    {
+        const int maxDepth = 5;
+        string current = template;
+
+        for (int depth = 0; depth < maxDepth; depth++)
+        {
+            MatchCollection matches = ListPickPattern().Matches(current);
+            if (matches.Count == 0)
+                return current;
+
+            using IServiceScope scope = _scopeFactory.CreateScope();
+            IPickListService pickLists =
+                scope.ServiceProvider.GetRequiredService<IPickListService>();
+
+            System.Text.StringBuilder builder = new();
+            int cursor = 0;
+            foreach (Match match in matches)
+            {
+                builder.Append(current, cursor, match.Index - cursor);
+                string name = match.Groups[1].Value.Trim();
+                Result<string> pick = await pickLists.PickRandomAsync(broadcasterId, name, ct);
+                // A missing/empty list (or any failure) resolves to an empty string — never throws.
+                builder.Append(pick.IsSuccess ? pick.Value : string.Empty);
+                cursor = match.Index + match.Length;
+            }
+            builder.Append(current, cursor, current.Length - cursor);
+            current = builder.ToString();
+        }
+
+        return current;
     }
 
     // ─── Built-in resolution ──────────────────────────────────────────────────
@@ -833,6 +886,9 @@ public sealed partial class TemplateResolver : ITemplateResolver
         int days = (int)age.TotalDays;
         return days > 0 ? $"{days} day{(days == 1 ? "" : "s")}" : "less than a day";
     }
+
+    [GeneratedRegex(@"\{list\.pick\.([^{}]+)\}", RegexOptions.IgnoreCase)]
+    private static partial Regex ListPickPattern();
 
     [GeneratedRegex(@"\{([^{}]+)\}")]
     private static partial Regex VariablePattern();

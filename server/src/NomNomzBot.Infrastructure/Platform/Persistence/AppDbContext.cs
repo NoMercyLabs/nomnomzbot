@@ -57,6 +57,10 @@ public class AppDbContext : DbContext, IApplicationDbContext
     public DbSet<Redemption> Redemptions => Set<Redemption>();
     public DbSet<Domain.Quotes.Entities.Quote> Quotes => Set<Domain.Quotes.Entities.Quote>();
 
+    // Generic named pick-lists (the {list.pick.<name>} primitive).
+    public DbSet<Domain.PickLists.Entities.PickList> PickLists =>
+        Set<Domain.PickLists.Entities.PickList>();
+
     // Giveaways (giveaways.md G.6–G.10): campaign, entries, append-only winner history, secret-safe
     // code pools + AEAD-encrypted codes.
     public DbSet<Domain.Giveaways.Entities.Giveaway> Giveaways =>

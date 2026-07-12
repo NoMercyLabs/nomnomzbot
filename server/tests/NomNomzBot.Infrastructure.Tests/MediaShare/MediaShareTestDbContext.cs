@@ -131,6 +131,8 @@ internal sealed class MediaShareTestDbContext : DbContext, IApplicationDbContext
     public DbSet<Redemption> Redemptions => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Quotes.Entities.Quote> Quotes =>
         throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.PickLists.Entities.PickList> PickLists =>
+        throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Giveaways.Entities.Giveaway> Giveaways =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Giveaways.Entities.GiveawayEntry> GiveawayEntries =>

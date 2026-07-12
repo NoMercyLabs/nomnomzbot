@@ -5327,6 +5327,47 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.ToTable("ViewerReports");
                 });
 
+            modelBuilder.Entity("NomNomzBot.Domain.PickLists.Entities.PickList", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("BroadcasterId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.PrimitiveCollection<string>("Items")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BroadcasterId", "Name")
+                        .IsUnique()
+                        .HasDatabaseName("IX_PickList_BroadcasterId_Name")
+                        .HasFilter("\"DeletedAt\" IS NULL");
+
+                    b.ToTable("PickLists");
+                });
+
             modelBuilder.Entity("NomNomzBot.Domain.Platform.Entities.ChannelFeature", b =>
                 {
                     b.Property<int>("Id")
@@ -7647,6 +7688,17 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.Navigation("Channel");
 
                     b.Navigation("ReportedUser");
+                });
+
+            modelBuilder.Entity("NomNomzBot.Domain.PickLists.Entities.PickList", b =>
+                {
+                    b.HasOne("NomNomzBot.Domain.Identity.Entities.Channel", "Channel")
+                        .WithMany()
+                        .HasForeignKey("BroadcasterId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Channel");
                 });
 
             modelBuilder.Entity("NomNomzBot.Domain.Platform.Entities.ChannelFeature", b =>

@@ -59,6 +59,8 @@ public sealed class SeedTestDbContext : DbContext, IApplicationDbContext
     public DbSet<Reward> Rewards => Set<Reward>();
     public DbSet<NomNomzBot.Domain.Quotes.Entities.Quote> Quotes =>
         Set<NomNomzBot.Domain.Quotes.Entities.Quote>();
+    public DbSet<NomNomzBot.Domain.PickLists.Entities.PickList> PickLists =>
+        throw new NotSupportedException();
     public DbSet<Widget> Widgets => Set<Widget>();
     public DbSet<EventSubSubscription> EventSubSubscriptions => Set<EventSubSubscription>();
     public DbSet<EventSubConduit> EventSubConduits => Set<EventSubConduit>();
@@ -268,6 +270,7 @@ public sealed class SeedTestDbContext : DbContext, IApplicationDbContext
         modelBuilder.Ignore<Service>();
         modelBuilder.Ignore<Reward>();
         modelBuilder.Ignore<NomNomzBot.Domain.Quotes.Entities.Quote>();
+        modelBuilder.Ignore<NomNomzBot.Domain.PickLists.Entities.PickList>();
         modelBuilder.Ignore<Widget>();
         modelBuilder.Ignore<EventSubSubscription>();
         modelBuilder.Ignore<EventSubConduit>();
