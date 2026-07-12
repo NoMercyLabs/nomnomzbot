@@ -25,6 +25,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Domain.Chat.Entities;
+using NomNomzBot.Domain.Chat.Enums;
 using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Chat.ValueObjects;
@@ -326,13 +327,20 @@ public class ChatController : BaseController
 
     // ── GET emote catalogue (composer autocomplete + inline rendering) ─────────
 
-    /// <summary>Get the emotes usable in this channel — Twitch global+channel, the operator's own emotes, and BTTV/FFZ/7TV — for the composer.</summary>
+    /// <summary>Get the emotes usable in this channel for the composer, scoped to the sender identity
+    /// (<paramref name="senderIdentity"/> = "you"|"bot", matching the You/Bot toggle): "you" → Twitch
+    /// global+channel + the operator's own cross-channel emotes + BTTV/FFZ/7TV; "bot" → only what the bot can
+    /// genuinely send (Twitch global + BTTV/FFZ/7TV), so the picker never offers emotes the bot cannot use.</summary>
     [RequireAction("chat:read")]
     [HttpGet("emotes")]
     [ProducesResponseType<StatusResponseDto<IReadOnlyList<ChatEmoteCatalogueDto>>>(
         StatusCodes.Status200OK
     )]
-    public async Task<IActionResult> GetEmotes(string channelId, CancellationToken ct = default)
+    public async Task<IActionResult> GetEmotes(
+        string channelId,
+        [FromQuery] string? senderIdentity = null,
+        CancellationToken ct = default
+    )
     {
         if (!Guid.TryParse(channelId, out Guid broadcasterId))
             return BadRequestResponse("Invalid channel id.");
@@ -343,9 +351,20 @@ public class ChatController : BaseController
         if (!Guid.TryParse(_currentUser.UserId, out Guid operatorUserId))
             return UnauthenticatedResponse();
 
+        // "bot" (case-insensitive) narrows the catalogue to the bot's usable set; anything else — including the
+        // default — is the operator's own composer, matching the SendChatMessageRequest.SenderIdentity contract.
+        ChatEmoteSender sender = string.Equals(
+            senderIdentity,
+            "bot",
+            StringComparison.OrdinalIgnoreCase
+        )
+            ? ChatEmoteSender.Bot
+            : ChatEmoteSender.Operator;
+
         Result<IReadOnlyList<ChatEmote>> catalogue = await _emoteCatalogue.GetForChannelAsync(
             broadcasterId,
             operatorUserId,
+            sender,
             ct
         );
         if (catalogue.IsFailure)

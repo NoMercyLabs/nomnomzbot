@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Domain.Chat.Enums;
 using NomNomzBot.Domain.Chat.ValueObjects;
 
 namespace NomNomzBot.Application.Chat.Services;
@@ -25,15 +26,19 @@ public interface IChatEmoteCatalogue
 {
     /// <summary>
     /// Builds the composer catalogue for the channel <paramref name="broadcasterId"/> as seen by the logged-in
-    /// operator <paramref name="operatorUserId"/>. The channel/global/third-party sources key off the channel;
-    /// the user-emotes source is the OPERATOR's own cross-channel set (their personal subscriptions), fetched
-    /// and cached under the operator's identity so it is correct on any channel they moderate — not only their
-    /// own — and never leaks between operators. When the operator has no linked Twitch identity that one source
-    /// degrades to empty; the rest of the catalogue still returns.
+    /// operator <paramref name="operatorUserId"/>, scoped to the identity the message will be SENT as
+    /// (<paramref name="sender"/> — the composer's You/Bot toggle). The channel/global/third-party sources key off
+    /// the channel; the operator's personal user-emotes source (their cross-channel subscriptions, fetched and
+    /// cached under the operator's identity so it is correct on any channel they moderate and never leaks between
+    /// operators) is included ONLY for <see cref="ChatEmoteSender.Operator"/>. For <see cref="ChatEmoteSender.Bot"/>
+    /// the catalogue is narrowed to what the bot can genuinely send — Twitch global + third-party — since the bot
+    /// cannot use the operator's personal emotes nor the channel's subscriber-gated Twitch emotes. When the operator
+    /// has no linked Twitch identity the user-emotes source degrades to empty; the rest of the catalogue still returns.
     /// </summary>
     Task<Result<IReadOnlyList<ChatEmote>>> GetForChannelAsync(
         Guid broadcasterId,
         Guid operatorUserId,
+        ChatEmoteSender sender = ChatEmoteSender.Operator,
         CancellationToken ct = default
     );
 }

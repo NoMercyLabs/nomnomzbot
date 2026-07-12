@@ -173,6 +173,72 @@ public sealed class ChatEmoteCatalogueTests
     }
 
     [Fact]
+    public async Task Bot_sender_excludes_operator_and_channel_twitch_emotes_keeping_global_and_third_party()
+    {
+        FakeCache cache = new();
+        await cache.SetAsync<IReadOnlyList<ChatEmote>>(
+            ChatEmoteCacheKeys.Channel(EmoteProvider.SevenTv, TwitchId),
+            [SevenTv("catJAM")]
+        );
+        await cache.SetAsync<IReadOnlyList<ChatEmote>>(
+            ChatEmoteCacheKeys.Global(EmoteProvider.SevenTv),
+            [SevenTv("peepoHappy")]
+        );
+
+        ITwitchChatAssetsApi assets = Substitute.For<ITwitchChatAssetsApi>();
+        assets
+            .GetGlobalEmotesAsync(Arg.Any<CancellationToken>())
+            .Returns(Result.Success<IReadOnlyList<TwitchGlobalEmote>>([Global("Kappa")]));
+        // The channel's subscriber emote and the operator's personal emote are available — the bot must get NEITHER.
+        assets
+            .GetChannelEmotesAsync(Broadcaster, Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Success<IReadOnlyList<TwitchChannelEmote>>([Channel("stoneySub", "42")])
+            );
+        assets
+            .GetUserEmotesAsOperatorAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string?>(),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                Result.Success(
+                    new TwitchPage<TwitchUserEmote>(
+                        [UserEmote("myPersonalSub", "777")],
+                        NextCursor: null,
+                        Total: 1
+                    )
+                )
+            );
+
+        Result<IReadOnlyList<ChatEmote>> result = await Build(cache, assets, Identity())
+            .GetForChannelAsync(Broadcaster, Operator, ChatEmoteSender.Bot);
+
+        result.IsSuccess.Should().BeTrue();
+        // The bot can send Twitch global + the third-party text codes — nothing the bot cannot use.
+        result
+            .Value.Select(e => e.Code)
+            .Should()
+            .BeEquivalentTo(["Kappa", "catJAM", "peepoHappy"]);
+        result.Value.Should().NotContain(e => e.Code == "stoneySub");
+        result.Value.Should().NotContain(e => e.Code == "myPersonalSub");
+
+        // The bot path skips the subscriber-gated / operator-scoped Twitch calls entirely — not merely filters them out.
+        await assets
+            .DidNotReceive()
+            .GetChannelEmotesAsync(Broadcaster, Arg.Any<CancellationToken>());
+        await assets
+            .DidNotReceive()
+            .GetUserEmotesAsOperatorAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string?>(),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
     public async Task A_twitch_fetch_failure_omits_that_source_but_still_returns_third_party()
     {
         FakeCache cache = new();

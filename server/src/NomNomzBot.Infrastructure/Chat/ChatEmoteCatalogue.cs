@@ -81,6 +81,7 @@ public sealed class ChatEmoteCatalogue : IChatEmoteCatalogue
     public async Task<Result<IReadOnlyList<ChatEmote>>> GetForChannelAsync(
         Guid broadcasterId,
         Guid operatorUserId,
+        ChatEmoteSender sender = ChatEmoteSender.Operator,
         CancellationToken ct = default
     )
     {
@@ -90,9 +91,17 @@ public sealed class ChatEmoteCatalogue : IChatEmoteCatalogue
         // third-party); dedup keeps the first. The operator's set rides THEIR own token and is keyed to THEM —
         // the channel's Twitch id (when known) travels as the optional broadcaster_id so this channel's follower
         // emotes the operator has are included too, but the emotes returned are the operator's, not the tenant's.
+        //
+        // When composing AS THE BOT the two operator-scoped Twitch sources are skipped: the channel's Twitch
+        // emotes are subscriber-gated (the dedicated bot account is not the broadcaster and cannot use them) and
+        // the operator's personal emotes obviously are not the bot's. What survives — Twitch global + third-party
+        // (BTTV/FFZ/7TV are plain text codes any sender may type) — is exactly what the bot can genuinely send.
         List<ChatEmote> all = new();
-        all.AddRange(await TwitchChannelAsync(broadcasterId, twitchId, ct));
-        all.AddRange(await TwitchUserEmotesAsync(operatorUserId, twitchId, ct));
+        if (sender == ChatEmoteSender.Operator)
+        {
+            all.AddRange(await TwitchChannelAsync(broadcasterId, twitchId, ct));
+            all.AddRange(await TwitchUserEmotesAsync(operatorUserId, twitchId, ct));
+        }
         all.AddRange(await TwitchGlobalAsync(ct));
 
         if (twitchId is not null)

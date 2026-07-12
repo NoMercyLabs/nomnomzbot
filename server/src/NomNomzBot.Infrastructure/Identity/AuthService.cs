@@ -72,6 +72,13 @@ public sealed class AuthService : IAuthService
         // streamer grant must carry the Helix chat-send scope — `HelixChatProvider` sends via
         // `POST /helix/chat/messages` (`user:write:chat`) on every profile (scaling-qos.md §6).
         "user:write:chat",
+        // The chat composer's emote picker shows the operator's own usable emotes across every channel they're
+        // subscribed to (Get User Emotes, chat-client.md §3.2). It's an always-on part of the chat page, not a
+        // feature toggle, so — like the rest of this full-set-at-login grant — its scope rides the base grant
+        // rather than a per-feature progressive card. Without it Get User Emotes 403s and the picker silently
+        // shows none of the operator's subscription emotes. (FeatureScopeMap still maps chat_emotes → this scope
+        // so a stale token gets a NAMED gap to re-grant.)
+        "user:read:emotes",
         "channel:read:subscriptions",
         "bits:read",
         "channel:manage:redemptions",

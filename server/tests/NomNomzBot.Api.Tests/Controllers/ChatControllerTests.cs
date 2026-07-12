@@ -652,7 +652,12 @@ public sealed class ChatControllerTests
         ChatControllerTestDbContext db = ChatControllerTestDbContext.New();
         IChatEmoteCatalogue catalogue = Substitute.For<IChatEmoteCatalogue>();
         catalogue
-            .GetForChannelAsync(Broadcaster, OperatorUserId, Arg.Any<CancellationToken>())
+            .GetForChannelAsync(
+                Broadcaster,
+                OperatorUserId,
+                ChatEmoteSender.Operator,
+                Arg.Any<CancellationToken>()
+            )
             .Returns(
                 Result.Success<IReadOnlyList<ChatEmote>>([
                     new ChatEmote(
@@ -714,7 +719,61 @@ public sealed class ChatControllerTests
         response.StatusCode.Should().Be(401);
         await catalogue
             .DidNotReceive()
-            .GetForChannelAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+            .GetForChannelAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<Guid>(),
+                Arg.Any<ChatEmoteSender>(),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task GetEmotes_scopes_the_catalogue_to_the_bot_when_senderIdentity_is_bot()
+    {
+        // The composer's You/Bot toggle must reach the catalogue so a bot-composed message is offered only the
+        // emotes the bot can actually send — not the operator's personal subscription emotes.
+        ChatControllerTestDbContext db = ChatControllerTestDbContext.New();
+        IChatEmoteCatalogue catalogue = Substitute.For<IChatEmoteCatalogue>();
+        catalogue
+            .GetForChannelAsync(
+                Broadcaster,
+                OperatorUserId,
+                ChatEmoteSender.Bot,
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                Result.Success<IReadOnlyList<ChatEmote>>([
+                    new ChatEmote(
+                        EmoteProvider.Twitch,
+                        "global-1",
+                        "Kappa",
+                        new Dictionary<string, string> { ["1"] = "https://twitch/Kappa" },
+                        Animated: false,
+                        ZeroWidth: false
+                    ),
+                ])
+            );
+        ChatController controller = Build(
+            db,
+            Substitute.For<IChatMessageDecorator>(),
+            emoteCatalogue: catalogue
+        );
+
+        IActionResult result = await controller.GetEmotes(Broadcaster.ToString(), "bot");
+
+        OkObjectResult ok = result.Should().BeOfType<OkObjectResult>().Subject;
+        StatusResponseDto<IReadOnlyList<ChatController.ChatEmoteCatalogueDto>> body =
+            (StatusResponseDto<IReadOnlyList<ChatController.ChatEmoteCatalogueDto>>)ok.Value!;
+        body.Data!.Should().ContainSingle().Which.Code.Should().Be("Kappa");
+        // The operator-scoped overload must NOT have been used for a bot-composed message.
+        await catalogue
+            .DidNotReceive()
+            .GetForChannelAsync(
+                Broadcaster,
+                OperatorUserId,
+                ChatEmoteSender.Operator,
+                Arg.Any<CancellationToken>()
+            );
     }
 
     private static List<DashboardChatMessageDto> Data(IActionResult result)
