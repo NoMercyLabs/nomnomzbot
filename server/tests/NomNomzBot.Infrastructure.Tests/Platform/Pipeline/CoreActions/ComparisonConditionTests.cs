@@ -26,7 +26,7 @@ public class ComparisonConditionTests
     private static PipelineExecutionContext BuildCtx() =>
         new()
         {
-            BroadcasterId = "chan",
+            BroadcasterId = Guid.Parse("019f2a00-5555-7000-8000-000000000001"),
             TriggeredByUserId = "user",
             TriggeredByDisplayName = "User",
             MessageId = "msg",
@@ -41,7 +41,7 @@ public class ComparisonConditionTests
     {
         IServiceScopeFactory scopeFactory = Substitute.For<IServiceScopeFactory>();
         IChannelRegistry registry = Substitute.For<IChannelRegistry>();
-        registry.Get(Arg.Any<string>()).Returns((ChannelContext?)null);
+        registry.Get(Arg.Any<Guid>()).Returns((ChannelContext?)null);
 
         return new TemplateResolver(
             scopeFactory,
