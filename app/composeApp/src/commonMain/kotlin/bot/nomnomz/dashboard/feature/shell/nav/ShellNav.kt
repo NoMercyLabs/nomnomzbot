@@ -47,6 +47,7 @@ enum class ShellRoute {
     Federation,
     CodeScripts,
     CustomEvents,
+    Supporters,
     Settings,
     Admin,
 }
@@ -126,6 +127,10 @@ object ShellNav {
             NavPage(ShellRoute.Webhooks, NavGroup.Connect, ManagementRole.Broadcaster, ManagementRole.Broadcaster, readActionKey = null),
             NavPage(ShellRoute.Federation, NavGroup.Connect, ManagementRole.Broadcaster, ManagementRole.Broadcaster, readActionKey = null),
             NavPage(ShellRoute.CustomEvents, NavGroup.Connect, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = null),
+            // Supporters: read (connections + events) floors at Moderator (supporters:read); connect / disconnect
+            // are Broadcaster-only + Critical (supporters:config:write), gated per-control inside the page. It pairs
+            // with Webhooks (the Ko-fi inbound endpoint) so it sits in the Connect group.
+            NavPage(ShellRoute.Supporters, NavGroup.Connect, ManagementRole.Moderator, ManagementRole.Broadcaster, readActionKey = "supporters:read"),
             NavPage(ShellRoute.Integrations, NavGroup.Setup, ManagementRole.Broadcaster, ManagementRole.Broadcaster, readActionKey = null),
             NavPage(ShellRoute.Roles, NavGroup.Setup, ManagementRole.Broadcaster, ManagementRole.Broadcaster, readActionKey = null),
             NavPage(ShellRoute.Features, NavGroup.Setup, ManagementRole.Broadcaster, ManagementRole.Broadcaster, readActionKey = null),

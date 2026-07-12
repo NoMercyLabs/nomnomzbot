@@ -1027,6 +1027,9 @@
     <string name="feedback_giveaway_closed">Weggeefactie gesloten</string>
     <string name="feedback_giveaway_drawn">Winnaars getrokken</string>
     <string name="feedback_giveaway_save_failed">Weggeefactie bijwerken mislukt: %1$s</string>
+    <string name="feedback_supporter_connection_saved">Ondersteuningsverbinding bijgewerkt</string>
+    <string name="feedback_supporter_connection_removed">Ondersteuningsverbinding verwijderd</string>
+    <string name="feedback_supporter_save_failed">Verbinding bijwerken mislukt: %1$s</string>
     <string name="feedback_codepool_saved">Codevoorraad opgeslagen</string>
     <string name="feedback_codepool_deleted">Codevoorraad verwijderd</string>
     <string name="feedback_codepool_codes_added">Codes toegevoegd</string>
@@ -1246,6 +1249,50 @@
     <string name="giveaways_code_status_delivered">Geleverd</string>
     <string name="giveaways_code_status_revoked">Ingetrokken</string>
     <string name="giveaways_code_unlabeled">Code</string>
+
+    <!-- Supporters-pagina — geldbronverbindingen + ondersteuningsgebeurtenissen (supporter-events.md §5). -->
+    <string name="shell_nav_supporters">Ondersteuners</string>
+    <string name="supporters_helper">Verbind een geldbron om fooien, lidmaatschappen en merchandise om te zetten in gebeurtenissen waarop je kunt reageren.</string>
+    <string name="supporters_requires_config">Vereist streamer (geldbron instellen)</string>
+    <string name="supporters_action_error">%1$s</string>
+    <string name="supporters_connections_title">Verbindingen</string>
+    <string name="supporters_connections_helper">Schakel een aanbieder in om zijn ondersteuningsgebeurtenissen vast te leggen. Alleen de streamer kan een geldbron verbinden.</string>
+    <string name="supporters_connections_loading">Verbindingen laden…</string>
+    <string name="supporters_connections_error">Verbindingen laden mislukt: %1$s</string>
+    <string name="supporters_connections_retry">Opnieuw</string>
+    <string name="supporters_provider_kofi">Ko-fi</string>
+    <string name="supporters_kofi_description">Fooien, lidmaatschappen en winkelbestellingen, ontvangen via webhook.</string>
+    <string name="supporters_kofi_webhook_hint">Maak een Ko-fi-inkomend eindpunt aan op de Webhooks-pagina, plak de URL in Ko-fi en verbind hem hier.</string>
+    <string name="supporters_status_active">Actief</string>
+    <string name="supporters_status_idle">Verbonden</string>
+    <string name="supporters_status_disabled">Uitgeschakeld</string>
+    <string name="supporters_status_not_connected">Niet verbonden</string>
+    <string name="supporters_enabled_label">Vastleggen ingeschakeld</string>
+    <string name="supporters_connect_action">Verbinden</string>
+    <string name="supporters_disconnect_action">%1$s ontkoppelen</string>
+    <string name="supporters_last_event">Laatste gebeurtenis: %1$s</string>
+    <string name="supporters_last_event_never">Nog geen gebeurtenissen</string>
+    <string name="supporters_disconnect_title">Aanbieder ontkoppelen?</string>
+    <string name="supporters_disconnect_message">%1$s ontkoppelen? De bot legt zijn ondersteuningsgebeurtenissen niet meer vast totdat je opnieuw verbindt.</string>
+    <string name="supporters_disconnect_confirm">Ontkoppelen</string>
+    <string name="supporters_cancel">Annuleren</string>
+    <string name="supporters_events_title">Recente ondersteuners</string>
+    <string name="supporters_events_loading">Ondersteuners laden…</string>
+    <string name="supporters_events_empty">Nog geen ondersteuningsgebeurtenissen. Ze verschijnen hier zodra een verbonden aanbieder er een verstuurt.</string>
+    <string name="supporters_events_none_match">Geen ondersteuningsgebeurtenissen komen overeen met dit filter.</string>
+    <string name="supporters_events_error">Ondersteuners laden mislukt: %1$s</string>
+    <string name="supporters_events_retry">Opnieuw</string>
+    <string name="supporters_filter_all">Alle</string>
+    <string name="supporters_kind_tip">Fooi</string>
+    <string name="supporters_kind_membership">Lidmaatschap</string>
+    <string name="supporters_kind_merch">Merchandise</string>
+    <string name="supporters_kind_charity">Goed doel</string>
+    <string name="supporters_event_recurring">Terugkerend</string>
+    <string name="supporters_event_tier">Niveau: %1$s</string>
+    <string name="supporters_event_quantity">×%1$d</string>
+    <string name="supporters_prev_page">Vorige</string>
+    <string name="supporters_next_page">Volgende</string>
+    <string name="supporters_page_indicator">Pagina %1$d</string>
 
     <!-- Discord page. -->
     <string name="discord_title">Discord</string>

@@ -96,6 +96,7 @@ import bot.nomnomz.dashboard.feature.discord.ui.DiscordScreen
 import bot.nomnomz.dashboard.feature.economy.ui.EconomyScreen
 import bot.nomnomz.dashboard.feature.games.ui.GamesScreen
 import bot.nomnomz.dashboard.feature.giveaways.ui.GiveawaysScreen
+import bot.nomnomz.dashboard.feature.supporters.ui.SupportersScreen
 import bot.nomnomz.dashboard.feature.home.ui.HomeScreen
 import bot.nomnomz.dashboard.feature.integrations.ui.IntegrationsScreen
 import bot.nomnomz.dashboard.feature.moderation.ui.ModerationScreen
@@ -173,6 +174,7 @@ import nomnomzbot.composeapp.generated.resources.shell_nav_code_scripts
 import nomnomzbot.composeapp.generated.resources.shell_nav_custom_events
 import nomnomzbot.composeapp.generated.resources.shell_nav_federation
 import nomnomzbot.composeapp.generated.resources.shell_nav_song_requests
+import nomnomzbot.composeapp.generated.resources.shell_nav_supporters
 import nomnomzbot.composeapp.generated.resources.shell_nav_timers
 import nomnomzbot.composeapp.generated.resources.shell_nav_tts
 import nomnomzbot.composeapp.generated.resources.shell_profile_logout
@@ -531,6 +533,8 @@ private fun ShellContent(
             ShellRoute.Federation -> FederationScreen(controller = graph.federationController, role = role)
             ShellRoute.CodeScripts -> CodeScriptsScreen(controller = graph.codeScriptsController, role = role)
             ShellRoute.CustomEvents -> CustomEventsScreen(controller = graph.customEventsController, role = role)
+            ShellRoute.Supporters ->
+                SupportersScreen(controller = graph.supportersController, heldActionKeys = heldActionKeys)
             ShellRoute.Admin -> AdminScreen(controller = graph.adminController)
         }
     }
@@ -1222,6 +1226,7 @@ private fun ShellRoute.icon(): ImageVector =
         ShellRoute.Webhooks -> WebhooksGlyph
         ShellRoute.Federation -> FederationGlyph
         ShellRoute.CustomEvents -> CustomEventsGlyph
+        ShellRoute.Supporters -> SupportersGlyph
         ShellRoute.Settings -> SettingsGlyph
         ShellRoute.Admin -> AdminGlyph
     }
@@ -1260,6 +1265,7 @@ private fun ShellRoute.label(): String =
             ShellRoute.Federation -> Res.string.shell_nav_federation
             ShellRoute.CodeScripts -> Res.string.shell_nav_code_scripts
             ShellRoute.CustomEvents -> Res.string.shell_nav_custom_events
+            ShellRoute.Supporters -> Res.string.shell_nav_supporters
             ShellRoute.Admin -> Res.string.shell_nav_admin
         }
     )

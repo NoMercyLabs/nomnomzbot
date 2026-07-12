@@ -109,6 +109,9 @@ class ApiContractTest {
             CreateCodePoolBody.serializer() to "CreateCodePoolRequest",
             AddCodesBody.serializer() to "AddCodesRequest",
             CodeInput.serializer() to "CodeInput",
+            SupporterConnection.serializer() to "SupporterConnectionDto",
+            UpsertSupporterConnectionBody.serializer() to "UpsertSupporterConnectionRequest",
+            SupporterEvent.serializer() to "SupporterEventDto",
         )
 
     @Test

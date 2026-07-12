@@ -1030,6 +1030,9 @@
     <string name="feedback_giveaway_closed">Giveaway closed</string>
     <string name="feedback_giveaway_drawn">Winners drawn</string>
     <string name="feedback_giveaway_save_failed">Couldn't update the giveaway: %1$s</string>
+    <string name="feedback_supporter_connection_saved">Supporter connection updated</string>
+    <string name="feedback_supporter_connection_removed">Supporter connection removed</string>
+    <string name="feedback_supporter_save_failed">Couldn't update the connection: %1$s</string>
     <string name="feedback_codepool_saved">Code pool saved</string>
     <string name="feedback_codepool_deleted">Code pool deleted</string>
     <string name="feedback_codepool_codes_added">Codes added</string>
@@ -1249,6 +1252,50 @@
     <string name="giveaways_code_status_delivered">Delivered</string>
     <string name="giveaways_code_status_revoked">Revoked</string>
     <string name="giveaways_code_unlabeled">Code</string>
+
+    <!-- Supporters page — monetization connections + supporter-event feed (supporter-events.md §5). -->
+    <string name="shell_nav_supporters">Supporters</string>
+    <string name="supporters_helper">Connect a monetization provider to turn tips, memberships and merch into events you can respond to.</string>
+    <string name="supporters_requires_config">Requires broadcaster (monetization setup)</string>
+    <string name="supporters_action_error">%1$s</string>
+    <string name="supporters_connections_title">Connections</string>
+    <string name="supporters_connections_helper">Enable a provider to record its supporter events. Only the broadcaster can connect a money source.</string>
+    <string name="supporters_connections_loading">Loading connections…</string>
+    <string name="supporters_connections_error">Couldn't load connections: %1$s</string>
+    <string name="supporters_connections_retry">Retry</string>
+    <string name="supporters_provider_kofi">Ko-fi</string>
+    <string name="supporters_kofi_description">Tips, memberships and shop orders, received by webhook.</string>
+    <string name="supporters_kofi_webhook_hint">Create a Ko-fi inbound endpoint on the Webhooks page, paste its URL into Ko-fi, then connect it here.</string>
+    <string name="supporters_status_active">Active</string>
+    <string name="supporters_status_idle">Connected</string>
+    <string name="supporters_status_disabled">Disabled</string>
+    <string name="supporters_status_not_connected">Not connected</string>
+    <string name="supporters_enabled_label">Recording enabled</string>
+    <string name="supporters_connect_action">Connect</string>
+    <string name="supporters_disconnect_action">Disconnect %1$s</string>
+    <string name="supporters_last_event">Last event: %1$s</string>
+    <string name="supporters_last_event_never">No events yet</string>
+    <string name="supporters_disconnect_title">Disconnect provider?</string>
+    <string name="supporters_disconnect_message">Disconnect %1$s? The bot stops recording its supporter events until you reconnect.</string>
+    <string name="supporters_disconnect_confirm">Disconnect</string>
+    <string name="supporters_cancel">Cancel</string>
+    <string name="supporters_events_title">Recent supporters</string>
+    <string name="supporters_events_loading">Loading supporters…</string>
+    <string name="supporters_events_empty">No supporter events yet. They appear here once a connected provider sends one.</string>
+    <string name="supporters_events_none_match">No supporter events match this filter.</string>
+    <string name="supporters_events_error">Couldn't load supporters: %1$s</string>
+    <string name="supporters_events_retry">Retry</string>
+    <string name="supporters_filter_all">All</string>
+    <string name="supporters_kind_tip">Tip</string>
+    <string name="supporters_kind_membership">Membership</string>
+    <string name="supporters_kind_merch">Merch</string>
+    <string name="supporters_kind_charity">Charity</string>
+    <string name="supporters_event_recurring">Recurring</string>
+    <string name="supporters_event_tier">Tier: %1$s</string>
+    <string name="supporters_event_quantity">×%1$d</string>
+    <string name="supporters_prev_page">Previous</string>
+    <string name="supporters_next_page">Next</string>
+    <string name="supporters_page_indicator">Page %1$d</string>
 
     <!-- Discord page. -->
     <string name="discord_title">Discord</string>
