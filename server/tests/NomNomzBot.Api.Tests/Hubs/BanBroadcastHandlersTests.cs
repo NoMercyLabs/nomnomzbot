@@ -12,6 +12,7 @@ using NomNomzBot.Api.Hubs;
 using NomNomzBot.Api.Hubs.Broadcasters;
 using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Domain.Moderation.Events;
+using NomNomzBot.Domain.Widgets.Entities;
 using NSubstitute;
 
 namespace NomNomzBot.Api.Tests.Hubs;
@@ -19,7 +20,8 @@ namespace NomNomzBot.Api.Tests.Hubs;
 /// <summary>
 /// Proves the ban/timeout/unban broadcasters carry the GAP E3-2 hub-broadcast-layer enrichment additively on
 /// <see cref="ModActionDto"/>, keyed off the MODERATED viewer (<c>TargetUserId</c>), not the moderator —
-/// populated when the enricher has data, and <c>null</c> (never a crash) when it doesn't.
+/// populated when the enricher has data, and <c>null</c> (never a crash) when it doesn't — AND fan the SAME
+/// decorated dto to the overlays as a "ban"/"timeout"/"unban" event.
 /// </summary>
 public sealed class BanBroadcastHandlersTests
 {
@@ -28,13 +30,15 @@ public sealed class BanBroadcastHandlersTests
     {
         IDashboardNotifier notifier = Substitute.For<IDashboardNotifier>();
         IHubUserEnricher enricher = Substitute.For<IHubUserEnricher>();
+        IWidgetNotifier widgets = Substitute.For<IWidgetNotifier>();
+        await using WidgetTestDbContext db = WidgetTestDbContext.New();
         Guid channel = Guid.CreateVersion7();
         enricher
             .EnrichAsync(channel, "target1", Arg.Any<CancellationToken>())
             .Returns(
                 new HubUserEnrichment("Naughty", "https://cdn/avatar.png", "he/him", "Everyone")
             );
-        UserBannedBroadcastHandler handler = new(notifier, enricher);
+        UserBannedBroadcastHandler handler = new(notifier, enricher, db, widgets);
 
         await handler.HandleAsync(
             new UserBannedEvent
@@ -68,11 +72,13 @@ public sealed class BanBroadcastHandlersTests
     {
         IDashboardNotifier notifier = Substitute.For<IDashboardNotifier>();
         IHubUserEnricher enricher = Substitute.For<IHubUserEnricher>();
+        IWidgetNotifier widgets = Substitute.For<IWidgetNotifier>();
+        await using WidgetTestDbContext db = WidgetTestDbContext.New();
         Guid channel = Guid.CreateVersion7();
         enricher
             .EnrichAsync(channel, "target2", Arg.Any<CancellationToken>())
             .Returns((HubUserEnrichment?)null);
-        UserTimedOutBroadcastHandler handler = new(notifier, enricher);
+        UserTimedOutBroadcastHandler handler = new(notifier, enricher, db, widgets);
 
         await handler.HandleAsync(
             new UserTimedOutEvent
@@ -106,11 +112,13 @@ public sealed class BanBroadcastHandlersTests
     {
         IDashboardNotifier notifier = Substitute.For<IDashboardNotifier>();
         IHubUserEnricher enricher = Substitute.For<IHubUserEnricher>();
+        IWidgetNotifier widgets = Substitute.For<IWidgetNotifier>();
+        await using WidgetTestDbContext db = WidgetTestDbContext.New();
         Guid channel = Guid.CreateVersion7();
         enricher
             .EnrichAsync(channel, "target1", Arg.Any<CancellationToken>())
             .Returns(new HubUserEnrichment("Reformed", null, "they/them", null));
-        UserUnbannedBroadcastHandler handler = new(notifier, enricher);
+        UserUnbannedBroadcastHandler handler = new(notifier, enricher, db, widgets);
 
         await handler.HandleAsync(
             new UserUnbannedEvent
@@ -130,6 +138,69 @@ public sealed class BanBroadcastHandlersTests
                     && dto.TargetPronouns == "they/them"
                     && dto.TargetAvatarUrl == null
                     && dto.TargetCommunityStanding == null
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task Ban_is_also_pushed_to_overlays_as_a_decorated_ban_event()
+    {
+        IDashboardNotifier notifier = Substitute.For<IDashboardNotifier>();
+        IHubUserEnricher enricher = Substitute.For<IHubUserEnricher>();
+        IWidgetNotifier widgets = Substitute.For<IWidgetNotifier>();
+        await using WidgetTestDbContext db = WidgetTestDbContext.New();
+        Guid channel = Guid.CreateVersion7();
+        enricher
+            .EnrichAsync(channel, "target1", Arg.Any<CancellationToken>())
+            .Returns(
+                new HubUserEnrichment("Naughty", "https://cdn/avatar.png", "he/him", "Everyone")
+            );
+        Widget widget = new()
+        {
+            Id = Guid.NewGuid().ToString(),
+            BroadcasterId = channel,
+            Name = "Mod log",
+            IsEnabled = true,
+            EventSubscriptions = ["ban"],
+        };
+        db.Widgets.Add(widget);
+        await db.SaveChangesAsync();
+
+        UserBannedBroadcastHandler handler = new(notifier, enricher, db, widgets);
+
+        await handler.HandleAsync(
+            new UserBannedEvent
+            {
+                BroadcasterId = channel,
+                TargetUserId = "target1",
+                TargetDisplayName = "Naughty",
+                ModeratorUserId = "mod1",
+                Reason = "spam",
+            }
+        );
+
+        await widgets
+            .Received(1)
+            .BroadcastOverlayEventAsync(
+                channel.ToString(),
+                Arg.Is<OverlayEventDto>(evt =>
+                    evt.Type == "ban"
+                    && evt.Payload.Contains("\"action\":\"ban\"")
+                    && evt.Payload.Contains("\"targetAvatarUrl\":\"https://cdn/avatar.png\"")
+                    && evt.Payload.Contains("\"targetCommunityStanding\":\"Everyone\"")
+                ),
+                Arg.Any<CancellationToken>()
+            );
+        await widgets
+            .Received(1)
+            .SendWidgetEventAsync(
+                channel.ToString(),
+                widget.Id,
+                Arg.Is<WidgetEventDto>(evt =>
+                    evt.EventType == "ban"
+                    && evt.Data is ModActionDto
+                    && ((ModActionDto)evt.Data!).TargetCommunityStanding == "Everyone"
                 ),
                 Arg.Any<CancellationToken>()
             );

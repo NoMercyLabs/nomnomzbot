@@ -33,10 +33,32 @@ public static class OverlayEventFilter
     // Events that reach overlays in a RICHER, render-ready form via a dedicated broadcaster, so the raw
     // journaled event must NOT also ride the generic feed (a widget would otherwise get a useless duplicate
     // with none of the decoration). ChatMessageReceivedEvent → ChatMessageBroadcastHandler re-emits it as a
-    // decorated "ChatMessage" overlay event (resolved emotes/badges/fragments/colour/avatar/pronouns).
+    // decorated "ChatMessage" overlay event (resolved emotes/badges/fragments/colour/avatar/pronouns). The
+    // user-facing alerts below → their dashboard broadcast handler re-emits them via OverlayAlertBroadcast as a
+    // decorated overlay event (avatar/pronouns/community standing + the event's resolved fields), the SAME dto the
+    // dashboard receives; the raw journaled form (the PascalCase event class name) is dropped here so the generic
+    // feed carries only the decorated one.
     private static readonly HashSet<string> DecoratedElsewhere = new(StringComparer.Ordinal)
     {
         "ChatMessageReceivedEvent",
+        "FollowEvent",
+        "NewSubscriptionEvent",
+        "ResubscriptionEvent",
+        "GiftSubscriptionEvent",
+        "CheerEvent",
+        "RaidEvent",
+        "RewardRedeemedEvent",
+        "ModeratorAddedEvent",
+        "ModeratorRemovedEvent",
+        "VipAddedEvent",
+        "VipRemovedEvent",
+        "ShoutoutReceivedEvent",
+        "UserBannedEvent",
+        "UserTimedOutEvent",
+        "UserUnbannedEvent",
+        "HypeTrainBeganEvent",
+        "HypeTrainProgressEvent",
+        "HypeTrainEndedEvent",
     };
 
     public static bool ShouldForward(string eventType)

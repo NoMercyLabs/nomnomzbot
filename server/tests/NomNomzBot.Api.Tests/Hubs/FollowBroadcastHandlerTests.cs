@@ -12,6 +12,7 @@ using NomNomzBot.Api.Hubs;
 using NomNomzBot.Api.Hubs.Broadcasters;
 using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Domain.Community.Events;
+using NomNomzBot.Domain.Widgets.Entities;
 using NSubstitute;
 
 namespace NomNomzBot.Api.Tests.Hubs;
@@ -19,33 +20,37 @@ namespace NomNomzBot.Api.Tests.Hubs;
 /// <summary>
 /// Proves <see cref="FollowBroadcastHandler"/> carries the GAP E3-2 hub-broadcast-layer enrichment
 /// (avatar/pronouns/community standing) additively on <see cref="FollowAlertDto"/> — populated when the
-/// enricher has data, and <c>null</c> (never a crash) when it doesn't.
+/// enricher has data, and <c>null</c> (never a crash) when it doesn't — AND fans the SAME decorated dto to the
+/// overlays (generic feed + subscribed widgets) so an OBS overlay never gets a thinner payload than the dashboard.
 /// </summary>
 public sealed class FollowBroadcastHandlerTests
 {
+    private static FollowEvent Event(Guid channel) =>
+        new()
+        {
+            BroadcasterId = channel,
+            UserId = "u1",
+            UserDisplayName = "Stoney",
+            UserLogin = "stoney_eagle",
+            FollowedAt = DateTimeOffset.UtcNow,
+        };
+
     [Fact]
     public async Task Follow_with_known_viewer_carries_the_enriched_fields()
     {
         IDashboardNotifier notifier = Substitute.For<IDashboardNotifier>();
         IHubUserEnricher enricher = Substitute.For<IHubUserEnricher>();
+        IWidgetNotifier widgets = Substitute.For<IWidgetNotifier>();
+        await using WidgetTestDbContext db = WidgetTestDbContext.New();
         Guid channel = Guid.CreateVersion7();
         enricher
             .EnrichAsync(channel, "u1", Arg.Any<CancellationToken>())
             .Returns(
                 new HubUserEnrichment("Stoney", "https://cdn/avatar.png", "they/them", "Subscriber")
             );
-        FollowBroadcastHandler handler = new(notifier, enricher);
+        FollowBroadcastHandler handler = new(notifier, enricher, db, widgets);
 
-        await handler.HandleAsync(
-            new FollowEvent
-            {
-                BroadcasterId = channel,
-                UserId = "u1",
-                UserDisplayName = "Stoney",
-                UserLogin = "stoney_eagle",
-                FollowedAt = DateTimeOffset.UtcNow,
-            }
-        );
+        await handler.HandleAsync(Event(channel));
 
         await notifier
             .Received(1)
@@ -71,22 +76,15 @@ public sealed class FollowBroadcastHandlerTests
     {
         IDashboardNotifier notifier = Substitute.For<IDashboardNotifier>();
         IHubUserEnricher enricher = Substitute.For<IHubUserEnricher>();
+        IWidgetNotifier widgets = Substitute.For<IWidgetNotifier>();
+        await using WidgetTestDbContext db = WidgetTestDbContext.New();
         Guid channel = Guid.CreateVersion7();
         enricher
             .EnrichAsync(channel, "u1", Arg.Any<CancellationToken>())
             .Returns((HubUserEnrichment?)null);
-        FollowBroadcastHandler handler = new(notifier, enricher);
+        FollowBroadcastHandler handler = new(notifier, enricher, db, widgets);
 
-        await handler.HandleAsync(
-            new FollowEvent
-            {
-                BroadcasterId = channel,
-                UserId = "u1",
-                UserDisplayName = "Stoney",
-                UserLogin = "stoney_eagle",
-                FollowedAt = DateTimeOffset.UtcNow,
-            }
-        );
+        await handler.HandleAsync(Event(channel));
 
         await notifier
             .Received(1)
@@ -103,5 +101,80 @@ public sealed class FollowBroadcastHandlerTests
                 userId: Arg.Any<string?>(),
                 userDisplayName: Arg.Any<string?>()
             );
+    }
+
+    [Fact]
+    public async Task Follow_is_also_pushed_to_overlays_as_a_decorated_follow_event()
+    {
+        IDashboardNotifier notifier = Substitute.For<IDashboardNotifier>();
+        IHubUserEnricher enricher = Substitute.For<IHubUserEnricher>();
+        IWidgetNotifier widgets = Substitute.For<IWidgetNotifier>();
+        await using WidgetTestDbContext db = WidgetTestDbContext.New();
+        Guid channel = Guid.CreateVersion7();
+        enricher
+            .EnrichAsync(channel, "u1", Arg.Any<CancellationToken>())
+            .Returns(
+                new HubUserEnrichment("Stoney", "https://cdn/avatar.png", "they/them", "Subscriber")
+            );
+        // A widget that subscribes to "follow" must receive the decorated dto too.
+        Widget widget = new()
+        {
+            Id = Guid.NewGuid().ToString(),
+            BroadcasterId = channel,
+            Name = "Follow alert",
+            IsEnabled = true,
+            EventSubscriptions = ["follow"],
+        };
+        db.Widgets.Add(widget);
+        await db.SaveChangesAsync();
+
+        FollowBroadcastHandler handler = new(notifier, enricher, db, widgets);
+
+        await handler.HandleAsync(Event(channel));
+
+        // (a) Generic overlay feed — the decorated "follow" event, camelCase JSON carrying the enriched fields.
+        await widgets
+            .Received(1)
+            .BroadcastOverlayEventAsync(
+                channel.ToString(),
+                Arg.Is<OverlayEventDto>(evt =>
+                    evt.Type == "follow"
+                    && evt.Payload.Contains("\"avatarUrl\":\"https://cdn/avatar.png\"")
+                    && evt.Payload.Contains("\"communityStanding\":\"Subscriber\"")
+                ),
+                Arg.Any<CancellationToken>()
+            );
+        // (b) The subscribed widget — the SAME decorated FollowAlertDto, not a thinner payload.
+        await widgets
+            .Received(1)
+            .SendWidgetEventAsync(
+                channel.ToString(),
+                widget.Id,
+                Arg.Is<WidgetEventDto>(evt =>
+                    evt.EventType == "follow"
+                    && evt.Data is FollowAlertDto
+                    && ((FollowAlertDto)evt.Data!).AvatarUrl == "https://cdn/avatar.png"
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task Follow_on_the_platform_sentinel_channel_reaches_neither_dashboard_nor_overlays()
+    {
+        IDashboardNotifier notifier = Substitute.For<IDashboardNotifier>();
+        IHubUserEnricher enricher = Substitute.For<IHubUserEnricher>();
+        IWidgetNotifier widgets = Substitute.For<IWidgetNotifier>();
+        await using WidgetTestDbContext db = WidgetTestDbContext.New();
+        FollowBroadcastHandler handler = new(notifier, enricher, db, widgets);
+
+        await handler.HandleAsync(Event(Guid.Empty));
+
+        await notifier
+            .DidNotReceiveWithAnyArgs()
+            .NotifyChannelAsync(default!, default!, default!, default);
+        await widgets
+            .DidNotReceiveWithAnyArgs()
+            .BroadcastOverlayEventAsync(default!, default!, default);
     }
 }

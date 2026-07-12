@@ -9,89 +9,156 @@
 // -----------------------------------------------------------------------------
 
 using NomNomzBot.Api.Hubs.Dtos;
+using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Rewards.Events;
 
 namespace NomNomzBot.Api.Hubs.Broadcasters;
 
-/// <summary>Broadcasts new subscription alerts to dashboard/overlay clients.</summary>
+/// <summary>Broadcasts new subscription alerts to the dashboard AND, identically, to overlay widgets + the feed.</summary>
 public sealed class NewSubscriptionBroadcastHandler : IEventHandler<NewSubscriptionEvent>
 {
     private readonly IDashboardNotifier _notifier;
+    private readonly IApplicationDbContext _db;
+    private readonly IWidgetNotifier _widgets;
 
-    public NewSubscriptionBroadcastHandler(IDashboardNotifier notifier) => _notifier = notifier;
+    public NewSubscriptionBroadcastHandler(
+        IDashboardNotifier notifier,
+        IApplicationDbContext db,
+        IWidgetNotifier widgets
+    )
+    {
+        _notifier = notifier;
+        _db = db;
+        _widgets = widgets;
+    }
 
-    public Task HandleAsync(NewSubscriptionEvent @event, CancellationToken ct = default)
+    public async Task HandleAsync(NewSubscriptionEvent @event, CancellationToken ct = default)
     {
         if (@event.BroadcasterId == Guid.Empty)
-            return Task.CompletedTask;
+            return;
 
-        return _notifier.NotifyChannelAsync(
+        SubscriptionAlertDto dto = new(@event.UserId, @event.UserDisplayName, @event.Tier);
+
+        await _notifier.NotifyChannelAsync(
             @event.BroadcasterId.ToString(),
             "subscription",
-            new SubscriptionAlertDto(@event.UserId, @event.UserDisplayName, @event.Tier),
+            dto,
             ct,
             userId: @event.UserId,
             userDisplayName: @event.UserDisplayName
         );
+
+        await OverlayAlertBroadcast.ToOverlaysAsync(
+            _db,
+            _widgets,
+            @event.BroadcasterId,
+            "subscription",
+            dto,
+            ct
+        );
     }
 }
 
-/// <summary>Broadcasts resubscription alerts to dashboard/overlay clients.</summary>
+/// <summary>Broadcasts resubscription alerts to the dashboard AND, identically, to overlay widgets + the feed.</summary>
 public sealed class ResubscriptionBroadcastHandler : IEventHandler<ResubscriptionEvent>
 {
     private readonly IDashboardNotifier _notifier;
+    private readonly IApplicationDbContext _db;
+    private readonly IWidgetNotifier _widgets;
 
-    public ResubscriptionBroadcastHandler(IDashboardNotifier notifier) => _notifier = notifier;
+    public ResubscriptionBroadcastHandler(
+        IDashboardNotifier notifier,
+        IApplicationDbContext db,
+        IWidgetNotifier widgets
+    )
+    {
+        _notifier = notifier;
+        _db = db;
+        _widgets = widgets;
+    }
 
-    public Task HandleAsync(ResubscriptionEvent @event, CancellationToken ct = default)
+    public async Task HandleAsync(ResubscriptionEvent @event, CancellationToken ct = default)
     {
         if (@event.BroadcasterId == Guid.Empty)
-            return Task.CompletedTask;
+            return;
 
-        return _notifier.NotifyChannelAsync(
+        ResubAlertDto dto = new(
+            @event.UserId,
+            @event.UserDisplayName,
+            @event.Tier,
+            @event.CumulativeMonths,
+            @event.StreakMonths,
+            @event.Message
+        );
+
+        await _notifier.NotifyChannelAsync(
             @event.BroadcasterId.ToString(),
             "resub",
-            new ResubAlertDto(
-                @event.UserId,
-                @event.UserDisplayName,
-                @event.Tier,
-                @event.CumulativeMonths,
-                @event.StreakMonths,
-                @event.Message
-            ),
+            dto,
             ct,
             userId: @event.UserId,
             userDisplayName: @event.UserDisplayName
         );
+
+        await OverlayAlertBroadcast.ToOverlaysAsync(
+            _db,
+            _widgets,
+            @event.BroadcasterId,
+            "resub",
+            dto,
+            ct
+        );
     }
 }
 
-/// <summary>Broadcasts gift subscription alerts to dashboard/overlay clients.</summary>
+/// <summary>Broadcasts gift subscription alerts to the dashboard AND, identically, to overlay widgets + the feed.</summary>
 public sealed class GiftSubscriptionBroadcastHandler : IEventHandler<GiftSubscriptionEvent>
 {
     private readonly IDashboardNotifier _notifier;
+    private readonly IApplicationDbContext _db;
+    private readonly IWidgetNotifier _widgets;
 
-    public GiftSubscriptionBroadcastHandler(IDashboardNotifier notifier) => _notifier = notifier;
+    public GiftSubscriptionBroadcastHandler(
+        IDashboardNotifier notifier,
+        IApplicationDbContext db,
+        IWidgetNotifier widgets
+    )
+    {
+        _notifier = notifier;
+        _db = db;
+        _widgets = widgets;
+    }
 
-    public Task HandleAsync(GiftSubscriptionEvent @event, CancellationToken ct = default)
+    public async Task HandleAsync(GiftSubscriptionEvent @event, CancellationToken ct = default)
     {
         if (@event.BroadcasterId == Guid.Empty)
-            return Task.CompletedTask;
+            return;
 
-        return _notifier.NotifyChannelAsync(
+        GiftSubAlertDto dto = new(
+            @event.IsAnonymous ? null : @event.GifterUserId,
+            @event.IsAnonymous ? "Anonymous" : @event.GifterDisplayName,
+            @event.Tier,
+            @event.GiftCount,
+            @event.IsAnonymous
+        );
+
+        await _notifier.NotifyChannelAsync(
             @event.BroadcasterId.ToString(),
             "gift_sub",
-            new GiftSubAlertDto(
-                @event.IsAnonymous ? null : @event.GifterUserId,
-                @event.IsAnonymous ? "Anonymous" : @event.GifterDisplayName,
-                @event.Tier,
-                @event.GiftCount,
-                @event.IsAnonymous
-            ),
+            dto,
             ct,
             userId: @event.IsAnonymous ? null : @event.GifterUserId,
             userDisplayName: @event.IsAnonymous ? "Anonymous" : @event.GifterDisplayName
+        );
+
+        await OverlayAlertBroadcast.ToOverlaysAsync(
+            _db,
+            _widgets,
+            @event.BroadcasterId,
+            "gift_sub",
+            dto,
+            ct
         );
     }
 }

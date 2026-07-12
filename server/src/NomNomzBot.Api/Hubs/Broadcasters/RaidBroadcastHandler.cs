@@ -9,35 +9,58 @@
 // -----------------------------------------------------------------------------
 
 using NomNomzBot.Api.Hubs.Dtos;
+using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Stream.Events;
 
 namespace NomNomzBot.Api.Hubs.Broadcasters;
 
-/// <summary>Broadcasts incoming raid alerts to dashboard/overlay clients.</summary>
+/// <summary>Broadcasts incoming raid alerts to the dashboard AND, identically, to overlay widgets + the feed.</summary>
 public sealed class RaidBroadcastHandler : IEventHandler<RaidEvent>
 {
     private readonly IDashboardNotifier _notifier;
+    private readonly IApplicationDbContext _db;
+    private readonly IWidgetNotifier _widgets;
 
-    public RaidBroadcastHandler(IDashboardNotifier notifier) => _notifier = notifier;
+    public RaidBroadcastHandler(
+        IDashboardNotifier notifier,
+        IApplicationDbContext db,
+        IWidgetNotifier widgets
+    )
+    {
+        _notifier = notifier;
+        _db = db;
+        _widgets = widgets;
+    }
 
-    public Task HandleAsync(RaidEvent @event, CancellationToken ct = default)
+    public async Task HandleAsync(RaidEvent @event, CancellationToken ct = default)
     {
         if (@event.BroadcasterId == Guid.Empty)
-            return Task.CompletedTask;
+            return;
 
-        return _notifier.NotifyChannelAsync(
+        RaidAlertDto dto = new(
+            @event.FromUserId,
+            @event.FromDisplayName,
+            @event.FromLogin,
+            @event.ViewerCount
+        );
+
+        await _notifier.NotifyChannelAsync(
             @event.BroadcasterId.ToString(),
             "raid",
-            new RaidAlertDto(
-                @event.FromUserId,
-                @event.FromDisplayName,
-                @event.FromLogin,
-                @event.ViewerCount
-            ),
+            dto,
             ct,
             userId: @event.FromUserId,
             userDisplayName: @event.FromDisplayName
+        );
+
+        await OverlayAlertBroadcast.ToOverlaysAsync(
+            _db,
+            _widgets,
+            @event.BroadcasterId,
+            "raid",
+            dto,
+            ct
         );
     }
 }

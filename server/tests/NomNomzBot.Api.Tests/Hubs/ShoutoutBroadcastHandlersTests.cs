@@ -12,14 +12,16 @@ using NomNomzBot.Api.Hubs;
 using NomNomzBot.Api.Hubs.Broadcasters;
 using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Domain.Stream.Events;
+using NomNomzBot.Domain.Widgets.Entities;
 using NSubstitute;
 
 namespace NomNomzBot.Api.Tests.Hubs;
 
 /// <summary>
 /// Proves the shoutout broadcasters forward the outgoing/incoming shoutout to dashboard clients over the generic
-/// <c>ChannelEvent</c> taxonomy — these events had no handler of any kind before this slice (translators were
-/// subscribed but nothing consumed them).
+/// <c>ChannelEvent</c> taxonomy, and that the incoming (received) shoutout — the enriched one — also fans its
+/// decorated <see cref="ShoutoutReceivedAlertDto"/> to the overlays. The outgoing (sent) shoutout stays
+/// dashboard-only (it carries no avatar/standing enrichment and no overlay convention).
 /// </summary>
 public sealed class ShoutoutBroadcastHandlersTests
 {
@@ -60,7 +62,9 @@ public sealed class ShoutoutBroadcastHandlersTests
     {
         IDashboardNotifier notifier = Substitute.For<IDashboardNotifier>();
         IHubUserEnricher enricher = Substitute.For<IHubUserEnricher>();
-        ShoutoutReceivedBroadcastHandler handler = new(notifier, enricher);
+        IWidgetNotifier widgets = Substitute.For<IWidgetNotifier>();
+        await using WidgetTestDbContext db = WidgetTestDbContext.New();
+        ShoutoutReceivedBroadcastHandler handler = new(notifier, enricher, db, widgets);
         Guid channel = Guid.CreateVersion7();
 
         await handler.HandleAsync(
@@ -98,11 +102,13 @@ public sealed class ShoutoutBroadcastHandlersTests
     {
         IDashboardNotifier notifier = Substitute.For<IDashboardNotifier>();
         IHubUserEnricher enricher = Substitute.For<IHubUserEnricher>();
+        IWidgetNotifier widgets = Substitute.For<IWidgetNotifier>();
+        await using WidgetTestDbContext db = WidgetTestDbContext.New();
         Guid channel = Guid.CreateVersion7();
         enricher
             .EnrichAsync(channel, "source-1", Arg.Any<CancellationToken>())
             .Returns(new HubUserEnrichment("SourceStreamer", "https://cdn/avatar.png", null, null));
-        ShoutoutReceivedBroadcastHandler handler = new(notifier, enricher);
+        ShoutoutReceivedBroadcastHandler handler = new(notifier, enricher, db, widgets);
 
         await handler.HandleAsync(
             new ShoutoutReceivedEvent
@@ -129,6 +135,64 @@ public sealed class ShoutoutBroadcastHandlersTests
                 Arg.Any<CancellationToken>(),
                 userId: "source-1",
                 userDisplayName: "SourceStreamer"
+            );
+    }
+
+    [Fact]
+    public async Task ShoutoutReceived_is_also_pushed_to_overlays_as_a_decorated_event()
+    {
+        IDashboardNotifier notifier = Substitute.For<IDashboardNotifier>();
+        IHubUserEnricher enricher = Substitute.For<IHubUserEnricher>();
+        IWidgetNotifier widgets = Substitute.For<IWidgetNotifier>();
+        await using WidgetTestDbContext db = WidgetTestDbContext.New();
+        Guid channel = Guid.CreateVersion7();
+        enricher
+            .EnrichAsync(channel, "source-1", Arg.Any<CancellationToken>())
+            .Returns(new HubUserEnrichment("SourceStreamer", "https://cdn/avatar.png", null, null));
+        Widget widget = new()
+        {
+            Id = Guid.NewGuid().ToString(),
+            BroadcasterId = channel,
+            Name = "Shoutout alert",
+            IsEnabled = true,
+            EventSubscriptions = ["shoutout_received"],
+        };
+        db.Widgets.Add(widget);
+        await db.SaveChangesAsync();
+
+        ShoutoutReceivedBroadcastHandler handler = new(notifier, enricher, db, widgets);
+
+        await handler.HandleAsync(
+            new ShoutoutReceivedEvent
+            {
+                BroadcasterId = channel,
+                FromBroadcasterId = "source-1",
+                FromBroadcasterDisplayName = "SourceStreamer",
+                FromBroadcasterLogin = "sourcestreamer",
+                ViewerCount = 42,
+            }
+        );
+
+        await widgets
+            .Received(1)
+            .BroadcastOverlayEventAsync(
+                channel.ToString(),
+                Arg.Is<OverlayEventDto>(evt =>
+                    evt.Type == "shoutout_received"
+                    && evt.Payload.Contains("\"avatarUrl\":\"https://cdn/avatar.png\"")
+                    && evt.Payload.Contains("\"viewerCount\":42")
+                ),
+                Arg.Any<CancellationToken>()
+            );
+        await widgets
+            .Received(1)
+            .SendWidgetEventAsync(
+                channel.ToString(),
+                widget.Id,
+                Arg.Is<WidgetEventDto>(evt =>
+                    evt.EventType == "shoutout_received" && evt.Data is ShoutoutReceivedAlertDto
+                ),
+                Arg.Any<CancellationToken>()
             );
     }
 

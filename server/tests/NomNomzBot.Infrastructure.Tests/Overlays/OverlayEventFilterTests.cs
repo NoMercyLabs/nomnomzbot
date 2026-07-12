@@ -16,17 +16,16 @@ namespace NomNomzBot.Infrastructure.Tests.Overlays;
 /// <summary>
 /// Proves the overlay-feed eligibility rule (widgets-overlays.md): user-facing domain events + custom/supporter
 /// feeds reach overlays; internal plumbing families (EventSub/Helix/Integration/Deployment/Projection/Authorization)
-/// and raw lowercase Twitch wire topics are kept off the wire. Default-public: anything not matched is forwarded.
+/// and raw lowercase Twitch wire topics are kept off the wire; and events re-broadcast in a decorated form by a
+/// dedicated handler (chat + every user-facing alert) are dropped so the raw journaled duplicate never rides the
+/// feed. Default-public: anything not matched is forwarded.
 /// </summary>
 public sealed class OverlayEventFilterTests
 {
     [Theory]
-    [InlineData("FollowEvent")]
-    [InlineData("NewSubscriptionEvent")]
-    [InlineData("CheerEvent")]
-    [InlineData("RaidEvent")]
+    // Still forwarded verbatim: a persistent now-playing state, TTS dispatch, and the custom/supporter feeds have
+    // no decorated re-broadcast, so the raw journaled event IS the overlay event.
     [InlineData("PlaybackStateChangedEvent")]
-    [InlineData("HypeTrainBeganEvent")]
     [InlineData("TtsUtteranceDispatchedEvent")]
     [InlineData("custom.heartrate")]
     [InlineData("supporter.tip")]
@@ -51,13 +50,32 @@ public sealed class OverlayEventFilterTests
         OverlayEventFilter.ShouldForward(eventType).Should().BeFalse();
     }
 
-    [Fact]
-    public void ShouldForward_ChatMessage_IsDropped_BecauseReBroadcastDecorated()
+    [Theory]
+    // Each of these reaches overlays instead as a DECORATED overlay event (chat via ChatMessageBroadcastHandler; the
+    // alerts via their dashboard broadcast handler + OverlayAlertBroadcast), carrying render-ready fields the raw
+    // journaled event lacks (emotes/badges/avatar/pronouns/community standing + resolved amounts). The raw form must
+    // NOT also ride the generic feed — a widget would otherwise get a useless duplicate it cannot build from.
+    [InlineData("ChatMessageReceivedEvent")]
+    [InlineData("FollowEvent")]
+    [InlineData("NewSubscriptionEvent")]
+    [InlineData("ResubscriptionEvent")]
+    [InlineData("GiftSubscriptionEvent")]
+    [InlineData("CheerEvent")]
+    [InlineData("RaidEvent")]
+    [InlineData("RewardRedeemedEvent")]
+    [InlineData("ModeratorAddedEvent")]
+    [InlineData("ModeratorRemovedEvent")]
+    [InlineData("VipAddedEvent")]
+    [InlineData("VipRemovedEvent")]
+    [InlineData("ShoutoutReceivedEvent")]
+    [InlineData("UserBannedEvent")]
+    [InlineData("UserTimedOutEvent")]
+    [InlineData("UserUnbannedEvent")]
+    [InlineData("HypeTrainBeganEvent")]
+    [InlineData("HypeTrainProgressEvent")]
+    [InlineData("HypeTrainEndedEvent")]
+    public void ShouldForward_EventsDecoratedElsewhere_AreDropped(string eventType)
     {
-        // ChatMessageReceivedEvent is a receive-side event with no render data. It reaches overlays instead as
-        // the decorated "ChatMessage" overlay event (ChatMessageBroadcastHandler resolves emotes/badges/
-        // fragments/colour/avatar/pronouns), so the raw journaled form must NOT also ride the generic feed —
-        // a widget would otherwise get a useless duplicate it cannot build a bubble from.
-        OverlayEventFilter.ShouldForward("ChatMessageReceivedEvent").Should().BeFalse();
+        OverlayEventFilter.ShouldForward(eventType).Should().BeFalse();
     }
 }

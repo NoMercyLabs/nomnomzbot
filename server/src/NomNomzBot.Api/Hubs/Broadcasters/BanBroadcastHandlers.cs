@@ -8,21 +8,32 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Api.Hubs.Dtos;
+using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Domain.Moderation.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
 
 namespace NomNomzBot.Api.Hubs.Broadcasters;
 
-/// <summary>Broadcasts user ban events to dashboard clients.</summary>
+/// <summary>Broadcasts user ban events to the dashboard AND, identically, to overlay widgets + the feed.</summary>
 public sealed class UserBannedBroadcastHandler : IEventHandler<UserBannedEvent>
 {
     private readonly IDashboardNotifier _notifier;
     private readonly IHubUserEnricher _enricher;
+    private readonly IApplicationDbContext _db;
+    private readonly IWidgetNotifier _widgets;
 
-    public UserBannedBroadcastHandler(IDashboardNotifier notifier, IHubUserEnricher enricher)
+    public UserBannedBroadcastHandler(
+        IDashboardNotifier notifier,
+        IHubUserEnricher enricher,
+        IApplicationDbContext db,
+        IWidgetNotifier widgets
+    )
     {
         _notifier = notifier;
         _enricher = enricher;
+        _db = db;
+        _widgets = widgets;
     }
 
     public async Task HandleAsync(UserBannedEvent @event, CancellationToken ct = default)
@@ -36,34 +47,50 @@ public sealed class UserBannedBroadcastHandler : IEventHandler<UserBannedEvent>
             ct
         );
 
-        await _notifier.SendModActionAsync(
-            @event.BroadcasterId.ToString(),
-            new(
-                "ban",
-                @event.ModeratorUserId,
-                @event.TargetUserId,
-                @event.Reason,
-                null,
-                enrichment?.DisplayName,
-                enrichment?.AvatarUrl,
-                enrichment?.Pronouns,
-                enrichment?.CommunityStanding
-            ),
+        ModActionDto dto = new(
+            "ban",
+            @event.ModeratorUserId,
+            @event.TargetUserId,
+            @event.Reason,
+            null,
+            enrichment?.DisplayName,
+            enrichment?.AvatarUrl,
+            enrichment?.Pronouns,
+            enrichment?.CommunityStanding
+        );
+
+        await _notifier.SendModActionAsync(@event.BroadcasterId.ToString(), dto, ct);
+
+        await OverlayAlertBroadcast.ToOverlaysAsync(
+            _db,
+            _widgets,
+            @event.BroadcasterId,
+            "ban",
+            dto,
             ct
         );
     }
 }
 
-/// <summary>Broadcasts user timeout events to dashboard clients.</summary>
+/// <summary>Broadcasts user timeout events to the dashboard AND, identically, to overlay widgets + the feed.</summary>
 public sealed class UserTimedOutBroadcastHandler : IEventHandler<UserTimedOutEvent>
 {
     private readonly IDashboardNotifier _notifier;
     private readonly IHubUserEnricher _enricher;
+    private readonly IApplicationDbContext _db;
+    private readonly IWidgetNotifier _widgets;
 
-    public UserTimedOutBroadcastHandler(IDashboardNotifier notifier, IHubUserEnricher enricher)
+    public UserTimedOutBroadcastHandler(
+        IDashboardNotifier notifier,
+        IHubUserEnricher enricher,
+        IApplicationDbContext db,
+        IWidgetNotifier widgets
+    )
     {
         _notifier = notifier;
         _enricher = enricher;
+        _db = db;
+        _widgets = widgets;
     }
 
     public async Task HandleAsync(UserTimedOutEvent @event, CancellationToken ct = default)
@@ -77,34 +104,50 @@ public sealed class UserTimedOutBroadcastHandler : IEventHandler<UserTimedOutEve
             ct
         );
 
-        await _notifier.SendModActionAsync(
-            @event.BroadcasterId.ToString(),
-            new(
-                "timeout",
-                @event.ModeratorUserId,
-                @event.TargetUserId,
-                @event.Reason,
-                @event.DurationSeconds,
-                enrichment?.DisplayName,
-                enrichment?.AvatarUrl,
-                enrichment?.Pronouns,
-                enrichment?.CommunityStanding
-            ),
+        ModActionDto dto = new(
+            "timeout",
+            @event.ModeratorUserId,
+            @event.TargetUserId,
+            @event.Reason,
+            @event.DurationSeconds,
+            enrichment?.DisplayName,
+            enrichment?.AvatarUrl,
+            enrichment?.Pronouns,
+            enrichment?.CommunityStanding
+        );
+
+        await _notifier.SendModActionAsync(@event.BroadcasterId.ToString(), dto, ct);
+
+        await OverlayAlertBroadcast.ToOverlaysAsync(
+            _db,
+            _widgets,
+            @event.BroadcasterId,
+            "timeout",
+            dto,
             ct
         );
     }
 }
 
-/// <summary>Broadcasts user unban events to dashboard clients.</summary>
+/// <summary>Broadcasts user unban events to the dashboard AND, identically, to overlay widgets + the feed.</summary>
 public sealed class UserUnbannedBroadcastHandler : IEventHandler<UserUnbannedEvent>
 {
     private readonly IDashboardNotifier _notifier;
     private readonly IHubUserEnricher _enricher;
+    private readonly IApplicationDbContext _db;
+    private readonly IWidgetNotifier _widgets;
 
-    public UserUnbannedBroadcastHandler(IDashboardNotifier notifier, IHubUserEnricher enricher)
+    public UserUnbannedBroadcastHandler(
+        IDashboardNotifier notifier,
+        IHubUserEnricher enricher,
+        IApplicationDbContext db,
+        IWidgetNotifier widgets
+    )
     {
         _notifier = notifier;
         _enricher = enricher;
+        _db = db;
+        _widgets = widgets;
     }
 
     public async Task HandleAsync(UserUnbannedEvent @event, CancellationToken ct = default)
@@ -118,19 +161,26 @@ public sealed class UserUnbannedBroadcastHandler : IEventHandler<UserUnbannedEve
             ct
         );
 
-        await _notifier.SendModActionAsync(
-            @event.BroadcasterId.ToString(),
-            new(
-                "unban",
-                @event.ModeratorUserId,
-                @event.TargetUserId,
-                null,
-                null,
-                enrichment?.DisplayName,
-                enrichment?.AvatarUrl,
-                enrichment?.Pronouns,
-                enrichment?.CommunityStanding
-            ),
+        ModActionDto dto = new(
+            "unban",
+            @event.ModeratorUserId,
+            @event.TargetUserId,
+            null,
+            null,
+            enrichment?.DisplayName,
+            enrichment?.AvatarUrl,
+            enrichment?.Pronouns,
+            enrichment?.CommunityStanding
+        );
+
+        await _notifier.SendModActionAsync(@event.BroadcasterId.ToString(), dto, ct);
+
+        await OverlayAlertBroadcast.ToOverlaysAsync(
+            _db,
+            _widgets,
+            @event.BroadcasterId,
+            "unban",
+            dto,
             ct
         );
     }

@@ -9,21 +9,31 @@
 // -----------------------------------------------------------------------------
 
 using NomNomzBot.Api.Hubs.Dtos;
+using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Domain.Moderation.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
 
 namespace NomNomzBot.Api.Hubs.Broadcasters;
 
-/// <summary>Broadcasts moderator role grants (<c>channel.moderator.add</c>) to dashboard clients.</summary>
+/// <summary>Broadcasts moderator role grants (<c>channel.moderator.add</c>) to the dashboard AND, identically, to overlays.</summary>
 public sealed class ModeratorAddedBroadcastHandler : IEventHandler<ModeratorAddedEvent>
 {
     private readonly IDashboardNotifier _notifier;
     private readonly IHubUserEnricher _enricher;
+    private readonly IApplicationDbContext _db;
+    private readonly IWidgetNotifier _widgets;
 
-    public ModeratorAddedBroadcastHandler(IDashboardNotifier notifier, IHubUserEnricher enricher)
+    public ModeratorAddedBroadcastHandler(
+        IDashboardNotifier notifier,
+        IHubUserEnricher enricher,
+        IApplicationDbContext db,
+        IWidgetNotifier widgets
+    )
     {
         _notifier = notifier;
         _enricher = enricher;
+        _db = db;
+        _widgets = widgets;
     }
 
     public async Task HandleAsync(ModeratorAddedEvent @event, CancellationToken ct = default)
@@ -37,34 +47,54 @@ public sealed class ModeratorAddedBroadcastHandler : IEventHandler<ModeratorAdde
             ct
         );
 
+        RoleChangedAlertDto dto = new(
+            @event.UserId,
+            @event.UserDisplayName,
+            @event.UserLogin,
+            enrichment?.AvatarUrl,
+            enrichment?.Pronouns,
+            enrichment?.CommunityStanding
+        );
+
         await _notifier.NotifyChannelAsync(
             @event.BroadcasterId.ToString(),
             "moderator_added",
-            new RoleChangedAlertDto(
-                @event.UserId,
-                @event.UserDisplayName,
-                @event.UserLogin,
-                enrichment?.AvatarUrl,
-                enrichment?.Pronouns,
-                enrichment?.CommunityStanding
-            ),
+            dto,
             ct,
             userId: @event.UserId,
             userDisplayName: @event.UserDisplayName
         );
+
+        await OverlayAlertBroadcast.ToOverlaysAsync(
+            _db,
+            _widgets,
+            @event.BroadcasterId,
+            "moderator_added",
+            dto,
+            ct
+        );
     }
 }
 
-/// <summary>Broadcasts moderator role revocations (<c>channel.moderator.remove</c>) to dashboard clients.</summary>
+/// <summary>Broadcasts moderator role revocations (<c>channel.moderator.remove</c>) to the dashboard AND overlays.</summary>
 public sealed class ModeratorRemovedBroadcastHandler : IEventHandler<ModeratorRemovedEvent>
 {
     private readonly IDashboardNotifier _notifier;
     private readonly IHubUserEnricher _enricher;
+    private readonly IApplicationDbContext _db;
+    private readonly IWidgetNotifier _widgets;
 
-    public ModeratorRemovedBroadcastHandler(IDashboardNotifier notifier, IHubUserEnricher enricher)
+    public ModeratorRemovedBroadcastHandler(
+        IDashboardNotifier notifier,
+        IHubUserEnricher enricher,
+        IApplicationDbContext db,
+        IWidgetNotifier widgets
+    )
     {
         _notifier = notifier;
         _enricher = enricher;
+        _db = db;
+        _widgets = widgets;
     }
 
     public async Task HandleAsync(ModeratorRemovedEvent @event, CancellationToken ct = default)
@@ -78,34 +108,54 @@ public sealed class ModeratorRemovedBroadcastHandler : IEventHandler<ModeratorRe
             ct
         );
 
+        RoleChangedAlertDto dto = new(
+            @event.UserId,
+            @event.UserDisplayName,
+            @event.UserLogin,
+            enrichment?.AvatarUrl,
+            enrichment?.Pronouns,
+            enrichment?.CommunityStanding
+        );
+
         await _notifier.NotifyChannelAsync(
             @event.BroadcasterId.ToString(),
             "moderator_removed",
-            new RoleChangedAlertDto(
-                @event.UserId,
-                @event.UserDisplayName,
-                @event.UserLogin,
-                enrichment?.AvatarUrl,
-                enrichment?.Pronouns,
-                enrichment?.CommunityStanding
-            ),
+            dto,
             ct,
             userId: @event.UserId,
             userDisplayName: @event.UserDisplayName
         );
+
+        await OverlayAlertBroadcast.ToOverlaysAsync(
+            _db,
+            _widgets,
+            @event.BroadcasterId,
+            "moderator_removed",
+            dto,
+            ct
+        );
     }
 }
 
-/// <summary>Broadcasts VIP role grants (<c>channel.vip.add</c>) to dashboard clients.</summary>
+/// <summary>Broadcasts VIP role grants (<c>channel.vip.add</c>) to the dashboard AND, identically, to overlays.</summary>
 public sealed class VipAddedBroadcastHandler : IEventHandler<VipAddedEvent>
 {
     private readonly IDashboardNotifier _notifier;
     private readonly IHubUserEnricher _enricher;
+    private readonly IApplicationDbContext _db;
+    private readonly IWidgetNotifier _widgets;
 
-    public VipAddedBroadcastHandler(IDashboardNotifier notifier, IHubUserEnricher enricher)
+    public VipAddedBroadcastHandler(
+        IDashboardNotifier notifier,
+        IHubUserEnricher enricher,
+        IApplicationDbContext db,
+        IWidgetNotifier widgets
+    )
     {
         _notifier = notifier;
         _enricher = enricher;
+        _db = db;
+        _widgets = widgets;
     }
 
     public async Task HandleAsync(VipAddedEvent @event, CancellationToken ct = default)
@@ -119,34 +169,54 @@ public sealed class VipAddedBroadcastHandler : IEventHandler<VipAddedEvent>
             ct
         );
 
+        RoleChangedAlertDto dto = new(
+            @event.UserId,
+            @event.UserDisplayName,
+            @event.UserLogin,
+            enrichment?.AvatarUrl,
+            enrichment?.Pronouns,
+            enrichment?.CommunityStanding
+        );
+
         await _notifier.NotifyChannelAsync(
             @event.BroadcasterId.ToString(),
             "vip_added",
-            new RoleChangedAlertDto(
-                @event.UserId,
-                @event.UserDisplayName,
-                @event.UserLogin,
-                enrichment?.AvatarUrl,
-                enrichment?.Pronouns,
-                enrichment?.CommunityStanding
-            ),
+            dto,
             ct,
             userId: @event.UserId,
             userDisplayName: @event.UserDisplayName
         );
+
+        await OverlayAlertBroadcast.ToOverlaysAsync(
+            _db,
+            _widgets,
+            @event.BroadcasterId,
+            "vip_added",
+            dto,
+            ct
+        );
     }
 }
 
-/// <summary>Broadcasts VIP role revocations (<c>channel.vip.remove</c>) to dashboard clients.</summary>
+/// <summary>Broadcasts VIP role revocations (<c>channel.vip.remove</c>) to the dashboard AND, identically, to overlays.</summary>
 public sealed class VipRemovedBroadcastHandler : IEventHandler<VipRemovedEvent>
 {
     private readonly IDashboardNotifier _notifier;
     private readonly IHubUserEnricher _enricher;
+    private readonly IApplicationDbContext _db;
+    private readonly IWidgetNotifier _widgets;
 
-    public VipRemovedBroadcastHandler(IDashboardNotifier notifier, IHubUserEnricher enricher)
+    public VipRemovedBroadcastHandler(
+        IDashboardNotifier notifier,
+        IHubUserEnricher enricher,
+        IApplicationDbContext db,
+        IWidgetNotifier widgets
+    )
     {
         _notifier = notifier;
         _enricher = enricher;
+        _db = db;
+        _widgets = widgets;
     }
 
     public async Task HandleAsync(VipRemovedEvent @event, CancellationToken ct = default)
@@ -160,20 +230,31 @@ public sealed class VipRemovedBroadcastHandler : IEventHandler<VipRemovedEvent>
             ct
         );
 
+        RoleChangedAlertDto dto = new(
+            @event.UserId,
+            @event.UserDisplayName,
+            @event.UserLogin,
+            enrichment?.AvatarUrl,
+            enrichment?.Pronouns,
+            enrichment?.CommunityStanding
+        );
+
         await _notifier.NotifyChannelAsync(
             @event.BroadcasterId.ToString(),
             "vip_removed",
-            new RoleChangedAlertDto(
-                @event.UserId,
-                @event.UserDisplayName,
-                @event.UserLogin,
-                enrichment?.AvatarUrl,
-                enrichment?.Pronouns,
-                enrichment?.CommunityStanding
-            ),
+            dto,
             ct,
             userId: @event.UserId,
             userDisplayName: @event.UserDisplayName
+        );
+
+        await OverlayAlertBroadcast.ToOverlaysAsync(
+            _db,
+            _widgets,
+            @event.BroadcasterId,
+            "vip_removed",
+            dto,
+            ct
         );
     }
 }

@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using NomNomzBot.Api.Hubs.Dtos;
+using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Stream.Events;
 
@@ -48,11 +49,20 @@ public sealed class ShoutoutReceivedBroadcastHandler : IEventHandler<ShoutoutRec
 {
     private readonly IDashboardNotifier _notifier;
     private readonly IHubUserEnricher _enricher;
+    private readonly IApplicationDbContext _db;
+    private readonly IWidgetNotifier _widgets;
 
-    public ShoutoutReceivedBroadcastHandler(IDashboardNotifier notifier, IHubUserEnricher enricher)
+    public ShoutoutReceivedBroadcastHandler(
+        IDashboardNotifier notifier,
+        IHubUserEnricher enricher,
+        IApplicationDbContext db,
+        IWidgetNotifier widgets
+    )
     {
         _notifier = notifier;
         _enricher = enricher;
+        _db = db;
+        _widgets = widgets;
     }
 
     public async Task HandleAsync(ShoutoutReceivedEvent @event, CancellationToken ct = default)
@@ -66,21 +76,32 @@ public sealed class ShoutoutReceivedBroadcastHandler : IEventHandler<ShoutoutRec
             ct
         );
 
+        ShoutoutReceivedAlertDto dto = new(
+            @event.FromBroadcasterId,
+            @event.FromBroadcasterDisplayName,
+            @event.FromBroadcasterLogin,
+            @event.ViewerCount,
+            enrichment?.AvatarUrl,
+            enrichment?.Pronouns,
+            enrichment?.CommunityStanding
+        );
+
         await _notifier.NotifyChannelAsync(
             @event.BroadcasterId.ToString(),
             "shoutout_received",
-            new ShoutoutReceivedAlertDto(
-                @event.FromBroadcasterId,
-                @event.FromBroadcasterDisplayName,
-                @event.FromBroadcasterLogin,
-                @event.ViewerCount,
-                enrichment?.AvatarUrl,
-                enrichment?.Pronouns,
-                enrichment?.CommunityStanding
-            ),
+            dto,
             ct,
             userId: @event.FromBroadcasterId,
             userDisplayName: @event.FromBroadcasterDisplayName
+        );
+
+        await OverlayAlertBroadcast.ToOverlaysAsync(
+            _db,
+            _widgets,
+            @event.BroadcasterId,
+            "shoutout_received",
+            dto,
+            ct
         );
     }
 }

@@ -9,21 +9,31 @@
 // -----------------------------------------------------------------------------
 
 using NomNomzBot.Api.Hubs.Dtos;
+using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Domain.Community.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
 
 namespace NomNomzBot.Api.Hubs.Broadcasters;
 
-/// <summary>Broadcasts follow alerts to dashboard/overlay clients.</summary>
+/// <summary>Broadcasts follow alerts to the dashboard AND, decorated identically, to overlay widgets + the feed.</summary>
 public sealed class FollowBroadcastHandler : IEventHandler<FollowEvent>
 {
     private readonly IDashboardNotifier _notifier;
     private readonly IHubUserEnricher _enricher;
+    private readonly IApplicationDbContext _db;
+    private readonly IWidgetNotifier _widgets;
 
-    public FollowBroadcastHandler(IDashboardNotifier notifier, IHubUserEnricher enricher)
+    public FollowBroadcastHandler(
+        IDashboardNotifier notifier,
+        IHubUserEnricher enricher,
+        IApplicationDbContext db,
+        IWidgetNotifier widgets
+    )
     {
         _notifier = notifier;
         _enricher = enricher;
+        _db = db;
+        _widgets = widgets;
     }
 
     public async Task HandleAsync(FollowEvent @event, CancellationToken ct = default)
@@ -37,21 +47,32 @@ public sealed class FollowBroadcastHandler : IEventHandler<FollowEvent>
             ct
         );
 
+        FollowAlertDto dto = new(
+            @event.UserId,
+            @event.UserDisplayName,
+            @event.UserLogin,
+            @event.FollowedAt,
+            enrichment?.AvatarUrl,
+            enrichment?.Pronouns,
+            enrichment?.CommunityStanding
+        );
+
         await _notifier.NotifyChannelAsync(
             @event.BroadcasterId.ToString(),
             "follow",
-            new FollowAlertDto(
-                @event.UserId,
-                @event.UserDisplayName,
-                @event.UserLogin,
-                @event.FollowedAt,
-                enrichment?.AvatarUrl,
-                enrichment?.Pronouns,
-                enrichment?.CommunityStanding
-            ),
+            dto,
             ct,
             userId: @event.UserId,
             userDisplayName: @event.UserDisplayName
+        );
+
+        await OverlayAlertBroadcast.ToOverlaysAsync(
+            _db,
+            _widgets,
+            @event.BroadcasterId,
+            "follow",
+            dto,
+            ct
         );
     }
 }

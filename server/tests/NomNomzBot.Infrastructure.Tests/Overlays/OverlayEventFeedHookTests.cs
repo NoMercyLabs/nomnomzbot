@@ -36,7 +36,9 @@ public sealed class OverlayEventFeedHookTests
 
     private static EventRecord Record(
         Guid? broadcasterId,
-        string eventType = "FollowEvent",
+        // A still-forwarded user-facing event (now-playing has no decorated re-broadcast) — the alert/chat events
+        // are dropped by OverlayEventFilter now that their dashboard handler re-emits them decorated.
+        string eventType = "PlaybackStateChangedEvent",
         string payloadJson = "{\"message\":\"hi\"}",
         bool encrypted = false
     ) =>
@@ -67,15 +69,15 @@ public sealed class OverlayEventFeedHookTests
         (OverlayEventFeedHook hook, IOverlayEventFeed feed) = Build();
 
         Result result = await hook.OnCommittedAsync(
-            Record(Tenant, "FollowEvent", "{\"follower\":\"stoney\"}")
+            Record(Tenant, "PlaybackStateChangedEvent", "{\"isPlaying\":true}")
         );
 
         result.IsSuccess.Should().BeTrue();
         await feed.Received(1)
             .BroadcastEventAsync(
                 Tenant,
-                "FollowEvent",
-                "{\"follower\":\"stoney\"}",
+                "PlaybackStateChangedEvent",
+                "{\"isPlaying\":true}",
                 Arg.Any<CancellationToken>()
             );
     }

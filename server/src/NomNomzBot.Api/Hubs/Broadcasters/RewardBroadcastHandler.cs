@@ -9,21 +9,31 @@
 // -----------------------------------------------------------------------------
 
 using NomNomzBot.Api.Hubs.Dtos;
+using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Rewards.Events;
 
 namespace NomNomzBot.Api.Hubs.Broadcasters;
 
-/// <summary>Broadcasts channel point reward redemptions to dashboard clients.</summary>
+/// <summary>Broadcasts channel-point reward redemptions to the dashboard AND, identically, to overlay widgets + the feed.</summary>
 public sealed class RewardRedeemedBroadcastHandler : IEventHandler<RewardRedeemedEvent>
 {
     private readonly IDashboardNotifier _notifier;
     private readonly IHubUserEnricher _enricher;
+    private readonly IApplicationDbContext _db;
+    private readonly IWidgetNotifier _widgets;
 
-    public RewardRedeemedBroadcastHandler(IDashboardNotifier notifier, IHubUserEnricher enricher)
+    public RewardRedeemedBroadcastHandler(
+        IDashboardNotifier notifier,
+        IHubUserEnricher enricher,
+        IApplicationDbContext db,
+        IWidgetNotifier widgets
+    )
     {
         _notifier = notifier;
         _enricher = enricher;
+        _db = db;
+        _widgets = widgets;
     }
 
     public async Task HandleAsync(RewardRedeemedEvent @event, CancellationToken ct = default)
@@ -53,5 +63,14 @@ public sealed class RewardRedeemedBroadcastHandler : IEventHandler<RewardRedeeme
         );
 
         await _notifier.SendRewardRedeemedAsync(@event.BroadcasterId.ToString(), dto, ct);
+
+        await OverlayAlertBroadcast.ToOverlaysAsync(
+            _db,
+            _widgets,
+            @event.BroadcasterId,
+            "reward_redeemed",
+            dto,
+            ct
+        );
     }
 }

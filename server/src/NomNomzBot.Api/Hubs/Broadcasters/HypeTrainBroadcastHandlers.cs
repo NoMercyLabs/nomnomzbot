@@ -9,15 +9,16 @@
 // -----------------------------------------------------------------------------
 
 using NomNomzBot.Api.Hubs.Dtos;
+using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Domain.Community.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
 
 namespace NomNomzBot.Api.Hubs.Broadcasters;
 
 /// <summary>
-/// Maps the shared hype train contribution shape onto its hub DTO — reused by the dashboard broadcasters below.
-/// The overlay-facing siblings in <c>WidgetAlertHandlers.cs</c> forward a lighter anonymous payload instead,
-/// matching the existing overlay alert convention (spec: overlay widgets consume flattened fields, not DTOs).
+/// Maps the shared hype train contribution shape onto its hub DTO — reused by the broadcasters below. The full DTO
+/// (level/progress/goal PLUS the top-contribution list and expiry) is what both the dashboard and the overlays now
+/// receive: the persistent hype-train overlay meter no longer gets a thinner flattened payload than the dashboard.
 /// </summary>
 internal static class HypeTrainAlertMapper
 {
@@ -35,86 +36,152 @@ internal static class HypeTrainAlertMapper
             .ToList();
 }
 
-/// <summary>Broadcasts a hype train starting (<c>channel.hype_train.begin</c>) to dashboard clients.</summary>
+/// <summary>Broadcasts a hype train starting (<c>channel.hype_train.begin</c>) to the dashboard AND the overlay meter.</summary>
 public sealed class HypeTrainBeganBroadcastHandler : IEventHandler<HypeTrainBeganEvent>
 {
     private readonly IDashboardNotifier _notifier;
+    private readonly IApplicationDbContext _db;
+    private readonly IWidgetNotifier _widgets;
 
-    public HypeTrainBeganBroadcastHandler(IDashboardNotifier notifier) => _notifier = notifier;
+    public HypeTrainBeganBroadcastHandler(
+        IDashboardNotifier notifier,
+        IApplicationDbContext db,
+        IWidgetNotifier widgets
+    )
+    {
+        _notifier = notifier;
+        _db = db;
+        _widgets = widgets;
+    }
 
-    public Task HandleAsync(HypeTrainBeganEvent @event, CancellationToken ct = default)
+    public async Task HandleAsync(HypeTrainBeganEvent @event, CancellationToken ct = default)
     {
         if (@event.BroadcasterId == Guid.Empty)
-            return Task.CompletedTask;
+            return;
 
-        return _notifier.NotifyChannelAsync(
+        HypeTrainBeganAlertDto dto = new(
+            @event.HypeTrainId,
+            @event.Level,
+            @event.Total,
+            @event.Progress,
+            @event.Goal,
+            HypeTrainAlertMapper.MapContributions(@event.TopContributions),
+            @event.ExpiresAt
+        );
+
+        await _notifier.NotifyChannelAsync(
             @event.BroadcasterId.ToString(),
             "hype_train_begin",
-            new HypeTrainBeganAlertDto(
-                @event.HypeTrainId,
-                @event.Level,
-                @event.Total,
-                @event.Progress,
-                @event.Goal,
-                HypeTrainAlertMapper.MapContributions(@event.TopContributions),
-                @event.ExpiresAt
-            ),
+            dto,
+            ct
+        );
+
+        await OverlayAlertBroadcast.ToOverlaysAsync(
+            _db,
+            _widgets,
+            @event.BroadcasterId,
+            "hype_train_begin",
+            dto,
             ct
         );
     }
 }
 
-/// <summary>Broadcasts a hype train progress tick (<c>channel.hype_train.progress</c>) to dashboard clients.</summary>
+/// <summary>Broadcasts a hype train progress tick (<c>channel.hype_train.progress</c>) to the dashboard AND the overlay meter.</summary>
 public sealed class HypeTrainProgressBroadcastHandler : IEventHandler<HypeTrainProgressEvent>
 {
     private readonly IDashboardNotifier _notifier;
+    private readonly IApplicationDbContext _db;
+    private readonly IWidgetNotifier _widgets;
 
-    public HypeTrainProgressBroadcastHandler(IDashboardNotifier notifier) => _notifier = notifier;
+    public HypeTrainProgressBroadcastHandler(
+        IDashboardNotifier notifier,
+        IApplicationDbContext db,
+        IWidgetNotifier widgets
+    )
+    {
+        _notifier = notifier;
+        _db = db;
+        _widgets = widgets;
+    }
 
-    public Task HandleAsync(HypeTrainProgressEvent @event, CancellationToken ct = default)
+    public async Task HandleAsync(HypeTrainProgressEvent @event, CancellationToken ct = default)
     {
         if (@event.BroadcasterId == Guid.Empty)
-            return Task.CompletedTask;
+            return;
 
-        return _notifier.NotifyChannelAsync(
+        HypeTrainProgressAlertDto dto = new(
+            @event.HypeTrainId,
+            @event.Level,
+            @event.Total,
+            @event.Progress,
+            @event.Goal,
+            HypeTrainAlertMapper.MapContributions(@event.TopContributions),
+            @event.ExpiresAt
+        );
+
+        await _notifier.NotifyChannelAsync(
             @event.BroadcasterId.ToString(),
             "hype_train_progress",
-            new HypeTrainProgressAlertDto(
-                @event.HypeTrainId,
-                @event.Level,
-                @event.Total,
-                @event.Progress,
-                @event.Goal,
-                HypeTrainAlertMapper.MapContributions(@event.TopContributions),
-                @event.ExpiresAt
-            ),
+            dto,
+            ct
+        );
+
+        await OverlayAlertBroadcast.ToOverlaysAsync(
+            _db,
+            _widgets,
+            @event.BroadcasterId,
+            "hype_train_progress",
+            dto,
             ct
         );
     }
 }
 
-/// <summary>Broadcasts a hype train's final level (<c>channel.hype_train.end</c>) to dashboard clients.</summary>
+/// <summary>Broadcasts a hype train's final level (<c>channel.hype_train.end</c>) to the dashboard AND the overlay meter.</summary>
 public sealed class HypeTrainEndedBroadcastHandler : IEventHandler<HypeTrainEndedEvent>
 {
     private readonly IDashboardNotifier _notifier;
+    private readonly IApplicationDbContext _db;
+    private readonly IWidgetNotifier _widgets;
 
-    public HypeTrainEndedBroadcastHandler(IDashboardNotifier notifier) => _notifier = notifier;
+    public HypeTrainEndedBroadcastHandler(
+        IDashboardNotifier notifier,
+        IApplicationDbContext db,
+        IWidgetNotifier widgets
+    )
+    {
+        _notifier = notifier;
+        _db = db;
+        _widgets = widgets;
+    }
 
-    public Task HandleAsync(HypeTrainEndedEvent @event, CancellationToken ct = default)
+    public async Task HandleAsync(HypeTrainEndedEvent @event, CancellationToken ct = default)
     {
         if (@event.BroadcasterId == Guid.Empty)
-            return Task.CompletedTask;
+            return;
 
-        return _notifier.NotifyChannelAsync(
+        HypeTrainEndedAlertDto dto = new(
+            @event.HypeTrainId,
+            @event.Level,
+            @event.Total,
+            HypeTrainAlertMapper.MapContributions(@event.TopContributions),
+            @event.EndedAt
+        );
+
+        await _notifier.NotifyChannelAsync(
             @event.BroadcasterId.ToString(),
             "hype_train_end",
-            new HypeTrainEndedAlertDto(
-                @event.HypeTrainId,
-                @event.Level,
-                @event.Total,
-                HypeTrainAlertMapper.MapContributions(@event.TopContributions),
-                @event.EndedAt
-            ),
+            dto,
+            ct
+        );
+
+        await OverlayAlertBroadcast.ToOverlaysAsync(
+            _db,
+            _widgets,
+            @event.BroadcasterId,
+            "hype_train_end",
+            dto,
             ct
         );
     }

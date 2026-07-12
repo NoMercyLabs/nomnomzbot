@@ -9,36 +9,59 @@
 // -----------------------------------------------------------------------------
 
 using NomNomzBot.Api.Hubs.Dtos;
+using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Rewards.Events;
 
 namespace NomNomzBot.Api.Hubs.Broadcasters;
 
-/// <summary>Broadcasts cheer/bits alerts to dashboard/overlay clients.</summary>
+/// <summary>Broadcasts cheer/bits alerts to the dashboard AND, identically, to overlay widgets + the feed.</summary>
 public sealed class CheerBroadcastHandler : IEventHandler<CheerEvent>
 {
     private readonly IDashboardNotifier _notifier;
+    private readonly IApplicationDbContext _db;
+    private readonly IWidgetNotifier _widgets;
 
-    public CheerBroadcastHandler(IDashboardNotifier notifier) => _notifier = notifier;
+    public CheerBroadcastHandler(
+        IDashboardNotifier notifier,
+        IApplicationDbContext db,
+        IWidgetNotifier widgets
+    )
+    {
+        _notifier = notifier;
+        _db = db;
+        _widgets = widgets;
+    }
 
-    public Task HandleAsync(CheerEvent @event, CancellationToken ct = default)
+    public async Task HandleAsync(CheerEvent @event, CancellationToken ct = default)
     {
         if (@event.BroadcasterId == Guid.Empty)
-            return Task.CompletedTask;
+            return;
 
-        return _notifier.NotifyChannelAsync(
+        CheerAlertDto dto = new(
+            @event.IsAnonymous ? null : @event.UserId,
+            @event.IsAnonymous ? "Anonymous" : @event.UserDisplayName,
+            @event.Bits,
+            @event.Message,
+            @event.IsAnonymous
+        );
+
+        await _notifier.NotifyChannelAsync(
             @event.BroadcasterId.ToString(),
             "cheer",
-            new CheerAlertDto(
-                @event.IsAnonymous ? null : @event.UserId,
-                @event.IsAnonymous ? "Anonymous" : @event.UserDisplayName,
-                @event.Bits,
-                @event.Message,
-                @event.IsAnonymous
-            ),
+            dto,
             ct,
             userId: @event.IsAnonymous ? null : @event.UserId,
             userDisplayName: @event.IsAnonymous ? "Anonymous" : @event.UserDisplayName
+        );
+
+        await OverlayAlertBroadcast.ToOverlaysAsync(
+            _db,
+            _widgets,
+            @event.BroadcasterId,
+            "cheer",
+            dto,
+            ct
         );
     }
 }
