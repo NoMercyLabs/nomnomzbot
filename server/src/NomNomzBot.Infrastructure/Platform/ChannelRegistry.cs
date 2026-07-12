@@ -9,11 +9,13 @@
 // -----------------------------------------------------------------------------
 
 using System.Collections.Concurrent;
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform.Interfaces;
 
 namespace NomNomzBot.Infrastructure.Platform;
@@ -92,9 +94,10 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
             LastActivityAt = now,
         };
 
-        // Load commands + builtin toggles from DB
+        // Load commands + builtin toggles + channel-wide settings from DB
         await LoadCommandsAsync(ctx, ct);
         await LoadBuiltinTogglesAsync(ctx, ct);
+        await LoadChannelSettingsAsync(ctx, ct);
 
         _channels[broadcasterId] = ctx;
         _logger.LogInformation(
@@ -129,11 +132,26 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
             return;
 
         ctx.DisabledBuiltins.Clear();
+        ctx.BuiltinResponseOverrides.Clear();
         await LoadBuiltinTogglesAsync(ctx, ct);
 
         _logger.LogDebug(
             "Reloaded {Count} disabled builtin(s) for channel {BroadcasterId}",
             ctx.DisabledBuiltins.Count,
+            broadcasterId
+        );
+    }
+
+    public async Task InvalidateSettingsAsync(Guid broadcasterId, CancellationToken ct = default)
+    {
+        if (!_channels.TryGetValue(broadcasterId, out ChannelContext? ctx))
+            return;
+
+        await LoadChannelSettingsAsync(ctx, ct);
+
+        _logger.LogDebug(
+            "Reloaded channel settings (personality={Personality}) for channel {BroadcasterId}",
+            ctx.Personality,
             broadcasterId
         );
     }
@@ -221,21 +239,91 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
         IApplicationDbContext db =
             scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
 
-        List<string> disabledKeys = await db
-            .ChannelBuiltinCommands.Where(c => c.BroadcasterId == ctx.BroadcasterId && !c.IsEnabled)
-            .Select(c => c.BuiltinKey)
+        // One pass over the channel's builtin rows: disabled keys → DisabledBuiltins; any response-template
+        // override (OverridesJson) → BuiltinResponseOverrides. Anonymous projection forces `var`.
+        var rows = await db
+            .ChannelBuiltinCommands.Where(c => c.BroadcasterId == ctx.BroadcasterId)
+            .Select(c => new
+            {
+                c.BuiltinKey,
+                c.IsEnabled,
+                c.OverridesJson,
+            })
             .ToListAsync(ct);
 
-        foreach (string key in disabledKeys)
+        int disabledCount = 0;
+        foreach (var row in rows)
+        {
             // Normalizes away the leading "!" some rows carry (DefaultCommandsSeeder writes bang-prefixed
             // keys) so the lookup always matches ChatMessageHandler's bare, lowercased parsed command name.
-            ctx.DisabledBuiltins[key.TrimStart('!').ToLowerInvariant()] = 0;
+            string key = row.BuiltinKey.TrimStart('!').ToLowerInvariant();
+
+            if (!row.IsEnabled)
+            {
+                ctx.DisabledBuiltins[key] = 0;
+                disabledCount++;
+            }
+
+            if (TryParseResponseTemplateOverride(row.OverridesJson, out string? template))
+                ctx.BuiltinResponseOverrides[key] = template;
+        }
 
         _logger.LogDebug(
-            "Loaded {Count} disabled builtin(s) for channel {BroadcasterId}",
-            disabledKeys.Count,
+            "Loaded {DisabledCount} disabled builtin(s) and {OverrideCount} response override(s) for channel {BroadcasterId}",
+            disabledCount,
+            ctx.BuiltinResponseOverrides.Count,
             ctx.BroadcasterId
         );
+    }
+
+    private async Task LoadChannelSettingsAsync(ChannelContext ctx, CancellationToken ct)
+    {
+        using IServiceScope scope = _scopeFactory.CreateScope();
+        IApplicationDbContext db =
+            scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+
+        string? personality = await db
+            .Channels.Where(c => c.Id == ctx.BroadcasterId)
+            .Select(c => c.Personality)
+            .FirstOrDefaultAsync(ct);
+
+        ctx.Personality = PersonalityTone.Normalize(personality);
+    }
+
+    /// <summary>
+    /// Extracts a built-in's response-template override from its <c>OverridesJson</c> — schema
+    /// <c>{ "responseTemplate": "..." }</c>. Returns false for null/blank/malformed JSON or an empty template,
+    /// so a broken override never crashes the registry load and simply leaves the built-in on its tone default.
+    /// </summary>
+    private static bool TryParseResponseTemplateOverride(string? overridesJson, out string template)
+    {
+        template = string.Empty;
+        if (string.IsNullOrWhiteSpace(overridesJson))
+            return false;
+
+        try
+        {
+            using JsonDocument doc = JsonDocument.Parse(overridesJson);
+            if (
+                doc.RootElement.ValueKind == JsonValueKind.Object
+                && doc.RootElement.TryGetProperty("responseTemplate", out JsonElement value)
+                && value.ValueKind == JsonValueKind.String
+            )
+            {
+                string? parsed = value.GetString();
+                if (!string.IsNullOrWhiteSpace(parsed))
+                {
+                    template = parsed;
+                    return true;
+                }
+            }
+        }
+        catch (JsonException)
+        {
+            // Malformed override JSON — ignore; the built-in keeps its tone default.
+        }
+
+        return false;
     }
 
     private void RunEviction(object? state)

@@ -77,6 +77,14 @@ public class Channel : SoftDeletableEntity
     [MaxLength(100)]
     public string? UsernamePronunciation { get; set; }
 
+    /// <summary>
+    /// The channel's built-in-command voice ([VC:enum] <see cref="PersonalityTone"/>). Every built-in that
+    /// has a response renders a tone-appropriate, varied template from the tone catalog. Defaults to
+    /// <see cref="PersonalityTone.Informative"/> (clear + polite) for every new and existing channel.
+    /// </summary>
+    [MaxLength(20)]
+    public string Personality { get; set; } = PersonalityTone.Informative;
+
     public bool IsOnboarded { get; set; }
 
     public DateTime? BotJoinedAt { get; set; }

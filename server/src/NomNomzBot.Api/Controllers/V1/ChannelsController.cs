@@ -295,6 +295,44 @@ public class ChannelsController : BaseController
         return Ok(new StatusResponseDto<ChannelDto> { Data = result.Value });
     }
 
+    /// <summary>
+    /// Get the channel's built-in-command personality tone. Moderator-floored like every dashboard read.
+    /// </summary>
+    [HttpGet("{channelId}/settings/personality")]
+    [RequireAction("dashboard:read")]
+    [ProducesResponseType<StatusResponseDto<ChannelPersonalityDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetPersonality(string channelId, CancellationToken ct)
+    {
+        Result<ChannelPersonalityDto> result = await _channelService.GetPersonalityAsync(
+            channelId,
+            ct
+        );
+        return ResultResponse(result);
+    }
+
+    /// <summary>
+    /// Set the channel's built-in-command personality tone (Informative, Friendly, Sassy, Hype, Chill).
+    /// Broadcaster/Editor-gated like the other channel settings writes.
+    /// </summary>
+    [HttpPut("{channelId}/settings/personality")]
+    [RequireAction("setup:write")]
+    [ProducesResponseType<StatusResponseDto<ChannelPersonalityDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> SetPersonality(
+        string channelId,
+        [FromBody] SetChannelPersonalityRequest request,
+        CancellationToken ct
+    )
+    {
+        Result<ChannelPersonalityDto> result = await _channelService.SetPersonalityAsync(
+            channelId,
+            request.Personality,
+            ct
+        );
+        if (result.IsFailure)
+            return ResultResponse(result);
+        return Ok(new StatusResponseDto<ChannelPersonalityDto> { Data = result.Value });
+    }
+
     /// <summary>Bot joins the channel (subscribes to EventSub and starts listening).</summary>
     [HttpPost("{channelId}/join")]
     [RequireAction("setup:write")]

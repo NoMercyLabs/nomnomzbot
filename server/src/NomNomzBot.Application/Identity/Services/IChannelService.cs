@@ -52,6 +52,22 @@ public interface IChannelService
         CancellationToken cancellationToken = default
     );
 
+    /// <summary>Get the channel's built-in-command personality tone.</summary>
+    Task<Result<ChannelPersonalityDto>> GetPersonalityAsync(
+        string broadcasterId,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>
+    /// Set the channel's built-in-command personality tone. Validates the tone against
+    /// <c>PersonalityTone.All</c>, persists it, and refreshes the in-memory registry so live chat picks it up.
+    /// </summary>
+    Task<Result<ChannelPersonalityDto>> SetPersonalityAsync(
+        string broadcasterId,
+        string personality,
+        CancellationToken cancellationToken = default
+    );
+
     /// <summary>
     /// Onboards a channel — creates the record on first onboard, or idempotently repairs an existing one — and
     /// publishes <c>ChannelOnboardedEvent</c> either way. That single event is the entire onboarding fan-out:

@@ -162,6 +162,12 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
                 TriggeringUserLogin = @event.UserLogin,
                 RoleLevel = BadgeLevel(@event),
                 Args = args,
+                // Personality tone + explicit per-command override (OverridesJson) drive the built-in's
+                // response phrasing: override wins, else the tone template, else the built-in's neutral.
+                Personality = ctx.Personality,
+                CustomResponseTemplate = ctx.BuiltinResponseOverrides.GetValueOrDefault(
+                    commandName
+                ),
                 CancellationToken = cancellationToken,
             };
 
@@ -307,6 +313,10 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
                         TriggeringUserLogin = @event.UserLogin,
                         RoleLevel = BadgeLevel(@event),
                         Args = args,
+                        Personality = ctx.Personality,
+                        CustomResponseTemplate = ctx.BuiltinResponseOverrides.GetValueOrDefault(
+                            commandName
+                        ),
                         CancellationToken = cancellationToken,
                     };
 

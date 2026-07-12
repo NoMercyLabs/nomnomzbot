@@ -288,6 +288,79 @@ public sealed class ChatMessageHandlerTests
             .Be("editor", "the pipeline variable must carry the RESOLVED effective role");
     }
 
+    [Fact]
+    public async Task Builtin_context_carries_the_channel_personality_and_override_template()
+    {
+        // The handler resolves the channel's tone + the per-command OverridesJson template (both cached on
+        // ChannelContext) and hands them to the builtin — the seam the whole tone system hangs off.
+        ChannelContext ctx = NewChannelContext();
+        ctx.Personality = NomNomzBot.Domain.Identity.Enums.PersonalityTone.Sassy;
+        ctx.BuiltinResponseOverrides[BuiltinKey] = "OVERRIDE {uptime}";
+
+        IChannelRegistry registry = Substitute.For<IChannelRegistry>();
+        registry.Get(Broadcaster).Returns(ctx);
+
+        CapturingBuiltin builtin = new();
+        IBuiltinCommandCatalog builtins = Substitute.For<IBuiltinCommandCatalog>();
+        builtins.Get(BuiltinKey).Returns(builtin);
+
+        ChatMessageHandler sut = new(
+            registry,
+            Substitute.For<IServiceScopeFactory>(),
+            Substitute.For<ICooldownManager>(),
+            Substitute.For<IChatProvider>(),
+            Substitute.For<IPipelineEngine>(),
+            builtins,
+            Substitute.For<ITemplateResolver>(),
+            Substitute.For<IEventBus>(),
+            TimeProvider.System,
+            NullLogger<ChatMessageHandler>.Instance
+        );
+
+        await sut.HandleAsync(MessageEvent($"!{BuiltinKey}"), CancellationToken.None);
+
+        builtin.Captured.Should().NotBeNull();
+        builtin
+            .Captured!.Personality.Should()
+            .Be(NomNomzBot.Domain.Identity.Enums.PersonalityTone.Sassy);
+        builtin.Captured!.CustomResponseTemplate.Should().Be("OVERRIDE {uptime}");
+    }
+
+    [Fact]
+    public async Task Builtin_context_defaults_personality_to_informative_with_no_override()
+    {
+        // A channel with no personality set and no override row: the default tone flows, override stays null.
+        ChannelContext ctx = NewChannelContext();
+
+        IChannelRegistry registry = Substitute.For<IChannelRegistry>();
+        registry.Get(Broadcaster).Returns(ctx);
+
+        CapturingBuiltin builtin = new();
+        IBuiltinCommandCatalog builtins = Substitute.For<IBuiltinCommandCatalog>();
+        builtins.Get(BuiltinKey).Returns(builtin);
+
+        ChatMessageHandler sut = new(
+            registry,
+            Substitute.For<IServiceScopeFactory>(),
+            Substitute.For<ICooldownManager>(),
+            Substitute.For<IChatProvider>(),
+            Substitute.For<IPipelineEngine>(),
+            builtins,
+            Substitute.For<ITemplateResolver>(),
+            Substitute.For<IEventBus>(),
+            TimeProvider.System,
+            NullLogger<ChatMessageHandler>.Instance
+        );
+
+        await sut.HandleAsync(MessageEvent($"!{BuiltinKey}"), CancellationToken.None);
+
+        builtin.Captured.Should().NotBeNull();
+        builtin
+            .Captured!.Personality.Should()
+            .Be(NomNomzBot.Domain.Identity.Enums.PersonalityTone.Informative);
+        builtin.Captured!.CustomResponseTemplate.Should().BeNull();
+    }
+
     // ── shared scaffolding ──────────────────────────────────────────────────
 
     private static ChannelContext NewChannelContext() =>
@@ -362,5 +435,24 @@ public sealed class ChatMessageHandlerTests
             BuiltinCommandContext context,
             CancellationToken ct = default
         ) => Task.FromResult(Result.Success(BuiltinResponse));
+    }
+
+    /// <summary>Records the <see cref="BuiltinCommandContext"/> it was handed, so the wiring can be asserted.</summary>
+    private sealed class CapturingBuiltin : IBuiltinCommand
+    {
+        public BuiltinCommandContext? Captured { get; private set; }
+
+        public string BuiltinKey => ChatMessageHandlerTests.BuiltinKey;
+        public int DefaultCooldownSeconds => 0;
+        public int DefaultMinPermissionLevel => 0;
+
+        public Task<Result<string>> ExecuteAsync(
+            BuiltinCommandContext context,
+            CancellationToken ct = default
+        )
+        {
+            Captured = context;
+            return Task.FromResult(Result.Success("ok"));
+        }
     }
 }

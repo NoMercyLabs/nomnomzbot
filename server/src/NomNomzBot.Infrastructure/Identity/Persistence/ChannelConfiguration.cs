@@ -70,6 +70,14 @@ public class ChannelConfiguration : IEntityTypeConfiguration<Channel>
 
         builder.Property(e => e.UsernamePronunciation).HasMaxLength(100);
 
+        // Built-in-command voice ([VC:enum] PersonalityTone). Store default = Informative so existing rows
+        // backfill to the polite default on migration and a new row never carries a null tone.
+        builder
+            .Property(e => e.Personality)
+            .IsRequired()
+            .HasMaxLength(20)
+            .HasDefaultValue(NomNomzBot.Domain.Identity.Enums.PersonalityTone.Informative);
+
         builder.Property(e => e.IsOnboarded).IsRequired();
 
         builder.Property(e => e.OverlayToken).IsRequired().HasMaxLength(36);

@@ -12,6 +12,7 @@ using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Commands.Builtin;
+using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Analytics;
 using NomNomzBot.Application.Economy.Services;
@@ -91,7 +92,18 @@ public abstract class StatsBuiltinBase : IBuiltinCommand
             ? profile.Value.FirstSeenAt?.ToString("yyyy-MM-dd") ?? "unknown"
             : "unknown";
 
-        if (context.CustomResponseTemplate is { Length: > 0 } template)
+        // Personality precedence: an explicit per-command override wins; else the channel's tone template
+        // (only the four flavored tones author !stats — Informative intentionally has none, so the default
+        // keeps the richer conditional line below); else the neutral, precise stats line.
+        string? template = context.CustomResponseTemplate is { Length: > 0 } over
+            ? over
+            : ToneTemplateCatalog.Pick(
+                context.Personality,
+                BuiltinResponseSlots.Stats.Key,
+                BuiltinResponseSlots.Stats.Profile
+            );
+
+        if (template is not null)
         {
             Dictionary<string, string> vars = new(StringComparer.OrdinalIgnoreCase)
             {

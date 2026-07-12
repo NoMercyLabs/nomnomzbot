@@ -655,6 +655,13 @@ public static class DependencyInjection
         // Auto-moderation engine consumed by concrete type — kept explicit.
         services.AddScoped<AutoModerationEngine>();
 
+        // Personality tone renderer for built-in responses (override → tone → neutral, then template-resolve).
+        // Stateless over the singleton ITemplateResolver, so registered singleton.
+        services.AddSingleton<
+            IBuiltinResponseComposer,
+            NomNomzBot.Infrastructure.Commands.Builtins.BuiltinResponseComposer
+        >();
+
         // Built-in commands — scoped because some implementations consume scoped services
         // (e.g. IMusicService). The catalog is also scoped so it receives a consistent
         // IEnumerable<IBuiltinCommand> from the DI container within each request scope.

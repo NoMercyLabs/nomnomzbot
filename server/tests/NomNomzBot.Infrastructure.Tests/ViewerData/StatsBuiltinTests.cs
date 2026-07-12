@@ -11,6 +11,7 @@
 using FluentAssertions;
 using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Commands.Builtin;
+using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Analytics;
 using NomNomzBot.Application.Economy.Services;
@@ -18,6 +19,7 @@ using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Economy.Entities;
 using NomNomzBot.Domain.Identity.Entities;
+using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Infrastructure.ViewerData.Builtins;
 using NSubstitute;
 
@@ -265,6 +267,66 @@ public sealed class StatsBuiltinTests
         Result<string> reply = await Sut().ExecuteAsync(ctx);
 
         reply.Value.Should().Be("Alice: 500 pts (#3), 42 msgs, 2h 1m, streak 3, since 2026-01-05");
+    }
+
+    [Fact]
+    public async Task Stats_WithAFlavoredTone_RendersAToneTemplate_NotTheNeutralLine()
+    {
+        SeedAliceStats();
+        BuiltinCommandContext ctx = new()
+        {
+            BroadcasterId = Channel,
+            TriggeringUserId = "111",
+            TriggeringUserDisplayName = "Alice",
+            TriggeringUserLogin = "alice",
+            Args = string.Empty,
+            Personality = PersonalityTone.Sassy,
+        };
+
+        Result<string> reply = await Sut().ExecuteAsync(ctx);
+
+        HashSet<string> expected = ToneTemplateCatalog
+            .Get(
+                PersonalityTone.Sassy,
+                BuiltinResponseSlots.Stats.Key,
+                BuiltinResponseSlots.Stats.Profile
+            )
+            .Select(t =>
+                t.Replace("{stats.user}", "Alice")
+                    .Replace("{stats.messages}", "42")
+                    .Replace("{stats.watchtime}", "2h 1m")
+                    .Replace("{stats.points}", "500")
+                    .Replace("{stats.rank}", "3")
+                    .Replace("{stats.streak}", "3")
+                    .Replace("{stats.firstseen}", "2026-01-05")
+            )
+            .ToHashSet();
+
+        expected.Should().Contain(reply.Value);
+        // The neutral composed line uses " · " separators — a tone template must not be that line.
+        reply.Value.Should().NotContain(" · ");
+    }
+
+    [Fact]
+    public async Task Stats_WithTheDefaultInformativeTone_KeepsTheRichNeutralLine()
+    {
+        // Informative is intentionally NOT authored for !stats, so the default keeps the richer conditional
+        // line (rank + streak) — proving the AddFlavored omission behaves as designed.
+        SeedAliceStats();
+        BuiltinCommandContext ctx = new()
+        {
+            BroadcasterId = Channel,
+            TriggeringUserId = "111",
+            TriggeringUserDisplayName = "Alice",
+            TriggeringUserLogin = "alice",
+            Args = string.Empty,
+            Personality = PersonalityTone.Informative,
+        };
+
+        Result<string> reply = await Sut().ExecuteAsync(ctx);
+
+        reply.Value.Should().Contain("500 points (rank #3)");
+        reply.Value.Should().Contain("3-stream streak");
     }
 
     [Fact]

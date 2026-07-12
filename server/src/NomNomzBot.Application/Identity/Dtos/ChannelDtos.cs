@@ -64,3 +64,17 @@ public sealed record CreateChannelRequest
     public required string BroadcasterId { get; init; }
     public string? DisplayName { get; init; }
 }
+
+/// <summary>
+/// A channel's built-in-command personality tone. <see cref="Personality"/> is the canonical tone token
+/// (<c>PersonalityTone.*</c>); <see cref="Available"/> lists every selectable tone so a picker needs no
+/// second call.
+/// </summary>
+public sealed record ChannelPersonalityDto(string Personality, IReadOnlyList<string> Available);
+
+/// <summary>Request to set a channel's built-in-command personality tone.</summary>
+public sealed record SetChannelPersonalityRequest
+{
+    /// <summary>One of <c>PersonalityTone.All</c> (case-insensitive).</summary>
+    public required string Personality { get; init; }
+}

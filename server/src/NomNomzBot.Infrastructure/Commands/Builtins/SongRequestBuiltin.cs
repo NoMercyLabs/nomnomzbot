@@ -9,25 +9,29 @@
 // -----------------------------------------------------------------------------
 
 using NomNomzBot.Application.Commands.Builtin;
+using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Music.Services;
 
 namespace NomNomzBot.Infrastructure.Commands.Builtins;
 
 /// <summary>
-/// !sr &lt;query&gt; — requests a song to be added to the queue.
-/// Delegates to IMusicService for search and queue management.
+/// !sr &lt;query&gt; — requests a song to be added to the queue. Delegates to IMusicService for search and
+/// queue management, then phrases the added / not-found outcome in the channel's personality tone. Pure
+/// usage and "could not add" errors stay neutral (functional).
 /// </summary>
 public sealed class SongRequestBuiltin : IBuiltinCommand
 {
     private readonly IMusicService _music;
+    private readonly IBuiltinResponseComposer _composer;
 
-    public SongRequestBuiltin(IMusicService music)
+    public SongRequestBuiltin(IMusicService music, IBuiltinResponseComposer composer)
     {
         _music = music;
+        _composer = composer;
     }
 
-    public string BuiltinKey => "sr";
+    public string BuiltinKey => BuiltinResponseSlots.SongRequest.Key;
     public int DefaultCooldownSeconds => 5;
     public int DefaultMinPermissionLevel => 0;
 
@@ -38,6 +42,7 @@ public sealed class SongRequestBuiltin : IBuiltinCommand
     {
         string query = context.Args.Trim();
         if (string.IsNullOrWhiteSpace(query))
+            // Pure usage string — functional, never personality.
             return Result.Success(
                 $"@{context.TriggeringUserDisplayName} Usage: !sr <song name or URL>"
             );
@@ -50,9 +55,25 @@ public sealed class SongRequestBuiltin : IBuiltinCommand
         );
 
         if (results.Count == 0)
-            return Result.Success(
-                $"@{context.TriggeringUserDisplayName} No tracks found for \"{query}\"."
+        {
+            string notFound = await _composer.ComposeAsync(
+                new BuiltinResponseRequest
+                {
+                    BroadcasterId = context.BroadcasterId,
+                    Personality = context.Personality,
+                    BuiltinKey = BuiltinKey,
+                    Slot = BuiltinResponseSlots.SongRequest.NotFound,
+                    NeutralFallback = "@{user} No tracks found for \"{query}\".",
+                    Variables = new Dictionary<string, string>
+                    {
+                        ["user"] = context.TriggeringUserDisplayName,
+                        ["query"] = query,
+                    },
+                },
+                ct
             );
+            return Result.Success(notFound);
+        }
 
         MusicTrack track = results[0];
         bool added = await _music.AddToQueueAsync(
@@ -63,12 +84,29 @@ public sealed class SongRequestBuiltin : IBuiltinCommand
         );
 
         if (!added)
+            // Functional failure — stays neutral.
             return Result.Success(
                 $"@{context.TriggeringUserDisplayName} Could not add \"{track.Name}\" to the queue."
             );
 
-        return Result.Success(
-            $"@{context.TriggeringUserDisplayName} Added: {track.Name} by {track.Artist}"
+        string message = await _composer.ComposeAsync(
+            new BuiltinResponseRequest
+            {
+                BroadcasterId = context.BroadcasterId,
+                Personality = context.Personality,
+                BuiltinKey = BuiltinKey,
+                Slot = BuiltinResponseSlots.SongRequest.Added,
+                OverrideTemplate = context.CustomResponseTemplate,
+                NeutralFallback = "@{user} Added {track.name} by {track.artist} to the queue.",
+                Variables = new Dictionary<string, string>
+                {
+                    ["user"] = context.TriggeringUserDisplayName,
+                    ["track.name"] = track.Name,
+                    ["track.artist"] = track.Artist,
+                },
+            },
+            ct
         );
+        return Result.Success(message);
     }
 }

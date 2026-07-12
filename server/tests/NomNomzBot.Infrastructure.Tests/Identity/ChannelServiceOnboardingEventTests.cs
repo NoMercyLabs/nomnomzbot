@@ -15,7 +15,9 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Events;
+using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Identity;
+using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Identity;
 
@@ -50,7 +52,12 @@ public sealed class ChannelServiceOnboardingEventTests
         await db.SaveChangesAsync();
 
         RecordingEventBus bus = new();
-        ChannelService sut = new(db, new FakeTimeProvider(Now), bus);
+        ChannelService sut = new(
+            db,
+            new FakeTimeProvider(Now),
+            bus,
+            Substitute.For<IChannelRegistry>()
+        );
 
         Result<ChannelDto> result = await sut.OnboardAsync(
             ownerId.ToString(),
@@ -101,7 +108,12 @@ public sealed class ChannelServiceOnboardingEventTests
         await db.SaveChangesAsync();
 
         RecordingEventBus bus = new();
-        ChannelService sut = new(db, new FakeTimeProvider(Now), bus);
+        ChannelService sut = new(
+            db,
+            new FakeTimeProvider(Now),
+            bus,
+            Substitute.For<IChannelRegistry>()
+        );
 
         Result<ChannelDto> result = await sut.OnboardAsync(
             ownerId.ToString(),
@@ -141,7 +153,12 @@ public sealed class ChannelServiceOnboardingEventTests
         await db.SaveChangesAsync();
 
         RecordingEventBus bus = new();
-        ChannelService sut = new(db, new FakeTimeProvider(Now), bus);
+        ChannelService sut = new(
+            db,
+            new FakeTimeProvider(Now),
+            bus,
+            Substitute.For<IChannelRegistry>()
+        );
         CreateChannelRequest request = new() { BroadcasterId = ownerId.ToString() };
 
         Result<ChannelDto> first = await sut.OnboardAsync(ownerId.ToString(), request);

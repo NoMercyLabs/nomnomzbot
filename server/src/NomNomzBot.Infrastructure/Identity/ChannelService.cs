@@ -14,6 +14,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Identity.Entities;
+using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Identity.Events;
 using NomNomzBot.Domain.Platform.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
@@ -25,12 +26,19 @@ public class ChannelService : IChannelService
     private readonly IApplicationDbContext _db;
     private readonly TimeProvider _timeProvider;
     private readonly IEventBus _eventBus;
+    private readonly IChannelRegistry _registry;
 
-    public ChannelService(IApplicationDbContext db, TimeProvider timeProvider, IEventBus eventBus)
+    public ChannelService(
+        IApplicationDbContext db,
+        TimeProvider timeProvider,
+        IEventBus eventBus,
+        IChannelRegistry registry
+    )
     {
         _db = db;
         _timeProvider = timeProvider;
         _eventBus = eventBus;
+        _registry = registry;
     }
 
     public async Task<Result> JoinAsync(
@@ -208,6 +216,72 @@ public class ChannelService : IChannelService
             cancellationToken
         );
         return Result.Success(ToDto(channel));
+    }
+
+    public async Task<Result<ChannelPersonalityDto>> GetPersonalityAsync(
+        string broadcasterId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (!Guid.TryParse(broadcasterId, out Guid broadcasterGuid))
+            return Errors.ChannelNotFound<ChannelPersonalityDto>(broadcasterId);
+
+        // Projection avoids loading the whole aggregate for a single scalar. FirstOrDefault on a value type
+        // needs the nullable projection to distinguish "no such channel" from a (never-null) tone column.
+        string? personality = await _db
+            .Channels.Where(c => c.Id == broadcasterGuid)
+            .Select(c => c.Personality)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (personality is null)
+            return Errors.ChannelNotFound<ChannelPersonalityDto>(broadcasterId);
+
+        return Result.Success(
+            new ChannelPersonalityDto(PersonalityTone.Normalize(personality), PersonalityTone.All)
+        );
+    }
+
+    public async Task<Result<ChannelPersonalityDto>> SetPersonalityAsync(
+        string broadcasterId,
+        string personality,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (!Guid.TryParse(broadcasterId, out Guid broadcasterGuid))
+            return Errors.ChannelNotFound<ChannelPersonalityDto>(broadcasterId);
+
+        if (!PersonalityTone.IsValid(personality))
+            return Result.Failure<ChannelPersonalityDto>(
+                $"Unknown personality tone '{personality}'. Valid tones: {string.Join(", ", PersonalityTone.All)}.",
+                "VALIDATION_FAILED"
+            );
+
+        Channel? channel = await _db.Channels.FirstOrDefaultAsync(
+            c => c.Id == broadcasterGuid,
+            cancellationToken
+        );
+        if (channel is null)
+            return Errors.ChannelNotFound<ChannelPersonalityDto>(broadcasterId);
+
+        string normalized = PersonalityTone.Normalize(personality);
+        channel.Personality = normalized;
+        await _db.SaveChangesAsync(cancellationToken);
+
+        // Refresh the in-memory registry so the live chat hot path phrases built-ins in the new tone
+        // without a restart, then fan the change out for any other consumers (dashboard live push).
+        await _registry.InvalidateSettingsAsync(broadcasterGuid, cancellationToken);
+        await _eventBus.PublishAsync(
+            new ChannelConfigChangedEvent
+            {
+                BroadcasterId = broadcasterGuid,
+                Domain = "channel-settings",
+                EntityId = "personality",
+                Action = "updated",
+            },
+            cancellationToken
+        );
+
+        return Result.Success(new ChannelPersonalityDto(normalized, PersonalityTone.All));
     }
 
     public async Task<Result<ChannelDto>> OnboardAsync(

@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using System.Collections.Concurrent;
+using NomNomzBot.Domain.Identity.Enums;
 
 namespace NomNomzBot.Domain.Platform.Interfaces;
 
@@ -43,6 +44,13 @@ public interface IChannelRegistry
     /// </summary>
     Task InvalidateBuiltinsAsync(Guid broadcasterId, CancellationToken ct = default);
 
+    /// <summary>
+    /// Reloads the cached channel-wide settings (currently the personality tone) for an already-registered
+    /// channel. Call after a settings change so the in-process chat handler picks it up without a restart.
+    /// No-ops if the channel is not yet in the registry.
+    /// </summary>
+    Task InvalidateSettingsAsync(Guid broadcasterId, CancellationToken ct = default);
+
     Task RemoveAsync(Guid broadcasterId, CancellationToken ct = default);
     IReadOnlyCollection<ChannelContext> GetAll();
     IReadOnlyCollection<ChannelContext> GetLiveChannels();
@@ -59,6 +67,23 @@ public class ChannelContext
     public required string TwitchChannelId { get; init; }
     public required string ChannelName { get; init; }
     public string? DisplayName { get; set; }
+
+    /// <summary>
+    /// The channel's built-in-command personality tone (<see cref="PersonalityTone"/>), loaded from
+    /// <c>Channel.Personality</c>. Read on the chat hot path to phrase built-in responses; defaults to
+    /// <see cref="PersonalityTone.Informative"/> until the registry loads the channel's setting.
+    /// </summary>
+    public string Personality { get; set; } = PersonalityTone.Informative;
+
+    /// <summary>
+    /// Per-channel built-in response-template overrides: key = the built-in's bare catalog key (lowercase,
+    /// no leading "!"), value = the override template parsed from <c>ChannelBuiltinCommand.OverridesJson</c>.
+    /// Absence = no override (fall back to the tone template). Populated by <c>ChannelRegistry</c> alongside
+    /// the builtin toggles.
+    /// </summary>
+    public ConcurrentDictionary<string, string> BuiltinResponseOverrides { get; } =
+        new(StringComparer.OrdinalIgnoreCase);
+
     public bool IsLive { get; set; }
     public string? CurrentStreamId { get; set; }
     public string? CurrentTitle { get; set; }
