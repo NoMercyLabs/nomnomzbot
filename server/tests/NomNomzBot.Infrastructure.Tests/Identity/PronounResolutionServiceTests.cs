@@ -179,6 +179,10 @@ public sealed class PronounResolutionServiceTests
                     Name = name,
                     Subject = subject,
                     Object = @object,
+                    // Grammar columns are irrelevant to this test (pronoun resolution/linking only) —
+                    // any non-null values satisfy the NOT NULL constraint.
+                    Possessive = subject,
+                    GenderedTerm = "person",
                     Singular = false,
                 }
             );

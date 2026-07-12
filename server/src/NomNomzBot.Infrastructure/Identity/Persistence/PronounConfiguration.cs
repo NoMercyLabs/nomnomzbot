@@ -29,6 +29,10 @@ public class PronounConfiguration : IEntityTypeConfiguration<Pronoun>
 
         builder.Property(e => e.Object).IsRequired().HasMaxLength(20);
 
+        builder.Property(e => e.Possessive).IsRequired().HasMaxLength(20);
+
+        builder.Property(e => e.GenderedTerm).IsRequired().HasMaxLength(20);
+
         builder.Property(e => e.Singular).IsRequired();
     }
 }

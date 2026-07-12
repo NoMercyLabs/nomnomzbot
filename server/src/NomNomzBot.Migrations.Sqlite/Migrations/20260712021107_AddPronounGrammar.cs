@@ -1,0 +1,40 @@
+﻿using Microsoft.EntityFrameworkCore.Migrations;
+
+#nullable disable
+
+namespace NomNomzBot.Migrations.Sqlite.Migrations
+{
+    /// <inheritdoc />
+    public partial class AddPronounGrammar : Migration
+    {
+        /// <inheritdoc />
+        protected override void Up(MigrationBuilder migrationBuilder)
+        {
+            migrationBuilder.AddColumn<string>(
+                name: "GenderedTerm",
+                table: "Pronouns",
+                type: "TEXT",
+                maxLength: 20,
+                nullable: false,
+                defaultValue: ""
+            );
+
+            migrationBuilder.AddColumn<string>(
+                name: "Possessive",
+                table: "Pronouns",
+                type: "TEXT",
+                maxLength: 20,
+                nullable: false,
+                defaultValue: ""
+            );
+        }
+
+        /// <inheritdoc />
+        protected override void Down(MigrationBuilder migrationBuilder)
+        {
+            migrationBuilder.DropColumn(name: "GenderedTerm", table: "Pronouns");
+
+            migrationBuilder.DropColumn(name: "Possessive", table: "Pronouns");
+        }
+    }
+}

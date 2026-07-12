@@ -50,6 +50,8 @@ public sealed class PronounSeeder : ISeeder
             Name = "she/they",
             Subject = "she",
             Object = "them",
+            Possessive = "their",
+            GenderedTerm = "person",
             Singular = false,
         },
         new()
@@ -57,6 +59,8 @@ public sealed class PronounSeeder : ISeeder
             Name = "he/they",
             Subject = "he",
             Object = "them",
+            Possessive = "their",
+            GenderedTerm = "person",
             Singular = false,
         },
         new()
@@ -64,6 +68,8 @@ public sealed class PronounSeeder : ISeeder
             Name = "he/she",
             Subject = "he",
             Object = "she",
+            Possessive = "her",
+            GenderedTerm = "person",
             Singular = false,
         },
     ];
@@ -79,6 +85,8 @@ public sealed class PronounSeeder : ISeeder
             Name = "they/them",
             Subject = "they",
             Object = "them",
+            Possessive = "their",
+            GenderedTerm = "person",
             Singular = false,
         },
         new()
@@ -86,6 +94,8 @@ public sealed class PronounSeeder : ISeeder
             Name = "she/her",
             Subject = "she",
             Object = "her",
+            Possessive = "her",
+            GenderedTerm = "gal",
             Singular = true,
         },
         new()
@@ -93,6 +103,8 @@ public sealed class PronounSeeder : ISeeder
             Name = "he/him",
             Subject = "he",
             Object = "him",
+            Possessive = "his",
+            GenderedTerm = "guy",
             Singular = true,
         },
         new()
@@ -100,6 +112,8 @@ public sealed class PronounSeeder : ISeeder
             Name = "any/all",
             Subject = "any",
             Object = "all",
+            Possessive = "their",
+            GenderedTerm = "person",
             Singular = false,
         },
         new()
@@ -107,15 +121,20 @@ public sealed class PronounSeeder : ISeeder
             Name = "other/ask",
             Subject = "other",
             Object = "ask",
+            Possessive = "their",
+            GenderedTerm = "person",
             Singular = false,
         },
         // The neopronoun set from the alejo.io pronoun API (api.pronouns.alejo.io/v1/pronouns) — what the
-        // Twitch pronoun plugins read. Single neopronouns are singular (Singular = true).
+        // Twitch pronoun plugins read. Single neopronouns are singular (Singular = true). Possessive is the
+        // determiner form from the standard gender-neutral pronoun chart (e.g. "check out {possessive} stream").
         new()
         {
             Name = "ae/aer",
             Subject = "ae",
             Object = "aer",
+            Possessive = "aer",
+            GenderedTerm = "person",
             Singular = true,
         },
         new()
@@ -123,6 +142,8 @@ public sealed class PronounSeeder : ISeeder
             Name = "e/em",
             Subject = "e",
             Object = "em",
+            Possessive = "eir",
+            GenderedTerm = "person",
             Singular = true,
         },
         new()
@@ -130,6 +151,8 @@ public sealed class PronounSeeder : ISeeder
             Name = "fae/faer",
             Subject = "fae",
             Object = "faer",
+            Possessive = "faer",
+            GenderedTerm = "person",
             Singular = true,
         },
         new()
@@ -137,6 +160,8 @@ public sealed class PronounSeeder : ISeeder
             Name = "it/its",
             Subject = "it",
             Object = "its",
+            Possessive = "its",
+            GenderedTerm = "person",
             Singular = true,
         },
         new()
@@ -144,6 +169,8 @@ public sealed class PronounSeeder : ISeeder
             Name = "per/per",
             Subject = "per",
             Object = "per",
+            Possessive = "per",
+            GenderedTerm = "person",
             Singular = true,
         },
         new()
@@ -151,6 +178,8 @@ public sealed class PronounSeeder : ISeeder
             Name = "ve/ver",
             Subject = "ve",
             Object = "ver",
+            Possessive = "vis",
+            GenderedTerm = "person",
             Singular = true,
         },
         new()
@@ -158,6 +187,8 @@ public sealed class PronounSeeder : ISeeder
             Name = "xe/xem",
             Subject = "xe",
             Object = "xem",
+            Possessive = "xyr",
+            GenderedTerm = "person",
             Singular = true,
         },
         new()
@@ -165,10 +196,38 @@ public sealed class PronounSeeder : ISeeder
             Name = "zie/hir",
             Subject = "zie",
             Object = "hir",
+            Possessive = "hir",
+            GenderedTerm = "person",
             Singular = true,
         },
         .. Combos,
     ];
+
+    /// <summary>
+    /// Possessive determiner + neutral gendered term for the subjects the live alejo fetch can return,
+    /// keyed by <see cref="Pronoun.Subject"/> (alejo never returns the combos — those come from
+    /// <see cref="Combos"/> only). A subject alejo adds later that isn't in this table still gets a safe,
+    /// always-correct default (see <see cref="Map"/>) rather than an empty/fabricated value.
+    /// </summary>
+    private static readonly IReadOnlyDictionary<
+        string,
+        (string Possessive, string GenderedTerm)
+    > KnownGrammar = new Dictionary<string, (string, string)>(StringComparer.Ordinal)
+    {
+        ["he"] = ("his", "guy"),
+        ["she"] = ("her", "gal"),
+        ["they"] = ("their", "person"),
+        ["any"] = ("their", "person"),
+        ["other"] = ("their", "person"),
+        ["ae"] = ("aer", "person"),
+        ["e"] = ("eir", "person"),
+        ["fae"] = ("faer", "person"),
+        ["it"] = ("its", "person"),
+        ["per"] = ("per", "person"),
+        ["ve"] = ("vis", "person"),
+        ["xe"] = ("xyr", "person"),
+        ["zie"] = ("hir", "person"),
+    };
 
     public async Task SeedAsync(CancellationToken ct = default)
     {
@@ -209,12 +268,16 @@ public sealed class PronounSeeder : ISeeder
                 if (
                     current.Subject != pronoun.Subject
                     || current.Object != pronoun.Object
+                    || current.Possessive != pronoun.Possessive
+                    || current.GenderedTerm != pronoun.GenderedTerm
                     || current.Singular != pronoun.Singular
                     || current.Key != pronoun.Key
                 )
                 {
                     current.Subject = pronoun.Subject;
                     current.Object = pronoun.Object;
+                    current.Possessive = pronoun.Possessive;
+                    current.GenderedTerm = pronoun.GenderedTerm;
                     current.Singular = pronoun.Singular;
                     current.Key = pronoun.Key;
                 }
@@ -227,6 +290,8 @@ public sealed class PronounSeeder : ISeeder
                         Name = pronoun.Name,
                         Subject = pronoun.Subject,
                         Object = pronoun.Object,
+                        Possessive = pronoun.Possessive,
+                        GenderedTerm = pronoun.GenderedTerm,
                         Singular = pronoun.Singular,
                         Key = pronoun.Key,
                     }
@@ -246,11 +311,23 @@ public sealed class PronounSeeder : ISeeder
         string @object = record.Object.ToLowerInvariant();
         string name = subject == @object ? subject : $"{subject}/{@object}";
 
+        // The alejo payload carries no grammar beyond subject/object/singular. Known subjects get their
+        // real possessive + gendered term from the chart above; an upstream addition we don't recognize
+        // yet still gets a safe, always-grammatical default rather than an empty column.
+        (string possessive, string genderedTerm) = KnownGrammar.TryGetValue(
+            subject,
+            out (string Possessive, string GenderedTerm) known
+        )
+            ? known
+            : ("their", "person");
+
         return new Pronoun
         {
             Name = name,
             Subject = subject,
             Object = @object,
+            Possessive = possessive,
+            GenderedTerm = genderedTerm,
             Singular = record.Singular,
             Key = record.Key,
         };

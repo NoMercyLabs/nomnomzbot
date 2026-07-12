@@ -111,14 +111,19 @@ public sealed partial class TemplateResolver : ITemplateResolver
         // Resolve built-in variable groups lazily
         await ResolveBuiltInsAsync(vars, needed, broadcasterId, cancellationToken);
 
-        // Final substitution
+        // Final substitution — a pronoun-grammar placeholder whose own first letter is uppercase
+        // (e.g. {Subject}, {User.Subject}, {Target.GenderedTerm}) capitalizes the resolved value.
         return VariablePattern()
             .Replace(
                 template,
                 match =>
                 {
                     string key = match.Groups[1].Value.Trim();
-                    return vars.TryGetValue(key, out string? val) ? val : match.Value;
+                    if (!vars.TryGetValue(key, out string? val))
+                        return match.Value;
+                    return IsPronounGrammarKey(key) && key.Length > 0 && char.IsUpper(key[0])
+                        ? CapitalizeFirst(val)
+                        : val;
                 }
             );
     }
@@ -251,7 +256,18 @@ public sealed partial class TemplateResolver : ITemplateResolver
             vars["botname"] = await GetBotNameAsync(ct);
         }
 
-        // ── User DB lookups (follow age, account age, pronouns) ────────────
+        // ── Pronoun grammar variables ({subject}/{object}/{possessive}/{presentTense}/{genderedTerm},
+        // {user.*}, {target.*}) — bare vars mirror the @mention target when one is present in context,
+        // else the triggering user; explicit user./target. forms always resolve their own side.
+        bool needsUserGrammar = PronounGrammarSuffixes.Any(s =>
+            needed.Contains(s) || needed.Contains($"user.{s}")
+        );
+        bool hasTargetContext = !string.IsNullOrEmpty(vars.GetValueOrDefault("target"));
+        bool needsTargetGrammar =
+            PronounGrammarSuffixes.Any(s => needed.Contains($"target.{s}"))
+            || (hasTargetContext && PronounGrammarSuffixes.Any(needed.Contains));
+
+        // ── User DB lookups (follow age, account age, pronouns, pronoun grammar) ─
         if (
             NeedsAny(
                 needed,
@@ -259,7 +275,7 @@ public sealed partial class TemplateResolver : ITemplateResolver
                 "user.accountAge",
                 "user.pronouns",
                 "user.messageCount"
-            )
+            ) || needsUserGrammar
         )
         {
             string? userId = vars.GetValueOrDefault("user.id");
@@ -269,8 +285,8 @@ public sealed partial class TemplateResolver : ITemplateResolver
             }
         }
 
-        // ── Target DB lookups ──────────────────────────────────────────────
-        if (NeedsAny(needed, "target.id", "target.name", "target.followAge"))
+        // ── Target DB lookups (id, name, follow age, pronoun grammar) ───────
+        if (NeedsAny(needed, "target.id", "target.name", "target.followAge") || needsTargetGrammar)
         {
             string? targetName = vars.GetValueOrDefault("target");
             if (!string.IsNullOrEmpty(targetName))
@@ -278,6 +294,11 @@ public sealed partial class TemplateResolver : ITemplateResolver
                 await ResolveTargetAsync(vars, targetName, ct);
             }
         }
+
+        // Bare grammar vars mirror the target (if present) else the caller; anything still unset (no
+        // user/target resolved, or a resolved one with no pronoun on record) gets the universal
+        // they/them/their/person/are fallback so a pronoun placeholder never renders raw.
+        ApplyPronounGrammarBareAndFallback(vars, needed, hasTargetContext);
 
         // ── Named counters {count.<key>} ───────────────────────────────────
         List<string> countKeys = needed
@@ -335,6 +356,9 @@ public sealed partial class TemplateResolver : ITemplateResolver
                     vars["user.pronouns"] = pronounDisplay;
             }
 
+            // Grammar helpers key off the primary pronoun only (AltPronoun only drives the display badge).
+            ApplyPronounGrammarVars(vars, "user.", user.Pronoun);
+
             // Follow age & message count would require a ChannelEvent lookup — set placeholders for now
             vars.TryAdd("user.followAge", "unknown");
             vars.TryAdd("user.messageCount", "0");
@@ -357,10 +381,11 @@ public sealed partial class TemplateResolver : ITemplateResolver
             IApplicationDbContext db =
                 scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
 
-            User? target = await db.Users.FirstOrDefaultAsync(
-                u => u.Username == targetName.ToLowerInvariant(),
-                ct
-            );
+            // Include Pronoun so {target.*} grammar vars (and a future target pronoun display) resolve —
+            // mirrors the same fix already in place for {user.*} in ResolveUserDbFieldsAsync.
+            User? target = await db
+                .Users.Include(u => u.Pronoun)
+                .FirstOrDefaultAsync(u => u.Username == targetName.ToLowerInvariant(), ct);
 
             if (target is null)
                 return;
@@ -369,11 +394,36 @@ public sealed partial class TemplateResolver : ITemplateResolver
             vars.TryAdd("target.id", target.TwitchUserId!);
             vars.TryAdd("target.name", target.Username ?? targetName);
             vars.TryAdd("target.followAge", "unknown");
+
+            ApplyPronounGrammarVars(vars, "target.", target.Pronoun);
         }
         catch (Exception ex)
         {
             _logger.LogDebug(ex, "Failed to resolve target {TargetName}", targetName);
         }
+    }
+
+    /// <summary>
+    /// Populates the five grammar vars (<c>{prefix}subject/object/possessive/presentTense/genderedTerm</c>)
+    /// from a resolved <see cref="Pronoun"/> row. presentTense derives from <see cref="Pronoun.Singular"/>
+    /// (no stored column). A null pronoun (no row on record) leaves the group unset — the universal
+    /// they/them/their/person/are fallback is applied afterwards in
+    /// <see cref="ApplyPronounGrammarBareAndFallback"/>, never here, so callers never see a partial mix.
+    /// </summary>
+    private static void ApplyPronounGrammarVars(
+        Dictionary<string, string> vars,
+        string prefix,
+        Pronoun? pronoun
+    )
+    {
+        if (pronoun is null)
+            return;
+
+        vars.TryAdd($"{prefix}subject", pronoun.Subject);
+        vars.TryAdd($"{prefix}object", pronoun.Object);
+        vars.TryAdd($"{prefix}possessive", pronoun.Possessive);
+        vars.TryAdd($"{prefix}presenttense", pronoun.Singular ? "is" : "are");
+        vars.TryAdd($"{prefix}genderedterm", pronoun.GenderedTerm);
     }
 
     /// <summary>Referenced counters resolve in one round-trip; unset counters render as 0.</summary>
@@ -692,6 +742,74 @@ public sealed partial class TemplateResolver : ITemplateResolver
 
     private static bool NeedsAny(HashSet<string> needed, params string[] keys) =>
         keys.Any(k => needed.Contains(k));
+
+    // ─── Pronoun grammar variables ──────────────────────────────────────────
+
+    /// <summary>The five grammar variable names, bare form (canonical lowercase; lookups are case-insensitive).</summary>
+    private static readonly string[] PronounGrammarSuffixes =
+    [
+        "subject",
+        "object",
+        "possessive",
+        "presenttense",
+        "genderedterm",
+    ];
+
+    /// <summary>The universal fallback for a viewer with no pronoun on record: they/them/their/person/are.</summary>
+    private static readonly IReadOnlyDictionary<string, string> PronounGrammarFallback =
+        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["subject"] = "they",
+            ["object"] = "them",
+            ["possessive"] = "their",
+            ["presenttense"] = "are",
+            ["genderedterm"] = "person",
+        };
+
+    /// <summary>
+    /// Bare grammar vars ({subject}/{object}/…) mirror the @mention target's pronoun when a target is
+    /// present in context, else the triggering user's. Afterwards, any grammar key — bare or explicit
+    /// user./target. — still unset (no user/target resolved, or a resolved one with no pronoun on
+    /// record) gets the they/them/their/person/are fallback, so a pronoun placeholder never renders raw.
+    /// </summary>
+    private static void ApplyPronounGrammarBareAndFallback(
+        Dictionary<string, string> vars,
+        HashSet<string> needed,
+        bool hasTargetContext
+    )
+    {
+        string bareSource = hasTargetContext ? "target" : "user";
+        foreach (string suffix in PronounGrammarSuffixes)
+        {
+            if (
+                needed.Contains(suffix)
+                && vars.TryGetValue($"{bareSource}.{suffix}", out string? mirrored)
+            )
+                vars.TryAdd(suffix, mirrored);
+        }
+
+        foreach (string suffix in PronounGrammarSuffixes)
+        {
+            string fallback = PronounGrammarFallback[suffix];
+            if (needed.Contains(suffix))
+                vars.TryAdd(suffix, fallback);
+            if (needed.Contains($"user.{suffix}"))
+                vars.TryAdd($"user.{suffix}", fallback);
+            if (needed.Contains($"target.{suffix}"))
+                vars.TryAdd($"target.{suffix}", fallback);
+        }
+    }
+
+    /// <summary>Whether a placeholder key (any casing) names a pronoun-grammar variable — bare or user./target.</summary>
+    private static bool IsPronounGrammarKey(string key)
+    {
+        string lower = key.ToLowerInvariant();
+        return Array.IndexOf(PronounGrammarSuffixes, lower) >= 0
+            || PronounGrammarSuffixes.Any(s => lower == $"user.{s}" || lower == $"target.{s}");
+    }
+
+    private static string CapitalizeFirst(string value) =>
+        string.IsNullOrEmpty(value) ? value : char.ToUpperInvariant(value[0]) + value[1..];
 
     private static string FormatUptime(TimeSpan uptime)
     {

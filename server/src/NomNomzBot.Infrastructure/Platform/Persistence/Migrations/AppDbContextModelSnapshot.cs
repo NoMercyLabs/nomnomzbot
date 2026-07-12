@@ -4760,6 +4760,11 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("GenderedTerm")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
                     b.Property<string>("Key")
                         .HasMaxLength(30)
                         .HasColumnType("character varying(30)");
@@ -4770,6 +4775,11 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         .HasColumnType("character varying(50)");
 
                     b.Property<string>("Object")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("Possessive")
                         .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");

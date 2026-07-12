@@ -31,5 +31,13 @@ public class Pronoun
     [MaxLength(20)]
     public string Object { get; set; } = null!;
 
+    // Possessive determiner used adjectivally in grammar templates (e.g. "check out {possessive} stream").
+    [MaxLength(20)]
+    public string Possessive { get; set; } = null!;
+
+    // Neutral noun for the "{genderedTerm}" template variable (e.g. "guy"/"gal"/"person").
+    [MaxLength(20)]
+    public string GenderedTerm { get; set; } = null!;
+
     public bool Singular { get; set; }
 }
