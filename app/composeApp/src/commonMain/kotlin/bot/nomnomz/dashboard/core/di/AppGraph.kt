@@ -191,6 +191,10 @@ class AppGraph {
         ApiClient(
             baseUrlProvider = sessionStore::baseUrl,
             tokenProvider = sessionStore::accessToken,
+            // Every request carries the operator's active channel as X-Channel-Id, so a switch in the channel
+            // switcher retargets the whole dashboard (mod tools included) — not just the endpoints whose route
+            // already threads {channelId}. Null before a channel is chosen ⇒ the caller's own channel.
+            channelProvider = { sessionStore.activeChannelId.value },
         )
 
     val authApi: AuthApi = RestAuthApi(apiClient)

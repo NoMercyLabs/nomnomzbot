@@ -46,6 +46,11 @@ import kotlinx.serialization.json.Json
 class ApiClient(
     private val baseUrlProvider: () -> String?,
     private val tokenProvider: () -> String?,
+    // The operator's active managed channel id (SessionStore.activeChannelId), sent as X-Channel-Id so the
+    // backend TenantResolutionMiddleware resolves EVERY request against the switched channel — not just the
+    // endpoints that thread {channelId} through their route. Null (the default) targets the caller's own
+    // channel, so login/restore before a channel is selected is unaffected.
+    private val channelProvider: () -> String? = { null },
 ) {
     /**
      * Set by [AppGraph] after construction to break the circular dependency (AuthApi → ApiClient → refresher).
@@ -69,6 +74,10 @@ class ApiClient(
             // Per-request bearer; the base URL is applied per-call by the facade (the active
             // profile can change between requests, so it is not pinned in defaultRequest).
             tokenProvider()?.let { header(HttpHeaders.Authorization, "Bearer $it") }
+            // Per-request tenant target: the operator's active channel. The backend honours X-Channel-Id for
+            // tenant resolution, so a channel switch retargets every request — mod tools included — without each
+            // facade threading the id through its route. A route {channelId} still wins server-side.
+            channelProvider()?.let { header("X-Channel-Id", it) }
         }
     }
 
