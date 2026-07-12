@@ -40,6 +40,11 @@ public sealed class OverlayEventFeedHook(
         if (committed.PayloadIsEncrypted)
             return Result.Success();
 
+        // Keep internal plumbing (EventSub lifecycle, token refresh, projections, raw wire topics) off the overlay
+        // wire — overlays render user-facing facts only.
+        if (!OverlayEventFilter.ShouldForward(committed.EventType))
+            return Result.Success();
+
         try
         {
             await feed.BroadcastEventAsync(
