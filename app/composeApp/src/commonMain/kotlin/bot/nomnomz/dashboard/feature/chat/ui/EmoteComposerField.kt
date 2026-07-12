@@ -41,6 +41,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -62,8 +63,8 @@ import kotlin.math.roundToInt
 // there is no horizontal scroll to keep the overlay in sync with.
 @Composable
 internal fun EmoteComposerField(
-    draft: String,
-    onDraftChange: (String) -> Unit,
+    value: TextFieldValue,
+    onValueChange: (TextFieldValue) -> Unit,
     emoteByCode: Map<String, ChatEmoteCatalogue>,
     placeholder: String,
     enabled: Boolean,
@@ -96,16 +97,16 @@ internal fun EmoteComposerField(
         remember(emoteSizePx, spaceWidthPx) { ceil(emoteSizePx / spaceWidthPx).toInt().coerceIn(1, 16) }
 
     val transform: ComposerInlineTransform =
-        remember(draft, emoteByCode, spacesPerImage) {
-            buildComposerInlineTransform(draft, emoteByCode, spacesPerImage)
+        remember(value.text, emoteByCode, spacesPerImage) {
+            buildComposerInlineTransform(value.text, emoteByCode, spacesPerImage)
         }
 
     var layoutResult: TextLayoutResult? by remember { mutableStateOf(null) }
     val emoteSizeDp: Dp = with(density) { emoteSizePx.toDp() }
 
     BasicTextField(
-        value = draft,
-        onValueChange = onDraftChange,
+        value = value,
+        onValueChange = onValueChange,
         enabled = enabled,
         textStyle = textStyle,
         cursorBrush = SolidColor(tokens.primary),
@@ -126,7 +127,7 @@ internal fun EmoteComposerField(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Box(modifier = Modifier.weight(1f)) {
-                    if (draft.isEmpty()) {
+                    if (value.text.isEmpty()) {
                         Text(
                             text = placeholder,
                             style = typography.sm.copy(color = tokens.mutedForeground),

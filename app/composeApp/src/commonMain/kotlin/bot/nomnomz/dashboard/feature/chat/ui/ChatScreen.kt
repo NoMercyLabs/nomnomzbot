@@ -59,7 +59,9 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
@@ -855,10 +857,12 @@ private fun SendBox(
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
 
-    var draft: String by remember { mutableStateOf("") }
+    // A TextFieldValue (not a bare String) so the caret is explicit: a programmatic insert (Tab / pick) parks it at
+    // the end, which the String field overload cannot do — the fix for the mid-string garble the live client showed.
+    var draft: TextFieldValue by remember { mutableStateOf(TextFieldValue("")) }
     // Who the line is sent as: "you" = the operator's own account (default), "bot" = the channel bot identity.
     var identity: String by remember { mutableStateOf("you") }
-    val canSend: Boolean = draft.isNotBlank()
+    val canSend: Boolean = draft.text.isNotBlank()
 
     // The full Unicode-emoji catalogue, loaded once; the composer offers these alongside channel emotes.
     val emojiEntries: List<EmojiEntry> by produceState<List<EmojiEntry>>(initialValue = emptyList()) {
@@ -872,7 +876,7 @@ private fun SendBox(
     // Autocomplete: a trailing ":token" (2+ word chars) searches channel emotes by SUBSTRING and emoji by
     // shortcode/keyword — emotes first — so ":wa" surfaces verosWaving / :wave: and ":smi" surfaces :smile:.
     val query: String? =
-        remember(draft) { Regex(":([A-Za-z0-9_]{2,})$").find(draft)?.groupValues?.get(1) }
+        remember(draft.text) { Regex(":([A-Za-z0-9_]{2,})$").find(draft.text)?.groupValues?.get(1) }
     val suggestions: List<ComposerSuggestion> =
         remember(query, emotes, emojiEntries) {
             if (query == null) {
@@ -890,15 +894,17 @@ private fun SendBox(
         // The manage floor gates every send path — the visible button AND the Enter key — so a caller below the
         // Chat write floor can neither click nor type-send.
         if (canSend && manage.isAllowed) {
-            onSend(draft, identity)
-            draft = ""
+            onSend(draft.text, identity)
+            draft = TextFieldValue("")
         }
     }
 
     // Replace the trailing ":token" with the picked suggestion — a channel emote's code, or an emoji's glyph — plus
-    // a trailing space; the inline field then renders it as its image.
+    // a trailing space; the inline field then renders it as its image. The caret is parked at the end so the next
+    // keystroke appends rather than landing mid-string.
     fun insert(suggestion: ComposerSuggestion) {
-        draft = Regex(":[A-Za-z0-9_]{2,}$").replace(draft) { "${suggestion.insertText} " }
+        val inserted: String = Regex(":[A-Za-z0-9_]{2,}$").replace(draft.text) { "${suggestion.insertText} " }
+        draft = TextFieldValue(text = inserted, selection = TextRange(inserted.length))
     }
 
     // Tab inserts the top suggestion (like the Twitch composer); Enter sends, Shift+Enter adds a newline. Each is
@@ -949,8 +955,8 @@ private fun SendBox(
             // Identity selector: send as the operator's own account ("You") or the channel bot ("Bot").
             SendIdentitySelector(identity = identity, onSelect = { identity = it })
             EmoteComposerField(
-                draft = draft,
-                onDraftChange = { draft = it },
+                value = draft,
+                onValueChange = { draft = it },
                 emoteByCode = emoteByCode,
                 placeholder = stringResource(Res.string.chat_send_placeholder),
                 enabled = true,
