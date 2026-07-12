@@ -39,9 +39,12 @@ public sealed class ChatEmoteCatalogue : IChatEmoteCatalogue
     // fresh without a per-request fetch.
     private static readonly TimeSpan TwitchUserTtl = TwitchChannelTtl;
 
-    // Get User Emotes is cursor-paged; cap the walk so a pathological account can never spin the catalogue. A hit is
-    // logged (never silent truncation) — 10 × 100 emotes is far beyond any real user's reachable set.
-    private const int MaxUserEmotePages = 10;
+    // Get User Emotes is cursor-paged; cap the walk so a pathological account can never spin the catalogue. This is a
+    // safety backstop, NOT an expected ceiling: a serious multi-channel subscriber genuinely reaches several thousand
+    // usable emotes, and the old 10-page (1000-emote) cap silently truncated their tail — dropping real, owned emotes
+    // (e.g. a sub emote from a heavily-subbed channel) from the picker. 50 × 100 = 5000 covers any real account;
+    // hitting it is logged at WARNING (see below), never silent.
+    private const int MaxUserEmotePages = 50;
 
     // The cross-channel follower pass makes one Get Channel Emotes call per DISTINCT other channel the operator has
     // emotes from; bound the fan-out so a pathological account (following thousands of channels) can never spin the
@@ -244,10 +247,11 @@ public sealed class ChatEmoteCatalogue : IChatEmoteCatalogue
         } while (cursor is not null && page < MaxUserEmotePages);
 
         if (cursor is not null)
-            _logger.LogDebug(
-                "ChatEmoteCatalogue: Twitch user emotes for operator {OperatorUserId} hit the {MaxPages}-page cap; the list is truncated",
+            _logger.LogWarning(
+                "ChatEmoteCatalogue: Twitch user emotes for operator {OperatorUserId} hit the {MaxPages}-page cap ({Emotes} emotes) and were TRUNCATED — raise MaxUserEmotePages; the operator is missing usable emotes from their picker",
                 operatorUserId,
-                MaxUserEmotePages
+                MaxUserEmotePages,
+                MaxUserEmotePages * 100
             );
 
         await AddCrossChannelFollowerEmotesAsync(mapped, otherOwnerIds, ct);
