@@ -171,6 +171,29 @@ public sealed class AuthServiceStreamerScopesTests
         result.Value.Should().Contain(Uri.EscapeDataString("moderator:manage:suspicious_users"));
     }
 
+    /// <summary>
+    /// Proves the two core proactive management jobs request the scopes they need as part of the streamer grant:
+    /// <c>channel:read:editors</c> (ManagementRoleReconcileService → Get Channel Editors, mapping editors to the
+    /// dashboard Editor role every 10 minutes) and <c>channel:manage:moderators</c> (BotJoinOnOnboardingHandler →
+    /// Add Channel Moderator, self-modding the bot on join). Both ran unconditionally yet their scopes were absent
+    /// from the base grant, so each cycle 403'd and recorded a missing-scope gap the streamer could never satisfy
+    /// from a feature toggle — a permanent "N more permissions" nag. This guards that regression.
+    /// </summary>
+    [Fact]
+    public async Task GetTwitchOAuthUrl_RequestsTheManagementRoleAndBotModeratorScopes()
+    {
+        AuthService service = Build(ConfigWith(clientId: "public-id", secret: "shh"));
+
+        Result<string> result = await service.GetTwitchOAuthUrl(
+            state: "nonce",
+            baseUrl: "https://api.example.test"
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().Contain(Uri.EscapeDataString("channel:read:editors"));
+        result.Value.Should().Contain(Uri.EscapeDataString("channel:manage:moderators"));
+    }
+
     // ─── scaffolding (mirrors AuthServiceBotDeviceTests.Build/ConfigWith) ──────────────────────────────
 
     private static AuthService Build(IConfiguration config)

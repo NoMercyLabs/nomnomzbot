@@ -103,6 +103,14 @@ public sealed class AuthService : IAuthService
         "channel:read:ads", // channel.ad_break.begin
         "channel:read:vips", // channel.vip.add / channel.vip.remove
         "moderation:read", // channel.moderator.add / channel.moderator.remove
+        // Core proactive management jobs (roles-permissions §4) — these ride the base grant, not a feature toggle,
+        // because they run unconditionally for every onboarded channel: the 10-minute ManagementRoleReconcileService
+        // reads channel editors (Get Channel Editors) to map them to the dashboard Editor role, and
+        // BotJoinOnOnboardingHandler makes the bot a channel moderator on join (Add Channel Moderator). Omitting
+        // their scopes 403'd every reconcile/onboard cycle and nagged the streamer with a permission they could
+        // never satisfy from a feature — so they belong here alongside the rest of the full per-channel set.
+        "channel:read:editors", // ManagementRoleReconcileService → Get Channel Editors (Editor-role sync)
+        "channel:manage:moderators", // BotJoinOnOnboardingHandler → Add Channel Moderator (bot self-mod on join)
         "moderator:manage:automod", // automod.message.hold/update, automod.terms.update
         "moderator:read:automod_settings", // automod.settings.update
         "moderator:read:blocked_terms", // channel.moderate v2

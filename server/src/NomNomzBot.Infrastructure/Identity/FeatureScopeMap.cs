@@ -37,6 +37,11 @@ public static class FeatureScopeMap
         ["chat_read"] = ["user:read:chat"],
         ["chat_send"] = ["user:write:chat"],
         ["chat_emotes"] = ["user:read:emotes"],
+        // Core proactive management jobs (roles-permissions §4): editor-role sync reads channel editors, and the
+        // bot self-mod on join makes the bot a channel moderator. Both scopes ride the base streamer grant now,
+        // so these entries mainly give a stale-token streamer a NAMED gap to grant rather than a raw scope row.
+        ["management_roles"] = ["channel:read:editors"],
+        ["bot_moderator"] = ["channel:manage:moderators"],
     };
 
     /// <summary>
@@ -69,6 +74,8 @@ public static class FeatureScopeMap
         ["chat_read"] = "read your chat",
         ["chat_send"] = "send messages in your chat",
         ["chat_emotes"] = "show the emotes you can use across every channel you're subscribed to",
+        ["management_roles"] = "sync your Twitch channel editors into dashboard roles",
+        ["bot_moderator"] = "let your bot moderate chat by making it a channel moderator",
     };
 
     /// <summary>The scopes <paramref name="featureKey"/> needs, or an empty list when the feature is unknown.</summary>
