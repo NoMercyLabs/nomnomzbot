@@ -10,17 +10,12 @@
 
 package bot.nomnomz.dashboard.core.realtime
 
-import io.ktor.client.HttpClient
-import io.ktor.client.plugins.websocket.WebSockets
-import io.ktor.client.plugins.websocket.webSocket
-import io.ktor.websocket.Frame
-import io.ktor.websocket.close
-import io.ktor.websocket.readText
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -51,6 +46,11 @@ private const val PingIntervalMillis: Long = 15_000
 /**
  * Thin SignalR hub client targeting the backend `DashboardHub` at `/hubs/dashboard`.
  *
+ * The raw text transport is a [HubSocket] (expect/actual): the browser's native WebSocket on wasmJs — where
+ * Ktor's WebSockets plugin never opens a socket on the Fetch engine, which is why the web dashboard's live
+ * push previously never connected — and Ktor's CIO WebSocket on jvm/desktop. Everything here (handshake,
+ * JoinChannel, keep-alive ping, `\x1e`-framing, dispatch, reconnect) is shared over that transport.
+ *
  * Lifecycle:
  * - Call [connect] to open the WebSocket, complete the handshake, and join a channel group.
  * - Collect [events] to receive hub invocations dispatched by the server.
@@ -66,7 +66,7 @@ class DashboardHubClient {
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private var connectJob: Job? = null
     private var currentChannelId: String? = null
-    private var session: io.ktor.client.plugins.websocket.DefaultClientWebSocketSession? = null
+    private var socket: HubSocket? = null
 
     private val _events: MutableSharedFlow<HubEvent> = MutableSharedFlow(extraBufferCapacity = 64)
 
@@ -89,9 +89,9 @@ class DashboardHubClient {
      * 401, so a reconnect must send the CURRENT token or the socket strands on a stale one and every retry 401s.
      *
      * [refreshToken] refreshes the JWT (POST /auth/refresh) and returns true when a fresh one was stored. A raw
-     * WebSocket has no HTTP interceptor, so when the SignalR handshake 401s on an expired token — the common case
-     * for an idle chat page where no REST call has fired to refresh — the client would otherwise 401-storm the
-     * handshake forever. We call it before each retry that failed to establish, so an expired token self-heals.
+     * WebSocket has no HTTP interceptor, so when the handshake fails on an expired token — the common case for
+     * an idle chat page where no REST call has fired to refresh — the client would otherwise retry with the same
+     * expired token forever. We call it before each retry that failed to establish, so an expired token self-heals.
      */
     fun connect(
         baseUrl: String,
@@ -115,12 +115,12 @@ class DashboardHubClient {
                                 backoffMs = 1_000
                             }
                         }
-                        .onFailure { /* log if needed */ }
+                        .onFailure { /* swallowed — the reconnect loop below handles it */ }
                     isConnected = false
-                    // The session never completed the handshake this attempt — overwhelmingly an expired/absent
-                    // JWT (a 401 upgrade). Refresh the token before the next attempt so an idle session recovers
-                    // on the next reconnect instead of 401-storming. A network failure also trips this; the
-                    // refresh is a cheap idempotent no-op there (it just fails and we retry on back-off anyway).
+                    // The session never established this attempt — overwhelmingly an expired/absent JWT (the
+                    // handshake upgrade 401s). Refresh the token before the next attempt so an idle session
+                    // recovers on the next reconnect. A network failure also trips this; the refresh is a cheap
+                    // idempotent no-op there (it just fails and we retry on back-off anyway).
                     if (!established) refreshToken?.invoke()
                     // Reconnect loop — honour back-off so we don't spam the server on flaky networks.
                     delay(backoffMs)
@@ -134,11 +134,9 @@ class DashboardHubClient {
         connectJob?.cancel()
         connectJob = null
         currentChannelId = null
-        scope.launch {
-            session?.close()
-            session = null
-            isConnected = false
-        }
+        socket?.close()
+        socket = null
+        isConnected = false
     }
 
     /** Release all resources. After this the client cannot be reused. */
@@ -167,63 +165,53 @@ class DashboardHubClient {
                 else -> base
             }
 
-        val client: HttpClient = HttpClient { install(WebSockets) }
+        val hubSocket: HubSocket = HubSocket()
+        socket = hubSocket
         try {
-            client.webSocket(
-                urlString = "$wsBase/hubs/dashboard?access_token=$accessToken",
-            ) {
-                this@DashboardHubClient.session = this
+            // Opens and suspends until the socket is OPEN; throws (caught by the reconnect loop) if it fails.
+            hubSocket.open("$wsBase/hubs/dashboard?access_token=$accessToken")
 
-                // ── Handshake ──────────────────────────────────────────────
-                // Send the JSON hub protocol handshake request, terminated with the record separator.
-                sendText("""{"protocol":"json","version":1}$RECORD_SEPARATOR""")
+            // ── Handshake ──────────────────────────────────────────────
+            // Send the JSON hub protocol handshake request, terminated with the record separator.
+            hubSocket.send("""{"protocol":"json","version":1}$RECORD_SEPARATOR""")
 
-                // The first frame back is the handshake response. In the SignalR JSON hub protocol a SUCCESS
-                // response is the EMPTY OBJECT `{}` (followed by the record separator); a rejection carries
-                // `{"error":"…"}`. Bail ONLY when an "error" field is actually present — the previous check treated
-                // the non-empty `{}` success as a rejection and returned, closing the socket the instant every
-                // handshake succeeded, so live push never stayed up (the feed only ever refreshed on a reload).
-                val handshakeFrame: String = receiveText() ?: return@webSocket
-                val handshakeMsg: String = handshakeFrame.trimEnd(RECORD_SEPARATOR)
-                val handshake: JsonObject? =
-                    runCatching { Json.parseToJsonElement(handshakeMsg).jsonObject }.getOrNull()
-                if (handshake?.containsKey("error") == true) {
-                    return@webSocket
-                }
+            // The first frame back is the handshake response. In the SignalR JSON hub protocol a SUCCESS
+            // response is the EMPTY OBJECT `{}`; a rejection carries `{"error":"…"}`. Bail ONLY when an "error"
+            // field is actually present — treating the empty `{}` success as a rejection would close the socket
+            // the instant every handshake succeeded.
+            val handshakeFrame: String = hubSocket.receive() ?: return
+            val handshakeMsg: String = handshakeFrame.trimEnd(RECORD_SEPARATOR)
+            val handshake: JsonObject? =
+                runCatching { Json.parseToJsonElement(handshakeMsg).jsonObject }.getOrNull()
+            if (handshake?.containsKey("error") == true) return
 
-                // ── JoinChannel invocation ─────────────────────────────────
-                // Tell the hub which channel group we want to subscribe to.
-                val joinMsg: String =
-                    """{"type":1,"invocationId":"join","target":"JoinChannel","arguments":["$channelId"]}$RECORD_SEPARATOR"""
-                sendText(joinMsg)
+            // ── JoinChannel invocation ─────────────────────────────────
+            // Tell the hub which channel group we want to subscribe to.
+            hubSocket.send(
+                """{"type":1,"invocationId":"join","target":"JoinChannel","arguments":["$channelId"]}$RECORD_SEPARATOR"""
+            )
 
-                isConnected = true
-                onConnected()
+            isConnected = true
+            onConnected()
 
+            coroutineScope {
                 // ── Keep-alive ping ────────────────────────────────────────
                 // Send our own SignalR ping under the server's ClientTimeoutInterval; without it the hub evicts
                 // us every ~30 s (server→client chat frames don't reset that timer) and the feed goes silent
-                // until the next reconnect. Cancelled when the session ends (the finally below).
+                // until the next reconnect. Cancelled when the receive loop ends (the finally below).
                 val pingJob: Job =
                     launch {
                         while (true) {
                             delay(PingIntervalMillis)
-                            runCatching {
-                                this@DashboardHubClient.session?.send(
-                                    Frame.Text("""{"type":$TYPE_PING}$RECORD_SEPARATOR""")
-                                )
-                            }
+                            hubSocket.send("""{"type":$TYPE_PING}$RECORD_SEPARATOR""")
                         }
                     }
 
                 // ── Event loop ────────────────────────────────────────────
-                // Use incoming.receive() to avoid Channel.iterator() ambiguity in Ktor 3.x.
                 try {
                     while (true) {
-                        val frame: Frame = incoming.receive()
-                        if (frame !is Frame.Text) continue
-                        val raw: String = frame.readText()
-                        // A single WebSocket frame may carry multiple SignalR messages, each separated by \x1e.
+                        // A single frame may carry multiple SignalR messages, each separated by \x1e.
+                        val raw: String = hubSocket.receive() ?: break
                         for (segment: String in raw.split(RECORD_SEPARATOR)) {
                             if (segment.isBlank()) continue
                             dispatchSegment(segment)
@@ -234,20 +222,9 @@ class DashboardHubClient {
                 }
             }
         } finally {
-            client.close()
-        }
-    }
-
-    private suspend fun io.ktor.client.plugins.websocket.DefaultClientWebSocketSession.sendText(
-        text: String,
-    ) {
-        send(Frame.Text(text))
-    }
-
-    private suspend fun io.ktor.client.plugins.websocket.DefaultClientWebSocketSession.receiveText(): String? {
-        while (true) {
-            val frame: Frame = incoming.receive()
-            if (frame is Frame.Text) return frame.readText()
+            isConnected = false
+            hubSocket.close()
+            if (socket === hubSocket) socket = null
         }
     }
 
@@ -266,7 +243,7 @@ class DashboardHubClient {
                     _events.tryEmit(event)
                 }
             }
-            TYPE_PING -> Unit // pong is automatic — Ktor WebSocket layer handles it
+            TYPE_PING -> Unit // pong is automatic — nothing to do on an inbound ping
             TYPE_CLOSE -> {
                 isConnected = false
             }
