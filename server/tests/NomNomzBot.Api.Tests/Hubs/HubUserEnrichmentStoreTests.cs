@@ -36,6 +36,8 @@ public sealed class HubUserEnrichmentStoreTests
             Name = "they/them",
             Subject = "they",
             Object = "them",
+            Possessive = "their",
+            GenderedTerm = "person",
         };
         Pronoun sheHer = new()
         {
@@ -43,6 +45,9 @@ public sealed class HubUserEnrichmentStoreTests
             Name = "she/her",
             Subject = "she",
             Object = "her",
+            Possessive = "her",
+            GenderedTerm = "gal",
+            Singular = true,
         };
         db.Pronouns.AddRange(theyThem, sheHer);
         await db.SaveChangesAsync();
