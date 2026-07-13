@@ -16,6 +16,10 @@ import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.CreatePollBody
 import bot.nomnomz.dashboard.core.network.CreatePredictionBody
+import bot.nomnomz.dashboard.core.network.CreateScheduleSegmentBody
+import bot.nomnomz.dashboard.core.network.LiveOpsSchedule
+import bot.nomnomz.dashboard.core.network.UpdateScheduleSegmentBody
+import bot.nomnomz.dashboard.core.network.UpdateScheduleSettingsBody
 import bot.nomnomz.dashboard.core.network.LiveOpsAdSchedule
 import bot.nomnomz.dashboard.core.network.LiveOpsApi
 import bot.nomnomz.dashboard.core.network.LiveOpsClipStub
@@ -136,4 +140,26 @@ private class FakeLiveOpsApi(
 
     override suspend fun createClip(channelId: String): ApiResult<LiveOpsClipStub> =
         ApiResult.Failure(ApiError(0, null, "unused"))
+
+    override suspend fun getSchedule(channelId: String): ApiResult<LiveOpsSchedule> =
+        ApiResult.Failure(ApiError(0, null, "unused"))
+
+    override suspend fun createScheduleSegment(
+        channelId: String,
+        body: CreateScheduleSegmentBody,
+    ): ApiResult<Unit> = ApiResult.Ok(Unit)
+
+    override suspend fun updateScheduleSegment(
+        channelId: String,
+        segmentId: String,
+        body: UpdateScheduleSegmentBody,
+    ): ApiResult<Unit> = ApiResult.Ok(Unit)
+
+    override suspend fun deleteScheduleSegment(channelId: String, segmentId: String): ApiResult<Unit> =
+        ApiResult.Ok(Unit)
+
+    override suspend fun updateScheduleSettings(
+        channelId: String,
+        body: UpdateScheduleSettingsBody,
+    ): ApiResult<Unit> = ApiResult.Ok(Unit)
 }

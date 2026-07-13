@@ -43,6 +43,32 @@ interface LiveOpsApi {
      * [description]. Twitch requires the channel to be LIVE — a failure surfaces the backend's Twitch error.
      */
     suspend fun createMarker(channelId: String, description: String?): ApiResult<LiveOpsMarker>
+
+    // ─── Stream schedule ──────────────────────────────────────────────────────
+    /** The broadcaster's stream schedule — the weekly segments + any vacation window. */
+    suspend fun getSchedule(channelId: String): ApiResult<LiveOpsSchedule>
+
+    /** Add a schedule segment. [duration] is in minutes as a string (Twitch's wire form, e.g. "240"). */
+    suspend fun createScheduleSegment(
+        channelId: String,
+        body: CreateScheduleSegmentBody,
+    ): ApiResult<Unit>
+
+    /** Edit segment [segmentId] — any null field is left unchanged. [isCanceled] cancels this occurrence. */
+    suspend fun updateScheduleSegment(
+        channelId: String,
+        segmentId: String,
+        body: UpdateScheduleSegmentBody,
+    ): ApiResult<Unit>
+
+    /** Remove segment [segmentId] from the schedule. */
+    suspend fun deleteScheduleSegment(channelId: String, segmentId: String): ApiResult<Unit>
+
+    /** Update the vacation window / timezone (the schedule's settings). */
+    suspend fun updateScheduleSettings(
+        channelId: String,
+        body: UpdateScheduleSettingsBody,
+    ): ApiResult<Unit>
 }
 
 class RestLiveOpsApi(private val client: ApiClient) : LiveOpsApi {
@@ -87,6 +113,31 @@ class RestLiveOpsApi(private val client: ApiClient) : LiveOpsApi {
             "api/v1/channels/$channelId/live-ops/markers",
             CreateMarkerBody(description = description),
         )
+
+    override suspend fun getSchedule(channelId: String): ApiResult<LiveOpsSchedule> =
+        client.getEnvelope("api/v1/channels/$channelId/live-ops/schedule")
+
+    override suspend fun createScheduleSegment(
+        channelId: String,
+        body: CreateScheduleSegmentBody,
+    ): ApiResult<Unit> =
+        client.postUnit("api/v1/channels/$channelId/live-ops/schedule/segment", body)
+
+    override suspend fun updateScheduleSegment(
+        channelId: String,
+        segmentId: String,
+        body: UpdateScheduleSegmentBody,
+    ): ApiResult<Unit> =
+        client.patchUnit("api/v1/channels/$channelId/live-ops/schedule/segment/$segmentId", body)
+
+    override suspend fun deleteScheduleSegment(channelId: String, segmentId: String): ApiResult<Unit> =
+        client.deleteUnit("api/v1/channels/$channelId/live-ops/schedule/segment/$segmentId")
+
+    override suspend fun updateScheduleSettings(
+        channelId: String,
+        body: UpdateScheduleSettingsBody,
+    ): ApiResult<Unit> =
+        client.putUnit("api/v1/channels/$channelId/live-ops/schedule/settings", body)
 
     override suspend fun createClip(channelId: String): ApiResult<LiveOpsClipStub> =
         client.postEnvelope("api/v1/channels/$channelId/live-ops/clips")
@@ -157,11 +208,79 @@ data class LiveOpsMarker(
     val createdAt: String = "",
 )
 
+/** The broadcaster's stream schedule (backend `TwitchSchedule`) — its [segments] + optional [vacation] window. */
+@Serializable
+data class LiveOpsSchedule(
+    val broadcasterId: String = "",
+    val broadcasterName: String = "",
+    val broadcasterLogin: String = "",
+    val segments: List<LiveOpsScheduleSegment> = emptyList(),
+    val vacation: LiveOpsScheduleVacation? = null,
+)
+
+/**
+ * One scheduled stream (backend `TwitchScheduleSegment`): [startTime]..[endTime] (ISO-8601), its [title] and
+ * [category], whether it [isRecurring] weekly, and [canceledUntil] when this occurrence is cancelled.
+ */
+@Serializable
+data class LiveOpsScheduleSegment(
+    val id: String = "",
+    val startTime: String = "",
+    val endTime: String = "",
+    val title: String = "",
+    val canceledUntil: String? = null,
+    val category: LiveOpsScheduleCategory? = null,
+    val isRecurring: Boolean = false,
+)
+
+/** A stream category on a schedule segment (backend `TwitchScheduleCategory`). */
+@Serializable
+data class LiveOpsScheduleCategory(val id: String = "", val name: String = "")
+
+/** The broadcaster's vacation window (backend `TwitchScheduleVacation`) — no streams scheduled between these. */
+@Serializable
+data class LiveOpsScheduleVacation(val startTime: String = "", val endTime: String = "")
+
 // ─── Request bodies ──────────────────────────────────────────────────────────
 
 /** Drop a stream marker (backend `CreateMarkerDto`) — an optional [description] for the VOD bookmark. */
 @Serializable
 data class CreateMarkerBody(val description: String? = null)
+
+/**
+ * Add a schedule segment (backend `CreateScheduleSegmentRequest`). [startTime] is ISO-8601; [timezone] an IANA
+ * zone (e.g. `Europe/Amsterdam`); [duration] is minutes as a string (Twitch's wire form). [categoryId] is a
+ * Twitch category id; [isRecurring] repeats it weekly.
+ */
+@Serializable
+data class CreateScheduleSegmentBody(
+    val startTime: String,
+    val timezone: String,
+    val duration: String,
+    val isRecurring: Boolean? = null,
+    val categoryId: String? = null,
+    val title: String? = null,
+)
+
+/** Edit a schedule segment (backend `UpdateScheduleSegmentRequest`). A null field is left unchanged. */
+@Serializable
+data class UpdateScheduleSegmentBody(
+    val startTime: String? = null,
+    val duration: String? = null,
+    val categoryId: String? = null,
+    val title: String? = null,
+    val isCanceled: Boolean? = null,
+    val timezone: String? = null,
+)
+
+/** Update the schedule's vacation window / timezone (backend `UpdateScheduleSettingsDto`). Null = unchanged. */
+@Serializable
+data class UpdateScheduleSettingsBody(
+    val isVacationEnabled: Boolean? = null,
+    val vacationStartTime: String? = null,
+    val vacationEndTime: String? = null,
+    val timezone: String? = null,
+)
 
 @Serializable
 data class CreatePollBody(

@@ -53,9 +53,17 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
 - **Why:** parity item 17 — rounds out the live-ops surface. The schedule is a dedicated management page
   (weekly segments with times / recurrence / category + vacation + the .ics link) — its own screen, not a
   home quick-action, so it needs nav placement per `frontend-ia.md`.
-- **Where (remaining):** a new schedule page in the live-ops / stream area. Register the new request DTOs
-  in `ApiContractTest`. Role gating: schedule read at Moderator (`live-ops:schedule:read`), schedule writes
-  at Editor (`live-ops:schedule:write`).
+- **✅ API layer — DONE (this session):** the typed client for all schedule endpoints is in place and
+  contract-guarded — `LiveOpsApi.getSchedule` / `createScheduleSegment` / `updateScheduleSegment` /
+  `deleteScheduleSegment` / `updateScheduleSettings`, with DTOs `LiveOpsSchedule` / `LiveOpsScheduleSegment`
+  / `LiveOpsScheduleCategory` / `LiveOpsScheduleVacation` + request bodies `CreateScheduleSegmentBody` /
+  `UpdateScheduleSegmentBody` / `UpdateScheduleSettingsBody`, all registered in `ApiContractTest` (green).
+  `duration` is minutes-as-a-string (Twitch's wire form); datetimes are ISO-8601 strings.
+- **Where (remaining — the PAGE):** a new schedule page (a `ScheduleController` + screen) in the live-ops /
+  stream area with nav placement per `frontend-ia.md`. Render the segments (weekly, with time / category /
+  recurrence), add/edit/delete a segment, the vacation toggle+window, and the .ics subscribe link
+  (`GET .../live-ops/schedule/icalendar`). Role gating: schedule read at Moderator (`live-ops:schedule:read`),
+  writes at Editor (`live-ops:schedule:write`).
 - **Done when:** the schedule renders + segment add/edit/delete + vacation round-trip against a real
   channel; the .ics link works; en + nl strings.
 

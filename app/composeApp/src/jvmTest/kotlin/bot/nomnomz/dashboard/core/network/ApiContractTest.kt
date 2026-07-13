@@ -139,6 +139,13 @@ class ApiContractTest {
             DiscordGuildChannel.serializer() to "DiscordGuildChannelDto",
             LiveOpsMarker.serializer() to "TwitchStreamMarker",
             CreateMarkerBody.serializer() to "CreateMarkerDto",
+            LiveOpsSchedule.serializer() to "TwitchSchedule",
+            LiveOpsScheduleSegment.serializer() to "TwitchScheduleSegment",
+            LiveOpsScheduleCategory.serializer() to "TwitchScheduleCategory",
+            LiveOpsScheduleVacation.serializer() to "TwitchScheduleVacation",
+            CreateScheduleSegmentBody.serializer() to "CreateScheduleSegmentRequest",
+            UpdateScheduleSegmentBody.serializer() to "UpdateScheduleSegmentRequest",
+            UpdateScheduleSettingsBody.serializer() to "UpdateScheduleSettingsDto",
         )
 
     @Test
