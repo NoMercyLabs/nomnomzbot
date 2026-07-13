@@ -96,6 +96,8 @@ import nomnomzbot.composeapp.generated.resources.pipelines_block_send_message
 import nomnomzbot.composeapp.generated.resources.pipelines_block_send_reply
 import nomnomzbot.composeapp.generated.resources.pipelines_block_set_variable
 import nomnomzbot.composeapp.generated.resources.pipelines_block_shoutout
+import nomnomzbot.composeapp.generated.resources.pipelines_block_play_sound
+import nomnomzbot.composeapp.generated.resources.pipelines_block_play_tts
 import nomnomzbot.composeapp.generated.resources.pipelines_block_song_current
 import nomnomzbot.composeapp.generated.resources.pipelines_block_song_queue
 import nomnomzbot.composeapp.generated.resources.pipelines_block_song_request
@@ -129,12 +131,14 @@ import nomnomzbot.composeapp.generated.resources.pipelines_empty
 import nomnomzbot.composeapp.generated.resources.pipelines_error
 import nomnomzbot.composeapp.generated.resources.pipelines_field_amount
 import nomnomzbot.composeapp.generated.resources.pipelines_field_bet_amount
+import nomnomzbot.composeapp.generated.resources.pipelines_field_clip
 import nomnomzbot.composeapp.generated.resources.pipelines_field_code_script_id
 import nomnomzbot.composeapp.generated.resources.pipelines_field_cooldown_minutes
 import nomnomzbot.composeapp.generated.resources.pipelines_field_dedupe_key
 import nomnomzbot.composeapp.generated.resources.pipelines_field_denied_message
 import nomnomzbot.composeapp.generated.resources.pipelines_field_duration_seconds
 import nomnomzbot.composeapp.generated.resources.pipelines_field_game_type
+import nomnomzbot.composeapp.generated.resources.pipelines_field_handle
 import nomnomzbot.composeapp.generated.resources.pipelines_field_jar_id
 import nomnomzbot.composeapp.generated.resources.pipelines_field_message
 import nomnomzbot.composeapp.generated.resources.pipelines_field_message_id
@@ -147,11 +151,14 @@ import nomnomzbot.composeapp.generated.resources.pipelines_field_quote_number
 import nomnomzbot.composeapp.generated.resources.pipelines_field_reason
 import nomnomzbot.composeapp.generated.resources.pipelines_field_set_var
 import nomnomzbot.composeapp.generated.resources.pipelines_field_song_queue_max
+import nomnomzbot.composeapp.generated.resources.pipelines_field_text
 import nomnomzbot.composeapp.generated.resources.pipelines_field_trigger_type
 import nomnomzbot.composeapp.generated.resources.pipelines_field_user_id
 import nomnomzbot.composeapp.generated.resources.pipelines_field_variable_name
 import nomnomzbot.composeapp.generated.resources.pipelines_field_variable_value
+import nomnomzbot.composeapp.generated.resources.pipelines_field_voice
 import nomnomzbot.composeapp.generated.resources.pipelines_field_volume
+import nomnomzbot.composeapp.generated.resources.pipelines_field_wait_for_finish
 import nomnomzbot.composeapp.generated.resources.pipelines_field_wait_seconds
 import nomnomzbot.composeapp.generated.resources.pipelines_loading
 import nomnomzbot.composeapp.generated.resources.pipelines_new_action
@@ -968,6 +975,8 @@ private fun blockLabel(labelKey: String): StringResource =
         "song_volume" -> Res.string.pipelines_block_song_volume
         "song_current" -> Res.string.pipelines_block_song_current
         "song_queue" -> Res.string.pipelines_block_song_queue
+        "play_sound" -> Res.string.pipelines_block_play_sound
+        "play_tts" -> Res.string.pipelines_block_play_tts
         "grant_currency" -> Res.string.pipelines_block_grant_currency
         "deduct_currency" -> Res.string.pipelines_block_deduct_currency
         "check_balance" -> Res.string.pipelines_block_check_balance
@@ -995,6 +1004,11 @@ private fun fieldLabel(labelKey: String): StringResource =
         "cooldown_minutes" -> Res.string.pipelines_field_cooldown_minutes
         "query" -> Res.string.pipelines_field_query
         "volume" -> Res.string.pipelines_field_volume
+        "clip" -> Res.string.pipelines_field_clip
+        "wait_for_finish" -> Res.string.pipelines_field_wait_for_finish
+        "handle" -> Res.string.pipelines_field_handle
+        "text" -> Res.string.pipelines_field_text
+        "voice" -> Res.string.pipelines_field_voice
         "song_queue_max" -> Res.string.pipelines_field_song_queue_max
         "amount" -> Res.string.pipelines_field_amount
         "set_var" -> Res.string.pipelines_field_set_var

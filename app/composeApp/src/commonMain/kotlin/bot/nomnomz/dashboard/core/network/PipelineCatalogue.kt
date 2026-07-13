@@ -70,6 +70,7 @@ data class BlockType(
 //   song_current              SongCurrentAction              — (no params)
 //   song_queue                SongQueueAction                — "max" (int, default 5)?
 //   play_sound                PlaySoundAction                — "clip", "volume" (int)?, "wait_for_finish"?, "handle"?
+//   play_tts                  PlayTtsAction                  — "text" (template, required), "voice" (voice id)?
 //   grant_currency            GrantCurrencyAction            — "amount" (int), "reason"?
 //   deduct_currency           DeductCurrencyAction           — "amount" (int), "reason"?
 //   check_balance             CheckBalanceAction             — "set_var"?, "min" (int)?
@@ -178,6 +179,19 @@ object PipelineCatalogue {
                         BlockField("volume", "volume", required = false, kind = FieldKind.Number),
                         BlockField("wait_for_finish", "wait_for_finish", required = false),
                         BlockField("handle", "handle", required = false),
+                    ),
+            ),
+            BlockType(
+                type = "play_tts",
+                role = BlockRole.Action,
+                labelKey = "play_tts",
+                fields =
+                    listOf(
+                        // The text to read aloud — a template string, e.g. {{args}}. The action also accepts a
+                        // "message" alias, but "text" is the canonical key the editor writes.
+                        BlockField("text", "text", required = true),
+                        // Optional voice id override; empty falls back to the viewer's voice → the channel default.
+                        BlockField("voice", "voice", required = false),
                     ),
             ),
             // ── Economy ──────────────────────────────────────────────────────

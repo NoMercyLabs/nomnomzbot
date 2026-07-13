@@ -1657,6 +1657,7 @@
     <string name="pipelines_block_song_current">Now playing</string>
     <string name="pipelines_block_song_queue">Song queue</string>
     <string name="pipelines_block_play_sound">Play sound</string>
+    <string name="pipelines_block_play_tts">Read aloud (TTS)</string>
     <string name="pipelines_block_grant_currency">Grant currency</string>
     <string name="pipelines_block_deduct_currency">Deduct currency</string>
     <string name="pipelines_block_check_balance">Check balance</string>
@@ -1675,6 +1676,8 @@
     <string name="pipelines_field_query">Query</string>
     <string name="pipelines_field_volume">Volume</string>
     <string name="pipelines_field_clip">Sound clip</string>
+    <string name="pipelines_field_text">Text to read (e.g. {{args}})</string>
+    <string name="pipelines_field_voice">Voice (optional)</string>
     <string name="pipelines_field_wait_for_finish">Wait for finish (true/false)</string>
     <string name="pipelines_field_handle">Handle</string>
     <string name="pipelines_field_song_queue_max">Max songs to show</string>

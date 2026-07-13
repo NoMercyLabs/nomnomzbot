@@ -16,29 +16,6 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
 
 ## Open
 
-### 2026-07-11 — TTS now plays: `play_tts` pipeline block + (later) client-edge widget (item 16)
-- **From:** Stoney_Eagle (via Claude, backend track)
-- **What:** (1) Add a **`play_tts`** block to the pipeline-builder palette (`feature/pipelines`). Params:
-  `text` (template string, e.g. `{{args}}` — required) and optional `voice` (a voice id). It reads a message
-  out loud on the overlay. No API-contract change — it's a pipeline action, configured in the existing pipeline
-  editor exactly like `play_sound`/`send_message`. (2) *(Later / lower priority)* the spec's DEFAULT TTS mode is
-  `client_edge` — the OVERLAY widget synthesizes speech in the browser (Web Speech API) from an `OverlayHub`
-  `TtsSpeak` push, no audio bytes on the wire. This slice ships the **self_host** path instead (the bot
-  synthesizes server-side and plays the audio URL through the SAME overlay sound bus SR2 already built) — so
-  **TTS already works end-to-end today with zero widget changes**. The client_edge widget handler is a future
-  enhancement, not a blocker.
-- **Why:** item 16. Before this, TTS could synthesize but never actually played anywhere. Now a streamer can add
-  a `play_tts` step to any command/event pipeline (e.g. a channel-point redemption "read my message") and it
-  speaks on the overlay. The dispatch gates on the channel's TTS-enabled flag + character cap and resolves the
-  per-viewer voice (`UserTtsVoice`) → channel default automatically.
-- **Where:** `feature/pipelines` block palette (add the `play_tts` block with its two params + i18n labels). The
-  overlay host that plays it is the SR2 sound-overlay bus (already handling `PlaySound` by URL) — nothing to
-  change there for self_host. No `ApiContractTest`/openapi change (no new DTO or endpoint). i18n: en + nl for the
-  block label + param labels.
-- **Done when:** a pipeline with a `play_tts` step (text `{{args}}`) added in the builder, bound to a command,
-  reads the args aloud on the overlay when triggered (TTS enabled on the channel); a disabled channel / too-long
-  text shows the pipeline step's failure reason; en + nl strings.
-
 ### 2026-07-11 — Media-share page: mod queue + overlay widget (viewer clip/video queue)
 - **From:** Stoney_Eagle (via Claude, backend track)
 - **What:** two surfaces. (1) A **mod queue** page: list submissions (filter by status), approve/reject/
