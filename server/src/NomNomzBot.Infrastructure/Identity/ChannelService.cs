@@ -359,6 +359,42 @@ public class ChannelService : IChannelService
             cancellationToken
         );
 
+    public async Task<Result<Guid>> EnsureModeratedTenantAsync(
+        string twitchBroadcasterId,
+        string login,
+        string displayName,
+        Guid ownerUserId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        // Cross-tenant lookup: the global tenant filter scopes reads to the request's resolved tenant (the
+        // caller's own channel), so it would hide every OTHER channel — including the moderated one we're
+        // provisioning. IgnoreQueryFilters lets us see it (and dodge a duplicate insert against the unique
+        // TwitchChannelId index); soft-delete is not re-applied because a returning tenant is used as-is.
+        Channel? existing = await _db
+            .Channels.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(c => c.TwitchChannelId == twitchBroadcasterId, cancellationToken);
+
+        if (existing is not null)
+            return Result.Success(existing.Id);
+
+        // Deliberately NOT onboarded and NO ChannelOnboardedEvent: the bot is not installed here, so there is
+        // no presence to seed. The row exists solely so Gate 1 can resolve this channel as a tenant for the
+        // moderator; onboarding (and its seed fan-out) happens only if/when the broadcaster installs the bot.
+        Channel channel = new()
+        {
+            OwnerUserId = ownerUserId,
+            TwitchChannelId = twitchBroadcasterId,
+            ExternalChannelId = twitchBroadcasterId,
+            Name = login,
+            NameNormalized = login.ToLowerInvariant(),
+            IsOnboarded = false,
+        };
+        _db.Channels.Add(channel);
+        await _db.SaveChangesAsync(cancellationToken);
+        return Result.Success(channel.Id);
+    }
+
     public async Task<Result> DeleteAsync(
         string broadcasterId,
         CancellationToken cancellationToken = default

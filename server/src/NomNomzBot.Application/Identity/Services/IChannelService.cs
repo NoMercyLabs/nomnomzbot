@@ -82,6 +82,22 @@ public interface IChannelService
         CancellationToken cancellationToken = default
     );
 
+    /// <summary>
+    /// Get-or-create a lightweight tenant for a Twitch channel the caller only MODERATES ("Moderator mode").
+    /// Unlike <see cref="OnboardAsync"/> this provisions the <c>Channels</c> row WITHOUT marking it onboarded
+    /// or publishing <c>ChannelOnboardedEvent</c> — there is no bot presence to seed. It exists purely so
+    /// tenant resolution (Gate 1) can admit a moderator to a channel the bot is not installed on. Returns the
+    /// internal tenant <see cref="Guid"/>. Idempotent: an already-existing channel (onboarded or not) is
+    /// returned unchanged.
+    /// </summary>
+    Task<Result<Guid>> EnsureModeratedTenantAsync(
+        string twitchBroadcasterId,
+        string login,
+        string displayName,
+        Guid ownerUserId,
+        CancellationToken cancellationToken = default
+    );
+
     /// <summary>Delete a channel and clean up all associated data.</summary>
     Task<Result> DeleteAsync(string broadcasterId, CancellationToken cancellationToken = default);
 

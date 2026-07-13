@@ -156,7 +156,8 @@ public sealed class ChannelsControllerModeratedTests
             db,
             moderators,
             access,
-            Substitute.For<NomNomzBot.Application.Contracts.Authorization.IMembershipService>()
+            Substitute.For<NomNomzBot.Application.Contracts.Authorization.IMembershipService>(),
+            Substitute.For<IUserService>()
         )
         {
             ControllerContext = new ControllerContext

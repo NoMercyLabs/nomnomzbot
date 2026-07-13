@@ -37,13 +37,15 @@ public class ChannelsController : BaseController
     private readonly ITwitchModeratorsApi _moderators;
     private readonly IChannelAccessService _channelAccess;
     private readonly IMembershipService _memberships;
+    private readonly IUserService _users;
 
     public ChannelsController(
         IChannelService channelService,
         IApplicationDbContext db,
         ITwitchModeratorsApi moderators,
         IChannelAccessService channelAccess,
-        IMembershipService memberships
+        IMembershipService memberships,
+        IUserService users
     )
     {
         _channelService = channelService;
@@ -51,6 +53,7 @@ public class ChannelsController : BaseController
         _moderators = moderators;
         _channelAccess = channelAccess;
         _memberships = memberships;
+        _users = users;
     }
 
     /// <summary>List all channels the current user owns or moderates.</summary>
@@ -215,6 +218,99 @@ public class ChannelsController : BaseController
         string DisplayName,
         bool IsOnboarded
     );
+
+    /// <summary>
+    /// Enter a Twitch channel the caller moderates but the bot is NOT installed on ("Moderator mode"). Provisions
+    /// a lightweight, un-onboarded tenant for the broadcaster and grants the caller the Moderator management role,
+    /// so tenant resolution (Gate 1) admits them and the dashboard can switch to the channel. Gated at
+    /// <c>dashboard:read</c>, but the real authorization is the live Twitch moderation check below — the caller
+    /// must actually moderate <paramref name="twitchBroadcasterId"/>.
+    /// </summary>
+    [HttpPost("moderated/{twitchBroadcasterId}/enter")]
+    [RequireAction("dashboard:read")]
+    [ProducesResponseType<StatusResponseDto<ChannelSummaryDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> EnterModeratedChannel(
+        string twitchBroadcasterId,
+        CancellationToken ct
+    )
+    {
+        string? userId =
+            User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+            ?? User.FindFirst("sub")?.Value;
+        if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out Guid callerGuid))
+            return UnauthenticatedResponse();
+
+        // Authorize against Twitch's own role rules: the caller must currently moderate this channel. Resolve
+        // the moderated list from the caller's OWN channel + working token (the key the moderators sub-client
+        // turns into the caller's Twitch user id), exactly as GetModeratedChannels does.
+        Guid moderatorChannelId = await _channelAccess.ResolveOwnChannelAsync(userId, ct);
+        if (moderatorChannelId == Guid.Empty)
+            return UnauthorizedResponse("You do not moderate this channel.");
+
+        Result<TwitchPage<TwitchModeratedChannel>> moderatedResult =
+            await _moderators.GetModeratedChannelsAsync(
+                moderatorChannelId,
+                new TwitchPageRequest(),
+                ct
+            );
+        TwitchModeratedChannel? match = moderatedResult.IsSuccess
+            ? moderatedResult.Value.Items.FirstOrDefault(m =>
+                m.BroadcasterId == twitchBroadcasterId
+            )
+            : null;
+        if (match is null)
+            return UnauthorizedResponse("You do not moderate this channel.");
+
+        string login = match.BroadcasterLogin;
+        string displayName = match.BroadcasterName;
+
+        // Get-or-create the broadcaster as a User (the owner of the tenant we provision) — a viewer/non-setup
+        // identity is fine; they haven't installed the bot.
+        Result<UserDto> ownerResult = await _users.GetOrCreateAsync(
+            twitchBroadcasterId,
+            login,
+            displayName,
+            cancellationToken: ct
+        );
+        if (ownerResult.IsFailure)
+            return ResultResponse(ownerResult);
+        if (!Guid.TryParse(ownerResult.Value.Id, out Guid ownerUserId))
+            return InternalServerErrorResponse("Could not resolve broadcaster user id.");
+
+        Result<Guid> tenant = await _channelService.EnsureModeratedTenantAsync(
+            twitchBroadcasterId,
+            login,
+            displayName,
+            ownerUserId,
+            ct
+        );
+        if (tenant.IsFailure)
+            return ResultResponse(tenant);
+
+        // Grant the caller the Moderator management role on the new tenant so Gate 2 resolves them correctly.
+        // Idempotent; grantedByUserId null → a system sync (no-escalation guard skipped), mirroring
+        // EnsureModeratorMembershipsAsync above.
+        await _memberships.SetManagementRoleAsync(
+            tenant.Value,
+            callerGuid,
+            ManagementRole.Moderator,
+            MembershipSource.TwitchBadge,
+            grantedByUserId: null,
+            ct
+        );
+
+        ChannelSummaryDto summary = new(
+            tenant.Value.ToString(),
+            login,
+            displayName,
+            null,
+            false,
+            "moderator",
+            null,
+            null
+        );
+        return Ok(new StatusResponseDto<ChannelSummaryDto> { Data = summary });
+    }
 
     /// <summary>Retrieve a channel by ID — dashboard channel info, Moderator-floored like every dashboard read.</summary>
     [HttpGet("{channelId}")]

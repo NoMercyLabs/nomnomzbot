@@ -47,7 +47,8 @@ public sealed class ChannelsControllerOnboardTests
             Substitute.For<IApplicationDbContext>(),
             Substitute.For<ITwitchModeratorsApi>(),
             Substitute.For<IChannelAccessService>(),
-            Substitute.For<NomNomzBot.Application.Contracts.Authorization.IMembershipService>()
+            Substitute.For<NomNomzBot.Application.Contracts.Authorization.IMembershipService>(),
+            Substitute.For<IUserService>()
         )
         {
             ControllerContext = new ControllerContext
