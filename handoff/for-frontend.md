@@ -61,27 +61,6 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
 - **Done when:** picking a voice for a viewer persists and survives reload; the picker only offers synthesizable
   voices; clearing returns the viewer to the default; picker disabled (not hidden) below the manage floor; en + nl.
 
-### 2026-07-11 — Viewer reports + moderator triage queue — new endpoints
-- **From:** Stoney_Eagle (via Claude, backend track)
-- **What:** viewers report a chatter; mods triage. Three endpoints (in `server/openapi/v1.json`, tag "Moderation",
-  under `/channels/{channelId}/moderation`): `POST /reports` (`FileViewerReportRequest` = `reportedTwitchUserId`,
-  `reportedUsername`, `reportedDisplayName?`, `reason`) → the created `ViewerReportDto` (a VIEWER-facing action —
-  any viewer in the channel); `GET /reports?status=open` → `List<ViewerReportDto>` (`id`, `reportedTwitchUserId`,
-  `reportedUsername?`, `reason`, `status` open|dismissed|escalated, `reporterName?`, `createdAt`, `resolvedAt?`,
-  `resolvedByName?`); `PATCH /reports/{reportId}` (`ResolveViewerReportRequest` = `action` dismiss|escalate) →
-  resolved `ViewerReportDto`. Reason trimmed, non-empty, ≤500 chars.
-- **Why:** item 15 (§3.8 viewer reports). The report is a truthful queue record; ESCALATE doesn't auto-punish —
-  the mod then acts via the existing ban/timeout tools (no phantom enforcement). New `ViewerReports` table
-  (migration ships in the API image; auto-applies on deploy).
-- **Where:** two surfaces. (1) A viewer-facing "Report" action (e.g. on a chat message / user popover) → `POST
-  /reports` with the reported user's id + name from the chat context. (2) A mod **reports queue** page:
-  `GET /reports?status=open`, then dismiss/escalate each. Register `ViewerReportDto`, `FileViewerReportRequest`,
-  `ResolveViewerReportRequest` in `ApiContractTest` (v1.json refreshed). Role gating: file =
-  `moderation:report:file` (viewer-level — the report action, keep it low), read = `moderation:report:read` (Mod),
-  triage = `moderation:report:triage` (Lead Mod). Confirm escalate/dismiss.
-- **Done when:** a viewer files a report → it appears in the mod's open queue → escalate/dismiss moves it out of
-  open and records who/when; blank reason + unknown status/action show the validation error; en + nl strings.
-
 ### 2026-07-11 — Moderator notes on a viewer (mod panel write side) — new endpoints
 - **From:** Stoney_Eagle (via Claude, backend track)
 - **What:** free-text notes the mod team shares about a viewer. `GET /channels/{channelId}/moderation/users/{userId}/notes`

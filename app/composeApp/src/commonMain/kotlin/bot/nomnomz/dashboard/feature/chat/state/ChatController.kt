@@ -210,6 +210,19 @@ class ChatController(
         }
     }
 
+    /**
+     * File a viewer report against [userId] ([userName]/[displayName] captured from the chat row) with [reason] —
+     * flags them for a moderator to triage on the Moderation page. Non-punishing (no feed reload); a failure surfaces
+     * over the intact feed. The screen collects the reason and won't submit it blank.
+     */
+    suspend fun report(userId: String, userName: String, displayName: String?, reason: String) {
+        val channel: String = channelId ?: return failAction(NoChannelError)
+        when (val result: ApiResult<Unit> = chatApi.fileReport(channel, userId, userName, displayName, reason)) {
+            is ApiResult.Ok -> Unit
+            is ApiResult.Failure -> failAction(result.error.message)
+        }
+    }
+
     /** Load the channel's current chat settings and merge them into the Ready state. */
     suspend fun loadSettings() {
         val channel: String = channelId ?: return

@@ -1137,6 +1137,13 @@
     <string name="chat_ban_reason_label">Reason (optional)</string>
     <string name="chat_ban_confirm">Ban</string>
     <string name="chat_ban_dismiss">Cancel</string>
+    <string name="chat_report_action">Report %1$s</string>
+    <string name="chat_report_action_short">Report user</string>
+    <string name="chat_report_title">Report %1$s?</string>
+    <string name="chat_report_description">Flag this chatter for a moderator to review. This doesn't punish them — a moderator decides what happens next.</string>
+    <string name="chat_report_reason_label">Reason</string>
+    <string name="chat_report_confirm">Report</string>
+    <string name="chat_report_dismiss">Cancel</string>
     <string name="chat_delete_title">Delete message?</string>
     <string name="chat_delete_message">Delete this message from %1$s? This can't be undone.</string>
     <string name="chat_delete_confirm">Delete</string>

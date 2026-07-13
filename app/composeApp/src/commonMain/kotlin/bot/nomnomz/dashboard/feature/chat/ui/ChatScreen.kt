@@ -146,6 +146,13 @@ import nomnomzbot.composeapp.generated.resources.shell_nav_chat
 import nomnomzbot.composeapp.generated.resources.chat_error
 import nomnomzbot.composeapp.generated.resources.chat_loading
 import nomnomzbot.composeapp.generated.resources.chat_message_description
+import nomnomzbot.composeapp.generated.resources.chat_report_action
+import nomnomzbot.composeapp.generated.resources.chat_report_action_short
+import nomnomzbot.composeapp.generated.resources.chat_report_confirm
+import nomnomzbot.composeapp.generated.resources.chat_report_description
+import nomnomzbot.composeapp.generated.resources.chat_report_dismiss
+import nomnomzbot.composeapp.generated.resources.chat_report_reason_label
+import nomnomzbot.composeapp.generated.resources.chat_report_title
 import nomnomzbot.composeapp.generated.resources.chat_reply_action
 import nomnomzbot.composeapp.generated.resources.chat_reply_cancel
 import nomnomzbot.composeapp.generated.resources.chat_reply_expand
@@ -245,6 +252,9 @@ fun ChatScreen(
                         onBan = { userId, banScope, reason ->
                             scope.launch { controller.ban(userId, banScope, reason) }
                         },
+                        onReport = { userId, userName, displayName, reason ->
+                            scope.launch { controller.report(userId, userName, displayName, reason) }
+                        },
                         onReply = { message -> controller.startReply(message) },
                     )
             }
@@ -279,6 +289,7 @@ private fun MessageFeed(
     onDelete: (messageId: String) -> Unit,
     onTimeout: (userId: String) -> Unit,
     onBan: (userId: String, scope: String, reason: String?) -> Unit,
+    onReport: (userId: String, userName: String, displayName: String, reason: String) -> Unit,
     onReply: (message: ChatMessage) -> Unit,
 ) {
     val tokens = LocalTokens.current
@@ -307,6 +318,7 @@ private fun MessageFeed(
                     onDelete = onDelete,
                     onTimeout = onTimeout,
                     onBan = onBan,
+                    onReport = onReport,
                     onReply = onReply,
                 )
             }
@@ -321,6 +333,7 @@ private fun MessageRow(
     onDelete: (messageId: String) -> Unit,
     onTimeout: (userId: String) -> Unit,
     onBan: (userId: String, scope: String, reason: String?) -> Unit,
+    onReport: (userId: String, userName: String, displayName: String, reason: String) -> Unit,
     onReply: (message: ChatMessage) -> Unit,
 ) {
     val tokens = LocalTokens.current
@@ -368,6 +381,7 @@ private fun MessageRow(
             onDelete = onDelete,
             onTimeout = onTimeout,
             onBan = onBan,
+            onReport = onReport,
             onReply = { onReply(message) },
         )
     }
@@ -618,6 +632,7 @@ private fun MessageActions(
     onDelete: (messageId: String) -> Unit,
     onTimeout: (userId: String) -> Unit,
     onBan: (userId: String, scope: String, reason: String?) -> Unit,
+    onReport: (userId: String, userName: String, displayName: String, reason: String) -> Unit,
     onReply: () -> Unit,
 ) {
     val spacing = LocalSpacing.current
@@ -642,6 +657,7 @@ private fun MessageActions(
             onDelete = onDelete,
             onTimeout = onTimeout,
             onBan = onBan,
+            onReport = onReport,
         )
     }
 }
@@ -657,6 +673,7 @@ private fun ModerationMenu(
     onDelete: (messageId: String) -> Unit,
     onTimeout: (userId: String) -> Unit,
     onBan: (userId: String, scope: String, reason: String?) -> Unit,
+    onReport: (userId: String, userName: String, displayName: String, reason: String) -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -666,11 +683,13 @@ private fun ModerationMenu(
     var confirmDelete: Boolean by remember { mutableStateOf(false) }
     var confirmTimeout: Boolean by remember { mutableStateOf(false) }
     var showBan: Boolean by remember { mutableStateOf(false) }
+    var showReport: Boolean by remember { mutableStateOf(false) }
 
     val menuLabel: String = stringResource(Res.string.chat_row_actions, name)
     val deleteItemLabel: String = stringResource(Res.string.chat_delete_action)
     val timeoutItemLabel: String = stringResource(Res.string.chat_timeout_action, name)
     val banItemLabel: String = stringResource(Res.string.chat_ban_action, name)
+    val reportItemLabel: String = stringResource(Res.string.chat_report_action, name)
 
     Box {
         // The moderation menu trigger is the write affordance: gate it so a caller below the floor sees the
@@ -736,6 +755,25 @@ private fun ModerationMenu(
                     showBan = true
                 },
             )
+            // Report is NOT destructive — it flags the chatter for a moderator to triage (no punishment), so it
+            // renders in the default foreground rather than the destructive red of delete/timeout/ban.
+            DropdownMenuItem(
+                text = {
+                    Text(
+                        text = stringResource(Res.string.chat_report_action_short),
+                        style = typography.sm,
+                        color = tokens.cardForeground,
+                    )
+                },
+                modifier = Modifier.semantics {
+                    role = Role.Button
+                    contentDescription = reportItemLabel
+                },
+                onClick = {
+                    expanded = false
+                    showReport = true
+                },
+            )
         }
     }
 
@@ -779,6 +817,69 @@ private fun ModerationMenu(
             },
         )
     }
+
+    if (showReport) {
+        ReportDialog(
+            name = name,
+            onDismiss = { showReport = false },
+            onConfirm = { reason ->
+                onReport(message.userId, message.username, message.displayName, reason)
+                showReport = false
+            },
+        )
+    }
+}
+
+// The report dialog: capture a required reason, then file the report (a moderator triages it later on the
+// Moderation page). Confirm stays disabled until the reason is non-blank, matching the backend's required-reason rule.
+@Composable
+private fun ReportDialog(
+    name: String,
+    onDismiss: () -> Unit,
+    onConfirm: (reason: String) -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    var reason: String by remember { mutableStateOf("") }
+    val canSubmit: Boolean = reason.isNotBlank()
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(Res.string.chat_report_title, name)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(spacing.s4)) {
+                Text(
+                    text = stringResource(Res.string.chat_report_description),
+                    style = typography.sm,
+                    color = tokens.mutedForeground,
+                )
+                Textarea(
+                    value = reason,
+                    onValueChange = { reason = it },
+                    label = stringResource(Res.string.chat_report_reason_label),
+                    minLines = 2,
+                    maxLines = 4,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { if (canSubmit) onConfirm(reason.trim()) },
+                enabled = canSubmit,
+            ) {
+                Text(
+                    text = stringResource(Res.string.chat_report_confirm),
+                    color = if (canSubmit) tokens.primary else tokens.mutedForeground,
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(Res.string.chat_report_dismiss)) }
+        },
+    )
 }
 
 // The ban dialog (chat-client.md §3.5): choose the scope — this channel only, or every channel the operator

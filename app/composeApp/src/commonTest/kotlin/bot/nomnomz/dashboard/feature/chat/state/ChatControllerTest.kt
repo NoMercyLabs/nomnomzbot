@@ -369,6 +369,21 @@ class ChatControllerTest {
     }
 
     @Test
+    fun report_files_the_chat_context_and_keeps_the_feed() = runTest {
+        val troll = ChatMessage(id = "m1", userId = "u9", username = "trolly", message = "rude")
+        val chatApi = FakeChatApi(ApiResult.Ok(listOf(troll)))
+        val controller =
+            ChatController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), chatApi)
+
+        controller.load()
+        controller.report("u9", userName = "trolly", displayName = "Trolly", reason = "posting scam links")
+
+        // The report carried the reported user + reason from the chat row, and the feed stayed put (non-punishing).
+        assertEquals(listOf(Triple("u9", "trolly", "posting scam links")), chatApi.reportCalls)
+        assertTrue(controller.state.value is ChatState.Ready)
+    }
+
+    @Test
     fun ban_surfaces_the_error_and_keeps_the_feed_when_it_fails() = runTest {
         val line = ChatMessage(id = "m1", userId = "u9", message = "rude")
         val chatApi =
@@ -533,6 +548,8 @@ private class FakeChatApi(
     val deleteCalls: MutableList<Pair<String, String>> = mutableListOf()
     val timeoutCalls: MutableList<Triple<String, String, Int>> = mutableListOf()
     val banCalls: MutableList<Triple<String, String, String>> = mutableListOf()
+    // Each report recorded as (targetUserId, targetUsername, reason) so a test proves the chat context is passed on.
+    val reportCalls: MutableList<Triple<String, String, String>> = mutableListOf()
     val announceCalls: MutableList<Triple<String, String, String>> = mutableListOf()
 
     // Each messages() call records the channel it targeted, so a switch test can prove the feed re-scopes.
@@ -583,6 +600,17 @@ private class FakeChatApi(
     ): ApiResult<NetworkBanResult> {
         banCalls.add(Triple(channelId, targetTwitchUserId, scope))
         return banResult
+    }
+
+    override suspend fun fileReport(
+        channelId: String,
+        targetTwitchUserId: String,
+        targetUsername: String,
+        targetDisplayName: String?,
+        reason: String,
+    ): ApiResult<Unit> {
+        reportCalls.add(Triple(targetTwitchUserId, targetUsername, reason))
+        return ApiResult.Ok(Unit)
     }
 
     override suspend fun settings(channelId: String): ApiResult<ChatSettings> = settingsResult

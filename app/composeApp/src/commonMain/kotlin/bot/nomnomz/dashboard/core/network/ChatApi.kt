@@ -64,6 +64,19 @@ interface ChatApi {
         durationSeconds: Int? = null,
     ): ApiResult<NetworkBanResult>
 
+    /**
+     * File a viewer report against [targetTwitchUserId] (flag them for a moderator to triage). A low-floor action
+     * (viewer-level) — it does NOT punish; it drops a truthful record on the mod reports queue. [reason] is trimmed
+     * and required (≤500 chars) by the backend.
+     */
+    suspend fun fileReport(
+        channelId: String,
+        targetTwitchUserId: String,
+        targetUsername: String,
+        targetDisplayName: String?,
+        reason: String,
+    ): ApiResult<Unit>
+
     /** Load the channel's current chat mode settings (slow, sub-only, emote-only, followers-only). */
     suspend fun settings(channelId: String): ApiResult<ChatSettings>
 
@@ -132,6 +145,23 @@ class RestChatApi(private val client: ApiClient) : ChatApi {
         client.postEnvelope(
             "api/v1/channels/$channelId/moderation/actions/ban",
             BanUserBody(targetTwitchUserId, reason, durationSeconds, scope),
+        )
+
+    override suspend fun fileReport(
+        channelId: String,
+        targetTwitchUserId: String,
+        targetUsername: String,
+        targetDisplayName: String?,
+        reason: String,
+    ): ApiResult<Unit> =
+        client.postUnit(
+            "api/v1/channels/$channelId/moderation/reports",
+            FileReportBody(
+                reportedTwitchUserId = targetTwitchUserId,
+                reportedUsername = targetUsername,
+                reportedDisplayName = targetDisplayName,
+                reason = reason,
+            ),
         )
 
     override suspend fun settings(channelId: String): ApiResult<ChatSettings> =
@@ -308,6 +338,15 @@ data class BanUserBody(
     val reason: String? = null,
     val durationSeconds: Int? = null,
     val scope: String = "this_channel",
+)
+
+/** Request body to file a viewer report (backend `FileViewerReportRequest`). [reason] required, ≤500 chars. */
+@Serializable
+data class FileReportBody(
+    val reportedTwitchUserId: String,
+    val reportedUsername: String,
+    val reportedDisplayName: String? = null,
+    val reason: String,
 )
 
 /**

@@ -1134,6 +1134,13 @@
     <string name="chat_ban_reason_label">Reden (optioneel)</string>
     <string name="chat_ban_confirm">Verbannen</string>
     <string name="chat_ban_dismiss">Annuleren</string>
+    <string name="chat_report_action">%1$s melden</string>
+    <string name="chat_report_action_short">Gebruiker melden</string>
+    <string name="chat_report_title">%1$s melden?</string>
+    <string name="chat_report_description">Markeer deze chatter zodat een moderator ernaar kan kijken. Dit bestraft ze niet — een moderator bepaalt wat er daarna gebeurt.</string>
+    <string name="chat_report_reason_label">Reden</string>
+    <string name="chat_report_confirm">Melden</string>
+    <string name="chat_report_dismiss">Annuleren</string>
     <string name="chat_delete_title">Bericht verwijderen?</string>
     <string name="chat_delete_message">Dit bericht van %1$s verwijderen? Dit kan niet ongedaan worden gemaakt.</string>
     <string name="chat_delete_confirm">Verwijderen</string>
