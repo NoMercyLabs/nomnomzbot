@@ -25,7 +25,9 @@ import bot.nomnomz.dashboard.core.network.ShieldStatus
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.ModeratedChannel
+import bot.nomnomz.dashboard.core.network.ModerationActionLog
 import bot.nomnomz.dashboard.core.network.ModerationApi
+import bot.nomnomz.dashboard.core.network.UserModerationContext
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -69,6 +71,47 @@ class ModerationControllerTest {
         assertEquals(1, bans.size)
         assertEquals("Trolly", bans.first().displayName)
         assertEquals("Spamming links", bans.first().reason)
+    }
+
+    @Test
+    fun openUserContext_loads_the_viewers_recorded_history_then_close_clears_it() = runTest {
+        val context =
+            UserModerationContext(
+                userId = "u1",
+                username = "trolly",
+                banCount = 2,
+                timeoutCount = 3,
+                recentActions =
+                    listOf(
+                        ModerationActionLog(
+                            id = "a1",
+                            action = "ban",
+                            moderatorUsername = "ModBot",
+                            reason = "spam",
+                        )
+                    ),
+            )
+        val api =
+            FakeModerationApi(
+                bansResults = listOf(ApiResult.Ok(emptyList())),
+                userContextResult = ApiResult.Ok(context),
+            )
+        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
+        controller.load() // resolves the channel so the per-user lookup targets it
+
+        assertNull(controller.userContext.value)
+
+        controller.openUserContext("u1")
+
+        val state: UserContextState? = controller.userContext.value
+        assertTrue(state is UserContextState.Ready)
+        assertEquals(context, (state as UserContextState.Ready).context)
+        assertEquals(2, state.context.banCount)
+        assertEquals(1, state.context.recentActions.size)
+        assertEquals(listOf("ch1" to "u1"), api.userContextCalls)
+
+        controller.closeUserContext()
+        assertNull(controller.userContext.value)
     }
 
     @Test
@@ -415,6 +458,7 @@ private class FakeModerationApi(
     private val blockedTermsResult: ApiResult<List<String>> = ApiResult.Ok(emptyList()),
     private val automodResult: ApiResult<AutomodConfig> = ApiResult.Ok(AutomodConfig()),
     private val rulesResult: ApiResult<List<ModerationRule>> = ApiResult.Ok(emptyList()),
+    private val userContextResult: ApiResult<UserModerationContext> = ApiResult.Ok(UserModerationContext()),
 ) : ModerationApi {
     // Single-result convenience for the read-only tests (one bans() result, default-OK unban).
     constructor(
@@ -439,6 +483,13 @@ private class FakeModerationApi(
     }
 
     override suspend fun modLog(channelId: String): ApiResult<List<ModLogEntry>> = modLogResult
+
+    val userContextCalls: MutableList<Pair<String, String>> = mutableListOf()
+
+    override suspend fun userContext(channelId: String, userId: String): ApiResult<UserModerationContext> {
+        userContextCalls.add(channelId to userId)
+        return userContextResult
+    }
 
     var lastShieldToggle: Boolean? = null
         private set

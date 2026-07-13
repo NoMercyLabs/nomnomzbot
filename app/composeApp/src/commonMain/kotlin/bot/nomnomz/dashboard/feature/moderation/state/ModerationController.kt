@@ -23,6 +23,7 @@ import bot.nomnomz.dashboard.core.network.ModerationApi
 import bot.nomnomz.dashboard.core.network.ModerationRule
 import bot.nomnomz.dashboard.core.network.ModerationStats
 import bot.nomnomz.dashboard.core.network.ShieldStatus
+import bot.nomnomz.dashboard.core.network.UserModerationContext
 import bot.nomnomz.dashboard.core.realtime.HubEvent
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -46,6 +47,12 @@ class ModerationController(
 
     /** The page render state: loading / ready (with the bans) / empty / error. */
     val state: StateFlow<ModerationState> = _state.asStateFlow()
+
+    // The per-user moderation panel opened from a banned-user row: null = closed, else its load state.
+    private val _userContext: MutableStateFlow<UserContextState?> = MutableStateFlow(null)
+
+    /** The open per-user moderation panel (null when closed). */
+    val userContext: StateFlow<UserContextState?> = _userContext.asStateFlow()
 
     // The channel the loaded bans belong to, kept so [unban] targets the same channel without re-resolving.
     private var channelId: String? = null
@@ -163,6 +170,25 @@ class ModerationController(
                 }
             }
         }
+    }
+
+    /**
+     * Open the per-user moderation panel for [userId] (a Twitch id) and load their recorded history — the bot's
+     * OWN ban / timeout / warn / unban record (not the full Twitch history). No-ops when no channel is loaded.
+     */
+    suspend fun openUserContext(userId: String) {
+        val channel: String = channelId ?: return
+        _userContext.value = UserContextState.Loading
+        _userContext.value =
+            when (val result: ApiResult<UserModerationContext> = moderationApi.userContext(channel, userId)) {
+                is ApiResult.Ok -> UserContextState.Ready(result.value)
+                is ApiResult.Failure -> UserContextState.Error(result.error.message)
+            }
+    }
+
+    /** Close the per-user moderation panel. */
+    fun closeUserContext() {
+        _userContext.value = null
     }
 
     /**
@@ -372,4 +398,13 @@ enum class AutomodFilter {
     Caps,
     Phrases,
     Emotes,
+}
+
+/** The per-user moderation panel's load state (opened on demand from a banned-user row). */
+sealed interface UserContextState {
+    data object Loading : UserContextState
+
+    data class Ready(val context: UserModerationContext) : UserContextState
+
+    data class Error(val detail: String) : UserContextState
 }

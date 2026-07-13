@@ -95,36 +95,6 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
 - **Done when:** with approval on, a triggered TTS shows in the queue and does NOT play until approved; approve plays
   it; reject discards it; the toggle persists across reload; en + nl.
 
-### 2026-07-11 — Supporter events (monetization) — new page + endpoints (item 13, slice 13a)
-- **From:** Stoney_Eagle (via Claude, backend track)
-- **What:** a **Supporters** page (Integrations/monetization area) with two parts. (1) **Connections** — enable a
-  provider. `GET /api/v1/supporters/connections` → `List<SupporterConnectionDto>` (`sourceKey`, `connectionMode`,
-  `hasSecret`, `isEnabled`, `status`, `lastEventAt?`); `PUT /api/v1/supporters/connections`
-  (`UpsertSupporterConnectionRequest` = `sourceKey`, `connectionMode`, `authSecret?`, `integrationConnectionId?`,
-  `isEnabled`) → `SupporterConnectionDto`; `DELETE /api/v1/supporters/connections/{sourceKey}`. **Only `kofi`
-  (`connectionMode:"webhook"`) is live this slice** — the other providers land in follow-on slices, so render only
-  what `GET /connections` + the adapter set supports (don't hardcode a full provider grid yet). For a webhook
-  provider DO NOT send `authSecret` (backend rejects it — the Ko-fi verification token is set on the **inbound
-  webhook endpoint**, the existing Webhooks page; the two pages pair up). (2) **Events** — a supporter feed:
-  `GET /api/v1/supporters/events?page=&take=&kind=&sourceKey=` → `PaginatedResponse<SupporterEventDto>`
-  (`id`, `sourceKey`, `kind` tip|membership|merch|charity, `supporterDisplayName`, `amountMinor?`, `currency?`,
-  `tier?`, `quantity?`, `messageText?`, `isRecurring`, `receivedAt`). Amount is **minor units (cents)** — divide by
-  100 for display.
-- **Why:** item 13 (`supporter-events.md`). A connected provider's webhooks become `supporter.<kind>` +
-  `supporter.any` pipeline/event-response triggers (bind them on the existing Event Responses / pipeline editor —
-  the 5 `supporter.*` types are seeded disabled) with vars `{supporter.name|kind|amount|currency|tier|quantity|
-  message}`, and the event lands on the activity feed. Truthful: a connection is an *enforced enable-toggle* (ingest
-  is gated on it), NOT cosmetic.
-- **Where:** new `feature/supporters` (or under Integrations). Register `SupporterConnectionDto`,
-  `UpsertSupporterConnectionRequest`, `SupporterEventDto` in `ApiContractTest` (`server/openapi/v1.json` refreshed,
-  tag "Supporters"). Role gate: read = `supporters:read` (Moderator); connect/disconnect = `supporters:config:write`
-  (**Broadcaster only, Critical** — disable, don't hide, for non-broadcasters, with a reason tooltip). Confirm
-  disconnect (removes a money source). The Ko-fi setup flow: create a Ko-fi inbound endpoint on the Webhooks page
-  (gets the URL + sets the verification token) → paste the URL into Ko-fi → enable the Ko-fi supporter connection here.
-- **Done when:** enable Ko-fi → `GET /connections` shows it enabled; a Ko-fi test webhook (via the webhooks endpoint)
-  produces a row in `GET /events` with the right kind/amount, and fires a bound `supporter.tip`/`supporter.any`
-  response; disconnect confirms + removes it; amounts render as major units; en + nl strings.
-
 ### 2026-07-11 — Viewer reports + moderator triage queue — new endpoints
 - **From:** Stoney_Eagle (via Claude, backend track)
 - **What:** viewers report a chatter; mods triage. Three endpoints (in `server/openapi/v1.json`, tag "Moderation",
@@ -162,23 +132,6 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
   delete. Pinned notes float to the top.
 - **Done when:** add a note → appears in the list; pin → floats to top; edit content persists; delete removes it;
   empty/too-long content shows the validation error; en + nl strings.
-
-### 2026-07-11 — Per-user moderation context (mod panel read) — new endpoint
-- **From:** Stoney_Eagle (via Claude, backend track)
-- **What:** `GET /channels/{channelId}/moderation/users/{userId}/context` (userId = the target's Twitch id) →
-  `UserModerationContextDto`: `userId`, `username?`, `banCount`, `timeoutCount`, `warnCount`, `unbanCount`,
-  `lastActionType?`, `lastActionAt?`, and `recentActions` (the last 20, each a `ModerationActionLog` — already a
-  registered DTO). Powers a per-user mod panel: click a chatter → see their rap sheet, then act (warn / suspicious
-  / ban) with the endpoints from the sibling handoff entries.
-- **Why:** item 15 (§3.7 per-user panel, read side). **Important honesty caveat to surface in the UI:** this is
-  the bot's OWN recorded actions (dashboard/command/EventSub), NOT Twitch's complete history — actions taken via
-  Twitch's own UI or other tools aren't counted. Label it "actions by this bot" (or similar), don't imply it's the
-  full Twitch record.
-- **Where:** a per-user panel/popover (chat user click, community row, or a dedicated view). Register
-  `UserModerationContextDto` in `ApiContractTest` (`ModerationActionLog` already registered; v1.json refreshed).
-  Role gate: `moderation:usercontext:read` (Moderator). Read-only — no new scope.
-- **Done when:** opening a user shows their counts + recent actions (only that user's), an unmoderated user shows
-  all-zeros/empty, and the "bot's actions" framing is clear; en + nl strings.
 
 ### 2026-07-11 — Network un-nuke: reverse a mass ban across moderated channels — new endpoint
 - **From:** Stoney_Eagle (via Claude, backend track)
@@ -334,27 +287,6 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
   reason below the floor per frontend-ia §7.
 - **Done when:** a viewer with stored data shows the map; add/edit/delete round-trips and survives
   reload; over-cap values surface the backend error; destructive delete confirms; en + nl strings.
-
-### 2026-07-11 — Giveaways page (new backend module, full REST surface live)
-- **From:** Stoney_Eagle (via Claude, backend track)
-- **What:** a Giveaways management page. The backend module is complete: campaign CRUD +
-  open/close/draw/redraw lifecycle, live entry counts, append-only winner history, and secret-safe
-  code pools. Endpoints (all in `server/openapi/v1.json`, tag "Giveaways"):
-  `GET/POST /giveaways`, `GET/PUT/DELETE /giveaways/{id}`, `POST /giveaways/{id}/open|close|draw`,
-  `POST /giveaways/{id}/winners/{winnerId}/redraw`, `GET /giveaways/{id}/winners`,
-  `GET /giveaways/{id}/winners/{winnerId}/code` (broadcaster-only code reveal), and
-  `GET/POST /giveaways/code-pools`, `GET/DELETE /giveaways/code-pools/{poolId}`,
-  `POST /giveaways/code-pools/{poolId}/codes`.
-- **Why:** parity item 12 (StreamElements/Streamer.bot baseline). Viewers already enter via the chat
-  keyword or the `enter_giveaway` pipeline action; the streamer needs the management surface.
-- **Where:** new `feature/giveaways`; register the DTOs in `ApiContractTest`. Role gating:
-  read/write floors at Moderator (`giveaways:read`/`giveaways:write`); the code-pool routes + code
-  reveal are Broadcaster-only (`giveaways:codes:write`) — hide/disable per frontend-ia §7. Code pool
-  reads are MASKED by design (label + status; never the code) — do not add a "show code" affordance
-  outside the winner-reveal flow.
-- **Done when:** create → open → (viewers enter) → draw → winner list renders end-to-end against a
-  real channel; a code-pool giveaway shows delivery state (whispered vs needs-manual-reveal) and the
-  reveal works; destructive actions confirm; en + nl strings.
 
 ### 2026-07-11 — Kick integration: connect tile + chat feed provider tag
 - **From:** Stoney_Eagle (via Claude, backend track)
@@ -653,6 +585,20 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
 ## Done
 
 _(completed entries move here, with their commit hashes)_
+
+### 2026-07-13 — Per-user moderation context (mod-panel read side) — BUILT
+- The per-user rap-sheet ships as a dialog off the Moderation page: each banned viewer's row gets a **History**
+  action → their bot-recorded ban / timeout / warn / unban counts, last action, and recent actions, with the
+  "this bot's own record, not the full Twitch history" disclaimer. Added `UserModerationContext` +
+  `ModerationActionLog` DTOs + `ModerationApi.userContext()`, controller `openUserContext`/`closeUserContext`
+  state, the dialog, and en/nl strings. Compiles wasmJs + jvm; `ApiContractTest` (2 DTOs vs `v1.json`) +
+  `ModerationControllerTest.openUserContext…` green. (Notes / reports / unban-queue / warn / suspicious — the
+  sibling moderation entries — remain open below.)
+
+### 2026-07-13 — Pruned from Open: already built (verified present in code)
+- **Supporters** page (item 13, slice 13a) — `feature/supporters` Screen + Controller + Access + `SupportersApi` all present.
+- **Giveaways** page (parity item 12) — `feature/giveaways` Screen + Controller + Access + `GiveawaysApi` all present.
+- Note: in practice the frontend is carried by Claude, not a separate `aaoa-dev` — the completed items here were built on this track. Remaining Open items below are verified genuinely-unbuilt (no matching API method / screen anywhere in `app/`).
 
 ### 2026-07-10 — Activity feed: show the actor name on follow/sub/cheer/raid events — DONE (backend, option b)
 - Resolved backend-side: `NotifyChannelAsync` was hardcoding the top-level `userId`/`userDisplayName`

@@ -84,6 +84,13 @@ interface ModerationApi {
     suspend fun stats(channelId: String): ApiResult<ModerationStats>
 
     /**
+     * The bot's OWN recorded moderation history for [userId] (a Twitch id): ban / timeout / warn / unban counts,
+     * the last action, and the most recent actions. NOTE: only actions this bot recorded (dashboard / command /
+     * EventSub) — not the viewer's complete Twitch record; the panel labels it as such.
+     */
+    suspend fun userContext(channelId: String, userId: String): ApiResult<UserModerationContext>
+
+    /**
      * Send a chat announcement to [channelId]. [color] is one of `"blue"`, `"green"`, `"orange"`, `"purple"`,
      * or `"primary"` (= the channel's accent) — defaults to `"primary"` when omitted. Requires
      * `moderator:manage:announcements`.
@@ -178,6 +185,10 @@ class RestModerationApi(private val client: ApiClient) : ModerationApi {
     override suspend fun stats(channelId: String): ApiResult<ModerationStats> =
         client.getEnvelope("api/v1/channels/$channelId/moderation/stats")
 
+    // Single-value StatusResponseDto envelope ({ data: { … } }) — getEnvelope reads the context object.
+    override suspend fun userContext(channelId: String, userId: String): ApiResult<UserModerationContext> =
+        client.getEnvelope("api/v1/channels/$channelId/moderation/users/$userId/context")
+
     // The POST body is a ChatController.AnnounceRequest (message, color?); the backend calls Helix on the tenant's behalf.
     override suspend fun announce(channelId: String, message: String, color: String?): ApiResult<Unit> =
         client.postUnit("api/v1/channels/$channelId/chat/announce", AnnounceBody(message, color))
@@ -236,6 +247,42 @@ data class ModLogEntry(
     val reason: String? = null,
     val timestamp: String = "",
     val duration: Int? = null,
+)
+
+/**
+ * A viewer's per-user moderation rap sheet (backend `UserModerationContextDto`). The counts + recent actions are
+ * the bot's OWN recorded history (dashboard / command / EventSub), NOT the viewer's complete Twitch record — the
+ * panel labels it as such. camelCase mirror (the contract test guards this).
+ */
+@Serializable
+data class UserModerationContext(
+    val userId: String = "",
+    val username: String? = null,
+    val banCount: Int = 0,
+    val timeoutCount: Int = 0,
+    val warnCount: Int = 0,
+    val unbanCount: Int = 0,
+    val lastActionType: String? = null,
+    val lastActionAt: String? = null,
+    val recentActions: List<ModerationActionLog> = emptyList(),
+)
+
+/**
+ * One recorded moderation action in a viewer's [UserModerationContext.recentActions] (backend
+ * `ModerationActionLog`). camelCase mirror: the [action], who issued it ([moderatorUsername]), the target, an
+ * optional [reason], the timeout [durationSeconds] (null for non-timeouts), and the [timestamp].
+ */
+@Serializable
+data class ModerationActionLog(
+    val id: String = "",
+    val action: String = "",
+    val moderatorId: String = "",
+    val moderatorUsername: String = "",
+    val targetUserId: String? = null,
+    val targetUsername: String? = null,
+    val reason: String? = null,
+    val durationSeconds: Int? = null,
+    val timestamp: String = "",
 )
 
 /** The Shield Mode status — the backend's anonymous `{ enabled }` payload (no named backend DTO to guard). */

@@ -60,11 +60,14 @@ import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
 import bot.nomnomz.dashboard.core.network.AutomodConfig
 import bot.nomnomz.dashboard.core.network.BannedUser
 import bot.nomnomz.dashboard.core.network.ModLogEntry
+import bot.nomnomz.dashboard.core.network.ModerationActionLog
 import bot.nomnomz.dashboard.core.network.ModerationRule
 import bot.nomnomz.dashboard.core.network.ModerationStats
+import bot.nomnomz.dashboard.core.network.UserModerationContext
 import bot.nomnomz.dashboard.feature.moderation.state.AutomodFilter
 import bot.nomnomz.dashboard.feature.moderation.state.ModerationController
 import bot.nomnomz.dashboard.feature.moderation.state.ModerationState
+import bot.nomnomz.dashboard.feature.moderation.state.UserContextState
 import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
 import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
 import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecision
@@ -104,6 +107,20 @@ import nomnomzbot.composeapp.generated.resources.moderation_terms_remove_action
 import nomnomzbot.composeapp.generated.resources.moderation_terms_title
 import nomnomzbot.composeapp.generated.resources.moderation_banned_by
 import nomnomzbot.composeapp.generated.resources.moderation_banned_on
+import nomnomzbot.composeapp.generated.resources.moderation_context_action_short
+import nomnomzbot.composeapp.generated.resources.moderation_context_bans
+import nomnomzbot.composeapp.generated.resources.moderation_context_close
+import nomnomzbot.composeapp.generated.resources.moderation_context_disclaimer
+import nomnomzbot.composeapp.generated.resources.moderation_context_error
+import nomnomzbot.composeapp.generated.resources.moderation_context_last
+import nomnomzbot.composeapp.generated.resources.moderation_context_loading
+import nomnomzbot.composeapp.generated.resources.moderation_context_recent
+import nomnomzbot.composeapp.generated.resources.moderation_context_recent_empty
+import nomnomzbot.composeapp.generated.resources.moderation_context_timeouts
+import nomnomzbot.composeapp.generated.resources.moderation_context_title
+import nomnomzbot.composeapp.generated.resources.moderation_context_unbans
+import nomnomzbot.composeapp.generated.resources.moderation_context_view
+import nomnomzbot.composeapp.generated.resources.moderation_context_warns
 import nomnomzbot.composeapp.generated.resources.moderation_empty
 import nomnomzbot.composeapp.generated.resources.moderation_error
 import nomnomzbot.composeapp.generated.resources.moderation_loading
@@ -178,6 +195,7 @@ fun ModerationScreen(
     hubEvents: SharedFlow<HubEvent>? = null,
 ) {
     val state: ModerationState by controller.state.collectAsStateWithLifecycle()
+    val userContext: UserContextState? by controller.userContext.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val spacing = LocalSpacing.current
 
@@ -214,6 +232,7 @@ fun ModerationScreen(
                     actionError = current.actionError,
                     manage = manage,
                     onUnban = { userId -> scope.launch { controller.unban(userId) } },
+                    onViewContext = { userId -> scope.launch { controller.openUserContext(userId) } },
                     onPerformAction = { action, userId, duration, reason ->
                         scope.launch { controller.performAction(action, userId, duration, reason) }
                     },
@@ -232,6 +251,10 @@ fun ModerationScreen(
                 )
         }
     }
+
+    userContext?.let { ctx ->
+        UserModerationContextDialog(state = ctx, onDismiss = { controller.closeUserContext() })
+    }
 }
 
 @Composable
@@ -246,6 +269,7 @@ private fun BansList(
     actionError: String?,
     manage: ManageDecision,
     onUnban: (userId: String) -> Unit,
+    onViewContext: (userId: String) -> Unit,
     onPerformAction: (action: String, targetUserId: String, durationSeconds: Int?, reason: String?) -> Unit,
     onToggleShield: (Boolean) -> Unit,
     onAddTerm: (String) -> Unit,
@@ -333,7 +357,12 @@ private fun BansList(
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column {
                         bans.forEachIndexed { index, ban ->
-                            BanRow(ban = ban, manage = manage, onUnban = { pendingUnban = ban })
+                            BanRow(
+                                ban = ban,
+                                manage = manage,
+                                onUnban = { pendingUnban = ban },
+                                onViewContext = { onViewContext(ban.id) },
+                            )
                             if (index < bans.lastIndex) {
                                 Separator()
                             }
@@ -645,7 +674,12 @@ private fun ModerateViewerDialog(
 }
 
 @Composable
-private fun BanRow(ban: BannedUser, manage: ManageDecision, onUnban: () -> Unit) {
+private fun BanRow(
+    ban: BannedUser,
+    manage: ManageDecision,
+    onUnban: () -> Unit,
+    onViewContext: () -> Unit,
+) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
@@ -655,6 +689,7 @@ private fun BanRow(ban: BannedUser, manage: ManageDecision, onUnban: () -> Unit)
         ban.reason.takeIf { it.isNotBlank() } ?: stringResource(Res.string.moderation_no_reason)
     val bannedOn: String? = ban.bannedAt.takeIf { it.isNotBlank() }?.let { datePart(it) }
     val unbanLabel: String = stringResource(Res.string.moderation_unban_action, name)
+    val viewHistoryLabel: String = stringResource(Res.string.moderation_context_view, name)
 
     Row(
         modifier = Modifier
@@ -703,6 +738,17 @@ private fun BanRow(ban: BannedUser, manage: ManageDecision, onUnban: () -> Unit)
             }
         }
 
+        TextButton(
+            onClick = onViewContext,
+            modifier = Modifier.clearAndSetSemantics { contentDescription = viewHistoryLabel },
+        ) {
+            Text(
+                text = stringResource(Res.string.moderation_context_action_short),
+                color = tokens.primary,
+                maxLines = 1,
+            )
+        }
+
         ManageGate(decision = manage) { enabled ->
             TextButton(
                 onClick = onUnban,
@@ -715,6 +761,136 @@ private fun BanRow(ban: BannedUser, manage: ManageDecision, onUnban: () -> Unit)
                     maxLines = 1,
                 )
             }
+        }
+    }
+}
+
+// The per-user moderation panel (handoff item: mod-panel read side). A dialog opened from a banned-user row that
+// shows the viewer's rap sheet — the bot's OWN recorded ban/timeout/warn/unban history, explicitly NOT the full
+// Twitch record (the disclaimer says so). Read-only; the mod then acts via the existing ban/timeout/unban tools.
+@Composable
+private fun UserModerationContextDialog(state: UserContextState, onDismiss: () -> Unit) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = stringResource(Res.string.moderation_context_title),
+                style = typography.lg,
+                color = tokens.cardForeground,
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
+                Text(
+                    text = stringResource(Res.string.moderation_context_disclaimer),
+                    style = typography.xs,
+                    color = tokens.mutedForeground,
+                )
+                when (state) {
+                    is UserContextState.Loading ->
+                        Text(
+                            text = stringResource(Res.string.moderation_context_loading),
+                            style = typography.sm,
+                            color = tokens.mutedForeground,
+                        )
+                    is UserContextState.Error ->
+                        Text(
+                            text = stringResource(Res.string.moderation_context_error, state.detail),
+                            style = typography.sm,
+                            color = tokens.destructive,
+                        )
+                    is UserContextState.Ready -> UserModerationContextBody(state.context)
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(Res.string.moderation_context_close))
+            }
+        },
+    )
+}
+
+// The loaded rap sheet: the viewer's counters + last action + the recent recorded actions.
+@Composable
+private fun UserModerationContextBody(context: UserModerationContext) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    val name: String = context.username?.takeIf { it.isNotBlank() } ?: context.userId
+
+    Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
+        Text(
+            text = name,
+            style = typography.base,
+            color = tokens.cardForeground,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
+            StatChip(label = stringResource(Res.string.moderation_context_bans), value = context.banCount)
+            StatChip(label = stringResource(Res.string.moderation_context_timeouts), value = context.timeoutCount)
+            StatChip(label = stringResource(Res.string.moderation_context_warns), value = context.warnCount)
+            StatChip(label = stringResource(Res.string.moderation_context_unbans), value = context.unbanCount)
+        }
+        context.lastActionType?.takeIf { it.isNotBlank() }?.let { last ->
+            val on: String = context.lastActionAt?.takeIf { it.isNotBlank() }?.let { datePart(it) } ?: ""
+            Text(
+                text = stringResource(Res.string.moderation_context_last, last, on),
+                style = typography.sm,
+                color = tokens.mutedForeground,
+            )
+        }
+        Text(
+            text = stringResource(Res.string.moderation_context_recent),
+            style = typography.sm,
+            color = tokens.mutedForeground,
+        )
+        if (context.recentActions.isEmpty()) {
+            Text(
+                text = stringResource(Res.string.moderation_context_recent_empty),
+                style = typography.sm,
+                color = tokens.mutedForeground,
+            )
+        } else {
+            Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
+                context.recentActions.forEach { action -> UserContextActionRow(action) }
+            }
+        }
+    }
+}
+
+// One recorded action: "<action> · <moderator> · <date>" with the reason beneath it when present.
+@Composable
+private fun UserContextActionRow(action: ModerationActionLog) {
+    val tokens = LocalTokens.current
+    val typography = LocalTypography.current
+
+    val on: String = action.timestamp.takeIf { it.isNotBlank() }?.let { datePart(it) } ?: ""
+    val by: String = action.moderatorUsername.takeIf { it.isNotBlank() } ?: action.moderatorId
+    val head: String = if (on.isNotBlank()) "${action.action} · $by · $on" else "${action.action} · $by"
+
+    Column {
+        Text(
+            text = head,
+            style = typography.sm,
+            color = tokens.cardForeground,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        action.reason?.takeIf { it.isNotBlank() }?.let { r ->
+            Text(
+                text = r,
+                style = typography.xs,
+                color = tokens.mutedForeground,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
     }
 }

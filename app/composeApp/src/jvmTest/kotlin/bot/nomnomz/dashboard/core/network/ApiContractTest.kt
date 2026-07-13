@@ -77,6 +77,8 @@ class ApiContractTest {
             AutomodBannedPhrases.serializer() to "AutomodBannedPhrasesDto",
             AutomodEmoteSpam.serializer() to "AutomodEmoteSpamDto",
             ModerationRule.serializer() to "ModerationRuleDetail",
+            UserModerationContext.serializer() to "UserModerationContextDto",
+            ModerationActionLog.serializer() to "ModerationActionLog",
             TtsVoice.serializer() to "TtsVoiceDto",
             UserStats.serializer() to "UserStatsDto",
             CurrencyLedgerEntry.serializer() to "CurrencyLedgerEntryDto",
