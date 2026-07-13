@@ -16,6 +16,25 @@ The frontend track (`aaoa-dev`) leaves backend work orders here. The backend tra
 
 ## Open
 
+### 2026-07-13 — Community per-viewer stats can't reach the analytics endpoint (id-type mismatch)
+- **From:** aaoa-dev (via Claude, frontend track)
+- **What:** the 2026-07-04 handoff ("Send channel context on user lookups") asked the frontend to stop calling
+  the self-only `GET /users/{id}/stats` for foreign viewers and use `GET /channels/{channelId}/analytics/
+  viewers/{viewerUserId}` instead. Blocker: the analytics route is typed `{viewerUserId:guid}` (an internal
+  `User.Id`), but the community list DTO (`CommunityUserDto`) exposes only the **Twitch user id** — its first
+  field is `f.UserId`, and `CommunityController` builds it from Twitch-id space (line ~180 keys `users` by
+  `TwitchUserId`; line ~302 note: "Candidate ids live in Twitch-user-id space"). So the client holds a Twitch
+  id and cannot call a guid-typed endpoint. `X-Channel-Id` auto-injection (part 1 of that entry) is already
+  done client-side; only this per-viewer stats swap is blocked.
+- **Why:** the community per-user detail panel's stats section currently 403s for every viewer except the
+  operator themself (the self-only endpoint). It degrades to null (no crash), but shows no stats.
+- **Where:** pick one — (a) add the internal `userId` (GUID) to `CommunityUserDto` (+ the leaderboard rows that
+  feed the detail panel), so the client can call the analytics viewer endpoint; OR (b) add a Twitch-id-accepting
+  analytics viewer endpoint (mirroring how the viewer-data endpoint resolves `TwitchUserId`). Refresh
+  `server/openapi/v1.json`.
+- **Done when:** the frontend can fetch a foreign viewer's engagement stats (messages / watch time / follower /
+  sub) for the community detail panel via a manager-allowed endpoint keyed off an id the community list provides.
+
 ### 2026-07-13 — Dev: Discord guild endpoints 500 with "Discord request failed (401)"
 - **From:** aaoa-dev (via Claude, frontend track)
 - **What:** on dev (`dev.nomnomz.bot`, owner channel `019f146e-8303-71ef-b698-18d1098d7d7e`, guild
