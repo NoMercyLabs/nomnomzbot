@@ -586,20 +586,6 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
 
 _(completed entries move here, with their commit hashes)_
 
-### 2026-07-13 — Per-user moderation context (mod-panel read side) — BUILT
-- The per-user rap-sheet ships as a dialog off the Moderation page: each banned viewer's row gets a **History**
-  action → their bot-recorded ban / timeout / warn / unban counts, last action, and recent actions, with the
-  "this bot's own record, not the full Twitch history" disclaimer. Added `UserModerationContext` +
-  `ModerationActionLog` DTOs + `ModerationApi.userContext()`, controller `openUserContext`/`closeUserContext`
-  state, the dialog, and en/nl strings. Compiles wasmJs + jvm; `ApiContractTest` (2 DTOs vs `v1.json`) +
-  `ModerationControllerTest.openUserContext…` green. (Notes / reports / unban-queue / warn / suspicious — the
-  sibling moderation entries — remain open below.)
-
-### 2026-07-13 — Pruned from Open: already built (verified present in code)
-- **Supporters** page (item 13, slice 13a) — `feature/supporters` Screen + Controller + Access + `SupportersApi` all present.
-- **Giveaways** page (parity item 12) — `feature/giveaways` Screen + Controller + Access + `GiveawaysApi` all present.
-- Note: in practice the frontend is carried by Claude, not a separate `aaoa-dev` — the completed items here were built on this track. Remaining Open items below are verified genuinely-unbuilt (no matching API method / screen anywhere in `app/`).
-
 ### 2026-07-10 — Activity feed: show the actor name on follow/sub/cheer/raid events — DONE (backend, option b)
 - Resolved backend-side: `NotifyChannelAsync` was hardcoding the top-level `userId`/`userDisplayName`
   to null; the actor-bearing broadcasters (follow, subscription/resub/gift, cheer, raid, shoutouts,
