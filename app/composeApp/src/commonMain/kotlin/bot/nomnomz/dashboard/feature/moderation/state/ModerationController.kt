@@ -23,6 +23,7 @@ import bot.nomnomz.dashboard.core.network.ModerationActionResult
 import bot.nomnomz.dashboard.core.network.ModerationApi
 import bot.nomnomz.dashboard.core.network.ModerationRule
 import bot.nomnomz.dashboard.core.network.ModerationStats
+import bot.nomnomz.dashboard.core.network.UnbanRequest
 import bot.nomnomz.dashboard.core.network.ShieldStatus
 import bot.nomnomz.dashboard.core.network.UserModerationContext
 import bot.nomnomz.dashboard.core.realtime.HubEvent
@@ -132,20 +133,38 @@ class ModerationController(
                 is ApiResult.Ok -> result.value
             }
 
+        // Pending unban-request appeals (viewers appeal a ban on Twitch). Resilient — a missing scope / no
+        // broadcaster token degrades to an empty queue rather than failing the page.
+        val unbanRequests: List<UnbanRequest> =
+            when (val result: ApiResult<List<UnbanRequest>> = moderationApi.unbanRequests(channel.id)) {
+                is ApiResult.Failure -> emptyList()
+                is ApiResult.Ok -> result.value
+            }
+
         // Empty only when there is genuinely nothing to show AND every always-on control (shield, automod) is off;
-        // if any is active, or there are filter rules, the page renders so its state stays visible.
+        // if any is active, or there are filter rules / pending appeals, the page renders so its state stays visible.
         _state.value =
             if (
                 bans.isEmpty() &&
                     modLog.isEmpty() &&
                     blockedTerms.isEmpty() &&
                     rules.isEmpty() &&
+                    unbanRequests.isEmpty() &&
                     !shieldEnabled &&
                     !anyAutomodEnabled
             ) {
                 ModerationState.Empty
             } else {
-                ModerationState.Ready(bans, modLog, shieldEnabled, blockedTerms, automod, rules, stats = stats)
+                ModerationState.Ready(
+                    bans,
+                    modLog,
+                    shieldEnabled,
+                    blockedTerms,
+                    automod,
+                    rules,
+                    stats = stats,
+                    unbanRequests = unbanRequests,
+                )
             }
     }
 
@@ -229,6 +248,16 @@ class ModerationController(
             is ApiResult.Ok -> openUserContext(userId)
             is ApiResult.Failure -> setActionError(result.error.message)
         }
+    }
+
+    /**
+     * Resolve a pending unban-request appeal ([requestId]): [approve] lifts the ban (and drops it from the
+     * queue), else it is denied with an optional [note]. Reloads the page on success so the queue + bans
+     * reflect it; surfaces the error on the current list on failure. No-ops when no channel is loaded.
+     */
+    suspend fun resolveUnbanRequest(requestId: String, approve: Boolean, note: String?) {
+        val channel: String = channelId ?: return
+        afterWrite(moderationApi.resolveUnbanRequest(channel, requestId, approve, note))
     }
 
     // Surface a write error on the current Ready list without disturbing it (same shape as the other writes).
@@ -433,6 +462,7 @@ sealed interface ModerationState {
         val rules: List<ModerationRule> = emptyList(),
         val stats: ModerationStats = ModerationStats(),
         val actionError: String? = null,
+        val unbanRequests: List<UnbanRequest> = emptyList(),
     ) : ModerationState
 
     data object Empty : ModerationState

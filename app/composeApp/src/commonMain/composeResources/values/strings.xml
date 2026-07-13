@@ -502,6 +502,11 @@
     <string name="moderation_unban_message">Unban %1$s? They'll be able to chat in your channel again.</string>
     <string name="moderation_unban_confirm">Unban</string>
     <string name="moderation_unban_dismiss">Cancel</string>
+    <string name="moderation_unban_requests_title">Unban requests</string>
+    <string name="moderation_unban_approve">Approve</string>
+    <string name="moderation_unban_deny">Deny</string>
+    <string name="moderation_unban_deny_title">Deny appeal</string>
+    <string name="moderation_unban_deny_message">Deny %1$s’s appeal? Their ban stays in place.</string>
     <string name="moderation_stats_bans_today">Bans today</string>
     <string name="moderation_stats_timeouts">Timeouts</string>
     <string name="moderation_stats_deleted">Deleted msgs</string>

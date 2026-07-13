@@ -28,6 +28,7 @@ import bot.nomnomz.dashboard.core.network.ModeratedChannel
 import bot.nomnomz.dashboard.core.network.ModerationActionLog
 import bot.nomnomz.dashboard.core.network.ModerationApi
 import bot.nomnomz.dashboard.core.network.ModerationActionResult
+import bot.nomnomz.dashboard.core.network.UnbanRequest
 import bot.nomnomz.dashboard.core.network.UserModerationContext
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -473,6 +474,36 @@ class ModerationControllerTest {
         assertEquals(listOf("123" to "restricted"), api.suspiciousSet)
         assertEquals(2, api.userContextCalls.size)
     }
+
+    @Test
+    fun load_surfaces_pending_unban_requests() = runTest {
+        val api = FakeModerationApi(ApiResult.Ok(emptyList()))
+        api.unbanRequestsResult =
+            ApiResult.Ok(listOf(UnbanRequest(id = "r1", userLogin = "troll", text = "sorry")))
+        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
+
+        controller.load()
+
+        // The page renders (not Empty) because there's a pending appeal, and it carries the request.
+        assertEquals(
+            listOf("r1"),
+            (controller.state.value as? ModerationState.Ready)?.unbanRequests?.map { it.id },
+        )
+    }
+
+    @Test
+    fun resolve_unban_request_records_the_decision_and_reloads() = runTest {
+        val api = FakeModerationApi(ApiResult.Ok(emptyList()))
+        api.unbanRequestsResult =
+            ApiResult.Ok(listOf(UnbanRequest(id = "r1", userLogin = "troll", text = "sorry")))
+        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
+        controller.load()
+
+        controller.resolveUnbanRequest("r1", approve = true, note = null)
+
+        // The resolve hit the API with exactly the decision (approve + note).
+        assertEquals(listOf(Triple("r1", true, null as String?)), api.resolvedUnban)
+    }
 }
 
 private class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : ChannelsApi {
@@ -630,6 +661,21 @@ private class FakeModerationApi(
 
     override suspend fun clearSuspicious(channelId: String, userId: String): ApiResult<Unit> {
         suspiciousCleared.add(userId)
+        return ApiResult.Ok(Unit)
+    }
+
+    var unbanRequestsResult: ApiResult<List<UnbanRequest>> = ApiResult.Ok(emptyList<UnbanRequest>())
+    val resolvedUnban: MutableList<Triple<String, Boolean, String?>> = mutableListOf()
+
+    override suspend fun unbanRequests(channelId: String): ApiResult<List<UnbanRequest>> = unbanRequestsResult
+
+    override suspend fun resolveUnbanRequest(
+        channelId: String,
+        requestId: String,
+        approve: Boolean,
+        note: String?,
+    ): ApiResult<Unit> {
+        resolvedUnban.add(Triple(requestId, approve, note))
         return ApiResult.Ok(Unit)
     }
 }

@@ -60,6 +60,7 @@ import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
 import bot.nomnomz.dashboard.core.network.AutomodConfig
 import bot.nomnomz.dashboard.core.network.BannedUser
 import bot.nomnomz.dashboard.core.network.ModLogEntry
+import bot.nomnomz.dashboard.core.network.UnbanRequest
 import bot.nomnomz.dashboard.core.network.ModerationActionLog
 import bot.nomnomz.dashboard.core.network.ModerationRule
 import bot.nomnomz.dashboard.core.network.ModerationStats
@@ -185,7 +186,12 @@ import nomnomzbot.composeapp.generated.resources.moderation_retry
 import nomnomzbot.composeapp.generated.resources.moderation_unban_action
 import nomnomzbot.composeapp.generated.resources.moderation_unban_action_short
 import nomnomzbot.composeapp.generated.resources.moderation_unban_confirm
+import nomnomzbot.composeapp.generated.resources.moderation_unban_approve
+import nomnomzbot.composeapp.generated.resources.moderation_unban_deny
+import nomnomzbot.composeapp.generated.resources.moderation_unban_deny_message
+import nomnomzbot.composeapp.generated.resources.moderation_unban_deny_title
 import nomnomzbot.composeapp.generated.resources.moderation_unban_dismiss
+import nomnomzbot.composeapp.generated.resources.moderation_unban_requests_title
 import nomnomzbot.composeapp.generated.resources.moderation_unban_message
 import nomnomzbot.composeapp.generated.resources.moderation_unban_title
 import nomnomzbot.composeapp.generated.resources.shell_nav_moderation
@@ -242,7 +248,12 @@ fun ModerationScreen(
                     rules = current.rules,
                     stats = current.stats,
                     actionError = current.actionError,
+                    unbanRequests = current.unbanRequests,
                     manage = manage,
+                    suspiciousManage = suspiciousManage,
+                    onResolveUnban = { requestId, approve, note ->
+                        scope.launch { controller.resolveUnbanRequest(requestId, approve, note) }
+                    },
                     onUnban = { userId -> scope.launch { controller.unban(userId) } },
                     onViewContext = { userId -> scope.launch { controller.openUserContext(userId) } },
                     onPerformAction = { action, userId, duration, reason ->
@@ -287,7 +298,10 @@ private fun BansList(
     rules: List<ModerationRule>,
     stats: ModerationStats,
     actionError: String?,
+    unbanRequests: List<UnbanRequest>,
     manage: ManageDecision,
+    suspiciousManage: ManageDecision,
+    onResolveUnban: (requestId: String, approve: Boolean, note: String?) -> Unit,
     onUnban: (userId: String) -> Unit,
     onViewContext: (userId: String) -> Unit,
     onPerformAction: (action: String, targetUserId: String, durationSeconds: Int?, reason: String?) -> Unit,
@@ -306,6 +320,8 @@ private fun BansList(
 
     // The ban awaiting confirmation, if any — the screen owns the dialog's open/closed state.
     var pendingUnban: BannedUser? by remember { mutableStateOf(null) }
+    // The unban-request appeal awaiting a deny confirmation, if any.
+    var pendingDeny: UnbanRequest? by remember { mutableStateOf(null) }
     // The filter rule awaiting delete confirmation, if any.
     var pendingDeleteRule: ModerationRule? by remember { mutableStateOf(null) }
     // Whether the "moderate a viewer" action dialog is open.
@@ -384,6 +400,33 @@ private fun BansList(
                                 onViewContext = { onViewContext(ban.id) },
                             )
                             if (index < bans.lastIndex) {
+                                Separator()
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if (unbanRequests.isNotEmpty()) {
+            item(key = "unban-header") {
+                Text(
+                    text = stringResource(Res.string.moderation_unban_requests_title),
+                    style = typography.lg,
+                    color = tokens.cardForeground,
+                    maxLines = 1,
+                )
+            }
+            item(key = "unban-card") {
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column {
+                        unbanRequests.forEachIndexed { index, request ->
+                            UnbanRequestRow(
+                                request = request,
+                                manage = suspiciousManage,
+                                onApprove = { onResolveUnban(request.id, true, null) },
+                                onDeny = { pendingDeny = request },
+                            )
+                            if (index < unbanRequests.lastIndex) {
                                 Separator()
                             }
                         }
@@ -547,6 +590,22 @@ private fun BansList(
                 pendingUnban = null
             },
             onDismiss = { pendingUnban = null },
+        )
+    }
+
+    pendingDeny?.let { request ->
+        val name: String = request.userName.takeIf { it.isNotBlank() } ?: request.userLogin
+        ConfirmDialog(
+            title = stringResource(Res.string.moderation_unban_deny_title),
+            message = stringResource(Res.string.moderation_unban_deny_message, name),
+            confirmLabel = stringResource(Res.string.moderation_unban_deny),
+            dismissLabel = stringResource(Res.string.moderation_unban_dismiss),
+            destructive = true,
+            onConfirm = {
+                onResolveUnban(request.id, false, null)
+                pendingDeny = null
+            },
+            onDismiss = { pendingDeny = null },
         )
     }
 
@@ -780,6 +839,59 @@ private fun BanRow(
                     color = if (enabled) tokens.primary else tokens.mutedForeground,
                     maxLines = 1,
                 )
+            }
+        }
+    }
+}
+
+// One pending unban-request appeal: the viewer + their appeal text, with Approve (lifts the ban) / Deny buttons
+// gated at the Lead-Moderator (SuperMod) floor. Deny confirms first (the ban stays); approve acts immediately.
+@Composable
+private fun UnbanRequestRow(
+    request: UnbanRequest,
+    manage: ManageDecision,
+    onApprove: () -> Unit,
+    onDeny: () -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    val name: String = request.userName.takeIf { it.isNotBlank() } ?: request.userLogin
+
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.s4, vertical = spacing.s3),
+        verticalArrangement = Arrangement.spacedBy(spacing.s2),
+    ) {
+        Text(
+            text = name,
+            style = typography.base,
+            color = tokens.cardForeground,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        if (request.text.isNotBlank()) {
+            Text(
+                text = request.text,
+                style = typography.sm,
+                color = tokens.mutedForeground,
+                maxLines = 4,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
+            ManageGate(decision = manage) { enabled ->
+                Button(onClick = onApprove, enabled = enabled) {
+                    Text(stringResource(Res.string.moderation_unban_approve))
+                }
+            }
+            ManageGate(decision = manage) { enabled ->
+                TextButton(onClick = onDeny, enabled = enabled) {
+                    Text(
+                        text = stringResource(Res.string.moderation_unban_deny),
+                        color = if (enabled) tokens.destructive else tokens.mutedForeground,
+                    )
+                }
             }
         }
     }

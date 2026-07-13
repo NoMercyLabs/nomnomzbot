@@ -113,6 +113,20 @@ interface ModerationApi {
 
     /** Clear the suspicious flag on [userId]. */
     suspend fun clearSuspicious(channelId: String, userId: String): ApiResult<Unit>
+
+    /** The channel's pending unban-request appeals (viewers appealing a ban on Twitch). Live Twitch read. */
+    suspend fun unbanRequests(channelId: String): ApiResult<List<UnbanRequest>>
+
+    /**
+     * Resolve an unban request [requestId]: [approve] lifts the ban, else it is denied. [note] is an optional
+     * resolution message. Live Twitch write.
+     */
+    suspend fun resolveUnbanRequest(
+        channelId: String,
+        requestId: String,
+        approve: Boolean,
+        note: String?,
+    ): ApiResult<Unit>
 }
 
 class RestModerationApi(private val client: ApiClient) : ModerationApi {
@@ -249,6 +263,23 @@ class RestModerationApi(private val client: ApiClient) : ModerationApi {
 
     override suspend fun clearSuspicious(channelId: String, userId: String): ApiResult<Unit> =
         client.deleteUnit("api/v1/channels/$channelId/moderation/suspicious/$userId")
+
+    // Single-value StatusResponseDto envelope ({ data: [ ... ] }) — getEnvelope reads the appeals list.
+    override suspend fun unbanRequests(channelId: String): ApiResult<List<UnbanRequest>> =
+        client.getEnvelope(
+            "api/v1/channels/$channelId/moderation/unban-requests?status=pending"
+        )
+
+    override suspend fun resolveUnbanRequest(
+        channelId: String,
+        requestId: String,
+        approve: Boolean,
+        note: String?,
+    ): ApiResult<Unit> =
+        client.postUnit(
+            "api/v1/channels/$channelId/moderation/unban-requests/$requestId/resolve",
+            ResolveUnbanBody(approve = approve, note = note),
+        )
 }
 
 /** Today's moderation counters (backend `GET /moderation/stats` anonymous object). */
@@ -425,3 +456,22 @@ data class SetSuspiciousBody(val targetUserId: String, val status: String)
  */
 @Serializable
 data class ModerationActionResult(val success: Boolean = false, val message: String? = null)
+
+/**
+ * A pending unban-request appeal (backend `UnbanRequestDto`). The viewer ([userLogin]/[userName]) appealed a
+ * ban; [text] is their message. A subset of the DTO — the fields the queue renders.
+ */
+@Serializable
+data class UnbanRequest(
+    val id: String = "",
+    val userId: String = "",
+    val userLogin: String = "",
+    val userName: String = "",
+    val text: String = "",
+    val status: String = "",
+    val createdAt: String = "",
+)
+
+/** Request body to resolve an unban request (backend `ResolveUnbanRequestRequest`). */
+@Serializable
+data class ResolveUnbanBody(val approve: Boolean, val note: String? = null)
