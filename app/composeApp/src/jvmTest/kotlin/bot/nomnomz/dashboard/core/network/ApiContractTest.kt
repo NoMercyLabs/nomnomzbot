@@ -82,6 +82,8 @@ class ApiContractTest {
             ModerationActionLog.serializer() to "ModerationActionLog",
             ModerationActionResult.serializer() to "ModerationActionResult",
             UnbanRequest.serializer() to "UnbanRequestDto",
+            ViewerReport.serializer() to "ViewerReportDto",
+            ResolveReportBody.serializer() to "ResolveViewerReportRequest",
             TtsVoice.serializer() to "TtsVoiceDto",
             TtsConfig.serializer() to "TtsConfigDto",
             TtsQueueEntry.serializer() to "TtsQueueEntryDto",

@@ -30,6 +30,7 @@ import bot.nomnomz.dashboard.core.network.ModerationApi
 import bot.nomnomz.dashboard.core.network.ModerationActionResult
 import bot.nomnomz.dashboard.core.network.NetworkBanResult
 import bot.nomnomz.dashboard.core.network.UnbanRequest
+import bot.nomnomz.dashboard.core.network.ViewerReport
 import bot.nomnomz.dashboard.core.network.UserModerationContext
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -518,6 +519,47 @@ class ModerationControllerTest {
         assertEquals(listOf("u1" to "all_moderated"), api.networkUnbanned)
         assertEquals(2, api.bansCalls)
     }
+
+    @Test
+    fun load_surfaces_open_viewer_reports() = runTest {
+        val api = FakeModerationApi(ApiResult.Ok(emptyList()))
+        api.reportsResult =
+            ApiResult.Ok(
+                listOf(
+                    ViewerReport(
+                        id = "rep1",
+                        reportedTwitchUserId = "999",
+                        reportedUsername = "spammer",
+                        reason = "posting scam links",
+                        status = "open",
+                    )
+                )
+            )
+        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
+
+        controller.load()
+
+        // The page renders (not Empty) because there's an open report, and it carries the report.
+        assertEquals(
+            listOf("rep1"),
+            (controller.state.value as? ModerationState.Ready)?.reports?.map { it.id },
+        )
+    }
+
+    @Test
+    fun resolve_report_records_the_action_and_reloads() = runTest {
+        val api = FakeModerationApi(ApiResult.Ok(emptyList()))
+        api.reportsResult =
+            ApiResult.Ok(listOf(ViewerReport(id = "rep1", reportedUsername = "spammer", status = "open")))
+        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
+        controller.load()
+
+        controller.resolveReport("rep1", "escalate")
+
+        // The triage hit the API with exactly the report id + action, and the queue reloaded.
+        assertEquals(listOf("rep1" to "escalate"), api.resolvedReports)
+        assertEquals(2, api.reportsCalls)
+    }
 }
 
 private class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : ChannelsApi {
@@ -702,5 +744,23 @@ private class FakeModerationApi(
     ): ApiResult<NetworkBanResult> {
         networkUnbanned.add(targetTwitchUserId to scope)
         return ApiResult.Ok(NetworkBanResult(attempted = 1, succeeded = 1))
+    }
+
+    var reportsResult: ApiResult<List<ViewerReport>> = ApiResult.Ok(emptyList<ViewerReport>())
+    val resolvedReports: MutableList<Pair<String, String>> = mutableListOf()
+    var reportsCalls: Int = 0
+
+    override suspend fun reports(channelId: String): ApiResult<List<ViewerReport>> {
+        reportsCalls++
+        return reportsResult
+    }
+
+    override suspend fun resolveReport(
+        channelId: String,
+        reportId: String,
+        action: String,
+    ): ApiResult<Unit> {
+        resolvedReports.add(reportId to action)
+        return ApiResult.Ok(Unit)
     }
 }

@@ -27,6 +27,7 @@ import bot.nomnomz.dashboard.core.network.NetworkBanResult
 import bot.nomnomz.dashboard.core.network.UnbanRequest
 import bot.nomnomz.dashboard.core.network.ShieldStatus
 import bot.nomnomz.dashboard.core.network.UserModerationContext
+import bot.nomnomz.dashboard.core.network.ViewerReport
 import bot.nomnomz.dashboard.core.realtime.HubEvent
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -142,8 +143,15 @@ class ModerationController(
                 is ApiResult.Ok -> result.value
             }
 
+        // Open viewer reports awaiting triage. Resilient — a failure degrades to an empty queue.
+        val reports: List<ViewerReport> =
+            when (val result: ApiResult<List<ViewerReport>> = moderationApi.reports(channel.id)) {
+                is ApiResult.Failure -> emptyList()
+                is ApiResult.Ok -> result.value
+            }
+
         // Empty only when there is genuinely nothing to show AND every always-on control (shield, automod) is off;
-        // if any is active, or there are filter rules / pending appeals, the page renders so its state stays visible.
+        // if any is active, or there are rules / pending appeals / open reports, the page renders so state stays visible.
         _state.value =
             if (
                 bans.isEmpty() &&
@@ -151,6 +159,7 @@ class ModerationController(
                     blockedTerms.isEmpty() &&
                     rules.isEmpty() &&
                     unbanRequests.isEmpty() &&
+                    reports.isEmpty() &&
                     !shieldEnabled &&
                     !anyAutomodEnabled
             ) {
@@ -165,6 +174,7 @@ class ModerationController(
                     rules,
                     stats = stats,
                     unbanRequests = unbanRequests,
+                    reports = reports,
                 )
             }
     }
@@ -259,6 +269,16 @@ class ModerationController(
     suspend fun resolveUnbanRequest(requestId: String, approve: Boolean, note: String?) {
         val channel: String = channelId ?: return
         afterWrite(moderationApi.resolveUnbanRequest(channel, requestId, approve, note))
+    }
+
+    /**
+     * Triage a viewer report [reportId]: [action] is `dismiss` (close, no action) or `escalate` (flag for a
+     * moderator to punish separately — escalation does NOT auto-punish). Reloads on success so the report drops
+     * off the open queue; surfaces the error on the current list on failure. No-ops when no channel is loaded.
+     */
+    suspend fun resolveReport(reportId: String, action: String) {
+        val channel: String = channelId ?: return
+        afterWrite(moderationApi.resolveReport(channel, reportId, action))
     }
 
     /**
@@ -477,6 +497,7 @@ sealed interface ModerationState {
         val stats: ModerationStats = ModerationStats(),
         val actionError: String? = null,
         val unbanRequests: List<UnbanRequest> = emptyList(),
+        val reports: List<ViewerReport> = emptyList(),
     ) : ModerationState
 
     data object Empty : ModerationState

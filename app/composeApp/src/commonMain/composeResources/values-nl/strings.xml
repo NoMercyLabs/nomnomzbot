@@ -499,6 +499,10 @@
     <string name="moderation_unban_message">%1$s ontbannen? Ze kunnen weer chatten in je kanaal.</string>
     <string name="moderation_unban_confirm">Ontban</string>
     <string name="moderation_unban_dismiss">Annuleren</string>
+    <string name="moderation_reports_title">Kijkersmeldingen</string>
+    <string name="moderation_reports_reported_by">Gemeld door %1$s</string>
+    <string name="moderation_reports_escalate">Escaleren</string>
+    <string name="moderation_reports_dismiss">Afwijzen</string>
     <string name="moderation_unban_requests_title">Ontbanverzoeken</string>
     <string name="moderation_unban_approve">Goedkeuren</string>
     <string name="moderation_unban_deny">Afwijzen</string>

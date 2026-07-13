@@ -61,6 +61,7 @@ import bot.nomnomz.dashboard.core.network.AutomodConfig
 import bot.nomnomz.dashboard.core.network.BannedUser
 import bot.nomnomz.dashboard.core.network.ModLogEntry
 import bot.nomnomz.dashboard.core.network.UnbanRequest
+import bot.nomnomz.dashboard.core.network.ViewerReport
 import bot.nomnomz.dashboard.core.network.ModerationActionLog
 import bot.nomnomz.dashboard.core.network.ModerationRule
 import bot.nomnomz.dashboard.core.network.ModerationStats
@@ -182,6 +183,10 @@ import nomnomzbot.composeapp.generated.resources.moderation_announce_message_lab
 import nomnomzbot.composeapp.generated.resources.moderation_announce_message_required
 import nomnomzbot.composeapp.generated.resources.moderation_announce_send
 import nomnomzbot.composeapp.generated.resources.moderation_announce_title
+import nomnomzbot.composeapp.generated.resources.moderation_reports_dismiss
+import nomnomzbot.composeapp.generated.resources.moderation_reports_escalate
+import nomnomzbot.composeapp.generated.resources.moderation_reports_reported_by
+import nomnomzbot.composeapp.generated.resources.moderation_reports_title
 import nomnomzbot.composeapp.generated.resources.moderation_retry
 import nomnomzbot.composeapp.generated.resources.moderation_unban_action
 import nomnomzbot.composeapp.generated.resources.moderation_unban_action_short
@@ -253,10 +258,14 @@ fun ModerationScreen(
                     stats = current.stats,
                     actionError = current.actionError,
                     unbanRequests = current.unbanRequests,
+                    reports = current.reports,
                     manage = manage,
                     suspiciousManage = suspiciousManage,
                     onResolveUnban = { requestId, approve, note ->
                         scope.launch { controller.resolveUnbanRequest(requestId, approve, note) }
+                    },
+                    onResolveReport = { reportId, action ->
+                        scope.launch { controller.resolveReport(reportId, action) }
                     },
                     onUnban = { userId -> scope.launch { controller.unban(userId) } },
                     onNetworkUnban = { userId ->
@@ -306,9 +315,11 @@ private fun BansList(
     stats: ModerationStats,
     actionError: String?,
     unbanRequests: List<UnbanRequest>,
+    reports: List<ViewerReport>,
     manage: ManageDecision,
     suspiciousManage: ManageDecision,
     onResolveUnban: (requestId: String, approve: Boolean, note: String?) -> Unit,
+    onResolveReport: (reportId: String, action: String) -> Unit,
     onUnban: (userId: String) -> Unit,
     onNetworkUnban: (userId: String) -> Unit,
     onViewContext: (userId: String) -> Unit,
@@ -438,6 +449,33 @@ private fun BansList(
                                 onDeny = { pendingDeny = request },
                             )
                             if (index < unbanRequests.lastIndex) {
+                                Separator()
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if (reports.isNotEmpty()) {
+            item(key = "reports-header") {
+                Text(
+                    text = stringResource(Res.string.moderation_reports_title),
+                    style = typography.lg,
+                    color = tokens.cardForeground,
+                    maxLines = 1,
+                )
+            }
+            item(key = "reports-card") {
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column {
+                        reports.forEachIndexed { index, report ->
+                            ViewerReportRow(
+                                report = report,
+                                manage = suspiciousManage,
+                                onDismiss = { onResolveReport(report.id, "dismiss") },
+                                onEscalate = { onResolveReport(report.id, "escalate") },
+                            )
+                            if (index < reports.lastIndex) {
                                 Separator()
                             }
                         }
@@ -927,6 +965,67 @@ private fun UnbanRequestRow(
                     Text(
                         text = stringResource(Res.string.moderation_unban_deny),
                         color = if (enabled) tokens.destructive else tokens.mutedForeground,
+                    )
+                }
+            }
+        }
+    }
+}
+
+// One open viewer report awaiting triage — a viewer flagged another chatter. A Lead-Moderator (SuperMod) action.
+// Dismiss closes it with no action; Escalate flags it for a moderator to punish separately (it does NOT auto-punish
+// — the mod then acts via the existing ban/timeout tools). The reporter name is shown when the backend supplies it.
+@Composable
+private fun ViewerReportRow(
+    report: ViewerReport,
+    manage: ManageDecision,
+    onDismiss: () -> Unit,
+    onEscalate: () -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.s4, vertical = spacing.s3),
+        verticalArrangement = Arrangement.spacedBy(spacing.s2),
+    ) {
+        Text(
+            text = report.reportedUsername.takeIf { it.isNotBlank() } ?: report.reportedTwitchUserId,
+            style = typography.base,
+            color = tokens.cardForeground,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        if (report.reason.isNotBlank()) {
+            Text(
+                text = report.reason,
+                style = typography.sm,
+                color = tokens.mutedForeground,
+                maxLines = 4,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        report.reporterName?.takeIf { it.isNotBlank() }?.let { reporter ->
+            Text(
+                text = stringResource(Res.string.moderation_reports_reported_by, reporter),
+                style = typography.xs,
+                color = tokens.mutedForeground,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
+            ManageGate(decision = manage) { enabled ->
+                Button(onClick = onEscalate, enabled = enabled) {
+                    Text(stringResource(Res.string.moderation_reports_escalate))
+                }
+            }
+            ManageGate(decision = manage) { enabled ->
+                TextButton(onClick = onDismiss, enabled = enabled) {
+                    Text(
+                        text = stringResource(Res.string.moderation_reports_dismiss),
+                        color = tokens.mutedForeground,
                     )
                 }
             }

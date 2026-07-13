@@ -138,6 +138,15 @@ interface ModerationApi {
         targetTwitchUserId: String,
         scope: String,
     ): ApiResult<NetworkBanResult>
+
+    /** Open viewer reports awaiting triage (a viewer flagged a chatter). Status filter defaults to `open`. */
+    suspend fun reports(channelId: String): ApiResult<List<ViewerReport>>
+
+    /**
+     * Resolve a viewer report [reportId]: [action] is `dismiss` or `escalate`. Escalate does NOT auto-punish —
+     * the mod then acts via the ban/timeout tools; it only moves the report out of the open queue.
+     */
+    suspend fun resolveReport(channelId: String, reportId: String, action: String): ApiResult<Unit>
 }
 
 class RestModerationApi(private val client: ApiClient) : ModerationApi {
@@ -301,6 +310,20 @@ class RestModerationApi(private val client: ApiClient) : ModerationApi {
         client.postEnvelope(
             "api/v1/channels/$channelId/moderation/actions/unban",
             UnbanUserBody(targetTwitchUserId = targetTwitchUserId, scope = scope),
+        )
+
+    // Single-value StatusResponseDto envelope ({ data: [ ... ] }) — getEnvelope reads the open reports.
+    override suspend fun reports(channelId: String): ApiResult<List<ViewerReport>> =
+        client.getEnvelope("api/v1/channels/$channelId/moderation/reports?status=open")
+
+    override suspend fun resolveReport(
+        channelId: String,
+        reportId: String,
+        action: String,
+    ): ApiResult<Unit> =
+        client.patchUnit(
+            "api/v1/channels/$channelId/moderation/reports/$reportId",
+            ResolveReportBody(action = action),
         )
 }
 
@@ -504,3 +527,22 @@ data class ResolveUnbanBody(val approve: Boolean, val note: String? = null)
  */
 @Serializable
 data class UnbanUserBody(val targetTwitchUserId: String, val scope: String)
+
+/**
+ * A pending viewer report (backend `ViewerReportDto`) — a viewer flagged [reportedUsername] with [reason].
+ * A subset of the DTO: the fields the triage queue renders.
+ */
+@Serializable
+data class ViewerReport(
+    val id: String = "",
+    val reportedTwitchUserId: String = "",
+    val reportedUsername: String = "",
+    val reason: String = "",
+    val status: String = "",
+    val reporterName: String? = null,
+    val createdAt: String = "",
+)
+
+/** Request body to resolve a report (backend `ResolveViewerReportRequest`). [action] is `dismiss` or `escalate`. */
+@Serializable
+data class ResolveReportBody(val action: String)
