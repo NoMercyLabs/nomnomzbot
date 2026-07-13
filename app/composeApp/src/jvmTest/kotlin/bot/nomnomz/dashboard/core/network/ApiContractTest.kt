@@ -80,6 +80,7 @@ class ApiContractTest {
             UserModerationContext.serializer() to "UserModerationContextDto",
             ModerationActionLog.serializer() to "ModerationActionLog",
             TtsVoice.serializer() to "TtsVoiceDto",
+            TtsConfig.serializer() to "TtsConfigDto",
             UserStats.serializer() to "UserStatsDto",
             CurrencyLedgerEntry.serializer() to "CurrencyLedgerEntryDto",
             BillingSubscription.serializer() to "SubscriptionDto",

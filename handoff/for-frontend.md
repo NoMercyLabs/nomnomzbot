@@ -61,26 +61,13 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
 - **Done when:** picking a voice for a viewer persists and survives reload; the picker only offers synthesizable
   voices; clearing returns the viewer to the default; picker disabled (not hidden) below the manage floor; en + nl.
 
-### 2026-07-12 — TTS "filter profanity" toggle (item 16)
+### 2026-07-12 — TTS moderator approval QUEUE PAGE (item 16) — toggle already shipped
 - **From:** Stoney_Eagle (via Claude, backend track)
-- **What:** on the TTS settings page, add a **"Filter profanity"** switch bound to the new
-  `profanityCensorEnabled` field. It's just a new boolean on the EXISTING TTS config DTOs — no new endpoint:
-  - `GET /api/v1/channels/{channelId}/tts/config` → `TtsConfigDto` now includes `profanityCensorEnabled: bool`.
-  - `PUT /api/v1/channels/{channelId}/tts/config` → `UpdateTtsConfigDto` now accepts `profanityCensorEnabled: bool?`
-    (partial update — omit to leave unchanged, like the other fields).
-- **Why:** item 16 §3.5. When on, mild swears in a spoken message are masked before the bot reads it aloud. It's an
-  **opt-OUT** setting — default ON for new channels — so surface it as ON unless the config says otherwise.
-- **Where:** TTS settings surface, next to the other toggles (skip-bot-messages, read-usernames). Same read/write
-  gates as the rest of the TTS config (`tts:config:read` / `tts:config:write`). Register the new DTO field in
-  `ApiContractTest`; the committed `server/openapi/v1.json` already carries it (additive). i18n: en + nl label +
-  helper text ("Masks mild swearing before it's read aloud").
-- **Done when:** toggling the switch persists and survives reload; a new channel shows it ON by default; en + nl.
-
-### 2026-07-12 — TTS moderator approval queue (item 16)
-- **From:** Stoney_Eagle (via Claude, backend track)
-- **What:** (1) a **"Require moderator approval"** switch on the TTS settings page, bound to the new
-  `modApprovalRequired` field (same `GET/PUT .../tts/config` DTOs as the profanity toggle; opt-IN, default OFF).
-  (2) a **TTS approval queue** panel/page where a moderator reviews pending utterances and approves or rejects each:
+- **NOTE (2026-07-13):** the two TTS config switches — **"Filter profanity"** (`profanityCensorEnabled`,
+  opt-OUT/default ON) and **"Require moderator approval"** (`modApprovalRequired`, opt-IN/default OFF) — are
+  DONE on the TTS settings page (mirror the skip-bot-messages toggle; both round-trip; `TtsConfig` guarded in
+  `ApiContractTest`). What REMAINS below is only the **queue review page**.
+- **What:** a **TTS approval queue** panel/page where a moderator reviews pending utterances and approves or rejects each:
   - `GET  /api/v1/channels/{channelId}/tts/queue?page=1&pageSize=25` → `PaginatedResponse<TtsQueueEntryDto>`
     (`id`, `requestedByTwitchUserId`, `requestedByDisplayName`, `originalText`, `censoredText`, `voiceId`,
     `wasCensored`, `status`, `createdAt`, `expiresAt`, `sourceMessageId`) — pending only, newest-first.

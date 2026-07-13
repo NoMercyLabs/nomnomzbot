@@ -412,6 +412,8 @@
     <string name="tts_label_max_length">Max message length</string>
     <string name="tts_label_skip_bot_messages">Skip bot messages</string>
     <string name="tts_label_read_usernames">Read usernames</string>
+    <string name="tts_label_filter_profanity">Filter profanity</string>
+    <string name="tts_label_mod_approval">Require moderator approval</string>
     <string name="tts_on">On</string>
     <string name="tts_off">Off</string>
     <string name="tts_loading">Loading TTS settings…</string>

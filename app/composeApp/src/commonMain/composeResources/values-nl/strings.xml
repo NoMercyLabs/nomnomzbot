@@ -409,6 +409,8 @@
     <string name="tts_label_max_length">Maximale berichtlengte</string>
     <string name="tts_label_skip_bot_messages">Botberichten overslaan</string>
     <string name="tts_label_read_usernames">Gebruikersnamen voorlezen</string>
+    <string name="tts_label_filter_profanity">Grof taalgebruik filteren</string>
+    <string name="tts_label_mod_approval">Goedkeuring moderator vereist</string>
     <string name="tts_on">Aan</string>
     <string name="tts_off">Uit</string>
     <string name="tts_loading">TTS-instellingen laden…</string>

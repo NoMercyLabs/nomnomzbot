@@ -117,6 +117,8 @@ class TtsController(
                 minPermission = config.minPermission,
                 skipBotMessages = config.skipBotMessages,
                 readUsernames = config.readUsernames,
+                profanityCensorEnabled = config.profanityCensorEnabled,
+                modApprovalRequired = config.modApprovalRequired,
             )
 
         _state.value =

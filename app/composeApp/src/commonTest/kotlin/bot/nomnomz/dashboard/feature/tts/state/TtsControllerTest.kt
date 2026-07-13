@@ -158,6 +158,8 @@ class TtsControllerTest {
                 minPermission = "subscribers",
                 skipBotMessages = false,
                 readUsernames = false,
+                profanityCensorEnabled = true,
+                modApprovalRequired = false,
             ),
             ttsApi.lastUpdate,
         )

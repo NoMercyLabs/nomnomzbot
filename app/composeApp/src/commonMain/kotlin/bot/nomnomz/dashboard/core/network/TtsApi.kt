@@ -65,6 +65,11 @@ data class TtsConfig(
     val minPermission: String = "",
     val skipBotMessages: Boolean = false,
     val readUsernames: Boolean = false,
+    // Opt-OUT: masks mild swears before a message is read aloud. Default ON, so a channel with no stored value
+    // (or an older backend that omits it) reads as ON.
+    val profanityCensorEnabled: Boolean = true,
+    // Opt-IN: hold every TTS utterance in the moderator approval queue until a mod approves it. Default OFF.
+    val modApprovalRequired: Boolean = false,
 )
 
 // The TTS config update request (backend `UpdateTtsConfigDto`). Every field is nullable: the backend
@@ -80,6 +85,8 @@ data class TtsConfigUpdate(
     val minPermission: String? = null,
     val skipBotMessages: Boolean? = null,
     val readUsernames: Boolean? = null,
+    val profanityCensorEnabled: Boolean? = null,
+    val modApprovalRequired: Boolean? = null,
 )
 
 /** The test-speak request body (backend `TtsTestRequestDto`). camelCase; [voiceId] is the full provider voice id. */

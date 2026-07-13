@@ -74,6 +74,8 @@ import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.tts_error
 import nomnomzbot.composeapp.generated.resources.tts_label_max_length
 import nomnomzbot.composeapp.generated.resources.tts_label_min_permission
+import nomnomzbot.composeapp.generated.resources.tts_label_filter_profanity
+import nomnomzbot.composeapp.generated.resources.tts_label_mod_approval
 import nomnomzbot.composeapp.generated.resources.tts_label_read_usernames
 import nomnomzbot.composeapp.generated.resources.tts_label_skip_bot_messages
 import nomnomzbot.composeapp.generated.resources.tts_label_voice
@@ -171,6 +173,8 @@ private fun ReadyContent(
     var minPermission: String by remember(loaded) { mutableStateOf(loaded.minPermission) }
     var skipBotMessages: Boolean by remember(loaded) { mutableStateOf(loaded.skipBotMessages) }
     var readUsernames: Boolean by remember(loaded) { mutableStateOf(loaded.readUsernames) }
+    var profanityCensorEnabled: Boolean by remember(loaded) { mutableStateOf(loaded.profanityCensorEnabled) }
+    var modApprovalRequired: Boolean by remember(loaded) { mutableStateOf(loaded.modApprovalRequired) }
 
     val maxLength: Int? = maxLengthText.toIntOrNull()
     val maxLengthValid: Boolean = maxLength != null && maxLength in 1..500
@@ -183,6 +187,8 @@ private fun ReadyContent(
             minPermission = minPermission,
             skipBotMessages = skipBotMessages,
             readUsernames = readUsernames,
+            profanityCensorEnabled = profanityCensorEnabled,
+            modApprovalRequired = modApprovalRequired,
         )
 
     // Save is offered only when the form is valid AND actually differs from the saved baseline — saving an
@@ -211,6 +217,10 @@ private fun ReadyContent(
             onSkipBotMessagesChange = { skipBotMessages = it },
             readUsernames = readUsernames,
             onReadUsernamesChange = { readUsernames = it },
+            profanityCensorEnabled = profanityCensorEnabled,
+            onProfanityCensorChange = { profanityCensorEnabled = it },
+            modApprovalRequired = modApprovalRequired,
+            onModApprovalChange = { modApprovalRequired = it },
             manage = manage,
             enabled = !state.saving,
         )
@@ -416,6 +426,10 @@ private fun EditCard(
     onSkipBotMessagesChange: (Boolean) -> Unit,
     readUsernames: Boolean,
     onReadUsernamesChange: (Boolean) -> Unit,
+    profanityCensorEnabled: Boolean,
+    onProfanityCensorChange: (Boolean) -> Unit,
+    modApprovalRequired: Boolean,
+    onModApprovalChange: (Boolean) -> Unit,
     manage: ManageDecision,
     enabled: Boolean,
 ) {
@@ -472,6 +486,26 @@ private fun EditCard(
                     labelRes = Res.string.tts_label_read_usernames,
                     checked = readUsernames,
                     onCheckedChange = onReadUsernamesChange,
+                    manage = manage,
+                    enabled = enabled,
+                )
+            }
+            Separator()
+            Column(modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.s4, vertical = spacing.s3)) {
+                SwitchRow(
+                    labelRes = Res.string.tts_label_filter_profanity,
+                    checked = profanityCensorEnabled,
+                    onCheckedChange = onProfanityCensorChange,
+                    manage = manage,
+                    enabled = enabled,
+                )
+            }
+            Separator()
+            Column(modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.s4, vertical = spacing.s3)) {
+                SwitchRow(
+                    labelRes = Res.string.tts_label_mod_approval,
+                    checked = modApprovalRequired,
+                    onCheckedChange = onModApprovalChange,
                     manage = manage,
                     enabled = enabled,
                 )
